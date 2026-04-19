@@ -1145,3 +1145,229 @@ decisions:
           replaced by the ADR's frozen posture; the narrowed
           alias_only / no-reveal / no-clipboard / no-session-only /
           keychain-only posture does not apply.
+
+  # ---------------------------------------------------------------------------
+  # Settings definition, effective-configuration resolver, and control-stack
+  # vocabulary
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0014
+    title: Settings definition, effective-configuration resolver, and control-stack vocabulary
+    status: decided
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-15"
+    decision_deadline: "2026-08-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1125"
+        quote: "5.18 Workspace, configuration, profiles, and sync model"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1129"
+        quote: "Configuration precedence"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1147"
+        quote: "workspace settings may never silently widen permissions, trust state, or AI egress policy"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1209"
+        quote: "Aureline must preserve unknown fields and, where practical, user comments when round-tripping human-edited files"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1213"
+        quote: "Every effective setting shown in the UI should provide 'show source' information"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1699"
+        quote: "12.4 Configuration and profile model"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1747"
+        quote: "Administrative defaults / policy ... narrows or overrides lower layers and is never merged as user preference"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1764"
+        quote: "imported or synced workspace-related settings may narrow behavior, but may never silently widen workspace trust, extension permissions, AI egress, network egress, or managed entitlements"
+      - doc: .t2/docs/Aureline_UI_UX_Spec_Document.md
+        anchor: "line 7880"
+        quote: "Feature flags, experiment, kill switches, and schema-governance UX"
+    affected_artifacts:
+      - schemas/settings/setting_definition.schema.json
+      - schemas/settings/effective_setting.schema.json
+      - artifacts/architecture/settings_tradeoff_rows.yaml
+      - artifacts/settings/scope_precedence_rows.yaml
+      - fixtures/settings/setting_examples/
+      - docs/settings/settings_vocabulary.md
+      - governance_lane:docs_public_truth
+      - governance_lane:shell_command_system
+      - governance_lane:support_export
+      - governance_lane:governance_packets
+      - docs/adr/
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the product to a two-layer settings scope model
+        (user_global and workspace only) with no admin-policy narrowing
+        ceiling, no imported-profile scope, no machine-specific scope,
+        no folder-or-module override, no language override, no
+        session-or-command override, no preview class, no rollback-
+        checkpoint posture, no restart-posture declaration, and no
+        alias / migration table, and block every lane that needs any
+        broader settings surface (profile import, optional sync,
+        admin policy narrowing, experiment rollout, schema registry,
+        support-bundle settings export) until an ADR lands.
+      applies_on: "2026-08-15"
+      requires_approval_from:
+        - architecture_council
+    linked_assumptions:
+      - A-0001
+    linked_dependencies: []
+    linked_adr: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: accept
+        notes: >
+          Closed by
+          docs/adr/0008-settings-definition-and-effective-configuration-resolver.md.
+          Freezes the stable setting-identity rule (canonical dotted
+          lower-snake setting_id, alias_set redirecting legacy ids with
+          alias_direction always redirect_to_canonical, per-version
+          migration_table with transform_class in identity /
+          narrow_enum / widen_enum_additive / split_field /
+          merge_field / rename_field / change_default_only, and the
+          rule that type-change-breaking migrations require a new
+          setting_id rather than a migration row); the declared
+          value-type classes (bool, integer, float, string, enum,
+          duration, path, uri, object, array_of<T>, tagged_union,
+          credential_alias, feature_flag_state, color_token) with
+          unknown-field preservation inside object and tagged_union
+          values and unknown-top-level settings preserved on read;
+          the allowed-scope set (built_in_default,
+          channel_or_experiment_default, imported_profile_default,
+          user_global, machine_specific, workspace,
+          folder_or_module_override, language_override,
+          session_or_command_override, admin_policy_narrowing); the
+          nine-layer precedence order with admin-policy narrowing as
+          an orthogonal ceiling (admin policy never merges as user
+          preference, never widens trust, AI egress, network egress,
+          workspace permissions, or managed entitlements); the
+          effective-setting record shape (setting_id, value,
+          resolved_scope, source_label, lifecycle_label, shadow_chain
+          with per-scope winner and redacted value_preview, lock_state,
+          lock_reason, write_intent, write_denial_reason,
+          restart_posture, preview_class, capability_dependencies,
+          control_stack, last_written with actor_class,
+          schema_version, redaction_class); the lock-state set
+          (unlocked, policy_locked, policy_constrained,
+          capability_locked, read_only_surface); the denial-reason set
+          (scope_not_allowed_for_setting,
+          scope_broadening_would_widen_trust, policy_locked_value,
+          policy_constrained_value, capability_dependency_unmet,
+          preview_required_not_acknowledged,
+          rollback_checkpoint_not_created, approval_ticket_missing,
+          restart_required_not_acknowledged, validation_failed,
+          setting_unknown_at_registry, setting_retired,
+          managed_mode_only, read_only_surface) with fail-closed
+          semantics (denials never silently downgrade, never rewrite
+          the target scope, and every denial emits a typed
+          setting_write_denied audit event); the write-intent set
+          (allowed, allowed_with_restart, allowed_with_preview,
+          allowed_with_rollback_checkpoint,
+          allowed_with_rollback_checkpoint_and_approval,
+          allowed_requires_approval_ticket, denied); the
+          restart-posture set (no_restart, reload_view,
+          reload_workspace, restart_extensions, restart_process,
+          reopen_workspace) with a typed setting_restart_posture_mismatch
+          audit event when a surface would require an undeclared
+          restart; the preview-class set (safe_apply,
+          preview_required, rollback_checkpoint_required,
+          rollback_checkpoint_and_approval_required,
+          managed_action_only) with named high-risk examples
+          (workspace trust, AI egress, network egress, admin-policy
+          mirror endpoint, extension allow / deny lists, provider
+          selection for credential-backed settings, default shell and
+          task runner, schema-version pins, policy-epoch minimums);
+          the capability-dependency kinds (feature_flag_required,
+          identity_mode_required, trust_state_minimum,
+          policy_epoch_minimum, workspace_capability,
+          extension_capability, credential_handle_class) with the rule
+          that an unmet dependency sets lock_state=capability_locked
+          while the effective record retains the last-known-valid
+          value; the control-stack block (source_label, lifecycle_label,
+          last_refresh_at, expires_at, offline_fallback in
+          authoritative_local / last_known_good_signed / cache_only /
+          unavailable_offline, explain_why_ref, control_authority in
+          embedded_default / signed_admin_bundle /
+          user_profile_workspace / managed_override /
+          experiment_rollout / kill_switch, narrowing_ceiling_active)
+          reserved for the feature-flag / experiment /
+          schema-governance / admin-policy surfaces; the
+          one-registry-no-shadows rule (UI, CLI, palette, docs,
+          policy explainer, AI Explain why, search, mutation-journal
+          renderer, support-bundle exporter, import preview, and
+          sync conflict preview all read the same registry; copy-only
+          shadow settings are forbidden on protected surfaces); the
+          scope-broadening invariants (no silent widening of trust,
+          permissions, AI egress, network egress, or workspace scope;
+          session overrides never promote to durable scopes without
+          explicit action); the audit-event id set (setting_read,
+          setting_write_proposed, setting_write_applied,
+          setting_write_denied, setting_validation_failed,
+          setting_preview_presented / _dismissed / _acknowledged,
+          setting_rollback_checkpoint_created / _restored,
+          setting_migration_applied, setting_alias_redirected,
+          setting_capability_locked_changed,
+          setting_policy_narrowing_applied,
+          setting_restart_posture_mismatch,
+          setting_unknown_preserved, setting_retired_read,
+          setting_schema_version_bumped); the process-boundary
+          constraints (resolver runs in the host process alongside
+          workspace authority; extensions reach settings through the
+          extension-SDK surface and MUST NOT crawl JSONC files
+          directly; effective-setting records cross the RPC boundary
+          but raw secret material does not; credential_alias values
+          carry aliases only; remote-agent workspaces surface a
+          remote-scoped settings view whose authority class is
+          workspace_vfs on the remote and policy_entitlement on the
+          host; crash dumps MUST NOT inherit in-flight write-intent
+          buffers carrying credential_alias values; mutation-journal
+          entries for settings writes name setting_id, resolved_scope,
+          source_label, write_intent, preview_class, and
+          rollback_checkpoint_ref without embedding raw secret
+          material); and the schema-of-record posture (Rust types in
+          the eventual settings crate are the source of truth; JSON
+          Schema exports at schemas/settings/setting_definition.schema.json
+          and schemas/settings/effective_setting.schema.json are the
+          cross-tool boundary; no external IDL or code generator
+          toolchain at this milestone; mirrors ADR 0004, ADR 0005,
+          ADR 0006, and ADR 0007). Rides ADR 0001 (identity modes
+          cap write intent), ADR 0004 (effective-setting records
+          cross the RPC boundary as typed payloads; denial reasons
+          absorbed as typed subcodes of the policy error class),
+          ADR 0005 (effective-settings subscription rides the shared
+          envelope with authority class policy_entitlement), ADR 0006
+          (settings writes flow through the compare-before-write save
+          pipeline; rollback checkpoints are mutation-journal records),
+          and ADR 0007 (credential_alias values resolve against the
+          secret broker; raw bytes never reach settings artifacts).
+          Supporting artifacts:
+          schemas/settings/setting_definition.schema.json,
+          schemas/settings/effective_setting.schema.json,
+          artifacts/architecture/settings_tradeoff_rows.yaml,
+          artifacts/settings/scope_precedence_rows.yaml,
+          docs/settings/settings_vocabulary.md, and
+          fixtures/settings/setting_examples/ (user_global_wins,
+          workspace_over_imported_profile,
+          machine_specific_excluded_from_sync,
+          admin_policy_narrowing, session_override_promotion,
+          preview_and_rollback_high_risk_change). The narrowing default
+          is replaced by the ADR's frozen posture; the narrowed
+          two-layer user-global / workspace-only posture does not
+          apply.

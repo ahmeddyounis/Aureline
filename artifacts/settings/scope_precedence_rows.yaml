@@ -1,0 +1,330 @@
+# Settings scope / precedence matrix.
+#
+# Machine-readable matrix that binds every frozen scope id to its
+# precedence rank, its intended content, its writable-by posture, its
+# synchronisability, whether admin policy may narrow it, and the
+# conformance tests a surface's rendering of that scope MUST pass.
+# Companion to ADR 0008
+# (docs/adr/0008-settings-definition-and-effective-configuration-resolver.md)
+# and the setting-definition / effective-setting schemas under
+# schemas/settings/.
+#
+# Scope rules:
+#   - Every row MUST name a scope_id from the frozen ten, a
+#     precedence_rank (integer; admin_policy_narrowing is rank 0
+#     meaning orthogonal), an intended_content summary, a
+#     writable_by list, a synced_by_default flag, a
+#     policy_narrowable flag, and at least one conformance_test.
+#   - If this file and the ADR disagree, the ADR wins and this file
+#     must be updated in the same change.
+#   - Adding a new scope is additive-minor and requires a schema bump
+#     in the setting-definition / effective-setting schemas and a new
+#     row here.
+
+schema_version: 1
+
+adr_source: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+decision_id: D-0014
+decision_register: artifacts/governance/decision_index.yaml
+
+# Frozen scope vocabulary. Re-exported from the JSON Schemas under
+# schemas/settings/ so tooling can discover the authoritative list
+# without parsing this file.
+scope_vocabulary:
+  - built_in_default
+  - channel_or_experiment_default
+  - imported_profile_default
+  - user_global
+  - machine_specific
+  - workspace
+  - folder_or_module_override
+  - language_override
+  - session_or_command_override
+  - admin_policy_narrowing
+
+rows:
+  - scope_id: built_in_default
+    precedence_rank: 1
+    orthogonal_ceiling: false
+    intended_content: >
+      Ship-time defaults compiled into the product. Always present;
+      never absent.
+    writable_by: []
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "Aureline default"
+    example_settings:
+      - editor.tab_size
+      - terminal.cursor_blink
+    conformance_tests:
+      - id: always_present_read
+        description: >
+          The resolver MUST return a value at this scope for every
+          known setting; a missing built_in_default row is a
+          registry bug.
+      - id: never_user_writable
+        description: >
+          A write intent targeting built_in_default MUST be denied
+          with scope_not_allowed_for_setting.
+
+  - scope_id: channel_or_experiment_default
+    precedence_rank: 2
+    orthogonal_ceiling: false
+    intended_content: >
+      Release-channel or experiment-rollout default declared in the
+      control stack. Overrides the built-in default when the channel
+      or experiment binding is active.
+    writable_by:
+      - release_channel_bundle
+      - experiment_rollout
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: 'Channel default / Experiment default'
+    example_settings:
+      - ai.default_provider.alias
+      - preview.feature_flag.buffer_paged_rope
+    conformance_tests:
+      - id: carries_expiry
+        description: >
+          Experiment defaults MUST populate control_stack.expires_at;
+          channel defaults MAY leave it null.
+      - id: control_authority_set
+        description: >
+          control_stack.control_authority MUST be
+          signed_admin_bundle, experiment_rollout, or kill_switch
+          when this scope wins.
+
+  - scope_id: imported_profile_default
+    precedence_rank: 3
+    orthogonal_ceiling: false
+    intended_content: >
+      Defaults carried by an imported profile artifact (Aureline
+      profile, VS Code import, JetBrains import, etc.). Narrowing
+      only; an imported profile MAY NOT silently widen trust,
+      permissions, AI egress, or managed entitlements.
+    writable_by:
+      - profile_import_action
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "Imported profile"
+    example_settings:
+      - editor.font_family
+      - workbench.color_theme
+    conformance_tests:
+      - id: no_silent_trust_widening
+        description: >
+          Any write at this scope that would widen workspace trust,
+          AI egress, network egress, or managed entitlement MUST be
+          denied with scope_broadening_would_widen_trust.
+      - id: round_trip_fidelity
+        description: >
+          Import paths preserve unknown fields and user comments; a
+          subsequent export reproduces the imported artifact byte-
+          for-byte modulo documented canonicalisation.
+
+  - scope_id: user_global
+    precedence_rank: 4
+    orthogonal_ceiling: false
+    intended_content: >
+      User-level value held in the user's global settings file
+      (conventionally $AURELINE_CONFIG/settings.jsonc or equivalent).
+    writable_by:
+      - user_keystroke
+      - user_command
+      - ai_apply_on_user_global
+      - extension_api_on_user_global
+    synced_by_default: true
+    policy_narrowable: true
+    source_label_hint: "User settings"
+    example_settings:
+      - editor.tab_size
+      - workbench.color_theme
+    conformance_tests:
+      - id: ui_show_source_label
+        description: >
+          The UI 'show source' affordance MUST render
+          source_label_hint text when this scope wins.
+      - id: sync_round_trip
+        description: >
+          The optional-sync lane round-trips user_global values
+          through the same validation and migration pipeline as
+          interactive writes.
+
+  - scope_id: machine_specific
+    precedence_rank: 5
+    orthogonal_ceiling: false
+    intended_content: >
+      Machine-bound value held locally (for example, machine-specific
+      toolchain path, GPU-adapter preference, local-disk cache size).
+      Never carried by the optional-sync lane.
+    writable_by:
+      - user_keystroke
+      - user_command
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "This machine"
+    example_settings:
+      - runtime.gpu_adapter_hint
+      - build.local_cache_path
+    conformance_tests:
+      - id: sync_excluded
+        description: >
+          The optional-sync lane MUST exclude machine_specific values
+          from default sync payloads; inclusion requires an explicit
+          per-machine override that is itself denied by the
+          non-widening rule when it would export secrets.
+      - id: support_bundle_labelled
+        description: >
+          Support bundles that include machine_specific values MUST
+          label them with source_label_hint 'This machine' and
+          respect the setting's redaction_class.
+
+  - scope_id: workspace
+    precedence_rank: 6
+    orthogonal_ceiling: false
+    intended_content: >
+      Value held in a workspace manifest or workspace settings file.
+      Shared with everyone who opens the workspace; subject to the
+      non-widening rule.
+    writable_by:
+      - user_keystroke
+      - user_command
+      - workspace_migration
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "Workspace"
+    example_settings:
+      - editor.tab_size
+      - tasks.default_task_runner
+    conformance_tests:
+      - id: no_silent_trust_widening
+        description: >
+          Workspace values that would widen trust, permissions, AI
+          egress, network egress, or managed entitlements MUST be
+          denied with scope_broadening_would_widen_trust.
+      - id: preview_class_respected
+        description: >
+          Workspace writes to settings whose preview_class is not
+          safe_apply MUST surface the preview / rollback / approval
+          affordance before apply.
+
+  - scope_id: folder_or_module_override
+    precedence_rank: 7
+    orthogonal_ceiling: false
+    intended_content: >
+      Override scoped to a directory or module inside the workspace
+      (for example, a subfolder-specific lint rule or formatter
+      setting).
+    writable_by:
+      - user_keystroke
+      - user_command
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "Folder override"
+    example_settings:
+      - editor.format_on_save
+      - lint.strict_mode
+    conformance_tests:
+      - id: scoped_path_rendered
+        description: >
+          The UI and CLI MUST render the folder / module path in the
+          source_label when this scope wins (for example,
+          'Folder override: packages/ui').
+      - id: narrower_than_workspace
+        description: >
+          A folder override cannot be installed for a setting whose
+          allowed_scopes does not include folder_or_module_override.
+
+  - scope_id: language_override
+    precedence_rank: 8
+    orthogonal_ceiling: false
+    intended_content: >
+      Override keyed on the active language / semantic domain
+      (for example, editor.tab_size keyed on language=python).
+    writable_by:
+      - user_keystroke
+      - user_command
+    synced_by_default: true
+    policy_narrowable: true
+    source_label_hint: "Language override"
+    example_settings:
+      - editor.tab_size
+      - editor.insert_spaces
+    conformance_tests:
+      - id: language_key_rendered
+        description: >
+          The source_label MUST carry the language key
+          (for example, 'Language override: python').
+      - id: per_language_precedence
+        description: >
+          When multiple language keys match (mixed-language buffer),
+          the resolver MUST apply the primary language and surface
+          the decision to the shadow_chain consumer.
+
+  - scope_id: session_or_command_override
+    precedence_rank: 9
+    orthogonal_ceiling: false
+    intended_content: >
+      Session-scoped or command-scoped override; discarded when the
+      scope ends unless explicitly promoted to a durable scope.
+    writable_by:
+      - user_keystroke
+      - user_command
+      - extension_api
+      - ai_apply
+    synced_by_default: false
+    policy_narrowable: true
+    source_label_hint: "Session override"
+    example_settings:
+      - editor.word_wrap
+      - terminal.font_size
+    conformance_tests:
+      - id: never_auto_promoted
+        description: >
+          A session override MUST NOT promote to a durable scope
+          without an explicit user or migration action; the
+          effective-setting record's source_label MUST name the
+          ephemeral source.
+      - id: expiry_signalled
+        description: >
+          The effective record's control_stack.expires_at MAY be set
+          to the session end for subscriptions that want to render a
+          visible expiry countdown.
+
+  - scope_id: admin_policy_narrowing
+    precedence_rank: 0
+    orthogonal_ceiling: true
+    intended_content: >
+      Admin-policy narrowing ceiling. Evaluated AFTER the nine value
+      layers resolve. MAY enforce an allowed value set, pin a value,
+      or reduce a capability; MAY NOT widen trust, permissions, AI
+      egress, network egress, or managed entitlements beyond the
+      layered value.
+    writable_by:
+      - admin_policy_injector
+    synced_by_default: false
+    policy_narrowable: false
+    source_label_hint: "Admin policy"
+    example_settings:
+      - security.ai.egress_policy
+      - security.network.allow_list
+      - extensions.allow_list
+    conformance_tests:
+      - id: narrowing_only
+        description: >
+          Admin policy narrowing MUST NOT replace a lower layer's
+          value with a widened value; a narrowing attempt that would
+          widen MUST be rejected by the resolver and logged as a
+          setting_policy_narrowing_applied event with a rejected
+          outcome.
+      - id: never_merged_as_user_preference
+        description: >
+          Admin policy values MUST NOT appear as the user's preferred
+          value in profile exports, optional-sync payloads, or
+          import-preview surfaces.
+      - id: control_stack_narrowing_flag
+        description: >
+          When admin policy narrowing is active, the effective
+          record's control_stack.narrowing_ceiling_active MUST be
+          true and control_stack.control_authority MUST be
+          signed_admin_bundle or managed_override.

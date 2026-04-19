@@ -1,0 +1,504 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/effective_setting.schema.json",
+  "title": "Aureline effective-setting record",
+  "description": "Boundary schema for the effective-setting record every Aureline surface reads when quoting or rendering a setting. See docs/adr/0008-settings-definition-and-effective-configuration-resolver.md. One record shape flows between the resolver and every consumer (UI, JSONC files, CLI, command palette, docs, policy explainer, AI 'Explain why' affordance, profile import / export, optional sync, schema registry, mutation journal, support-bundle exporter). The record carries the winning value, the resolved scope, the shadow chain (every contributing scope in precedence order), the lock / constraint state, the typed write intent and denial reason, the restart posture, the preview class, the capability dependencies copied from the definition row, the control-stack block, and the audit provenance. Raw secret material never appears; credential_alias values carry aliases only (ADR-0007). The eventual settings crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new top-level field, a new audit event id, or an additional enum value is additive-minor and bumps settings_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/effective_setting_record" },
+    { "$ref": "#/$defs/settings_audit_event_record" }
+  ],
+  "$defs": {
+    "settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this effective-setting vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "effective_setting_record",
+        "settings_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id. Must match a setting-definition row after alias redirection."
+    },
+
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_or_command_override",
+        "admin_policy_narrowing"
+      ],
+      "description": "Frozen scope id."
+    },
+
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["experimental", "beta", "stable", "deprecated", "retired"]
+    },
+
+    "lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "policy_locked",
+        "policy_constrained",
+        "capability_locked",
+        "read_only_surface"
+      ],
+      "description": "Frozen lock-state vocabulary."
+    },
+
+    "lock_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "policy_pins_value",
+        "policy_constrains_allowed_set",
+        "capability_dependency_unmet",
+        "surface_cannot_write_this_scope",
+        "setting_retired",
+        "managed_mode_only"
+      ],
+      "description": "Typed reason the current lock_state was set. 'none' pairs with lock_state=unlocked."
+    },
+
+    "write_intent": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_restart",
+        "allowed_with_preview",
+        "allowed_with_rollback_checkpoint",
+        "allowed_with_rollback_checkpoint_and_approval",
+        "allowed_requires_approval_ticket",
+        "denied"
+      ],
+      "description": "Frozen write-intent vocabulary. Gates preview / apply UX."
+    },
+
+    "write_denial_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "scope_not_allowed_for_setting",
+        "scope_broadening_would_widen_trust",
+        "policy_locked_value",
+        "policy_constrained_value",
+        "capability_dependency_unmet",
+        "preview_required_not_acknowledged",
+        "rollback_checkpoint_not_created",
+        "approval_ticket_missing",
+        "restart_required_not_acknowledged",
+        "validation_failed",
+        "setting_unknown_at_registry",
+        "setting_retired",
+        "managed_mode_only",
+        "read_only_surface"
+      ],
+      "description": "Frozen denial-reason vocabulary. 'none' pairs with write_intent != denied and surfaces 'no denial'."
+    },
+
+    "restart_posture": {
+      "type": "string",
+      "enum": [
+        "no_restart",
+        "reload_view",
+        "reload_workspace",
+        "restart_extensions",
+        "restart_process",
+        "reopen_workspace"
+      ]
+    },
+
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "safe_apply",
+        "preview_required",
+        "rollback_checkpoint_required",
+        "rollback_checkpoint_and_approval_required",
+        "managed_action_only"
+      ]
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "imported_profile",
+        "workspace_migration",
+        "admin_policy_injector",
+        "experiment_rollout",
+        "session_override",
+        "extension_api",
+        "ai_apply"
+      ],
+      "description": "Frozen actor class for the most recent write that produced this value."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction class copied from the definition row."
+    },
+
+    "control_authority": {
+      "type": "string",
+      "enum": [
+        "embedded_default",
+        "signed_admin_bundle",
+        "user_profile_workspace",
+        "managed_override",
+        "experiment_rollout",
+        "kill_switch"
+      ],
+      "description": "Frozen control-authority class. Names which external control is currently influencing the setting."
+    },
+
+    "offline_fallback": {
+      "type": "string",
+      "enum": [
+        "authoritative_local",
+        "last_known_good_signed",
+        "cache_only",
+        "unavailable_offline"
+      ],
+      "description": "Local-offline fallback posture reserved for the control-stack surfaces."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "setting_read",
+        "setting_write_proposed",
+        "setting_write_applied",
+        "setting_write_denied",
+        "setting_validation_failed",
+        "setting_preview_presented",
+        "setting_preview_dismissed",
+        "setting_preview_acknowledged",
+        "setting_rollback_checkpoint_created",
+        "setting_rollback_checkpoint_restored",
+        "setting_migration_applied",
+        "setting_alias_redirected",
+        "setting_capability_locked_changed",
+        "setting_policy_narrowing_applied",
+        "setting_restart_posture_mismatch",
+        "setting_unknown_preserved",
+        "setting_retired_read",
+        "setting_schema_version_bumped"
+      ],
+      "description": "Frozen settings audit-event id set. Carried on the 'settings' audit stream."
+    },
+
+    "shadow_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "value_present", "winner"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope_id" },
+        "value_present": {
+          "type": "boolean",
+          "description": "Whether a value existed in this scope at resolution time."
+        },
+        "value_preview": {
+          "description": "Preview of the scope's value (redacted per the setting's declared redaction_class). Never raw secret material. Absent when value_present is false."
+        },
+        "source_label": {
+          "type": ["string", "null"],
+          "description": "Human-readable source tag for this scope."
+        },
+        "winner": {
+          "type": "boolean",
+          "description": "True for exactly one entry unless the resolver returned a degraded default; false otherwise."
+        }
+      },
+      "description": "One entry in the shadow chain, in precedence order."
+    },
+
+    "capability_dependency_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "satisfied"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "feature_flag_required",
+            "identity_mode_required",
+            "trust_state_minimum",
+            "policy_epoch_minimum",
+            "workspace_capability",
+            "extension_capability",
+            "credential_handle_class"
+          ]
+        },
+        "satisfied": {
+          "type": "boolean",
+          "description": "True when the dependency is currently satisfied; false locks the setting."
+        },
+        "observed_state": {
+          "type": ["string", "null"],
+          "description": "Diagnostic label for the dependency's current state (for example, 'flag=off', 'trust=restricted', 'policy_epoch=14'). Redacted per ADR-0007."
+        }
+      },
+      "description": "Capability-dependency state copied into the effective-setting record when the setting is gated."
+    },
+
+    "control_stack_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_label",
+        "lifecycle_label",
+        "control_authority",
+        "narrowing_ceiling_active"
+      ],
+      "properties": {
+        "source_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short source tag for the winning layer."
+        },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "last_refresh_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp of the last time the control stack evaluated this setting."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the current control-stack binding expires; null if not bounded."
+        },
+        "offline_fallback": {
+          "anyOf": [
+            { "$ref": "#/$defs/offline_fallback" },
+            { "type": "null" }
+          ],
+          "description": "Local-offline fallback posture for this setting at the moment of evaluation."
+        },
+        "explain_why_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle the 'Explain why' affordance resolves against the resolver."
+        },
+        "control_authority": { "$ref": "#/$defs/control_authority" },
+        "narrowing_ceiling_active": {
+          "type": "boolean",
+          "description": "True when admin-policy narrowing is capping the effective value."
+        }
+      },
+      "description": "Frozen control-stack block. Reserves source label, lifecycle label, last-refresh stamp, expiry, local-offline fallback, explain-why affordance, control authority, and narrowing-ceiling state so the feature-flag, experiment, schema-governance, and admin-policy surfaces share one decision trace."
+    },
+
+    "last_written_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "actor_class"],
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp of the most recent write that produced this value."
+        },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "mutation_journal_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the write that produced this value."
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the rollback checkpoint created before this write, when the setting's preview_class requires one."
+        }
+      },
+      "description": "Provenance for the most recent write."
+    },
+
+    "effective_setting_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "setting_id",
+        "value",
+        "resolved_scope",
+        "source_label",
+        "lifecycle_label",
+        "shadow_chain",
+        "lock_state",
+        "lock_reason",
+        "write_intent",
+        "write_denial_reason",
+        "restart_posture",
+        "preview_class",
+        "capability_dependencies",
+        "control_stack",
+        "last_written",
+        "schema_version",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "effective_setting_record"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "value": {
+          "description": "Current effective value, typed per the definition row. credential_alias values carry aliases only (never raw secret bytes). Null is permitted only when the definition row declares a nullable value type."
+        },
+        "resolved_scope": { "$ref": "#/$defs/scope_id" },
+        "source_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable source tag for the winning scope."
+        },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "shadow_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shadow_chain_entry" },
+          "description": "Ordered list of contributing scopes, in precedence order. Exactly one entry has winner=true unless the resolver returned a degraded default."
+        },
+        "lock_state": { "$ref": "#/$defs/lock_state" },
+        "lock_reason": { "$ref": "#/$defs/lock_reason" },
+        "write_intent": { "$ref": "#/$defs/write_intent" },
+        "write_denial_reason": { "$ref": "#/$defs/write_denial_reason" },
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "capability_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_dependency_state" },
+          "description": "Capability dependencies copied from the definition row with their observed state."
+        },
+        "control_stack": { "$ref": "#/$defs/control_stack_block" },
+        "last_written": { "$ref": "#/$defs/last_written_block" },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The setting-definition schema version the record conforms to (copied from the registry). Distinct from settings_schema_version, which versions this envelope."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "alias_redirected_from": {
+          "type": ["string", "null"],
+          "description": "Legacy setting_id the caller asked for when a redirect fired; null if the caller asked for the canonical id directly."
+        },
+        "migration_applied": {
+          "type": ["string", "null"],
+          "description": "from_version of the migration row applied on read; null if the stored value already matched the current shape."
+        },
+        "preview_state": {
+          "type": ["string", "null"],
+          "enum": ["not_required", "presented", "acknowledged", "dismissed", null],
+          "description": "Current preview-flow state for preview_required and higher preview classes."
+        },
+        "remote_scope_context": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "remote_session_id": { "type": "string", "minLength": 1 },
+            "remote_source_label": { "type": "string", "minLength": 1 }
+          },
+          "description": "Present when the setting resolved inside a remote-agent workspace; names the remote session and the remote-side source label."
+        }
+      },
+      "description": "One effective-setting record. The only truth that flows between the resolver and any consumer surface."
+    },
+
+    "settings_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "event_id",
+        "setting_id",
+        "at",
+        "actor_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "settings_audit_event_record"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "event_id": { "$ref": "#/$defs/audit_event_id" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "at": { "type": "string", "format": "date-time" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "resolved_scope": {
+          "anyOf": [
+            { "$ref": "#/$defs/scope_id" },
+            { "type": "null" }
+          ],
+          "description": "Scope that won at event time; null when no resolution occurred (for example, registry-only events)."
+        },
+        "source_label": {
+          "type": ["string", "null"]
+        },
+        "lifecycle_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/lifecycle_label" },
+            { "type": "null" }
+          ]
+        },
+        "write_intent": {
+          "anyOf": [
+            { "$ref": "#/$defs/write_intent" },
+            { "type": "null" }
+          ]
+        },
+        "write_denial_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/write_denial_reason" },
+            { "type": "null" }
+          ]
+        },
+        "policy_epoch": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "trust_state": {
+          "type": ["string", "null"],
+          "enum": ["restricted", "trusted", null]
+        },
+        "workspace_scope_ref": {
+          "type": ["string", "null"],
+          "description": "Stable workspace scope id (ADR-0005) for events bound to a workspace."
+        },
+        "mutation_journal_ref": {
+          "type": ["string", "null"]
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material."
+        }
+      },
+      "description": "One structured audit event on the 'settings' stream. Raw secret material is forbidden."
+    }
+  }
+}

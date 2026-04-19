@@ -1,0 +1,500 @@
+# Settings tradeoff rows.
+#
+# Machine-readable tradeoff table backing ADR 0008
+# (docs/adr/0008-settings-definition-and-effective-configuration-resolver.md).
+# Each row names one decision axis, what the chosen settings contract
+# commits to, the rejected alternative that came closest, why the
+# chosen posture wins on that axis, and the observable signal that
+# would force the row to reopen. Tooling (settings UI, CLI,
+# command palette, docs renderer, policy explainer, AI 'Explain why'
+# affordance, profile import / export, optional sync, mutation-journal
+# renderer, schema-registry distribution, support-bundle exporter,
+# benchmark lab, governance packets) may read these rows to avoid
+# inventing parallel vocabulary for the same tradeoff.
+#
+# Scope rules:
+#   - Every row MUST name an axis, a chosen_stack summary, a
+#     best_rejected_alternative, at least one supporting
+#     source_anchor, and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - Do not re-litigate a rejected alternative by editing its row;
+#     open a new decision row instead (see ADR 0008's "Consequences"
+#     and "Alternatives considered" sections).
+
+schema_version: 1
+
+adr_source: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+decision_id: D-0014
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Axis vocabulary.
+#
+# Every row's `axis` field MUST be one of these. A new axis requires a
+# schema bump and a note on the ADR.
+# -----------------------------------------------------------------------------
+axes:
+  - identity_model
+  - allowed_scopes
+  - precedence_order
+  - effective_setting_record
+  - lock_and_constraint_state
+  - shadow_settings
+  - restart_posture
+  - migration_posture
+  - schema_discipline
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers. `blocker` forces a new
+# decision row on sight; `watch` logs a row for shiproom review.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - axis: identity_model
+    chosen_stack:
+      summary: >
+        One canonical setting_id with a stable dotted lower-snake
+        shape; legacy ids redirect through an alias_set whose
+        alias_direction is always redirect_to_canonical; a migration
+        row cannot change a setting's type in a way that no transform
+        can describe (a type change requires minting a new setting_id
+        and aliasing the old one onto it).
+      commits:
+        - canonical setting_id pattern frozen in the setting-definition schema
+        - alias_set redirects only; never mints parallel rows
+        - migration rows carry from_version / to_version / transform_class
+        - type_change_breaking is NOT a transform class
+    best_rejected_alternative:
+      summary: >
+        Free-form ids per surface (each of UI, CLI, docs, policy,
+        migration, and sync chooses its own id shape).
+      rejection_reason: >
+        Without a canonical setting_id, keymaps, docs, policy,
+        migration, sync, mutation journal, and support export drift
+        into incompatible id spaces. Renames become breakage events
+        instead of alias rows.
+    why_chosen_wins: >
+        Stable ids let keymaps, docs, policy, automation, and import
+        paths survive renames without hidden breakage; one registry
+        row per setting keeps the shadow-chain and show-source
+        affordances honest.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1125"
+        quote: "5.18 Workspace, configuration, profiles, and sync model"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1209"
+        quote: "Aureline must preserve unknown fields and, where practical, user comments when round-tripping human-edited files"
+    protected_hot_path_hooks:
+      - setting_read
+      - setting_alias_redirected
+      - setting_migration_applied
+    reopen_triggers:
+      - id: alias_cycle_detected
+        severity: blocker
+        description: >
+          The registry grows an alias cycle (an id's alias chain
+          contains itself) and the resolver cannot resolve
+          deterministically.
+      - id: type_change_needs_inline_migration
+        severity: watch
+        description: >
+          A concrete setting needs a type change that cannot be
+          expressed as an alias + new setting_id (for example, because
+          rename-in-place is mandated by a downstream tool that will
+          not follow the alias).
+
+  - axis: allowed_scopes
+    chosen_stack:
+      summary: >
+        Frozen scope set (built_in_default,
+        channel_or_experiment_default, imported_profile_default,
+        user_global, machine_specific, workspace,
+        folder_or_module_override, language_override,
+        session_or_command_override, admin_policy_narrowing). Every
+        setting declares the subset in which it MAY be written;
+        writes from other scopes are denied with
+        scope_not_allowed_for_setting. Widening is additive-minor;
+        narrowing is breaking.
+      commits:
+        - ten-scope set is frozen
+        - per-setting allowed_scopes is declared in the definition row
+        - narrowing a previously allowed scope requires a new decision row
+        - silent scope broadening is forbidden
+    best_rejected_alternative:
+      summary: >
+        Let every setting declare an ad-hoc scope list (no frozen
+        vocabulary).
+      rejection_reason: >
+        Unbounded scope lists make precedence unprovable. Support
+        bundles, policy explainers, and migration tooling cannot
+        compare 'which scope won' across settings when every setting
+        invents its own scope names.
+    why_chosen_wins: >
+        A frozen scope set keeps the resolver deterministic, lets
+        every surface render the same source labels, and lets admin
+        policy narrow values without entering the user's preference
+        layer.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1129"
+        quote: "Configuration precedence"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1747"
+        quote: "Administrative defaults / policy ... narrows or overrides lower layers and is never merged as user preference"
+    protected_hot_path_hooks:
+      - setting_read
+      - setting_write_denied
+      - setting_policy_narrowing_applied
+    reopen_triggers:
+      - id: protected_surface_needs_private_scope
+        severity: blocker
+        description: >
+          A protected surface demonstrates it needs a scope that is
+          not in the frozen set (for example, a per-companion-window
+          scope that cannot be collapsed onto session_or_command_override).
+      - id: admin_policy_must_widen
+        severity: blocker
+        description: >
+          A concrete admin-policy use case requires widening trust,
+          permissions, AI egress, network egress, or managed
+          entitlement beyond a lower layer's declared value. The ADR
+          forbids this; a reopened decision row is required before
+          any widening lands.
+
+  - axis: precedence_order
+    chosen_stack:
+      summary: >
+        Nine-layer value precedence (built_in_default,
+        channel_or_experiment_default, imported_profile_default,
+        user_global, machine_specific, workspace,
+        folder_or_module_override, language_override,
+        session_or_command_override) plus admin_policy_narrowing
+        evaluated as an orthogonal ceiling after the nine layers
+        resolve. Admin policy MAY enforce a constrained value set,
+        mark the setting locked, or reduce a capability; it MAY NOT
+        widen.
+      commits:
+        - nine layers frozen in order in the ADR and the schemas
+        - admin narrowing is orthogonal; it caps the layered value
+        - non-widening rule forbids silent trust expansion
+    best_rejected_alternative:
+      summary: >
+        Collapse layers into user / workspace / admin only.
+      rejection_reason: >
+        Collapsing hides the imported-profile scope, the
+        machine-specific scope, the folder / module override, and the
+        language override — exactly the scopes migration, portable
+        profiles, and per-language behaviour depend on.
+    why_chosen_wins: >
+        The nine layers preserve every distinction the PRD and TAD
+        already make; treating admin policy as a narrowing ceiling
+        keeps the value precedence clean while still honouring the
+        admin-never-merges-as-user-preference rule.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1129"
+        quote: "Configuration precedence"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 7550"
+        quote: "Control-plane precedence"
+    protected_hot_path_hooks:
+      - setting_read
+      - setting_policy_narrowing_applied
+    reopen_triggers:
+      - id: layer_order_contested
+        severity: blocker
+        description: >
+          A concrete surface demonstrates the frozen order produces
+          an incorrect winner for a real-world user flow
+          (for example, workspace should not beat machine_specific
+          for a documented workspace-level hardware setting). The ADR
+          treats this as a reopen, not an implementation tweak.
+      - id: admin_narrowing_cannot_express_policy
+        severity: watch
+        description: >
+          An admin-policy use case cannot be expressed as a narrowing
+          ceiling; the policy team flags a watch row for shiproom
+          review.
+
+  - axis: effective_setting_record
+    chosen_stack:
+      summary: >
+        One frozen record shape with setting_id, value, resolved_scope,
+        source_label, lifecycle_label, shadow_chain, lock_state,
+        lock_reason, write_intent, write_denial_reason,
+        restart_posture, preview_class, capability_dependencies,
+        control_stack, last_written, schema_version, and
+        redaction_class. No surface invents additional top-level
+        fields.
+      commits:
+        - record shape frozen in schemas/settings/effective_setting.schema.json
+        - shadow_chain has exactly one winner unless degraded
+        - control_stack reserves explain-why / expiry / offline fallback
+    best_rejected_alternative:
+      summary: >
+        Per-surface view structs (UI, CLI, palette, docs, policy each
+        define their own effective-setting shape).
+      rejection_reason: >
+        Per-surface structs guarantee drift between UI, CLI, palette,
+        docs, policy, and support bundles. 'Show source' and
+        'Explain why' would tell different stories on every surface.
+    why_chosen_wins: >
+        One record shape lets every consumer read the same truth;
+        adding a new field is additive-minor so the shape can evolve
+        without splitting the vocabulary.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1213"
+        quote: "Every effective setting shown in the UI should provide 'show source' information"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1732"
+        quote: "effective settings expose source attribution in the UI"
+    protected_hot_path_hooks:
+      - setting_read
+      - setting_write_proposed
+      - setting_write_applied
+    reopen_triggers:
+      - id: record_field_missing_for_audit
+        severity: blocker
+        description: >
+          The support-bundle exporter or the governance packet builder
+          cannot reconstruct what the user saw because a required
+          attribution field is missing from the record.
+      - id: surface_needs_private_field
+        severity: watch
+        description: >
+          A surface proposes a private top-level field that cannot be
+          expressed as a control-stack extension or an additive-minor
+          bump.
+
+  - axis: lock_and_constraint_state
+    chosen_stack:
+      summary: >
+        Typed lock states (unlocked, policy_locked,
+        policy_constrained, capability_locked, read_only_surface) and
+        typed denial reasons (fourteen frozen codes including
+        scope_not_allowed_for_setting,
+        scope_broadening_would_widen_trust, policy_locked_value,
+        capability_dependency_unmet, and validation_failed). Writes
+        fail closed; the resolver never silently writes to a
+        different scope.
+      commits:
+        - denial reasons frozen
+        - every denial emits setting_write_denied on the audit stream
+        - capability_locked keeps last-known-valid value while locking writes
+    best_rejected_alternative:
+      summary: >
+        Silent scope downgrade on denial (if the user-global scope is
+        locked, fall through to workspace without warning).
+      rejection_reason: >
+        Silent downgrade hides the policy ceiling and produces
+        surprise leaks (for example, a workspace trust toggle
+        silently written to user-global storage). The resulting
+        surface state is indistinguishable from a bug.
+    why_chosen_wins: >
+        Typed denial with a visible repair path is the only
+        auditable posture. Users see the ceiling; administrators see
+        the narrowing working; migrations preserve the original value
+        when a transient dependency is unmet.
+    source_anchors:
+      - doc: .t2/docs/Aureline_UI_UX_Spec_Document.md
+        anchor: "line 3121"
+        quote: "Policy-locked / managed ... the user can inspect but not override the effective value"
+    protected_hot_path_hooks:
+      - setting_write_denied
+      - setting_capability_locked_changed
+      - setting_policy_narrowing_applied
+    reopen_triggers:
+      - id: new_denial_reason_needed
+        severity: watch
+        description: >
+          A concrete write path needs a denial reason that is not in
+          the frozen set (for example, an export-import round-trip
+          integrity failure). New reasons are additive-minor; reuse
+          of an existing reason with a new meaning reopens this row.
+      - id: silent_downgrade_observed
+        severity: blocker
+        description: >
+          A consumer reports that the resolver silently wrote to a
+          scope different from the one the user targeted.
+
+  - axis: shadow_settings
+    chosen_stack:
+      summary: >
+        One registry. Copy-only shadow settings forbidden on protected
+        surfaces; aliases redirect instead.
+      commits:
+        - UI, CLI, palette, docs, policy, AI Explain why, search, mutation-journal renderer, support-bundle exporter, import preview, and sync conflict preview all read the same registry
+        - docs strings live on the definition row
+        - surfaces render registry strings, not private copies
+    best_rejected_alternative:
+      summary: >
+        Let surfaces define private shadow keys for UX convenience
+        (for example, a UI-only 'editor.tabWidth' alias that points
+        at editor.tab_size).
+      rejection_reason: >
+        Shadow keys desync docs, policy, migration, and sync exactly
+        where users need those surfaces to agree. The registry is
+        the only place that can enforce the alias contract across
+        every surface.
+    why_chosen_wins: >
+        Aliases redirecting to the canonical id cover every rename /
+        duplication use case without splintering the registry.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1213"
+        quote: "Every effective setting shown in the UI should provide 'show source' information"
+    protected_hot_path_hooks:
+      - setting_read
+      - setting_alias_redirected
+    reopen_triggers:
+      - id: surface_requires_shadow
+        severity: blocker
+        description: >
+          A protected surface demonstrates it cannot render or edit a
+          setting without a parallel key whose semantics diverge from
+          the canonical id.
+
+  - axis: restart_posture
+    chosen_stack:
+      summary: >
+        Restart posture declared on the definition row and copied into
+        the effective-setting record. A surface that silently requires
+        a restart not declared here emits a typed
+        setting_restart_posture_mismatch audit event and fails
+        conformance.
+      commits:
+        - six postures frozen (no_restart, reload_view, reload_workspace, restart_extensions, restart_process, reopen_workspace)
+        - preview-class settings that require restart declare it at definition time
+    best_rejected_alternative:
+      summary: >
+        Leave restart-required as a UI toast (decide at apply time).
+      rejection_reason: >
+        Without a declared restart posture, imported profiles and
+        optional sync cannot promise which changes require restart;
+        the conformance corpus has nothing to compare against.
+    why_chosen_wins: >
+        Typed posture lets every surface render a consistent prompt
+        before apply; the mismatch audit event catches the regression
+        automatically.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1753"
+        quote: "profile switching should apply the majority of visual, keybinding, command-surface, snippet, and extension-selection changes without restart; any restart-required delta must be surfaced before apply"
+    protected_hot_path_hooks:
+      - setting_write_proposed
+      - setting_restart_posture_mismatch
+    reopen_triggers:
+      - id: new_restart_posture_needed
+        severity: watch
+        description: >
+          A concrete setting needs a restart posture not in the frozen
+          six (for example, restart_runtime_toolchain). Additive-minor
+          extension is permitted; reuse of an existing posture with a
+          new meaning reopens this row.
+
+  - axis: migration_posture
+    chosen_stack:
+      summary: >
+        Additive-preferred migration rows. Lossy migrations create a
+        rollback checkpoint before apply. Breaking type changes
+        require minting a new setting_id with a redirect alias; the
+        resolver applies migrations on read without rewriting the
+        user's artifact unless the user or a migration action
+        explicitly saves.
+      commits:
+        - migration rows carry is_lossy and rollback_supported flags
+        - round-trip fidelity preserves unknown fields and user comments
+        - import flows route through the same migration table
+    best_rejected_alternative:
+      summary: >
+        Rewrite-in-place when a new shape arrives (mutate the JSONC
+        artifact on first read).
+      rejection_reason: >
+        Rewrite-in-place breaks profile round-trip, churns diffs, and
+        loses user comments. Users have no way to audit the change;
+        rollback is ad-hoc.
+    why_chosen_wins: >
+        Alias + additive migration preserves the artifact's source
+        fidelity while giving the resolver a typed record of every
+        applied migration; lossy migrations always leave a rollback
+        trail.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1209"
+        quote: "Aureline must preserve unknown fields and, where practical, user comments when round-tripping human-edited files"
+    protected_hot_path_hooks:
+      - setting_migration_applied
+      - setting_rollback_checkpoint_created
+      - setting_rollback_checkpoint_restored
+    reopen_triggers:
+      - id: lossless_migration_impossible
+        severity: watch
+        description: >
+          A concrete legacy setting cannot be migrated losslessly and
+          cannot be mapped to a new setting_id either (for example,
+          the legacy value space intersects the new value space in a
+          way that blocks both redirection and additive migration).
+      - id: rollback_checkpoint_budget_breach
+        severity: watch
+        description: >
+          The rollback-checkpoint mechanism cannot meet its latency
+          budget on the mutation-journal path (ADR-0006).
+
+  - axis: schema_discipline
+    chosen_stack:
+      summary: >
+        Rust types in the eventual settings crate are the schema of
+        record. JSON Schema exports at
+        schemas/settings/setting_definition.schema.json and
+        schemas/settings/effective_setting.schema.json are the cross-
+        tool boundary. No external IDL or codegen toolchain at this
+        milestone; additive-minor schema bumps advance
+        settings_schema_version.
+      commits:
+        - single JSON Schema export per record kind
+        - settings_schema_version bumps on breaking changes only
+        - no second-language codegen until a consumer demands it
+    best_rejected_alternative:
+      summary: >
+        External IDL + generator for the setting envelopes (for
+        example, Protobuf / Cap'n Proto) at this milestone.
+      rejection_reason: >
+        Same argument ADR 0004, ADR 0005, ADR 0006, and ADR 0007
+        make: an IDL without a second-language consumer costs more
+        than it buys; the JSON Schema export already reserves the
+        integration point for a future consumer.
+    why_chosen_wins: >
+        The settings crate's Rust types stay the source of truth;
+        docs, CLI, and the schema-registry lane all read one
+        published schema; breaking changes are localised to
+        settings_schema_version bumps.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 7545"
+        quote: "User and workspace settings ... JSON Schema Draft 2020-12"
+    protected_hot_path_hooks:
+      - setting_schema_version_bumped
+    reopen_triggers:
+      - id: second_language_consumer_lands
+        severity: watch
+        description: >
+          A second-language consumer (for example, an extension-host
+          runtime in a non-Rust language) needs generated bindings
+          for the settings envelopes. This reopens the IDL / codegen
+          decision.
+      - id: schema_drifts_from_crate
+        severity: blocker
+        description: >
+          The JSON Schema export drifts from the eventual settings
+          crate's Rust types such that a consumer observing the
+          schema cannot round-trip against the resolver.

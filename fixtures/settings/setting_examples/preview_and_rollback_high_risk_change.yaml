@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=../../../schemas/settings/effective_setting.schema.json
+__fixture__:
+  name: preview_and_rollback_high_risk_change
+  scenario: >
+    The user proposes flipping security.network.allow_list to include
+    a new outbound host at the workspace scope. The setting's
+    preview_class is rollback_checkpoint_and_approval_required; the
+    write intent is
+    allowed_with_rollback_checkpoint_and_approval, the preview_state
+    is 'presented', and last_written.rollback_checkpoint_ref points at
+    the mutation-journal checkpoint the resolver will create before
+    apply. An ADR-0007 approval ticket is bound to the write; the
+    effective record reflects the still-current value until the user
+    acknowledges the preview and approves the ticket. The fixture
+    validates that the preview / rollback / approval path is typed
+    all the way through, so the UI, CLI, audit stream, and support
+    bundle render consistent state.
+  adr_section: "Preview-class and rollback-checkpoint expectations"
+  exercised:
+    scopes: [built_in_default, workspace]
+    write_intent: allowed_with_rollback_checkpoint_and_approval
+    lock_state: unlocked
+    preview_class: rollback_checkpoint_and_approval_required
+    restart_posture: restart_extensions
+
+record_kind: effective_setting_record
+settings_schema_version: 1
+setting_id: security.network.allow_list
+value:
+  - "api.example.com"
+  - "telemetry.example.com"
+resolved_scope: workspace
+source_label: "Workspace"
+lifecycle_label: stable
+shadow_chain:
+  - scope: built_in_default
+    value_present: true
+    value_preview: []
+    source_label: "Aureline default"
+    winner: false
+  - scope: workspace
+    value_present: true
+    value_preview:
+      - "api.example.com"
+      - "telemetry.example.com"
+    source_label: "Workspace"
+    winner: true
+lock_state: unlocked
+lock_reason: none
+write_intent: allowed_with_rollback_checkpoint_and_approval
+write_denial_reason: none
+restart_posture: restart_extensions
+preview_class: rollback_checkpoint_and_approval_required
+capability_dependencies:
+  - kind: trust_state_minimum
+    satisfied: true
+    observed_state: "trust_state=trusted"
+  - kind: policy_epoch_minimum
+    satisfied: true
+    observed_state: "policy_epoch=14"
+control_stack:
+  source_label: "Workspace"
+  lifecycle_label: stable
+  last_refresh_at: "2026-04-19T13:01:12Z"
+  expires_at: null
+  offline_fallback: last_known_good_signed
+  explain_why_ref: "xpl:security.network.allow_list:workspace:20260419T130112Z"
+  control_authority: user_profile_workspace
+  narrowing_ceiling_active: false
+last_written:
+  at: "2026-03-30T11:00:00Z"
+  actor_class: user_command
+  mutation_journal_ref: "mjr-0003-allow-list-current"
+  rollback_checkpoint_ref: "mjr-0003-allow-list-rollback-20260419T130112Z"
+schema_version: "1"
+redaction_class: ui_string_only
+alias_redirected_from: null
+migration_applied: null
+preview_state: presented
+remote_scope_context: null

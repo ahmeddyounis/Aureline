@@ -62,6 +62,7 @@ register; this table is a navigational index only.
 | D-0010      | Release posture — cadence, channels, and rollback                   | Release council             | Defer promotion |
 | D-0011      | Exact-build identity — one identity across artifact families        | Release council             | Narrow to foundations identity |
 | D-0013      | Secret broker, credential handles, trust-store classes, and redaction defaults | Security / trust review     | Narrow to alias-only / keychain-only; block broader projection lanes |
+| D-0014      | Settings definition, effective-configuration resolver, and control-stack vocabulary | Architecture council | Narrow to two-layer user-global / workspace-only; block broader settings lanes |
 
 ## Worked example of automatic narrowing
 

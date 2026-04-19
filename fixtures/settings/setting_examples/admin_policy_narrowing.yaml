@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=../../../schemas/settings/effective_setting.schema.json
+__fixture__:
+  name: admin_policy_narrowing
+  scenario: >
+    The user sets security.ai.egress_policy = "any_hosted_provider" at
+    user_global. A signed admin bundle narrows the allowed value set
+    to {"approved_hosted_providers_only", "disabled"}. The layered
+    user value is not in the narrowed set; admin policy narrows the
+    effective value to "approved_hosted_providers_only" and pins the
+    setting. The user's write is denied with policy_constrained_value;
+    control_stack.narrowing_ceiling_active is true. Admin policy
+    narrowing never merges as a user preference: the user_global
+    value remains visible in the shadow chain but does not win.
+  adr_section: "Lock and constraint state (frozen) + Precedence order (frozen)"
+  exercised:
+    scopes: [built_in_default, user_global, admin_policy_narrowing]
+    write_intent: denied
+    lock_state: policy_constrained
+    preview_class: rollback_checkpoint_and_approval_required
+
+record_kind: effective_setting_record
+settings_schema_version: 1
+setting_id: security.ai.egress_policy
+value: "approved_hosted_providers_only"
+resolved_scope: admin_policy_narrowing
+source_label: "Admin policy: HostedProviderAllowList v3"
+lifecycle_label: stable
+shadow_chain:
+  - scope: built_in_default
+    value_present: true
+    value_preview: "disabled"
+    source_label: "Aureline default"
+    winner: false
+  - scope: user_global
+    value_present: true
+    value_preview: "any_hosted_provider"
+    source_label: "User settings"
+    winner: false
+  - scope: admin_policy_narrowing
+    value_present: true
+    value_preview: "approved_hosted_providers_only"
+    source_label: "Admin policy: HostedProviderAllowList v3"
+    winner: true
+lock_state: policy_constrained
+lock_reason: policy_constrains_allowed_set
+write_intent: denied
+write_denial_reason: policy_constrained_value
+restart_posture: restart_extensions
+preview_class: rollback_checkpoint_and_approval_required
+capability_dependencies:
+  - kind: identity_mode_required
+    satisfied: true
+    observed_state: "identity_mode=managed_convenience"
+control_stack:
+  source_label: "Admin policy: HostedProviderAllowList v3"
+  lifecycle_label: stable
+  last_refresh_at: "2026-04-19T12:59:30Z"
+  expires_at: null
+  offline_fallback: last_known_good_signed
+  explain_why_ref: "xpl:security.ai.egress_policy:admin_policy_narrowing:20260419T125930Z"
+  control_authority: signed_admin_bundle
+  narrowing_ceiling_active: true
+last_written:
+  at: "2026-04-15T09:30:00Z"
+  actor_class: admin_policy_injector
+  mutation_journal_ref: "mjr-0002-policy-epoch-14-roll"
+  rollback_checkpoint_ref: null
+schema_version: "1"
+redaction_class: ui_string_only
+alias_redirected_from: null
+migration_applied: null
+preview_state: not_required
+remote_scope_context: null
