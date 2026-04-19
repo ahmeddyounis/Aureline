@@ -63,6 +63,8 @@ register; this table is a navigational index only.
 | D-0011      | Exact-build identity — one identity across artifact families        | Release council             | Narrow to foundations identity |
 | D-0013      | Secret broker, credential handles, trust-store classes, and redaction defaults | Security / trust review     | Narrow to alias-only / keychain-only; block broader projection lanes |
 | D-0014      | Settings definition, effective-configuration resolver, and control-stack vocabulary | Architecture council | Narrow to two-layer user-global / workspace-only; block broader settings lanes |
+| D-0015      | Execution-context object model, workset / scope vocabulary, and authority projection | Architecture council | Narrow to local-host-only with one implicit scope; block broader execution surface |
+| D-0016      | Connected provider, browser handoff, and approval ticket vocabulary | Security / trust review | Narrow to inspect-only and cached-docs-only browser handoff; block broader provider surfaces |
 
 ## Worked example of automatic narrowing
 

@@ -1,0 +1,581 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integration/browser_handoff_packet.schema.json",
+  "title": "Aureline browser-handoff packet and provider-actor vocabulary",
+  "description": "Boundary schema for the typed browser-handoff packet and supporting connected-provider vocabulary frozen in docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md. Every launch of the system browser from a protected Aureline surface reads a browser_handoff_packet_record rather than a raw URL. Raw URLs, raw callback bodies, and raw delegated-token bytes never cross the RPC boundary; packets carry opaque destination_ref and intent_signature fields instead. Three record kinds are exported: browser_handoff_packet_record (the minted handoff), browser_handoff_audit_event_record (an observable event on the provider_handoff audit stream), and connected_provider_record (one registry row describing who Aureline is acting as on the provider). The eventual connected-provider crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new destination_class, provider_actor_class, reason_code, replay_posture, grant_resolution_reason, health_state, redaction_class, or audit_event_id is additive-minor and requires a provider_handoff_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/browser_handoff_packet_record" },
+    { "$ref": "#/$defs/browser_handoff_audit_event_record" },
+    { "$ref": "#/$defs/connected_provider_record" }
+  ],
+  "$defs": {
+    "provider_handoff_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider-handoff vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "browser_handoff_packet_record",
+        "browser_handoff_audit_event_record",
+        "connected_provider_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class; it exists so a surface that cannot resolve the actor routes to a repair hook rather than falling back to a generic 'Connected' badge. A generic 'Connected' state is forbidden on every product, CLI, support-export, review-overlay, and audit surface."
+    },
+
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "code_host_web",
+        "issue_tracker_web",
+        "ci_provider_web",
+        "docs_or_portal_web",
+        "identity_provider_web",
+        "package_registry_web",
+        "release_publisher_web",
+        "ai_provider_web",
+        "managed_admin_web",
+        "external_generic_web"
+      ],
+      "description": "Frozen destination-class vocabulary. The system-browser launcher resolves destination_ref to a concrete URL at launch time; raw URLs are never passed through by arbitrary callers."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "mutation_not_supported_in_product",
+        "publish_requires_browser_auth",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "step_up_required"
+      ],
+      "description": "Frozen reason-for-handoff vocabulary. Every packet names exactly one reason. A packet whose reason_code corresponds to a mutation-class action MUST reference the approval ticket that admitted it or carry reason_code = provider_consent_flow."
+    },
+
+    "replay_posture": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "read_only_resumable"
+      ],
+      "description": "Frozen replay-posture vocabulary. 'single_use' is the default; 'bounded_reuse' requires an explicit counter and bounded window; 'read_only_resumable' is allowed only for anchors whose associated action_class is read_only_local_analysis or whose mutation_mode is inspect_only."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class used by logs_local, traces_local, support_bundle, evidence_packet, ai_context_capture, recipe_manifest, profile_export, sync, crash_dump, mutation_journal_entry, save_manifest, replay_or_timeline_capture, terminal_transcript, and clipboard_projection surfaces. See ADR-0007 redaction posture and ADR-0010 redaction defaults."
+    },
+
+    "grant_resolution_reason": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_downgrade",
+        "allowed_with_browser_handoff",
+        "allowed_with_deferred_publish",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_target_conflict",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_host_mismatch",
+        "denied_approval_ticket_missing",
+        "denied_approval_ticket_expired",
+        "denied_step_up_required",
+        "denied_unreachable",
+        "denied_unknown_actor_class"
+      ],
+      "description": "Frozen grant-resolution reason codes shared across provider badges, publish-later queue items, support exports, and audit streams."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Frozen provider-class vocabulary. Gives one stable anchor for UX, CLI inspection, support export, and policy evaluation."
+    },
+
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "revoked",
+        "suspended",
+        "expired"
+      ],
+      "description": "Frozen provider-health state vocabulary."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "connected_provider_linked",
+        "connected_provider_unlinked",
+        "connected_provider_health_changed",
+        "actor_class_resolved",
+        "grant_scope_resolved",
+        "grant_revoked",
+        "grant_suspended",
+        "provider_action_proposed",
+        "provider_action_denied",
+        "provider_action_deferred",
+        "provider_action_published",
+        "provider_action_rolled_back",
+        "browser_handoff_packet_issued",
+        "browser_handoff_launched",
+        "browser_handoff_callback_validated",
+        "browser_handoff_callback_rejected",
+        "browser_handoff_revoked",
+        "policy_epoch_rolled_invalidations",
+        "provider_handoff_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the provider_handoff stream. Events carry actor subject, actor class, connected-provider id, packet / ticket ids, mutation mode, grant-resolution reason, policy epoch, and trust state where relevant. Events MUST NOT carry raw tokens, raw URLs, or raw callback bodies."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical host identity that minted the packet (shell / supervisor process identity)."
+        },
+        "workspace_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace id the packet was minted from (ADR-0006 / ADR-0009)."
+        },
+        "actor_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable subject reference for the acting identity; the subject shape corresponds to the packet's expected_authority_on_destination actor class."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id the packet was minted inside."
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch at mint time (ADR-0008 / ADR-0009). A callback presented at a later policy epoch is re-evaluated."
+        }
+      },
+      "description": "Canonical origin an inbound callback validates against before mutating local state. An inbound callback whose correlator does not match a live packet, or whose origin_disclosure does not verify, is denied with browser_handoff_callback_rejected."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state."
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context the packet was minted under. Every spend re-validates this context."
+    },
+
+    "bounded_reuse_counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used_count", "max_uses", "window_expires_at"],
+      "properties": {
+        "used_count": { "type": "integer", "minimum": 0 },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Bounded-reuse counter. Present only when replay_posture is bounded_reuse."
+    },
+
+    "browser_handoff_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_handoff_schema_version",
+        "packet_id",
+        "packet_schema_version",
+        "destination_class",
+        "destination_ref",
+        "object_identity",
+        "reason_code",
+        "disclosure_summary",
+        "return_anchor",
+        "expected_authority_on_destination",
+        "origin_disclosure",
+        "replay_posture",
+        "issued_at",
+        "expires_at",
+        "intent_signature",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "browser_handoff_packet_record" },
+        "provider_handoff_schema_version": {
+          "$ref": "#/$defs/provider_handoff_schema_version"
+        },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Integer schema version pinned into the packet so a replayed packet can be validated against the exact shape it was minted under."
+        },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "destination_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque destination token or canonical provider route. The system-browser launcher resolves this to a concrete URL at launch time; callers MUST NOT pass raw URLs through destination_ref."
+        },
+        "object_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["object_class", "provider_side_id"],
+          "properties": {
+            "object_class": {
+              "type": "string",
+              "enum": [
+                "pull_request",
+                "issue_or_work_item",
+                "check_run",
+                "release_artifact",
+                "docs_page",
+                "audit_entry",
+                "admin_surface",
+                "consent_flow",
+                "other"
+              ]
+            },
+            "provider_side_id": { "type": "string", "minLength": 1 },
+            "provider_host": { "type": "string", "minLength": 1 },
+            "tenant_or_org_scope": { "type": "string" }
+          },
+          "description": "Provider-side identity of the object the handoff targets."
+        },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "disclosure_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible paragraph naming the destination class, the object identity, and the data-loss / privacy consequence of leaving Aureline scope. A packet without a disclosure_summary is refused at mint."
+        },
+        "return_anchor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["anchor_kind", "anchor_ref"],
+          "properties": {
+            "anchor_kind": {
+              "type": "string",
+              "enum": [
+                "review_anchor",
+                "issue_draft_anchor",
+                "selected_diff_anchor",
+                "docs_citation_anchor",
+                "object_link_anchor",
+                "other"
+              ]
+            },
+            "anchor_ref": { "type": "string", "minLength": 1 }
+          },
+          "description": "Stable anchor for returning the user to the originating Aureline object. Round-trips independently of whether the remote system preserves query strings."
+        },
+        "expected_authority_on_destination": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "bounded_reuse_counter": { "$ref": "#/$defs/bounded_reuse_counter" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "intent_signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Host-signed intent envelope binding packet_id, destination_class, destination_ref, object_identity, reason_code, expected_authority_on_destination, origin_disclosure, replay_posture, issued_at, and expires_at. The signature is what makes the packet replay-safe; a packet whose intent_signature cannot be verified is denied with origin_signature_invalid."
+        },
+        "callback_correlator": {
+          "type": "string",
+          "description": "Optional correlator for a provider callback that completes the handoff. Inbound callbacks are validated against the packet's origin_disclosure and replay_posture before mutating state."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque reference to the approval-ticket record that admitted this handoff. Required when the handoff corresponds to a mutation-class action; null only when reason_code is provider_consent_flow."
+        },
+        "connected_provider_record_id": {
+          "type": "string",
+          "description": "Opaque reference to the connected_provider_record whose actor class the handoff is acting under."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "revoked_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Populated when the packet is revoked before launch or before callback. A revoked packet fires browser_handoff_revoked and fails any subsequent callback closed."
+        }
+      },
+      "allOf": [
+        {
+          "description": "bounded_reuse_counter MUST be present when replay_posture is bounded_reuse, and MUST be absent otherwise.",
+          "if": {
+            "properties": { "replay_posture": { "const": "bounded_reuse" } },
+            "required": ["replay_posture"]
+          },
+          "then": { "required": ["bounded_reuse_counter"] },
+          "else": {
+            "not": { "required": ["bounded_reuse_counter"] }
+          }
+        },
+        {
+          "description": "read_only_resumable packets are read-only and MUST NOT carry an approval_ticket_ref.",
+          "if": {
+            "properties": { "replay_posture": { "const": "read_only_resumable" } },
+            "required": ["replay_posture"]
+          },
+          "then": {
+            "not": { "required": ["approval_ticket_ref"] }
+          }
+        },
+        {
+          "description": "A provider_consent_flow packet MAY omit approval_ticket_ref; every other mutation-class reason MUST carry one.",
+          "if": {
+            "properties": {
+              "reason_code": {
+                "enum": [
+                  "mutation_not_supported_in_product",
+                  "publish_requires_browser_auth",
+                  "license_or_portal_acceptance",
+                  "admin_only_surface",
+                  "external_docs_or_runbook",
+                  "provider_admin_delegation",
+                  "step_up_required"
+                ]
+              }
+            },
+            "required": ["reason_code"]
+          },
+          "then": { "required": ["approval_ticket_ref"] }
+        }
+      ]
+    },
+
+    "browser_handoff_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_handoff_schema_version",
+        "audit_event_id",
+        "event_time",
+        "actor_subject",
+        "actor_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "browser_handoff_audit_event_record" },
+        "provider_handoff_schema_version": {
+          "$ref": "#/$defs/provider_handoff_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_subject": { "type": "string", "minLength": 1 },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "connected_provider_record_id": { "type": "string" },
+        "packet_id": { "type": "string" },
+        "approval_ticket_ref": { "type": "string" },
+        "object_identity_ref": { "type": "string" },
+        "mutation_mode": {
+          "type": "string",
+          "enum": [
+            "local_draft",
+            "publish_now",
+            "open_in_provider",
+            "deferred_publish",
+            "inspect_only"
+          ]
+        },
+        "grant_resolution_reason": { "$ref": "#/$defs/grant_resolution_reason" },
+        "denial_reason": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "allowed_with_downgrade",
+            "allowed_with_browser_handoff",
+            "allowed_with_deferred_publish",
+            "denied_scope_missing",
+            "denied_policy_bundle",
+            "denied_workspace_trust",
+            "denied_actor_class_forbidden",
+            "denied_target_conflict",
+            "denied_freshness_floor",
+            "denied_revoked",
+            "denied_suspended",
+            "denied_host_mismatch",
+            "denied_approval_ticket_missing",
+            "denied_approval_ticket_expired",
+            "denied_step_up_required",
+            "denied_unreachable",
+            "denied_unknown_actor_class",
+            "approval_ticket_missing",
+            "approval_ticket_expired",
+            "approval_ticket_revoked",
+            "approval_ticket_step_up_required",
+            "ticket_widening_forbidden",
+            "ticket_lineage_broken",
+            "high_risk_gating_missing",
+            "browser_handoff_replay_invalid",
+            "browser_handoff_origin_mismatch",
+            "browser_handoff_revoked",
+            "origin_signature_invalid",
+            "ai_initiated_mutation_without_ticket",
+            "remote_helper_mutation_without_ticket",
+            "unknown_actor_class",
+            "deferred_publish_drain_unsafe"
+          ],
+          "description": "Optional typed denial reason on provider_action_denied / browser_handoff_callback_rejected / grant_revoked events. Silent downgrade is forbidden."
+        },
+        "policy_epoch": { "type": "string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "An observable event on the provider_handoff audit stream. Raw tokens, raw URLs, and raw callback bodies are forbidden on every audit-event record."
+    },
+
+    "connected_provider_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_handoff_schema_version",
+        "provider_id",
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "actor_classes_present",
+        "health_state",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "connected_provider_record" },
+        "provider_handoff_schema_version": {
+          "$ref": "#/$defs/provider_handoff_schema_version"
+        },
+        "provider_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical host the provider is bound to. Self-hosted and mirrored deployments substitute this host without changing the local object vocabulary."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Tenant / org / project scope the provider record is bound under. Empty string only when the provider class is genuinely tenantless."
+        },
+        "actor_classes_present": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provider_actor_class" },
+          "description": "The set of actor classes this connected provider currently holds links for. A single generic 'Connected' state is forbidden; every provider renders each actor class distinctly."
+        },
+        "linked_account_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Opaque references to human_account_link_records. Raw provider-side principal refs are held by the linked record, not here."
+        },
+        "linked_install_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Opaque references to installation_or_app_grant_records."
+        },
+        "linked_delegated_credential_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Opaque references to delegated_credential_binding_records. Credential bodies live behind the ADR-0007 broker; this field carries ids only."
+        },
+        "linked_project_scoped_grant_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linked_policy_injected_service_identity_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "policy_owner": {
+          "type": "string",
+          "description": "Opaque reference to the policy-bundle row that owns this provider record. Empty string when no admin policy is active."
+        },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "last_grant_resolution_reason": {
+          "$ref": "#/$defs/grant_resolution_reason"
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Diagnostic snapshot of one connected provider. Support bundles MAY include provider_class, canonical_host, actor_classes_present, health_state, and last_grant_resolution_reason; they MUST NOT include raw tokens, raw install secrets, raw delegated-token bodies, or raw policy-injector material."
+    }
+  }
+}

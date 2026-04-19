@@ -1,0 +1,623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integration/approval_ticket.schema.json",
+  "title": "Aureline approval-ticket vocabulary",
+  "description": "Boundary schema for the approval_ticket_record, approval_ticket_audit_event_record, and provider_scope_resolution_result_record frozen in docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md. Approval tickets are inspectable authority objects that bind user intent, policy, target identity, sandbox profile, and execution-context id to every provider mutation, credential projection, high-risk local mutation, and admin / policy change. Only the shell, the policy service, and the supervisor MAY mint tickets; AI flows, extensions, recipes, CLI scripts, browser companions, and remote helpers MAY request approval but MAY NOT grant themselves authority. Tickets carry redaction_class-declared fields; raw secret bytes, raw URLs, and raw delegated-token bodies never appear on the ticket body. The eventual approval-ticket crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new action_class, issuer_class, use_posture, high_risk_flag, denial_reason, audit_event_id, or redaction_class is additive-minor and requires an approval_ticket_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/approval_ticket_record" },
+    { "$ref": "#/$defs/approval_ticket_audit_event_record" },
+    { "$ref": "#/$defs/provider_scope_resolution_result_record" }
+  ],
+  "$defs": {
+    "approval_ticket_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this approval-ticket vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_record",
+        "approval_ticket_audit_event_record",
+        "provider_scope_resolution_result_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "issuer_class": {
+      "type": "string",
+      "enum": ["shell", "policy_service", "supervisor"],
+      "description": "Only the shell, the policy service, and the supervisor MAY mint approval tickets. Any other issuer is forged and denied."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "The provider-actor class the ticket is spent as. 'unknown_actor_class' tickets are denied at spend time; a surface that cannot resolve the actor routes to a repair hook rather than issuing a ticket under a generic 'Connected' state."
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_local_analysis",
+        "local_workspace_mutation",
+        "external_side_effect",
+        "credential_projection",
+        "debug_or_privileged_inspection",
+        "trust_or_policy_admin_change",
+        "browser_handoff",
+        "deferred_publish_drain",
+        "release_publish",
+        "high_risk_paste_or_injection"
+      ],
+      "description": "Frozen action-class vocabulary. Every ticket names exactly one action class. Admits the named action and nothing broader; widening mints a new ticket with a fresh lineage entry."
+    },
+
+    "use_posture": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "session_scoped"
+      ],
+      "description": "Frozen use-posture vocabulary. 'single_use' is the default; 'bounded_reuse' requires an explicit counter; 'session_scoped' is forbidden for release_publish and trust_or_policy_admin_change."
+    },
+
+    "bounded_reuse_counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used_count", "max_uses", "window_expires_at"],
+      "properties": {
+        "used_count": { "type": "integer", "minimum": 0 },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Bounded-reuse counter. Present only when use_posture is bounded_reuse."
+    },
+
+    "high_risk_flag": {
+      "type": "string",
+      "enum": [
+        "irreversible_external_effect",
+        "publishes_release_artifact",
+        "grants_admin_authority",
+        "widens_egress_posture",
+        "reveals_secret_material",
+        "mutates_shared_infrastructure",
+        "destructive_local_action",
+        "cross_tenant_effect"
+      ],
+      "description": "Frozen high-risk flag vocabulary. Every flag has an approval-time AND a spend-time gating rule; a flag without its rule is denied at issue with high_risk_gating_missing."
+    },
+
+    "denial_dimension": {
+      "type": "string",
+      "enum": [
+        "trust",
+        "policy",
+        "network_scope",
+        "credential_scope",
+        "profile_enforcement",
+        "runtime_health"
+      ],
+      "description": "Ticket denials and expiries MUST explain which dimension failed. Silent 'please try again' is forbidden."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_missing",
+        "approval_ticket_expired",
+        "approval_ticket_revoked",
+        "approval_ticket_step_up_required",
+        "ticket_widening_forbidden",
+        "ticket_lineage_broken",
+        "high_risk_gating_missing",
+        "browser_handoff_replay_invalid",
+        "browser_handoff_origin_mismatch",
+        "browser_handoff_revoked",
+        "origin_signature_invalid",
+        "ai_initiated_mutation_without_ticket",
+        "remote_helper_mutation_without_ticket",
+        "unknown_actor_class",
+        "deferred_publish_drain_unsafe",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_target_conflict",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_host_mismatch",
+        "denied_step_up_required",
+        "denied_unreachable"
+      ],
+      "description": "Frozen denial-reason set for the approval-ticket plane. Denials fail closed; they MUST NOT silently retry and MUST NOT downgrade mutation mode."
+    },
+
+    "revoke_reason": {
+      "type": "string",
+      "enum": [
+        "rotation",
+        "admin_revoke",
+        "policy_change",
+        "user_revoke",
+        "trust_downgrade",
+        "actor_class_changed"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_issued",
+        "approval_ticket_spent",
+        "approval_ticket_denied",
+        "approval_ticket_expired",
+        "approval_ticket_revoked",
+        "approval_ticket_step_up_required",
+        "approval_ticket_rolled_back",
+        "high_risk_gating_missing",
+        "deferred_publish_queue_drained",
+        "deferred_publish_queue_rejected",
+        "policy_epoch_rolled_invalidations",
+        "provider_handoff_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the approval-ticket side of the provider_handoff stream."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "original_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["human_summary", "machine_descriptor"],
+      "properties": {
+        "human_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible paragraph the user confirmed at approval time."
+        },
+        "machine_descriptor": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Machine-readable command / mutation / projection descriptor. Shape is action-class-specific. MUST NOT contain raw secret bytes, raw URLs, or raw delegated-token bodies; those cross the RPC boundary as opaque refs only."
+        }
+      }
+    },
+
+    "grant_resolution_reason": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_downgrade",
+        "allowed_with_browser_handoff",
+        "allowed_with_deferred_publish",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_target_conflict",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_host_mismatch",
+        "denied_approval_ticket_missing",
+        "denied_approval_ticket_expired",
+        "denied_step_up_required",
+        "denied_unreachable",
+        "denied_unknown_actor_class"
+      ]
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Frozen mutation-mode vocabulary. Mode is disclosed at the point of intent. 'publish_now' and 'local_draft' MAY NOT collapse into a single control."
+    },
+
+    "approval_ticket_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_schema_version",
+        "ticket_id",
+        "ticket_schema_version",
+        "issuer_class",
+        "actor_subject",
+        "actor_class",
+        "issuing_surface",
+        "original_intent",
+        "action_class",
+        "command_family_or_action_ref",
+        "workspace_or_workset_scope_ref",
+        "target_identity_ref",
+        "sandbox_profile_or_capability_hash",
+        "execution_context_id",
+        "policy_epoch",
+        "trust_state",
+        "issued_at",
+        "expires_at",
+        "use_posture",
+        "audit_metadata"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_ticket_record" },
+        "approval_ticket_schema_version": {
+          "$ref": "#/$defs/approval_ticket_schema_version"
+        },
+        "ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "ticket_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Integer schema version pinned into the ticket so a replayed ticket is validated against the exact shape it was minted under."
+        },
+        "issuer_class": { "$ref": "#/$defs/issuer_class" },
+        "actor_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Acting identity (user id, install id, delegated binding id, project-scoped grant id, or policy-injected service id)."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "issuing_surface": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the ticket was issued from (shell prompt id, policy-decision id, supervisor path)."
+        },
+        "original_intent": { "$ref": "#/$defs/original_intent" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_family_or_action_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable reference to the command family or provider action the ticket admits. A ticket admits the named action and nothing broader."
+        },
+        "workspace_or_workset_scope_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 workset / slice / workspace id the ticket applies inside."
+        },
+        "target_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Execution target or provider target the ticket is bound to (ADR-0009 target-identity record id or connected_provider_record id)."
+        },
+        "sandbox_profile_or_capability_hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capability envelope the admitted action runs under."
+        },
+        "projection_mode_ref": {
+          "type": "string",
+          "description": "ADR-0007 projection mode when action_class is credential_projection; null otherwise. MUST reference a projection mode in the frozen ADR-0007 set."
+        },
+        "browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Browser-handoff packet id when action_class is browser_handoff; null otherwise."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id the ticket runs inside."
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch at issue (ADR-0008 / ADR-0009). A ticket presented at a later policy epoch is re-evaluated; silent continued-use is forbidden."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at issue."
+        },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "use_posture": { "$ref": "#/$defs/use_posture" },
+        "bounded_reuse_counter": { "$ref": "#/$defs/bounded_reuse_counter" },
+        "rememberable_scope": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "scope_kind": {
+              "type": "string",
+              "enum": [
+                "command_family",
+                "target_identity",
+                "workset_scope",
+                "provider_action"
+              ]
+            },
+            "scope_ref": { "type": "string", "minLength": 1 },
+            "reusable_rule_id": { "$ref": "#/$defs/opaque_id" },
+            "renewable_ticket_lifetime_seconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "description": "Non-null only when the user accepted a 'remember this decision' narrowing. Compiles to a narrow reusable rule plus renewable short-lived tickets, not to an unlimited bearer credential. Forbidden for release_publish, trust_or_policy_admin_change, and credential_projection of signing-class secrets."
+        },
+        "high_risk_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/high_risk_flag" },
+          "description": "Set of high-risk flags on this ticket. Every flag carries an approval-time AND a spend-time gating rule; a flag without its rule is denied at issue."
+        },
+        "step_up_required_flag": {
+          "type": "boolean",
+          "description": "When true, the ticket is not spendable until a fresh authenticator event clears it."
+        },
+        "rollback_checkpoint_ref": {
+          "type": "string",
+          "description": "Optional ADR-0008 rollback-checkpoint ref the ticket commits to restoring on denial or failure. Required when high_risk_flags contains destructive_local_action."
+        },
+        "preview_ref": {
+          "type": "string",
+          "description": "Optional preview-record id the user approved against. Required for publish_now, release_publish, trust_or_policy_admin_change, high_risk_paste_or_injection, and local_workspace_mutation with destructive_local_action."
+        },
+        "ticket_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of predecessor ticket ids when the ticket derives its authority from another ticket (for example, a deferred_publish_drain ticket inherits from the local_draft approval that queued the item)."
+        },
+        "revoke_epoch": {
+          "type": ["string", "null"],
+          "description": "Null until revoked; populated on revocation. Paired with revoke_reason."
+        },
+        "revoke_reason": {
+          "$ref": "#/$defs/revoke_reason",
+          "description": "Populated on revocation with a typed reason."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "audit_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["audit_event_id", "issued_by_actor", "issued_at_monotonic"],
+          "properties": {
+            "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+            "issued_by_actor": { "type": "string", "minLength": 1 },
+            "issued_at_monotonic": { "$ref": "#/$defs/monotonic_timestamp" }
+          },
+          "description": "Authoritative on the audit stream. The ticket body MUST NOT be persisted in workspace files, profiles, sync exports, recipes, scaffolds, shell history, or support bundles; only opaque ticket_id refs cross those surfaces."
+        }
+      },
+      "allOf": [
+        {
+          "description": "projection_mode_ref is required when action_class is credential_projection.",
+          "if": {
+            "properties": { "action_class": { "const": "credential_projection" } },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["projection_mode_ref"] }
+        },
+        {
+          "description": "browser_handoff_packet_ref is required when action_class is browser_handoff.",
+          "if": {
+            "properties": { "action_class": { "const": "browser_handoff" } },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["browser_handoff_packet_ref"] }
+        },
+        {
+          "description": "bounded_reuse_counter MUST be present when use_posture is bounded_reuse, and MUST be absent otherwise.",
+          "if": {
+            "properties": { "use_posture": { "const": "bounded_reuse" } },
+            "required": ["use_posture"]
+          },
+          "then": { "required": ["bounded_reuse_counter"] },
+          "else": {
+            "not": { "required": ["bounded_reuse_counter"] }
+          }
+        },
+        {
+          "description": "session_scoped use_posture is forbidden for release_publish and trust_or_policy_admin_change.",
+          "if": {
+            "properties": { "use_posture": { "const": "session_scoped" } },
+            "required": ["use_posture"]
+          },
+          "then": {
+            "properties": {
+              "action_class": {
+                "not": {
+                  "enum": ["release_publish", "trust_or_policy_admin_change"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "rememberable_scope is forbidden for release_publish and trust_or_policy_admin_change.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": ["release_publish", "trust_or_policy_admin_change"]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": { "rememberable_scope": { "type": "null" } }
+          }
+        },
+        {
+          "description": "revoke_reason MUST be present when revoke_epoch is non-null.",
+          "if": {
+            "properties": {
+              "revoke_epoch": { "type": "string" }
+            },
+            "required": ["revoke_epoch"]
+          },
+          "then": { "required": ["revoke_reason"] }
+        },
+        {
+          "description": "rollback_checkpoint_ref is required when high_risk_flags contains destructive_local_action.",
+          "if": {
+            "properties": {
+              "high_risk_flags": {
+                "type": "array",
+                "contains": { "const": "destructive_local_action" }
+              }
+            },
+            "required": ["high_risk_flags"]
+          },
+          "then": { "required": ["rollback_checkpoint_ref"] }
+        },
+        {
+          "description": "preview_ref is required for the mutation-class action classes named in ADR-0010.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "release_publish",
+                  "trust_or_policy_admin_change",
+                  "high_risk_paste_or_injection"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["preview_ref"] }
+        }
+      ]
+    },
+
+    "approval_ticket_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_schema_version",
+        "audit_event_id",
+        "event_time",
+        "ticket_id",
+        "actor_subject",
+        "actor_class",
+        "action_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_ticket_audit_event_record" },
+        "approval_ticket_schema_version": {
+          "$ref": "#/$defs/approval_ticket_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_subject": { "type": "string", "minLength": 1 },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "target_identity_ref": { "type": "string" },
+        "workspace_or_workset_scope_ref": { "type": "string" },
+        "execution_context_id": { "type": "string" },
+        "policy_epoch": { "type": "string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "denial_dimension": { "$ref": "#/$defs/denial_dimension" },
+        "revoke_reason": { "$ref": "#/$defs/revoke_reason" },
+        "high_risk_flags_observed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/high_risk_flag" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "An observable event on the approval-ticket side of the provider_handoff audit stream. Raw secret bytes, raw URLs, and raw delegated-token bodies are forbidden."
+    },
+
+    "provider_scope_resolution_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_schema_version",
+        "resolution_id",
+        "requested_action",
+        "target_object_ref",
+        "effective_scopes",
+        "grant_resolution_reason",
+        "resolved_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_scope_resolution_result_record" },
+        "approval_ticket_schema_version": {
+          "$ref": "#/$defs/approval_ticket_schema_version"
+        },
+        "resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "requested_action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable reference to the provider action that was evaluated."
+        },
+        "target_object_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque reference to the provider-side object the action targets."
+        },
+        "connected_provider_record_id": { "type": "string" },
+        "requesting_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "effective_scopes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Effective scope set combining provider-declared scopes, Aureline policy bundles, object-level target rules, and local trust posture."
+        },
+        "policy_locks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Policy-bundle locks that narrowed or denied the action."
+        },
+        "fallback_or_browser_only_reason": {
+          "type": "string",
+          "description": "Populated when the action is routed to browser handoff or to local_draft because no direct mutation path is reachable; empty string otherwise."
+        },
+        "grant_resolution_reason": { "$ref": "#/$defs/grant_resolution_reason" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admitted_mutation_mode": {
+          "$ref": "#/$defs/mutation_mode",
+          "description": "The mutation mode this resolution admits. Empty only on a pure inspect_only surface."
+        },
+        "admitted_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque reference to the approval ticket that admits the resolution when grant_resolution_reason is one of the 'allowed' values."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "One provider_scope_resolution_result per requested-action / target pair, reused by desktop, CLI, companion, support export, and mutation-journal. Silent widening between actor classes is forbidden."
+    }
+  }
+}
