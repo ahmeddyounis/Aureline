@@ -1,0 +1,33 @@
+# Workspace Cargo configuration.
+#
+# Goal: every local and CI build observes the same deterministic defaults.
+# This file is read by Cargo for every invocation under the repository root;
+# per-developer overrides belong in the user-global ~/.cargo/config.toml, not
+# here.
+#
+# See docs/build/reproducible_build_baseline.md for the reproducibility
+# contract. Changes to this file must be reflected in that document.
+
+[build]
+# v0 symbol mangling is stable and reproducible across rustc patch versions;
+# the legacy scheme embeds compiler-internal identifiers that can drift.
+rustflags = ["-C", "symbol-mangling-version=v0"]
+
+[net]
+# Route fetches through the git CLI so behavior matches what developers and
+# CI invoke directly. This also respects system proxy / credential helpers
+# the same way manual git commands do.
+git-fetch-with-cli = true
+# Retry transient network failures deterministically rather than letting the
+# default back off silently.
+retry = 3
+
+[future-incompat-report]
+# Surface any future-incompatibility warnings on every build so we never
+# accidentally carry a silently-deprecated dependency pin forward.
+frequency = "always"
+
+[term]
+# Emit the future-incompat report details inline rather than requiring a
+# follow-up command; keeps CI logs self-contained.
+verbose = false
