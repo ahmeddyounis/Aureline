@@ -110,6 +110,22 @@ code.
   context, background branch-agent dispatch that preserves
   tainted-usage constraints across the handoff) in
   [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
+- [`runtime/target_discovery_and_install_review_taxonomy.md`](./runtime/target_discovery_and_install_review_taxonomy.md)
+  — target-discovery confidence, host-boundary cue, managed-
+  workspace lifecycle, notebook-trust ladder, structured round-
+  trip risk, and install-review summary-slot vocabulary every
+  launch-review, managed-workspace control plane, notebook-trust
+  gate, and install / update review surface projects against.
+  Reserves notebook-trust rung, structured round-trip preview
+  state, irreversibility / disclosure flag, and install-review
+  slot fields so mixed-trust notebooks and rich-document previews
+  stay reviewable once those lanes land. Machine-readable
+  managed-workspace lifecycle matrix (per-state minimum fields,
+  admissible transitions, activation-budget slices, conformance
+  tests, worked transition scenarios) in
+  [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
+  example compatibility-label and activation-budget-summary
+  packet shapes are embedded in the taxonomy doc.
 
 ## Machine-readable registers
 

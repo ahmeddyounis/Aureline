@@ -163,6 +163,14 @@ private renames on protected surfaces are forbidden.
   [`docs/adr/0008-settings-definition-and-effective-configuration-resolver.md`](../adr/0008-settings-definition-and-effective-configuration-resolver.md).
 - Decision register row tracking `D-0015`:
   [`artifacts/governance/decision_index.yaml`](../../artifacts/governance/decision_index.yaml).
+- Target-discovery confidence, host-boundary cue, managed-
+  workspace lifecycle, notebook-trust ladder, structured round-
+  trip risk, and install-review summary-slot vocabulary launch
+  and install surfaces project alongside this ADR's
+  `target_class` / `scope_class` enums:
+  [`docs/runtime/target_discovery_and_install_review_taxonomy.md`](./target_discovery_and_install_review_taxonomy.md)
+  with the machine-readable managed-workspace lifecycle matrix at
+  [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../../artifacts/runtime/managed_workspace_lifecycle.yaml).
 
 ## Change management
 

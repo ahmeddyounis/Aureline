@@ -1,0 +1,750 @@
+# Managed-workspace lifecycle matrix.
+#
+# Machine-readable matrix that binds every frozen
+# managed_workspace_lifecycle_state to its minimum-field set, its
+# admissible transitions, its activation-budget-summary shape, its
+# required host-boundary cues, and the conformance tests a
+# managed-workspace surface's rendering of that state MUST pass.
+#
+# Companion to the taxonomy at
+# docs/runtime/target_discovery_and_install_review_taxonomy.md and
+# the execution-context boundary schema at
+# schemas/runtime/execution_context.schema.json (target_class ==
+# managed_workspace). Managed-workspace packets ride the ADR-0005
+# subscription envelope as derived_knowledge; the capability-
+# lifecycle axes (ADR-0011) apply to the managed-workspace binding
+# row the same as any other capability row.
+#
+# Rules:
+#   - Every row MUST name one state from the frozen vocabulary, a
+#     minimum-field set, a canonical owner, admissible prior and
+#     next states, a required activation-budget-slice subset, at
+#     least one required host-boundary cue, and at least one
+#     conformance test.
+#   - If this file and the taxonomy doc disagree, the taxonomy doc
+#     wins and this file must be updated in the same change. If
+#     either disagrees with ADR-0009 / ADR-0011 / ADR-0012, the
+#     ADRs win.
+#   - Adding a managed_workspace_lifecycle_state is additive-minor
+#     and requires bumping managed_workspace_lifecycle_schema_version,
+#     extending this matrix, and updating the taxonomy doc.
+#   - Repurposing an existing state is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml.
+
+managed_workspace_lifecycle_schema_version: 1
+
+taxonomy_source: docs/runtime/target_discovery_and_install_review_taxonomy.md
+related_adrs:
+  - docs/adr/0001-identity-modes.md
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - docs/adr/0009-execution-context-and-scope.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+boundary_schemas:
+  - schemas/runtime/execution_context.schema.json
+  - schemas/governance/capability_lifecycle.schema.json
+
+# Frozen vocabulary re-exported so tooling can discover the
+# authoritative list without parsing this file.
+managed_workspace_lifecycle_state_vocabulary:
+  - undeclared
+  - provisioning
+  - warming
+  - ready
+  - idle_suspended
+  - snapshot_paused
+  - hibernated
+  - recovering
+  - quarantined
+  - retiring
+  - retired
+
+# Activation-budget slice vocabulary used by the
+# activation_budget_summary_record. Each slice carries
+# {budgeted, consumed, remaining}; adding a slice is additive-minor.
+activation_budget_slice_vocabulary:
+  - cold_start_seconds
+  - warming_seconds
+  - ready_seconds
+  - idle_suspend_events
+  - hibernation_reactivation_events
+  - recovery_seconds
+  - snapshot_minutes
+
+# Host-boundary cues re-exported from the taxonomy. Every
+# managed-workspace packet carries managed_workspace_boundary;
+# overlays MAY add inner cues when the packet is projected through
+# a remote-agent attach or an AI sandbox running inside the
+# managed workspace.
+host_boundary_cue_vocabulary:
+  - local_host_boundary
+  - user_mode_sandbox_boundary
+  - container_kernel_boundary
+  - devcontainer_boundary
+  - remote_ssh_boundary
+  - remote_agent_boundary
+  - managed_workspace_boundary
+  - notebook_kernel_boundary
+  - ai_sandbox_boundary
+  - browser_handoff_return_boundary
+  - bridged_host_boundary
+
+# Typed reason codes for state transitions. Every state change
+# emits managed_workspace_state_changed with one of these reasons;
+# silent transitions are non-conforming.
+managed_workspace_state_transition_reason_vocabulary:
+  - user_requested_create
+  - user_requested_resume
+  - user_requested_pause
+  - user_requested_retire
+  - admin_requested_quarantine
+  - admin_requested_migration
+  - idle_window_elapsed
+  - hibernation_window_elapsed
+  - activation_budget_exceeded
+  - capsule_drift_detected
+  - volume_drift_detected
+  - route_dependency_unreachable
+  - policy_epoch_rolled
+  - kill_switch_tripped
+  - successor_image_available
+  - control_plane_failure
+  - control_plane_recovered
+  - retirement_drain_window_completed
+
+# Typed audit-event ids for the managed_workspace_lifecycle
+# stream. Adding an event id is additive-minor.
+managed_workspace_lifecycle_audit_event_vocabulary:
+  - managed_workspace_provisioning_started
+  - managed_workspace_provisioning_completed
+  - managed_workspace_warming_started
+  - managed_workspace_warming_completed
+  - managed_workspace_state_changed
+  - managed_workspace_activation_budget_slice_exceeded
+  - managed_workspace_recovery_started
+  - managed_workspace_recovery_completed
+  - managed_workspace_quarantined
+  - managed_workspace_quarantine_lifted
+  - managed_workspace_retiring_drain_started
+  - managed_workspace_retirement_completed
+  - managed_workspace_lifecycle_schema_version_bumped
+
+rows:
+
+  - state: undeclared
+    intended_content: >
+      No managed-workspace instance is claimed for this workspace.
+      Launches resolve against a local or SSH target; no managed
+      binding exists.
+    canonical_owner: managed_workspace_binding_registry
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - workspace_id
+    required_activation_budget_slices: []
+    required_host_boundary_cue_stack:
+      - local_host_boundary
+    admit_prior_states: []
+    admit_next_states:
+      - to: provisioning
+        reason: user_requested_create
+    admissible_capability_lifecycle_freshness_classes:
+      - authoritative_live
+    conformance_tests:
+      - id: undeclared_no_activation_budget
+        description: >
+          An undeclared packet MUST NOT carry an
+          activation_budget_summary_record; emitting one in this
+          state is non-conforming.
+      - id: undeclared_does_not_expose_managed_cue
+        description: >
+          The host_boundary_cue_stack on an undeclared packet MUST
+          NOT include managed_workspace_boundary.
+
+  - state: provisioning
+    intended_content: >
+      Control plane is allocating compute, volumes, and network
+      for a new managed-workspace instance. Reachability is
+      warming; launches deny.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - control_plane_version
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - cold_start_seconds
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - undeclared
+    admit_next_states:
+      - to: warming
+        reason: user_requested_create
+      - to: recovering
+        reason: control_plane_failure
+      - to: retired
+        reason: user_requested_retire
+    admissible_capability_lifecycle_freshness_classes:
+      - warm_cached
+      - degraded_cached
+    conformance_tests:
+      - id: provisioning_denies_launch
+        description: >
+          A target-discovery packet resolved against a
+          provisioning instance MUST resolve with
+          reachability_state = warming and deny launch; silent
+          launch is forbidden.
+      - id: provisioning_budget_present
+        description: >
+          The packet MUST carry a cold_start_seconds budget slice
+          with consumed <= budgeted; consumed > budgeted emits
+          managed_workspace_activation_budget_slice_exceeded.
+
+  - state: warming
+    intended_content: >
+      Instance is up but capsule or prebuild warmers are still
+      running. Reachability is warming.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - capsule_ref
+      - capsule_drift_state
+      - activator_decisions
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - warming_seconds
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - provisioning
+      - recovering
+      - idle_suspended
+      - snapshot_paused
+      - hibernated
+    admit_next_states:
+      - to: ready
+        reason: user_requested_resume
+      - to: recovering
+        reason: capsule_drift_detected
+      - to: recovering
+        reason: volume_drift_detected
+      - to: quarantined
+        reason: kill_switch_tripped
+      - to: retiring
+        reason: admin_requested_migration
+    admissible_capability_lifecycle_freshness_classes:
+      - warm_cached
+      - degraded_cached
+    conformance_tests:
+      - id: warming_activator_decisions_present
+        description: >
+          A warming packet MUST enumerate activator_decisions for
+          every fired activator; silent activation is forbidden.
+      - id: warming_budget_increments
+        description: >
+          warming_seconds.consumed MUST increase monotonically
+          while the state is warming; a surface that renders a
+          declining consumed value is non-conforming.
+
+  - state: ready
+    intended_content: >
+      Instance is reachable, capsule is in sync, activators are
+      applied, and activation budget has remaining slices. Normal
+      launch target.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - capsule_ref
+      - capsule_drift_state
+      - activator_decisions
+      - compatibility_label_packet_ref
+      - activation_budget_summary_ref
+      - reachability_state
+    required_activation_budget_slices:
+      - ready_seconds
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - warming
+    admit_next_states:
+      - to: idle_suspended
+        reason: idle_window_elapsed
+      - to: snapshot_paused
+        reason: user_requested_pause
+      - to: recovering
+        reason: control_plane_failure
+      - to: quarantined
+        reason: admin_requested_quarantine
+      - to: retiring
+        reason: successor_image_available
+    admissible_capability_lifecycle_freshness_classes:
+      - authoritative_live
+      - warm_cached
+    conformance_tests:
+      - id: ready_reachability_matches_target
+        description: >
+          A ready packet MUST carry reachability_state = reachable;
+          other values MUST NOT render as ready.
+      - id: ready_carries_compatibility_label
+        description: >
+          Every ready packet MUST carry a
+          compatibility_label_packet_ref so install-review and
+          launch-review surfaces can render the intersection
+          between the managed-workspace envelope and the install
+          subject's declared envelope.
+
+  - state: idle_suspended
+    intended_content: >
+      Instance suspended after an idle window; filesystem
+      preserved, compute released. Resume is a reactivation step
+      the user sees.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - suspend_timestamp
+      - resume_budget_ref
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - idle_suspend_events
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - ready
+    admit_next_states:
+      - to: warming
+        reason: user_requested_resume
+      - to: hibernated
+        reason: hibernation_window_elapsed
+      - to: snapshot_paused
+        reason: user_requested_pause
+      - to: quarantined
+        reason: kill_switch_tripped
+      - to: retiring
+        reason: admin_requested_migration
+    admissible_capability_lifecycle_freshness_classes:
+      - warm_cached
+      - degraded_cached
+      - stale
+    conformance_tests:
+      - id: idle_suspended_requires_user_action_to_resume
+        description: >
+          A target-discovery packet resolved against an
+          idle_suspended instance MUST deny launch until a
+          user_requested_resume transition fires; silent resume
+          on launch is forbidden.
+      - id: idle_suspend_event_counted
+        description: >
+          Entering idle_suspended MUST increment
+          idle_suspend_events.consumed by exactly one.
+
+  - state: snapshot_paused
+    intended_content: >
+      Instance paused and snapshotted by user or admin.
+      Filesystem snapshotted; resume restores from the snapshot.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - snapshot_ref
+      - snapshot_redaction_class
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - snapshot_minutes
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - ready
+      - idle_suspended
+    admit_next_states:
+      - to: warming
+        reason: user_requested_resume
+      - to: hibernated
+        reason: hibernation_window_elapsed
+      - to: quarantined
+        reason: kill_switch_tripped
+      - to: retiring
+        reason: admin_requested_migration
+    admissible_capability_lifecycle_freshness_classes:
+      - warm_cached
+      - degraded_cached
+    conformance_tests:
+      - id: snapshot_paused_redaction_declared
+        description: >
+          Every snapshot_paused packet MUST carry a
+          snapshot_redaction_class; raw snapshot bytes never
+          cross the RPC boundary.
+      - id: snapshot_paused_resume_through_warming
+        description: >
+          A resume from snapshot_paused MUST transition through
+          warming; direct snapshot_paused -> ready is forbidden.
+
+  - state: hibernated
+    intended_content: >
+      Long-idle snapshot kept in cold storage; reactivation
+      requires a re-pull. Reactivation is budgeted separately.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - hibernation_snapshot_ref
+      - hibernation_entered_at
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - hibernation_reactivation_events
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - idle_suspended
+      - snapshot_paused
+    admit_next_states:
+      - to: warming
+        reason: user_requested_resume
+      - to: quarantined
+        reason: kill_switch_tripped
+      - to: retiring
+        reason: admin_requested_migration
+      - to: retired
+        reason: retirement_drain_window_completed
+    admissible_capability_lifecycle_freshness_classes:
+      - stale
+      - unverified
+    conformance_tests:
+      - id: hibernated_freshness_class_non_live
+        description: >
+          A hibernated packet MUST render with freshness_class in
+          {stale, unverified}; a surface that renders
+          authoritative_live for a hibernated instance is
+          non-conforming.
+      - id: hibernated_reactivation_counted
+        description: >
+          Transitioning hibernated -> warming MUST increment
+          hibernation_reactivation_events.consumed by exactly
+          one and emit
+          managed_workspace_activation_budget_slice_exceeded if
+          remaining would become negative.
+
+  - state: recovering
+    intended_content: >
+      Control plane detected a failure (volume drift, network
+      partition, capsule drift, activator failure) and is
+      restoring. Reachability is degraded; launches deny.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - recovery_reason
+      - recovery_started_at
+      - activation_budget_summary_ref
+      - reachability_state
+    required_activation_budget_slices:
+      - recovery_seconds
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - provisioning
+      - warming
+      - ready
+    admit_next_states:
+      - to: warming
+        reason: control_plane_recovered
+      - to: quarantined
+        reason: kill_switch_tripped
+      - to: retiring
+        reason: admin_requested_migration
+      - to: retired
+        reason: control_plane_failure
+    admissible_capability_lifecycle_freshness_classes:
+      - degraded_cached
+      - stale
+    conformance_tests:
+      - id: recovering_denies_launch
+        description: >
+          A recovering packet MUST carry
+          reachability_state in {degraded, unreachable} and MUST
+          deny launch; silent launch is forbidden.
+      - id: recovering_reason_typed
+        description: >
+          recovery_reason MUST be one of the frozen
+          managed_workspace_state_transition_reason values; free-
+          form strings are non-conforming.
+
+  - state: quarantined
+    intended_content: >
+      Instance disabled by policy or kill-switch. Renders as a
+      tombstone with a repair hook; launches deny with
+      kill_switch_tripped.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - quarantine_reason
+      - quarantine_repair_hook_ref
+      - activation_budget_summary_ref
+    required_activation_budget_slices: []
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - provisioning
+      - warming
+      - ready
+      - idle_suspended
+      - snapshot_paused
+      - hibernated
+      - recovering
+    admit_next_states:
+      - to: warming
+        reason: admin_requested_migration
+      - to: retiring
+        reason: admin_requested_migration
+      - to: retired
+        reason: admin_requested_quarantine
+    admissible_capability_lifecycle_freshness_classes:
+      - degraded_cached
+      - stale
+      - unverified
+    conformance_tests:
+      - id: quarantined_repair_hook_required
+        description: >
+          quarantine_repair_hook_ref MUST be non-null; a
+          quarantined packet without a repair hook is
+          non-conforming and MUST emit
+          managed_workspace_quarantined with
+          reason = kill_switch_tripped.
+      - id: quarantined_absorbs_in_downgrade_rule
+        description: >
+          A managed-workspace binding capability row whose
+          underlying instance is quarantined MUST render under
+          the ADR-0011 downgrade rule with
+          effective_lifecycle_state = disabled_by_policy and a
+          gates_entire_capability dependency marker.
+
+  - state: retiring
+    intended_content: >
+      Instance scheduled for retirement. New launches denied;
+      running sessions allowed to drain within the declared
+      drain window.
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - identity_mode
+      - policy_epoch
+      - retirement_window_end
+      - migration_hint_ref
+      - activation_budget_summary_ref
+    required_activation_budget_slices:
+      - ready_seconds
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - ready
+      - idle_suspended
+      - snapshot_paused
+      - hibernated
+      - recovering
+      - quarantined
+    admit_next_states:
+      - to: retired
+        reason: retirement_drain_window_completed
+    admissible_capability_lifecycle_freshness_classes:
+      - warm_cached
+      - degraded_cached
+    conformance_tests:
+      - id: retiring_denies_new_launches
+        description: >
+          A target-discovery packet resolved against a retiring
+          instance MUST deny new launches; existing running
+          sessions may continue until retirement_window_end.
+      - id: retiring_migration_hint_required
+        description: >
+          migration_hint_ref MUST be non-null so the install-
+          review surface can render a migration path.
+
+  - state: retired
+    intended_content: >
+      Instance removed. Surfaces that still reference it render
+      a tombstone with a typed migration hint.
+    canonical_owner: managed_workspace_binding_registry
+    minimum_fields:
+      - managed_workspace_lifecycle_state
+      - managed_workspace_instance_ref
+      - workspace_id
+      - retirement_timestamp
+      - migration_hint_ref
+    required_activation_budget_slices: []
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admit_prior_states:
+      - provisioning
+      - hibernated
+      - recovering
+      - quarantined
+      - retiring
+    admit_next_states: []
+    admissible_capability_lifecycle_freshness_classes:
+      - unverified
+    conformance_tests:
+      - id: retired_is_absorbing
+        description: >
+          retired is terminal; a retired instance MUST NOT be
+          revived under the same managed_workspace_instance_ref.
+          A new instance mints a new ref.
+      - id: retired_surfaces_render_tombstone
+        description: >
+          Every surface that references a retired instance MUST
+          render a tombstone with migration_hint_ref; silent
+          removal is forbidden.
+
+# ---------------------------------------------------------------------------
+# Activation-budget-summary shape used across the rows above.
+# Present as machine-readable description so the taxonomy doc and
+# this matrix share one source of truth.
+# ---------------------------------------------------------------------------
+activation_budget_summary_shape:
+  schema_version: 1
+  required_fields:
+    - managed_workspace_instance_ref
+    - managed_workspace_lifecycle_state
+    - budget_window
+    - budget_slices
+    - host_boundary_cue
+    - freshness_class
+    - redaction_class
+  budget_window_kinds:
+    - rolling_seven_day
+    - rolling_thirty_day
+    - billing_cycle
+    - instance_lifetime
+  budget_slice_shape:
+    required_fields:
+      - slice_name
+      - budgeted
+      - consumed
+      - remaining
+    invariants:
+      - consumed_plus_remaining_equals_budgeted
+      - consumed_monotonic_nondecreasing_while_state_unchanged
+      - consumed_greater_than_budgeted_emits_slice_exceeded_event
+
+# ---------------------------------------------------------------------------
+# Worked transition scenarios. Each scenario names the prior /
+# next state pair and the reason code; this is the corpus later
+# control-plane, launch-review, and support-export tests will
+# write against.
+# ---------------------------------------------------------------------------
+example_transitions:
+  - id: fresh_create_to_ready
+    description: >
+      First-time managed-workspace creation: user presses
+      "Create"; control plane provisions, warming runs
+      activators, then ready.
+    sequence:
+      - from: undeclared
+        to: provisioning
+        reason: user_requested_create
+      - from: provisioning
+        to: warming
+        reason: user_requested_create
+      - from: warming
+        to: ready
+        reason: user_requested_resume
+
+  - id: idle_to_resume
+    description: >
+      User returns after an idle window; instance resumes
+      through warming.
+    sequence:
+      - from: ready
+        to: idle_suspended
+        reason: idle_window_elapsed
+      - from: idle_suspended
+        to: warming
+        reason: user_requested_resume
+      - from: warming
+        to: ready
+        reason: user_requested_resume
+
+  - id: hibernation_and_reactivation
+    description: >
+      Long idle triggers hibernation; reactivation counts
+      against hibernation_reactivation_events and transitions
+      through warming.
+    sequence:
+      - from: ready
+        to: idle_suspended
+        reason: idle_window_elapsed
+      - from: idle_suspended
+        to: hibernated
+        reason: hibernation_window_elapsed
+      - from: hibernated
+        to: warming
+        reason: user_requested_resume
+      - from: warming
+        to: ready
+        reason: user_requested_resume
+
+  - id: kill_switch_quarantine
+    description: >
+      Admin quarantines an instance via emergency-disable
+      bundle; binding capability row absorbs into
+      disabled_by_policy under ADR-0011.
+    sequence:
+      - from: ready
+        to: quarantined
+        reason: kill_switch_tripped
+
+  - id: migration_to_successor_image
+    description: >
+      Admin migrates to a successor image; instance enters
+      retiring with a drain window, then retired.
+    sequence:
+      - from: ready
+        to: retiring
+        reason: successor_image_available
+      - from: retiring
+        to: retired
+        reason: retirement_drain_window_completed
+
+  - id: recovery_after_capsule_drift
+    description: >
+      Capsule drift detected mid-session; instance enters
+      recovering; control plane restores then warms back to
+      ready.
+    sequence:
+      - from: ready
+        to: recovering
+        reason: capsule_drift_detected
+      - from: recovering
+        to: warming
+        reason: control_plane_recovered
+      - from: warming
+        to: ready
+        reason: user_requested_resume
