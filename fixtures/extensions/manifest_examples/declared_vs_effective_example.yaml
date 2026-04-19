@@ -1,0 +1,232 @@
+# yaml-language-server: $schema=../../../schemas/extensions/effective_permission.schema.json
+__fixture__:
+  name: declared_vs_effective_example
+  scenario: >
+    A Wasm component-model extension "acme-labs/prose-helper" at
+    version 1.4.2 declares filesystem_read, filesystem_write,
+    network_egress, ai_provider_access, and capability_inherit
+    permissions. It is delivered as a signed Wasm artifact from
+    the public registry, bound to a capability-lifecycle row that
+    declares beta readiness, and covered by one admin policy pack
+    that narrows the filesystem_write scope to step_up_required
+    and narrows network_egress to a declared host allow-list. The
+    publisher "acme-labs" has succeeded a retired predecessor
+    "acme-core" and carries the verified_publisher trust tier. The
+    effective-permission summary shows the declared-vs-effective
+    diff produced by the policy-pack narrowings; transitive
+    capability inheritance through capability_inherit contributes
+    a dependency marker the summary quotes by ref. Nothing in the
+    fixture embeds raw artifact bytes, raw signing-key material,
+    raw policy-bundle bytes, or raw publisher-private data; every
+    such field is an opaque ref.
+  adr_section: >
+    Reserved manifest fields; Reserved effective-permission
+    summary fields; Reserved publisher-continuity fields;
+    Reserved policy-pack constraint fields.
+  exercised_classes_summary:
+    host_contract_families: [wasm_component_model]
+    artifact_transport_families: [wasm_signed_artifact]
+    registry_source_classes: [public_registry]
+    permission_scope_kinds:
+      - filesystem_read
+      - filesystem_write
+      - network_egress
+      - ai_provider_access
+      - capability_inherit
+    publisher_lineage_states: [succeeded]
+    publisher_trust_tiers: [verified_publisher]
+    policy_pack_constraint_kinds:
+      - permission_floor
+      - egress_host_narrowing
+    diff_classes:
+      - unchanged
+      - step_up_required
+      - narrowed
+    audit_event_ids:
+      - extension_manifest_indexed
+      - effective_permission_computed
+      - effective_permission_narrowed_by_policy_pack
+      - publisher_succession_recorded
+
+---
+
+# Manifest row
+record_kind: extension_manifest_row
+extension_permission_schema_version: 1
+permission_vocabulary_version: 1
+manifest_schema_version: 1
+extension_identity: "acme-labs/prose-helper"
+extension_version: "1.4.2"
+host_contract_family: wasm_component_model
+host_contract_identity_ref: hc-world-prose-v1
+artifact_transport_family: wasm_signed_artifact
+artifact_digest_ref: dg-prose-helper-1.4.2
+signature_ref: sig-acme-labs-2026-q2
+declared_permissions:
+  - scope_kind: filesystem_read
+    scope_target: "workspace:/docs/**"
+    scope_constraint: "read-only under declared workspace prefix"
+    rationale_label: "Read prose documents for grammar suggestions."
+  - scope_kind: filesystem_write
+    scope_target: "workspace:/docs/**"
+    scope_constraint: "write-only under declared workspace prefix"
+    rationale_label: "Apply user-accepted suggestions into prose documents."
+  - scope_kind: network_egress
+    scope_target: "api.acme-labs.example"
+    scope_constraint: "egress to declared hosts only"
+    rationale_label: "Call the Acme prose-grammar endpoint."
+  - scope_kind: ai_provider_access
+    scope_target: "connected-provider:ai:acme-default"
+    scope_constraint: "requires user-configured provider link"
+    rationale_label: "Use the user's AI provider to refine suggestions."
+  - scope_kind: capability_inherit
+    scope_target: "capability-row:spellcheck-core-v2"
+    scope_constraint: "inherits spellcheck-core capability row"
+    rationale_label: "Build on the spellcheck-core capability surface."
+compatibility_bridge_notes: null
+publisher_identity_ref: pub-acme-labs
+registry_source_class: public_registry
+manifest_capability_binding_refs:
+  - cap-prose-helper-v1
+  - cap-spellcheck-core-v2
+policy_pack_applicable_refs:
+  - policy-acme-org-default-v3
+extension_lifecycle_row_ref: cap-prose-helper-v1
+
+---
+
+# Publisher continuity row
+record_kind: publisher_continuity_row
+extension_permission_schema_version: 1
+publisher_identity: pub-acme-labs
+publisher_display_label: "Acme Labs"
+active_signing_key_refs:
+  - key-acme-labs-ed25519-2026-q2
+key_rotation_history:
+  - old_signing_key_ref: key-acme-labs-ed25519-2026-q1
+    new_signing_key_ref: key-acme-labs-ed25519-2026-q2
+    rotation_timestamp: "2026-04-01T10:00:00Z"
+    rotation_reason: scheduled_rotation
+lineage_state: succeeded
+predecessor_publisher_ref: pub-acme-core-retired
+successor_publisher_ref: null
+orphan_marker: null
+fork_adoption_ref: null
+trust_tier: verified_publisher
+delay_window_days: 14
+audit_event_refs:
+  - audit-publisher-succession-acme-labs-0001
+  - audit-publisher-key-rotation-acme-labs-q2
+redaction_class: support_bundle
+
+---
+
+# Policy-pack constraint row (permission floor)
+record_kind: policy_pack_constraint_row
+extension_permission_schema_version: 1
+policy_pack_id: policy-acme-org-default-v3
+policy_epoch: 12
+constraint_kind: permission_floor
+constraint_target:
+  target_kind: permission_scope_selector
+  target_selector: "scope:filesystem_write@workspace:/docs/**"
+constraint_ceiling:
+  ceiling_label: "permission_floor:{filesystem_write=step_up_required}"
+  narrowed_permission_scopes:
+    - filesystem_write
+narrowing_direction: narrow_only
+source_ref: bundle-acme-org-default-v3-signed
+audit_event_refs:
+  - audit-policy-pack-loaded-v3
+  - audit-policy-pack-applied-prose-helper
+redaction_class: support_bundle
+
+---
+
+# Policy-pack constraint row (egress host narrowing)
+record_kind: policy_pack_constraint_row
+extension_permission_schema_version: 1
+policy_pack_id: policy-acme-org-default-v3
+policy_epoch: 12
+constraint_kind: egress_host_narrowing
+constraint_target:
+  target_kind: permission_scope_selector
+  target_selector: "scope:network_egress@*"
+constraint_ceiling:
+  ceiling_label: "egress_allow:{api.acme-labs.example}"
+narrowing_direction: narrow_only
+source_ref: bundle-acme-org-default-v3-signed
+audit_event_refs:
+  - audit-policy-pack-applied-prose-helper-egress
+redaction_class: support_bundle
+
+---
+
+# Effective-permission summary record
+record_kind: effective_permission_summary_record
+extension_permission_schema_version: 1
+permission_vocabulary_version: 1
+extension_identity_ref: "acme-labs/prose-helper"
+extension_version: "1.4.2"
+declared_permissions_digest: "sha256:dg-declared-prose-helper-1.4.2"
+effective_permissions:
+  - scope_kind: filesystem_read
+    scope_target: "workspace:/docs/**"
+    scope_constraint: "read-only under declared workspace prefix"
+    rationale_label: "Read prose documents for grammar suggestions."
+  - scope_kind: filesystem_write
+    scope_target: "workspace:/docs/**"
+    scope_constraint: "requires step-up approval per org policy floor"
+    rationale_label: "Apply user-accepted suggestions into prose documents."
+  - scope_kind: network_egress
+    scope_target: "api.acme-labs.example"
+    scope_constraint: "egress narrowed to org-allowed host set"
+    rationale_label: "Call the Acme prose-grammar endpoint."
+  - scope_kind: ai_provider_access
+    scope_target: "connected-provider:ai:acme-default"
+    scope_constraint: "requires user-configured provider link"
+    rationale_label: "Use the user's AI provider to refine suggestions."
+  - scope_kind: capability_inherit
+    scope_target: "capability-row:spellcheck-core-v2"
+    scope_constraint: "inherits spellcheck-core capability row"
+    rationale_label: "Build on the spellcheck-core capability surface."
+declared_vs_effective_diff:
+  - scope_kind: filesystem_read
+    scope_target: "workspace:/docs/**"
+    diff_class: unchanged
+    narrowing_reason_refs: []
+  - scope_kind: filesystem_write
+    scope_target: "workspace:/docs/**"
+    diff_class: step_up_required
+    narrowing_reason_refs:
+      - policy-acme-org-default-v3#permission_floor
+  - scope_kind: network_egress
+    scope_target: "api.acme-labs.example"
+    diff_class: narrowed
+    narrowing_reason_refs:
+      - policy-acme-org-default-v3#egress_host_narrowing
+  - scope_kind: ai_provider_access
+    scope_target: "connected-provider:ai:acme-default"
+    diff_class: unchanged
+    narrowing_reason_refs: []
+  - scope_kind: capability_inherit
+    scope_target: "capability-row:spellcheck-core-v2"
+    diff_class: unchanged
+    narrowing_reason_refs: []
+transitive_capability_closure_refs:
+  - cap-spellcheck-core-v2
+dependency_markers_ref:
+  - marker-spellcheck-core-beta-narrows-prose-helper
+host_context_refs:
+  identity_mode_ref: identity-mode-account-free-local
+  workspace_trust_state_ref: trust-state-trusted-workspace
+  execution_context_id_ref: exec-ctx-local-host-default
+  freshness_floor_ref: freshness-floor-warm-cached-5m
+policy_pack_narrowings_ref:
+  - policy-acme-org-default-v3#permission_floor
+  - policy-acme-org-default-v3#egress_host_narrowing
+publisher_continuity_state_ref: pub-acme-labs
+mirror_continuity_state_ref: mirror-continuity-public-registry-live
+summary_freshness_class: authoritative_live
+computed_at: "2026-04-19T15:00:00Z"
+redaction_class: support_bundle

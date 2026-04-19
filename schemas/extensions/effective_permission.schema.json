@@ -1,0 +1,661 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/effective_permission.schema.json",
+  "title": "Aureline extension manifest, effective-permission, publisher-continuity, and policy-pack vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the extension-manifest row, the effective-permission summary, the publisher-continuity row, and the policy-pack constraint row reserved in docs/adr/0012-extension-manifest-permission-publisher-policy.md. This is an ADR-seed schema: the vocabulary and field set are pinned so the install / update review, permission inspector, publisher-continuity packet, mirror-continuity row, support export, and claim-manifest lanes at a later milestone do not invent extension-shaped fields ad hoc. The eventual extension-manifest crate's Rust types will be the source of truth; this file is the cross-tool boundary every non-owning surface reads at this milestone. Adding a new member to any enumerated set, or an additive field, is additive-minor with an extension_permission_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw policy-bundle bytes, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/extension_manifest_row" },
+    { "$ref": "#/$defs/effective_permission_summary_record" },
+    { "$ref": "#/$defs/publisher_continuity_row" },
+    { "$ref": "#/$defs/policy_pack_constraint_row" }
+  ],
+  "$defs": {
+    "extension_permission_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this extension-permission vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "permission_vocabulary_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Integer vocabulary version for the permission-scope enumeration. Bumped additive-minor when a new permission_scope_kind is added."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "extension_manifest_row",
+        "effective_permission_summary_record",
+        "publisher_continuity_row",
+        "policy_pack_constraint_row"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Frozen host-contract-family vocabulary reserved by the ADR seed. Names the class of host the manifest was written against; the concrete sandbox contract lands in the successor ADR."
+    },
+
+    "artifact_transport_family": {
+      "type": "string",
+      "enum": [
+        "wasm_signed_artifact",
+        "external_process_signed_artifact",
+        "helper_binary_signed_artifact",
+        "remote_component_handle",
+        "bridge_shim_package"
+      ],
+      "description": "Frozen artifact-transport-family vocabulary reserved by the ADR seed. Names how the artifact is delivered and verified, independent of what runs it."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "private_registry",
+        "mirror",
+        "offline_bundle",
+        "vendored_local"
+      ],
+      "description": "Where the manifest came from. Quoted by the mirror-continuity row."
+    },
+
+    "permission_scope_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Minimum permission-scope vocabulary reserved by the ADR seed. Additional kinds are additive-minor with a permission_vocabulary_version bump; repurposing a kind is breaking and requires a new decision row."
+    },
+
+    "permission_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target", "rationale_label"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed target for the scope: path prefix (filesystem_*), provider id (ai_provider_access / connected_provider_access), setting id (workspace_settings_*), capability ref (capability_inherit), host-contract ref (execution_context_bind), subscription selector (subscription_subscribe), command id (ui_command_contribute), or credential-handle alias class (secret_handle_use)."
+        },
+        "scope_constraint": {
+          "type": "string",
+          "description": "Optional narrowing detail. Examples: 'read-only', 'egress to declared hosts only', 'requires step-up', 'bounded to declared setting scope'. Free-form but never raw secret material."
+        },
+        "rationale_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible intent for the scope. Raw user secrets are forbidden."
+        }
+      }
+    },
+
+    "diff_class": {
+      "type": "string",
+      "enum": ["unchanged", "narrowed", "denied", "step_up_required"],
+      "description": "Typed diff class per scope entry between the declared and effective permission sets. 'unchanged' means the declared entry survived; 'narrowed' means the entry was reduced (e.g. a path prefix trimmed); 'denied' means the entry was dropped; 'step_up_required' means the entry survives only behind step-up approval."
+    },
+
+    "declared_vs_effective_diff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "diff_class"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": { "type": "string" },
+        "diff_class": { "$ref": "#/$defs/diff_class" },
+        "narrowing_reason_refs": {
+          "type": "array",
+          "description": "Refs to policy-pack constraint rows, dependency markers, or host-context refs that produced the narrowing. Raw bundle bytes never included.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+
+    "publisher_lineage_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "key_rotation_in_progress",
+        "ownership_transfer_in_progress",
+        "orphaned",
+        "succeeded",
+        "fork_adopted",
+        "retired"
+      ],
+      "description": "Frozen publisher-lineage-state vocabulary reserved by the ADR seed."
+    },
+
+    "publisher_trust_tier": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher"
+      ],
+      "description": "Frozen publisher-trust-tier vocabulary reserved by the ADR seed. 'quarantined_publisher' is a first-class terminal state for emergency-disable bundles."
+    },
+
+    "key_rotation_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["old_signing_key_ref", "new_signing_key_ref", "rotation_timestamp", "rotation_reason"],
+      "properties": {
+        "old_signing_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "new_signing_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "rotation_timestamp": { "$ref": "#/$defs/monotonic_timestamp" },
+        "rotation_reason": {
+          "type": "string",
+          "enum": [
+            "scheduled_rotation",
+            "compromise_suspected",
+            "publisher_policy_change",
+            "ownership_transfer",
+            "quarantine_recovery"
+          ],
+          "description": "Frozen rotation-reason vocabulary reserved by the ADR seed."
+        }
+      }
+    },
+
+    "orphan_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orphaned_at", "recorded_by"],
+      "properties": {
+        "orphaned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "recorded_by": {
+          "type": "string",
+          "enum": ["admin_route", "community_route", "emergency_disable_bundle"],
+          "description": "Frozen orphan-recording-route vocabulary reserved by the ADR seed."
+        },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "policy_pack_constraint_kind": {
+      "type": "string",
+      "enum": [
+        "allow_list",
+        "deny_list",
+        "publisher_trust_floor",
+        "version_pin",
+        "version_floor",
+        "permission_floor",
+        "mirror_rule",
+        "emergency_disable",
+        "signed_continuity_required",
+        "managed_only_narrowing",
+        "egress_host_narrowing",
+        "freshness_floor_narrowing"
+      ],
+      "description": "Frozen policy-pack constraint-kind vocabulary reserved by the ADR seed. Constraints narrow only; a constraint that would widen beyond the manifest's declared set is denied at load."
+    },
+
+    "narrowing_direction": {
+      "type": "string",
+      "const": "narrow_only",
+      "description": "Pinned const. Policy-pack constraints narrow only; widening is denied."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "extension_manifest_indexed",
+        "extension_manifest_digest_mismatch",
+        "extension_signature_verification_failed",
+        "effective_permission_computed",
+        "effective_permission_narrowed_by_policy_pack",
+        "effective_permission_widening_denied",
+        "publisher_key_rotation_started",
+        "publisher_key_rotation_completed",
+        "publisher_ownership_transfer_started",
+        "publisher_ownership_transfer_completed",
+        "publisher_orphaned",
+        "publisher_succession_recorded",
+        "publisher_fork_adopted",
+        "publisher_quarantined",
+        "publisher_quarantine_lifted",
+        "policy_pack_constraint_loaded",
+        "policy_pack_constraint_applied",
+        "policy_pack_constraint_superseded",
+        "mirror_continuity_verified",
+        "mirror_continuity_broken",
+        "extension_install_review_denied",
+        "extension_install_review_disclosure_incomplete",
+        "extension_manifest_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event-id vocabulary reserved by the ADR seed. Additional ids are additive-minor."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "extension_manifest_schema_unknown",
+        "extension_signature_verification_failed",
+        "extension_digest_mismatch",
+        "publisher_quarantined",
+        "publisher_lineage_transfer_pending",
+        "publisher_trust_tier_below_policy_floor",
+        "policy_pack_denies_extension",
+        "policy_pack_denies_permission_scope",
+        "effective_permission_widening_attempted",
+        "host_contract_family_unsupported_on_target",
+        "artifact_transport_family_unsupported_on_target",
+        "compatibility_bridge_required_not_present",
+        "mirror_continuity_broken",
+        "mirror_narrowing_attempted_widening",
+        "review_disclosure_incomplete",
+        "freshness_floor_unmet_for_effective_permission"
+      ],
+      "description": "Frozen denial-reason vocabulary reserved by the ADR seed. Silent downgrade to a generic 'unavailable' affordance is forbidden; every denial emits its typed reason."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Mirrors the ADR-0011 freshness-class vocabulary. A summary whose canonical owner could not be contacted within its refresh window MUST NOT render authoritative_live."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "ai_context_capture",
+        "recipe_manifest",
+        "profile_export",
+        "sync",
+        "crash_dump",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "terminal_transcript"
+      ],
+      "description": "Declared redaction class for the record when emitted to an observable sink. Mirrors the ADR-0007 redaction defaults."
+    },
+
+    "extension_manifest_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_permission_schema_version",
+        "permission_vocabulary_version",
+        "manifest_schema_version",
+        "extension_identity",
+        "extension_version",
+        "host_contract_family",
+        "host_contract_identity_ref",
+        "artifact_transport_family",
+        "artifact_digest_ref",
+        "signature_ref",
+        "declared_permissions",
+        "publisher_identity_ref",
+        "registry_source_class",
+        "manifest_capability_binding_refs",
+        "policy_pack_applicable_refs",
+        "extension_lifecycle_row_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_manifest_row" },
+        "extension_permission_schema_version": {
+          "$ref": "#/$defs/extension_permission_schema_version"
+        },
+        "permission_vocabulary_version": {
+          "$ref": "#/$defs/permission_vocabulary_version"
+        },
+        "manifest_schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Version of the extension-manifest schema the row was written against. Distinct from extension_permission_schema_version so the manifest can evolve independently of the boundary export."
+        },
+        "extension_identity": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+          "description": "Opaque namespaced id of the form 'publisher_id/extension_id'. Never reused after retirement."
+        },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SemVer string. Pinning and floors are policy-pack concerns; this field carries the declared value only."
+        },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "host_contract_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_transport_family": { "$ref": "#/$defs/artifact_transport_family" },
+        "artifact_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "declared_permissions": {
+          "type": "array",
+          "description": "Declared permission-scope entries. The initial frozen scope-kind vocabulary is the minimum an implementation MUST recognise.",
+          "items": { "$ref": "#/$defs/permission_scope_entry" }
+        },
+        "compatibility_bridge_notes": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bridge_profile_id", "target_compatibility_range"],
+              "properties": {
+                "bridge_profile_id": { "$ref": "#/$defs/opaque_id" },
+                "target_compatibility_range": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Range of compatibility the bridge covers. Exact shape is reserved for the successor ADR; the field is present to keep the bridge notes separately addressable."
+                },
+                "known_caveats": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          ],
+          "description": "Populated only when host_contract_family = compatibility_bridge; required in that case. Null otherwise."
+        },
+        "publisher_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "manifest_capability_binding_refs": {
+          "type": "array",
+          "description": "Refs to capability-lifecycle rows (ADR-0011) the extension binds.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "description": "Refs to policy-pack constraint rows whose scope covers this extension.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "extension_lifecycle_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the capability-lifecycle row attached to the extension itself (ADR-0011)."
+        }
+      }
+    },
+
+    "effective_permission_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_permission_schema_version",
+        "permission_vocabulary_version",
+        "extension_identity_ref",
+        "extension_version",
+        "declared_permissions_digest",
+        "effective_permissions",
+        "declared_vs_effective_diff",
+        "transitive_capability_closure_refs",
+        "dependency_markers_ref",
+        "host_context_refs",
+        "policy_pack_narrowings_ref",
+        "publisher_continuity_state_ref",
+        "mirror_continuity_state_ref",
+        "summary_freshness_class",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_permission_summary_record" },
+        "extension_permission_schema_version": {
+          "$ref": "#/$defs/extension_permission_schema_version"
+        },
+        "permission_vocabulary_version": {
+          "$ref": "#/$defs/permission_vocabulary_version"
+        },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": { "type": "string", "minLength": 1 },
+        "declared_permissions_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable digest of the declared permission set so a reviewer can confirm the manifest has not been tampered with post-publish. Algorithm + value; the raw declared set is not embedded here."
+        },
+        "effective_permissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/permission_scope_entry" }
+        },
+        "declared_vs_effective_diff": {
+          "type": "array",
+          "description": "Typed diff per scope entry between declared and effective. A review surface that hides this field is denied with review_disclosure_incomplete.",
+          "items": { "$ref": "#/$defs/declared_vs_effective_diff_entry" }
+        },
+        "transitive_capability_closure_refs": {
+          "type": "array",
+          "description": "Refs to every capability-lifecycle row the effective set inherits through capability_inherit. One entry per closure member.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "dependency_markers_ref": {
+          "type": "array",
+          "description": "Refs to the ADR-0011 dependency markers that contributed a narrowing.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "host_context_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["identity_mode_ref", "workspace_trust_state_ref", "execution_context_id_ref", "freshness_floor_ref"],
+          "properties": {
+            "identity_mode_ref": { "$ref": "#/$defs/opaque_id" },
+            "workspace_trust_state_ref": { "$ref": "#/$defs/opaque_id" },
+            "execution_context_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" }
+          }
+        },
+        "policy_pack_narrowings_ref": {
+          "type": "array",
+          "description": "Refs to policy-pack constraint rows that applied. Policy-pack content is never embedded; only refs.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "publisher_continuity_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_continuity_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "publisher_continuity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_permission_schema_version",
+        "publisher_identity",
+        "publisher_display_label",
+        "active_signing_key_refs",
+        "key_rotation_history",
+        "lineage_state",
+        "trust_tier",
+        "delay_window_days",
+        "audit_event_refs",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "publisher_continuity_row" },
+        "extension_permission_schema_version": {
+          "$ref": "#/$defs/extension_permission_schema_version"
+        },
+        "publisher_identity": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Never reused across retired publishers. A successor mints a new identity and references the retired row via predecessor_publisher_ref."
+        },
+        "publisher_display_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label; never the trust authority."
+        },
+        "active_signing_key_refs": {
+          "type": "array",
+          "description": "Refs to currently valid signing-key records. Raw key material never carried.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "key_rotation_history": {
+          "type": "array",
+          "description": "Ordered list of past signing-key transitions.",
+          "items": { "$ref": "#/$defs/key_rotation_entry" }
+        },
+        "lineage_state": { "$ref": "#/$defs/publisher_lineage_state" },
+        "predecessor_publisher_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "successor_publisher_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "orphan_marker": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/orphan_marker" }
+          ]
+        },
+        "fork_adoption_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "trust_tier": { "$ref": "#/$defs/publisher_trust_tier" },
+        "delay_window_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Lineage-transfer delay window in days. Transfers fire only after the delay with user / admin notification."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "description": "Ordered refs to publisher-continuity audit events.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "policy_pack_constraint_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_permission_schema_version",
+        "policy_pack_id",
+        "policy_epoch",
+        "constraint_kind",
+        "constraint_target",
+        "constraint_ceiling",
+        "narrowing_direction",
+        "source_ref",
+        "audit_event_refs",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_pack_constraint_row" },
+        "extension_permission_schema_version": {
+          "$ref": "#/$defs/extension_permission_schema_version"
+        },
+        "policy_pack_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Epoch counter (ADR-0008). Constraints are scoped to an epoch so a rolled epoch re-evaluates effective permissions."
+        },
+        "constraint_kind": { "$ref": "#/$defs/policy_pack_constraint_kind" },
+        "constraint_target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target_kind", "target_selector"],
+          "properties": {
+            "target_kind": {
+              "type": "string",
+              "enum": [
+                "extension_identity_set",
+                "publisher_identity_set",
+                "permission_scope_selector",
+                "mirror_endpoint_set",
+                "host_contract_family_set"
+              ]
+            },
+            "target_selector": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Typed selector body for the target_kind; exact shape is reserved for the successor ADR. Raw bundle bytes never included."
+            }
+          }
+        },
+        "constraint_ceiling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ceiling_label"],
+          "properties": {
+            "ceiling_label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Typed ceiling body: the narrowed value (e.g. 'permission_floor:{filesystem_write=step_up_required}' or 'version_pin:1.4.*'). Exact shape is reserved for the successor ADR."
+            },
+            "narrowed_permission_scopes": {
+              "type": "array",
+              "description": "Optional: permission-scope kinds the ceiling narrows. Present when constraint_kind = permission_floor or deny_list.",
+              "items": { "$ref": "#/$defs/permission_scope_kind" }
+            }
+          }
+        },
+        "narrowing_direction": { "$ref": "#/$defs/narrowing_direction" },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the signed policy bundle. Raw bundle bytes never carried here."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
