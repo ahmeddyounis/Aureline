@@ -326,7 +326,7 @@ decisions:
   # ---------------------------------------------------------------------------
   - decision_id: D-0004
     title: RPC transport and cross-process contract
-    status: open
+    status: decided
     target_milestone: pre-implementation-foundations
     freeze_by_milestone: first-beta-milestone
     freeze_by_date: "2026-07-15"
@@ -346,6 +346,11 @@ decisions:
     affected_artifacts:
       - crates/aureline-rpc
       - crates/aureline-telemetry
+      - schemas/rpc/envelope.schema.json
+      - schemas/rpc/method_manifest.schema.json
+      - artifacts/architecture/rpc_tradeoff_rows.yaml
+      - fixtures/rpc_decision_examples/
+      - docs/adr/
     default_if_unresolved:
       posture: freeze_lane
       description: >
@@ -358,7 +363,7 @@ decisions:
         - architecture_council
     linked_assumptions: []
     linked_dependencies: []
-    linked_adr: null
+    linked_adr: docs/adr/0004-rpc-transport-and-schema-toolchain.md
     linked_rfc: null
     superseded_by: []
     decision_history:
@@ -366,6 +371,56 @@ decisions:
         actor: "@ahmedyounis"
         forum: architecture_council
         outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: accept
+        notes: >
+          Closed by docs/adr/0004-rpc-transport-and-schema-toolchain.md.
+          Freezes the transport (length-prefixed framed bidirectional
+          byte stream over in-process channels, Unix-domain sockets /
+          named pipes, and a tunnelled remote proxy seam), the wire
+          protocol identifier (wire/1), the wire encoding id
+          (aureline/bin/1), the envelope schema version (1), the
+          request / response / event / cancel envelope field
+          vocabulary, the versioning posture (wire version + envelope
+          schema version + per-method semver ContractVersion), the
+          capability-negotiation handshake (intersection, never
+          superset; fails closed with typed unavailable and
+          attribution), the trace-context shape
+          (W3C-tracecontext-compatible: 128-bit trace_id, 64-bit
+          span_id, optional parent_span_id, 8-bit flags), the
+          workspace-scope rule (workspace id or literal global; scope
+          mismatch is a typed policy error), the idempotency rule
+          (request-level for observable retries; mandatory on
+          at_least_once event streams), the deadline and cancellation
+          contract (monotonic clock seed exchanged at handshake; first-
+          class cancel frame with typed reason; deadlines act as
+          implicit cancellations; deadline_exceeded and cancelled are
+          never rewritten into unavailable), the frozen error taxonomy
+          (local, remote, policy, environment, provider,
+          deadline_exceeded, cancelled, unavailable, internal) with
+          stable per-class codes and typed retry hints (no /
+          after_ms(u32) / reauth_required), the protected-hot-path
+          hook vocabulary (rpc_handshake_complete,
+          rpc_capability_intersection, rpc_request_send,
+          rpc_request_receive, rpc_response_dispatch,
+          rpc_progress_emit, rpc_cancel_observed,
+          rpc_deadline_expired, rpc_queue_saturation,
+          rpc_error_classified, rpc_idle_keepalive,
+          event_stream_publish, event_stream_consume,
+          event_stream_gap_detected, event_stream_dedupe_hit,
+          rpc_connection_drop), and the schema-of-record posture
+          (Rust types in crates/aureline-rpc are the source of truth;
+          JSON Schema exports under schemas/rpc/ are the cross-tool
+          boundary; no external IDL or code generator toolchain at
+          this milestone). Supporting artifacts:
+          artifacts/architecture/rpc_tradeoff_rows.yaml,
+          schemas/rpc/envelope.schema.json,
+          schemas/rpc/method_manifest.schema.json,
+          fixtures/rpc_decision_examples/, and the prototype crate
+          crates/aureline-rpc. The freeze-lane default is replaced
+          by the ADR's frozen posture.
 
   # ---------------------------------------------------------------------------
   # Shared subscription envelope

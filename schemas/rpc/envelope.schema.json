@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/rpc/envelope.schema.json",
+  "title": "Aureline internal RPC envelope",
+  "description": "Boundary schema for the request, response, event, and error envelopes carried by the internal typed RPC transport. See docs/adr/0004-rpc-transport-and-schema-toolchain.md. The Rust types in crates/aureline-rpc are the schema of record; this file is the cross-tool export that external readers (docs, audit, CLI, companions) rely on and that stays stable across per-method payload evolution.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/request_envelope" },
+    { "$ref": "#/$defs/response_envelope" },
+    { "$ref": "#/$defs/event_envelope" },
+    { "$ref": "#/$defs/cancel_frame" }
+  ],
+  "$defs": {
+    "envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the envelope shape. The current value is 1. Bumped only on breaking envelope changes; additive optional envelope fields do not bump this version."
+    },
+    "wire_protocol_version": {
+      "type": "string",
+      "const": "wire/1",
+      "description": "Outer framing protocol identifier. Frozen at wire/1 at M0; a future wire/2 requires a new decision row."
+    },
+    "encoding_id": {
+      "type": "string",
+      "enum": ["aureline/bin/1"],
+      "description": "Connection-level wire encoding id negotiated in the handshake. Frozen at aureline/bin/1 at M0."
+    },
+    "trace_context": {
+      "type": "object",
+      "description": "W3C-tracecontext-compatible trace fields. Every envelope carries this unchanged across the remote proxy seam.",
+      "additionalProperties": false,
+      "required": ["trace_id", "span_id", "flags"],
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$",
+          "description": "Lowercase hex of the 128-bit trace identifier."
+        },
+        "span_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "Lowercase hex of the 64-bit span identifier."
+        },
+        "parent_span_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+          ],
+          "description": "Lowercase hex of the 64-bit parent span identifier, or null when the span is a root."
+        },
+        "flags": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "8-bit flags. Bit 0 = sampled, bit 1 = debug, bit 2 = do_not_record."
+        }
+      }
+    },
+    "workspace_scope": {
+      "oneOf": [
+        { "type": "string", "minLength": 1, "description": "A workspace identity stable across renames." },
+        { "type": "string", "const": "global", "description": "Literal 'global' for supervisor control-plane methods, telemetry enrolment, and the capability-negotiation handshake." }
+      ],
+      "description": "Every envelope declares exactly one scope. Services reject requests whose scope does not match their authority domain."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "command",
+        "recipe",
+        "extension",
+        "ai",
+        "system",
+        "remote"
+      ],
+      "description": "Originator classification used by policy, audit, and tracing."
+    },
+    "baggage": {
+      "type": "object",
+      "description": "Bounded key-value map. Dropped at the remote proxy seam unless the connector policy explicitly whitelists keys.",
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 256
+      },
+      "maxProperties": 32
+    },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+      "description": "Semver contract version of the method. Additive-minor permitted within a major; breaking changes require a new major and a deprecation window in the method manifest."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Caller-provided key for methods whose retry is observable. Consumers MUST dedupe on this key within the documented retention window for at-least-once deliveries."
+    },
+    "delivery_mode": {
+      "type": "string",
+      "enum": ["exactly_once", "at_least_once", "best_effort"],
+      "description": "Declared at subscribe time for event streams; frozen for the subscription's lifetime."
+    },
+    "error_class": {
+      "type": "string",
+      "enum": [
+        "local",
+        "remote",
+        "policy",
+        "environment",
+        "provider",
+        "deadline_exceeded",
+        "cancelled",
+        "unavailable",
+        "internal"
+      ],
+      "description": "Frozen error taxonomy. A class id MAY NOT be reused across concerns; the same split is shared with the Appendix B.2 CLI exit-code model."
+    },
+    "retry_hint": {
+      "oneOf": [
+        { "type": "string", "const": "no" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["after_ms"],
+          "properties": {
+            "after_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
+          }
+        },
+        { "type": "string", "const": "reauth_required" }
+      ],
+      "description": "Per-error retry posture: 'no', { after_ms: <u32> } for timed retry, or 'reauth_required'."
+    },
+    "error_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "code", "reason", "retry"],
+      "properties": {
+        "class": { "$ref": "#/$defs/error_class" },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "description": "Stable per-class error code, dotted-lowercase. For example: 'vfs.path_denied'."
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "retry": { "$ref": "#/$defs/retry_hint" },
+        "span_context": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trace_context" }
+          ]
+        }
+      }
+    },
+    "request_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_kind",
+        "envelope_schema_version",
+        "request_id",
+        "method",
+        "contract_version",
+        "trace",
+        "workspace_scope",
+        "deadline_ns",
+        "cancellation_channel",
+        "actor_class",
+        "payload"
+      ],
+      "properties": {
+        "frame_kind": { "type": "string", "const": "request" },
+        "envelope_schema_version": { "$ref": "#/$defs/envelope_schema_version" },
+        "request_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Unique per connection for the call's lifetime."
+        },
+        "method": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "description": "service.method identifier, resolved against the method manifest."
+        },
+        "contract_version": { "$ref": "#/$defs/contract_version" },
+        "trace": { "$ref": "#/$defs/trace_context" },
+        "workspace_scope": { "$ref": "#/$defs/workspace_scope" },
+        "deadline_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Absolute deadline on the connection clock, in nanoseconds. 0 means no deadline and is only legal for unbounded subscriptions."
+        },
+        "cancellation_channel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Per-request cancellation token. Echoed on all frames related to this request."
+        },
+        "idempotency_key": { "$ref": "#/$defs/idempotency_key" },
+        "baggage": { "$ref": "#/$defs/baggage" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "payload": {
+          "description": "Typed, method-specific payload. Opaque to this boundary schema; described per-method in the service manifest."
+        }
+      }
+    },
+    "response_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_kind",
+        "envelope_schema_version",
+        "request_id",
+        "trace",
+        "contract_version",
+        "result",
+        "terminal"
+      ],
+      "properties": {
+        "frame_kind": { "type": "string", "const": "response" },
+        "envelope_schema_version": { "$ref": "#/$defs/envelope_schema_version" },
+        "request_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Echoed from the request."
+        },
+        "trace": { "$ref": "#/$defs/trace_context" },
+        "contract_version": { "$ref": "#/$defs/contract_version" },
+        "result": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["Ok"],
+              "properties": {
+                "Ok": { "description": "Typed method response payload." }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["Err"],
+              "properties": {
+                "Err": { "$ref": "#/$defs/error_payload" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["Progress"],
+              "properties": {
+                "Progress": { "description": "Streamed progress chunk; payload is method-specific." }
+              }
+            }
+          ]
+        },
+        "terminal": {
+          "type": "boolean",
+          "description": "True on the last response frame; false on progress frames."
+        },
+        "server_hint_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional server-reported remaining work estimate; observability only."
+        }
+      }
+    },
+    "event_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_kind",
+        "envelope_schema_version",
+        "subscription_id",
+        "sequence",
+        "kind",
+        "trace",
+        "workspace_scope",
+        "schema_version",
+        "producer",
+        "delivery_mode",
+        "payload"
+      ],
+      "properties": {
+        "frame_kind": { "type": "string", "const": "event" },
+        "envelope_schema_version": { "$ref": "#/$defs/envelope_schema_version" },
+        "subscription_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Allocated by the service at subscribe time; used to cancel."
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Per-subscription monotonic counter. Consumers gap-detect on this field."
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+          "description": "Payload kind id (for example, TaskStarted, BufferSnapshotDelta). Resolved against the method manifest."
+        },
+        "trace": { "$ref": "#/$defs/trace_context" },
+        "workspace_scope": { "$ref": "#/$defs/workspace_scope" },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Per-payload-kind schema version. Additive-minor evolution; consumers preserve unknown fields."
+        },
+        "producer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["service", "instance"],
+          "properties": {
+            "service": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Service identifier of the producer."
+            },
+            "instance": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Instance identifier (host + pid + boot epoch) so consumers can distinguish producer restarts."
+            }
+          }
+        },
+        "idempotency_key": { "$ref": "#/$defs/idempotency_key" },
+        "delivery_mode": { "$ref": "#/$defs/delivery_mode" },
+        "payload": {
+          "description": "Typed, kind-specific body. Opaque to this boundary schema."
+        }
+      },
+      "allOf": [
+        {
+          "description": "at_least_once producers MUST carry idempotency_key so consumers can dedupe.",
+          "if": {
+            "properties": { "delivery_mode": { "const": "at_least_once" } },
+            "required": ["delivery_mode"]
+          },
+          "then": {
+            "required": ["idempotency_key"]
+          }
+        }
+      ]
+    },
+    "cancel_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_kind",
+        "envelope_schema_version",
+        "cancellation_channel",
+        "reason"
+      ],
+      "properties": {
+        "frame_kind": { "type": "string", "const": "cancel" },
+        "envelope_schema_version": { "$ref": "#/$defs/envelope_schema_version" },
+        "cancellation_channel": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Cancellation token echoed from the originating request."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "caller_initiated",
+            "deadline_expired",
+            "policy_denied",
+            "shutdown",
+            "parent_cancelled"
+          ],
+          "description": "Typed cancellation reason. Repeated cancels are idempotent; the transport reports one rpc_cancel_observed per request."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/rpc/method_manifest.schema.json",
+  "title": "Aureline internal RPC method manifest",
+  "description": "Boundary schema for the method manifest produced by each service. The Rust registry in crates/aureline-rpc is the source of record; this file is the cross-tool export that pins the shape every service manifest is validated against and that the capability-negotiation handshake digests over. See docs/adr/0004-rpc-transport-and-schema-toolchain.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_schema_version",
+    "service",
+    "service_version",
+    "digest",
+    "methods",
+    "events"
+  ],
+  "properties": {
+    "manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the manifest shape. Bumped only on breaking manifest changes."
+    },
+    "service": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Service identifier; the prefix used in every 'service.method' name under this manifest."
+    },
+    "service_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+      "description": "Semver service version. Independent from per-method contract versions; observability only."
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Content digest of the canonicalized manifest bytes (sha256, lowercase hex). The capability-negotiation handshake exchanges and pins this value."
+    },
+    "methods": {
+      "type": "array",
+      "description": "Ordered list of methods the service serves.",
+      "items": { "$ref": "#/$defs/method_entry" }
+    },
+    "events": {
+      "type": "array",
+      "description": "Ordered list of event kinds the service produces. Subscribers resolve 'kind' against this list.",
+      "items": { "$ref": "#/$defs/event_entry" }
+    }
+  },
+  "$defs": {
+    "method_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Fully qualified 'service.method' identity."
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "delivery_mode": {
+      "type": "string",
+      "enum": ["exactly_once", "at_least_once", "best_effort"]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": ["user", "command", "recipe", "extension", "ai", "system", "remote"]
+    },
+    "scope_kind": {
+      "type": "string",
+      "enum": ["workspace", "global", "either"],
+      "description": "Required scope for this method. 'workspace' means the request MUST carry a workspace id; 'global' means the literal 'global'; 'either' is reserved for diagnostics and echo methods."
+    },
+    "error_class": {
+      "type": "string",
+      "enum": [
+        "local",
+        "remote",
+        "policy",
+        "environment",
+        "provider",
+        "deadline_exceeded",
+        "cancelled",
+        "unavailable",
+        "internal"
+      ]
+    },
+    "contract_version_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "status"],
+      "properties": {
+        "version": { "$ref": "#/$defs/semver" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "deprecated", "removed"],
+          "description": "'active' is the currently served contract; 'deprecated' is served for the documented window; 'removed' remains in the manifest for audit only."
+        },
+        "deprecated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ],
+          "description": "Deprecation start date. Absent/null when status is 'active'."
+        },
+        "remove_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ],
+          "description": "Earliest date on which the deprecation window may close. Absent/null when status is 'active'."
+        },
+        "successor_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver" }
+          ],
+          "description": "Recommended successor version. Present when status is 'deprecated' or 'removed'."
+        }
+      }
+    },
+    "method_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "scope",
+        "actor_classes",
+        "contract_versions",
+        "deadline_policy",
+        "idempotency",
+        "error_classes"
+      ],
+      "properties": {
+        "name": { "$ref": "#/$defs/method_name" },
+        "kind": {
+          "type": "string",
+          "enum": ["unary", "server_stream", "subscription"],
+          "description": "'unary' returns one Ok or Err; 'server_stream' emits zero or more Progress frames and exactly one terminal frame; 'subscription' opens a long-lived subscription keyed by subscription_id and cancelled explicitly."
+        },
+        "scope": { "$ref": "#/$defs/scope_kind" },
+        "actor_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/actor_class" },
+          "description": "Actor classes allowed to invoke this method. Services reject other classes with a 'policy' error."
+        },
+        "contract_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/contract_version_entry" },
+          "description": "All contract versions the service advertises, active and deprecated."
+        },
+        "deadline_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "default_ns", "max_ns"],
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "When true, deadline_ns == 0 is rejected with a 'local' error. Unbounded subscriptions set this to false."
+            },
+            "default_ns": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Service-recommended default deadline in nanoseconds; callers that omit a deadline adopt it. Zero means 'no default'."
+            },
+            "max_ns": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Upper bound enforced by the service; requests with longer deadlines are clamped. Zero means 'no upper bound' and is only legal for subscriptions."
+            }
+          }
+        },
+        "idempotency": {
+          "type": "string",
+          "enum": ["required", "recommended", "not_applicable"],
+          "description": "'required' means the service rejects the request without idempotency_key; 'recommended' for observable retries; 'not_applicable' for side-effect-free reads."
+        },
+        "error_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/error_class" },
+          "description": "Error classes the method is permitted to emit. The transport is free to also emit 'cancelled', 'deadline_exceeded', 'unavailable', and 'internal' regardless of this list."
+        },
+        "documentation": {
+          "type": "string",
+          "description": "Short human-readable description. Observability only; not normative."
+        }
+      }
+    },
+    "event_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "scope",
+        "delivery_mode",
+        "schema_versions"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+          "description": "Payload kind id. Matches the event envelope's 'kind' field."
+        },
+        "scope": { "$ref": "#/$defs/scope_kind" },
+        "delivery_mode": { "$ref": "#/$defs/delivery_mode" },
+        "schema_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version", "status"],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Per-payload-kind schema version. Additive-minor evolution."
+              },
+              "status": {
+                "type": "string",
+                "enum": ["active", "deprecated", "removed"]
+              }
+            }
+          }
+        },
+        "idempotency_key_required": {
+          "type": "boolean",
+          "description": "Mirrors the envelope rule: at_least_once producers MUST carry idempotency_key. Defaults to true when delivery_mode is at_least_once; otherwise false."
+        },
+        "documentation": { "type": "string" }
+      }
+    }
+  }
+}

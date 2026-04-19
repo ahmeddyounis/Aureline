@@ -1,0 +1,418 @@
+# RPC tradeoff rows.
+#
+# Machine-readable tradeoff table backing ADR 0004
+# (docs/adr/0004-rpc-transport-and-schema-toolchain.md). Each row names
+# one decision axis, what the chosen transport / schema posture commits
+# to, the rejected alternative that came closest, why the chosen
+# posture wins on that axis, and the observable signal that would
+# force the row to reopen. Tooling (benchmark lab, supervisor /
+# shell-spike telemetry scope, support bundle, governance packets)
+# may read these rows to avoid inventing parallel vocabulary for the
+# same tradeoff.
+#
+# Scope rules:
+#   - Every row MUST name an axis, a chosen_stack summary, a
+#     best_rejected_alternative, at least one supporting source_anchor,
+#     and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - Do not re-litigate a rejected alternative by editing its row;
+#     open a new decision row instead (see ADR 0004's "Reopen
+#     triggers" section).
+
+schema_version: 1
+
+adr_source: docs/adr/0004-rpc-transport-and-schema-toolchain.md
+decision_id: D-0004
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Axis vocabulary.
+#
+# Every row's `axis` field MUST be one of these. A new axis requires a
+# schema bump and a note on the ADR.
+# -----------------------------------------------------------------------------
+axes:
+  - hot_path_performance
+  - observability_and_cancellation
+  - schema_discipline
+  - versioning_and_capability_negotiation
+  - error_honesty
+  - external_ecosystem_compatibility
+  - remote_proxy_cost
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers. `blocker` forces a new
+# decision row on sight; `watch` logs a row for shiproom review.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - axis: hot_path_performance
+    chosen_stack:
+      summary: >
+        Length-prefixed binary framing with serde-backed deterministic
+        encoding (aureline/bin/1) over one bidirectional multiplexed
+        connection per (client, service). In-process, same-host IPC,
+        and remote proxy all ride the same framed envelope.
+      commits:
+        - length-prefixed frames (u32 big-endian + envelope bytes)
+        - one connection per client/service, multiplexed via request_id
+        - bounded per-request / per-subscription send queue
+        - no per-request connection churn on the protected path
+    best_rejected_alternative:
+      summary: >
+        JSON-RPC over HTTP (or JSON-RPC over a socket) as the in-repo
+        protected-path transport.
+      rejection_reason: >
+        AD-010 / AD-011 already separate typed binary internal RPC
+        from JSON-RPC compatibility; fusing them around JSON-RPC
+        re-enters the JSON parsing cost and verbose envelope on every
+        hot-path call, incompatible with shell cancellation and
+        latency budgets.
+    why_chosen_wins: >
+        Hot-path request dispatch is bounded by the framing and the
+        serde encoding rather than by string parsing; the benchmark
+        lab can instrument rpc_request_send, rpc_request_receive,
+        rpc_response_dispatch, event_stream_publish, and
+        event_stream_consume against concrete transport variants.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 409"
+        quote: "typed binary RPC + event streams — performance, observability, capability negotiation"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 812"
+        quote: "typed binary RPC over local sockets/streams"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1819"
+        quote: "cross-service interactions MUST occur through typed RPC"
+    protected_hot_path_hooks:
+      - rpc_request_send
+      - rpc_request_receive
+      - rpc_response_dispatch
+      - event_stream_publish
+      - event_stream_consume
+    reopen_triggers:
+      - id: perf_budget_breach_on_claimed_transport
+        severity: blocker
+        description: >
+          rpc_request_send, rpc_request_receive, or rpc_response_dispatch
+          exceeds its budget on a claimed transport variant (in-process,
+          Unix-domain socket, named pipe, remote proxy) and the fix
+          would require swapping the framing or the encoding.
+      - id: repeated_yellow_on_event_stream
+        severity: watch
+        description: >
+          event_stream_publish or event_stream_consume stays in the
+          yellow band for two consecutive benchmark runs on the same
+          claimed transport variant.
+
+  - axis: observability_and_cancellation
+    chosen_stack:
+      summary: >
+        Every request carries an explicit envelope with trace,
+        deadline, cancellation_channel, workspace_scope, actor_class,
+        and idempotency_key. Cancel is a first-class frame; deadlines
+        propagate to fan-out calls; trace shape is
+        W3C-tracecontext-compatible.
+      commits:
+        - envelope-level trace, deadline, cancel, scope, idempotency
+        - first-class Cancel frame; idempotent cancels
+        - deadline-driven implicit cancel
+        - same trace IDs traverse the remote proxy seam unchanged
+    best_rejected_alternative:
+      summary: >
+        Ambient plumbing via thread-locals (trace) and channel close
+        (cancel); no envelope fields.
+      rejection_reason: >
+        Ambient plumbing hides what crossed the seam, collapses
+        support-bundle attribution, and breaks across the remote proxy.
+        Trace joins become best-effort; cancel cannot be observed as
+        an intentional caller signal separate from connection loss.
+    why_chosen_wins: >
+        The envelope is what the support bundle and the benchmark lab
+        quote; rpc_cancel_observed, rpc_deadline_expired, and the
+        trace scope are trivially routable to the repair / retry /
+        policy vocabulary without a second plumbing stack.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 801"
+        quote: "every cross-service request carries a trace ID, workspace scope, deadline, and cancellation token"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 955"
+        quote: "versioned, deadline-aware, cancellable, traceable"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1820"
+        quote: "every cross-service request MUST carry a trace identifier, workspace scope, cancellation token, and deadline budget"
+    protected_hot_path_hooks:
+      - rpc_cancel_observed
+      - rpc_deadline_expired
+      - rpc_queue_saturation
+      - event_stream_gap_detected
+    reopen_triggers:
+      - id: trace_vocabulary_drift
+        severity: blocker
+        description: >
+          A lane introduces a second trace format (non-W3C-compatible)
+          that must be joinable against these traces, or a support
+          bundle cannot correlate a user-visible cancellation with its
+          rpc_cancel_observed span.
+      - id: cancellation_semantics_conflict
+        severity: blocker
+        description: >
+          A method cannot honour the Cancelled vs terminal-result
+          distinction because the implementation cannot report which
+          happened; the cancellation contract must be restated.
+
+  - axis: schema_discipline
+    chosen_stack:
+      summary: >
+        Rust types in crates/aureline-rpc are the schema of record;
+        JSON Schema exports under schemas/rpc/ describe the envelope
+        and method manifest as the cross-tool boundary; no external
+        IDL or codegen toolchain at M0.
+      commits:
+        - Rust-native contract definitions with ContractVersion tags
+        - JSON Schema for envelope and method manifest
+        - additive-minor evolution with unknown-field preservation
+        - no code generator until a second-language consumer forces one
+    best_rejected_alternative:
+      summary: >
+        Full IDL + codegen toolchain (Protobuf / Cap'n Proto / Thrift)
+        as the schema of record at M0.
+      rejection_reason: >
+        An IDL without a second-language consumer costs more than it
+        buys: generator maintenance, review cost for the generator's
+        outputs, and an additional build step on every lane. The
+        boundary JSON Schemas here reserve a clean integration point
+        if a future consumer forces the choice.
+    why_chosen_wins: >
+        Lane authors define and ship contracts without leaving Rust;
+        external tooling (audit, CLI, docs, companions) reads stable
+        JSON Schemas for the envelope that are insensitive to the
+        per-method payload shape; the code-generator row stays open
+        for the day it is actually needed.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 6224"
+        quote: "exact internal typed RPC framework and schema tooling"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2154"
+        quote: "Schema version must travel with the artifact; unknown fields are handled per schema policy, not ad hoc"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: second_language_consumer_lands
+        severity: blocker
+        description: >
+          A concrete consumer outside Rust (public SDK, browser
+          companion, remote helper in another language) forces the
+          lane to produce bindings from a schema of record; the row
+          reopens to choose the IDL and generator.
+      - id: jsonschema_export_cost_grows
+        severity: watch
+        description: >
+          Maintaining the envelope / method-manifest JSON Schemas
+          by hand grows beyond what a hygiene PR can absorb; the row
+          reopens to choose a lightweight generator.
+
+  - axis: versioning_and_capability_negotiation
+    chosen_stack:
+      summary: >
+        Wire protocol version (wire/1), envelope schema version (1),
+        and per-method semver ContractVersion. Handshake intersection
+        of supported features on every new connection; fail closed on
+        missing capabilities.
+      commits:
+        - handshake exchanges wire / envelope / encoding / manifest-digest
+        - capability intersection is the chosen set, never superset
+        - additive-minor is permitted in-major; breaking changes bump major
+        - deprecation window is declared in the method manifest
+    best_rejected_alternative:
+      summary: >
+        Latest-wins implicit versioning with schema sniffing and
+        silent downgrades.
+      rejection_reason: >
+        Implicit versioning hides breaks; a consumer quietly losing a
+        field reads as "service weirdness" rather than a typed
+        capability mismatch, and the remote proxy seam cannot
+        attribute the degradation.
+    why_chosen_wins: >
+        Every downgrade is explicit and surfaces in
+        rpc_capability_intersection; unknown-field preservation means
+        consumers tolerate additive evolution without folding it into
+        a string error, and breaking changes fail closed.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 820"
+        quote: "internal RPC contracts are versioned and capability-negotiated"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 5080"
+        quote: "capability negotiation chooses the intersection of supported features, never optimistic superset behavior"
+    protected_hot_path_hooks:
+      - rpc_handshake_complete
+      - rpc_capability_intersection
+    reopen_triggers:
+      - id: mandatory_field_reshape
+        severity: blocker
+        description: >
+          A downstream contract requires a reshape of a required
+          envelope field within envelope_schema_version 1 (for
+          example, a different trace shape mandated by external
+          collector).
+      - id: cross_version_coexistence_required
+        severity: blocker
+        description: >
+          A deployment requires wire/1 and wire/2 to coexist on a
+          connection; the M0 contract forbids that, so the row
+          reopens to choose coexistence semantics.
+
+  - axis: error_honesty
+    chosen_stack:
+      summary: >
+        Frozen ErrorClass taxonomy (local, remote, policy,
+        environment, provider, deadline_exceeded, cancelled,
+        unavailable, internal) with stable per-class codes, retry
+        hints, and span_context for trace re-entry. Same vocabulary
+        the CLI exit-code model uses.
+      commits:
+        - every error declares class + code + retry + span_context
+        - class id usage is exclusive (schema-fail is never internal)
+        - retry is no / after_ms(u32) / reauth_required
+        - class vocabulary is shared with CLI exit codes
+    best_rejected_alternative:
+      summary: >
+        Single anonymous Err(String) type at the envelope level.
+      rejection_reason: >
+        String errors cannot be routed to repair, retry, or exit
+        codes; audit records and support bundles cannot summarise them
+        without parsing substrings, which drifts across services.
+    why_chosen_wins: >
+        Every failure is routable to a repair transaction, a retry
+        posture, or an exit code without a translation shim; audit
+        records and support bundles quote the class id directly.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 823"
+        quote: "errors distinguish between local, remote, policy, environment, and provider causes"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 6394"
+        quote: "stable CLI exit-code model"
+    protected_hot_path_hooks:
+      - rpc_error_classified
+    reopen_triggers:
+      - id: taxonomy_gap_emerges
+        severity: blocker
+        description: >
+          A service has a legitimate failure that cannot honestly
+          classify as any of the nine class ids without misattribution;
+          the row reopens to extend the taxonomy.
+      - id: retry_hint_not_expressive_enough
+        severity: watch
+        description: >
+          A retry case (for example, exponential backoff with jitter
+          plus a cap) cannot be expressed inside
+          no / after_ms(u32) / reauth_required and forces callers to
+          invent their own retry vocabulary.
+
+  - axis: external_ecosystem_compatibility
+    chosen_stack:
+      summary: >
+        JSON-RPC compatibility adapters (LSP, DAP, selected external
+        adapters) live above the typed transport and translate into
+        the same envelope. The JSON-RPC seam is never the in-repo
+        protected-path transport.
+      commits:
+        - typed internal transport remains the protected path
+        - JSON-RPC adapters translate into typed requests and carry
+          the same envelope vocabulary
+        - CLI JSON output is a separate public-truth contract, not the
+          protected-path wire
+    best_rejected_alternative:
+      summary: >
+        Make JSON-RPC the in-repo protected-path transport so there is
+        one transport across internal and external calls.
+      rejection_reason: >
+        Re-enters JSON parsing cost and verbose envelopes on every
+        internal call; contradicts AD-010 / AD-011 and the renderer /
+        editor hot-path budgets that depend on typed binary internal
+        RPC.
+    why_chosen_wins: >
+        Internal hot paths keep the typed-binary floor; external
+        compatibility rides above it without dragging the whole
+        system down to JSON-RPC; the adapter layer is the only place
+        a JSON-RPC-specific concern lives.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 410"
+        quote: "JSON-RPC where required, otherwise typed contracts"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 957"
+        quote: "JSON-RPC compatibility — LSP, DAP, selected external adapters — wrapped by typed facades"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: adapter_needs_own_envelope
+        severity: blocker
+        description: >
+          The JSON-RPC adapter tier requires envelope fields the typed
+          transport does not carry and cannot be expressed as adapter-
+          local context; the row reopens to evaluate envelope changes.
+      - id: cli_json_surface_overlaps_protected_path
+        severity: watch
+        description: >
+          CLI JSON output attempts to become a substitute for internal
+          RPC contracts rather than a distinct public-truth surface.
+
+  - axis: remote_proxy_cost
+    chosen_stack:
+      summary: >
+        The same envelope and same framing ride over a tunnelled byte
+        stream (SSH / container exec / managed tunnel). The remote
+        connector terminates the byte stream and re-exposes the same
+        framed protocol on the shell side.
+      commits:
+        - one envelope vocabulary local and remote
+        - trace IDs traverse the seam unchanged
+        - baggage is dropped at the seam unless whitelisted
+        - remote failures classify as unavailable with a remote span
+          context, never as local internal
+    best_rejected_alternative:
+      summary: >
+        Remote-specific envelope with translation at the seam
+        (remote-proxy-flavoured request / event shapes).
+      rejection_reason: >
+        Envelope translation drifts as local contracts evolve faster
+        than remote ones; trace joins become best-effort; the cross-
+        seam failure mode collapses into ad-hoc error strings.
+    why_chosen_wins: >
+        One vocabulary keeps remote surfaces feeling local; trace
+        joins are free; cross-seam failures route through the same
+        ErrorClass taxonomy, so support bundles and repair flows do
+        not need a parallel remote-only vocabulary.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 946"
+        quote: "SSH/container/agent transport, remote service bridging, capability negotiation"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 812"
+        quote: "remote proxy links"
+    protected_hot_path_hooks:
+      - rpc_connection_drop
+    reopen_triggers:
+      - id: seam_cannot_carry_envelope
+        severity: blocker
+        description: >
+          The remote proxy seam can no longer carry the same envelope
+          without per-seam translation (for example, a managed tunnel
+          that mandates its own envelope shape).
+      - id: baggage_policy_drift
+        severity: watch
+        description: >
+          Baggage whitelisting across the seam grows beyond what the
+          security / trust review can safely audit; the row reopens to
+          choose a stricter default.
