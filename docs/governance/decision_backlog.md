@@ -67,6 +67,7 @@ register; this table is a navigational index only.
 | D-0016      | Connected provider, browser handoff, and approval ticket vocabulary | Security / trust review | Narrow to inspect-only and cached-docs-only browser handoff; block broader provider surfaces |
 | D-0017      | Capability lifecycle and dependency-marker vocabulary               | Product scope review        | Narrow to experimental / stable toggle with no dependency markers or separate support / channel / freshness / client-scope axes; block broader lifecycle and dependency surfaces |
 | D-0018      | Extension manifest scope, effective permission, publisher continuity, and policy-pack ADR seed | Compatibility / ecosystem review (co-required with security / trust review) | Freeze install-review, permission-inspector, publisher-continuity, mirror-continuity, extension support-export, extension claim-manifest, and reserved extension SDK / API lanes until a successor ADR closes the open questions and promotes the seed |
+| D-0019      | Docs / Help / About / service-health truth-source vocabulary and badge contract | Product scope review        | Narrow to per-surface, hand-maintained docs / help / service-health badges with no shared source-class, version-match, freshness, client-scope, service-contract, degraded-cause, citation-anchor, or browser-handoff vocabulary; block docs-browser, About / Help, service-health, AI-explanation citation, support-export, onboarding, and parity-audit lanes |
 
 ## Worked example of automatic narrowing
 

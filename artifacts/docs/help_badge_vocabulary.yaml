@@ -1,0 +1,859 @@
+# Docs / Help / About / service-health badge vocabulary and worked examples.
+#
+# Companion to ADR 0013
+# (docs/adr/0013-docs-help-service-health-truth.md) and the boundary
+# schema at schemas/docs/help_status_badge.schema.json. This file
+# pins the vocabulary that docs panes, the docs browser, the
+# Help / About surfaces, the service-health view, the support
+# summary, the onboarding step list, and the AI explanation
+# overlay all consume; a later parity audit between Help, About,
+# the docs pane, the service-health view, and the support
+# summary compares emitted help_status_badge_record instances
+# against the worked examples below field-for-field without
+# inventing additional badge semantics.
+#
+# Rules:
+#   - Every record fragment conforms to
+#     schemas/docs/help_status_badge.schema.json.
+#   - If this file and the ADR disagree, the ADR wins and this
+#     file MUST be updated in the same change.
+#   - Adding a worked example is additive-minor; removing one
+#     needs a supersession note in the new row.
+#   - Adding a vocabulary token requires a schema bump and a
+#     parallel ADR / decision-row update.
+#   - These examples exist so the docs-browser, Help / About,
+#     service-health, AI-explanation, onboarding, support-export,
+#     and citation lanes can write against a shared corpus
+#     without inventing their own.
+
+schema_version: 1
+
+adr_source: docs/adr/0013-docs-help-service-health-truth.md
+decision_id: D-0019
+decision_register: artifacts/governance/decision_index.yaml
+boundary_schema: schemas/docs/help_status_badge.schema.json
+linked_packets:
+  browser_handoff_packet: schemas/integration/browser_handoff_packet.schema.json
+  capability_lifecycle: schemas/governance/capability_lifecycle.schema.json
+  approval_ticket: schemas/integration/approval_ticket.schema.json
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies (mirrored from ADR 0013 and the boundary schema).
+# Tooling reads these blocks; surfaces MUST NOT mint tokens outside the
+# enumerations below.
+# ---------------------------------------------------------------------------
+axes:
+
+  source_class:
+    description: >
+      Source-of-truth class for the row. project_docs and
+      generated_reference outrank vendor_provider_docs on
+      in-scope topics by default; admin policy may narrow this
+      rule but may not silently widen it. derived_explanation
+      rows MUST cite at least one authoritative anchor.
+    values:
+      - project_docs
+      - generated_reference
+      - mirrored_official_docs
+      - curated_knowledge_pack
+      - derived_explanation
+      - vendor_provider_docs
+      - support_runbook
+      - external_status_feed
+
+  version_match_state:
+    description: >
+      Computed at render time against the running build's
+      exact-build identity (running_build_identity_ref).
+      incompatible_drift_detected and unknown_target_build rows
+      MUST render with a typed degraded_state_cause and a
+      repair_hook_ref.
+    values:
+      - exact_build_match
+      - compatible_minor_drift
+      - incompatible_drift_detected
+      - pre_release_unverified
+      - unknown_target_build
+
+  freshness_class:
+    description: >
+      Re-exported from
+      schemas/governance/capability_lifecycle.schema.json
+      without modification (ADR-0011).
+    values:
+      - authoritative_live
+      - warm_cached
+      - degraded_cached
+      - stale
+      - unverified
+
+  client_scope:
+    description: >
+      Re-exported from
+      schemas/governance/capability_lifecycle.schema.json
+      without modification (ADR-0011).
+    values:
+      - desktop_product
+      - cli
+      - companion_surface
+      - remote_agent
+      - sdk_or_api
+      - managed_admin_surface
+
+  surface_class:
+    description: >
+      Frozen set naming which protected surface emitted the
+      help_status_badge_record.
+    values:
+      - docs_pane
+      - docs_browser
+      - help_about
+      - service_health
+      - support_summary
+      - onboarding
+      - ai_explanation_overlay
+
+  service_contract_state:
+    description: >
+      Emitted by the single service_health_aggregator. Per-feature
+      panels MUST quote the aggregator; per-feature service-state
+      vocabularies are forbidden.
+    values:
+      - ready
+      - degraded
+      - local_only
+      - stale
+      - contract_mismatch
+      - policy_blocked
+      - unavailable
+
+  degraded_state_cause:
+    description: >
+      Required when freshness_class is below authoritative_live,
+      version_match_state is below exact_build_match, or
+      service_contract_state is below ready. Every cause MUST
+      come with a repair_hook_ref.
+    values:
+      - pack_unreachable
+      - version_mismatch
+      - signature_unverified
+      - mirror_continuity_broken
+      - pack_quarantined
+      - local_only_fallback
+      - policy_blocked
+      - freshness_floor_unmet
+      - client_scope_excludes_surface
+      - derived_explanation_uncited
+      - vendor_docs_overrides_project
+      - external_status_feed_unreachable
+      - unresolved_axis
+
+  browser_handoff_reason_subset:
+    description: >
+      Subset of the ADR-0010 browser_handoff_packet.reason_code
+      values that docs / Help / About / service-health surfaces
+      are allowed to quote. Full packet bodies live behind
+      schemas/integration/browser_handoff_packet.schema.json.
+    values:
+      - external_docs_or_runbook
+      - provider_consent_flow
+      - provider_admin_delegation
+      - license_or_portal_acceptance
+      - admin_only_surface
+      - step_up_required
+      - mutation_not_supported_in_product
+
+  anchor_kind:
+    description: >
+      Citation-anchor kind vocabulary reserved for the citation /
+      symbol-reference packet lane.
+    values:
+      - docs_page_anchor
+      - generated_reference_anchor
+      - symbol_reference_anchor
+      - code_span_anchor
+      - runbook_step_anchor
+      - release_note_anchor
+      - service_health_event_anchor
+      - mirrored_docs_anchor
+      - curated_pack_anchor
+      - vendor_provider_anchor
+      - external_status_feed_anchor
+
+  audit_event_id:
+    description: >
+      Audit-event ids on the docs_help_service_health audit
+      stream. Events MUST NOT carry raw docs bytes, raw runbook
+      bodies, raw symbol definitions, or raw URLs.
+    values:
+      - help_status_badge_emitted
+      - help_status_badge_refused
+      - docs_pack_version_match_changed
+      - docs_pack_freshness_downgraded
+      - docs_pack_freshness_recovered
+      - vendor_docs_overrode_project
+      - derived_explanation_cited
+      - derived_explanation_uncited_refused
+      - service_contract_state_changed
+      - service_local_only_engaged
+      - service_policy_blocked
+      - about_packet_publisher_unresolved
+      - browser_handoff_from_docs_help_service_health_issued
+      - parity_audit_field_missing
+      - help_status_badge_schema_version_bumped
+
+  denial_reason:
+    description: >
+      Denial-reason vocabulary. Denials fail closed; silent
+      downgrade to a generic "unavailable" chip is forbidden.
+    values:
+      - source_class_unresolved
+      - version_match_state_unresolved
+      - incompatible_drift_detected
+      - signature_unverified
+      - mirror_continuity_broken
+      - pack_quarantined
+      - freshness_floor_unmet
+      - client_scope_excludes_surface
+      - service_contract_mismatch
+      - policy_blocked
+      - derived_explanation_uncited
+      - vendor_docs_overrode_project_without_disclosure
+      - about_packet_publisher_unresolved
+      - browser_handoff_reason_outside_subset
+      - parity_field_missing
+      - help_status_badge_schema_version_lagging
+
+# ---------------------------------------------------------------------------
+# Required parity fields. The fields listed below MUST be present on every
+# emitted help_status_badge_record so a later parity audit can compare
+# Help, About, docs panes, the service-health view, and the support
+# summary mechanically.
+# ---------------------------------------------------------------------------
+required_parity_fields:
+  - surface_class
+  - source_class
+  - version_match_state
+  - running_build_identity_ref
+  - freshness_class
+  - client_scopes
+  - degraded_state_cause     # explicit null is acceptable
+  - browser_handoff_reason   # explicit null is acceptable
+  - external_status_feed
+  - vendor_overrides_project
+  - policy_context
+  - redaction_class
+
+# ---------------------------------------------------------------------------
+# Source-of-truth ownership table. Each surface family has exactly one
+# canonical owner; copy-only shadow surfaces are forbidden.
+# ---------------------------------------------------------------------------
+source_of_truth_ownership:
+  - surface_family: docs_pane_or_docs_browser
+    canonical_owner: docs_pack_registry
+    authority_class: derived_knowledge
+  - surface_family: generated_reference
+    canonical_owner: generated_reference_index
+    authority_class: derived_knowledge
+  - surface_family: mirrored_official_docs
+    canonical_owner: mirrored_docs_index
+    authority_class: derived_knowledge
+  - surface_family: curated_knowledge_packs
+    canonical_owner: curated_knowledge_pack_registry
+    authority_class: derived_knowledge
+  - surface_family: derived_explanations
+    canonical_owner: derived_explanation_session
+    authority_class: derived_knowledge
+    must_cite_authoritative_anchor: true
+  - surface_family: vendor_provider_docs
+    canonical_owner: connected_provider_record
+    authority_class: provider_overlay
+  - surface_family: support_runbooks
+    canonical_owner: support_runbook_registry
+    authority_class: derived_knowledge
+  - surface_family: help_about
+    canonical_owner: about_packet_publisher
+    authority_class: policy_entitlement
+  - surface_family: service_health
+    canonical_owner: service_health_aggregator
+    authority_class: derived_knowledge
+  - surface_family: support_summary
+    canonical_owner: support_export_pipeline
+    authority_class: derived_knowledge
+    quotes_owners_above_only: true
+
+# ---------------------------------------------------------------------------
+# Worked examples. Each entry pairs a help_status_badge_record with the
+# adjacent ADR sections it exercises so a parity audit can use the corpus
+# as conformance fixtures. Anchor refs are illustrative ids; real anchors
+# are minted by the citation / symbol-reference packet lane.
+# ---------------------------------------------------------------------------
+examples:
+
+  # -------------------------------------------------------------------------
+  # Project docs row in the docs browser, exact build match, fresh.
+  # -------------------------------------------------------------------------
+  - id: docs_browser_project_docs_exact_match
+    scenario: >
+      The user searches the docs browser for "workspace trust"
+      and lands on the project-authoritative page that ships
+      with the running build. The row pins to the running
+      build's exact-build identity, freshness is live, and no
+      browser handoff is exposed.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen)
+      - Source-class vocabulary (frozen)
+      - Version-match-state vocabulary (frozen)
+      - Per-surface projection requirements (frozen) -> Docs pane / docs browser result
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:01
+      surface_class: docs_browser
+      source_class: project_docs
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: docs-pack:project:01
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+      service_contract_state: null
+      degraded_state_cause: null
+      repair_hook_ref: null
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:workspace_trust:overview
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+        execution_context_id: "exec:01"
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:00:00Z"
+      last_refreshed_at: "2026-04-19T15:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # Mirrored official docs row with version drift.
+  # -------------------------------------------------------------------------
+  - id: docs_browser_mirrored_official_docs_minor_drift
+    scenario: >
+      The user is reading a mirrored language-stdlib reference
+      page that pins to a build at the same major / minor as
+      the running build but a different patch within the
+      declared compat window. The badge renders a "minor drift"
+      chip and a refresh-pack repair hook.
+    adr_sections_exercised:
+      - Source-class vocabulary (frozen)
+      - Version-match-state vocabulary (frozen)
+      - Degraded-state-cause vocabulary (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:02
+      surface_class: docs_pane
+      source_class: mirrored_official_docs
+      version_match_state: compatible_minor_drift
+      running_build_identity_ref: build:running:01
+      source_revision_ref: docs-pack:mirror:lang-stdlib:patch-3
+      freshness_class: warm_cached
+      client_scopes:
+        - desktop_product
+      service_contract_state: null
+      degraded_state_cause: version_mismatch
+      repair_hook_ref:
+        hook_kind: refresh_freshness
+        hook_id: hook:docs.refresh-mirror:lang-stdlib
+        display_label: "Refresh mirrored docs pack"
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:lang-stdlib:io::reader
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:01:00Z"
+      last_refreshed_at: "2026-04-19T14:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # Vendor docs rendered in place of project docs (typed disclosure).
+  # -------------------------------------------------------------------------
+  - id: docs_pane_vendor_overrides_project_with_disclosure
+    scenario: >
+      The user opened a topic where admin policy has chosen to
+      surface vendor docs in place of in-scope project docs.
+      The badge renders the typed vendor_overrides_project
+      disclosure on the primary surface (not in a tooltip) and
+      offers a browser handoff to the vendor portal.
+    adr_sections_exercised:
+      - Source-class vocabulary (frozen) -> outranks vendor docs rule
+      - Per-surface projection requirements (frozen) -> Docs pane / docs browser result
+      - Browser-handoff reason subset (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:03
+      surface_class: docs_pane
+      source_class: vendor_provider_docs
+      version_match_state: unknown_target_build
+      running_build_identity_ref: build:running:01
+      source_revision_ref: vendor:docs:provider-x:rev-42
+      freshness_class: warm_cached
+      client_scopes:
+        - desktop_product
+      service_contract_state: null
+      degraded_state_cause: vendor_docs_overrides_project
+      repair_hook_ref:
+        hook_kind: request_admin_policy_change
+        hook_id: hook:policy.docs.allow-project-docs-on-topic
+        display_label: "Request admin to re-enable project docs for this topic"
+      browser_handoff_packet_ref:
+        packet_id: handoff:packet:vendor-x:rev-42
+        destination_class: docs_or_portal_web
+        reason_code: external_docs_or_runbook
+      browser_handoff_reason: external_docs_or_runbook
+      external_status_feed: false
+      vendor_overrides_project: true
+      citation_anchor_refs:
+        - docs:anchor:vendor-x:rev-42:topic-y
+      lifecycle_label: null
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:02:00Z"
+      last_refreshed_at: "2026-04-19T14:50:00Z"
+
+  # -------------------------------------------------------------------------
+  # Help / About row, exact build identity, single publisher.
+  # -------------------------------------------------------------------------
+  - id: help_about_publisher_exact_build_match
+    scenario: >
+      The Help / About surface renders the about_packet_publisher
+      payload (build identity, channel, install mode, provenance,
+      open-vs-managed boundary). The badge always renders
+      version_match_state = exact_build_match against the running
+      build; the publisher would deny render and route to a
+      repair hook if the build identity could not be resolved.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen) -> about_packet_publisher
+      - Per-surface projection requirements (frozen) -> Help / About row
+      - Required parity fields (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:04
+      surface_class: help_about
+      source_class: generated_reference
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: about:publisher:rev-01
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+      service_contract_state: null
+      degraded_state_cause: null
+      repair_hook_ref: null
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs: []
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:03:00Z"
+      last_refreshed_at: "2026-04-19T15:03:00Z"
+    notes: >
+      The same about_packet_publisher payload is quoted by the
+      docs-browser footer, the CLI status row, and the support
+      summary. None of those surfaces re-derives any of the
+      payload's fields locally; they subscribe to this badge id.
+
+  # -------------------------------------------------------------------------
+  # Service-health row, degraded with a typed cause and a repair hook.
+  # -------------------------------------------------------------------------
+  - id: service_health_degraded_with_repair_hook
+    scenario: >
+      The service-health view renders the row for the docs-pack
+      delivery service, currently degraded because mirror
+      continuity is broken. The badge carries the typed
+      degraded_state_cause and a repair hook for the operator to
+      re-verify the mirror manifest.
+    adr_sections_exercised:
+      - Service-contract-state vocabulary (frozen)
+      - Degraded-state-cause vocabulary (frozen)
+      - Per-surface projection requirements (frozen) -> Service-health row
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:05
+      surface_class: service_health
+      source_class: support_runbook
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: runbook:rev-12
+      freshness_class: degraded_cached
+      client_scopes:
+        - desktop_product
+        - cli
+        - managed_admin_surface
+      service_contract_state: degraded
+      degraded_state_cause: mirror_continuity_broken
+      repair_hook_ref:
+        hook_kind: contact_support
+        hook_id: hook:support.runbook.docs-pack-delivery.mirror-broken
+        display_label: "Open the docs-pack delivery runbook"
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:runbook:docs-pack-delivery:step-3
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: internal_support_restricted
+      minted_at: "2026-04-19T15:04:00Z"
+      last_refreshed_at: "2026-04-19T15:04:00Z"
+
+  # -------------------------------------------------------------------------
+  # Service-health row, local-only continuity (not a fallback for
+  # unavailable; first-class state).
+  # -------------------------------------------------------------------------
+  - id: service_health_local_only_continuity
+    scenario: >
+      The connected-provider service is unavailable and the
+      local-core continuity path applies. The badge renders
+      service_contract_state = local_only and the
+      local_only_fallback degraded-state cause; affected feature
+      surfaces continue with a visible local_only chip rather
+      than being painted as broken.
+    adr_sections_exercised:
+      - Service-contract-state vocabulary (frozen) -> local_only is first-class
+      - Degraded-state-cause vocabulary (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:06
+      surface_class: service_health
+      source_class: support_runbook
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: runbook:rev-12
+      freshness_class: stale
+      client_scopes:
+        - desktop_product
+        - cli
+      service_contract_state: local_only
+      degraded_state_cause: local_only_fallback
+      repair_hook_ref:
+        hook_kind: reconnect_provider
+        hook_id: hook:provider.connected-provider.reconnect
+        display_label: "Reconnect provider"
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:runbook:connected-provider:local-only
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:05:00Z"
+      last_refreshed_at: "2026-04-19T14:30:00Z"
+
+  # -------------------------------------------------------------------------
+  # AI explanation overlay with citation anchors. Without a citation, render
+  # is denied with derived_explanation_uncited.
+  # -------------------------------------------------------------------------
+  - id: ai_explanation_overlay_with_citations
+    scenario: >
+      The AI explanation overlay quotes a derived explanation
+      that cites two authoritative anchors (a project-docs page
+      and a generated-reference symbol). The citation chain
+      renders inline; tooltip-only citation would have failed
+      the projection requirements check.
+    adr_sections_exercised:
+      - Source-class vocabulary (frozen) -> derived_explanation must cite
+      - Citation-anchor record (frozen)
+      - Per-surface projection requirements (frozen) -> AI explanation overlay
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:07
+      surface_class: ai_explanation_overlay
+      source_class: derived_explanation
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: explain:session:01
+      freshness_class: warm_cached
+      client_scopes:
+        - desktop_product
+      service_contract_state: null
+      degraded_state_cause: null
+      repair_hook_ref: null
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:workspace_trust:overview
+        - docs:anchor:generated:setting:editor.format_on_save
+      lifecycle_label: preview
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+        execution_context_id: "exec:ai:01"
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:06:00Z"
+      last_refreshed_at: "2026-04-19T15:06:00Z"
+    citation_anchors:
+      - record_kind: citation_anchor_record
+        help_status_badge_schema_version: 1
+        anchor_id: docs:anchor:workspace_trust:overview
+        anchor_kind: docs_page_anchor
+        source_class: project_docs
+        source_revision_ref: docs-pack:project:01
+        target_path_or_symbol_ref: workspace/trust.md#overview
+        target_build_identity_ref: build:running:01
+        freshness_class_at_mint: authoritative_live
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+        minted_at: "2026-04-19T15:06:00Z"
+      - record_kind: citation_anchor_record
+        help_status_badge_schema_version: 1
+        anchor_id: docs:anchor:generated:setting:editor.format_on_save
+        anchor_kind: generated_reference_anchor
+        source_class: generated_reference
+        source_revision_ref: gen-ref:rev-01
+        target_path_or_symbol_ref: setting:editor.format_on_save
+        target_build_identity_ref: build:running:01
+        freshness_class_at_mint: authoritative_live
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+        minted_at: "2026-04-19T15:06:00Z"
+
+  # -------------------------------------------------------------------------
+  # External status feed with a typed browser handoff.
+  # -------------------------------------------------------------------------
+  - id: service_health_external_status_feed_handoff
+    scenario: >
+      The service-health view renders an external status-feed
+      row for the release-publisher service. The badge marks
+      external_status_feed = true and exposes a typed browser
+      handoff with reason_code = external_docs_or_runbook so
+      the user can follow the upstream incident page; raw URL
+      launch is forbidden.
+    adr_sections_exercised:
+      - Source-class vocabulary (frozen) -> external_status_feed
+      - Browser-handoff reason subset (frozen)
+      - Service-contract-state vocabulary (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:08
+      surface_class: service_health
+      source_class: external_status_feed
+      version_match_state: unknown_target_build
+      running_build_identity_ref: build:running:01
+      source_revision_ref: null
+      freshness_class: degraded_cached
+      client_scopes:
+        - desktop_product
+        - cli
+        - managed_admin_surface
+      service_contract_state: degraded
+      degraded_state_cause: external_status_feed_unreachable
+      repair_hook_ref:
+        hook_kind: contact_support
+        hook_id: hook:support.external-status.release-publisher
+        display_label: "Open the release-publisher status page"
+      browser_handoff_packet_ref:
+        packet_id: handoff:packet:release-publisher:status
+        destination_class: external_generic_web
+        reason_code: external_docs_or_runbook
+      browser_handoff_reason: external_docs_or_runbook
+      external_status_feed: true
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:external-feed:release-publisher:incident-7
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:07:00Z"
+      last_refreshed_at: "2026-04-19T15:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # Companion-surface (browser) sees a row whose client scope excludes it.
+  # -------------------------------------------------------------------------
+  - id: companion_surface_client_scope_excludes
+    scenario: >
+      The browser companion surface attempted to render a
+      docs row whose client_scopes only include desktop_product
+      and cli. The badge renders a tombstone with
+      degraded_state_cause = client_scope_excludes_surface and
+      a repair hook routing the user to the desktop product;
+      silent surfacing of an excluded row is forbidden.
+    adr_sections_exercised:
+      - Freshness and client-scope axes (re-exported)
+      - Degraded-state-cause vocabulary (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:09
+      surface_class: docs_pane
+      source_class: project_docs
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: docs-pack:project:01
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+      service_contract_state: null
+      degraded_state_cause: client_scope_excludes_surface
+      repair_hook_ref:
+        hook_kind: migrate_to_replacement
+        hook_id: hook:docs.open-in-desktop-product
+        display_label: "Open in the desktop product"
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs:
+        - docs:anchor:project:advanced-debugger:overview
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      minted_at: "2026-04-19T15:08:00Z"
+      last_refreshed_at: "2026-04-19T15:08:00Z"
+
+  # -------------------------------------------------------------------------
+  # Support summary row that quotes the about_packet_publisher payload.
+  # -------------------------------------------------------------------------
+  - id: support_summary_quotes_about_publisher
+    scenario: >
+      The support_export_pipeline emits a support-summary row
+      that quotes (rather than re-mints) the
+      about_packet_publisher payload alongside the per-row
+      source / version / freshness / handoff record. Required
+      parity fields are present; a missing field would have
+      caused the pipeline to refuse the row with a typed
+      parity_field_missing denial.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen) -> support_export_pipeline quotes owners only
+      - Per-surface projection requirements (frozen) -> Support summary export row
+      - Required parity fields (frozen)
+    badge:
+      record_kind: help_status_badge_record
+      help_status_badge_schema_version: 1
+      badge_id: docs:badge:10
+      surface_class: support_summary
+      source_class: generated_reference
+      version_match_state: exact_build_match
+      running_build_identity_ref: build:running:01
+      source_revision_ref: about:publisher:rev-01
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+        - managed_admin_surface
+      service_contract_state: null
+      degraded_state_cause: null
+      repair_hook_ref: null
+      browser_handoff_packet_ref: null
+      browser_handoff_reason: null
+      external_status_feed: false
+      vendor_overrides_project: false
+      citation_anchor_refs: []
+      lifecycle_label: stable
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: internal_support_restricted
+      minted_at: "2026-04-19T15:09:00Z"
+      last_refreshed_at: "2026-04-19T15:09:00Z"
+    quoted_about_packet_publisher_badge_id: docs:badge:04
+
+# ---------------------------------------------------------------------------
+# Parity-audit checklist. Tooling iterates this list to compare emitted
+# help_status_badge_record instances across surfaces.
+# ---------------------------------------------------------------------------
+parity_audit_checklist:
+  - id: same_running_build_identity
+    description: >
+      Help, About, the docs pane, the service-health view, and
+      the support summary MUST all carry the same
+      running_build_identity_ref for the running build.
+    failure_event: parity_audit_field_missing
+    failure_denial_reason: parity_field_missing
+  - id: same_about_packet_publisher_payload
+    description: >
+      Help / About, the docs-browser footer, the CLI status
+      row, and the support summary MUST all subscribe to a
+      single about_packet_publisher record id; locally derived
+      payloads are non-conforming.
+    failure_event: about_packet_publisher_unresolved
+    failure_denial_reason: about_packet_publisher_unresolved
+  - id: same_service_contract_state_per_service
+    description: >
+      Per-feature panels MUST quote the
+      service_health_aggregator's service_contract_state per
+      service; minting per-feature service-state values is
+      non-conforming.
+    failure_event: service_contract_state_changed
+    failure_denial_reason: service_contract_mismatch
+  - id: same_browser_handoff_reason_subset
+    description: >
+      Browser handoffs originating from docs / Help / About /
+      service-health surfaces MUST quote a reason from the
+      browser_handoff_reason_subset; quoting a reason outside
+      the subset is non-conforming.
+    failure_event: browser_handoff_from_docs_help_service_health_issued
+    failure_denial_reason: browser_handoff_reason_outside_subset
+  - id: derived_explanation_must_cite
+    description: >
+      Every derived_explanation badge MUST carry a non-empty
+      citation_anchor_refs array that names at least one
+      authoritative anchor (docs_page_anchor,
+      generated_reference_anchor, symbol_reference_anchor,
+      runbook_step_anchor, or release_note_anchor).
+    failure_event: derived_explanation_uncited_refused
+    failure_denial_reason: derived_explanation_uncited
+  - id: vendor_overrides_project_disclosure
+    description: >
+      Any badge whose source_class = vendor_provider_docs and
+      whose vendor_overrides_project = true MUST render the
+      typed disclosure on the primary surface (not in a
+      tooltip).
+    failure_event: vendor_docs_overrode_project
+    failure_denial_reason: vendor_docs_overrode_project_without_disclosure
+  - id: schema_version_alignment
+    description: >
+      All emitted badges MUST share help_status_badge_schema_version
+      with the registry; surfaces lagging behind a schema bump
+      are denied.
+    failure_event: help_status_badge_schema_version_bumped
+    failure_denial_reason: help_status_badge_schema_version_lagging

@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/help_status_badge.schema.json",
+  "title": "Aureline docs / Help / About / service-health truth-source and badge vocabulary",
+  "description": "Boundary schema for the help_status_badge_record, the citation_anchor_record, and the docs_help_service_health audit-event record frozen in docs/adr/0013-docs-help-service-health-truth.md. Every row rendered on a docs pane, the docs browser, a Help / About surface, the service-health view, an onboarding step, an AI-explanation overlay, or a support-summary export resolves to exactly one help_status_badge_record. Raw docs bytes, raw runbook bodies, raw symbol definitions, and raw URLs never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual docs-help-service-health crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new source class, version-match state, service-contract state, degraded-state cause, anchor kind, surface class, audit-event id, or denial reason is additive-minor and requires a help_status_badge_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/help_status_badge_record" },
+    { "$ref": "#/$defs/citation_anchor_record" },
+    { "$ref": "#/$defs/docs_help_service_health_audit_event_record" }
+  ],
+  "$defs": {
+    "help_status_badge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this docs / help / service-health badge vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "help_status_badge_record",
+        "citation_anchor_record",
+        "docs_help_service_health_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Frozen source-of-truth class for the row. project_docs and generated_reference outrank vendor_provider_docs on in-scope topics by default; admin policy may narrow this rule but may not silently widen it. derived_explanation rows MUST cite at least one authoritative anchor."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Frozen version-match-state vocabulary. Computed at render time against the running build's exact-build identity (running_build_identity_ref). incompatible_drift_detected and unknown_target_build rows MUST render with a typed degraded_state_cause and a repair_hook_ref."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A surface whose canonical owner has not been contacted within its refresh window MUST NOT render authoritative_live."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A row whose client_scope excludes the rendering surface MUST NOT render as available there."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "support_summary",
+        "onboarding",
+        "ai_explanation_overlay"
+      ],
+      "description": "Frozen surface-class vocabulary naming which protected surface emitted the badge. Each surface family has additional projection requirements (see ADR-0013)."
+    },
+
+    "service_contract_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "degraded",
+        "local_only",
+        "stale",
+        "contract_mismatch",
+        "policy_blocked",
+        "unavailable"
+      ],
+      "description": "Frozen service-contract-state vocabulary emitted by the single service_health_aggregator. Per-feature panels MUST quote this aggregator; per-feature service-state vocabularies are forbidden."
+    },
+
+    "degraded_state_cause": {
+      "type": "string",
+      "enum": [
+        "pack_unreachable",
+        "version_mismatch",
+        "signature_unverified",
+        "mirror_continuity_broken",
+        "pack_quarantined",
+        "local_only_fallback",
+        "policy_blocked",
+        "freshness_floor_unmet",
+        "client_scope_excludes_surface",
+        "derived_explanation_uncited",
+        "vendor_docs_overrides_project",
+        "external_status_feed_unreachable",
+        "unresolved_axis"
+      ],
+      "description": "Frozen degraded-state-cause vocabulary. Required when freshness_class is below authoritative_live, version_match_state is below exact_build_match, or service_contract_state is below ready. Every cause MUST come with a repair_hook_ref."
+    },
+
+    "browser_handoff_reason_subset": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ],
+      "description": "Frozen subset of the ADR-0010 browser_handoff_packet.reason_code values that docs / Help / About / service-health surfaces are allowed to quote. Surfaces MUST NOT mint a parallel reason vocabulary; full packet bodies live behind schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "docs_page_anchor",
+        "generated_reference_anchor",
+        "symbol_reference_anchor",
+        "code_span_anchor",
+        "runbook_step_anchor",
+        "release_note_anchor",
+        "service_health_event_anchor",
+        "mirrored_docs_anchor",
+        "curated_pack_anchor",
+        "vendor_provider_anchor",
+        "external_status_feed_anchor"
+      ],
+      "description": "Frozen citation-anchor kind vocabulary. derived_explanation rows MUST cite at least one authoritative anchor (docs_page_anchor, generated_reference_anchor, symbol_reference_anchor, runbook_step_anchor, or release_note_anchor); citing only an external_status_feed_anchor or vendor_provider_anchor is not sufficient."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "help_status_badge_emitted",
+        "help_status_badge_refused",
+        "docs_pack_version_match_changed",
+        "docs_pack_freshness_downgraded",
+        "docs_pack_freshness_recovered",
+        "vendor_docs_overrode_project",
+        "derived_explanation_cited",
+        "derived_explanation_uncited_refused",
+        "service_contract_state_changed",
+        "service_local_only_engaged",
+        "service_policy_blocked",
+        "about_packet_publisher_unresolved",
+        "browser_handoff_from_docs_help_service_health_issued",
+        "parity_audit_field_missing",
+        "help_status_badge_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the docs_help_service_health audit stream. Events MUST NOT carry raw docs bytes, raw runbook bodies, raw symbol definitions, or raw URLs."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "source_class_unresolved",
+        "version_match_state_unresolved",
+        "incompatible_drift_detected",
+        "signature_unverified",
+        "mirror_continuity_broken",
+        "pack_quarantined",
+        "freshness_floor_unmet",
+        "client_scope_excludes_surface",
+        "service_contract_mismatch",
+        "policy_blocked",
+        "derived_explanation_uncited",
+        "vendor_docs_overrode_project_without_disclosure",
+        "about_packet_publisher_unresolved",
+        "browser_handoff_reason_outside_subset",
+        "parity_field_missing",
+        "help_status_badge_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary for the docs_help_service_health audit stream. Denials fail closed; silent downgrade to a generic 'unavailable' chip is forbidden."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the row / anchor / event was recorded."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the row was recorded inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ],
+          "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": {
+          "type": "string",
+          "description": "Short human-legible label the surface may render next to the chip."
+        }
+      },
+      "description": "Typed repair hook required for every non-null degraded_state_cause and for every disabled service-contract-state row. A row with a degraded_state_cause but no repair_hook_ref is non-conforming."
+    },
+
+    "browser_handoff_packet_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "destination_class", "reason_code"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "destination_class": {
+          "type": "string",
+          "enum": [
+            "code_host_web",
+            "issue_tracker_web",
+            "ci_provider_web",
+            "docs_or_portal_web",
+            "identity_provider_web",
+            "package_registry_web",
+            "release_publisher_web",
+            "ai_provider_web",
+            "managed_admin_web",
+            "external_generic_web"
+          ],
+          "description": "Re-exported from schemas/integration/browser_handoff_packet.schema.json without modification (ADR-0010). Docs / Help / About / service-health surfaces typically use docs_or_portal_web, identity_provider_web, managed_admin_web, or external_generic_web."
+        },
+        "reason_code": { "$ref": "#/$defs/browser_handoff_reason_subset" }
+      },
+      "description": "Inline reference to the ADR-0010 browser_handoff_packet that the badge row exposes for an out-of-product action. The full packet body lives behind schemas/integration/browser_handoff_packet.schema.json. The badge record carries only the packet id, destination class, and (subset-checked) reason code; raw URLs never live on the badge."
+    },
+
+    "help_status_badge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "help_status_badge_schema_version",
+        "badge_id",
+        "surface_class",
+        "source_class",
+        "version_match_state",
+        "running_build_identity_ref",
+        "freshness_class",
+        "client_scopes",
+        "external_status_feed",
+        "vendor_overrides_project",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "help_status_badge_record" },
+        "help_status_badge_schema_version": {
+          "$ref": "#/$defs/help_status_badge_schema_version"
+        },
+        "badge_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011). Parity audits and support exports consume this field mechanically."
+        },
+        "source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque pin to the source pack / reference / runbook revision the row was minted against. Null only for external_status_feed rows."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes this row surfaces on. A row whose client_scopes excludes the rendering surface MUST NOT render as available there."
+        },
+        "service_contract_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/service_contract_state" }
+          ],
+          "description": "Required when surface_class = service_health. Null otherwise."
+        },
+        "degraded_state_cause": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/degraded_state_cause" }
+          ],
+          "description": "Required when freshness_class is below authoritative_live, version_match_state is below exact_build_match, or service_contract_state is below ready. Null otherwise."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ],
+          "description": "Required (non-null) when degraded_state_cause is non-null. Null otherwise."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_packet_ref" }
+          ],
+          "description": "Required (non-null) when the badge exposes an out-of-product action. Null otherwise. Surfaces MUST NOT call the system browser directly; raw URL launches from docs / help / service-health surfaces are forbidden."
+        },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason_subset" }
+          ],
+          "description": "Inline copy of browser_handoff_packet_ref.reason_code, exposed on the badge so a parity audit can read the reason without joining packets. Required when browser_handoff_packet_ref is non-null. Null otherwise."
+        },
+        "external_status_feed": {
+          "type": "boolean",
+          "description": "True when source_class = external_status_feed. Lets parity audits distinguish a docs deep-link from a status-feed deep-link without re-parsing the source class."
+        },
+        "vendor_overrides_project": {
+          "type": "boolean",
+          "description": "True when this row is vendor docs rendered in place of in-scope project docs. The typed disclosure renders on the primary surface alongside the chip; tooltip-only disclosure is forbidden."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids the row backs itself with. MUST be non-empty when source_class = derived_explanation. Optional otherwise. Each id resolves to a citation_anchor_record with the same anchor_id."
+        },
+        "lifecycle_label": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "labs",
+                "preview",
+                "beta",
+                "stable",
+                "lts_facing",
+                "deprecated",
+                "disabled_by_policy",
+                "retired"
+              ]
+            }
+          ],
+          "description": "Optional renderer hint when the row also carries an ADR-0011 lifecycle posture. Re-exported from schemas/governance/capability_lifecycle.schema.json. Surfaces treat it as a separate chip from the freshness / version-match chips."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp of the last refresh against the canonical owner. Null when the row has not yet been refreshed."
+        }
+      },
+      "allOf": [
+        {
+          "description": "service_contract_state MUST be non-null when surface_class = service_health.",
+          "if": {
+            "properties": { "surface_class": { "const": "service_health" } },
+            "required": ["surface_class"]
+          },
+          "then": {
+            "properties": { "service_contract_state": { "$ref": "#/$defs/service_contract_state" } },
+            "required": ["service_contract_state"]
+          }
+        },
+        {
+          "description": "browser_handoff_reason MUST be non-null when browser_handoff_packet_ref is non-null.",
+          "if": {
+            "properties": {
+              "browser_handoff_packet_ref": { "type": "object" }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          },
+          "then": {
+            "properties": { "browser_handoff_reason": { "$ref": "#/$defs/browser_handoff_reason_subset" } },
+            "required": ["browser_handoff_reason"]
+          }
+        },
+        {
+          "description": "repair_hook_ref MUST be non-null when degraded_state_cause is non-null.",
+          "if": {
+            "properties": {
+              "degraded_state_cause": { "$ref": "#/$defs/degraded_state_cause" }
+            },
+            "required": ["degraded_state_cause"]
+          },
+          "then": {
+            "properties": { "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" } },
+            "required": ["repair_hook_ref"]
+          }
+        }
+      ],
+      "description": "Parity-audit contract emitted by every docs / Help / About / service-health / support-summary / onboarding / AI-explanation surface. Required parity fields (surface_class, source_class, version_match_state, running_build_identity_ref, freshness_class, client_scopes, degraded_state_cause, browser_handoff_reason, external_status_feed, vendor_overrides_project, policy_context, redaction_class) MUST be addressable on every emitted record so a later parity audit can compare surfaces field-for-field without inventing badge semantics."
+    },
+
+    "citation_anchor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "help_status_badge_schema_version",
+        "anchor_id",
+        "anchor_kind",
+        "source_class",
+        "source_revision_ref",
+        "target_path_or_symbol_ref",
+        "target_build_identity_ref",
+        "freshness_class_at_mint",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "citation_anchor_record" },
+        "help_status_badge_schema_version": {
+          "$ref": "#/$defs/help_status_badge_schema_version"
+        },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_revision_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the docs-pack / generated-reference / runbook revision the anchor was minted against. Required for reconstructing the exact view a user saw."
+        },
+        "target_path_or_symbol_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The relative path inside the pack, the symbol id inside the graph, the runbook step id, or the service-health event id."
+        },
+        "target_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Running-build id the anchor was minted under (D-0011). Lets a parity audit recompute the version_match_state if the running build changed."
+        },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed citation anchor reserved for the citation / symbol-reference packet lane. Anchors hold ids only; raw page bodies, raw symbol definitions, and raw runbook bodies are fetched from the canonical owner on demand."
+    },
+
+    "docs_help_service_health_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "help_status_badge_schema_version",
+        "audit_event_id",
+        "badge_id",
+        "surface_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "docs_help_service_health_audit_event_record" },
+        "help_status_badge_schema_version": {
+          "$ref": "#/$defs/help_status_badge_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "badge_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "source_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/source_class" }
+          ]
+        },
+        "version_match_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_match_state" }
+          ]
+        },
+        "freshness_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/freshness_class" }
+          ]
+        },
+        "service_contract_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/service_contract_state" }
+          ]
+        },
+        "degraded_state_cause": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/degraded_state_cause" }
+          ]
+        },
+        "browser_handoff_packet_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Packet id when the event is browser_handoff_from_docs_help_service_health_issued. Null otherwise."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) for help_status_badge_refused, derived_explanation_uncited_refused, about_packet_publisher_unresolved, and parity_audit_field_missing events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted on the docs_help_service_health audit stream. Events MUST NOT carry raw docs bytes, raw runbook bodies, raw symbol definitions, or raw URLs."
+    }
+  }
+}
