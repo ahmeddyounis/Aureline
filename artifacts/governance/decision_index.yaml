@@ -184,7 +184,7 @@ decisions:
   # ---------------------------------------------------------------------------
   - decision_id: D-0002
     title: Buffer and editor-core persistence model
-    status: open
+    status: decided
     target_milestone: pre-implementation-foundations
     freeze_by_milestone: first-beta-milestone
     freeze_by_date: "2026-07-01"
@@ -198,12 +198,38 @@ decisions:
       - doc: .t2/docs/Aureline_PRD.md
         anchor: "line 150"
         quote: "piece-table-derived piece tree for standard editable files"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 854"
+        quote: "Large-file mode: mmap-backed paged reader with read-only and constrained-edit modes"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 856"
+        quote: "Undo/redo: operation log with coalescing and transaction grouping"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1373"
+        quote: "Text model, Unicode correctness, and source fidelity"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1390"
+        quote: "decoding failures must never destroy the original on-disk byte sequence"
       - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
         anchor: "line 403"
         quote: "piece-table / piece-tree — proven editing semantics and strong undo/redo"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1409"
+        quote: "transaction-grouped undo/redo"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1432"
+        quote: "perform temp-write + fsync + atomic rename where safe"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1444"
+        quote: "Large-file mode"
     affected_artifacts:
       - crates/aureline-buffer
       - crates/aureline-text
+      - crates/aureline-vfs
+      - crates/aureline-bench
+      - artifacts/architecture/undo_class_rows.yaml
+      - fixtures/text/buffer_decision_cases/
+      - docs/adr/
     default_if_unresolved:
       posture: narrow
       description: >
@@ -215,7 +241,7 @@ decisions:
       requires_approval_from: []
     linked_assumptions: []
     linked_dependencies: []
-    linked_adr: null
+    linked_adr: docs/adr/0003-buffer-undo-large-file.md
     linked_rfc: null
     superseded_by: []
     decision_history:
@@ -223,6 +249,32 @@ decisions:
         actor: "@ahmedyounis"
         forum: architecture_council
         outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: accept
+        notes: >
+          Closed by docs/adr/0003-buffer-undo-large-file.md. Freezes
+          the buffer model (piece tree with paged-rope large-file
+          overlay), the snapshot and checkpoint semantics, the
+          undo/redo grouping rules, the undo-class taxonomy
+          (text_edit, multi_cursor_text_edit, structural_edit,
+          refactor_single_file, refactor_multi_file, formatter_run,
+          save_participant_group, imported_change,
+          machine_generated_change, migration_change,
+          external_reload, decode_recovery_change) with per-class
+          compensatable / only-revertible posture, the source-
+          fidelity rules (sticky encoding / BOM / dominant-newline /
+          final-newline preservation; decode-recovery handoff that
+          preserves raw bytes; advisory- and enforced-read-only
+          posture; canonical save-target resolution; atomic save
+          pipeline with a journal-mediated fallback), the large-file
+          switch conditions and reduced-capability list, and the
+          protected-hot-path hook list. Supporting artifacts:
+          artifacts/architecture/undo_class_rows.yaml and
+          fixtures/text/buffer_decision_cases/. The narrowing
+          default is replaced by the ADR's frozen posture; the
+          narrowed piece-tree-only posture does not apply.
 
   # ---------------------------------------------------------------------------
   # Workspace VFS

@@ -1,0 +1,694 @@
+# Undo-class rows.
+#
+# Machine-readable taxonomy backing ADR 0003
+# (docs/adr/0003-buffer-undo-large-file.md). Each row names one undo
+# class, the kinds of originator that emit it, the journal fields the
+# class carries, the compensation posture (compensatable vs only
+# revertible), the protected-hot-path hooks the class fires, and the
+# observable signal that would force a new class to be opened.
+#
+# Tooling (buffer prototype, save pipeline, large-file controller,
+# recovery work, eventual mutation-journal lane, AI apply flow,
+# refactor lanes, multi-file rename lane, settings-import lane) reads
+# this file so they speak one shared vocabulary when describing what
+# they emitted, replayed, or recovered.
+#
+# Scope rules:
+#   - Every row MUST name a class_id, an originator_examples list, a
+#     compensation_posture, at least one protected_hot_path_hook, at
+#     least one source_anchor, and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - A class's compensation_posture is invariant. To "promote" a
+#     class from only_revertible to compensatable, open a new
+#     decision row; do not edit the field.
+#   - Adding a new class_id requires an ADR amendment as well as a
+#     row here.
+
+schema_version: 1
+
+adr_source: docs/adr/0003-buffer-undo-large-file.md
+decision_id: D-0002
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Class-id vocabulary.
+#
+# Every row's `class_id` field MUST be one of these. Adding a class is
+# a schema bump and an ADR amendment.
+# -----------------------------------------------------------------------------
+class_ids:
+  - text_edit
+  - multi_cursor_text_edit
+  - structural_edit
+  - refactor_single_file
+  - refactor_multi_file
+  - formatter_run
+  - save_participant_group
+  - imported_change
+  - machine_generated_change
+  - migration_change
+  - external_reload
+  - decode_recovery_change
+
+# -----------------------------------------------------------------------------
+# Compensation posture vocabulary.
+#
+# - compensatable: the inverse can be expressed as a forward, legal
+#   transaction (insert reverses delete). Redo survives a divergent
+#   edit.
+# - only_revertible: the inverse depends on a stored snapshot. Redo
+#   pins to a snapshot lineage; a divergent edit drops the redo
+#   stack for the group.
+#
+# An undo group's compensation posture is the most restrictive of
+# its members; any only_revertible member makes the whole group
+# only_revertible.
+# -----------------------------------------------------------------------------
+compensation_postures:
+  - compensatable
+  - only_revertible
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Journal-field reservations.
+#
+# Every transaction the journal stores MUST carry these fields. Per-
+# class additions live on the row's `journal_fields` list. A class
+# never removes a reserved field; lanes that need a different field
+# must add one rather than overload an existing one.
+# -----------------------------------------------------------------------------
+reserved_journal_fields:
+  - name: transaction_id
+    type: u64
+    description: Monotonic per-buffer transaction id.
+  - name: class_id
+    type: enum(class_ids)
+    description: One of the class_ids above. No untyped mutations.
+  - name: originator
+    type: string
+    description: >
+      Stable identifier of the originator (e.g. user_keystroke,
+      command:rename_symbol, ai_apply, save_participant:format_on_save,
+      vfs_external_change, settings_import).
+  - name: undo_group_id
+    type: u64
+    description: >
+      The named or anonymous undo group this transaction belongs to.
+      Coalesced single-character typing shares one group id; a named
+      group (refactor, AI apply, save participant set) is one id.
+  - name: parent_snapshot
+    type: snapshot_handle
+    description: Snapshot the transaction ran against.
+  - name: produced_snapshot
+    type: snapshot_handle
+    description: Snapshot the transaction produced.
+  - name: label
+    type: optional<string>
+    description: >
+      Human-readable label for the surface that shows undo history.
+      Optional for anonymous classes (text_edit), required for named
+      groups (refactor, AI apply, multi-file rename, formatter, save
+      participant group, migration, import).
+
+# -----------------------------------------------------------------------------
+# Reservations for the workspace-level multi-file history.
+#
+# Cross-buffer groups (refactor_multi_file, save_participant_group
+# spanning multiple buffers, machine_generated_change spanning
+# multiple buffers, migration_change, imported_change spanning
+# multiple buffers) live in a workspace-level history that
+# REFERENCES each buffer's per-buffer journal. The schema below is
+# reserved here so a future ADR can land it without renegotiating
+# field names.
+# -----------------------------------------------------------------------------
+workspace_history_reservation:
+  status: reserved
+  notes: >
+    Lands as its own decision row when the multi-file lane needs it.
+    The reservation prevents buffer journals from inventing parallel
+    cross-file vocabulary in the meantime.
+  reserved_fields:
+    - name: workspace_group_id
+      type: u128
+      description: Stable id for the cross-buffer group.
+    - name: member_buffers
+      type: list<buffer_handle>
+      description: Buffers the group touched; each carries a per-buffer undo_group_id.
+    - name: member_undo_groups
+      type: map<buffer_handle, u64>
+      description: Per-buffer undo group ids referenced by this workspace group.
+    - name: originator
+      type: string
+      description: Same originator vocabulary as the per-buffer field.
+    - name: checkpoint_handle
+      type: optional<checkpoint_handle>
+      description: >
+        The checkpoint taken before the workspace group ran. Required
+        for any group whose compensation posture is only_revertible.
+    - name: review_artifact
+      type: optional<artifact_handle>
+      description: >
+        Durable review artifact for broad-scope apply paths that
+        require one (multi-file refactor, AI apply across files,
+        settings import).
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - class_id: text_edit
+    summary: >
+      Local insert / delete / replace inside one buffer at one cursor
+      or selection range.
+    originator_examples:
+      - user_keystroke
+      - paste
+      - command:single_cursor_replace
+    compensation_posture: compensatable
+    coalescing_rules:
+      - Single-character typing into the same cursor coalesces into
+        one undo group until a word boundary, caret jump, selection
+        change, or configurable idle window.
+    journal_fields:
+      - name: edit_range
+        type: byte_range
+        description: Range replaced (length zero for a pure insert).
+      - name: inserted_bytes
+        type: bytes
+        description: Bytes inserted (empty for a pure delete).
+      - name: removed_bytes
+        type: bytes
+        description: Bytes removed (empty for a pure insert).
+    protected_hot_path_hooks:
+      - text_edit_apply
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 856"
+        quote: "operation log with coalescing and transaction grouping"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1409"
+        quote: "transaction-grouped undo/redo"
+    reopen_triggers:
+      - id: text_edit_apply_budget_breach
+        severity: blocker
+        description: >
+          text_edit_apply exceeds its protected budget on a
+          representative file size and the fix would require swapping
+          the buffer model.
+      - id: coalescing_window_drift
+        severity: watch
+        description: >
+          A surface invents a different coalescing rule for typing;
+          must consolidate or open a new row.
+
+  - class_id: multi_cursor_text_edit
+    summary: >
+      One transaction over N selection ranges in one buffer; one
+      undo group across all cursors in one keystroke.
+    originator_examples:
+      - user_keystroke (multi_cursor)
+      - command:multi_cursor_replace
+    compensation_posture: compensatable
+    coalescing_rules:
+      - All cursors in the same keystroke share one undo group.
+      - Distinct keystrokes do not coalesce across cursors.
+    journal_fields:
+      - name: per_cursor_edits
+        type: list<{edit_range, inserted_bytes, removed_bytes}>
+        description: One entry per cursor, applied atomically.
+    protected_hot_path_hooks:
+      - text_edit_apply
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2276"
+        quote: "Multi-cursor operations remain under 16 ms p95 on typical source files; all commands are undo-grouped"
+    reopen_triggers:
+      - id: multicursor_apply_budget_breach
+        severity: blocker
+        description: >
+          Multi-cursor edit at representative N exceeds its protected
+          budget and the fix would require splitting the transaction.
+      - id: half_revert_observed
+        severity: blocker
+        description: >
+          Undo half-reverts a multi-cursor operation on any path;
+          the single-undo-group rule has been violated.
+
+  - class_id: structural_edit
+    summary: >
+      Whole-line, block, indent, sort, or range-format mutation
+      inside one buffer.
+    originator_examples:
+      - command:move_line_up
+      - command:reindent_selection
+      - command:sort_lines
+      - command:format_range
+    compensation_posture: compensatable
+    coalescing_rules:
+      - Each command emits one undo group; structural commands do
+        not coalesce with text_edit typing.
+    journal_fields:
+      - name: affected_ranges
+        type: list<byte_range>
+        description: Ranges the structural edit touched.
+      - name: structural_op
+        type: string
+        description: >
+          Identifier for the structural operation (e.g. move_line_up,
+          sort_lines_asc, reindent_selection).
+    protected_hot_path_hooks:
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 856"
+        quote: "operation log with coalescing and transaction grouping"
+    reopen_triggers:
+      - id: structural_op_needs_inverse_snapshot
+        severity: blocker
+        description: >
+          A structural operation cannot express its inverse as a
+          forward operation and would force only_revertible posture.
+
+  - class_id: refactor_single_file
+    summary: >
+      Single-file refactor that emits a named undo group covering
+      every transaction the refactor produced inside one buffer.
+    originator_examples:
+      - command:rename_local
+      - command:extract_method_local
+      - command:inline_variable_local
+    compensation_posture: compensatable
+    coalescing_rules:
+      - All transactions inside the named group share one undo
+        group id; closing the group ends coalescing.
+    journal_fields:
+      - name: refactor_kind
+        type: string
+        description: Refactor identifier (rename_local, extract_method_local, ...).
+      - name: preview_handle
+        type: optional<preview_handle>
+        description: Preview surface the user accepted before apply, when present.
+    protected_hot_path_hooks:
+      - undo_group_open
+      - undo_group_close
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 707"
+        quote: "every automated edit path … must be previewable, attributable, and undoable"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 5359"
+        quote: "AI apply, extension refactor, multi-file replace, and settings import create grouped history entries"
+    reopen_triggers:
+      - id: refactor_local_needs_revert_only
+        severity: watch
+        description: >
+          A single-file refactor needs only_revertible posture
+          (e.g. depends on external semantic state); promote class
+          or split into a new id rather than mutate this row.
+
+  - class_id: refactor_multi_file
+    summary: >
+      Refactor that mutates two or more buffers / files; the
+      workspace-level multi-file history references the per-buffer
+      undo groups.
+    originator_examples:
+      - command:rename_symbol_workspace
+      - command:organise_imports_project
+      - command:move_file_with_references
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Per-buffer transactions share a per-buffer undo group id;
+        the workspace_group_id binds them at the workspace level.
+      - A divergent edit in any member buffer drops the redo stack
+        for the workspace group.
+    journal_fields:
+      - name: refactor_kind
+        type: string
+        description: Refactor identifier.
+      - name: workspace_group_id
+        type: u128
+        description: Cross-buffer group id (see workspace_history_reservation).
+      - name: preview_handle
+        type: optional<preview_handle>
+        description: Preview surface the user accepted before apply.
+      - name: checkpoint_handle
+        type: checkpoint_handle
+        description: Checkpoint taken before the refactor ran.
+    protected_hot_path_hooks:
+      - undo_group_open
+      - undo_group_close
+      - checkpoint_create
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 657"
+        quote: "Multi-file changes are always previewable and reversible"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 1355"
+        quote: "broad-scope apply paths create named undo groups and, when they cross files or protected classes, durable review artifacts and checkpoints"
+    reopen_triggers:
+      - id: cross_buffer_redo_stack_loss
+        severity: watch
+        description: >
+          A divergent edit in one member buffer destroys redo
+          across unrelated buffers in the workspace group; the
+          workspace history needs richer reference semantics.
+      - id: workspace_group_apply_budget_breach
+        severity: blocker
+        description: >
+          The cross-buffer apply path crosses its protected budget
+          on representative file counts.
+
+  - class_id: formatter_run
+    summary: >
+      Formatter or pretty-printer run inside save or on demand.
+    originator_examples:
+      - save_participant:format_on_save
+      - command:format_document
+      - command:format_range
+    compensation_posture: compensatable
+    coalescing_rules:
+      - One formatter run is one undo group; it never coalesces
+        with adjacent typing.
+      - Inside a save_participant_group, the formatter's group id
+        is subsumed by the save group id.
+    journal_fields:
+      - name: formatter_id
+        type: string
+        description: Formatter identifier (e.g. rustfmt, prettier).
+      - name: scope
+        type: enum
+        description: One of (document, range).
+      - name: affected_ranges
+        type: list<byte_range>
+        description: Ranges the formatter rewrote.
+    protected_hot_path_hooks:
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1391"
+        quote: "save participants such as format-on-save, organize imports, code actions, and AI apply must operate on a staged buffer"
+    reopen_triggers:
+      - id: formatter_inverse_too_large
+        severity: watch
+        description: >
+          A formatter's stored inverse exceeds the journal's per-
+          buffer cap on representative files (journal_inverse_rejected
+          fires) and the workflow requires keeping the history.
+
+  - class_id: save_participant_group
+    summary: >
+      Save plus the participants that ran in the same save pipeline,
+      collected into one undo group.
+    originator_examples:
+      - command:save (with format_on_save + organise_imports + ai_apply)
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Every participant transaction inside the save runs under
+        the save group id.
+      - The group closes when the save pipeline returns success or
+        rolls back to the pre-pipeline snapshot on participant
+        rebase / abort.
+    journal_fields:
+      - name: participants
+        type: list<string>
+        description: Ordered list of participant ids that ran.
+      - name: save_target
+        type: path
+        description: Canonical save target the pipeline wrote to.
+      - name: save_mode
+        type: enum
+        description: One of (atomic_rename, journal_mediated_fallback).
+      - name: rebased_or_aborted
+        type: bool
+        description: True if any participant rebased or aborted.
+    protected_hot_path_hooks:
+      - save_pipeline_run
+      - save_participant_rebase
+      - undo_group_open
+      - undo_group_close
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1383"
+        quote: "Atomic save pipeline … temp-write + fsync + atomic rename"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1391"
+        quote: "save participants … operate on a staged buffer and rebase or abort if the on-disk file changed mid-flight"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1432"
+        quote: "perform temp-write + fsync + atomic rename where safe"
+    reopen_triggers:
+      - id: rename_unsafe_filesystem_common
+        severity: blocker
+        description: >
+          A common host filesystem (network mount, fuse mount,
+          OneDrive placeholder) cannot honour atomic rename and the
+          journal-mediated fallback's behaviour needs its own
+          undo class.
+
+  - class_id: imported_change
+    summary: >
+      Change ingested from outside the editor without a typed
+      transaction (settings import, bulk migration into the
+      workspace, restored backup).
+    originator_examples:
+      - settings_import
+      - workspace_state_import
+      - backup_restore
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Each import is one undo group; imports never coalesce
+        with each other.
+    journal_fields:
+      - name: import_source
+        type: string
+        description: Source identifier (file, url, backup_id, ...).
+      - name: import_kind
+        type: string
+        description: Identifier for the import variant.
+      - name: checkpoint_handle
+        type: checkpoint_handle
+        description: Checkpoint taken before the import ran.
+    protected_hot_path_hooks:
+      - undo_group_open
+      - undo_group_close
+      - checkpoint_create
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 5359"
+        quote: "AI apply, extension refactor, multi-file replace, and settings import create grouped history entries with source attribution"
+    reopen_triggers:
+      - id: imported_change_needs_partial_redo
+        severity: watch
+        description: >
+          An import needs partial redo (per-row redo into a settings
+          file, for example); the only_revertible posture forces
+          full-group redo and may need splitting.
+
+  - class_id: machine_generated_change
+    summary: >
+      Edit produced by a non-human originator (AI apply, code-action
+      quick-fix, generator output) and applied with attribution.
+    originator_examples:
+      - ai_apply
+      - code_action:quick_fix
+      - generator_output:codegen
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Each apply is one named undo group; multi-file apply uses
+        the workspace_group_id.
+    journal_fields:
+      - name: agent_id
+        type: string
+        description: Stable id of the agent or generator.
+      - name: invocation_id
+        type: string
+        description: Stable id of the specific invocation.
+      - name: prompt_or_input_handle
+        type: optional<artifact_handle>
+        description: Reference to the prompt or input that produced the change.
+      - name: preview_handle
+        type: optional<preview_handle>
+        description: Preview surface the user accepted before apply.
+      - name: checkpoint_handle
+        type: checkpoint_handle
+        description: Checkpoint taken before apply.
+      - name: workspace_group_id
+        type: optional<u128>
+        description: Cross-buffer group id when the apply spans buffers.
+    protected_hot_path_hooks:
+      - undo_group_open
+      - undo_group_close
+      - checkpoint_create
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 707"
+        quote: "every automated edit path — refactorings, quick fixes, AI changes, formatter actions — must be previewable, attributable, and undoable"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2019"
+        quote: "AI action | Drafted -> ContextResolving -> ApprovalPending -> Executing -> PatchProposed -> Applied -> Verified / Rejected / Reverted"
+    reopen_triggers:
+      - id: agent_attribution_lost
+        severity: blocker
+        description: >
+          A machine apply path lands without agent_id or
+          invocation_id; attribution invariants violated.
+      - id: ai_apply_budget_breach
+        severity: blocker
+        description: >
+          AI apply across representative file counts crosses its
+          protected budget and the fix would require changing the
+          journal contract.
+
+  - class_id: migration_change
+    summary: >
+      Schema, settings, or workspace-state migration that takes a
+      checkpoint and is restorable on startup failure.
+    originator_examples:
+      - settings_migration
+      - workspace_state_migration
+      - schema_migration
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - One migration is one undo group; migrations never
+        coalesce.
+    journal_fields:
+      - name: migration_id
+        type: string
+        description: Migration identifier.
+      - name: from_version
+        type: string
+      - name: to_version
+        type: string
+      - name: checkpoint_handle
+        type: checkpoint_handle
+        description: Checkpoint taken before the migration ran (mandatory).
+    protected_hot_path_hooks:
+      - checkpoint_create
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2680"
+        quote: "Any destructive config or workspace migration must create a checkpoint that can be restored automatically if startup fails"
+    reopen_triggers:
+      - id: migration_without_checkpoint
+        severity: blocker
+        description: >
+          A migration path lands without a checkpoint; restoration
+          invariants violated.
+
+  - class_id: external_reload
+    summary: >
+      Buffer adopted on-disk bytes after an out-of-band external
+      modification.
+    originator_examples:
+      - vfs_external_change (clean buffer auto-reload)
+      - vfs_external_change (dirty buffer merged choice)
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Each reload is one undo group; reloads never coalesce
+        with typing.
+    journal_fields:
+      - name: previous_snapshot
+        type: snapshot_handle
+        description: Snapshot before the reload.
+      - name: adopted_bytes_origin
+        type: enum
+        description: One of (auto_reload_clean, merged_choice_dirty).
+      - name: merge_resolution_handle
+        type: optional<merge_handle>
+        description: Reference to the merge surface used for dirty buffers.
+    protected_hot_path_hooks:
+      - external_change_detected
+      - external_change_merge
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1385"
+        quote: "Clean buffers may auto-reload by policy; dirty buffers must use explicit diff/merge/choose flows"
+    reopen_triggers:
+      - id: silent_overwrite_observed
+        severity: blocker
+        description: >
+          A dirty buffer adopts external bytes without an explicit
+          diff/merge/choose flow.
+
+  - class_id: decode_recovery_change
+    summary: >
+      Buffer adopted a recovered decoded form after a decode failure;
+      the original on-disk bytes were preserved through the recovery
+      handoff.
+    originator_examples:
+      - decode_recovery:user_override_encoding
+      - decode_recovery:treat_as_binary
+      - decode_recovery:open_in_large_file_mode
+    compensation_posture: only_revertible
+    coalescing_rules:
+      - Recovery resolution is one undo group; it never coalesces
+        with typing.
+    journal_fields:
+      - name: original_bytes_handle
+        type: bytes_handle
+        description: Reference to the preserved original on-disk bytes.
+      - name: resolution
+        type: enum
+        description: >
+          One of (user_override_encoding, treat_as_binary,
+          open_in_large_file_mode).
+      - name: chosen_encoding
+        type: optional<string>
+        description: Encoding the user selected when overriding.
+    protected_hot_path_hooks:
+      - decode_recovery_resolve
+      - transaction_apply
+      - undo_apply
+      - redo_apply
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1390"
+        quote: "decoding failures must never destroy the original on-disk byte sequence"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1424"
+        quote: "decoding failures never discard original bytes"
+    reopen_triggers:
+      - id: original_bytes_lost
+        severity: blocker
+        description: >
+          A decode failure path discards the original on-disk bytes
+          on any host.
