@@ -10,6 +10,7 @@ to change, update this map in the same change.
 | Path           | Purpose                                                                                              |
 |----------------|------------------------------------------------------------------------------------------------------|
 | `Cargo.toml`   | Root Cargo workspace manifest. Lists every internal crate.                                           |
+| `CODEOWNERS`   | Pull-request review routing. Paired with `artifacts/governance/ownership_matrix.yaml` for ownership. |
 | `crates/`      | All Rust crates. One directory per crate; crate name matches directory name.                        |
 | `docs/`        | Design and governance docs that ship with the repository (not external product docs).                |
 | `schemas/`     | Machine-readable schemas (JSON Schema, protobuf, etc.) consumed by tooling and runtime.              |
@@ -22,7 +23,7 @@ to change, update this map in the same change.
 
 | Path                   | Purpose                                                                              |
 |------------------------|--------------------------------------------------------------------------------------|
-| `artifacts/governance/`| Package inventory, dependency-rule snapshots, waiver registers, ownership exports.   |
+| `artifacts/governance/`| Package inventory, ownership matrix, scorecard/packet templates, waiver registers.   |
 | `artifacts/release/`   | Provenance, SBOMs, compatibility reports, claim manifests, rollback packets.          |
 | `artifacts/ux/`        | Design-system snapshots, accessibility audits, UX review packets.                    |
 | `artifacts/support/`   | Support-bundle templates, recovery drill outputs, Project Doctor seeded scenarios.   |

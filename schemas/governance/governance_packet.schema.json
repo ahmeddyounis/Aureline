@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/governance_packet.schema.json",
+  "title": "Governance packet",
+  "description": "Common shape for every governance packet produced at milestone or release boundaries. Every packet carries explicit owner and backup-owner fields and resolves waivers through ownership_matrix.yaml. Packet families: verification, benchmark_report, compatibility_report, claim_manifest, shiproom, waiver_register.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_family",
+    "packet_id",
+    "milestone_id",
+    "opened_on",
+    "status",
+    "owner",
+    "backup_owner",
+    "backup_waiver",
+    "evidence_owner",
+    "covered_lanes",
+    "evidence",
+    "waiver_refs"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "packet_family": {
+      "type": "string",
+      "enum": [
+        "verification",
+        "benchmark_report",
+        "compatibility_report",
+        "claim_manifest",
+        "shiproom",
+        "waiver_register"
+      ]
+    },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "milestone_id": { "type": "string", "minLength": 1 },
+    "opened_on": { "type": "string", "format": "date" },
+    "closed_on": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "in_review", "accepted", "rejected", "superseded"]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary DRI for this packet. Required on every packet; no silent blanks."
+    },
+    "backup_owner": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Backup owner. Required unless backup_waiver is cited."
+    },
+    "backup_waiver": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Waiver id from ownership_matrix.waivers, required when backup_owner is null."
+    },
+    "evidence_owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Named evidence owner. Distinct from owner so a packet can be authored by one party and attested by another."
+    },
+    "covered_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Lane ids this packet speaks for. Each entry MUST resolve to an id in ownership_matrix.scorecard_lane_index.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Evidence category, e.g. benchmark_result, sbom, provenance, compatibility_run, ux_review."
+          },
+          "ref": {
+            "type": "string",
+            "description": "Repo-relative path or stable URI to the evidence artifact."
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "waiver_refs": {
+      "type": "array",
+      "description": "Active waivers influencing this packet. IDs resolve against ownership_matrix.waivers.",
+      "items": { "type": "string" }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Decisions recorded through this packet's lifecycle.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decided_on", "decided_by", "forum", "outcome"],
+        "properties": {
+          "decided_on": { "type": "string", "format": "date" },
+          "decided_by": { "type": "string", "minLength": 1 },
+          "forum": { "type": "string", "minLength": 1 },
+          "outcome": {
+            "type": "string",
+            "enum": ["accept", "reject", "defer", "narrow", "rebaseline"]
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "description": "Every packet must name a backup owner or cite an active waiver. No silent blanks.",
+      "if": {
+        "properties": { "backup_owner": { "type": "null" } },
+        "required": ["backup_owner"]
+      },
+      "then": {
+        "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+        "required": ["backup_waiver"]
+      }
+    }
+  ]
+}

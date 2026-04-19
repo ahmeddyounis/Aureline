@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/ownership_matrix.schema.json",
+  "title": "Ownership matrix",
+  "description": "Machine-readable DRI, backup-owner, and waiver record for every protected lane, public-truth area, supportability artifact family, governance packet family, and decision forum in scope at the current milestone. Authoritative for tooling; paired with docs/governance/dri_map.md for narrative. No silent blanks: every protected entry either names a backup or cites an active waiver.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "waivers", "packages", "governance_lanes", "decision_forums", "scorecard_lane_index"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version of this document. Increment on breaking field changes."
+    },
+    "waivers": {
+      "type": "object",
+      "description": "Waiver register keyed by waiver id. Referenced by entries below. Closing a waiver sets closed_on; entries are not deleted.",
+      "additionalProperties": {
+        "$ref": "#/$defs/waiver"
+      }
+    },
+    "packages": {
+      "type": "array",
+      "description": "Crate-level ownership. Every entry in artifacts/governance/package_inventory.yaml MUST have a matching entry here.",
+      "items": { "$ref": "#/$defs/package_entry" }
+    },
+    "governance_lanes": {
+      "type": "array",
+      "description": "Non-code ownership lanes: public-truth areas, supportability families, packet families, review families, and persistent subsystem lanes.",
+      "items": { "$ref": "#/$defs/governance_lane_entry" }
+    },
+    "decision_forums": {
+      "type": "array",
+      "description": "Named decision forum families in scope. Each records the chair, an optional backup chair, and a charter.",
+      "items": { "$ref": "#/$defs/decision_forum_entry" }
+    },
+    "scorecard_lane_index": {
+      "type": "array",
+      "description": "Lane identifiers that the milestone scorecard may reference. Each entry MUST match either a package name or a governance_lane id.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "opened_on", "expires_on", "escalation_path", "open_decision", "closed_on"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "opened_on": { "type": "string", "format": "date" },
+        "expires_on": { "type": "string", "format": "date" },
+        "escalation_path": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Ordered list of who must be informed if the waiver fires."
+        },
+        "open_decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["accepted_by", "decided_on", "forum"],
+          "properties": {
+            "accepted_by": { "type": "string", "minLength": 1 },
+            "decided_on": { "type": "string", "format": "date" },
+            "forum": { "type": "string", "minLength": 1 },
+            "notes": { "type": "string" }
+          }
+        },
+        "closed_on": {
+          "description": "Date the waiver closed, or null while it remains active.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        }
+      }
+    },
+    "package_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "protected", "primary_dri", "backup_owner", "backup_waiver"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "protected": { "type": "boolean" },
+        "primary_dri": { "type": "string", "minLength": 1 },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Waiver id from the waivers map, required when protected=true and backup_owner is null."
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Protected lanes must name a backup or cite an active waiver. No silent blanks.",
+          "if": {
+            "properties": {
+              "protected": { "const": true },
+              "backup_owner": { "type": "null" }
+            },
+            "required": ["protected", "backup_owner"]
+          },
+          "then": {
+            "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+            "required": ["backup_waiver"]
+          }
+        }
+      ]
+    },
+    "governance_lane_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "protected", "scope", "paths", "primary_dri", "backup_owner", "backup_waiver"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "subsystem",
+            "public_truth_area",
+            "supportability_family",
+            "packet_family",
+            "review_family",
+            "other"
+          ]
+        },
+        "protected": { "type": "boolean" },
+        "scope": { "type": "string", "minLength": 1 },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "primary_dri": { "type": "string", "minLength": 1 },
+        "evidence_owner": {
+          "description": "Named evidence owner for release-evidence and governance-packet lanes. Optional elsewhere.",
+          "type": "string"
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Protected lanes must name a backup or cite an active waiver.",
+          "if": {
+            "properties": {
+              "protected": { "const": true },
+              "backup_owner": { "type": "null" }
+            },
+            "required": ["protected", "backup_owner"]
+          },
+          "then": {
+            "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+            "required": ["backup_waiver"]
+          }
+        }
+      ]
+    },
+    "decision_forum_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "chair", "backup_chair", "backup_waiver", "charter"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "chair": { "type": "string", "minLength": 1 },
+        "backup_chair": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "charter": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Decision forums must name a backup chair or cite an active waiver.",
+          "if": {
+            "properties": { "backup_chair": { "type": "null" } },
+            "required": ["backup_chair"]
+          },
+          "then": {
+            "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+            "required": ["backup_waiver"]
+          }
+        }
+      ]
+    }
+  }
+}

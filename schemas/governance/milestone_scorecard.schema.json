@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/milestone_scorecard.schema.json",
+  "title": "Milestone scorecard",
+  "description": "Per-milestone scorecard that records the state of every lane in scope, the DRI and backup owner for that lane, any active backup-owner waiver, and the evidence links backing the current status. Pairs with artifacts/governance/ownership_matrix.yaml (the owner registry) and artifacts/governance/milestone_scorecard_template.yaml (the template instance).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "milestone_id",
+    "scorecard_opened_on",
+    "scorecard_status",
+    "lanes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "milestone_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Milestone identifier used by the program, e.g. a roadmap slug. Do not leak planning-only IDs into product surfaces."
+    },
+    "scorecard_opened_on": { "type": "string", "format": "date" },
+    "scorecard_closed_on": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "scorecard_status": {
+      "type": "string",
+      "enum": ["open", "closed_green", "closed_yellow", "closed_red", "rebaselined"]
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per lane in scope. Every entry MUST resolve to an id in ownership_matrix.scorecard_lane_index.",
+      "items": { "$ref": "#/$defs/lane_row" }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "lane_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_id",
+        "status",
+        "owner",
+        "backup_owner",
+        "backup_waiver",
+        "evidence"
+      ],
+      "properties": {
+        "lane_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "MUST match a value in ownership_matrix.scorecard_lane_index."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["green", "yellow", "red", "not_started", "waived"]
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Primary DRI for the lane. Required on every row; no silent blanks."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Backup owner. Required for protected lanes unless backup_waiver is cited."
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Waiver id from ownership_matrix.waivers, required when the lane is protected and backup_owner is null."
+        },
+        "evidence_owner": {
+          "type": "string",
+          "description": "Named evidence owner for lanes that produce release or governance evidence. Recommended on release-evidence, supportability, and governance-packet lanes."
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Evidence links supporting the current status. May be empty while status is not_started or waived.",
+          "items": { "type": "string" }
+        },
+        "waiver_refs": {
+          "type": "array",
+          "description": "Other active waivers influencing this lane (fitness-function waivers, public-truth waivers). IDs resolve against ownership_matrix.waivers.",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
