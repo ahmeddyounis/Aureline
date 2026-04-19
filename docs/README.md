@@ -24,6 +24,9 @@ code.
   — how decisions open, close, supersede, and narrow.
 - [`governance/templates/`](./governance/templates/) — waiver,
   verification packet, and freeze-exception templates.
+- [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
+  — IP, provenance, and supply-chain baseline that pairs with
+  [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 ## Decision records
 
@@ -59,6 +62,9 @@ above is paired with a YAML form that is authoritative for automation:
   — decision rows with freeze dates and default-if-unresolved postures.
 - [`/artifacts/governance/package_inventory.yaml`](../artifacts/governance/package_inventory.yaml)
   — package topology and protected-path posture.
+- [`/artifacts/governance/compliance_checklist.yaml`](../artifacts/governance/compliance_checklist.yaml)
+  — register of dependencies, vendored sources, generators, and
+  pending notice rows.
 - [`/artifacts/governance/milestone_scorecard_template.yaml`](../artifacts/governance/milestone_scorecard_template.yaml)
   — per-milestone lane status.
 - [`/artifacts/governance/governance_packet_template.yaml`](../artifacts/governance/governance_packet_template.yaml)

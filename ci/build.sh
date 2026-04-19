@@ -32,3 +32,9 @@ mkdir -p "${ARTIFACT_DIR}"
 
 "${REPO_ROOT}/tools/build/bootstrap.sh"
 "${REPO_ROOT}/tools/build/build.sh" "$@" --identity-out "${ARTIFACT_DIR}/build_identity.json"
+
+# Provenance / SBOM lane runs after the build so the build identity it
+# anchors to is the one this CI invocation produced. The script itself is
+# a placeholder; see docs/governance/provenance_and_compliance_baseline.md
+# for the replacement plan.
+CI_ARTIFACT_DIR="${ARTIFACT_DIR}" "${REPO_ROOT}/ci/sbom_provenance.sh"

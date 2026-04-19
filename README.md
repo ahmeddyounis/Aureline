@@ -8,4 +8,5 @@ repository is currently in its pre-implementation stage.
   [`docs/rfc/`](./docs/rfc/).
 - Decision backlog: [`docs/governance/decision_backlog.md`](./docs/governance/decision_backlog.md).
 - DRI and escalation: [`docs/governance/dri_map.md`](./docs/governance/dri_map.md).
+- Contributing: [`CONTRIBUTING.md`](./CONTRIBUTING.md) (DCO, REUSE/SPDX, dependency hygiene).
 - Contributor notes: [`AGENTS.md`](./AGENTS.md), [`CLAUDE.md`](./CLAUDE.md).

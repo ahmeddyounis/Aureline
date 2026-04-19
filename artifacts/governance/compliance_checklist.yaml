@@ -1,0 +1,130 @@
+# Compliance checklist.
+#
+# Single canonical register of every external supply-chain input the
+# repository accepts: Cargo dependencies, vendored third-party files,
+# code generators, and pending NOTICE-file rows. Tooling reads this
+# file; the human-readable narrative is in
+# docs/governance/provenance_and_compliance_baseline.md. If the two
+# disagree, this file is authoritative for tooling and the narrative
+# must be updated in the same change.
+#
+# Scope. This file records WHAT external input is accepted and WHO
+# owns its updates. It is not a SBOM and is not the release-evidence
+# pack. Real SBOM emission and release-grade attestation lands later
+# under tools/governance/ and replaces the placeholder CI step in
+# ci/sbom_provenance.sh.
+#
+# Rules.
+#   - Every entry MUST name an id, kind, name, version, origin,
+#     license, local_modifications, notice_required, update_owner,
+#     and status. Missing fields are validation failures.
+#   - kind is one of:
+#       cargo_dependency  — fetched as a Cargo dependency.
+#       vendored_source   — third-party source file copied into the
+#                           repository rather than fetched.
+#       generator         — external tool whose output is checked in.
+#       pending_notice    — placeholder for an attribution that will
+#                           need to land in NOTICE before the first
+#                           binary distribution.
+#   - license is the SPDX identifier as published by the upstream.
+#     If the upstream offers a choice, record the identifier the
+#     project relies on, not the disjunction.
+#   - local_modifications is "none" or a one-line description; the
+#     diff itself lives in the importing change, not in this file.
+#   - notice_required: true means an attribution must appear in the
+#     eventual NOTICE file (or its distribution-format equivalent).
+#   - update_owner is a DRI handle from
+#     artifacts/governance/ownership_matrix.yaml.
+#   - Retiring a row sets status: retired and leaves the row in
+#     place; rows are never deleted.
+
+schema_version: 1
+
+# -----------------------------------------------------------------------------
+# Vocabulary.
+# -----------------------------------------------------------------------------
+kinds:
+  - cargo_dependency
+  - vendored_source
+  - generator
+  - pending_notice
+
+statuses:
+  - proposed
+  - accepted
+  - under_review
+  - retired
+
+# -----------------------------------------------------------------------------
+# Cargo dependencies.
+#
+# The workspace currently has zero external Cargo dependencies, by design.
+# Adding the first dependency requires a row in this section, a refreshed
+# Cargo.lock, and (if it triggers attribution) a notice_required: true flag.
+# -----------------------------------------------------------------------------
+cargo_dependencies: []
+
+# -----------------------------------------------------------------------------
+# Vendored third-party sources.
+#
+# No vendored sources at this milestone. When the first vendored file
+# lands, its row preserves the upstream copyright header verbatim and
+# records local modifications here, not by editing the file's header.
+# -----------------------------------------------------------------------------
+vendored_sources: []
+
+# -----------------------------------------------------------------------------
+# Generators.
+#
+# External tools whose output is checked into the repository. The Rust
+# toolchain pinned by rust-toolchain.toml is the only generator already
+# present and is recorded as the seed row.
+# -----------------------------------------------------------------------------
+generators:
+  - id: rust-toolchain
+    kind: generator
+    name: rustup-managed Rust toolchain (rustc, cargo, rustfmt, clippy)
+    version: "1.84.0"
+    origin: "https://forge.rust-lang.org/infra/channel-layout.html"
+    license: "Apache-2.0 OR MIT"
+    local_modifications: none
+    notice_required: false
+    update_owner: "@ahmedyounis"
+    status: accepted
+    notes: >
+      Pinned in rust-toolchain.toml. Bumping the channel updates this row
+      and the reproducible-build baseline in the same change. The
+      toolchain itself is not redistributed in repository binaries, so
+      attribution is not required for the toolchain row.
+
+# -----------------------------------------------------------------------------
+# Pending notice-file rows.
+#
+# Each row here represents an attribution that will need to land in the
+# eventual NOTICE file (or its distribution-format equivalent). Today the
+# repository ships no binaries and no notice file; rows accumulate here
+# so the release-engineering DRI can assemble the first NOTICE
+# deterministically.
+# -----------------------------------------------------------------------------
+pending_notices: []
+
+# -----------------------------------------------------------------------------
+# Sweep ledger.
+#
+# Records deferred coverage sweeps (for example the one-shot REUSE
+# header backfill on pre-existing files). Rows are append-only.
+# -----------------------------------------------------------------------------
+sweeps:
+  - id: reuse-backfill-foundations
+    description: >
+      One-shot SPDX header sweep across files that pre-date this
+      baseline. New and modified files already comply via
+      CONTRIBUTING.md; the sweep brings legacy untouched files into
+      coverage so the eventual REUSE-lint gate is clean.
+    target_milestone: foundations
+    owner: "@ahmedyounis"
+    status: proposed
+    notes: >
+      Tracked here, not as a generator or dependency, because it is a
+      housekeeping action against the existing tree rather than an
+      external input.
