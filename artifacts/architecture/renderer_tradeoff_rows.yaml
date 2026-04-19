@@ -1,0 +1,350 @@
+# Renderer tradeoff rows.
+#
+# Machine-readable tradeoff table backing ADR 0002
+# (docs/adr/0002-renderer-text-stack-and-shaping-fallback.md). Each row
+# names one decision axis, what the chosen stack commits to, the
+# rejected alternative that came closest, why the chosen stack wins on
+# that axis, and the observable signal that would force the row to
+# reopen. Tooling (benchmark lab, renderer spike telemetry scope,
+# support bundle) may read these rows to avoid inventing parallel
+# vocabulary for the same tradeoff.
+#
+# Scope rules:
+#   - Every row MUST name an axis, a chosen_stack summary, a
+#     best_rejected_alternative, at least one supporting source_anchor,
+#     and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - Do not re-litigate a rejected alternative by editing its row;
+#     open a new decision row instead (see ADR 0002's "Reopen
+#     triggers" section).
+
+schema_version: 1
+
+adr_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+decision_id: D-0001
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Axis vocabulary.
+#
+# Every row's `axis` field MUST be one of these. A new axis requires a
+# schema bump and a note on the ADR.
+# -----------------------------------------------------------------------------
+axes:
+  - hot_path_performance
+  - accessibility_text_extraction
+  - ime_composition
+  - cross_platform_portability
+  - dependency_health
+  - maintenance_burden
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers. `blocker` forces a new
+# decision row on sight; `watch` logs a row for shiproom review.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - axis: hot_path_performance
+    chosen_stack:
+      summary: >
+        wgpu over Metal / Vulkan / D3D12 with a one-pipeline dirty-rect
+        compositor and atlas-per-scale rasterisation. Software renderer
+        only as a degraded fallback.
+      commits:
+        - wgpu-class GPU abstraction
+        - winit-class windowing
+        - dirty-rect compositor, one submission per surface per frame
+        - atlas-per-scale rasterisation with LRU eviction
+    best_rejected_alternative:
+      summary: >
+        Electron / Chromium-embedded shell sharing the browser's
+        rendering and text stack.
+      rejection_reason: >
+        AD-002 already rejects browser-runtime shells; Electron-class
+        ceilings violate the TAD §4.3 build lane for text-heavy
+        rendering and the §4.4 explicitly-rejected-patterns table.
+    why_chosen_wins: >
+        Browser-runtime ceilings are incompatible with the renderer
+        lane's protected hot-path budgets. The chosen stack lets the
+        benchmark lab instrument warm_start_to_first_paint, scroll_frame,
+        caret_move, selection_change, frame_submit, and
+        reflow_line_range against concrete GPU backends.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 401"
+        quote: "custom native shell on wgpu/winit-class stack with accessibility bridge"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 425"
+        quote: "wgpu/windowing stack, text shaping, accessibility bridges"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 450"
+        quote: "Flagship desktop shell built on a browser/Electron runtime"
+    protected_hot_path_hooks:
+      - warm_start_to_first_paint
+      - first_paint
+      - scroll_frame
+      - frame_submit
+      - reflow_line_range
+    reopen_triggers:
+      - id: perf_budget_breach_on_claimed_host
+        severity: blocker
+        description: >
+          Any protected hot-path hook exceeds its budget on a claimed
+          GPU target and the fix would require swapping a stack
+          element.
+      - id: repeated_yellow_on_scroll_or_first_paint
+        severity: watch
+        description: >
+          scroll_frame or first_paint stays in the yellow band for two
+          consecutive benchmark runs on the same claimed host.
+
+  - axis: accessibility_text_extraction
+    chosen_stack:
+      summary: >
+        Renderer-owned accessibility tree published through an
+        accesskit-class bridge feeding UIA / NSAccessibility / AT-SPI.
+        Text extraction flows from the tree, not from the glyph buffer.
+      commits:
+        - cross-platform bridge crate (accesskit-class)
+        - one tree per top-level window
+        - accessibility_tree_update hook on every tree delta
+        - glyph visible without a tree node is a correctness bug
+    best_rejected_alternative:
+      summary: >
+        Scrape the CPU-side glyph buffer or GPU read-back surface and
+        feed that to assistive technologies.
+      rejection_reason: >
+        Bypasses semantic truth (section, role, selection, caret) and
+        collapses to visual-only extraction, which fails screen-reader
+        navigation, focus model, and structured-announcement
+        requirements.
+    why_chosen_wins: >
+        Assistive technologies receive the same semantic truth that
+        drives rendering; drift between visible glyphs and announced
+        text becomes a single-source defect rather than a silent
+        divergence.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 324"
+        quote: "accessibility bridge, keyboard-complete command graph, semantic surfaces"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4452"
+        quote: "semantic accessibility tree for custom-rendered surfaces"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4524"
+        quote: "custom-rendered surfaces bridge into OS accessibility APIs"
+    protected_hot_path_hooks:
+      - accessibility_tree_update
+    reopen_triggers:
+      - id: accesskit_class_gap_on_claimed_platform
+        severity: blocker
+        description: >
+          A claimed OS accessibility API changes in a way the bridge
+          crate cannot follow inside its own support window.
+      - id: assistive_tech_regression_on_claimed_flow
+        severity: blocker
+        description: >
+          Screen-reader, voice-command, or keyboard-only flow loses
+          previously-announced semantic truth on a claimed desktop
+          profile.
+
+  - axis: ime_composition
+    chosen_stack:
+      summary: >
+        OS-owned composition surfaced through a platform-input adapter;
+        composition glyphs painted on the overlay layer; the Shaper
+        trait permits a platform-native shaper for runs where
+        OS-composed clusters require it.
+      commits:
+        - overlay-layer composition (never invalidates glyph raster)
+        - ime_composition_update hook on every composition change
+        - optional CoreText / DirectWrite / Pango adapter via explicit
+          shaper policy (rust_native default, platform_native opt-in)
+    best_rejected_alternative:
+      summary: >
+        Own the IME composition stack entirely and bypass OS
+        composition.
+      rejection_reason: >
+        OS composition is authoritative for dead keys, AltGr, emoji
+        input, language-input switches, and assistive-tech integration
+        on every claimed platform. Owning it would require
+        re-implementing three distinct input models and would
+        immediately regress accessibility.
+    why_chosen_wins: >
+        Overlay-layer composition keeps the glyph atlas hot across
+        composition updates; the optional platform-native shaper
+        covers the specific runs where OS-governed shaping is
+        required, without dragging the default hot path into a native
+        dependency.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4479"
+        quote: "IME composition across editor, palette, settings, terminal, and rename inputs"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4520"
+        quote: "IME composition, dead keys, compose sequences, AltGr, emoji input, bidi text"
+    protected_hot_path_hooks:
+      - ime_composition_update
+      - caret_move
+      - selection_change
+    reopen_triggers:
+      - id: platform_input_change_breaks_overlay_assumption
+        severity: blocker
+        description: >
+          An OS input-method platform change invalidates the overlay-
+          layer composition assumption (for example, composition state
+          that must be painted inside the glyph atlas to display
+          correctly).
+      - id: shaper_divergence_on_composed_cluster
+        severity: watch
+        description: >
+          rust_native shaper and platform_native shaper disagree on a
+          composed cluster in a claimed locale, forcing a surface to
+          default to platform_native.
+
+  - axis: cross_platform_portability
+    chosen_stack:
+      summary: >
+        One renderer contract and one pipeline across macOS, Windows,
+        Linux, backed by Rust-native crates (wgpu, winit, rustybuzz-
+        class shaper, fontdb-class discovery, accesskit-class bridge).
+      commits:
+        - one pipeline shared by editor, terminal, diff, notebook
+        - one accessibility-bridge contract across three OS APIs
+        - platform-specific risk notes captured in the ADR
+    best_rejected_alternative:
+      summary: >
+        Per-OS native shells (Cocoa, Win32, GTK) sharing only data
+        structures.
+      rejection_reason: >
+        Triples the support matrix, loses the shared dirty-rect
+        compositor, and multiplies glyph caches and accessibility
+        trees. Incompatible with solo-maintainer posture.
+    why_chosen_wins: >
+        Benchmark traces and renderer fitness functions are
+        comparable across hosts; regressions appear as one defect,
+        not three separate "only on OS X" tickets.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 425"
+        quote: "performance-critical internals are owned in-repo"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4521"
+        quote: "correct DPI scaling, fractional scaling, multi-monitor moves, fullscreen, spaces/desktops"
+    protected_hot_path_hooks:
+      - multi_monitor_scale_change
+      - atlas_shard_rebind
+      - first_paint
+    reopen_triggers:
+      - id: claimed_host_matrix_diverges
+        severity: blocker
+        description: >
+          A claimed host (macOS version, Windows SKU, Linux desktop
+          profile) can no longer be served by the one-pipeline
+          contract without OS-specific renderer code.
+      - id: linux_display_server_fragmentation
+        severity: watch
+        description: >
+          X11 / Wayland / mixed fractional scaling combinations grow
+          beyond what multi_monitor_scale_change can describe without
+          per-desktop-environment adapters.
+
+  - axis: dependency_health
+    chosen_stack:
+      summary: >
+        Rust-native defaults (rustybuzz-class shaper, swash-class
+        rasterisation, fontdb-class discovery, accesskit-class bridge)
+        with optional platform-native shapers reachable only through
+        the Shaper trait's seam.
+      commits:
+        - default hot path free of C build-toolchain requirement
+        - all crate dependencies tracked in the compliance checklist
+        - dependency refresh is a hygiene change, not a new ADR
+    best_rejected_alternative:
+      summary: >
+        Bind directly to HarfBuzz's C library on every platform for
+        shaping.
+      rejection_reason: >
+        Drags the C toolchain into every build, complicates
+        cross-compilation, and loses the review cost we spent building
+        a stable Shaper trait. The platform-native shaper seam already
+        handles the OS-typography cases that would otherwise argue for
+        binding HarfBuzz directly.
+    why_chosen_wins: >
+        Lower supply-chain surface on the default path; platform
+        native libraries are reachable through an explicit adapter
+        seam rather than as an ambient dependency.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 438"
+        quote: "every third-party dependency on a protected path must have an owner, license classification, health review, and replacement or fork strategy"
+    protected_hot_path_hooks:
+      - fallback_glyph_resolution
+    reopen_triggers:
+      - id: rust_native_shaper_stalls
+        severity: blocker
+        description: >
+          The chosen rust_native shaper stops receiving upstream
+          fixes that the compliance-checklist health review considers
+          load-bearing for a claimed script or locale.
+      - id: bundled_fallback_font_obligation_shifts
+        severity: watch
+        description: >
+          Bundled Noto-class fallback subset cannot be refreshed
+          within the release cadence because of upstream license,
+          coverage, or signing concerns.
+
+  - axis: maintenance_burden
+    chosen_stack:
+      summary: >
+        One renderer contract, one shaping contract, one fallback
+        chain, one invalidation model shared across editor, terminal,
+        diff, notebook.
+      commits:
+        - one set of protected-hot-path hook names shared by all
+          surfaces
+        - one tradeoff-rows register (this file)
+        - one reopen-trigger list governing all renderer decisions
+    best_rejected_alternative:
+      summary: >
+        Per-surface renderers tuned locally to each pane's workload.
+      rejection_reason: >
+        Drift across editor / terminal / diff / notebook re-creates
+        the shared-rendering regressions the TAD §11.5 exists to
+        prevent, and multiplies debugging paths across the benchmark
+        lab.
+    why_chosen_wins: >
+        Maintenance cost is proportional to the pipeline, not to the
+        number of surfaces; regressions are one lane's problem, not
+        every surface author's.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1458"
+        quote: "Aureline uses a shared text-heavy rendering pipeline across the editor, terminal, diffs, and notebook code cells"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 1252"
+        quote: "one renderer stack for text-heavy surfaces"
+    protected_hot_path_hooks:
+      - reflow_line_range
+      - frame_submit
+    reopen_triggers:
+      - id: shared_pipeline_cannot_serve_surface
+        severity: blocker
+        description: >
+          A supported surface (for example a new notebook output
+          renderer) can no longer be served by the shared pipeline
+          without an exception.
+      - id: hook_vocabulary_drift
+        severity: watch
+        description: >
+          Benchmark lab or shell spike introduces a synonym for a
+          protected-hot-path hook in its instrumentation; must either
+          consolidate or open a new row.
