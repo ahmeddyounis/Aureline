@@ -1,0 +1,1579 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/context_assembly.schema.json",
+  "title": "Aureline AI context-assembly contract",
+  "description": "Boundary schema for the ai_context_assembly_record, the ai_context_segment_record, the prompt_composer_session_record, the prompt_composer_mention_record, the prompt_composer_attachment_record, the prompt_composer_turn_draft_record, the ai_route_plan_record, the ai_spend_plan_record, the ai_route_receipt_record, the ai_spend_receipt_record, the ai_tool_call_lineage_record, the ai_branch_agent_dispatch_record, and the ai_context_audit_event_record frozen in docs/ai/context_assembly_contract.md. Every AI turn — whether inline, background, or review-handoff — is assembled against exactly one ai_context_assembly_record that names every included, omitted, pinned, redacted, policy-blocked, and tainted context segment with a stable segment_id and a provenance_ref. Raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, and raw credential material never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual AI / prompt-composer crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new segment class, source class, trust posture, mention kind, attachment kind, turn-draft state, dispatch target, provider class, route path class, instruction-bundle kind, tool-call outcome, audit-event id, or denial reason is additive-minor and requires an ai_context_assembly_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_context_assembly_record" },
+    { "$ref": "#/$defs/ai_context_segment_record" },
+    { "$ref": "#/$defs/prompt_composer_session_record" },
+    { "$ref": "#/$defs/prompt_composer_mention_record" },
+    { "$ref": "#/$defs/prompt_composer_attachment_record" },
+    { "$ref": "#/$defs/prompt_composer_turn_draft_record" },
+    { "$ref": "#/$defs/ai_route_plan_record" },
+    { "$ref": "#/$defs/ai_spend_plan_record" },
+    { "$ref": "#/$defs/ai_route_receipt_record" },
+    { "$ref": "#/$defs/ai_spend_receipt_record" },
+    { "$ref": "#/$defs/ai_tool_call_lineage_record" },
+    { "$ref": "#/$defs/ai_branch_agent_dispatch_record" },
+    { "$ref": "#/$defs/ai_context_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_context_assembly_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI context-assembly vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_context_assembly_record",
+        "ai_context_segment_record",
+        "prompt_composer_session_record",
+        "prompt_composer_mention_record",
+        "prompt_composer_attachment_record",
+        "prompt_composer_turn_draft_record",
+        "ai_route_plan_record",
+        "ai_spend_plan_record",
+        "ai_route_receipt_record",
+        "ai_spend_receipt_record",
+        "ai_tool_call_lineage_record",
+        "ai_branch_agent_dispatch_record",
+        "ai_context_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets. Raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "segment_class": {
+      "type": "string",
+      "enum": [
+        "included",
+        "omitted",
+        "pinned",
+        "redacted",
+        "policy_blocked",
+        "tainted"
+      ],
+      "description": "Frozen segment-class vocabulary. included = placed in the model input in its resolved representation. omitted = deliberately left out (budget, scope, freshness, dedup, or resolver decision); the segment MUST still be present on the assembly with an omit_reason. pinned = explicitly pinned by user or composer plan; survives budget pressure and MUST NOT be silently dropped. redacted = included with the broker-owned redaction pass (ADR-0007) applied; the segment records which redaction_class fired and why. policy_blocked = denied inclusion by policy (admin, workspace-trust, extension effective-permission, or connected-provider policy); the segment records the typed block_reason. tainted = included under the tainted-content fence; the segment MUST name its fence_strategy and the downstream usage constraints. A segment whose class is unresolved is denied with segment_class_unresolved rather than silently defaulted to included."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_symbol",
+        "workspace_file_slice",
+        "workspace_buffer_slice",
+        "workspace_graph_summary",
+        "workspace_search_result",
+        "workspace_diagnostics",
+        "workspace_mutation_journal",
+        "docs_pack_excerpt",
+        "generated_reference_excerpt",
+        "runbook_step",
+        "release_note_excerpt",
+        "citation_anchor_quote",
+        "terminal_transcript_excerpt",
+        "log_excerpt",
+        "request_response_excerpt",
+        "generated_artifact_excerpt",
+        "user_supplied_text",
+        "user_supplied_file",
+        "extension_proposed_context",
+        "connected_provider_payload",
+        "collaboration_remote_payload",
+        "repo_instruction_bundle",
+        "repo_check_bundle",
+        "composer_plan_directive",
+        "ai_prior_turn_context",
+        "system_scaffold_fragment"
+      ],
+      "description": "Frozen source-class vocabulary naming where the segment's bytes came from. Every segment names exactly one source_class. A surface that cannot resolve its source_class denies with source_class_unresolved rather than defaulting. repo_instruction_bundle and repo_check_bundle cover repo-defined instruction / check payloads (e.g. AGENTS.md-style files, check scripts) that the composer plan pulled in; the composer does not re-mint their authority on its own. composer_plan_directive names directives minted by the prompt-composer plan itself (e.g. 'only code-quote files inside the named workset'). ai_prior_turn_context names carry-over context from a prior turn inside the same composer session; it is always tagged with the originating turn_draft_id so downstream consumers can recompute authority."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party",
+        "trusted_authority",
+        "reviewed_derived",
+        "unreviewed_derived",
+        "untrusted_external",
+        "untrusted_user_supplied",
+        "untrusted_remote_collaborator",
+        "untrusted_connected_provider",
+        "untrusted_extension_proposed",
+        "untrusted_generated_artifact",
+        "untrusted_log_capture",
+        "policy_quarantined"
+      ],
+      "description": "Frozen trust-posture vocabulary naming how the composer must treat the segment's bytes for the purposes of instruction-following. trusted_first_party = first-party product or workspace code / graph / docs the user owns. trusted_authority = authoritative docs-pack / generated-reference / runbook content that carries a citation anchor (ADR-0013). reviewed_derived = AI-derived material that has been through a review gate (human review, validation, or typed verification). unreviewed_derived = derived material that has not yet been reviewed. untrusted_* = material that MUST ride the tainted-content fence regardless of segment_class; the composer never promotes untrusted content to instruction authority. policy_quarantined = material a policy bundle has quarantined; the composer MAY read a summary ref but MUST NOT inline the body."
+    },
+
+    "omit_reason": {
+      "type": "string",
+      "enum": [
+        "budget_exceeded",
+        "scope_excludes_target",
+        "freshness_floor_unmet",
+        "duplicate_of_included_segment",
+        "resolver_lowered_priority",
+        "client_scope_excludes_surface",
+        "policy_narrows_scope",
+        "user_deselected",
+        "pin_pressure_released_unpinned"
+      ],
+      "description": "Frozen omit-reason vocabulary. An omitted segment MUST carry a non-null omit_reason; a surface that silently drops a segment (no omit_reason, no segment record) is non-conforming. The omit reason is visible to the user and to downstream review / support / evidence packets."
+    },
+
+    "block_reason": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_excludes_segment",
+        "admin_policy_excludes_segment",
+        "extension_effective_permission_excludes_segment",
+        "connected_provider_policy_excludes_segment",
+        "secret_projection_denied",
+        "redaction_class_exceeds_sink",
+        "remote_agent_scope_excludes_segment",
+        "collaboration_role_excludes_segment",
+        "authority_renewal_required_for_segment",
+        "policy_quarantined_source"
+      ],
+      "description": "Frozen block-reason vocabulary. Every policy_blocked segment MUST carry a non-null block_reason. A surface that reports a policy-blocked segment with a free-form string in lieu of a typed reason is non-conforming."
+    },
+
+    "redaction_reason": {
+      "type": "string",
+      "enum": [
+        "secret_projection_policy",
+        "user_identity_projection_policy",
+        "credential_handle_redaction",
+        "remote_path_redaction",
+        "raw_url_redaction",
+        "log_metacharacter_escape",
+        "bidi_or_invisible_formatting_redaction",
+        "confusable_identifier_redaction",
+        "oversized_payload_trim"
+      ],
+      "description": "Frozen redaction-reason vocabulary. Every redacted segment MUST carry at least one redaction_reason. Reasons travel with the segment into evidence packets so downstream consumers know why the redaction pass modified the bytes."
+    },
+
+    "tainted_fence_strategy": {
+      "type": "string",
+      "enum": [
+        "instruction_stripped",
+        "quoted_as_data_only",
+        "sandboxed_excerpt",
+        "summary_only_no_body",
+        "metadata_only_no_content",
+        "citation_reference_only"
+      ],
+      "description": "Frozen tainted-content fence-strategy vocabulary. Every tainted segment MUST name exactly one fence_strategy. instruction_stripped = directives / control text removed before the segment is placed; quoted_as_data_only = the segment is included but the composer plan treats it as data, not instruction; sandboxed_excerpt = the segment is included inside an explicit sandbox envelope so downstream tools know not to execute or follow it; summary_only_no_body = only a typed summary of the segment is included; metadata_only_no_content = only metadata (length, source class, trust posture) is included; citation_reference_only = only a citation-anchor reference is included, not the body."
+    },
+
+    "tainted_usage_constraint": {
+      "type": "string",
+      "enum": [
+        "must_not_gain_tool_permission",
+        "must_not_escalate_scope",
+        "must_not_mint_citations",
+        "must_not_override_instruction_bundle",
+        "must_not_publish_externally",
+        "must_not_commit_to_repo",
+        "must_not_dispatch_branch_agent",
+        "must_not_route_to_higher_cost_tier",
+        "must_preserve_fence_in_downstream_packet"
+      ],
+      "description": "Frozen tainted-usage-constraint vocabulary. Tainted segments carry the constraints the composer plan applied at assembly time. Constraints survive into downstream branch-agent dispatches, review handoffs, and evidence packets without re-inference; a surface that loses a constraint on handoff is non-conforming."
+    },
+
+    "instructional_role": {
+      "type": "string",
+      "enum": [
+        "system_scaffold",
+        "composer_plan_directive",
+        "repo_instruction_bundle",
+        "repo_check_bundle",
+        "user_turn_prompt",
+        "user_prior_turn_prompt",
+        "ai_prior_turn_response",
+        "tool_call_request",
+        "tool_call_response",
+        "retrieved_reference",
+        "attached_data",
+        "fenced_tainted_data"
+      ],
+      "description": "Frozen instructional-role vocabulary. Every included / pinned / redacted segment MUST name exactly one instructional_role so downstream audit can answer 'why was this segment placed and at what authority'. fenced_tainted_data is the only role permitted for tainted segments — a tainted segment whose instructional_role is anything else is non-conforming."
+    },
+
+    "mention_kind": {
+      "type": "string",
+      "enum": [
+        "symbol_mention",
+        "file_mention",
+        "workset_mention",
+        "execution_context_mention",
+        "search_result_mention",
+        "docs_anchor_mention",
+        "citation_anchor_mention",
+        "runbook_step_mention",
+        "diagnostic_mention",
+        "terminal_transcript_mention",
+        "log_span_mention",
+        "request_response_mention",
+        "generated_artifact_mention",
+        "review_thread_mention",
+        "branch_agent_dispatch_mention",
+        "connected_provider_resource_mention",
+        "collaboration_participant_mention",
+        "extension_resource_mention"
+      ],
+      "description": "Frozen mention-kind vocabulary for typed references the user places inside a composer turn draft. Every mention names exactly one kind; raw strings (free text that happens to look like a path or URL) are not mentions and are never promoted to one silently."
+    },
+
+    "attachment_kind": {
+      "type": "string",
+      "enum": [
+        "retrieved_document",
+        "terminal_log_capture",
+        "generated_artifact_excerpt",
+        "request_response_payload",
+        "user_supplied_text",
+        "user_supplied_file",
+        "citation_anchor_bundle",
+        "diagnostic_bundle",
+        "workspace_slice_bundle",
+        "branch_agent_evidence_bundle"
+      ],
+      "description": "Frozen attachment-kind vocabulary for typed attachments in a composer turn draft. Every attachment names exactly one kind and one trust_posture; the composer never assumes attached content is trusted unless the attachment_kind and source establish that posture."
+    },
+
+    "turn_draft_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "queued_for_dispatch",
+        "dispatched_inline",
+        "dispatched_branch_agent",
+        "dispatched_review_handoff",
+        "cancelled",
+        "superseded"
+      ],
+      "description": "Frozen turn-draft state vocabulary. A turn draft moves through these states monotonically (except that superseded MAY be reached from any non-terminal state). cancelled and superseded are terminal; no assembly may be minted against a terminal draft."
+    },
+
+    "dispatch_target_class": {
+      "type": "string",
+      "enum": [
+        "inline_composer",
+        "background_branch_agent",
+        "review_handoff",
+        "support_replay_only"
+      ],
+      "description": "Frozen dispatch-target vocabulary. inline_composer = the turn is dispatched inside the active composer session (foreground). background_branch_agent = the turn is dispatched to a background branch-agent session (long-running, auditable); the dispatch MUST carry a branch_agent_dispatch_id. review_handoff = the composer output is handed off to a review / diff canvas rather than applied inline. support_replay_only = an assembly reconstructed for support / parity audit, never dispatched."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted",
+        "first_party_managed",
+        "connected_provider_vendor",
+        "connected_provider_self_hosted",
+        "extension_provided_provider",
+        "mocked_test_provider",
+        "disabled_no_provider"
+      ],
+      "description": "Frozen provider-class vocabulary naming the authority class of the model provider. disabled_no_provider is the canonical state when AI inference is unavailable or policy-disabled; an assembly whose provider_class = disabled_no_provider MUST NOT be dispatched and MUST carry denial_reason = provider_disabled_by_policy at audit time."
+    },
+
+    "route_path_class": {
+      "type": "string",
+      "enum": [
+        "direct_first_party",
+        "vendor_cloud_direct",
+        "vendor_cloud_via_broker",
+        "self_hosted_direct",
+        "self_hosted_via_broker",
+        "extension_mediated",
+        "offline_cached_only",
+        "denied_by_policy"
+      ],
+      "description": "Frozen route-path-class vocabulary naming the network path the request travels. denied_by_policy names a route that policy blocked; an assembly whose route_path_class = denied_by_policy MUST NOT be dispatched."
+    },
+
+    "cost_visibility_class": {
+      "type": "string",
+      "enum": [
+        "metered_per_request",
+        "metered_per_token",
+        "flat_fee_subscription",
+        "bundled_no_incremental_cost",
+        "estimated_unverified",
+        "undisclosed_by_provider"
+      ],
+      "description": "Frozen cost-visibility vocabulary. The composer plan MUST name how cost is disclosed for the selected route. undisclosed_by_provider is permitted only when the provider explicitly does not expose cost metadata; the surface renders this state verbatim and does not invent a fabricated per-request cost."
+    },
+
+    "instruction_bundle_kind": {
+      "type": "string",
+      "enum": [
+        "repo_agents_file",
+        "repo_contributing_file",
+        "repo_style_guide",
+        "repo_review_checklist",
+        "repo_test_plan",
+        "workspace_pinned_instructions",
+        "user_profile_instructions",
+        "extension_injected_instructions"
+      ],
+      "description": "Frozen instruction-bundle-kind vocabulary naming repo-defined or workspace-defined instruction payloads the composer plan pulled in. Each bundle is referenced by id; the composer never inlines the body without also recording the reference."
+    },
+
+    "check_bundle_kind": {
+      "type": "string",
+      "enum": [
+        "repo_test_suite",
+        "repo_lint_suite",
+        "repo_type_check",
+        "repo_format_check",
+        "repo_custom_check_script",
+        "workspace_validation_plan",
+        "extension_injected_check"
+      ],
+      "description": "Frozen check-bundle-kind vocabulary naming repo-defined or workspace-defined validation payloads the composer plan associates with the turn. Check bundles run on apply / validate phases (ADR-0024); the assembly names the reference only."
+    },
+
+    "tool_call_outcome": {
+      "type": "string",
+      "enum": [
+        "not_invoked",
+        "invoked_success",
+        "invoked_partial",
+        "invoked_failure",
+        "invoked_denied_by_policy",
+        "invoked_requires_renewal",
+        "invoked_tainted_return"
+      ],
+      "description": "Frozen tool-call outcome vocabulary. invoked_tainted_return MUST be recorded when a tool returned untrusted data (web fetch, shell output, extension payload, provider payload); the composer then treats the return value with the tainted fence at the next turn."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A row whose client_scope excludes the dispatching surface MUST NOT dispatch there."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Re-exported from schemas/runtime/execution_context.schema.json without modification (ADR-0009)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_context_assembly_minted",
+        "ai_context_segment_included",
+        "ai_context_segment_omitted",
+        "ai_context_segment_pinned",
+        "ai_context_segment_redacted",
+        "ai_context_segment_policy_blocked",
+        "ai_context_segment_tainted_fenced",
+        "ai_context_tainted_return_observed",
+        "ai_context_route_plan_minted",
+        "ai_context_spend_plan_minted",
+        "ai_context_route_receipt_recorded",
+        "ai_context_spend_receipt_recorded",
+        "ai_context_turn_draft_opened",
+        "ai_context_turn_draft_dispatched",
+        "ai_context_turn_draft_cancelled",
+        "ai_context_turn_draft_superseded",
+        "ai_context_branch_agent_dispatched",
+        "ai_context_review_handoff_dispatched",
+        "ai_context_tool_call_invoked",
+        "ai_context_tool_call_denied",
+        "ai_context_instruction_bundle_loaded",
+        "ai_context_check_bundle_attached",
+        "ai_context_denial_emitted",
+        "ai_context_assembly_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_context audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "segment_class_unresolved",
+        "source_class_unresolved",
+        "trust_posture_unresolved",
+        "omit_reason_missing",
+        "block_reason_missing",
+        "redaction_reason_missing",
+        "tainted_fence_strategy_missing",
+        "tainted_usage_constraint_missing",
+        "instructional_role_missing",
+        "provider_class_unresolved",
+        "route_path_class_unresolved",
+        "cost_visibility_unresolved",
+        "provider_disabled_by_policy",
+        "route_denied_by_policy",
+        "spend_ceiling_exceeded",
+        "spend_receipt_missing",
+        "route_receipt_missing",
+        "citation_anchor_missing_on_authoritative_quote",
+        "instruction_bundle_ref_missing",
+        "check_bundle_ref_missing",
+        "composer_session_ref_missing",
+        "turn_draft_terminal_cannot_dispatch",
+        "tainted_segment_instructional_role_forbidden",
+        "tainted_segment_tool_permission_forbidden",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_prompt_text_forbidden_on_boundary",
+        "ai_context_assembly_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort assembly is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every dispatch."
+    },
+
+    "byte_budget_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budget_units", "estimated_size"],
+      "properties": {
+        "budget_units": {
+          "type": "string",
+          "enum": ["tokens", "characters", "bytes", "opaque_provider_units"],
+          "description": "Unit the budget_remaining and estimated_size are expressed in."
+        },
+        "estimated_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated size of the segment in the declared units."
+        },
+        "budget_remaining_at_decision": {
+          "type": "integer",
+          "description": "Remaining budget the resolver saw when it decided to include / omit / redact this segment. May be negative when over-budget pinned segments were kept."
+        }
+      },
+      "description": "Typed byte-budget hint attached to a segment. Expressed in the composer plan's declared units; opaque_provider_units names units the provider exposes but does not document (e.g. provider-side tokens with an undisclosed tokenizer)."
+    },
+
+    "ai_context_segment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "segment_id",
+        "assembly_id_ref",
+        "segment_class",
+        "source_class",
+        "trust_posture",
+        "provenance_ref",
+        "instructional_role",
+        "freshness_class",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_context_segment_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "segment_id": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "segment_class": { "$ref": "#/$defs/segment_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the owner that produced the segment (symbol id, file slice id, docs anchor id, terminal transcript span id, log span id, request-response id, generated artifact id, user-input id, extension-proposed-context id, connected-provider payload id, repo instruction / check bundle id, prior-turn id, composer-plan-directive id). Raw bodies never appear."
+        },
+        "origin_mention_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the prompt_composer_mention_record that introduced this segment, when the segment was pulled in by a typed mention rather than by the composer plan."
+        },
+        "origin_attachment_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the prompt_composer_attachment_record that introduced this segment, when the segment was pulled in by an attachment."
+        },
+        "instructional_role": { "$ref": "#/$defs/instructional_role" },
+        "omit_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/omit_reason" }
+          ],
+          "description": "Required (non-null) when segment_class = omitted; null otherwise."
+        },
+        "block_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/block_reason" }
+          ],
+          "description": "Required (non-null) when segment_class = policy_blocked; null otherwise."
+        },
+        "redaction_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/redaction_reason" },
+          "description": "Required (non-empty) when segment_class = redacted."
+        },
+        "tainted_fence_strategy": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tainted_fence_strategy" }
+          ],
+          "description": "Required (non-null) when segment_class = tainted; null otherwise."
+        },
+        "tainted_usage_constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/tainted_usage_constraint" },
+          "description": "Required (non-empty) when segment_class = tainted. Constraints survive into downstream branch-agent dispatches, review handoffs, and evidence packets without re-inference."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back an authoritative quote. Required (non-empty) when source_class ∈ {docs_pack_excerpt, generated_reference_excerpt, runbook_step, release_note_excerpt, citation_anchor_quote}."
+        },
+        "byte_budget_hint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/byte_budget_hint" }
+          ]
+        },
+        "pinned_by_actor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when segment_class = pinned. Names the actor (user, composer plan, extension, admin policy) that pinned the segment."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "omit_reason MUST be non-null when segment_class = omitted.",
+          "if": {
+            "properties": { "segment_class": { "const": "omitted" } },
+            "required": ["segment_class"]
+          },
+          "then": {
+            "properties": { "omit_reason": { "$ref": "#/$defs/omit_reason" } },
+            "required": ["omit_reason"]
+          }
+        },
+        {
+          "description": "block_reason MUST be non-null when segment_class = policy_blocked.",
+          "if": {
+            "properties": { "segment_class": { "const": "policy_blocked" } },
+            "required": ["segment_class"]
+          },
+          "then": {
+            "properties": { "block_reason": { "$ref": "#/$defs/block_reason" } },
+            "required": ["block_reason"]
+          }
+        },
+        {
+          "description": "redaction_reasons MUST be non-empty when segment_class = redacted.",
+          "if": {
+            "properties": { "segment_class": { "const": "redacted" } },
+            "required": ["segment_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/redaction_reason" }
+              }
+            },
+            "required": ["redaction_reasons"]
+          }
+        },
+        {
+          "description": "tainted_fence_strategy and tainted_usage_constraints MUST be non-null / non-empty when segment_class = tainted.",
+          "if": {
+            "properties": { "segment_class": { "const": "tainted" } },
+            "required": ["segment_class"]
+          },
+          "then": {
+            "properties": {
+              "tainted_fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+              "tainted_usage_constraints": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/tainted_usage_constraint" }
+              },
+              "instructional_role": { "const": "fenced_tainted_data" }
+            },
+            "required": ["tainted_fence_strategy", "tainted_usage_constraints", "instructional_role"]
+          }
+        },
+        {
+          "description": "pinned_by_actor_ref MUST be non-null when segment_class = pinned.",
+          "if": {
+            "properties": { "segment_class": { "const": "pinned" } },
+            "required": ["segment_class"]
+          },
+          "then": {
+            "properties": { "pinned_by_actor_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["pinned_by_actor_ref"]
+          }
+        }
+      ],
+      "description": "One segment in the assembly. Every included, omitted, pinned, redacted, policy_blocked, and tainted segment is represented explicitly. A surface that silently drops a segment (no segment record, no omit_reason) is non-conforming."
+    },
+
+    "ai_route_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "route_plan_id",
+        "provider_class",
+        "provider_identity_ref",
+        "model_identity_ref",
+        "route_path_class",
+        "cost_visibility_class",
+        "freshness_class",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_route_plan_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "route_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "provider_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the concrete provider identity (first-party tenant, connected-provider account, self-hosted deployment, mocked test harness, or disabled placeholder). Raw provider URLs, raw tenant tokens, and raw credentials never appear."
+        },
+        "model_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the concrete model identity (model family + version pin). The display label on the composer is rendered from this ref; surfaces never mint a parallel label."
+        },
+        "route_path_class": { "$ref": "#/$defs/route_path_class" },
+        "route_hop_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the typed hops the request travels (e.g. desktop -> broker -> vendor). The list is declarative; it is not a rendered URL chain."
+        },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "estimated_cost_units": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["unit_label", "amount"],
+              "properties": {
+                "unit_label": { "type": "string", "minLength": 1 },
+                "amount": { "type": "string", "minLength": 1, "description": "Decimal amount as a string to avoid floating-point drift across RPC boundaries." }
+              }
+            }
+          ],
+          "description": "Estimated cost in provider-declared units at route-plan time. Null when cost_visibility_class = undisclosed_by_provider or bundled_no_incremental_cost."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Planned route for the turn. Every assembly names exactly one route plan; an assembly whose route_plan_ref is unresolved is denied with route_path_class_unresolved."
+    },
+
+    "ai_spend_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "spend_plan_id",
+        "cost_visibility_class",
+        "estimated_cost_units",
+        "ceiling_cost_units",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_spend_plan_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "spend_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "estimated_cost_units": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["unit_label", "amount"],
+              "properties": {
+                "unit_label": { "type": "string", "minLength": 1 },
+                "amount": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "ceiling_cost_units": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["unit_label", "amount"],
+              "properties": {
+                "unit_label": { "type": "string", "minLength": 1 },
+                "amount": { "type": "string", "minLength": 1 }
+              }
+            }
+          ],
+          "description": "Declared ceiling that triggers spend_ceiling_exceeded before dispatch. Null when the plan does not apply a ceiling (e.g. flat_fee_subscription)."
+        },
+        "budget_token_estimate": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Optional token-budget estimate that the byte_budget_hint on individual segments rolls up into. Null when no token budget is declared."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Planned spend envelope for the turn. Survives into route / spend receipts so downstream review / support can compare planned-vs-actual."
+    },
+
+    "ai_route_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "route_receipt_id",
+        "route_plan_ref",
+        "assembly_id_ref",
+        "provider_identity_ref",
+        "model_identity_ref",
+        "route_path_class",
+        "dispatched_at",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_route_receipt_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "route_receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "route_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_path_class": { "$ref": "#/$defs/route_path_class" },
+        "route_hop_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Null while the request is in flight."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Receipt recorded when the planned route was actually taken. An assembly whose turn was dispatched without a route receipt is denied with route_receipt_missing at audit time."
+    },
+
+    "ai_spend_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "spend_receipt_id",
+        "spend_plan_ref",
+        "assembly_id_ref",
+        "cost_visibility_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_spend_receipt_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "spend_receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "spend_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "actual_cost_units": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["unit_label", "amount"],
+              "properties": {
+                "unit_label": { "type": "string", "minLength": 1 },
+                "amount": { "type": "string", "minLength": 1 }
+              }
+            }
+          ],
+          "description": "Actual cost in provider-declared units. Null when the provider does not expose cost metadata; the receipt still exists so downstream review knows a dispatch happened."
+        },
+        "actual_token_counts": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prompt_tokens": { "type": "integer", "minimum": 0 },
+                "completion_tokens": { "type": "integer", "minimum": 0 },
+                "opaque_provider_units": { "type": "integer", "minimum": 0 }
+              }
+            }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Receipt recorded when actual spend is known. An assembly whose turn was dispatched without a spend receipt is denied with spend_receipt_missing at audit time."
+    },
+
+    "prompt_composer_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "composer_session_id",
+        "composer_plan_ref",
+        "request_workspace_ref",
+        "scope_filter_class",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_session_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "composer_session_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_plan_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the prompt-composer plan that governs the session (what gets resolved, pinned, redacted; what routes are permitted; what spend ceiling applies). Plan IDs are stable across turns in the same session."
+        },
+        "request_workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the request workspace — the isolated staging scope where composer drafts accumulate before dispatch. Raw workspace paths never cross; the id is stable across turns in the same session."
+        },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "One record per composer session. Reserves the typed session slot so later composer UX work cannot smuggle scope or trust decisions into an ad-hoc payload."
+    },
+
+    "prompt_composer_mention_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "mention_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "mention_kind",
+        "target_ref",
+        "trust_posture",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_mention_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "mention_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "mention_kind": { "$ref": "#/$defs/mention_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the typed target (symbol id, file id, workset id, execution context id, search result id, docs anchor id, citation anchor id, runbook step id, diagnostic id, terminal transcript span id, log span id, request-response id, generated artifact id, review thread id, branch-agent dispatch id, connected-provider resource id, collaboration participant id, extension resource id). Raw paths, raw URLs, raw symbol bodies, raw prompt text never appear."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "tainted": {
+          "type": "boolean",
+          "description": "True when the mention's trust_posture is one of the untrusted_* or policy_quarantined values; the composer MUST emit the resulting segment with segment_class = tainted."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed mention inside a composer turn draft. Reserves the mention shape so later composer UX work cannot smuggle ad-hoc mention payloads past scope and trust checks."
+    },
+
+    "prompt_composer_attachment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "attachment_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "attachment_kind",
+        "trust_posture",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_attachment_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "attachment_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "attachment_kind": { "$ref": "#/$defs/attachment_kind" },
+        "source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the attachment's underlying source (upload id, terminal transcript span id, log span id, request-response id, generated artifact id, docs anchor id, branch-agent evidence bundle id). Raw bodies never appear."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "tainted_fence_strategy_hint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tainted_fence_strategy" }
+          ],
+          "description": "Optional hint naming the fence strategy the composer plan will apply when the attachment becomes a segment. Required (non-null) when trust_posture is an untrusted_* or policy_quarantined value."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Citation anchors that back the attachment's authority claim. Required (non-empty) when attachment_kind ∈ {retrieved_document, citation_anchor_bundle}."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "tainted_fence_strategy_hint MUST be non-null when trust_posture is an untrusted_* or policy_quarantined value.",
+          "if": {
+            "properties": {
+              "trust_posture": {
+                "enum": [
+                  "untrusted_external",
+                  "untrusted_user_supplied",
+                  "untrusted_remote_collaborator",
+                  "untrusted_connected_provider",
+                  "untrusted_extension_proposed",
+                  "untrusted_generated_artifact",
+                  "untrusted_log_capture",
+                  "policy_quarantined"
+                ]
+              }
+            },
+            "required": ["trust_posture"]
+          },
+          "then": {
+            "properties": { "tainted_fence_strategy_hint": { "$ref": "#/$defs/tainted_fence_strategy" } },
+            "required": ["tainted_fence_strategy_hint"]
+          }
+        }
+      ],
+      "description": "Typed attachment inside a composer turn draft. Reserves the attachment shape so later composer UX work cannot elevate untrusted bytes to trusted instruction authority by default."
+    },
+
+    "prompt_composer_turn_draft_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "turn_draft_id",
+        "composer_session_ref",
+        "composer_plan_ref",
+        "draft_state",
+        "mention_refs",
+        "attachment_refs",
+        "instruction_bundle_refs",
+        "check_bundle_refs",
+        "dispatch_target_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_turn_draft_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "turn_draft_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "draft_state": { "$ref": "#/$defs/turn_draft_state" },
+        "mention_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "attachment_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "instruction_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to repo-defined or workspace-defined instruction bundles pulled in for this turn (repo_agents_file, repo_contributing_file, etc.)."
+        },
+        "check_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to repo-defined or workspace-defined check bundles associated with this turn (repo_test_suite, repo_lint_suite, etc.). Consumed during the apply / validate phases (shell interaction-safety contract)."
+        },
+        "dispatch_target_class": { "$ref": "#/$defs/dispatch_target_class" },
+        "route_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "spend_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = background_branch_agent."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = review_handoff. Points at the review / diff canvas handoff packet (shell interaction-safety contract)."
+        },
+        "supersedes_turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when dispatch_target_class = background_branch_agent.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "background_branch_agent" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when dispatch_target_class = review_handoff.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "review_handoff" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        }
+      ],
+      "description": "Typed composer turn draft. A turn draft is the unit of work dispatched (inline, to a branch agent, or as a review handoff); the assembly quotes the draft by id, and downstream evidence packets do too."
+    },
+
+    "ai_tool_call_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "tool_call_id",
+        "assembly_id_ref",
+        "tool_identity_ref",
+        "tool_outcome",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_tool_call_lineage_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "tool_call_id": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "tool_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the tool identity (first-party tool id, extension-provided tool id, connected-provider tool id, browser-handoff packet id). Raw URLs, raw tool command lines, and raw credential material never appear."
+        },
+        "parent_tool_call_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the parent tool call when this call was made in response to a prior tool return. Enables a mechanical lineage audit."
+        },
+        "tool_outcome": { "$ref": "#/$defs/tool_call_outcome" },
+        "result_segment_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Segment ids the tool return flowed into. When tool_outcome = invoked_tainted_return, every result segment MUST carry segment_class = tainted."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed tool-call lineage attached to the assembly. Reserves the shape so later tool-use work cannot invent a parallel lineage path that bypasses the taint fence."
+    },
+
+    "ai_branch_agent_dispatch_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "branch_agent_dispatch_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "assembly_id_ref",
+        "branch_identity_ref",
+        "dispatched_at",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_branch_agent_dispatch_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "branch_agent_dispatch_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "branch_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the background branch-agent identity (isolated workspace, branch anchor, dispatch runner). Raw branch names and raw paths never appear."
+        },
+        "inherited_tainted_usage_constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/tainted_usage_constraint" },
+          "description": "Tainted-usage constraints inherited from the originating assembly. A branch-agent dispatch that drops any constraint the assembly carried is non-conforming."
+        },
+        "inherited_scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "inherited_redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Dispatch reference for a background branch-agent turn. Preserves the originating assembly's tainted-usage constraints, scope-filter class, and redaction class so downstream review / audit does not have to re-infer trust."
+    },
+
+    "ai_context_assembly_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "assembly_id",
+        "composer_session_ref",
+        "composer_plan_ref",
+        "request_workspace_ref",
+        "turn_draft_ref",
+        "scope_filter_class",
+        "segment_refs",
+        "mention_refs",
+        "attachment_refs",
+        "instruction_bundle_refs",
+        "check_bundle_refs",
+        "tool_call_lineage_refs",
+        "route_plan_ref",
+        "spend_plan_ref",
+        "provider_class",
+        "route_path_class",
+        "cost_visibility_class",
+        "dispatch_target_class",
+        "freshness_class",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_context_assembly_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "assembly_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "segment_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Every segment on the assembly — included, omitted, pinned, redacted, policy_blocked, and tainted — appears here by id. Silent omission of any of these segment classes is non-conforming."
+        },
+        "mention_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "attachment_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "instruction_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "check_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "tool_call_lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "route_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "spend_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_route_receipt_record recorded at dispatch. Null until dispatch completes. Support-replay-only assemblies never carry a route receipt."
+        },
+        "spend_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_spend_receipt_record recorded when actual spend is known. Null until the provider reports."
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = background_branch_agent."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = review_handoff."
+        },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "route_path_class": { "$ref": "#/$defs/route_path_class" },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "dispatch_target_class": { "$ref": "#/$defs/dispatch_target_class" },
+        "tainted_segment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of segments with segment_class = tainted at assembly time. A tainted_segment_count > 0 combined with an empty tainted_usage_constraints set on any tainted segment is non-conforming."
+        },
+        "pinned_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omitted_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "policy_blocked_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "redacted_segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when dispatch_target_class = background_branch_agent.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "background_branch_agent" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when dispatch_target_class = review_handoff.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "review_handoff" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        }
+      ],
+      "description": "Per-turn AI context-assembly envelope. One assembly per dispatched turn (inline, branch-agent, or review-handoff); support-replay assemblies reuse the shape for parity / audit. Every segment is named explicitly on segment_refs; silent omission is non-conforming."
+    },
+
+    "ai_context_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_context_assembly_schema_version",
+        "audit_event_id",
+        "composer_session_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_context_audit_event_record" },
+        "ai_context_assembly_schema_version": { "$ref": "#/$defs/ai_context_assembly_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "segment_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "route_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "spend_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "route_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "spend_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "tool_call_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "segment_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/segment_class" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) on ai_context_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for ai_context_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "ai_context_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the ai_context audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, or raw credential material."
+    }
+  }
+}

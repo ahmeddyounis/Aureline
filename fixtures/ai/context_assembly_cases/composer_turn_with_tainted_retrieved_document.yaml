@@ -1,0 +1,797 @@
+# yaml-language-server: $schema=../../../schemas/ai/context_assembly.schema.json
+__fixture__:
+  name: composer_turn_with_tainted_retrieved_document
+  scenario: >
+    A user opens a composer session against the current workspace
+    root and drafts a turn that mentions a symbol in a workspace
+    file, attaches a docs-pack excerpt pulled in by the composer
+    plan (authoritative, citation-anchor-backed), and attaches a
+    retrieved_document pulled through a connected provider
+    (untrusted external). The composer plan resolves the
+    assembly: the workspace_symbol is pinned, the docs_pack
+    excerpt is included with a citation-anchor ref, the
+    retrieved_document is placed as a tainted segment under the
+    quoted_as_data_only fence with the full
+    tainted-usage-constraint set, a prior-turn carry-over is
+    omitted because budget was exceeded, a log excerpt is
+    redacted by the broker-owned redaction pass (credential
+    handle + user identity projection), and an
+    extension_proposed_context segment is policy-blocked because
+    the workspace-trust state is restricted. A tool-call return
+    from a connected-provider browser handoff flowed into the
+    tainted retrieved_document; the tool_call_lineage records
+    invoked_tainted_return. Dispatch is inline_composer against
+    a first-party managed provider with direct first-party
+    routing; metered per-token cost visibility. The evidence
+    packet preserves exactly one tainted fence, the required
+    citation-anchor coverage (one required, one provided), and
+    links the route / spend receipts.
+  exercised_contract_sections:
+    - segment_class
+    - source_class
+    - trust_posture
+    - tainted_content_fence
+    - tainted_usage_constraint
+    - instructional_role
+    - provider_class
+    - route_path_class
+    - cost_visibility_class
+    - prompt_composer_session
+    - prompt_composer_mention
+    - prompt_composer_attachment
+    - prompt_composer_turn_draft
+    - ai_route_plan
+    - ai_spend_plan
+    - ai_route_receipt
+    - ai_spend_receipt
+    - ai_tool_call_lineage
+    - evidence_packet
+  exercised_classes:
+    segment_classes: [included, omitted, pinned, redacted, policy_blocked, tainted]
+    source_classes:
+      - workspace_symbol
+      - docs_pack_excerpt
+      - connected_provider_payload
+      - ai_prior_turn_context
+      - log_excerpt
+      - extension_proposed_context
+    trust_postures:
+      - trusted_first_party
+      - trusted_authority
+      - untrusted_connected_provider
+      - unreviewed_derived
+      - untrusted_log_capture
+      - untrusted_extension_proposed
+    tainted_fence_strategies: [quoted_as_data_only]
+    tainted_usage_constraints:
+      - must_not_gain_tool_permission
+      - must_not_escalate_scope
+      - must_not_mint_citations
+      - must_not_override_instruction_bundle
+      - must_not_publish_externally
+      - must_not_commit_to_repo
+      - must_not_dispatch_branch_agent
+      - must_not_route_to_higher_cost_tier
+      - must_preserve_fence_in_downstream_packet
+    instructional_roles:
+      - retrieved_reference
+      - attached_data
+      - fenced_tainted_data
+    provider_classes: [first_party_managed]
+    route_path_classes: [direct_first_party]
+    cost_visibility_classes: [metered_per_token]
+    dispatch_target_classes: [inline_composer]
+    tool_call_outcomes: [invoked_tainted_return]
+    audit_event_ids:
+      - ai_context_assembly_minted
+      - ai_context_segment_pinned
+      - ai_context_segment_included
+      - ai_context_segment_tainted_fenced
+      - ai_context_segment_omitted
+      - ai_context_segment_redacted
+      - ai_context_segment_policy_blocked
+      - ai_context_tool_call_invoked
+      - ai_context_tainted_return_observed
+      - ai_context_route_plan_minted
+      - ai_context_spend_plan_minted
+      - ai_context_route_receipt_recorded
+      - ai_context_spend_receipt_recorded
+      - ai_context_turn_draft_dispatched
+    evidence_audit_event_ids:
+      - ai_evidence_packet_minted
+      - ai_evidence_source_reference_recorded
+      - ai_evidence_tainted_fence_recorded
+
+---
+
+# Composer session: current_root scope against the desktop product.
+record_kind: prompt_composer_session_record
+ai_context_assembly_schema_version: 1
+composer_session_id: ai:composer-session:01
+composer_plan_ref: ai:composer-plan:default-coding
+request_workspace_ref: ai:request-workspace:01
+scope_filter_class: current_root
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+opened_at: "2026-04-19T15:30:00Z"
+closed_at: null
+
+---
+
+# Typed mention: a workspace symbol the user referenced in the draft.
+record_kind: prompt_composer_mention_record
+ai_context_assembly_schema_version: 1
+mention_id: ai:mention:symbol:01
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:01
+mention_kind: symbol_mention
+target_ref: ai:target:symbol:PaymentsHandler.createCharge
+trust_posture: trusted_first_party
+tainted: false
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:10Z"
+
+---
+
+# Typed attachment: authoritative docs-pack excerpt backed by a citation anchor.
+record_kind: prompt_composer_attachment_record
+ai_context_assembly_schema_version: 1
+attachment_id: ai:attach:docs:01
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:01
+attachment_kind: citation_anchor_bundle
+source_ref: ai:docs-anchor:payments-guide#create-charge
+trust_posture: trusted_authority
+tainted_fence_strategy_hint: null
+citation_anchor_refs:
+  - ai:citation-anchor:payments-guide#create-charge
+redaction_class: metadata_safe_default
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:11Z"
+
+---
+
+# Typed attachment: retrieved_document pulled through a connected provider. Untrusted.
+record_kind: prompt_composer_attachment_record
+ai_context_assembly_schema_version: 1
+attachment_id: ai:attach:retrieved:01
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:01
+attachment_kind: retrieved_document
+source_ref: ai:connected-provider-payload:01
+trust_posture: untrusted_connected_provider
+tainted_fence_strategy_hint: quoted_as_data_only
+citation_anchor_refs: []
+redaction_class: metadata_safe_default
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:12Z"
+
+---
+
+# Turn draft: dispatched inline against the composer plan.
+record_kind: prompt_composer_turn_draft_record
+ai_context_assembly_schema_version: 1
+turn_draft_id: ai:turn-draft:01
+composer_session_ref: ai:composer-session:01
+composer_plan_ref: ai:composer-plan:default-coding
+draft_state: dispatched_inline
+mention_refs:
+  - ai:mention:symbol:01
+attachment_refs:
+  - ai:attach:docs:01
+  - ai:attach:retrieved:01
+instruction_bundle_refs:
+  - ai:instruction-bundle:repo-agents
+check_bundle_refs: []
+dispatch_target_class: inline_composer
+route_plan_ref: ai:route-plan:01
+spend_plan_ref: ai:spend-plan:01
+branch_agent_dispatch_ref: null
+review_handoff_ref: null
+supersedes_turn_draft_ref: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:15Z"
+
+---
+
+# Route plan: first-party managed provider, direct first-party path, metered per token.
+record_kind: ai_route_plan_record
+ai_context_assembly_schema_version: 1
+route_plan_id: ai:route-plan:01
+provider_class: first_party_managed
+provider_identity_ref: ai:provider-identity:first-party:01
+model_identity_ref: ai:model-identity:coder-large@v7
+route_path_class: direct_first_party
+route_hop_refs:
+  - ai:route-hop:desktop-to-first-party-edge
+cost_visibility_class: metered_per_token
+estimated_cost_units:
+  unit_label: usd_per_million_tokens_prompt
+  amount: "3.00"
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:15Z"
+
+---
+
+# Spend plan: metered per token with a declared ceiling.
+record_kind: ai_spend_plan_record
+ai_context_assembly_schema_version: 1
+spend_plan_id: ai:spend-plan:01
+cost_visibility_class: metered_per_token
+estimated_cost_units:
+  unit_label: usd
+  amount: "0.024"
+ceiling_cost_units:
+  unit_label: usd
+  amount: "0.100"
+budget_token_estimate: 8000
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:15Z"
+
+---
+
+# Pinned workspace_symbol segment (first-party trusted).
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:symbol:01
+assembly_id_ref: ai:assembly:01
+segment_class: pinned
+source_class: workspace_symbol
+trust_posture: trusted_first_party
+provenance_ref: ai:target:symbol:PaymentsHandler.createCharge
+origin_mention_ref: ai:mention:symbol:01
+origin_attachment_ref: null
+instructional_role: retrieved_reference
+omit_reason: null
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 320
+  budget_remaining_at_decision: 6400
+pinned_by_actor_ref: ai:actor:composer-plan:default-coding
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:16Z"
+
+---
+
+# Included docs_pack_excerpt segment, citation-anchor-backed.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:docs:01
+assembly_id_ref: ai:assembly:01
+segment_class: included
+source_class: docs_pack_excerpt
+trust_posture: trusted_authority
+provenance_ref: ai:docs-anchor:payments-guide#create-charge
+origin_mention_ref: null
+origin_attachment_ref: ai:attach:docs:01
+instructional_role: retrieved_reference
+omit_reason: null
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs:
+  - ai:citation-anchor:payments-guide#create-charge
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 540
+  budget_remaining_at_decision: 5860
+pinned_by_actor_ref: null
+freshness_class: warm_cached
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:17Z"
+
+---
+
+# Tainted connected_provider_payload segment, quoted_as_data_only fence.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:tainted-retrieved:01
+assembly_id_ref: ai:assembly:01
+segment_class: tainted
+source_class: connected_provider_payload
+trust_posture: untrusted_connected_provider
+provenance_ref: ai:connected-provider-payload:01
+origin_mention_ref: null
+origin_attachment_ref: ai:attach:retrieved:01
+instructional_role: fenced_tainted_data
+omit_reason: null
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: quoted_as_data_only
+tainted_usage_constraints:
+  - must_not_gain_tool_permission
+  - must_not_escalate_scope
+  - must_not_mint_citations
+  - must_not_override_instruction_bundle
+  - must_not_publish_externally
+  - must_not_commit_to_repo
+  - must_not_dispatch_branch_agent
+  - must_not_route_to_higher_cost_tier
+  - must_preserve_fence_in_downstream_packet
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 1200
+  budget_remaining_at_decision: 4660
+pinned_by_actor_ref: null
+freshness_class: unverified
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:18Z"
+
+---
+
+# Omitted ai_prior_turn_context segment: budget_exceeded.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:prior-turn:01
+assembly_id_ref: ai:assembly:01
+segment_class: omitted
+source_class: ai_prior_turn_context
+trust_posture: unreviewed_derived
+provenance_ref: ai:turn-draft:prior:01
+origin_mention_ref: null
+origin_attachment_ref: null
+instructional_role: ai_prior_turn_response
+omit_reason: budget_exceeded
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 2200
+  budget_remaining_at_decision: 4660
+pinned_by_actor_ref: null
+freshness_class: warm_cached
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:19Z"
+
+---
+
+# Redacted log_excerpt segment: broker redaction pass fired on credential handle + identity projection.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:log:01
+assembly_id_ref: ai:assembly:01
+segment_class: redacted
+source_class: log_excerpt
+trust_posture: untrusted_log_capture
+provenance_ref: ai:log-span:01
+origin_mention_ref: null
+origin_attachment_ref: null
+instructional_role: retrieved_reference
+omit_reason: null
+block_reason: null
+redaction_reasons:
+  - credential_handle_redaction
+  - user_identity_projection_policy
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 420
+  budget_remaining_at_decision: 4240
+pinned_by_actor_ref: null
+freshness_class: warm_cached
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: internal_support_restricted
+minted_at: "2026-04-19T15:30:20Z"
+
+---
+
+# Policy-blocked extension_proposed_context: workspace-trust state excludes the segment.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:ext:01
+assembly_id_ref: ai:assembly:01
+segment_class: policy_blocked
+source_class: extension_proposed_context
+trust_posture: untrusted_extension_proposed
+provenance_ref: ai:extension-proposed-context:01
+origin_mention_ref: null
+origin_attachment_ref: null
+instructional_role: attached_data
+omit_reason: null
+block_reason: workspace_trust_excludes_segment
+redaction_reasons: []
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+byte_budget_hint: null
+pinned_by_actor_ref: null
+freshness_class: unverified
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:21Z"
+
+---
+
+# Tool-call lineage: connected-provider browser handoff returned tainted bytes that flowed into the tainted segment.
+record_kind: ai_tool_call_lineage_record
+ai_context_assembly_schema_version: 1
+tool_call_id: ai:tool-call:01
+assembly_id_ref: ai:assembly:01
+tool_identity_ref: ai:tool-identity:connected-provider-browser-handoff
+parent_tool_call_ref: null
+tool_outcome: invoked_tainted_return
+result_segment_refs:
+  - ai:segment:tainted-retrieved:01
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:22Z"
+
+---
+
+# Assembly envelope.
+record_kind: ai_context_assembly_record
+ai_context_assembly_schema_version: 1
+assembly_id: ai:assembly:01
+composer_session_ref: ai:composer-session:01
+composer_plan_ref: ai:composer-plan:default-coding
+request_workspace_ref: ai:request-workspace:01
+turn_draft_ref: ai:turn-draft:01
+scope_filter_class: current_root
+segment_refs:
+  - ai:segment:symbol:01
+  - ai:segment:docs:01
+  - ai:segment:tainted-retrieved:01
+  - ai:segment:prior-turn:01
+  - ai:segment:log:01
+  - ai:segment:ext:01
+mention_refs:
+  - ai:mention:symbol:01
+attachment_refs:
+  - ai:attach:docs:01
+  - ai:attach:retrieved:01
+instruction_bundle_refs:
+  - ai:instruction-bundle:repo-agents
+check_bundle_refs: []
+tool_call_lineage_refs:
+  - ai:tool-call:01
+route_plan_ref: ai:route-plan:01
+spend_plan_ref: ai:spend-plan:01
+route_receipt_ref: ai:route-receipt:01
+spend_receipt_ref: ai:spend-receipt:01
+branch_agent_dispatch_ref: null
+review_handoff_ref: null
+provider_class: first_party_managed
+route_path_class: direct_first_party
+cost_visibility_class: metered_per_token
+dispatch_target_class: inline_composer
+tainted_segment_count: 1
+pinned_segment_count: 1
+omitted_segment_count: 1
+policy_blocked_segment_count: 1
+redacted_segment_count: 1
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+running_build_identity_ref: build:running:01
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:23Z"
+
+---
+
+# Route receipt: dispatched route matched the plan.
+record_kind: ai_route_receipt_record
+ai_context_assembly_schema_version: 1
+route_receipt_id: ai:route-receipt:01
+route_plan_ref: ai:route-plan:01
+assembly_id_ref: ai:assembly:01
+provider_identity_ref: ai:provider-identity:first-party:01
+model_identity_ref: ai:model-identity:coder-large@v7
+route_path_class: direct_first_party
+route_hop_refs:
+  - ai:route-hop:desktop-to-first-party-edge
+dispatched_at: "2026-04-19T15:30:24Z"
+completed_at: "2026-04-19T15:30:29Z"
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:24Z"
+
+---
+
+# Spend receipt: actual cost disclosed by the provider.
+record_kind: ai_spend_receipt_record
+ai_context_assembly_schema_version: 1
+spend_receipt_id: ai:spend-receipt:01
+spend_plan_ref: ai:spend-plan:01
+assembly_id_ref: ai:assembly:01
+cost_visibility_class: metered_per_token
+actual_cost_units:
+  unit_label: usd
+  amount: "0.021"
+actual_token_counts:
+  prompt_tokens: 4820
+  completion_tokens: 840
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:30Z"
+
+---
+
+# Audit event: assembly minted.
+record_kind: ai_context_audit_event_record
+ai_context_assembly_schema_version: 1
+audit_event_id: ai_context_assembly_minted
+composer_session_ref: ai:composer-session:01
+assembly_id_ref: ai:assembly:01
+segment_id_ref: null
+turn_draft_ref: ai:turn-draft:01
+route_plan_ref: ai:route-plan:01
+spend_plan_ref: ai:spend-plan:01
+route_receipt_ref: null
+spend_receipt_ref: null
+branch_agent_dispatch_ref: null
+tool_call_id_ref: null
+segment_class: null
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:23Z"
+
+---
+
+# Audit event: tainted retrieval fence recorded.
+record_kind: ai_context_audit_event_record
+ai_context_assembly_schema_version: 1
+audit_event_id: ai_context_segment_tainted_fenced
+composer_session_ref: ai:composer-session:01
+assembly_id_ref: ai:assembly:01
+segment_id_ref: ai:segment:tainted-retrieved:01
+turn_draft_ref: ai:turn-draft:01
+route_plan_ref: null
+spend_plan_ref: null
+route_receipt_ref: null
+spend_receipt_ref: null
+branch_agent_dispatch_ref: null
+tool_call_id_ref: ai:tool-call:01
+segment_class: tainted
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:23Z"
+
+---
+
+# Evidence packet (evidence_packet.schema.json): inline turn. Links receipts + tainted fence + docs-anchor source reference.
+record_kind: ai_evidence_packet_record
+ai_evidence_packet_schema_version: 1
+evidence_packet_id: ai:evidence-packet:01
+assembly_id_ref: ai:assembly:01
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:01
+dispatch_target_class: inline_composer
+provider_class: first_party_managed
+route_path_class: direct_first_party
+route_receipt_ref: ai:route-receipt:01
+spend_receipt_ref: ai:spend-receipt:01
+branch_agent_dispatch_ref: null
+review_handoff_ref: null
+tool_call_lineage_refs:
+  - ai:tool-call:01
+source_reference_refs:
+  - ai:evidence-source-ref:docs:01
+  - ai:evidence-source-ref:symbol:01
+  - ai:evidence-source-ref:tainted-retrieved:01
+tainted_fence_refs:
+  - ai:tainted-fence:01
+tainted_fence_count: 1
+citation_anchor_coverage:
+  required_count: 1
+  provided_count: 1
+downstream_handoff_refs: []
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+running_build_identity_ref: build:running:01
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Source reference: docs-pack excerpt with citation anchor.
+record_kind: ai_evidence_source_reference_record
+ai_evidence_packet_schema_version: 1
+source_reference_id: ai:evidence-source-ref:docs:01
+evidence_packet_ref: ai:evidence-packet:01
+claim_class: docs_anchor_reference
+target_ref: ai:docs-anchor:payments-guide#create-charge
+segment_id_ref: ai:segment:docs:01
+citation_anchor_refs:
+  - ai:citation-anchor:payments-guide#create-charge
+source_posture: trusted_authority
+tainted_fence_ref: null
+freshness_class: warm_cached
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Source reference: workspace symbol.
+record_kind: ai_evidence_source_reference_record
+ai_evidence_packet_schema_version: 1
+source_reference_id: ai:evidence-source-ref:symbol:01
+evidence_packet_ref: ai:evidence-packet:01
+claim_class: symbol_reference
+target_ref: ai:target:symbol:PaymentsHandler.createCharge
+segment_id_ref: ai:segment:symbol:01
+citation_anchor_refs: []
+source_posture: trusted_first_party
+tainted_fence_ref: null
+freshness_class: authoritative_live
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Source reference: tainted retrieved document. Points at the fence.
+record_kind: ai_evidence_source_reference_record
+ai_evidence_packet_schema_version: 1
+source_reference_id: ai:evidence-source-ref:tainted-retrieved:01
+evidence_packet_ref: ai:evidence-packet:01
+claim_class: generated_artifact_reference
+target_ref: ai:connected-provider-payload:01
+segment_id_ref: ai:segment:tainted-retrieved:01
+citation_anchor_refs: []
+source_posture: tainted_external
+tainted_fence_ref: ai:tainted-fence:01
+freshness_class: unverified
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Tainted-content fence: covers the retrieved_document segment.
+record_kind: ai_tainted_content_fence_record
+ai_evidence_packet_schema_version: 1
+tainted_fence_id: ai:tainted-fence:01
+evidence_packet_ref: ai:evidence-packet:01
+assembly_id_ref: ai:assembly:01
+segment_id_ref: ai:segment:tainted-retrieved:01
+source_reference_refs:
+  - ai:evidence-source-ref:tainted-retrieved:01
+tainted_source_class: retrieved_document
+trust_posture: untrusted_connected_provider
+fence_strategy: quoted_as_data_only
+usage_constraints:
+  - must_not_gain_tool_permission
+  - must_not_escalate_scope
+  - must_not_mint_citations
+  - must_not_override_instruction_bundle
+  - must_not_publish_externally
+  - must_not_commit_to_repo
+  - must_not_dispatch_branch_agent
+  - must_not_route_to_higher_cost_tier
+  - must_preserve_fence_in_downstream_packet
+preserved_markings:
+  - external-sandboxed
+  - data-only
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Evidence audit event: packet minted.
+record_kind: ai_evidence_audit_event_record
+ai_evidence_packet_schema_version: 1
+audit_event_id: ai_evidence_packet_minted
+evidence_packet_ref: ai:evidence-packet:01
+assembly_id_ref: ai:assembly:01
+tainted_fence_ref: null
+source_reference_ref: null
+downstream_handoff_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"
+
+---
+
+# Evidence audit event: tainted fence recorded.
+record_kind: ai_evidence_audit_event_record
+ai_evidence_packet_schema_version: 1
+audit_event_id: ai_evidence_tainted_fence_recorded
+evidence_packet_ref: ai:evidence-packet:01
+assembly_id_ref: ai:assembly:01
+tainted_fence_ref: ai:tainted-fence:01
+source_reference_ref: ai:evidence-source-ref:tainted-retrieved:01
+downstream_handoff_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:30:31Z"

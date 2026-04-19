@@ -79,6 +79,23 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ai/context_assembly_contract.md`](./ai/context_assembly_contract.md)
+  — AI context-assembly contract covering included / omitted /
+  pinned / redacted / policy-blocked / tainted context segments
+  with stable segment ids and provenance refs; route / spend
+  truth (provider / model / path / cost visibility) with planned
+  and receipted records; reserved typed prompt-composer session,
+  mention, attachment, and turn-draft slots; evidence-packet
+  seed with tainted-content fence rules that survive background
+  branch-agent and review-handoff dispatches without silent
+  downgrade. Boundary schemas in
+  [`/schemas/ai/context_assembly.schema.json`](../schemas/ai/context_assembly.schema.json)
+  and
+  [`/schemas/ai/evidence_packet.schema.json`](../schemas/ai/evidence_packet.schema.json);
+  worked fixtures (inline composer turn with tainted retrieved
+  context, background branch-agent dispatch that preserves
+  tainted-usage constraints across the handoff) in
+  [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
 
 ## Machine-readable registers
 

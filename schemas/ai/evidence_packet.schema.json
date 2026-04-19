@@ -1,0 +1,662 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/evidence_packet.schema.json",
+  "title": "Aureline AI evidence-packet contract",
+  "description": "Boundary schema for the ai_evidence_packet_record, the ai_tainted_content_fence_record, the ai_evidence_source_reference_record, and the ai_evidence_audit_event_record frozen in docs/ai/context_assembly_contract.md. Every dispatched AI turn (inline, background branch-agent, or review-handoff) produces exactly one ai_evidence_packet_record that links the assembly, the route / spend receipts, the branch-agent dispatch (when applicable), every tainted content fence, and every source reference that backed a user-visible claim. Raw retrieved-document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw prompt text, and raw credential material never cross the RPC boundary; this schema carries ids and typed vocabulary only. Adding a new source-class, trust-posture, fence strategy, usage constraint, or denial reason is additive-minor and requires an ai_evidence_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_evidence_packet_record" },
+    { "$ref": "#/$defs/ai_tainted_content_fence_record" },
+    { "$ref": "#/$defs/ai_evidence_source_reference_record" },
+    { "$ref": "#/$defs/ai_evidence_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_evidence_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI evidence-packet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet_record",
+        "ai_tainted_content_fence_record",
+        "ai_evidence_source_reference_record",
+        "ai_evidence_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw bodies, raw paths, raw URLs, raw prompt text, raw credential material, and raw generated artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "tainted_source_class": {
+      "type": "string",
+      "enum": [
+        "retrieved_document",
+        "terminal_snippet",
+        "log_snippet",
+        "generated_artifact_excerpt",
+        "request_payload",
+        "response_payload",
+        "user_supplied_text",
+        "user_supplied_file",
+        "extension_proposed_payload",
+        "connected_provider_payload",
+        "collaboration_remote_payload",
+        "tool_call_return_value",
+        "browser_handoff_return_value",
+        "ai_prior_turn_output"
+      ],
+      "description": "Frozen tainted-source-class vocabulary. Every tainted_content_fence names exactly one source class. The set is closed; a surface that observes an unrecognised tainted source MUST deny with tainted_source_class_unresolved rather than silently classify."
+    },
+
+    "tainted_trust_posture": {
+      "type": "string",
+      "enum": [
+        "untrusted_external",
+        "untrusted_user_supplied",
+        "untrusted_remote_collaborator",
+        "untrusted_connected_provider",
+        "untrusted_extension_proposed",
+        "untrusted_generated_artifact",
+        "untrusted_log_capture",
+        "policy_quarantined",
+        "unreviewed_derived"
+      ],
+      "description": "Frozen tainted-trust-posture vocabulary. Re-exports the untrusted_* and policy_quarantined and unreviewed_derived postures from context_assembly.schema.json so downstream evidence consumers read one vocabulary."
+    },
+
+    "tainted_fence_strategy": {
+      "type": "string",
+      "enum": [
+        "instruction_stripped",
+        "quoted_as_data_only",
+        "sandboxed_excerpt",
+        "summary_only_no_body",
+        "metadata_only_no_content",
+        "citation_reference_only"
+      ],
+      "description": "Frozen tainted-content fence-strategy vocabulary. Re-exported from context_assembly.schema.json without modification."
+    },
+
+    "tainted_usage_constraint": {
+      "type": "string",
+      "enum": [
+        "must_not_gain_tool_permission",
+        "must_not_escalate_scope",
+        "must_not_mint_citations",
+        "must_not_override_instruction_bundle",
+        "must_not_publish_externally",
+        "must_not_commit_to_repo",
+        "must_not_dispatch_branch_agent",
+        "must_not_route_to_higher_cost_tier",
+        "must_preserve_fence_in_downstream_packet"
+      ],
+      "description": "Frozen tainted-usage-constraint vocabulary. Re-exported from context_assembly.schema.json without modification."
+    },
+
+    "evidence_claim_class": {
+      "type": "string",
+      "enum": [
+        "code_reference",
+        "symbol_reference",
+        "file_slice_reference",
+        "docs_anchor_reference",
+        "generated_reference_reference",
+        "runbook_step_reference",
+        "release_note_reference",
+        "search_result_reference",
+        "diagnostic_reference",
+        "review_thread_reference",
+        "execution_context_reference",
+        "mutation_journal_reference",
+        "terminal_transcript_reference",
+        "log_span_reference",
+        "request_response_reference",
+        "generated_artifact_reference",
+        "branch_agent_evidence_reference"
+      ],
+      "description": "Frozen evidence-claim-class vocabulary. Every ai_evidence_source_reference_record names exactly one class; surfaces that invent surface-local references (free-form strings, raw URLs) are non-conforming."
+    },
+
+    "evidence_source_posture": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party",
+        "trusted_authority",
+        "reviewed_derived",
+        "unreviewed_derived",
+        "tainted_external"
+      ],
+      "description": "Frozen source-posture vocabulary for evidence references. tainted_external is the only value permitted on a reference whose bytes came through a tainted source; downstream readers use this to decide how to render the reference."
+    },
+
+    "evidence_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_evidence_packet_minted",
+        "ai_evidence_source_reference_recorded",
+        "ai_evidence_tainted_fence_recorded",
+        "ai_evidence_tainted_fence_preserved_on_handoff",
+        "ai_evidence_tainted_fence_dropped_denial",
+        "ai_evidence_citation_anchor_missing_denial",
+        "ai_evidence_receipt_missing_denial",
+        "ai_evidence_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_evidence audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "evidence_denial_reason": {
+      "type": "string",
+      "enum": [
+        "assembly_ref_missing",
+        "route_receipt_ref_missing",
+        "spend_receipt_ref_missing",
+        "tainted_source_class_unresolved",
+        "tainted_fence_strategy_missing",
+        "tainted_usage_constraint_missing",
+        "tainted_fence_dropped_on_handoff",
+        "citation_anchor_missing_on_authoritative_claim",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_prompt_text_forbidden_on_boundary",
+        "ai_evidence_packet_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort evidence packet is forbidden."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "ai_tainted_content_fence_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_evidence_packet_schema_version",
+        "tainted_fence_id",
+        "evidence_packet_ref",
+        "assembly_id_ref",
+        "segment_id_ref",
+        "tainted_source_class",
+        "trust_posture",
+        "fence_strategy",
+        "usage_constraints",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_tainted_content_fence_record" },
+        "ai_evidence_packet_schema_version": { "$ref": "#/$defs/ai_evidence_packet_schema_version" },
+        "tainted_fence_id": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "segment_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the ai_context_segment_record the fence applies to. A fence without a segment reference is non-conforming."
+        },
+        "source_reference_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the ai_evidence_source_reference_record entries the fence covers (if any). Empty when the fence covers a segment that carries no user-visible citation (e.g. user-supplied text included as fenced data)."
+        },
+        "tainted_source_class": { "$ref": "#/$defs/tainted_source_class" },
+        "trust_posture": { "$ref": "#/$defs/tainted_trust_posture" },
+        "fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+        "usage_constraints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/tainted_usage_constraint" },
+          "description": "Constraints the composer plan applied at assembly time. Every constraint is carried forward into downstream branch-agent dispatches, review handoffs, and nested evidence packets; a handoff that drops a constraint is denied with tainted_fence_dropped_on_handoff."
+        },
+        "preserved_markings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Opaque labels preserved on the fenced content for downstream render / review (e.g. 'external-sandboxed', 'data-only', 'summary-only'). Strings are stable label ids, not free-form prose."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed tainted-content fence covering a segment in the assembly. Every tainted segment in the originating assembly (ai_context_assembly_record) MUST have exactly one ai_tainted_content_fence_record on the evidence packet; a missing fence is non-conforming."
+    },
+
+    "ai_evidence_source_reference_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_evidence_packet_schema_version",
+        "source_reference_id",
+        "evidence_packet_ref",
+        "claim_class",
+        "target_ref",
+        "source_posture",
+        "freshness_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_evidence_source_reference_record" },
+        "ai_evidence_packet_schema_version": { "$ref": "#/$defs/ai_evidence_packet_schema_version" },
+        "source_reference_id": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "claim_class": { "$ref": "#/$defs/evidence_claim_class" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the typed target the evidence reference points at. Raw paths, raw URLs, raw bodies never appear."
+        },
+        "segment_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_context_segment_record that produced this reference, when the reference is tied to a specific segment."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back an authoritative claim. Required (non-empty) when claim_class ∈ {docs_anchor_reference, generated_reference_reference, runbook_step_reference, release_note_reference} and source_posture ∈ {trusted_first_party, trusted_authority, reviewed_derived}."
+        },
+        "source_posture": { "$ref": "#/$defs/evidence_source_posture" },
+        "tainted_fence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when source_posture = tainted_external. Points at the ai_tainted_content_fence_record that covers the source."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "tainted_fence_ref MUST be non-null when source_posture = tainted_external.",
+          "if": {
+            "properties": { "source_posture": { "const": "tainted_external" } },
+            "required": ["source_posture"]
+          },
+          "then": {
+            "properties": { "tainted_fence_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["tainted_fence_ref"]
+          }
+        },
+        {
+          "description": "citation_anchor_refs MUST be non-empty on authoritative docs / generated-reference / runbook / release-note claims with a trusted source posture.",
+          "if": {
+            "properties": {
+              "claim_class": {
+                "enum": [
+                  "docs_anchor_reference",
+                  "generated_reference_reference",
+                  "runbook_step_reference",
+                  "release_note_reference"
+                ]
+              },
+              "source_posture": {
+                "enum": ["trusted_first_party", "trusted_authority", "reviewed_derived"]
+              }
+            },
+            "required": ["claim_class", "source_posture"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Typed evidence reference. Every user-visible claim that later review / support / audit might recompute points at its backing reference through this record."
+    },
+
+    "ai_evidence_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_evidence_packet_schema_version",
+        "evidence_packet_id",
+        "assembly_id_ref",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "dispatch_target_class",
+        "provider_class",
+        "route_path_class",
+        "source_reference_refs",
+        "tainted_fence_refs",
+        "tainted_fence_count",
+        "freshness_class",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_evidence_packet_record" },
+        "ai_evidence_packet_schema_version": { "$ref": "#/$defs/ai_evidence_packet_schema_version" },
+        "evidence_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "dispatch_target_class": {
+          "type": "string",
+          "enum": [
+            "inline_composer",
+            "background_branch_agent",
+            "review_handoff",
+            "support_replay_only"
+          ],
+          "description": "Re-exported from schemas/ai/context_assembly.schema.json without modification."
+        },
+        "provider_class": {
+          "type": "string",
+          "enum": [
+            "first_party_self_hosted",
+            "first_party_managed",
+            "connected_provider_vendor",
+            "connected_provider_self_hosted",
+            "extension_provided_provider",
+            "mocked_test_provider",
+            "disabled_no_provider"
+          ],
+          "description": "Re-exported from schemas/ai/context_assembly.schema.json without modification."
+        },
+        "route_path_class": {
+          "type": "string",
+          "enum": [
+            "direct_first_party",
+            "vendor_cloud_direct",
+            "vendor_cloud_via_broker",
+            "self_hosted_direct",
+            "self_hosted_via_broker",
+            "extension_mediated",
+            "offline_cached_only",
+            "denied_by_policy"
+          ],
+          "description": "Re-exported from schemas/ai/context_assembly.schema.json without modification."
+        },
+        "route_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_route_receipt_record recorded at dispatch. Required (non-null) for every evidence packet whose dispatch_target_class is not support_replay_only; a missing ref is denied with route_receipt_ref_missing."
+        },
+        "spend_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_spend_receipt_record. Required (non-null) for every evidence packet whose dispatch_target_class is not support_replay_only; a missing ref is denied with spend_receipt_ref_missing."
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = background_branch_agent."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = review_handoff."
+        },
+        "tool_call_lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to ai_tool_call_lineage_record entries associated with the turn. Every tool-call return that was treated as tainted MUST have a corresponding tainted_fence_ref on this packet."
+        },
+        "source_reference_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "tainted_fence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "tainted_fence_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of ai_tainted_content_fence_record entries on the packet. A tainted_segment_count on the originating assembly that exceeds tainted_fence_count here is non-conforming (the packet is missing fences)."
+        },
+        "citation_anchor_coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_count", "provided_count"],
+          "properties": {
+            "required_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of source references that require a citation anchor under the rules in this schema (authoritative docs / generated-reference / runbook / release-note with trusted posture)."
+            },
+            "provided_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of source references that actually provide a non-empty citation_anchor_refs array."
+            }
+          },
+          "description": "Summary of citation-anchor coverage. required_count > provided_count is non-conforming and denies the packet with citation_anchor_missing_on_authoritative_claim."
+        },
+        "downstream_handoff_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to downstream packets the evidence was handed off to (review / diff canvas packets, mutation-journal entries, support bundles, claim manifests, nested evidence packets on dependent branch-agent dispatches). Every handoff MUST preserve every tainted_usage_constraint the packet carries; a dropped constraint denies the handoff with tainted_fence_dropped_on_handoff."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when dispatch_target_class = background_branch_agent.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "background_branch_agent" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when dispatch_target_class = review_handoff.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "review_handoff" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        },
+        {
+          "description": "route_receipt_ref and spend_receipt_ref MUST be non-null unless dispatch_target_class = support_replay_only.",
+          "if": {
+            "properties": {
+              "dispatch_target_class": { "not": { "const": "support_replay_only" } }
+            },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": {
+              "route_receipt_ref": { "$ref": "#/$defs/opaque_id" },
+              "spend_receipt_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["route_receipt_ref", "spend_receipt_ref"]
+          }
+        }
+      ],
+      "description": "Per-turn AI evidence packet. Links the assembly, the route / spend receipts, the branch-agent dispatch (when applicable), every tainted content fence, and every source reference that backed a user-visible claim. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear."
+    },
+
+    "ai_evidence_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_evidence_packet_schema_version",
+        "audit_event_id",
+        "evidence_packet_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_evidence_audit_event_record" },
+        "ai_evidence_packet_schema_version": { "$ref": "#/$defs/ai_evidence_packet_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/evidence_audit_event_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "tainted_fence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "source_reference_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "downstream_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/evidence_denial_reason" }
+          ],
+          "description": "Required (non-null) on ai_evidence_tainted_fence_dropped_denial, ai_evidence_citation_anchor_missing_denial, and ai_evidence_receipt_missing_denial events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for *_denial audit events.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "ai_evidence_tainted_fence_dropped_denial",
+                  "ai_evidence_citation_anchor_missing_denial",
+                  "ai_evidence_receipt_missing_denial"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/evidence_denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the ai_evidence audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    }
+  }
+}

@@ -1,0 +1,516 @@
+# yaml-language-server: $schema=../../../schemas/ai/context_assembly.schema.json
+__fixture__:
+  name: background_branch_agent_inherits_taint
+  scenario: >
+    The same composer session from the inline-turn fixture
+    dispatches a follow-up turn into a background branch-agent.
+    The originating assembly carried one tainted segment
+    (connected_provider_payload under quoted_as_data_only) with
+    the full tainted-usage-constraint set; the new turn draft's
+    dispatch_target_class is background_branch_agent. The
+    ai_branch_agent_dispatch_record inherits every
+    tainted-usage-constraint from the originating assembly,
+    inherits the originating assembly's scope_filter_class
+    (current_root) and redaction_class
+    (metadata_safe_default). The nested assembly minted inside
+    the branch-agent session keeps the tainted segment class,
+    fence strategy, and usage-constraint set; the nested
+    evidence packet points back at the originating packet via
+    downstream_handoff_refs and records
+    ai_evidence_tainted_fence_preserved_on_handoff so downstream
+    review / support can confirm the constraint set survived
+    without silent downgrade. Provider / route / cost visibility
+    match the originating assembly (first_party_managed,
+    direct_first_party, metered_per_token) because the
+    tainted-usage-constraint must_not_route_to_higher_cost_tier
+    forbade a route escalation.
+  exercised_contract_sections:
+    - segment_class
+    - tainted_content_fence
+    - tainted_usage_constraint
+    - dispatch_target_class
+    - ai_branch_agent_dispatch_record
+    - evidence_packet
+    - tainted_fence_preserved_on_handoff
+  exercised_classes:
+    segment_classes: [included, tainted]
+    source_classes:
+      - workspace_symbol
+      - connected_provider_payload
+    trust_postures:
+      - trusted_first_party
+      - untrusted_connected_provider
+    tainted_fence_strategies: [quoted_as_data_only]
+    tainted_usage_constraints:
+      - must_not_gain_tool_permission
+      - must_not_escalate_scope
+      - must_not_mint_citations
+      - must_not_override_instruction_bundle
+      - must_not_publish_externally
+      - must_not_commit_to_repo
+      - must_not_dispatch_branch_agent
+      - must_not_route_to_higher_cost_tier
+      - must_preserve_fence_in_downstream_packet
+    instructional_roles:
+      - retrieved_reference
+      - fenced_tainted_data
+    provider_classes: [first_party_managed]
+    route_path_classes: [direct_first_party]
+    cost_visibility_classes: [metered_per_token]
+    dispatch_target_classes: [background_branch_agent]
+    audit_event_ids:
+      - ai_context_assembly_minted
+      - ai_context_segment_tainted_fenced
+      - ai_context_branch_agent_dispatched
+      - ai_context_turn_draft_dispatched
+      - ai_context_route_plan_minted
+      - ai_context_spend_plan_minted
+      - ai_context_route_receipt_recorded
+      - ai_context_spend_receipt_recorded
+    evidence_audit_event_ids:
+      - ai_evidence_packet_minted
+      - ai_evidence_tainted_fence_recorded
+      - ai_evidence_tainted_fence_preserved_on_handoff
+
+---
+
+# Follow-up turn draft inside the same composer session, dispatched to a branch agent.
+record_kind: prompt_composer_turn_draft_record
+ai_context_assembly_schema_version: 1
+turn_draft_id: ai:turn-draft:02
+composer_session_ref: ai:composer-session:01
+composer_plan_ref: ai:composer-plan:default-coding
+draft_state: dispatched_branch_agent
+mention_refs: []
+attachment_refs:
+  - ai:attach:retrieved:01
+instruction_bundle_refs:
+  - ai:instruction-bundle:repo-agents
+check_bundle_refs:
+  - ai:check-bundle:repo-test-suite
+dispatch_target_class: background_branch_agent
+route_plan_ref: ai:route-plan:02
+spend_plan_ref: ai:spend-plan:02
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:01
+review_handoff_ref: null
+supersedes_turn_draft_ref: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:00Z"
+
+---
+
+# Route plan: same provider / path / cost tier as the originating turn — escalation forbidden by taint constraint.
+record_kind: ai_route_plan_record
+ai_context_assembly_schema_version: 1
+route_plan_id: ai:route-plan:02
+provider_class: first_party_managed
+provider_identity_ref: ai:provider-identity:first-party:01
+model_identity_ref: ai:model-identity:coder-large@v7
+route_path_class: direct_first_party
+route_hop_refs:
+  - ai:route-hop:desktop-to-first-party-edge
+cost_visibility_class: metered_per_token
+estimated_cost_units:
+  unit_label: usd_per_million_tokens_prompt
+  amount: "3.00"
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:40:00Z"
+
+---
+
+# Spend plan for the background dispatch.
+record_kind: ai_spend_plan_record
+ai_context_assembly_schema_version: 1
+spend_plan_id: ai:spend-plan:02
+cost_visibility_class: metered_per_token
+estimated_cost_units:
+  unit_label: usd
+  amount: "0.045"
+ceiling_cost_units:
+  unit_label: usd
+  amount: "0.200"
+budget_token_estimate: 16000
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:00Z"
+
+---
+
+# Branch-agent dispatch: inherits tainted-usage constraints, scope, and redaction class from the originating assembly.
+record_kind: ai_branch_agent_dispatch_record
+ai_context_assembly_schema_version: 1
+branch_agent_dispatch_id: ai:branch-agent-dispatch:01
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:02
+assembly_id_ref: ai:assembly:02
+branch_identity_ref: ai:branch-identity:bg-agent:01
+inherited_tainted_usage_constraints:
+  - must_not_gain_tool_permission
+  - must_not_escalate_scope
+  - must_not_mint_citations
+  - must_not_override_instruction_bundle
+  - must_not_publish_externally
+  - must_not_commit_to_repo
+  - must_not_dispatch_branch_agent
+  - must_not_route_to_higher_cost_tier
+  - must_preserve_fence_in_downstream_packet
+inherited_scope_filter_class: current_root
+inherited_redaction_class: metadata_safe_default
+dispatched_at: "2026-04-19T15:40:05Z"
+completed_at: "2026-04-19T15:40:42Z"
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:05Z"
+
+---
+
+# Included workspace_symbol segment in the branch-agent assembly.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:symbol:02
+assembly_id_ref: ai:assembly:02
+segment_class: included
+source_class: workspace_symbol
+trust_posture: trusted_first_party
+provenance_ref: ai:target:symbol:PaymentsHandler.createCharge
+origin_mention_ref: null
+origin_attachment_ref: null
+instructional_role: retrieved_reference
+omit_reason: null
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 320
+  budget_remaining_at_decision: 12800
+pinned_by_actor_ref: null
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:40:06Z"
+
+---
+
+# Tainted segment in the branch-agent assembly: carries the full constraint set from the originating turn.
+record_kind: ai_context_segment_record
+ai_context_assembly_schema_version: 1
+segment_id: ai:segment:tainted-retrieved:02
+assembly_id_ref: ai:assembly:02
+segment_class: tainted
+source_class: connected_provider_payload
+trust_posture: untrusted_connected_provider
+provenance_ref: ai:connected-provider-payload:01
+origin_mention_ref: null
+origin_attachment_ref: ai:attach:retrieved:01
+instructional_role: fenced_tainted_data
+omit_reason: null
+block_reason: null
+redaction_reasons: []
+tainted_fence_strategy: quoted_as_data_only
+tainted_usage_constraints:
+  - must_not_gain_tool_permission
+  - must_not_escalate_scope
+  - must_not_mint_citations
+  - must_not_override_instruction_bundle
+  - must_not_publish_externally
+  - must_not_commit_to_repo
+  - must_not_dispatch_branch_agent
+  - must_not_route_to_higher_cost_tier
+  - must_preserve_fence_in_downstream_packet
+citation_anchor_refs: []
+byte_budget_hint:
+  budget_units: tokens
+  estimated_size: 1200
+  budget_remaining_at_decision: 11600
+pinned_by_actor_ref: null
+freshness_class: unverified
+client_scopes: [desktop_product]
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:40:07Z"
+
+---
+
+# Branch-agent assembly envelope: dispatch_target_class = background_branch_agent, branch_agent_dispatch_ref populated.
+record_kind: ai_context_assembly_record
+ai_context_assembly_schema_version: 1
+assembly_id: ai:assembly:02
+composer_session_ref: ai:composer-session:01
+composer_plan_ref: ai:composer-plan:default-coding
+request_workspace_ref: ai:request-workspace:01
+turn_draft_ref: ai:turn-draft:02
+scope_filter_class: current_root
+segment_refs:
+  - ai:segment:symbol:02
+  - ai:segment:tainted-retrieved:02
+mention_refs: []
+attachment_refs:
+  - ai:attach:retrieved:01
+instruction_bundle_refs:
+  - ai:instruction-bundle:repo-agents
+check_bundle_refs:
+  - ai:check-bundle:repo-test-suite
+tool_call_lineage_refs: []
+route_plan_ref: ai:route-plan:02
+spend_plan_ref: ai:spend-plan:02
+route_receipt_ref: ai:route-receipt:02
+spend_receipt_ref: ai:spend-receipt:02
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:01
+review_handoff_ref: null
+provider_class: first_party_managed
+route_path_class: direct_first_party
+cost_visibility_class: metered_per_token
+dispatch_target_class: background_branch_agent
+tainted_segment_count: 1
+pinned_segment_count: 0
+omitted_segment_count: 0
+policy_blocked_segment_count: 0
+redacted_segment_count: 0
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+running_build_identity_ref: build:running:01
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:40:08Z"
+
+---
+
+# Route receipt for the dispatched background turn.
+record_kind: ai_route_receipt_record
+ai_context_assembly_schema_version: 1
+route_receipt_id: ai:route-receipt:02
+route_plan_ref: ai:route-plan:02
+assembly_id_ref: ai:assembly:02
+provider_identity_ref: ai:provider-identity:first-party:01
+model_identity_ref: ai:model-identity:coder-large@v7
+route_path_class: direct_first_party
+route_hop_refs:
+  - ai:route-hop:desktop-to-first-party-edge
+dispatched_at: "2026-04-19T15:40:09Z"
+completed_at: "2026-04-19T15:40:40Z"
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:09Z"
+
+---
+
+# Spend receipt for the background turn.
+record_kind: ai_spend_receipt_record
+ai_context_assembly_schema_version: 1
+spend_receipt_id: ai:spend-receipt:02
+spend_plan_ref: ai:spend-plan:02
+assembly_id_ref: ai:assembly:02
+cost_visibility_class: metered_per_token
+actual_cost_units:
+  unit_label: usd
+  amount: "0.042"
+actual_token_counts:
+  prompt_tokens: 9400
+  completion_tokens: 1820
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:41Z"
+
+---
+
+# Audit event: branch-agent dispatched.
+record_kind: ai_context_audit_event_record
+ai_context_assembly_schema_version: 1
+audit_event_id: ai_context_branch_agent_dispatched
+composer_session_ref: ai:composer-session:01
+assembly_id_ref: ai:assembly:02
+segment_id_ref: null
+turn_draft_ref: ai:turn-draft:02
+route_plan_ref: ai:route-plan:02
+spend_plan_ref: ai:spend-plan:02
+route_receipt_ref: null
+spend_receipt_ref: null
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:01
+tool_call_id_ref: null
+segment_class: null
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:05Z"
+
+---
+
+# Audit event: tainted fence preserved on the branch-agent assembly.
+record_kind: ai_context_audit_event_record
+ai_context_assembly_schema_version: 1
+audit_event_id: ai_context_segment_tainted_fenced
+composer_session_ref: ai:composer-session:01
+assembly_id_ref: ai:assembly:02
+segment_id_ref: ai:segment:tainted-retrieved:02
+turn_draft_ref: ai:turn-draft:02
+route_plan_ref: null
+spend_plan_ref: null
+route_receipt_ref: null
+spend_receipt_ref: null
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:01
+tool_call_id_ref: null
+segment_class: tainted
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:08Z"
+
+---
+
+# Evidence packet for the branch-agent turn: preserves the tainted fence and points downstream_handoff_refs at the originating packet.
+record_kind: ai_evidence_packet_record
+ai_evidence_packet_schema_version: 1
+evidence_packet_id: ai:evidence-packet:02
+assembly_id_ref: ai:assembly:02
+composer_session_ref: ai:composer-session:01
+turn_draft_ref: ai:turn-draft:02
+dispatch_target_class: background_branch_agent
+provider_class: first_party_managed
+route_path_class: direct_first_party
+route_receipt_ref: ai:route-receipt:02
+spend_receipt_ref: ai:spend-receipt:02
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:01
+review_handoff_ref: null
+tool_call_lineage_refs: []
+source_reference_refs:
+  - ai:evidence-source-ref:tainted-retrieved:02
+tainted_fence_refs:
+  - ai:tainted-fence:02
+tainted_fence_count: 1
+citation_anchor_coverage:
+  required_count: 0
+  provided_count: 0
+downstream_handoff_refs:
+  - ai:evidence-packet:01
+freshness_class: authoritative_live
+client_scopes: [desktop_product]
+running_build_identity_ref: build:running:01
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+redaction_class: metadata_safe_default
+minted_at: "2026-04-19T15:40:42Z"
+
+---
+
+# Tainted fence on the branch-agent evidence packet: full constraint set preserved.
+record_kind: ai_tainted_content_fence_record
+ai_evidence_packet_schema_version: 1
+tainted_fence_id: ai:tainted-fence:02
+evidence_packet_ref: ai:evidence-packet:02
+assembly_id_ref: ai:assembly:02
+segment_id_ref: ai:segment:tainted-retrieved:02
+source_reference_refs:
+  - ai:evidence-source-ref:tainted-retrieved:02
+tainted_source_class: retrieved_document
+trust_posture: untrusted_connected_provider
+fence_strategy: quoted_as_data_only
+usage_constraints:
+  - must_not_gain_tool_permission
+  - must_not_escalate_scope
+  - must_not_mint_citations
+  - must_not_override_instruction_bundle
+  - must_not_publish_externally
+  - must_not_commit_to_repo
+  - must_not_dispatch_branch_agent
+  - must_not_route_to_higher_cost_tier
+  - must_preserve_fence_in_downstream_packet
+preserved_markings:
+  - external-sandboxed
+  - data-only
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:42Z"
+
+---
+
+# Source reference for the tainted segment on the branch-agent packet.
+record_kind: ai_evidence_source_reference_record
+ai_evidence_packet_schema_version: 1
+source_reference_id: ai:evidence-source-ref:tainted-retrieved:02
+evidence_packet_ref: ai:evidence-packet:02
+claim_class: generated_artifact_reference
+target_ref: ai:connected-provider-payload:01
+segment_id_ref: ai:segment:tainted-retrieved:02
+citation_anchor_refs: []
+source_posture: tainted_external
+tainted_fence_ref: ai:tainted-fence:02
+freshness_class: unverified
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:42Z"
+
+---
+
+# Evidence audit event: packet minted.
+record_kind: ai_evidence_audit_event_record
+ai_evidence_packet_schema_version: 1
+audit_event_id: ai_evidence_packet_minted
+evidence_packet_ref: ai:evidence-packet:02
+assembly_id_ref: ai:assembly:02
+tainted_fence_ref: null
+source_reference_ref: null
+downstream_handoff_ref: null
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:42Z"
+
+---
+
+# Evidence audit event: tainted fence preserved across the branch-agent handoff.
+record_kind: ai_evidence_audit_event_record
+ai_evidence_packet_schema_version: 1
+audit_event_id: ai_evidence_tainted_fence_preserved_on_handoff
+evidence_packet_ref: ai:evidence-packet:02
+assembly_id_ref: ai:assembly:02
+tainted_fence_ref: ai:tainted-fence:02
+source_reference_ref: ai:evidence-source-ref:tainted-retrieved:02
+downstream_handoff_ref: ai:evidence-packet:01
+denial_reason: null
+policy_context:
+  policy_epoch: "pe:2026-04-19:01"
+  trust_state: restricted
+  execution_context_id: "exec:01"
+minted_at: "2026-04-19T15:40:42Z"
