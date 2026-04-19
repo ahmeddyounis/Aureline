@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/mutation_journal.schema.json",
+  "title": "Aureline mutation-journal entry",
+  "description": "Seed schema for mutation-journal entries. Every mutating command (editor edit, multi-cursor keystroke, structural edit, refactor, AI apply, save-participant group, settings / migration import, external reload, decode recovery, filesystem rename, build or codegen run, preview regeneration, audit-only external-effect) records one entry in this shape so local-history, AI evidence packets, review packs, recovery exports, support bundles, and the eventual replay lane read one lineage vocabulary. The schema reuses ADR-0003 undo classes (docs/adr/0003-buffer-undo-large-file.md) and ADR-0006 filesystem-identity records (docs/adr/0006-vfs-save-cache-identity.md); it does not redefine them. Rust types in the eventual mutation-journal crate are the schema of record; this file is the cross-tool export that external readers (support-bundle exporter, replay capture, CLI doctor, companion surfaces) rely on. The reversal-class axis (exact_undo, compensating_undo, regenerate_or_recompute, restore_from_checkpoint, audit_only) is orthogonal to the ADR-0003 undo-class axis and is carried on every entry so consumers can distinguish 'what the editor called it' from 'what a user can actually get back'.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mutation_journal_entry" },
+    { "$ref": "#/$defs/mutation_group_record" }
+  ],
+  "$defs": {
+    "mutation_journal_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the mutation-journal payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "mutation_journal_entry",
+        "mutation_group_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "mutation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable per-mutation identifier allocated before commit. Never reused. Support bundles, review packs, AI evidence packets, and local-history entries reference this value rather than duplicating the entry body."
+    },
+
+    "group_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable group identifier shared across a named operation (refactor apply, AI patch, multi-file rename, format-on-save plus participants, scaffolding run, migration import, bulk replace, generated-artifact refresh). One operation, one group_id, many mutation_ids."
+    },
+
+    "command_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical command identifier that originated the mutation. Resolves through the command plane; supports cross-surface attribution and replay."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "multi_cursor_command",
+        "refactor_engine",
+        "formatter",
+        "save_participant",
+        "ai_apply",
+        "code_action",
+        "scaffolding",
+        "settings_import",
+        "workspace_migration",
+        "external_reload",
+        "decode_recovery",
+        "build_runner",
+        "codegen_runner",
+        "preview_regenerator",
+        "review_apply",
+        "replay_import",
+        "vendor_import"
+      ],
+      "description": "Who or what produced the mutation. Determines which actor_ref fields are required and how the entry renders in attribution surfaces."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "human_local",
+        "human_remote_session",
+        "machine_local",
+        "machine_remote_agent",
+        "ai_local_model",
+        "ai_hosted_provider",
+        "imported_external",
+        "replayed_capture",
+        "policy_driven"
+      ],
+      "description": "Provenance class of the mutation source. The support bundle and the AI-evidence lane quote this verbatim; it is never inferred from actor_class alone."
+    },
+
+    "actor_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name"],
+      "properties": {
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable attribution label (user handle, agent name, generator identity, formatter identity, model identity). Redaction policy may replace this with an opaque label in exported bundles."
+        },
+        "stable_id": {
+          "type": "string",
+          "description": "Optional stable identifier (session id, agent id, provider:model id, generator id). Opaque to this schema."
+        },
+        "role": {
+          "type": "string",
+          "description": "Optional role tag (author, reviewer, operator, automation) for audit surfaces."
+        }
+      },
+      "description": "Actor attribution. Redaction-aware; the exporter is responsible for applying the redaction policy."
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "root",
+            "workset",
+            "slice",
+            "window",
+            "buffer",
+            "file",
+            "review_workspace",
+            "remote_session",
+            "companion_surface",
+            "settings_scope"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Typed scope within which the mutation applied. Aligns with the ADR-0005 subscription scope vocabulary plus the ADR-0003 / ADR-0006 buffer-and-file scopes."
+    },
+
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind"],
+      "properties": {
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "filesystem_object",
+            "buffer",
+            "workspace_setting",
+            "workspace_manifest",
+            "task_config",
+            "launch_config",
+            "policy_document",
+            "generated_artifact",
+            "external_service"
+          ]
+        },
+        "filesystem_identity": {
+          "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record",
+          "description": "Full filesystem-identity record (ADR 0006 layers 1-4) for filesystem / buffer / generated-artifact targets. Required when target_kind is filesystem_object, buffer, or generated_artifact."
+        },
+        "logical_ref": {
+          "type": "string",
+          "description": "Opaque logical reference for non-filesystem targets (setting key, task id, service endpoint). The mutation-journal consumer interprets this in context."
+        },
+        "affected_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "byte_start": { "type": "integer", "minimum": 0 },
+            "byte_end": { "type": "integer", "minimum": 0 },
+            "line_start": { "type": "integer", "minimum": 0 },
+            "line_end": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Optional affected range inside the target for fine-grained entries. Line / byte coordinates follow the ADR-0003 buffer coordinate system."
+        }
+      },
+      "description": "One target of the mutation. A single entry may carry many targets when the mutation spans them."
+    },
+
+    "undo_class": {
+      "type": "string",
+      "enum": [
+        "text_edit",
+        "multi_cursor_text_edit",
+        "structural_edit",
+        "refactor_single_file",
+        "refactor_multi_file",
+        "formatter_run",
+        "save_participant_group",
+        "imported_change",
+        "machine_generated_change",
+        "migration_change",
+        "external_reload",
+        "decode_recovery_change"
+      ],
+      "description": "ADR-0003 undo-class id. Rides unchanged into the mutation journal; the compensation posture of the class (compensatable vs only_revertible) is not restated here because it is invariant and lives in artifacts/architecture/undo_class_rows.yaml."
+    },
+
+    "reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_undo",
+        "regenerate_or_recompute",
+        "restore_from_checkpoint",
+        "audit_only"
+      ],
+      "description": "What a user can actually get back. Orthogonal to undo_class. The UI MUST surface this value verbatim; 'Undo' with no class context is forbidden on compensating / regenerate / audit-only mutations. TAD Appendix DD §DD.2."
+    },
+
+    "reversibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reversible", "declared_at_commit"],
+      "properties": {
+        "reversible": {
+          "type": "boolean",
+          "description": "Convenience flag: true when reversal_class is anything other than audit_only and no blocking drift is declared. Consumers that render a simple badge read this; consumers that render the action read reversal_class."
+        },
+        "declared_at_commit": {
+          "type": "boolean",
+          "description": "Whether the reversal class shown here was declared at commit time. If authority state has since drifted and the original exact_undo is now compensating, an amendment record flips this to false and cites the drift via downgrade_reason."
+        },
+        "downgrade_reason": {
+          "type": "string",
+          "description": "Optional reason explaining why a mutation's reversal class was downgraded after commit (external_change_detected, generator_changed, policy_epoch_rolled, ...). Quoted verbatim by support bundles."
+        }
+      },
+      "description": "Reversible / irreversible flag set. The ADR-0003 rule 'if an operation was exact at execution time but authority drifted, downgrade the advertised reversal path visibly' is encoded here."
+    },
+
+    "checkpoint_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_kind", "checkpoint_id"],
+      "properties": {
+        "checkpoint_kind": {
+          "type": "string",
+          "enum": [
+            "recovery_journal",
+            "save_manifest",
+            "workspace_migration",
+            "settings_backup",
+            "mutation_group_preview",
+            "local_history_snapshot",
+            "review_checkpoint"
+          ]
+        },
+        "checkpoint_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "durability_class": {
+          "type": "string",
+          "enum": ["durable", "disposable"],
+          "description": "Mirrors ADR-0006 cache-identity durability_class. Durable checkpoints survive process restart and may be cited by restore_from_checkpoint reversal."
+        }
+      },
+      "description": "Link to a checkpoint the reversal or audit path may use. Mutations MAY reference many checkpoints (one save manifest, one recovery-journal checkpoint, one preview snapshot)."
+    },
+
+    "preview_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview_id"],
+      "properties": {
+        "preview_id": { "type": "string", "minLength": 1 },
+        "preview_kind": {
+          "type": "string",
+          "enum": [
+            "refactor_preview",
+            "ai_patch_preview",
+            "multi_file_rename_preview",
+            "bulk_replace_preview",
+            "generated_artifact_refresh_preview",
+            "migration_preview",
+            "review_apply_preview"
+          ]
+        }
+      },
+      "description": "Link to the preview record that produced the mutation. Required for any grouped apply path that is required by policy to be previewable."
+    },
+
+    "approval_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_id"],
+      "properties": {
+        "approval_id": { "type": "string", "minLength": 1 },
+        "approval_policy": {
+          "type": "string",
+          "description": "Policy id that required the approval (review-required-before-save, admin-approval, AI-evidence-gate). Opaque to this schema."
+        }
+      }
+    },
+
+    "save_manifest_ref": {
+      "type": "string",
+      "description": "Opaque reference to an ADR-0006 save_manifest record. Set on mutations that reached the save pipeline."
+    },
+
+    "generated_artifact_lineage_ref": {
+      "type": "string",
+      "description": "Opaque reference to a generated-artifact lineage record (see generated_artifact_lineage.schema.json). Set on mutations that mutated a generated artifact (build output, codegen output, lockfile, notebook output, preview snapshot, mirrored pack)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "description": "Policy-epoch identifier in effect at commit. Replay consumers compare this against the current epoch before re-running any compensating command."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "pending_evaluation"]
+        },
+        "policy_scope": {
+          "type": "string"
+        }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ],
+      "description": "Redaction class for the journal body when exported to a support bundle, AI evidence packet, or replay capture. Aligned with the TAD privacy-review workflow."
+    },
+
+    "side_effect_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Short redaction-aware human-readable summary (≤ 1024 graphemes). Product, CLI, and support surfaces render the same text."
+        },
+        "external_targets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Opaque list of external targets the mutation touched (git remote, registry, API endpoint). Used by audit_only reversal-class entries."
+        },
+        "bytes_written": { "type": "integer", "minimum": 0 },
+        "files_touched": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "semantic_readiness_ref": {
+      "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/semantic_readiness",
+      "description": "Optional semantic-readiness frame for the producer (AI, generator, refactor engine) that emitted the mutation. Carries the frozen readiness state, not-ready reason, and safe-next-action when the producer was less than exact at commit time."
+    },
+
+    "durable_vs_disposable": {
+      "type": "string",
+      "enum": ["durable_user_authored", "durable_workspace_authored", "disposable_derived"],
+      "description": "State-class of the authority the mutation wrote into. 'durable_user_authored' covers buffers, settings, profiles, snippets; 'durable_workspace_authored' covers workspace manifests, task configs, launch configs; 'disposable_derived' covers derived indexes, caches, preview bundles. The mutation journal MUST classify so clear-caches flows never blow away a durable_user_authored entry."
+    },
+
+    "mutation_journal_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mutation_journal_schema_version",
+        "mutation_id",
+        "command_id",
+        "actor_class",
+        "source_class",
+        "actor_ref",
+        "scope_ref",
+        "target_refs",
+        "started_at",
+        "committed_at",
+        "undo_class",
+        "reversal_class",
+        "reversibility",
+        "redaction_class",
+        "durable_vs_disposable",
+        "side_effect_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "mutation_journal_entry" },
+        "mutation_journal_schema_version": { "$ref": "#/$defs/mutation_journal_schema_version" },
+        "mutation_id": { "$ref": "#/$defs/mutation_id" },
+        "group_id": { "$ref": "#/$defs/group_id" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "actor_ref": { "$ref": "#/$defs/actor_ref" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "target_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/target_ref" }
+        },
+        "started_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the mutation began. Opaque to this schema."
+        },
+        "committed_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the commit point was reached. Equals started_at for single-step mutations."
+        },
+        "undo_class": { "$ref": "#/$defs/undo_class" },
+        "reversal_class": { "$ref": "#/$defs/reversal_class" },
+        "reversibility": { "$ref": "#/$defs/reversibility" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checkpoint_ref" }
+        },
+        "preview_ref": { "$ref": "#/$defs/preview_ref" },
+        "approval_ref": { "$ref": "#/$defs/approval_ref" },
+        "save_manifest_ref": { "$ref": "#/$defs/save_manifest_ref" },
+        "generated_artifact_lineage_ref": { "$ref": "#/$defs/generated_artifact_lineage_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "durable_vs_disposable": { "$ref": "#/$defs/durable_vs_disposable" },
+        "side_effect_summary": { "$ref": "#/$defs/side_effect_summary" },
+        "semantic_readiness": { "$ref": "#/$defs/semantic_readiness_ref" }
+      },
+      "description": "One mutation-journal entry. Every mutating command writes exactly one entry to the journal; grouped operations also write a mutation_group_record."
+    },
+
+    "mutation_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mutation_journal_schema_version",
+        "group_id",
+        "group_kind",
+        "command_id",
+        "actor_class",
+        "source_class",
+        "actor_ref",
+        "scope_ref",
+        "opened_at",
+        "resolved_at",
+        "resolution",
+        "member_mutation_ids",
+        "reversal_class",
+        "reversibility",
+        "redaction_class",
+        "durable_vs_disposable",
+        "side_effect_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "mutation_group_record" },
+        "mutation_journal_schema_version": { "$ref": "#/$defs/mutation_journal_schema_version" },
+        "group_id": { "$ref": "#/$defs/group_id" },
+        "group_kind": {
+          "type": "string",
+          "enum": [
+            "multi_cursor_keystroke",
+            "refactor_single_file",
+            "refactor_multi_file",
+            "format_on_save",
+            "save_participant_group",
+            "ai_patch",
+            "bulk_replace",
+            "multi_file_rename",
+            "scaffolding_run",
+            "migration_import",
+            "settings_import",
+            "generated_artifact_refresh",
+            "preview_regeneration",
+            "external_reload_group",
+            "review_apply_group"
+          ],
+          "description": "Named group class. Consumers render the group-class label directly; they never derive it from member classes."
+        },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "actor_ref": { "$ref": "#/$defs/actor_ref" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "opened_at": { "type": "string" },
+        "resolved_at": { "type": "string" },
+        "resolution": {
+          "type": "string",
+          "enum": ["applied", "aborted", "reverted", "partially_applied_and_rolled_back"]
+        },
+        "member_mutation_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mutation_id" },
+          "description": "IDs of every mutation_journal_entry in this group. Support bundles cite the group record and resolve members by id."
+        },
+        "preview_ref": { "$ref": "#/$defs/preview_ref" },
+        "approval_ref": { "$ref": "#/$defs/approval_ref" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checkpoint_ref" }
+        },
+        "save_manifest_ref": { "$ref": "#/$defs/save_manifest_ref" },
+        "generated_artifact_lineage_ref": { "$ref": "#/$defs/generated_artifact_lineage_ref" },
+        "reversal_class": { "$ref": "#/$defs/reversal_class" },
+        "reversibility": { "$ref": "#/$defs/reversibility" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "durable_vs_disposable": { "$ref": "#/$defs/durable_vs_disposable" },
+        "side_effect_summary": { "$ref": "#/$defs/side_effect_summary" },
+        "semantic_readiness": { "$ref": "#/$defs/semantic_readiness_ref" }
+      },
+      "description": "One mutation-group record. A named operation opens one group, emits member mutation_journal_entry records, and closes with a resolution. The group's reversal_class is the most restrictive of its members (any audit_only member forces the group to audit_only)."
+    }
+  }
+}

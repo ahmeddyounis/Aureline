@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/generated_artifact_lineage.schema.json",
+  "title": "Aureline generated-artifact lineage record",
+  "description": "Seed schema for generated-artifact lineage records. Every generated or mirrored artifact that appears in the shell, search, graph, AI context, review, or support flows carries one of these records. The record names the generation class, the canonical source inputs (with content digests), the generator or signer identity and version, the writable-boundary policy (where edits are allowed), regeneration hints (how to rebuild), the drift state (ADR-0006 + TAD Appendix DE.2), and the provenance / support anchors needed to explain why the bytes on disk are or are not authoritative. The vocabulary reuses ADR-0006 cache-identity fields (docs/adr/0006-vfs-save-cache-identity.md §Cache identity and versioning) and ADR-0006 filesystem-identity layers (docs/filesystem/filesystem_identity_vocabulary.md); it does not redefine them. Rust types in the eventual workspace-lineage crate are the schema of record; this file is the cross-tool export. A mutation-journal entry whose target is a generated artifact carries a generated_artifact_lineage_ref that resolves into one of these records.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/generated_artifact_lineage_record" }
+  ],
+  "$defs": {
+    "generated_artifact_lineage_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the generated-artifact lineage payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "generated_artifact_lineage_record"
+    },
+
+    "generation_class": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "codegen_source_sibling",
+        "structured_lockfile",
+        "notebook_output",
+        "preview_render_snapshot",
+        "mirrored_pack_artifact"
+      ],
+      "description": "TAD Appendix DE.1 artifact-class vocabulary. Controls the default surface affordances and the writable-boundary policy."
+    },
+
+    "drift_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage"
+      ],
+      "description": "TAD Appendix DE.2 drift-state vocabulary. Must match the ADR-0006 cache_identity.drift_state values."
+    },
+
+    "edit_policy": {
+      "type": "string",
+      "enum": [
+        "block_direct_edit",
+        "allow_with_divergence_marker",
+        "allow_limited_structured_edit",
+        "inspect_only",
+        "replace_by_mirror_promotion"
+      ],
+      "description": "Default writable-boundary policy for the artifact. The save pipeline (ADR 0006) consults this before admitting a write to the artifact; any override records a manually_diverged drift state and a visible divergence badge."
+    },
+
+    "canonical_source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind"],
+      "anyOf": [
+        { "required": ["identity"] },
+        { "required": ["opaque_ref"] }
+      ],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "filesystem_object",
+            "declarative_manifest",
+            "schema_or_idl",
+            "template",
+            "notebook_cell_group",
+            "data_snapshot",
+            "preview_runtime",
+            "annotations",
+            "upstream_signed_artifact",
+            "registry_entry",
+            "dependency_manifest"
+          ]
+        },
+        "identity": {
+          "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record",
+          "description": "Filesystem-identity record for canonical source inputs that are workspace files. Required when source_kind is filesystem_object, declarative_manifest, schema_or_idl, template, notebook_cell_group, data_snapshot, or annotations that live in the workspace. Mutually exclusive with opaque_ref; at least one MUST be present."
+        },
+        "opaque_ref": {
+          "type": "string",
+          "description": "Opaque external reference for sources that are not workspace files (upstream signed artifact digest, registry coordinate, preview-runtime id). Consumers treat it as opaque. Required when source_kind is preview_runtime, upstream_signed_artifact, or registry_entry; at least one of identity or opaque_ref MUST be present."
+        },
+        "role": {
+          "type": "string",
+          "description": "Optional role label (primary, template, sibling, data, config, toolchain). Surfaces render this in the lineage detail view."
+        }
+      },
+      "description": "One canonical source input. The artifact is derived from one or more of these; editing the canonical source is the approved way to change the artifact."
+    },
+
+    "generator_or_signer_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "version"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "local_generator",
+            "build_toolchain",
+            "package_resolver",
+            "notebook_kernel",
+            "preview_runtime",
+            "codegen_tool",
+            "formatter_as_generator",
+            "upstream_signer",
+            "ai_assisted_generator",
+            "migration_runner"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable generator or signer identifier. Opaque to this schema; the lineage consumer interprets it."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Generator version (semver, build id, image digest). A version change contributes to drift_state = generator_changed."
+        },
+        "toolchain_identity": {
+          "type": "string",
+          "description": "Optional toolchain identity for build-output class (target triple, profile, cross-compile key)."
+        },
+        "signature_chain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional signature / chain-of-trust reference list for mirrored_pack_artifact. Opaque to this schema."
+        }
+      }
+    },
+
+    "input_digest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "digest_kind", "digest_value"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable input name. Support bundles cite this; cache consumers key off it."
+        },
+        "digest_kind": {
+          "type": "string",
+          "enum": [
+            "content_hash",
+            "file_id_generation",
+            "device_inode_generation",
+            "windows_object_id",
+            "provider_object_id_revision",
+            "remote_revision_token",
+            "registry_coordinate",
+            "upstream_artifact_digest"
+          ]
+        },
+        "digest_value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque equality-comparable digest string."
+        }
+      }
+    },
+
+    "output_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_kind", "digest_value"],
+      "properties": {
+        "digest_kind": {
+          "type": "string",
+          "enum": ["content_hash"]
+        },
+        "digest_value": { "type": "string", "minLength": 1 }
+      },
+      "description": "Content digest of the artifact bytes as produced. A support bundle that proves 'these are the bytes the generator wrote' quotes this verbatim."
+    },
+
+    "writable_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundary_kind"],
+      "properties": {
+        "boundary_kind": {
+          "type": "string",
+          "enum": [
+            "never_writable",
+            "canonical_source_only",
+            "structured_round_trip_region",
+            "full_with_divergence_marker",
+            "replace_via_mirror_promotion"
+          ],
+          "description": "Where edits to this artifact may legally land. The save pipeline enforces this by blocking or admitting writes; non-authoritative edits flip drift_state to manually_diverged."
+        },
+        "allowed_ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["range_kind"],
+            "properties": {
+              "range_kind": {
+                "type": "string",
+                "enum": [
+                  "lockfile_user_preference_region",
+                  "notebook_code_cells_only",
+                  "config_user_overlay_region",
+                  "annotated_round_trip_block"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 240,
+                "description": "Short redaction-aware description of what edits in this range are round-trip safe."
+              }
+            }
+          },
+          "description": "Optional enumerated safe-edit regions for structured_round_trip_region boundary-kind artifacts. A lockfile may allow user-preference overrides in one region but block edits elsewhere."
+        },
+        "override_requires_divergence_marker": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (the default), writing outside the permitted boundary is legal only when the save pipeline records drift_state = manually_diverged and surfaces a visible divergence badge."
+        }
+      },
+      "description": "The artifact's writable-boundary policy. Non-authoritative edits either fail closed or move the artifact to manually_diverged; the journal records which."
+    },
+
+    "regeneration_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hint_kind"],
+      "properties": {
+        "hint_kind": {
+          "type": "string",
+          "enum": [
+            "regeneration_command",
+            "rebuild_command",
+            "resolver_command",
+            "kernel_reexecute",
+            "preview_runtime_refresh",
+            "mirror_promotion",
+            "manual_instructions"
+          ]
+        },
+        "command_ref": {
+          "type": "string",
+          "description": "Canonical command id, task id, or CLI subcommand reference the 'regenerate' affordance invokes. Must resolve through the command plane."
+        },
+        "documentation_ref": {
+          "type": "string",
+          "description": "Optional documentation or runbook reference for manual_instructions hints."
+        },
+        "expected_cost_class": {
+          "type": "string",
+          "enum": ["instant", "fast", "moderate", "expensive", "network_dependent"],
+          "description": "Coarse cost class the UI surfaces so users can decide whether to regenerate now or defer."
+        }
+      },
+      "description": "One regeneration hint. The artifact carries at least one hint unless drift_state is unknown_lineage (in which case the product surfaces a view-only / degraded-safety posture per ADR 0006)."
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recorded_at"],
+      "properties": {
+        "recorded_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the lineage record was recorded. Opaque to this schema."
+        },
+        "recorded_by": {
+          "type": "string",
+          "description": "Optional attribution label for the lineage recorder (builder, codegen runner, notebook kernel, preview runtime). Opaque to this schema."
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Optional opaque pointer to the originating build-run id, codegen invocation id, notebook execution id, or mirrored-pack manifest id. Support bundles cite this verbatim."
+        },
+        "support_ref": {
+          "type": "string",
+          "description": "Optional opaque reference to a support-bundle entry that carries the full forensic packet (build logs, generator trace, mirror manifest). Used when the record itself is kept compact."
+        },
+        "mutation_group_id": {
+          "type": "string",
+          "description": "Optional mutation_group_record.group_id that produced this lineage entry. Set for artifacts produced inside a named mutation group (generated_artifact_refresh, preview_regeneration, migration_import)."
+        }
+      }
+    },
+
+    "semantic_readiness_ref": {
+      "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/semantic_readiness",
+      "description": "Optional semantic-readiness frame for the generator that produced this artifact. A partial enumeration, imported source, or heuristic fallback lands here; the product surface, the CLI, and the support bundle all render the same readiness chip."
+    },
+
+    "generated_artifact_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "generated_artifact_lineage_schema_version",
+        "artifact_id",
+        "artifact_identity",
+        "generation_class",
+        "canonical_source_refs",
+        "generator_or_signer_ref",
+        "input_digest_set",
+        "output_digest",
+        "generated_at",
+        "drift_state",
+        "edit_policy",
+        "writable_boundary",
+        "regeneration_hints",
+        "provenance"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "generated_artifact_lineage_schema_version": { "$ref": "#/$defs/generated_artifact_lineage_schema_version" },
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable artifact identifier. Never reused; survives rename of the on-disk file as long as generator lineage is preserved."
+        },
+        "artifact_identity": {
+          "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record",
+          "description": "Filesystem-identity record (ADR 0006 layers 1-4) for the on-disk artifact. A virtual or ephemeral artifact carries the virtual root record."
+        },
+        "generation_class": { "$ref": "#/$defs/generation_class" },
+        "canonical_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/canonical_source_ref" },
+          "description": "One or more canonical source inputs. A build-output artifact typically references a source tree root plus a build config plus a toolchain; a codegen sibling references a schema plus a template plus a generator; a notebook output references its cells and data snapshot."
+        },
+        "generator_or_signer_ref": { "$ref": "#/$defs/generator_or_signer_ref" },
+        "input_digest_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/input_digest_entry" },
+          "description": "Named input digests. Drift detection compares the current inputs against this set; a mismatch contributes to drift_state = stale_inputs. Mirrors ADR-0006 cache_identity.input_digest_set."
+        },
+        "output_digest": { "$ref": "#/$defs/output_digest" },
+        "generated_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the artifact was produced. Opaque to this schema."
+        },
+        "drift_state": { "$ref": "#/$defs/drift_state" },
+        "edit_policy": { "$ref": "#/$defs/edit_policy" },
+        "writable_boundary": { "$ref": "#/$defs/writable_boundary" },
+        "regeneration_hints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/regeneration_hint" },
+          "description": "One or more regeneration hints. Empty only when drift_state is unknown_lineage."
+        },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "semantic_readiness": { "$ref": "#/$defs/semantic_readiness_ref" }
+      },
+      "description": "One generated-artifact lineage record. Every build output, codegen sibling, lockfile, notebook output, preview snapshot, or mirrored pack artifact carries one of these. The record is durable; replay consumers and support-bundle exporters read it without re-running the generator."
+    }
+  }
+}
