@@ -1,0 +1,318 @@
+# Execution-context workset / scope matrix.
+#
+# Machine-readable matrix that binds every frozen scope_class to its
+# minimum field set, its admissible narrowing behaviours, its
+# admissible lens overlays, its authority-projection posture, and
+# the conformance tests a surface's rendering of that scope MUST
+# pass. Companion to ADR 0009
+# (docs/adr/0009-execution-context-and-scope.md) and the boundary
+# schema at schemas/runtime/execution_context.schema.json.
+#
+# Scope rules:
+#   - Every row MUST name a scope_class from the frozen seven, a
+#     minimum field set, a canonical-owner authority class from the
+#     ADR-0005 matrix, an admit_narrowing posture, an
+#     admit_widening posture, an admissible lens set, and at least
+#     one conformance test.
+#   - If this file and the ADR disagree, the ADR wins and this file
+#     must be updated in the same change.
+#   - Adding a new scope_class is additive-minor and requires a
+#     schema bump in execution_context.schema.json and a new row
+#     here.
+
+schema_version: 1
+
+adr_source: docs/adr/0009-execution-context-and-scope.md
+decision_id: D-0015
+decision_register: artifacts/governance/decision_index.yaml
+
+# Frozen scope vocabulary. Re-exported from the JSON Schema so
+# tooling can discover the authoritative list without parsing this
+# file.
+scope_class_vocabulary:
+  - current_root
+  - named_workset
+  - sparse_slice
+  - full_workspace
+  - policy_limited_view
+  - review_workspace
+  - companion_surface
+
+partial_truth_vocabulary:
+  - loaded
+  - manifest_known
+  - cached
+  - unavailable
+
+lens_class_vocabulary:
+  - search_result_lens
+  - graph_neighbourhood_lens
+  - review_overlay_lens
+  - ai_context_lens
+  - companion_focus_lens
+  - none
+
+expansion_step_vocabulary:
+  - load_manifest
+  - warm_index
+  - materialise_snapshot
+  - fetch_cached_view
+  - refresh_stale_cache
+
+rows:
+  - scope_class: current_root
+    intended_content: >
+      Single workspace root currently focused in the surface. The
+      default for most interactive flows (open editor, task launch,
+      terminal session, AI tool call bound to the focused root).
+    minimum_fields:
+      - scope_class
+      - workspace_id
+      - root_id
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: sparse_slice
+        posture: allowed_with_explicit_user_action
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening:
+      - to: full_workspace
+        posture: allowed_with_explicit_user_action
+    admissible_lenses:
+      - search_result_lens
+      - graph_neighbourhood_lens
+      - ai_context_lens
+      - none
+    conformance_tests:
+      - id: root_identity_round_trip
+        description: >
+          The root_id filesystem-identity record MUST alias-converge
+          to one canonical_filesystem_object; surfaces MUST NOT
+          present the same root under two distinct roots.
+      - id: authority_envelope_tagged
+        description: >
+          Every rendered field MUST carry an authority_envelope
+          entry; root_id projects from workspace_vfs.
+
+  - scope_class: named_workset
+    intended_content: >
+      A user-named intentional scope over one or more roots. The
+      PRD freezes worksets as the primary way to narrow a monorepo
+      to an intentional slice.
+    minimum_fields:
+      - scope_class
+      - workset_id
+      - workset_name
+      - member_refs
+      - membership_policy
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: sparse_slice
+        posture: allowed_with_explicit_user_action
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening:
+      - to: full_workspace
+        posture: allowed_with_explicit_user_action
+    admissible_lenses:
+      - search_result_lens
+      - graph_neighbourhood_lens
+      - ai_context_lens
+      - none
+    conformance_tests:
+      - id: membership_policy_declared
+        description: >
+          Every named_workset MUST declare a membership_policy of
+          explicit_list, glob_pattern, or
+          dependency_graph_reachable; surfaces MUST render the
+          policy alongside the member list.
+      - id: alias_convergence_counted_once
+        description: >
+          Members that alias-converge on one canonical filesystem
+          object count once, even when multiple presentation paths
+          reach them.
+
+  - scope_class: sparse_slice
+    intended_content: >
+      A subset of a root expressed as an inclusion / exclusion
+      pattern set. Ties into sparse-checkout and partial-enumeration
+      behaviours.
+    minimum_fields:
+      - scope_class
+      - root_id
+      - include_patterns
+      - exclude_patterns
+      - dependency_closure_enabled
+      - missing_members_policy
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening:
+      - to: current_root
+        posture: allowed_with_explicit_user_action
+      - to: named_workset
+        posture: allowed_with_explicit_user_action
+      - to: full_workspace
+        posture: allowed_with_explicit_user_action
+    admissible_lenses:
+      - search_result_lens
+      - graph_neighbourhood_lens
+      - ai_context_lens
+      - none
+    conformance_tests:
+      - id: missing_members_labelled
+        description: >
+          Members outside the include_patterns MUST be labelled
+          manifest_known, cached, or unavailable; silent omission
+          is forbidden.
+      - id: dependency_closure_explicit
+        description: >
+          When dependency_closure_enabled is true, the expansion
+          plan MUST name load_manifest steps for every transitively
+          referenced member.
+
+  - scope_class: full_workspace
+    intended_content: >
+      The entire set of roots the workspace knows about, including
+      transitively referenced roots (multi-root and multi-repo
+      composition).
+    minimum_fields:
+      - scope_class
+      - workspace_id
+      - included_root_ids
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: current_root
+        posture: allowed_with_explicit_user_action
+      - to: named_workset
+        posture: allowed_with_explicit_user_action
+      - to: sparse_slice
+        posture: allowed_with_explicit_user_action
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening: []
+    admissible_lenses:
+      - search_result_lens
+      - graph_neighbourhood_lens
+      - ai_context_lens
+      - none
+    conformance_tests:
+      - id: included_root_ids_complete
+        description: >
+          The included_root_ids list MUST enumerate every root the
+          workspace knows about, including composed / transitively
+          referenced roots.
+      - id: no_silent_omission
+        description: >
+          Roots excluded by admin policy MUST promote the scope to
+          policy_limited_view rather than silently dropping from
+          included_root_ids.
+
+  - scope_class: policy_limited_view
+    intended_content: >
+      A scope whose effective membership is narrowed by admin
+      policy. Records the underlying pre-narrowing scope and the
+      visible member set; the hidden list itself never leaves the
+      policy-admin surface.
+    minimum_fields:
+      - scope_class
+      - underlying_scope_ref
+      - policy_ref
+      - visible_member_refs
+      - hidden_member_count
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: policy_entitlement
+    admit_narrowing: []
+    admit_widening:
+      - to: underlying_scope
+        posture: allowed_only_when_policy_narrowing_lifts
+    admissible_lenses:
+      - search_result_lens
+      - review_overlay_lens
+      - none
+    conformance_tests:
+      - id: hidden_members_never_enumerated
+        description: >
+          The exact hidden list MUST NOT be exposed outside the
+          policy-admin surface; only hidden_member_count projects.
+      - id: widening_requires_policy_lift
+        description: >
+          Widening a policy_limited_view to its underlying scope
+          MUST require the policy narrowing to lift; silent
+          widening is forbidden.
+
+  - scope_class: review_workspace
+    intended_content: >
+      A review-scoped surface (change set, review bundle). The
+      scope is the review's affected member set.
+    minimum_fields:
+      - scope_class
+      - review_id
+      - member_refs
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening: []
+    admissible_lenses:
+      - review_overlay_lens
+      - search_result_lens
+      - ai_context_lens
+      - none
+    conformance_tests:
+      - id: review_id_round_trip
+        description: >
+          The review_id MUST round-trip to the same review record
+          across the review workspace, the review overlay, and the
+          mutation-journal entries.
+      - id: members_match_review_diff
+        description: >
+          member_refs MUST match the review's declared affected
+          members; surfaces MAY NOT silently extend the review
+          scope.
+
+  - scope_class: companion_surface
+    intended_content: >
+      A companion-surface scope (docs preview, agent companion,
+      notebook companion). Scope is bounded by the companion's
+      declared members.
+    minimum_fields:
+      - scope_class
+      - companion_id
+      - member_refs
+      - lens_class
+      - expansion_plan
+    canonical_owner_authority_class: workspace_vfs
+    admit_narrowing:
+      - to: policy_limited_view
+        posture: allowed_when_admin_policy_narrows
+    admit_widening: []
+    admissible_lenses:
+      - companion_focus_lens
+      - ai_context_lens
+      - search_result_lens
+      - none
+    conformance_tests:
+      - id: companion_id_round_trip
+        description: >
+          The companion_id MUST round-trip to the same companion
+          across the companion surface, any ADR-0005 subscription
+          the companion rides, and the mutation-journal entries the
+          companion emits.
+      - id: lens_does_not_widen_authority
+        description: >
+          A companion lens narrows presentation only; the
+          companion MAY NOT use its lens to reach members the
+          declared member_refs do not cover.

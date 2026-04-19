@@ -1,0 +1,407 @@
+# Execution-context and workset / scope tradeoff register.
+#
+# Machine-readable backing for the tradeoff table in
+# docs/adr/0009-execution-context-and-scope.md. Each row captures one
+# decision axis: the stack this repo chose, the strongest rejected
+# alternative, the source anchors that motivated the choice, the
+# protected-hot-path hooks the choice binds, and the typed reopen
+# triggers that force the row back into discussion.
+#
+# Conformance:
+#   - Every row MUST name an axis, a chosen_stack, a
+#     best_rejected_alternative, a why_chosen_wins summary, at least
+#     one source_anchor with a line-accurate or slug-accurate anchor,
+#     at least one protected_hot_path_hook, and at least one
+#     reopen_trigger with a severity from reopen_severity_levels.
+#   - If this file and the ADR disagree, the ADR wins and this file
+#     must be updated in the same change.
+#   - Adding a new axis is additive-minor; repurposing an existing
+#     axis is breaking and requires a new decision row.
+
+schema_version: 1
+
+adr_source: docs/adr/0009-execution-context-and-scope.md
+decision_id: D-0015
+decision_register: artifacts/governance/decision_index.yaml
+
+reopen_severity_levels:
+  - conformance_bug
+  - benchmark_regression
+  - security_finding
+  - roadmap_step
+  - support_finding
+
+# One row per axis frozen in the ADR. Axis ids are lower-snake and
+# stable; aliases redirect, they do not rename.
+rows:
+  - axis: execution_context_identity
+    chosen_stack: >
+      One stable execution_context_id with a frozen record shape
+      (invocation_subject, target_identity, toolchain_identity,
+      environment_capsule_ref, workset_scope, trust_state,
+      identity_mode, policy_epoch, activator_decisions,
+      override_delta, cache_disposition, provenance_record_ref,
+      authority_envelope, degraded_fields) that round-trips through
+      every downstream event (task events, test events, debug
+      sessions, terminal transcripts, AI tool-call frames,
+      mutation-journal entries, replay artifacts, support bundles).
+    best_rejected_alternative: >
+      Per-surface launch descriptors (a task descriptor, a terminal
+      descriptor, a debug descriptor, an AI-tool descriptor), each
+      with its own target and toolchain fields.
+    why_chosen_wins: >
+      Per-surface descriptors guarantee drift between task, test,
+      debug, terminal, notebook, AI, replay, and support. The
+      "why this execution context?" promise (TAD 16.1.2) cannot
+      hold when each surface invents its own shape.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1501"
+        quote: "5.35 Execution context"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2283"
+        quote: "16.1 One execution-context model"
+    protected_hot_path_hooks:
+      - execution_context_resolve
+      - execution_context_reuse_decision
+      - execution_context_emit_provenance
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A protected surface (task, test, debug, terminal, AI tool
+          call) is observed reading a non-execution_context_record
+          shape.
+      - severity: benchmark_regression
+        description: >
+          Execution-context resolution cannot meet its declared
+          latency budget on a supported target class.
+
+  - axis: target_identity
+    chosen_stack: >
+      Frozen target-class enum (local_host, ssh_remote,
+      container_local, devcontainer, remote_workspace_vm,
+      prebuild_runtime, managed_workspace, notebook_kernel_local,
+      notebook_kernel_remote, ai_sandbox) plus a canonical_target_id,
+      a mount_identity that re-exports the ADR-0006 five-layer
+      filesystem-identity record, a route_dependency class for
+      remote targets, a reachability_state, and a capability-envelope
+      reference. Requested and materialised forms are both named.
+    best_rejected_alternative: >
+      Free-form target strings (target: "my-container") with
+      heuristic surface-local parsing.
+    why_chosen_wins: >
+      Free-form strings collapse the "wrong machine / wrong
+      container / wrong route" hazard TAD 16.1.2 explicitly names.
+      Typed class + canonical id + mount identity is the only
+      auditable posture that also ties into the VFS save and watcher
+      contracts.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2349"
+        quote: "Target identity ... prevents 'wrong machine / wrong container / wrong route' ambiguity"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2362"
+        quote: "remote, template, capsule, and prebuild paths should identify both the requested source artifact and the materialized runtime instance"
+    protected_hot_path_hooks:
+      - execution_context_target_resolve
+      - execution_context_target_reachability_changed
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A support bundle or replay artifact is observed naming a
+          different target than the provenance record.
+      - severity: roadmap_step
+        description: >
+          A new target class is proposed (for example, a new
+          ephemeral cloud sandbox). Additive-minor: mint a new
+          enum value, do not repurpose an existing one.
+
+  - axis: toolchain_identity
+    chosen_stack: >
+      Dotted lower-snake toolchain_id in the toolchain registry, a
+      canonical resolved_version, a filesystem-identity executable
+      record, a declared activation_strategy, a wrapper_provenance
+      list that records every shim / wrapper, and a known-unsupported-
+      gaps list. Ambient-path resolution is a declared strategy, not
+      a silent default.
+    best_rejected_alternative: >
+      Version-string-only toolchain identity (python 3.11).
+    why_chosen_wins: >
+      Bare version strings cannot distinguish a venv from a Conda
+      env from ambient PATH; support flows and AI tool calls then
+      drift silently on environment assumptions. Activation
+      strategy plus executable identity plus wrapper provenance is
+      the only posture that survives "why this toolchain?".
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1501"
+        quote: "5.35 Execution context"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2291"
+        quote: "toolchain activators (venv, Poetry, uv, Conda, Rustup, Go, JDKs, version managers, Nix, direnv, devcontainers)"
+    protected_hot_path_hooks:
+      - execution_context_toolchain_resolve
+      - execution_context_activator_recorded
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A resolver observed silently inserting a wrapper / shim
+          without a wrapper_provenance entry.
+      - severity: support_finding
+        description: >
+          A support engineer reports ambiguity between two resolved
+          versions that carry the same toolchain_id; the registry
+          rules require disambiguation by executable_identity.
+
+  - axis: environment_capsule_reference
+    chosen_stack: >
+      Reference-only capsule link (capsule_id, capsule_hash,
+      resolved_schema_version, workspace_template_ref,
+      prebuild_snapshot_ref, drift_state, compatibility_fingerprint);
+      the capsule body stays content-addressed and is fetched once
+      by inspectors, support bundles, and replay artifacts.
+    best_rejected_alternative: >
+      Inline the full environment capsule inside every
+      execution-context record.
+    why_chosen_wins: >
+      Inline bodies defeat content-addressed reuse and explode
+      RPC / replay / support-bundle payloads. Reference-only keeps
+      capsules diffable and mirrorable and lets prebuild-reuse
+      compare compatibility fingerprints without payload churn.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2314"
+        quote: "TOOL-ENV-006 closes the gap ... environment capsule that can be inspected, diffed, certified, cached, mirrored, and invalidated"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2335"
+        quote: "prebuild snapshots are accelerators, not authorities"
+    protected_hot_path_hooks:
+      - execution_context_capsule_resolve
+      - execution_context_capsule_drift_detected
+    reopen_triggers:
+      - severity: benchmark_regression
+        description: >
+          Capsule resolution cannot meet its declared latency budget
+          on a supported target class.
+      - severity: security_finding
+        description: >
+          A capsule body is observed leaking raw secret material or
+          raw environment bodies in a default-redaction support
+          bundle.
+
+  - axis: workset_scope_vocabulary
+    chosen_stack: >
+      Discriminated union over current_root, named_workset,
+      sparse_slice, full_workspace, policy_limited_view,
+      review_workspace, and companion_surface, plus the TAD 12.6
+      partial-truth labels (loaded, manifest_known, cached,
+      unavailable) and a typed expansion-plan step set
+      (load_manifest, warm_index, materialise_snapshot,
+      fetch_cached_view, refresh_stale_cache). Lenses narrow
+      presentation only; authority remains with the underlying
+      scope.
+    best_rejected_alternative: >
+      Single opaque scope_id string per execution.
+    why_chosen_wins: >
+      One opaque string hides sparse-checkout truth, admin-policy
+      narrowing (policy_limited_view), partial-truth labels, and
+      the review / companion surface scopes. Search, graph, AI, and
+      export then project incompatible assumptions about which
+      members are authoritative versus cached.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1106"
+        quote: "users should be able to open worksets that intentionally scope a monorepo to a smaller slice"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1845"
+        quote: "12.6 Workspace slices, worksets, and multi-repo composition"
+    protected_hot_path_hooks:
+      - execution_context_scope_declare
+      - execution_context_scope_narrow
+      - execution_context_scope_widen_rejected
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A search or graph surface is observed rendering scope
+          membership that disagrees with the workset_scope
+          descriptor the execution-context record carries.
+      - severity: roadmap_step
+        description: >
+          A new scope class is proposed (for example, a mirrored
+          tenant scope). Additive-minor: mint a new enum value.
+
+  - axis: authority_projection
+    chosen_stack: >
+      Per-field authority_envelope tag list that re-uses the ADR-0005
+      authority-class matrix (workspace_vfs, buffer_editor,
+      derived_knowledge, execution, policy_entitlement,
+      provider_overlay). Every rendered field carries
+      authoritative, projected_from_<class>, or stale.
+    best_rejected_alternative: >
+      Consumer-heuristic authority resolution (each surface decides
+      locally which fields to trust).
+    why_chosen_wins: >
+      Heuristics drift; consumers invent local rules. The ADR-0005
+      authority-class matrix is already the canonical ownership
+      vocabulary for reactive subscriptions; binding
+      execution-context fields to it keeps ownership honest and
+      avoids minting a parallel matrix.
+    source_anchors:
+      - doc: docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+        anchor: "authority_class enum"
+        quote: "workspace_vfs, buffer_editor, derived_knowledge, execution, policy_entitlement, provider_overlay"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "Appendix DB"
+        quote: "authority / ownership matrix"
+    protected_hot_path_hooks:
+      - execution_context_authority_envelope_applied
+      - execution_context_projection_staleness_detected
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A surface is observed rendering an execution-context field
+          with no authority_envelope tag.
+      - severity: security_finding
+        description: >
+          A provider_overlay is observed overwriting an authoritative
+          execution-context field rather than projecting and labelling.
+
+  - axis: degraded_field_taxonomy
+    chosen_stack: >
+      Typed degraded_field_record with a frozen reason_code set
+      (toolchain_fallback, activator_blocked_by_trust,
+      activator_blocked_by_policy, activator_unsupported_on_target,
+      capsule_unresolved, capsule_drift_detected, target_unreachable,
+      policy_epoch_stale, trust_state_unresolved,
+      workset_member_unavailable, provenance_gap, confidence_low,
+      remote_agent_scope_mismatch); consumers render honesty markers
+      on every affected field.
+    best_rejected_alternative: >
+      Best-effort rendering when a field is unresolved
+      ("looks fine, probably").
+    why_chosen_wins: >
+      Best-effort rendering is exactly the "silent stale tools"
+      failure mode TAD 16.1.1 forbids; Project Doctor needs typed
+      reasons to emit repair-candidate hooks.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2355"
+        quote: "Degraded or unresolved fields ... forces honesty when Aureline cannot prove full execution parity"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2335"
+        quote: "prebuild snapshots are accelerators, not authorities"
+    protected_hot_path_hooks:
+      - execution_context_degraded_field_emitted
+      - execution_context_confidence_lowered
+    reopen_triggers:
+      - severity: support_finding
+        description: >
+          A support bundle surfaces an unresolved field with no
+          typed degraded-field record.
+      - severity: conformance_bug
+        description: >
+          A projecting surface is observed re-rendering a degraded
+          field as authoritative.
+
+  - axis: provenance_record
+    chosen_stack: >
+      One versioned execution_context_provenance_record shape with
+      invocation_subject, target_identity, baseline_context,
+      activator_decisions, override_delta, policy_and_trust_decisions,
+      cache_reuse_disposition, degraded_or_unresolved_fields,
+      confidence_level, and redaction_class. Powers UI explainers,
+      aureline env inspect, aureline doctor --explain, support
+      bundles, replay artifacts, and Project Doctor probes.
+    best_rejected_alternative: >
+      Per-feature provenance formats (task runner invents one,
+      debug adapter invents another, AI tool plane invents a third).
+    why_chosen_wins: >
+      Per-feature formats produce contradictory "why this ran?"
+      answers across UI, CLI, replay, and support. One versioned
+      record is the only posture that survives TAD 16.1.2.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2342"
+        quote: "16.1.2 Execution-context provenance inspector, resolver explainability"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2359"
+        quote: "the same provenance record powers UI explainers, aureline env inspect, aureline doctor --explain, support bundles, and repair previews"
+    protected_hot_path_hooks:
+      - execution_context_provenance_emit
+      - execution_context_provenance_export_broadened
+    reopen_triggers:
+      - severity: conformance_bug
+        description: >
+          A launch-capable surface is observed emitting a provenance
+          shape that is not the frozen record.
+      - severity: security_finding
+        description: >
+          Broadened capture is observed executing without a
+          provenance_export_broadened audit event.
+
+  - axis: secret_and_env_projection
+    chosen_stack: >
+      Class labels and ADR-0007 credential_alias handles only;
+      raw env bodies, raw command lines, and raw secret values
+      require an explicit broadened_capture opt-in recorded on the
+      provenance record and the provenance_export_broadened audit
+      event.
+    best_rejected_alternative: >
+      Default-broadened support-bundle capture (include everything;
+      redact-after).
+    why_chosen_wins: >
+      Default-broadened export leaks secrets and raw env bodies
+      exactly where bundles are shared outside the host
+      (customer support, evidence packets). Metadata + hashes +
+      class labels is the safe default; broadened capture is
+      auditable and approvable.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 2363"
+        quote: "provenance exports default to metadata, hashes, and class labels; raw environment bodies, command lines, or secret values require explicit broadened capture"
+      - doc: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        anchor: "Redaction default posture"
+        quote: "credential_alias values carry aliases only"
+    protected_hot_path_hooks:
+      - execution_context_secret_projection_applied
+      - execution_context_broadened_capture_requested
+    reopen_triggers:
+      - severity: security_finding
+        description: >
+          A support bundle or replay artifact is observed carrying
+          raw env bodies, raw command lines, or raw secret values
+          without a broadened_capture opt-in.
+      - severity: conformance_bug
+        description: >
+          An AI tool call is observed receiving raw env or secret
+          material via execution-context projection.
+
+  - axis: schema_of_record
+    chosen_stack: >
+      Rust types in the eventual execution-context crate are the
+      source of truth; JSON Schema export at
+      schemas/runtime/execution_context.schema.json is the
+      cross-tool boundary. No external IDL or codegen toolchain at
+      this milestone. Mirrors ADR 0004, ADR 0005, ADR 0006,
+      ADR 0007, and ADR 0008.
+    best_rejected_alternative: >
+      External IDL + generator (protobuf, Cap'n Proto, FlatBuffers,
+      Smithy) with generated language bindings.
+    why_chosen_wins: >
+      Same reasoning ADR 0004 through ADR 0008 settled on: no
+      second-language consumer at this milestone. An IDL without
+      a second-language consumer costs more than it buys; the JSON
+      Schema export reserves a clean integration point when a
+      second-language surface lands.
+    source_anchors:
+      - doc: docs/adr/0004-rpc-transport-and-schema-toolchain.md
+        anchor: "Schema of record"
+        quote: "Rust types are the schema of record; JSON Schema is the cross-tool boundary"
+    protected_hot_path_hooks:
+      - execution_context_schema_version_bumped
+    reopen_triggers:
+      - severity: roadmap_step
+        description: >
+          A second-language consumer lands (for example, a Python
+          SDK, a Go test harness, a TypeScript web surface) that
+          needs generated types rather than JSON Schema.

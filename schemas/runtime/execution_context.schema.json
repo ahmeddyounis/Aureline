@@ -1,0 +1,1337 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/execution_context.schema.json",
+  "title": "Aureline execution-context, provenance, and scope-descriptor record",
+  "description": "Boundary schema for the execution-context record, the execution-context provenance record, and the workset / scope descriptor every Aureline launch-capable or scope-narrowing surface reads. See docs/adr/0009-execution-context-and-scope.md. One record shape flows between the execution-context resolver and every consumer (UI 'why this toolchain?' inspector, aureline env inspect, aureline doctor --explain, support bundle, replay artifact, evidence packet, mutation-journal renderer, AI tool-call plane). Raw environment bodies, raw command lines, and raw secret values never appear unless an explicit broadened_capture opt-in is recorded on the provenance record; credential_alias handles cross the boundary, never raw bytes (ADR-0007). Authority classes re-use the matrix frozen in ADR-0005 (schemas/runtime/subscription_envelope.schema.json); this schema does not mint new authority classes. The eventual execution-context crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new record kind, a new target class, a new toolchain class, a new scope class, a new authority-envelope tag, a new audit-event id, or a new degraded-field reason is additive-minor and bumps execution_context_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/execution_context_record" },
+    { "$ref": "#/$defs/execution_context_provenance_record" },
+    { "$ref": "#/$defs/scope_descriptor_record" },
+    { "$ref": "#/$defs/execution_context_audit_event_record" }
+  ],
+  "$defs": {
+    "execution_context_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this execution-context vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "execution_context_record",
+        "execution_context_provenance_record",
+        "scope_descriptor_record",
+        "execution_context_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source at the resolver."
+    },
+
+    "execution_context_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id allocated by the resolver at resolve time. Copied into every downstream event (task events, test events, debug sessions, terminal transcripts, AI tool-call frames) so every record round-trips to the same context."
+    },
+
+    "workspace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable workspace identifier. Authoritative at the workspace authority; projected elsewhere."
+    },
+
+    "profile_id": {
+      "type": ["string", "null"],
+      "description": "Stable profile identifier when an Aureline profile is active. Null when no profile is active."
+    },
+
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical dotted lower-snake id. Used for setting ids, toolchain ids, activator ids, and query-family ids."
+    },
+
+    "filesystem_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "alias_set",
+        "save_target_token"
+      ],
+      "properties": {
+        "presentation_path": {
+          "type": "string",
+          "description": "The path the user sees. Presentation only."
+        },
+        "logical_workspace_identity": {
+          "type": "string",
+          "description": "Workspace-scoped logical identity (ADR-0006)."
+        },
+        "canonical_filesystem_object": {
+          "type": "string",
+          "description": "Canonical filesystem object after alias convergence (ADR-0006)."
+        },
+        "alias_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered alias set converging on canonical_filesystem_object."
+        },
+        "save_target_token": {
+          "type": "string",
+          "description": "Opaque save-target token; compare-before-write safety uses this (ADR-0006)."
+        }
+      },
+      "description": "Re-export of the ADR-0006 five-layer filesystem-identity record."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Identity mode from ADR-0001. Copied from the active workspace authority."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["restricted", "trusted"],
+      "description": "Workspace trust state from ADR-0001. Execution-context readers project; they do not assign."
+    },
+
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Policy epoch at resolve time. Stale projections surface a visible epoch delta."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "session_override",
+        "workspace_migration",
+        "extension_api",
+        "ai_apply",
+        "scheduled_task",
+        "imported_profile",
+        "admin_policy_injector"
+      ],
+      "description": "Typed actor class for the invocation subject."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "task",
+        "test",
+        "debug",
+        "terminal",
+        "notebook_kernel",
+        "scaffolding",
+        "ai_tool_call",
+        "doctor_repair",
+        "import_probe",
+        "replay_probe"
+      ],
+      "description": "Frozen surface vocabulary for invocation subjects."
+    },
+
+    "invocation_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "surface",
+        "actor_class",
+        "workspace_id"
+      ],
+      "properties": {
+        "command_id": { "type": "string", "minLength": 1 },
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "profile_id": { "$ref": "#/$defs/profile_id" }
+      },
+      "description": "Typed invocation descriptor."
+    },
+
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "ssh_remote",
+        "container_local",
+        "devcontainer",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox"
+      ],
+      "description": "Frozen target-class vocabulary. Target-class demotion is narrowing-only; silent retargeting is forbidden."
+    },
+
+    "reachability_state": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "warming",
+        "degraded",
+        "unreachable",
+        "policy_blocked"
+      ],
+      "description": "Target reachability vocabulary. Unreachable targets MUST NOT be rendered as successful launches."
+    },
+
+    "route_dependency_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "direct",
+        "tunneled",
+        "managed_proxy",
+        "policy_mirror",
+        null
+      ],
+      "description": "Network-route class for remote targets; null for local targets."
+    },
+
+    "capability_envelope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "supports_pty", "supports_gpu", "supports_network_egress"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Reference to the target's declared capability envelope (re-exports ADR-0006 root-capability envelope where applicable)."
+        },
+        "supports_pty": { "type": "boolean" },
+        "supports_gpu": { "type": "boolean" },
+        "supports_network_egress": { "type": "boolean" },
+        "supports_remote_filesystem_watcher": { "type": "boolean" }
+      },
+      "description": "Execution-target capability envelope."
+    },
+
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "canonical_target_id",
+        "mount_identity",
+        "reachability_state",
+        "capability_envelope_ref"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "canonical_target_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier within the class. Surfaces quote this id; they MAY NOT substitute a human-friendly label."
+        },
+        "requested_target_ref": {
+          "type": ["string", "null"],
+          "description": "The declared / requested target artifact (image ref, devcontainer file path, SSH host alias). Distinguished from canonical_target_id for remote and container targets."
+        },
+        "materialised_instance_ref": {
+          "type": ["string", "null"],
+          "description": "The materialised runtime instance id (container id, VM id) when different from canonical_target_id."
+        },
+        "mount_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "route_dependency": { "$ref": "#/$defs/route_dependency_class" },
+        "reachability_state": { "$ref": "#/$defs/reachability_state" },
+        "capability_envelope_ref": { "$ref": "#/$defs/capability_envelope_ref" }
+      }
+    },
+
+    "toolchain_class": {
+      "type": "string",
+      "enum": [
+        "interpreter",
+        "compiler_toolchain",
+        "package_manager_runner",
+        "containerised_runtime",
+        "notebook_kernel_runtime",
+        "language_server_process",
+        "debug_adapter_runtime",
+        "test_runner_runtime",
+        "build_driver_runtime",
+        "ai_tool_runtime"
+      ],
+      "description": "Frozen toolchain-class vocabulary."
+    },
+
+    "activation_strategy": {
+      "type": "string",
+      "enum": [
+        "ambient_path",
+        "env_manager_shim",
+        "venv_activation",
+        "nix_shell",
+        "nix_flake",
+        "direnv",
+        "devcontainer_build",
+        "oci_image_ref",
+        "explicit_override",
+        "fallback_resolution"
+      ],
+      "description": "Declared activation strategy. Ambient-path resolution is a declared strategy, not a silent default."
+    },
+
+    "wrapper_kind": {
+      "type": "string",
+      "enum": [
+        "env_manager_shim_binary",
+        "venv_wrapper_script",
+        "direnv_envrc",
+        "nix_wrapper",
+        "devcontainer_wrapper",
+        "policy_injected_wrapper"
+      ],
+      "description": "Wrapper / shim kind. Silent wrapper insertion is forbidden; every wrapper is recorded."
+    },
+
+    "wrapper_provenance_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wrapper_kind", "wrapper_filesystem_identity", "wrapper_version"],
+      "properties": {
+        "wrapper_kind": { "$ref": "#/$defs/wrapper_kind" },
+        "wrapper_filesystem_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "wrapper_version": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "unsupported_gap_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code", "affected_feature_class"],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "missing_feature_in_toolchain_version",
+            "unsupported_on_target_class",
+            "blocked_by_trust_state",
+            "blocked_by_policy",
+            "requires_approval_ticket",
+            "requires_broadened_capture",
+            "missing_capability_envelope_flag"
+          ]
+        },
+        "affected_feature_class": {
+          "type": "string",
+          "enum": [
+            "debug_adapter",
+            "test_runner",
+            "notebook_kernel",
+            "build_driver",
+            "language_server",
+            "ai_tool_call",
+            "env_manager",
+            "venv_activation",
+            "remote_filesystem_watcher",
+            "container_lifecycle_hook"
+          ]
+        },
+        "repair_hook_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque repair-candidate hook Project Doctor can surface."
+        }
+      }
+    },
+
+    "toolchain_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolchain_class",
+        "toolchain_id",
+        "resolved_version",
+        "executable_identity",
+        "activation_strategy",
+        "wrapper_provenance",
+        "extension_pack_refs",
+        "known_unsupported_gaps",
+        "degraded_fallback_flag"
+      ],
+      "properties": {
+        "toolchain_class": { "$ref": "#/$defs/toolchain_class" },
+        "toolchain_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "resolved_version": { "type": "string", "minLength": 1 },
+        "executable_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "activation_strategy": { "$ref": "#/$defs/activation_strategy" },
+        "wrapper_provenance": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/wrapper_provenance_entry" }
+        },
+        "extension_pack_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "known_unsupported_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_gap_record" }
+        },
+        "degraded_fallback_flag": { "type": "boolean" }
+      }
+    },
+
+    "capsule_drift_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage"
+      ],
+      "description": "Re-export of the ADR-0006 drift-state vocabulary for a capsule's declarative inputs."
+    },
+
+    "compatibility_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_or_tree_identity",
+        "capsule_hash",
+        "platform_arch",
+        "policy_epoch",
+        "extension_lock_digest",
+        "critical_toolchain_digests"
+      ],
+      "properties": {
+        "commit_or_tree_identity": { "type": "string", "minLength": 1 },
+        "capsule_hash": { "type": "string", "minLength": 1 },
+        "platform_arch": { "type": "string", "minLength": 1 },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "extension_lock_digest": { "type": "string", "minLength": 1 },
+        "critical_toolchain_digests": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Prebuild-reuse compatibility fingerprint. Mismatches downgrade cache_disposition to rejected_drift rather than silently serving stale tools."
+    },
+
+    "environment_capsule_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capsule_id",
+        "capsule_hash",
+        "resolved_schema_version",
+        "drift_state",
+        "compatibility_fingerprint"
+      ],
+      "properties": {
+        "capsule_id": { "type": "string", "minLength": 1 },
+        "capsule_hash": { "type": "string", "minLength": 1 },
+        "resolved_schema_version": { "type": "string", "minLength": 1 },
+        "workspace_template_ref": {
+          "type": ["string", "null"],
+          "description": "Reference to the workspace template that hydrated this capsule, when present."
+        },
+        "prebuild_snapshot_ref": {
+          "type": ["string", "null"],
+          "description": "Reference to the prebuild snapshot that warmed this capsule, when present."
+        },
+        "drift_state": { "$ref": "#/$defs/capsule_drift_state" },
+        "compatibility_fingerprint": { "$ref": "#/$defs/compatibility_fingerprint" }
+      }
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Frozen scope-class vocabulary."
+    },
+
+    "partial_truth_label": {
+      "type": "string",
+      "enum": [
+        "loaded",
+        "manifest_known",
+        "cached",
+        "unavailable"
+      ],
+      "description": "Re-export of the TAD 12.6 partial-truth labels."
+    },
+
+    "lens_class": {
+      "type": "string",
+      "enum": [
+        "search_result_lens",
+        "graph_neighbourhood_lens",
+        "review_overlay_lens",
+        "ai_context_lens",
+        "companion_focus_lens",
+        "none"
+      ],
+      "description": "Lens class. A lens narrows presentation, not authority."
+    },
+
+    "expansion_step_kind": {
+      "type": "string",
+      "enum": [
+        "load_manifest",
+        "warm_index",
+        "materialise_snapshot",
+        "fetch_cached_view",
+        "refresh_stale_cache"
+      ],
+      "description": "Typed expansion-plan step."
+    },
+
+    "expansion_plan_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_kind"],
+      "properties": {
+        "step_kind": { "$ref": "#/$defs/expansion_step_kind" },
+        "target_ref": {
+          "type": ["string", "null"],
+          "description": "Optional reference to the member or manifest this step applies to."
+        }
+      }
+    },
+
+    "scope_member_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_kind", "ref", "partial_truth"],
+      "properties": {
+        "ref_kind": {
+          "type": "string",
+          "enum": ["root", "folder", "module", "review_member", "companion_member"]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable ref within the workspace identity space."
+        },
+        "partial_truth": { "$ref": "#/$defs/partial_truth_label" }
+      }
+    },
+
+    "workset_scope": {
+      "oneOf": [
+        { "$ref": "#/$defs/workset_scope_current_root" },
+        { "$ref": "#/$defs/workset_scope_named_workset" },
+        { "$ref": "#/$defs/workset_scope_sparse_slice" },
+        { "$ref": "#/$defs/workset_scope_full_workspace" },
+        { "$ref": "#/$defs/workset_scope_policy_limited_view" },
+        { "$ref": "#/$defs/workset_scope_review_workspace" },
+        { "$ref": "#/$defs/workset_scope_companion_surface" }
+      ],
+      "description": "Discriminated union over the frozen scope-class vocabulary."
+    },
+
+    "workset_scope_current_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "workspace_id", "root_id", "lens_class", "expansion_plan"],
+      "properties": {
+        "scope_class": { "type": "string", "const": "current_root" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "root_id": { "$ref": "#/$defs/filesystem_identity_record" },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_named_workset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "workset_id",
+        "workset_name",
+        "member_refs",
+        "membership_policy",
+        "lens_class",
+        "expansion_plan"
+      ],
+      "properties": {
+        "scope_class": { "type": "string", "const": "named_workset" },
+        "workset_id": { "type": "string", "minLength": 1 },
+        "workset_name": { "type": "string", "minLength": 1 },
+        "member_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_member_ref" }
+        },
+        "membership_policy": {
+          "type": "string",
+          "enum": [
+            "explicit_list",
+            "glob_pattern",
+            "dependency_graph_reachable"
+          ]
+        },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_sparse_slice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "root_id",
+        "include_patterns",
+        "exclude_patterns",
+        "dependency_closure_enabled",
+        "missing_members_policy",
+        "lens_class",
+        "expansion_plan"
+      ],
+      "properties": {
+        "scope_class": { "type": "string", "const": "sparse_slice" },
+        "root_id": { "$ref": "#/$defs/filesystem_identity_record" },
+        "include_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "dependency_closure_enabled": { "type": "boolean" },
+        "missing_members_policy": { "$ref": "#/$defs/partial_truth_label" },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_full_workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "workspace_id",
+        "included_root_ids",
+        "lens_class",
+        "expansion_plan"
+      ],
+      "properties": {
+        "scope_class": { "type": "string", "const": "full_workspace" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "included_root_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filesystem_identity_record" }
+        },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_policy_limited_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_class",
+        "underlying_scope_ref",
+        "policy_ref",
+        "visible_member_refs",
+        "hidden_member_count",
+        "lens_class",
+        "expansion_plan"
+      ],
+      "properties": {
+        "scope_class": { "type": "string", "const": "policy_limited_view" },
+        "underlying_scope_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pointer to the pre-narrowing scope descriptor."
+        },
+        "policy_ref": { "type": "string", "minLength": 1 },
+        "visible_member_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_member_ref" }
+        },
+        "hidden_member_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exact hidden list is never exposed outside the policy-admin surface; only the count projects."
+        },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_review_workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "review_id", "member_refs", "lens_class", "expansion_plan"],
+      "properties": {
+        "scope_class": { "type": "string", "const": "review_workspace" },
+        "review_id": { "type": "string", "minLength": 1 },
+        "member_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_member_ref" }
+        },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "workset_scope_companion_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "companion_id", "member_refs", "lens_class", "expansion_plan"],
+      "properties": {
+        "scope_class": { "type": "string", "const": "companion_surface" },
+        "companion_id": { "type": "string", "minLength": 1 },
+        "member_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_member_ref" }
+        },
+        "lens_class": { "$ref": "#/$defs/lens_class" },
+        "expansion_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expansion_plan_entry" }
+        }
+      }
+    },
+
+    "activator_class": {
+      "type": "string",
+      "enum": [
+        "env_manager_shim",
+        "python_venv_activation",
+        "conda_activation",
+        "rustup_toolchain_override",
+        "go_toolchain_override",
+        "jdk_version_activation",
+        "nodejs_version_activation",
+        "nix_shell_or_flake",
+        "direnv_activation",
+        "devcontainer_hook",
+        "workspace_bootstrap_script",
+        "policy_injected_environment"
+      ],
+      "description": "Frozen activator-class vocabulary."
+    },
+
+    "activator_disposition": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "blocked",
+        "ignored",
+        "unsupported",
+        "degraded"
+      ],
+      "description": "Frozen activator-disposition vocabulary."
+    },
+
+    "activator_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activator_class", "activator_id", "disposition"],
+      "properties": {
+        "activator_class": { "$ref": "#/$defs/activator_class" },
+        "activator_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "disposition": { "$ref": "#/$defs/activator_disposition" },
+        "reason_code": {
+          "type": ["string", "null"],
+          "enum": [
+            "trust_state_restricted",
+            "policy_denied",
+            "missing_capability_envelope_flag",
+            "user_opt_out",
+            "per_run_override",
+            "unsupported_on_target_class",
+            "toolchain_not_installed",
+            "toolchain_version_incompatible",
+            "activation_script_failed",
+            "activator_produced_degraded_environment",
+            null
+          ],
+          "description": "Typed reason code; null when disposition is applied."
+        },
+        "resolved_versions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ordered versions this activator resolved (for example, Python 3.11.6 via pyenv)."
+        },
+        "evidence_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque evidence ref (log anchor, artifact handle, probe output id)."
+        },
+        "repair_hook_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque repair-candidate hook Project Doctor can surface."
+        }
+      }
+    },
+
+    "env_var_delta_class": {
+      "type": "string",
+      "enum": [
+        "prepend_to_path",
+        "append_to_path",
+        "set_scalar",
+        "unset_scalar",
+        "inject_credential_alias",
+        "inject_language_locale",
+        "inject_proxy_configuration",
+        "inject_trust_store_hint",
+        "inject_runtime_flag_set"
+      ],
+      "description": "Env-var delta class label. Raw env values never cross this boundary; classes name what changed."
+    },
+
+    "override_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "working_directory_override",
+        "arguments_override_count",
+        "env_var_delta_classes",
+        "launch_profile_overrides",
+        "temporary_secret_handle_classes"
+      ],
+      "properties": {
+        "working_directory_override": {
+          "type": ["string", "null"],
+          "description": "Override working directory class label ('workspace_root', 'workset_member', 'absolute_path', 'target_default', or null for none). Raw paths are in the filesystem-identity record; this field is a class label only."
+        },
+        "arguments_override_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of CLI arguments overridden. Raw arguments require broadened_capture."
+        },
+        "env_var_delta_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/env_var_delta_class" }
+        },
+        "launch_profile_overrides": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "launch_profile_selected",
+              "launch_profile_environment_override",
+              "launch_profile_argument_override",
+              "launch_profile_working_directory_override"
+            ]
+          }
+        },
+        "temporary_secret_handle_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ai_provider_token",
+              "code_host_token",
+              "package_registry_token",
+              "database_credential",
+              "ssh_key_material",
+              "client_certificate",
+              "signing_key_material",
+              "provider_session",
+              "device_secret",
+              "ephemeral_operation_token"
+            ],
+            "description": "Re-export of the ADR-0007 secret-class vocabulary. Temporary handles bound for the lifetime of this execution."
+          }
+        }
+      }
+    },
+
+    "cache_disposition": {
+      "type": "string",
+      "enum": [
+        "cold",
+        "warm",
+        "prebuild_reused",
+        "capsule_reused",
+        "rejected_drift",
+        "rejected_policy",
+        "rejected_trust"
+      ],
+      "description": "Cache / reuse disposition."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Re-export of the ADR-0005 authority-class matrix. This schema does not mint new authority classes."
+    },
+
+    "authority_envelope_tag": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "projected_from_workspace_vfs",
+        "projected_from_buffer_editor",
+        "projected_from_derived_knowledge",
+        "projected_from_execution",
+        "projected_from_policy_entitlement",
+        "projected_from_provider_overlay",
+        "stale"
+      ],
+      "description": "Frozen per-field authority-envelope tag. 'authoritative' means the rendering surface owns the field; 'projected_from_<class>' names the canonical owner; 'stale' means the projection is older than the last-known authoritative update."
+    },
+
+    "authority_envelope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "tag"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted JSON path into the execution-context record, for example, 'target_identity.canonical_target_id'."
+        },
+        "tag": { "$ref": "#/$defs/authority_envelope_tag" },
+        "canonical_owner": {
+          "type": ["string", "null"],
+          "description": "Canonical authority class when the tag is projected_from_<class> or stale.",
+          "enum": [
+            "workspace_vfs",
+            "buffer_editor",
+            "derived_knowledge",
+            "execution",
+            "policy_entitlement",
+            "provider_overlay",
+            null
+          ]
+        },
+        "freshness_hint": {
+          "type": ["string", "null"],
+          "enum": [
+            "authoritative",
+            "warming",
+            "cached",
+            "stale",
+            "replayed",
+            "imported",
+            null
+          ],
+          "description": "Re-export of the ADR-0005 freshness vocabulary for projected fields."
+        },
+        "stale_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "producer_restart",
+            "authority_epoch_rolled",
+            "policy_epoch_changed",
+            "watcher_dropped",
+            "queue_saturation",
+            "upstream_input_stale",
+            "explicit_refresh_requested",
+            "cache_served",
+            "replayed_from_bundle",
+            "imported_from_external",
+            "scope_removed",
+            "causality_lost",
+            null
+          ]
+        }
+      }
+    },
+
+    "degraded_field_reason": {
+      "type": "string",
+      "enum": [
+        "toolchain_fallback",
+        "activator_blocked_by_trust",
+        "activator_blocked_by_policy",
+        "activator_unsupported_on_target",
+        "capsule_unresolved",
+        "capsule_drift_detected",
+        "target_unreachable",
+        "policy_epoch_stale",
+        "trust_state_unresolved",
+        "workset_member_unavailable",
+        "provenance_gap",
+        "confidence_low",
+        "remote_agent_scope_mismatch"
+      ],
+      "description": "Frozen degraded-field reason vocabulary."
+    },
+
+    "degraded_field_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "reason"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted JSON path into the execution-context record for the degraded field."
+        },
+        "reason": { "$ref": "#/$defs/degraded_field_reason" },
+        "repair_hook_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque repair-candidate hook Project Doctor can surface."
+        }
+      }
+    },
+
+    "execution_context_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "execution_context_id",
+        "invocation_subject",
+        "target_identity",
+        "toolchain_identity",
+        "environment_capsule_ref",
+        "workset_scope",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "activator_decisions",
+        "override_delta",
+        "cache_disposition",
+        "provenance_record_ref",
+        "authority_envelope",
+        "degraded_fields"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "execution_context_record" },
+        "execution_context_schema_version": { "$ref": "#/$defs/execution_context_schema_version" },
+        "execution_context_id": { "$ref": "#/$defs/execution_context_id" },
+        "invocation_subject": { "$ref": "#/$defs/invocation_subject" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "toolchain_identity": { "$ref": "#/$defs/toolchain_identity" },
+        "environment_capsule_ref": { "$ref": "#/$defs/environment_capsule_ref" },
+        "workset_scope": { "$ref": "#/$defs/workset_scope" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "activator_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activator_decision_record" }
+        },
+        "override_delta": { "$ref": "#/$defs/override_delta" },
+        "cache_disposition": { "$ref": "#/$defs/cache_disposition" },
+        "cache_key_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque cache-key ref when a cache was consulted. Null on cold launches."
+        },
+        "invalidation_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "input_digest_mismatch",
+            "policy_epoch_advanced",
+            "trust_state_changed",
+            "capsule_drift",
+            "target_class_changed",
+            "explicit_refresh",
+            null
+          ],
+          "description": "Typed reason a cache was rejected; null when cache_disposition is cold/warm/prebuild_reused/capsule_reused."
+        },
+        "provenance_record_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to the provenance record's provenance_record_id."
+        },
+        "authority_envelope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_envelope_entry" },
+          "description": "Per-field authority-envelope tags. Every field a consumer renders SHOULD have a tag."
+        },
+        "degraded_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_field_record" },
+          "description": "Empty means fully resolved; non-empty forces every surface that reads this record to render a visible honesty marker."
+        }
+      }
+    },
+
+    "baseline_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_baseline_fingerprint",
+        "shell_login_snapshot_class",
+        "locale_class",
+        "proxy_lineage_class",
+        "trust_store_lineage_class",
+        "baseline_timestamp"
+      ],
+      "properties": {
+        "host_baseline_fingerprint": { "type": "string", "minLength": 1 },
+        "shell_login_snapshot_class": {
+          "type": "string",
+          "enum": ["default_login", "non_login", "policy_shell", "custom_startup"]
+        },
+        "locale_class": {
+          "type": "string",
+          "enum": ["host_default", "project_override", "policy_injected", "broadened_capture_required"]
+        },
+        "proxy_lineage_class": {
+          "type": "string",
+          "enum": ["none", "host_env_inherit", "policy_injected", "per_run_override"]
+        },
+        "trust_store_lineage_class": {
+          "type": "string",
+          "enum": ["host_default", "project_override", "policy_injected", "managed_bundle"]
+        },
+        "baseline_timestamp": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "policy_and_trust_decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_state",
+        "policy_epoch",
+        "sandbox_profile_class",
+        "egress_posture_class"
+      ],
+      "properties": {
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when a broadened-capture, policy-narrowing, or elevated-trust action required one."
+        },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "sandbox_profile_class": {
+          "type": "string",
+          "enum": ["none", "default", "elevated", "restricted", "managed_bundle"]
+        },
+        "egress_posture_class": {
+          "type": "string",
+          "enum": ["none", "default_allow_list", "policy_narrowed", "policy_denied", "broadened_capture"]
+        }
+      }
+    },
+
+    "cache_reuse_disposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cache_disposition"],
+      "properties": {
+        "cache_disposition": { "$ref": "#/$defs/cache_disposition" },
+        "cache_key_ref": { "type": ["string", "null"] },
+        "prebuild_reused_ref": { "type": ["string", "null"] },
+        "capsule_reused_ref": { "type": ["string", "null"] },
+        "drift_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_field_reason" }
+        },
+        "invalidation_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "input_digest_mismatch",
+            "policy_epoch_advanced",
+            "trust_state_changed",
+            "capsule_drift",
+            "target_class_changed",
+            "explicit_refresh",
+            null
+          ]
+        }
+      }
+    },
+
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Resolver confidence for the provenance record."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "broadened_capture",
+        "none"
+      ],
+      "description": "Default export redaction class. metadata_and_hashes_only is the default; broadened_capture requires an explicit opt-in recorded in the provenance record."
+    },
+
+    "execution_context_provenance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "provenance_record_id",
+        "execution_context_id",
+        "recorded_at",
+        "resolver_version",
+        "invocation_subject",
+        "target_identity",
+        "baseline_context",
+        "activator_decisions",
+        "override_delta",
+        "policy_and_trust_decisions",
+        "cache_reuse_disposition",
+        "degraded_or_unresolved_fields",
+        "confidence_level",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "execution_context_provenance_record" },
+        "execution_context_schema_version": { "$ref": "#/$defs/execution_context_schema_version" },
+        "provenance_record_id": { "type": "string", "minLength": 1 },
+        "execution_context_id": { "$ref": "#/$defs/execution_context_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolver_version": { "type": "string", "minLength": 1 },
+        "invocation_subject": { "$ref": "#/$defs/invocation_subject" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "baseline_context": { "$ref": "#/$defs/baseline_context" },
+        "activator_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activator_decision_record" }
+        },
+        "override_delta": { "$ref": "#/$defs/override_delta" },
+        "policy_and_trust_decisions": { "$ref": "#/$defs/policy_and_trust_decisions" },
+        "cache_reuse_disposition": { "$ref": "#/$defs/cache_reuse_disposition" },
+        "degraded_or_unresolved_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_field_record" }
+        },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "scope_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "scope_descriptor_id",
+        "workset_scope"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "scope_descriptor_record" },
+        "execution_context_schema_version": { "$ref": "#/$defs/execution_context_schema_version" },
+        "scope_descriptor_id": { "type": "string", "minLength": 1 },
+        "workset_scope": { "$ref": "#/$defs/workset_scope" },
+        "authority_envelope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_envelope_entry" }
+        },
+        "degraded_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_field_record" }
+        }
+      },
+      "description": "Standalone scope-descriptor record. Carried on search, graph, rename, and scope-narrowing surfaces that do not launch but must still declare exactly one workset scope."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "execution_context_resolved",
+        "execution_context_reused",
+        "execution_context_rejected",
+        "execution_context_degraded",
+        "activator_applied",
+        "activator_blocked",
+        "activator_ignored",
+        "activator_unsupported",
+        "activator_degraded",
+        "capsule_reused",
+        "capsule_rejected_drift",
+        "capsule_unresolved",
+        "target_reachability_changed",
+        "workset_scope_narrowed",
+        "workset_scope_widened",
+        "policy_epoch_rolled",
+        "provenance_record_emitted",
+        "provenance_export_broadened",
+        "execution_context_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary."
+    },
+
+    "execution_context_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "execution_context_id",
+        "identity_mode",
+        "trust_state",
+        "policy_epoch"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "execution_context_audit_event_record" },
+        "execution_context_schema_version": { "$ref": "#/$defs/execution_context_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "execution_context_id": { "$ref": "#/$defs/execution_context_id" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "toolchain_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "activator_class": { "$ref": "#/$defs/activator_class" },
+        "activator_disposition": { "$ref": "#/$defs/activator_disposition" },
+        "cache_disposition": { "$ref": "#/$defs/cache_disposition" },
+        "reachability_state": { "$ref": "#/$defs/reachability_state" },
+        "degraded_field_reason": { "$ref": "#/$defs/degraded_field_reason" },
+        "notes_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into structured notes. MUST NOT embed raw env bodies, raw command lines, or raw secret material."
+        }
+      }
+    }
+  }
+}
