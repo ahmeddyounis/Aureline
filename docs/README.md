@@ -9,6 +9,14 @@ code.
 
 - [`governance/dri_map.md`](./governance/dri_map.md) — DRI, backup
   owners, blocker aging, and narrowing authority.
+- [`governance/control_artifact_index.md`](./governance/control_artifact_index.md)
+  — overview of the control-artifact index: one home, one owner,
+  and one review path for every control asset.
+- [`governance/interface_inventory.md`](./governance/interface_inventory.md)
+  — outline of interface-inventory categories and owning lanes.
+- [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)
+  — seed charter for the benchmark council (roles, scope, cadence,
+  quorum placeholder, escalation).
 - [`governance/decision_backlog.md`](./governance/decision_backlog.md)
   — seeded architecture decisions with freeze dates and default
   narrowing postures.
@@ -41,6 +49,12 @@ above is paired with a YAML form that is authoritative for automation:
 
 - [`/artifacts/governance/ownership_matrix.yaml`](../artifacts/governance/ownership_matrix.yaml)
   — DRI, backup owners, and waivers.
+- [`/artifacts/governance/control_artifact_index.yaml`](../artifacts/governance/control_artifact_index.yaml)
+  — canonical location, owner, review cadence, visibility class,
+  and next-milestone target for every control asset.
+- [`/artifacts/governance/issue_routing.yaml`](../artifacts/governance/issue_routing.yaml)
+  — public / private routing, privacy class, disclosure class,
+  public-summary expectation, and owning forum per issue class.
 - [`/artifacts/governance/decision_index.yaml`](../artifacts/governance/decision_index.yaml)
   — decision rows with freeze dates and default-if-unresolved postures.
 - [`/artifacts/governance/package_inventory.yaml`](../artifacts/governance/package_inventory.yaml)

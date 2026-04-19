@@ -1,0 +1,156 @@
+# Control-artifact index
+
+This document is the human-readable overview of the control-artifact
+index. It exists so that every control asset the foundations milestone
+produces has one canonical home, one named owner, and one review path
+— and so that engineering, design, QE, docs, support, and release can
+all find that home from a single page.
+
+Companion artifacts:
+
+- [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
+  — machine-readable register. Tooling reads this file; the narrative
+  below describes the same rows.
+- [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
+  — seed routing table for public and private issue classes.
+- [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
+  — charter seed for the benchmark council (roles, scope, cadence).
+- [`./interface_inventory.md`](./interface_inventory.md) — outline of
+  the interface-inventory categories that the machine-readable form
+  will eventually cover.
+
+**One home, one owner, one review path.** Every control asset — the
+artifact graph, the interface inventory, benchmark governance, the
+qualification cadence, the dependency register, release evidence, docs
+and help truth, route and build-truth artifacts, accessibility review
+packets, surface-traceability artifacts, and frozen-surface manifests
+— appears as exactly one row in the index file. If two documents
+describe the same asset, the index names only the canonical one and
+the other is either merged in or retired.
+
+The index does not restate the content of the assets it points at. The
+detailed governance workflow lives in
+[`decision_workflow.md`](./decision_workflow.md); contract schemas live
+in [`/schemas/`](../../schemas/); claim-manifest rules live in the
+governance-packet template. The index only names, routes, and scopes.
+
+## How each role uses the index
+
+### Engineering
+
+- Before introducing a new control asset — a register, manifest,
+  review packet, or machine-readable surface definition — look for an
+  existing row in the index. If the asset already has a canonical
+  home, extend that home; do not mint a parallel document.
+- When a pull request changes anything under a canonical-location path
+  named in the index, update the corresponding row's `status` or
+  `notes` if the change moves the artifact between `outline_only`,
+  `seeded`, and `not_yet_seeded`.
+- Review cadence `each_change` means the asset must be re-consulted
+  on every pull request that could affect it. Review cadence
+  `per_milestone` means on milestone boundaries. Review cadence
+  `each_release` means during release-evidence assembly.
+
+### Design
+
+- Use the `design_system_seeds` and `accessibility_review_packets`
+  rows as the only canonical locations for design-system snapshots,
+  token sources, component references, accessibility audits, input-
+  method review packets, and reduced-motion / contrast artifacts.
+- When proposing a new design-system artifact, extend the existing
+  canonical location under `artifacts/ux/`. Do not create parallel
+  homes in docs or in an external tool.
+
+### Quality engineering
+
+- The `benchmark_governance`, `qualification_cadence`, and
+  `dependency_register` rows are the anchor points for quality work.
+  New fitness functions, benchmark corpora, and qualification gates
+  land under the lanes named by those rows.
+- Disputes about benchmark results route through the benchmark-council
+  charter (see `benchmark_governance`); do not open ad-hoc comparison
+  threads outside that forum.
+
+### Docs
+
+- The `docs_public_truth` and `route_build_truth` rows are the
+  canonical homes for every public-facing document, including the
+  known-limits matrix, the support-window statement, and migration
+  guides.
+- Any claim made in docs that a downstream consumer might rely on must
+  cite an evidence owner via the claim-manifest packet family
+  (governance-packet template). The index does not duplicate the
+  manifest itself — it only names where the manifest lives.
+
+### Support
+
+- The `support_export` and `accessibility_review_packets` rows are the
+  canonical homes for supportability artifacts. Field runbooks, the
+  crash-diagnostics corpus, and export-safe packet schemas all live
+  there.
+- Private partner and support cases follow the private routes in
+  [`issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml);
+  public supportability defects route to the OSS lane. Both cases
+  preserve the owning forum.
+
+### Release
+
+- The `release_evidence`, `frozen_surface_manifests`, and
+  `route_build_truth` rows are the anchor points for release
+  assembly. `review_cadence: each_release` means the release-engineer
+  DRI MUST re-consult the artifact's rules before cutting a release.
+- Frozen-surface manifests and stable-surface contract metadata are
+  explicitly out of scope at this milestone; the row exists so that
+  the home is reserved and not accidentally duplicated elsewhere.
+
+## Review cadence semantics
+
+- **`each_change`** — the artifact is consulted on every pull request
+  that could affect it. Decision-register rows, public-truth copy,
+  and build-truth artifacts use this cadence.
+- **`per_milestone`** — the artifact is reviewed at milestone
+  boundaries, alongside the scorecard. Governance packets,
+  benchmark-council outputs, and surface-traceability artifacts use
+  this cadence.
+- **`each_release`** — the artifact is consulted during release-
+  evidence assembly. Release packets and frozen-surface manifests
+  use this cadence.
+
+## Visibility classes
+
+- **`internal`** — the artifact is a repository-internal control
+  record. It may still live in a public repository, but it is not a
+  published surface and no downstream consumer is expected to
+  integrate against it.
+- **`public`** — the artifact is part of the project's public truth:
+  it is linked from docs intended for downstream consumers and is
+  governed by the `docs_public_truth` lane.
+
+## What this index is not
+
+- It is **not** the detailed governance workflow. That lives in
+  [`decision_workflow.md`](./decision_workflow.md).
+- It is **not** the contract schema for any artifact. Schemas live
+  under [`/schemas/`](../../schemas/).
+- It is **not** the claim manifest. The claim-manifest family is
+  defined by
+  [`/artifacts/governance/governance_packet_template.yaml`](../../artifacts/governance/governance_packet_template.yaml)
+  and instantiated per release.
+- It is **not** a substitute for the ownership matrix. The matrix
+  defines who owns each lane; this index defines which artifacts sit
+  inside those lanes. Lane IDs in the index always resolve back to
+  `ownership_matrix.scorecard_lane_index`.
+
+## Change discipline
+
+- Adding a new control asset requires: a row in
+  [`control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml),
+  a canonical location, a named owner DRI, a lane from the ownership
+  matrix, a review cadence, a visibility class, and a next-milestone
+  target. All in the same change.
+- Retiring a control asset requires: setting its `status` to reflect
+  the removal and leaving the row in place with a note in `notes`.
+  Rows are not deleted, so the audit trail of "this home existed and
+  was retired" survives.
+- When this document and the YAML index disagree, the YAML index wins
+  for tooling and this document must be updated in the same change.

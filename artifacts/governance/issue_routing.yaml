@@ -1,0 +1,246 @@
+# Issue-routing seed.
+#
+# Seed routing table mapping every issue class Aureline expects to receive
+# to a default public or private lane, with its privacy / disclosure class,
+# public-summary expectation, and owning forum placeholder. Referenced by
+# control_artifact_index.yaml#issue_routing and described narratively in
+# docs/governance/control_artifact_index.md.
+#
+# Scope. This file is a seed: it names routes, forums, and disclosure
+# classes so that an incoming issue can be routed mechanically to a public
+# or private lane without losing ownership or disclosure state. It is not a
+# triage runbook, not a SLO register, and not a substitute for the full
+# security-response policy. Those are separate artifacts that land later.
+#
+# Rules.
+#   - Every issue class MUST name a default_route_class, a privacy_class, a
+#     disclosure_class, a public_summary_expectation, and an
+#     owning_forum_placeholder. No silent blanks.
+#   - owning_forum_placeholder MUST either cite a forum id from
+#     ownership_matrix.decision_forums[] or use the sentinel
+#     "tbd_<reason>" so the missing forum is explicit.
+#   - privacy_class records whether the raw report may circulate publicly.
+#     disclosure_class records the eventual public-disclosure expectation
+#     even when the raw report starts private (for example a security
+#     report that later produces a public advisory).
+#   - public_summary_expectation records whether a public-facing summary
+#     is required (required), recommended (recommended), not expected
+#     (none), or forbidden for this class (forbidden).
+
+schema_version: 1
+
+# -----------------------------------------------------------------------------
+# Route-class vocabulary.
+# -----------------------------------------------------------------------------
+route_classes:
+  - id: public_issue_tracker
+    description: >
+      Public issue tracker on the project's repository host. Default route
+      for OSS-facing reports.
+  - id: public_rfc_forum
+    description: >
+      Public RFC forum hosting the /docs/rfc/ process. Default route for
+      scoped design proposals open to community input.
+  - id: private_security_channel
+    description: >
+      Private security-report channel with an eventual public advisory.
+      Raw reports are not published; the public advisory is the eventual
+      disclosure surface.
+  - id: private_partner_channel
+    description: >
+      Private partner / support channel. Raw reports stay private;
+      sanitised patterns may surface in public docs only with the
+      partner's consent.
+  - id: benchmark_council_queue
+    description: >
+      Queue reviewed by the benchmark council. Used for benchmark
+      disputes and protected-fitness waiver requests.
+  - id: governance_packet_queue
+    description: >
+      Governance-packet queue for waiver requests, docs-truth defects,
+      and supportability-artifact defects.
+
+# -----------------------------------------------------------------------------
+# Privacy / disclosure vocabulary.
+# -----------------------------------------------------------------------------
+privacy_classes:
+  - public
+  - private_with_public_advisory
+  - private_partner_only
+
+disclosure_classes:
+  - public_immediate
+  - public_on_fix
+  - public_on_advisory
+  - private_indefinite
+
+public_summary_expectations:
+  - required
+  - recommended
+  - none
+  - forbidden
+
+# -----------------------------------------------------------------------------
+# Issue classes.
+#
+# Every class below is routable mechanically: given a class id, tooling can
+# resolve the default lane, privacy posture, summary expectation, and
+# owning forum without consulting a human.
+# -----------------------------------------------------------------------------
+issue_classes:
+  - id: oss_bug
+    title: OSS bug
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_immediate
+    public_summary_expectation: recommended
+    owning_forum_placeholder: architecture_council
+    notes: >
+      Functional defects filed against any non-security surface.
+      Resolution lands as a pull request and a release note; a public
+      summary is recommended when the bug is user-visible.
+
+  - id: perf_regression
+    title: Performance regression
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_immediate
+    public_summary_expectation: required
+    owning_forum_placeholder: performance_council
+    notes: >
+      Regressions of protected fitness functions route to the
+      performance council. A public summary is required because
+      regressions cite protected fitness numbers and need an evidence
+      owner.
+
+  - id: rfc
+    title: Request for comment
+    default_route_class: public_rfc_forum
+    privacy_class: public
+    disclosure_class: public_immediate
+    public_summary_expectation: required
+    owning_forum_placeholder: architecture_council
+    notes: >
+      Scoped design proposals follow the /docs/rfc/ process. The RFC is
+      itself the public summary; any linked ADR closes the decision row
+      in the decision index.
+
+  - id: security_issue
+    title: Security issue
+    default_route_class: private_security_channel
+    privacy_class: private_with_public_advisory
+    disclosure_class: public_on_advisory
+    public_summary_expectation: required
+    owning_forum_placeholder: security_trust_review
+    notes: >
+      Raw reports stay in the private security channel. A public
+      advisory is required at disclosure; it is the only acceptable
+      public surface for the report's content.
+
+  - id: supportability_issue
+    title: Supportability issue
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_on_fix
+    public_summary_expectation: recommended
+    owning_forum_placeholder: tbd_support_council_not_seeded
+    notes: >
+      Field-facing defects (doctor probes, export bundles, recovery
+      ladder). Private partner cases with supportability content route
+      to `private_partner_case` instead. Forum placeholder pending seed
+      of a support council.
+
+  - id: docs_truth_defect
+    title: Documentation / public-truth defect
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_immediate
+    public_summary_expectation: required
+    owning_forum_placeholder: product_scope_review
+    notes: >
+      A claim in public docs does not match observed behaviour, or a
+      claim has no cited evidence owner. Resolution either corrects the
+      claim, adds the missing claim-manifest entry, or withdraws the
+      claim.
+
+  - id: design_system_defect
+    title: Design-system defect
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_on_fix
+    public_summary_expectation: recommended
+    owning_forum_placeholder: tbd_design_review_not_seeded
+    notes: >
+      Token drift, component-reference mismatches, or accessibility
+      defects in the seeded design system. Accessibility defects may
+      additionally route to the `accessibility_input_review` lane.
+      Forum placeholder pending seed of a design review forum.
+
+  - id: waiver_request
+    title: Waiver request
+    default_route_class: governance_packet_queue
+    privacy_class: public
+    disclosure_class: public_immediate
+    public_summary_expectation: required
+    owning_forum_placeholder: architecture_council
+    notes: >
+      Any request to open, renew, or close a waiver. The waiver itself
+      is public; the eventual correction programme is public. Sub-type
+      waivers may require a co-signing forum per the authority table in
+      docs/governance/dri_map.md.
+
+  - id: benchmark_dispute
+    title: Benchmark dispute
+    default_route_class: benchmark_council_queue
+    privacy_class: public
+    disclosure_class: public_on_fix
+    public_summary_expectation: required
+    owning_forum_placeholder: performance_council
+    notes: >
+      Disputes about benchmark results, protected-fitness thresholds,
+      or corpus validity. Routed mechanically to the benchmark council
+      per docs/governance/benchmark_council_charter.md; a public
+      summary is required so the adjudication has an audit trail.
+
+  - id: private_partner_case
+    title: Private partner / support case
+    default_route_class: private_partner_channel
+    privacy_class: private_partner_only
+    disclosure_class: private_indefinite
+    public_summary_expectation: none
+    owning_forum_placeholder: tbd_support_council_not_seeded
+    notes: >
+      Cases filed under a private partner or support agreement. Raw
+      content stays private indefinitely. Sanitised patterns may
+      surface in public docs only with the partner's written consent
+      and only through the docs_public_truth lane.
+
+# -----------------------------------------------------------------------------
+# Worked example.
+#
+# Demonstrates mechanical routing: a reviewer receiving a
+# `benchmark_dispute` class issue can resolve, without further lookup:
+#   - default route      -> benchmark_council_queue
+#   - privacy class      -> public
+#   - disclosure class   -> public_on_fix
+#   - public summary     -> required
+#   - owning forum       -> performance_council
+# without losing ownership (performance_council) or disclosure state
+# (public_on_fix). Acceptance criterion `at least one example issue class
+# can be routed mechanically to a public or private lane without losing
+# ownership or disclosure state` is met by this row.
+# -----------------------------------------------------------------------------
+worked_examples:
+  - issue_class: benchmark_dispute
+    resolved_route: benchmark_council_queue
+    resolved_forum: performance_council
+    resolved_privacy: public
+    resolved_disclosure: public_on_fix
+    resolved_summary: required
+
+  - issue_class: security_issue
+    resolved_route: private_security_channel
+    resolved_forum: security_trust_review
+    resolved_privacy: private_with_public_advisory
+    resolved_disclosure: public_on_advisory
+    resolved_summary: required
