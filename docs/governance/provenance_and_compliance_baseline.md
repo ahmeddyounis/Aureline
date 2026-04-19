@@ -25,6 +25,11 @@ Companion artifacts:
   CI command that the provenance lane will replace incrementally.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — private-security route for vulnerability reports.
+- [`/docs/product/boundary_manifest_strawman.md`](../product/boundary_manifest_strawman.md)
+  — boundary manifest that every release-evidence claim manifest
+  cites. Release-grade SBOMs, attestations, and claim manifests
+  compose over the boundary rows; the claim manifest never
+  re-derives the boundary and never contradicts it.
 
 ## Goals
 

@@ -69,3 +69,14 @@ across layers because it is explicitly disposable.
 
 The seeded crates do not yet declare internal dependencies; they will be added
 incrementally and validated against the rules in `dependency_rules.md`.
+
+## Product boundary
+
+Every crate above is on the local-core side of the open-source core versus
+managed / service-plane boundary. The boundary is drawn explicitly in
+[`/docs/product/boundary_manifest_strawman.md`](../product/boundary_manifest_strawman.md)
+and conforms to
+[`/schemas/product/boundary_manifest.schema.json`](../../schemas/product/boundary_manifest.schema.json).
+When a new crate, service, or managed dependency is added, it must map to an
+existing boundary-manifest row or land a new row in the same change;
+introducing a capability without a boundary row is a governance error.

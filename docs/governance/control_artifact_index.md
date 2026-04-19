@@ -126,6 +126,16 @@ governance-packet template. The index only names, routes, and scopes.
   it is linked from docs intended for downstream consumers and is
   governed by the `docs_public_truth` lane.
 
+### Product
+
+- The `boundary_manifest_strawman` row is the canonical home for the
+  open-source core versus managed / commercial / service-plane
+  boundary. The strawman narrative lives under `docs/product/` and
+  conforms to `schemas/product/boundary_manifest.schema.json`. Every
+  new product capability or managed service must either map to an
+  existing row or land a new row in the same change; adding a
+  managed service without a row is a governance error.
+
 ## What this index is not
 
 - It is **not** the detailed governance workflow. That lives in

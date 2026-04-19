@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/product/boundary_manifest.schema.json",
+  "title": "Product boundary manifest",
+  "description": "Classifies every product capability against the open-source core versus managed / commercial / service-plane boundary. Pairs with docs/product/boundary_manifest_strawman.md (narrative strawman) and, when the machine register lands, with artifacts/product/boundary_manifest.yaml (authoritative for tooling). The manifest does NOT encode pricing or product packaging; it only records the technical and product boundary and the residual-dependency surface each capability exposes when optional services are absent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "deployment_profiles",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version of this document. Increment on breaking field changes."
+    },
+    "deployment_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Enumerated deployment profile ids. Every capability row's deployment_profiles entries MUST resolve to an id here. Profiles record the operational stance (who runs the control plane, whether sign-in is present, whether the environment has public internet) without prejudging pricing.",
+      "items": { "$ref": "#/$defs/deployment_profile" }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Capability rows. One row per product capability in scope at the current milestone. Every row is explicitly classified against the open-source core boundary and records the residual dependencies, data boundary, portability story, and absence-narrowing posture for that capability.",
+      "items": { "$ref": "#/$defs/capability_row" }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "deployment_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary", "sign_in_expected", "public_internet_expected"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Stable profile id. Referenced from capability rows' deployment_profiles arrays."
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "sign_in_expected": {
+          "type": "boolean",
+          "description": "Whether this profile normally carries an authenticated identity session. The local-core continuity rule applies independently: capabilities classified local_core MUST remain usable when this is false."
+        },
+        "public_internet_expected": {
+          "type": "boolean",
+          "description": "Whether this profile normally has public internet egress. Air-gapped profiles set this to false."
+        },
+        "control_plane_operator": {
+          "type": "string",
+          "description": "Who runs the control plane for this profile: self, vendor, customer, or none. Free text so new operator models do not require a schema bump."
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "capability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "classification",
+        "description",
+        "deployment_profiles",
+        "local_core_continuity",
+        "residual_dependencies",
+        "data_boundary",
+        "portability",
+        "absence_narrows_to",
+        "linked_decisions",
+        "linked_lanes",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Stable capability id. Do not reuse when a capability is superseded; mint a new id and point superseded_by at it."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "classification": {
+          "type": "string",
+          "enum": [
+            "local_core",
+            "self_host_friendly",
+            "managed_convenience",
+            "out_of_scope"
+          ],
+          "description": "Where the capability sits on the boundary. local_core: must work with no network, no sign-in, no hosted service. self_host_friendly: optional service whose protocol and reference implementation are designed for customer or third-party operation. managed_convenience: hosted-only value-add layered on top of a self-hostable protocol; the underlying workflow remains reachable via the self-hostable path. out_of_scope: explicitly not in the open-core or managed roadmap. No silent blanks."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-paragraph statement of what the capability is, scoped narrowly enough that its boundary classification is unambiguous."
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Deployment profile ids in which this capability is expected to be available. Every id MUST resolve to a deployment_profiles[].id above. A row reserves the deployment-profile surface even when it has no hosted instance yet.",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+        },
+        "local_core_continuity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Explicit statement of what still works locally when every optional service this row touches is absent. For local_core rows this restates the invariant. For other rows it names the fallback path (for example: 'editor continues with no marketplace; previously installed extensions keep loading from the local cache'). No silent blanks: managed_convenience rows MUST state the local-core behaviour that persists when the managed form is unavailable."
+        },
+        "residual_dependencies": {
+          "type": "array",
+          "description": "External systems, services, or credentials the capability still depends on in its normal form. Each entry is a placeholder slot the first implementation will fill; the slot is reserved here so later claim packets do not invent new fields.",
+          "items": { "$ref": "#/$defs/residual_dependency" }
+        },
+        "data_boundary": { "$ref": "#/$defs/data_boundary" },
+        "portability": { "$ref": "#/$defs/portability" },
+        "absence_narrows_to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The narrowed claim the capability carries when sign-in is absent or the hosted control plane is unreachable. This field exists so absence narrows a claim rather than reclassifying the capability: for example, a collaboration session narrows to 'local edits continue; presence is unavailable' without becoming out-of-scope."
+        },
+        "linked_decisions": {
+          "type": "array",
+          "description": "Decision ids from artifacts/governance/decision_index.yaml that gate or constrain this capability's boundary. Empty while no decision is on the register.",
+          "items": { "type": "string", "pattern": "^D-[0-9]{4}$" }
+        },
+        "linked_lanes": {
+          "type": "array",
+          "description": "Lane ids from artifacts/governance/ownership_matrix.yaml#scorecard_lane_index that own this capability's implementation. The manifest does not mint new lanes; it only points at existing ones.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_anchors": {
+          "type": "array",
+          "description": "Pointers into source documents that motivate the classification. Used so the row can be traced back without restating the spec.",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "accepted",
+            "deferred",
+            "superseded"
+          ],
+          "description": "Strawman lifecycle. Rows are proposed when first drafted; accepted when a decision or ADR ratifies the classification; deferred when the row cannot be closed at the target milestone; superseded when a later row replaces it."
+        },
+        "superseded_by": {
+          "type": "array",
+          "description": "Capability ids that supersede this row. Non-empty only when status is superseded.",
+          "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "superseded_by MUST be non-empty when status is superseded.",
+          "if": {
+            "properties": { "status": { "const": "superseded" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "superseded_by": { "type": "array", "minItems": 1 } },
+            "required": ["superseded_by"]
+          }
+        },
+        {
+          "description": "out_of_scope rows MUST NOT claim hosted or managed deployment profiles beyond the baseline individual_local profile, which is reserved so the row still resolves against the enumerated set.",
+          "if": {
+            "properties": { "classification": { "const": "out_of_scope" } },
+            "required": ["classification"]
+          },
+          "then": {
+            "properties": {
+              "linked_decisions": { "type": "array" }
+            }
+          }
+        }
+      ]
+    },
+    "residual_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "identity_provider",
+            "policy_service",
+            "relay",
+            "control_plane",
+            "model_gateway",
+            "registry",
+            "mirror",
+            "telemetry_sink",
+            "credential_store",
+            "network_egress",
+            "other"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short description of the residual dependency. Implementation slots are reserved here even if the first implementation fills them later."
+        },
+        "self_hostable": {
+          "type": "boolean",
+          "description": "Whether the dependency has (or is planned to have) a self-hostable reference implementation or protocol."
+        },
+        "absence_impact": {
+          "type": "string",
+          "description": "What the user experiences when this dependency is unavailable. Pairs with the row's absence_narrows_to field."
+        }
+      }
+    },
+    "data_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_store", "crosses_device_boundary"],
+      "properties": {
+        "primary_store": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the capability's primary state lives: local disk, workspace repo, customer control plane, vendor control plane, none, or a named combination."
+        },
+        "crosses_device_boundary": {
+          "type": "boolean",
+          "description": "Whether normal use sends user data off the device it was authored on."
+        },
+        "residency_controls": {
+          "type": "string",
+          "description": "Region / residency controls available to the operator (for example, region pinning, customer-managed keys, or BYO storage)."
+        },
+        "export_safe": {
+          "type": "boolean",
+          "description": "Whether the capability's state can be exported in an inspectable, redaction-aware form."
+        }
+      }
+    },
+    "portability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_format", "offboarding"],
+      "properties": {
+        "export_format": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Format the user can export their state in. File-based and text-based formats are strongly preferred so state remains inspectable without the product."
+        },
+        "offboarding": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What offboarding looks like: how a user or organization leaves the capability without data loss. For managed_convenience rows this MUST describe the path back to the self-hostable or local form."
+        },
+        "migration_story": {
+          "type": "string",
+          "description": "How a user moves between deployment profiles (for example, from managed_cloud to self_hosted). Optional; populated when the capability actively supports migration."
+        }
+      }
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc", "anchor"],
+      "properties": {
+        "doc": { "type": "string", "minLength": 1 },
+        "anchor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Line number, heading slug, or other stable anchor inside the referenced document."
+        },
+        "quote": { "type": "string" }
+      }
+    }
+  }
+}

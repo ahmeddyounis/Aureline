@@ -45,6 +45,17 @@ code.
 - [`build/reproducible_build_baseline.md`](./build/reproducible_build_baseline.md)
   — pinned toolchain, bootstrap command, and build-identity record.
 
+## Product boundary
+
+- [`product/boundary_manifest_strawman.md`](./product/boundary_manifest_strawman.md)
+  — strawman that classifies every product capability against the
+  open-source core versus managed / commercial / service-plane
+  boundary. Reserves deployment-profile, residual-dependency,
+  data-boundary, portability, and local-core-continuity slots per
+  row so later claim packets do not retrofit them inconsistently.
+  Conforms to
+  [`/schemas/product/boundary_manifest.schema.json`](../schemas/product/boundary_manifest.schema.json).
+
 ## Machine-readable registers
 
 These live outside `docs/` because tooling reads them; the narrative
@@ -72,3 +83,5 @@ above is paired with a YAML form that is authoritative for automation:
   shiproom, and waiver-register packet families.
 - [`/schemas/governance/`](../schemas/governance/) — schemas the YAML
   registers conform to.
+- [`/schemas/product/boundary_manifest.schema.json`](../schemas/product/boundary_manifest.schema.json)
+  — contract for the product boundary manifest strawman.
