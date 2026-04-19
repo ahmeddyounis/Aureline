@@ -1,0 +1,509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/waiver_expiry.schema.json",
+  "title": "Aureline waiver-expiry and remembered-decision vocabulary",
+  "description": "Boundary schema for the waiver_expiry_record, the remembered_decision_record, and the decision_replay_audit_event_record frozen in docs/governance/record_state_and_policy_simulation_models.md. Every waiver (backup-owner absent, freeze exception, policy narrowing, retention exception, export suppression, delete suppression, disclosure opt-out) and every remembered decision (user or admin 'do not ask again' / 'always allow' / 'always deny' / 'defer until X' answer) carries a typed expiry chronology, a typed renewal policy, and an explicit reprompt / escalation path. Raw justifications, raw reviewer identity bytes, raw subject bodies, and raw decision prompt text never cross the RPC boundary; this schema carries ids and typed vocabulary only. Every record shares the chronology_packet contract defined in schemas/governance/record_state.schema.json so absolute time, civil time, monotonic duration, and skew are disclosed consistently across the record-state, transition-event, simulation, and waiver / remembered-decision surfaces. Adding a new waiver class, expiry kind, renewal policy, escalation path, decision posture, applicable-scope value, reprompt behavior, or audit-event id is additive-minor and requires a waiver_expiry_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/waiver_expiry_record" },
+    { "$ref": "#/$defs/remembered_decision_record" },
+    { "$ref": "#/$defs/decision_replay_audit_event_record" }
+  ],
+  "$defs": {
+    "waiver_expiry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this waiver-expiry vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "waiver_expiry_record",
+        "remembered_decision_record",
+        "decision_replay_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets."
+    },
+
+    "chronology_packet": {
+      "$ref": "https://aureline.dev/schemas/governance/record_state.schema.json#/$defs/chronology_packet",
+      "description": "Chronology packet shared with record_state.schema.json. All waiver and remembered-decision chronology fields (declared, expires, renewed, superseded) use this contract so absolute time, civil time, monotonic duration, skew, ordering, and representation rules stay consistent across the governance surfaces."
+    },
+
+    "subject_ref": {
+      "$ref": "https://aureline.dev/schemas/governance/record_state.schema.json#/$defs/subject_ref",
+      "description": "Typed subject reference shared with record_state.schema.json. A waiver or remembered decision whose subject cannot be typed denies with subject_kind_unresolved rather than defaulting."
+    },
+
+    "policy_context": {
+      "$ref": "https://aureline.dev/schemas/governance/record_state.schema.json#/$defs/policy_context"
+    },
+
+    "redaction_class": {
+      "$ref": "https://aureline.dev/schemas/governance/record_state.schema.json#/$defs/redaction_class"
+    },
+
+    "waiver_kind": {
+      "type": "string",
+      "enum": [
+        "backup_owner_absent",
+        "policy_narrowing",
+        "freeze_exception",
+        "retention_exception",
+        "export_suppression",
+        "delete_suppression",
+        "disclosure_opt_out",
+        "admin_reconfirmation_defer",
+        "remembered_decision_binding",
+        "capability_lifecycle_override",
+        "single_maintainer_backup"
+      ],
+      "description": "Frozen waiver-kind vocabulary. backup_owner_absent = a protected lane is running without a named backup owner. policy_narrowing = a decision was narrowed past its freeze deadline and the waiver records that narrowing. freeze_exception = a freeze-window exception was granted. retention_exception = a record is retained past its policy ceiling under an exception. export_suppression / delete_suppression = an export or delete is suppressed under an exception. disclosure_opt_out = a user or admin opted out of a disclosure prompt. admin_reconfirmation_defer = an admin-reconfirmation requirement is deferred to a later moment. remembered_decision_binding = the waiver binds a remembered decision to its expiry envelope. capability_lifecycle_override = an override on a capability_lifecycle row. single_maintainer_backup = the solo-maintainer posture standing waiver. A waiver whose kind cannot be typed denies with waiver_kind_unresolved rather than defaulting."
+    },
+
+    "expiry_kind": {
+      "type": "string",
+      "enum": [
+        "absolute_calendar",
+        "relative_duration",
+        "policy_epoch_bound",
+        "version_bound",
+        "event_bound",
+        "never_expires"
+      ],
+      "description": "Frozen expiry-kind vocabulary. absolute_calendar = a specific chronology. relative_duration = N units from declared_chronology (duration_ms required). policy_epoch_bound = expires when the policy epoch bumps (policy_epoch_ref required). version_bound = expires when a named surface version bumps past a floor (version_ref required). event_bound = expires on a named event (event_binding required). never_expires = no expiry (rare; reserved for standing system waivers)."
+    },
+
+    "relative_duration_clock_source": {
+      "type": "string",
+      "enum": [
+        "wall_clock_since_declared",
+        "monotonic_since_declared",
+        "policy_epoch_age",
+        "session_age"
+      ],
+      "description": "Frozen relative-duration clock-source vocabulary. wall_clock_since_declared = measured against civil time; affected by clock adjustment. monotonic_since_declared = measured against a monotonic clock; clock adjustments do not reset the expiry. policy_epoch_age = measured against the age of the policy_epoch in effect at declaration. session_age = measured against the session / workspace open lifetime."
+    },
+
+    "event_binding": {
+      "type": "string",
+      "enum": [
+        "next_workspace_close",
+        "next_session_close",
+        "next_policy_change",
+        "next_extension_update",
+        "next_subject_state_transition",
+        "next_admin_reconfirmation",
+        "next_retention_sweep",
+        "next_release_channel_bump"
+      ],
+      "description": "Frozen event-binding vocabulary used when expiry_kind = event_bound."
+    },
+
+    "renewal_policy": {
+      "type": "string",
+      "enum": [
+        "require_reprompt",
+        "require_admin_reconfirmation",
+        "require_original_author_reconfirmation",
+        "auto_extend_if_subject_unchanged",
+        "auto_extend_if_policy_epoch_unchanged",
+        "no_renewal_allowed"
+      ],
+      "description": "Frozen renewal-policy vocabulary. Surfaces MUST render the renewal_policy verbatim; a generic 'expired' label without naming the renewal path is non-conforming."
+    },
+
+    "escalation_path": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_admin",
+        "escalate_to_security_lane",
+        "escalate_to_support",
+        "escalate_to_user",
+        "escalate_to_decision_forum",
+        "no_escalation_required"
+      ],
+      "description": "Frozen escalation-path vocabulary taken when renewal_policy requires reconfirmation."
+    },
+
+    "waiver_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "expired_silent",
+        "expired_with_reprompt",
+        "renewed",
+        "superseded",
+        "retired",
+        "force_retired_by_policy"
+      ],
+      "description": "Frozen waiver-status vocabulary. active = currently in force. expired_silent = expired and no reprompt was surfaced (only admissible for renewal_policy = auto_extend_*); otherwise expiry emits expired_with_reprompt. renewed = expiry fired and the waiver was renewed. superseded = a new waiver replaces it (superseded_by required). retired = the waiver was retired by its owner. force_retired_by_policy = policy forcibly retired the waiver (e.g. on an epoch bump). A waiver whose status cannot be resolved denies with waiver_status_unresolved."
+    },
+
+    "decision_posture": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "defer_until_next_ask",
+        "narrow",
+        "accept_risk",
+        "opt_out_of_reprompt",
+        "delegate_to_admin",
+        "delegate_to_dri"
+      ],
+      "description": "Frozen decision-posture vocabulary for remembered decisions. 'opt_out_of_reprompt' is only admissible when the decision_subject is classed as low-risk reprompt; high-risk decisions (destructive operations, policy overrides, export / delete suppressions) MUST NOT carry opt_out_of_reprompt."
+    },
+
+    "applicable_scope": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "root",
+        "workset",
+        "window",
+        "session",
+        "global",
+        "per_user",
+        "per_device",
+        "per_extension",
+        "per_connected_provider",
+        "per_review_workspace"
+      ],
+      "description": "Frozen applicable-scope vocabulary for remembered decisions. A remembered decision whose scope cannot be typed denies with applicable_scope_unresolved."
+    },
+
+    "reprompt_behavior_after_expiry": {
+      "type": "string",
+      "enum": [
+        "reprompt_user",
+        "reprompt_admin",
+        "auto_revert_default",
+        "hard_deny_with_explanation",
+        "replay_decision_with_disclosure"
+      ],
+      "description": "Frozen reprompt-behavior vocabulary when a remembered decision expires. hard_deny_with_explanation = after expiry the request fails closed with a typed explanation, not a silent deny. replay_decision_with_disclosure = the prior decision is re-offered as the default, but the disclosure must be re-shown."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "waiver_minted",
+        "waiver_expired_silent",
+        "waiver_expired_with_reprompt",
+        "waiver_renewed",
+        "waiver_superseded",
+        "waiver_retired",
+        "waiver_force_retired_by_policy",
+        "waiver_extended_by_policy_epoch",
+        "waiver_extended_by_version_bump",
+        "remembered_decision_minted",
+        "remembered_decision_expired_silent",
+        "remembered_decision_expired_with_reprompt",
+        "remembered_decision_renewed",
+        "remembered_decision_superseded",
+        "remembered_decision_force_retired",
+        "remembered_decision_reprompt_required",
+        "remembered_decision_escalated"
+      ],
+      "description": "Frozen audit-event ids on the waiver / remembered-decision audit stream."
+    },
+
+    "actor_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_name": { "type": "string" },
+        "stable_id": { "type": "string" },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin", "dri", "backup_owner", "support", "policy_engine", "system"]
+        }
+      },
+      "description": "Actor reference. Redaction-aware; never carries raw identifier bytes. Null for policy-engine / system triggers."
+    },
+
+    "waiver_expiry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "waiver_expiry_schema_version",
+        "waiver_id",
+        "waiver_kind",
+        "subject_ref",
+        "declared_chronology",
+        "expiry_kind",
+        "renewal_policy",
+        "escalation_path",
+        "status",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "waiver_expiry_record" },
+        "waiver_expiry_schema_version": { "$ref": "#/$defs/waiver_expiry_schema_version" },
+        "waiver_id": { "$ref": "#/$defs/opaque_id" },
+        "waiver_kind": { "$ref": "#/$defs/waiver_kind" },
+        "subject_ref": { "$ref": "#/$defs/subject_ref" },
+        "declared_by": { "$ref": "#/$defs/actor_ref" },
+        "declared_chronology": { "$ref": "#/$defs/chronology_packet" },
+        "expiry_kind": { "$ref": "#/$defs/expiry_kind" },
+        "absolute_expiry_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Required when expiry_kind = absolute_calendar. Null otherwise."
+        },
+        "relative_duration_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Duration in milliseconds. Required when expiry_kind = relative_duration. Null otherwise."
+        },
+        "relative_duration_clock_source": {
+          "$ref": "#/$defs/relative_duration_clock_source",
+          "description": "Required when expiry_kind = relative_duration. Null otherwise."
+        },
+        "policy_epoch_ref": {
+          "type": "string",
+          "description": "Required when expiry_kind = policy_epoch_bound. Null otherwise."
+        },
+        "version_ref": {
+          "type": "string",
+          "description": "Required when expiry_kind = version_bound. Null otherwise."
+        },
+        "event_binding": {
+          "$ref": "#/$defs/event_binding",
+          "description": "Required when expiry_kind = event_bound. Null otherwise."
+        },
+        "renewal_policy": { "$ref": "#/$defs/renewal_policy" },
+        "escalation_path": { "$ref": "#/$defs/escalation_path" },
+        "superseded_by": {
+          "type": "string",
+          "description": "Opaque id of the waiver that superseded this one. Required when status = superseded. Null otherwise."
+        },
+        "status": { "$ref": "#/$defs/waiver_status" },
+        "last_status_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology of the most recent status transition. Null for a just-minted waiver whose only status is 'active'."
+        },
+        "linked_governed_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Governed-record ids whose state is narrowed, extended, or suppressed by this waiver. A non-empty list enforces cross-reference with record_state.schema.json."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "expiry_kind = absolute_calendar requires absolute_expiry_chronology.",
+          "if": {
+            "properties": { "expiry_kind": { "const": "absolute_calendar" } },
+            "required": ["expiry_kind"]
+          },
+          "then": { "required": ["absolute_expiry_chronology"] }
+        },
+        {
+          "description": "expiry_kind = relative_duration requires relative_duration_ms and relative_duration_clock_source.",
+          "if": {
+            "properties": { "expiry_kind": { "const": "relative_duration" } },
+            "required": ["expiry_kind"]
+          },
+          "then": {
+            "required": ["relative_duration_ms", "relative_duration_clock_source"]
+          }
+        },
+        {
+          "description": "expiry_kind = policy_epoch_bound requires policy_epoch_ref.",
+          "if": {
+            "properties": { "expiry_kind": { "const": "policy_epoch_bound" } },
+            "required": ["expiry_kind"]
+          },
+          "then": { "required": ["policy_epoch_ref"] }
+        },
+        {
+          "description": "expiry_kind = version_bound requires version_ref.",
+          "if": {
+            "properties": { "expiry_kind": { "const": "version_bound" } },
+            "required": ["expiry_kind"]
+          },
+          "then": { "required": ["version_ref"] }
+        },
+        {
+          "description": "expiry_kind = event_bound requires event_binding.",
+          "if": {
+            "properties": { "expiry_kind": { "const": "event_bound" } },
+            "required": ["expiry_kind"]
+          },
+          "then": { "required": ["event_binding"] }
+        },
+        {
+          "description": "status = superseded requires superseded_by.",
+          "if": {
+            "properties": { "status": { "const": "superseded" } },
+            "required": ["status"]
+          },
+          "then": { "required": ["superseded_by"] }
+        },
+        {
+          "description": "expired_silent status is only admissible for renewal_policy in { auto_extend_if_subject_unchanged, auto_extend_if_policy_epoch_unchanged }. Other renewal policies MUST emit expired_with_reprompt on expiry.",
+          "if": {
+            "properties": { "status": { "const": "expired_silent" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "renewal_policy": {
+                "enum": [
+                  "auto_extend_if_subject_unchanged",
+                  "auto_extend_if_policy_epoch_unchanged"
+                ]
+              }
+            },
+            "required": ["renewal_policy"]
+          }
+        }
+      ]
+    },
+
+    "remembered_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "waiver_expiry_schema_version",
+        "remembered_decision_id",
+        "question_ref",
+        "decision_posture",
+        "applicable_scope",
+        "declared_chronology",
+        "reprompt_behavior_after_expiry",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "remembered_decision_record" },
+        "waiver_expiry_schema_version": { "$ref": "#/$defs/waiver_expiry_schema_version" },
+        "remembered_decision_id": { "$ref": "#/$defs/opaque_id" },
+        "question_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["question_kind", "question_id"],
+          "properties": {
+            "question_kind": {
+              "type": "string",
+              "enum": [
+                "destructive_confirm_prompt",
+                "capability_grant_prompt",
+                "export_confirmation_prompt",
+                "delete_confirmation_prompt",
+                "policy_override_prompt",
+                "ai_apply_confirmation_prompt",
+                "extension_effective_permission_prompt",
+                "connected_provider_grant_prompt",
+                "disclosure_prompt",
+                "retention_change_prompt",
+                "hold_release_prompt"
+              ]
+            },
+            "question_id": { "$ref": "#/$defs/opaque_id" }
+          },
+          "description": "Typed reference to the prompt / question the user answered. A remembered decision whose question cannot be typed denies with question_kind_unresolved. Raw prompt text never appears here."
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/subject_ref",
+          "description": "Subject the decision binds to (e.g. the filesystem object whose deletion was allowed). Null for cross-subject global postures."
+        },
+        "decision_posture": { "$ref": "#/$defs/decision_posture" },
+        "applicable_scope": { "$ref": "#/$defs/applicable_scope" },
+        "bound_to_actor_ref": {
+          "$ref": "#/$defs/actor_ref",
+          "description": "Actor the decision is bound to. Null for applicable_scope = global / per_device."
+        },
+        "declared_chronology": { "$ref": "#/$defs/chronology_packet" },
+        "expiry_ref": {
+          "type": "string",
+          "description": "Opaque id resolving to a waiver_expiry_record whose subject is this remembered decision. Remembered decisions without an expiry_ref are only admissible when decision_posture = opt_out_of_reprompt AND applicable_scope != global; otherwise an expiry_ref is required."
+        },
+        "reprompt_behavior_after_expiry": { "$ref": "#/$defs/reprompt_behavior_after_expiry" },
+        "last_replay_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology at which the remembered decision was last quoted against a live prompt. Surfaces the 'last used' line on admin explainability pages."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "decision_posture = opt_out_of_reprompt with applicable_scope = global MUST still name an expiry_ref; standing global opt-outs are forbidden.",
+          "if": {
+            "properties": {
+              "decision_posture": { "const": "opt_out_of_reprompt" },
+              "applicable_scope": { "const": "global" }
+            },
+            "required": ["decision_posture", "applicable_scope"]
+          },
+          "then": { "required": ["expiry_ref"] }
+        }
+      ]
+    },
+
+    "decision_replay_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "waiver_expiry_schema_version",
+        "audit_event_id",
+        "event_id",
+        "occurred_chronology",
+        "subject_id",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "decision_replay_audit_event_record" },
+        "waiver_expiry_schema_version": { "$ref": "#/$defs/waiver_expiry_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "occurred_chronology": { "$ref": "#/$defs/chronology_packet" },
+        "subject_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Id of the waiver or remembered_decision the event is about."
+        },
+        "subject_record_kind": {
+          "type": "string",
+          "enum": ["waiver_expiry_record", "remembered_decision_record"],
+          "description": "Which kind of subject the event addresses. Consumers use this to pick the right schema to validate the subject against."
+        },
+        "previous_value": {
+          "type": "string",
+          "description": "Previous value on the affected field (status, expiry_kind, decision_posture, applicable_scope, reprompt_behavior_after_expiry). Null for minted / retired events."
+        },
+        "next_value": {
+          "type": "string",
+          "description": "Next value on the affected field. Null for minted / retired events."
+        },
+        "actor_ref": { "$ref": "#/$defs/actor_ref" },
+        "observer_subject": {
+          "type": "string",
+          "description": "Stable subject reference for the observer that recorded the event (surface id, policy-engine id, reprompt dialog id). Never a raw token."
+        },
+        "linked_governed_record_ref": {
+          "type": "string",
+          "description": "Governed-record id whose state was gated by the waiver / remembered decision at the moment the event fired."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

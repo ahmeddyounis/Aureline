@@ -1,0 +1,894 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/record_state.schema.json",
+  "title": "Aureline governed-record state, chronology, and policy-simulation vocabulary",
+  "description": "Boundary schema for the governed_record_row_record, the governed_record_state_transition_event_record, the policy_simulation_record, and the chronology_packet frozen in docs/governance/record_state_and_policy_simulation_models.md. Every record that support, admin, policy, retention, export, evidence, or deletion flows reason about resolves to exactly one governed_record_row_record and emits governed_record_state_transition_event_record instances on the record_state audit stream when any axis changes. Raw record bodies, raw credential material, raw policy-bundle bytes, raw export payloads, and raw hold justifications never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual record-state crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new copy-state value, hold-state value, delete-request-state value, export-state value, trigger class, reason code, source-clock class, skew flag, ordering-relation value, export-representation rule, rendering-representation rule, simulation class, or projected-effect code is additive-minor and requires a record_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/governed_record_row_record" },
+    { "$ref": "#/$defs/governed_record_state_transition_event_record" },
+    { "$ref": "#/$defs/policy_simulation_record" }
+  ],
+  "$defs": {
+    "record_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this record-state vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "governed_record_row_record",
+        "governed_record_state_transition_event_record",
+        "policy_simulation_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets. Raw record bodies, raw credential material, raw export payloads, and raw hold justifications never appear here."
+    },
+
+    "utc_instant": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp terminated with 'Z'. The canonical absolute-time projection of the event. UTC export rules MUST emit this value verbatim; local-rendering rules project from it."
+    },
+
+    "offset_iso_string": {
+      "type": "string",
+      "pattern": "^[+-][0-9]{2}:[0-9]{2}$",
+      "description": "Signed UTC offset at the instant, as '+hh:mm' or '-hh:mm'. Recorded alongside a timezone_id so renderers do not re-derive offsets and silently mislabel events across DST boundaries."
+    },
+
+    "wall_clock_rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_iso_with_offset", "timezone_id", "offset_at_instant"],
+      "properties": {
+        "local_iso_with_offset": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 wall-clock timestamp with an explicit offset suffix (never 'Z'). Pairs with timezone_id so renderers can reproduce the civil-time label the actor saw."
+        },
+        "timezone_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IANA timezone id (e.g. 'America/Los_Angeles', 'Europe/Berlin', 'UTC'). Surfaces rendering civil-time labels MUST cite this id rather than re-deriving from offset alone."
+        },
+        "offset_at_instant": { "$ref": "#/$defs/offset_iso_string" }
+      },
+      "description": "Civil-time rendering packet. Paired with utc_instant so surfaces can prove absolute time and local time coexist without silently reinterpreting either."
+    },
+
+    "source_clock_class": {
+      "type": "string",
+      "enum": [
+        "local_wall_clock_synchronized",
+        "local_wall_clock_unsynchronized",
+        "remote_host_wall_clock",
+        "imported_external_wall_clock",
+        "monotonic_duration_only"
+      ],
+      "description": "Frozen source-clock vocabulary. local_wall_clock_synchronized = local NTP / system-managed clock believed in sync. local_wall_clock_unsynchronized = local clock that has drifted or is known to be free-running. remote_host_wall_clock = clock supplied by a remote session, companion surface, or remote agent. imported_external_wall_clock = clock stamp carried in an imported capture (replay, support bundle, provider handoff). monotonic_duration_only = no wall-clock instant is available; only a duration against a monotonic anchor is meaningful. A record whose clock class cannot be resolved denies with source_clock_class_unresolved rather than defaulting."
+    },
+
+    "monotonic_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clock_source_id", "elapsed_ns_since_anchor"],
+      "properties": {
+        "clock_source_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id of the monotonic clock source. Two samples share a clock_source_id iff they are strictly comparable."
+        },
+        "elapsed_ns_since_anchor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Nanoseconds elapsed since the anchor event recorded for this clock source. The schema never encodes a monotonic as a wall-clock timestamp; consumers compute durations by subtracting two samples that share a clock_source_id."
+        },
+        "anchor_ref": {
+          "type": "string",
+          "description": "Opaque id of the anchor event this sample is measured against. Null when the anchor is the producer boot."
+        }
+      },
+      "description": "Monotonic-clock sample. A chronology that includes a monotonic_sample can express strict ordering even when wall-clock timestamps disagree across machines."
+    },
+
+    "skew_flag": {
+      "type": "string",
+      "enum": [
+        "synchronized",
+        "skew_bounded",
+        "skew_unknown",
+        "imported_unsynchronized",
+        "partial_order_only",
+        "rejected_as_unreliable"
+      ],
+      "description": "Frozen skew-flag vocabulary. synchronized = the producing clock was in sync within tolerance. skew_bounded = skew is known within a bound (skew_bound_ms required). skew_unknown = skew status cannot be asserted. imported_unsynchronized = the event carries a wall-clock timestamp from an imported source whose clock discipline is not trusted. partial_order_only = only a happens-before relation is expressible; no absolute time is asserted. rejected_as_unreliable = the timestamp is retained for forensics but MUST NOT be used for ordering or UX."
+    },
+
+    "ordering_relation": {
+      "type": "string",
+      "enum": [
+        "strict_before_anchor",
+        "strict_after_anchor",
+        "concurrent_with_skew",
+        "total_order_from_canonical_uid",
+        "ambiguous_denied"
+      ],
+      "description": "Frozen ordering-relation vocabulary. strict_before_anchor / strict_after_anchor = the event is strictly ordered against an anchor (ordering_anchor_ref required). concurrent_with_skew = the event cannot be strictly ordered against other events within skew bounds; UI MUST render this as concurrency rather than silently sorting by wall-clock alone. total_order_from_canonical_uid = ordering is recovered from a canonical uid (e.g. monotonic sequence, lamport id) rather than a clock. ambiguous_denied = ordering cannot be resolved; the record fails closed and the surface MUST NOT render a position."
+    },
+
+    "export_representation_rule": {
+      "type": "string",
+      "enum": [
+        "utc_canonical_only",
+        "local_with_tz_only",
+        "both_utc_and_local",
+        "monotonic_duration_only"
+      ],
+      "description": "Frozen export-representation vocabulary. Support bundles, claim manifests, evidence packets, replay captures, and admin exports MUST follow this rule when serializing the chronology: utc_canonical_only = only utc_instant; local_with_tz_only = only wall_clock_rendering; both_utc_and_local = emit both; monotonic_duration_only = emit only the monotonic sample, with no wall-clock claim."
+    },
+
+    "rendering_representation": {
+      "type": "string",
+      "enum": [
+        "local_with_tz_shadow_utc",
+        "local_with_tz_only",
+        "utc_only",
+        "relative_with_absolute_shadow",
+        "monotonic_duration_only"
+      ],
+      "description": "Frozen rendering-representation vocabulary. local_with_tz_shadow_utc = default civil-time label with a UTC tooltip / secondary. local_with_tz_only = civil time only (admin-chose-tz surfaces). utc_only = admin / forensic surfaces that render UTC verbatim. relative_with_absolute_shadow = 'N minutes ago' primary with an absolute UTC or civil-time tooltip. monotonic_duration_only = 'N seconds since anchor' with no wall-clock claim."
+    },
+
+    "chronology_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_clock_class",
+        "skew_flag",
+        "ordering_relation",
+        "export_representation_rule",
+        "rendering_representation"
+      ],
+      "properties": {
+        "utc_instant": { "$ref": "#/$defs/utc_instant" },
+        "wall_clock_rendering": { "$ref": "#/$defs/wall_clock_rendering" },
+        "source_clock_class": { "$ref": "#/$defs/source_clock_class" },
+        "monotonic_sample": { "$ref": "#/$defs/monotonic_sample" },
+        "skew_flag": { "$ref": "#/$defs/skew_flag" },
+        "skew_bound_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bounded skew magnitude in milliseconds. Required when skew_flag = skew_bounded. Null otherwise."
+        },
+        "ordering_relation": { "$ref": "#/$defs/ordering_relation" },
+        "ordering_anchor_ref": {
+          "type": "string",
+          "description": "Opaque id of the anchor event for strict_before_anchor / strict_after_anchor. Null for concurrent_with_skew and total_order_from_canonical_uid."
+        },
+        "canonical_sequence_uid": {
+          "type": "string",
+          "description": "Canonical sequence uid when ordering_relation = total_order_from_canonical_uid. Null otherwise."
+        },
+        "export_representation_rule": { "$ref": "#/$defs/export_representation_rule" },
+        "rendering_representation": { "$ref": "#/$defs/rendering_representation" },
+        "relative_label": {
+          "type": "string",
+          "description": "Pre-computed relative label (e.g. 'just now', '2 hours ago'). Surfaces using rendering_representation = relative_with_absolute_shadow MAY quote this label verbatim; a surface that renders a relative label without an absolute shadow is non-conforming."
+        },
+        "partial_order_note": {
+          "type": "string",
+          "description": "Free-text note describing the partial-order constraint when ordering_relation = concurrent_with_skew or ambiguous_denied. Redaction-aware; never carries raw record bodies."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A chronology with source_clock_class = monotonic_duration_only MUST NOT carry a utc_instant or a wall_clock_rendering; it carries a monotonic_sample.",
+          "if": {
+            "properties": { "source_clock_class": { "const": "monotonic_duration_only" } },
+            "required": ["source_clock_class"]
+          },
+          "then": {
+            "required": ["monotonic_sample"],
+            "not": {
+              "anyOf": [
+                { "required": ["utc_instant"] },
+                { "required": ["wall_clock_rendering"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "A chronology whose source_clock_class is not monotonic_duration_only MUST carry a utc_instant (absolute-time anchor, even when the renderer does not display it).",
+          "if": {
+            "not": {
+              "properties": { "source_clock_class": { "const": "monotonic_duration_only" } },
+              "required": ["source_clock_class"]
+            }
+          },
+          "then": {
+            "required": ["utc_instant"]
+          }
+        },
+        {
+          "description": "skew_flag = skew_bounded requires skew_bound_ms.",
+          "if": {
+            "properties": { "skew_flag": { "const": "skew_bounded" } },
+            "required": ["skew_flag"]
+          },
+          "then": { "required": ["skew_bound_ms"] }
+        },
+        {
+          "description": "ordering_relation in { strict_before_anchor, strict_after_anchor } requires ordering_anchor_ref.",
+          "if": {
+            "properties": {
+              "ordering_relation": {
+                "enum": ["strict_before_anchor", "strict_after_anchor"]
+              }
+            },
+            "required": ["ordering_relation"]
+          },
+          "then": { "required": ["ordering_anchor_ref"] }
+        },
+        {
+          "description": "ordering_relation = total_order_from_canonical_uid requires canonical_sequence_uid.",
+          "if": {
+            "properties": { "ordering_relation": { "const": "total_order_from_canonical_uid" } },
+            "required": ["ordering_relation"]
+          },
+          "then": { "required": ["canonical_sequence_uid"] }
+        },
+        {
+          "description": "rendering_representation = relative_with_absolute_shadow requires either utc_instant or wall_clock_rendering to be present so the shadow exists.",
+          "if": {
+            "properties": { "rendering_representation": { "const": "relative_with_absolute_shadow" } },
+            "required": ["rendering_representation"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["utc_instant"] },
+              { "required": ["wall_clock_rendering"] }
+            ]
+          }
+        }
+      ],
+      "description": "Chronology packet every record-state row, transition event, and policy-simulation record embeds. Separates absolute time (utc_instant), civil-time rendering (wall_clock_rendering), monotonic duration (monotonic_sample), ordering (ordering_relation + anchors / canonical uid), skew disclosure (skew_flag + skew_bound_ms), and representation rules (export / rendering). A record whose chronology is ambiguous_denied MUST NOT render a position on any timeline surface."
+    },
+
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_object",
+        "workspace_manifest",
+        "settings_scope",
+        "secret_handle",
+        "extension_install",
+        "support_bundle",
+        "mutation_journal_group",
+        "evidence_packet",
+        "ai_context_assembly",
+        "session_capture",
+        "telemetry_bundle",
+        "remembered_decision",
+        "waiver",
+        "generated_artifact",
+        "review_workspace",
+        "connected_provider_record"
+      ],
+      "description": "Frozen subject-kind vocabulary for governed records. A record whose subject cannot be typed denies with subject_kind_unresolved rather than defaulting."
+    },
+
+    "subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed reference to the governed subject. Raw subject bodies never appear here."
+    },
+
+    "copy_state": {
+      "type": "string",
+      "enum": [
+        "absent",
+        "local_only",
+        "managed_copy_synced",
+        "managed_copy_pending",
+        "managed_copy_stale",
+        "managed_copy_only",
+        "copy_state_unresolved"
+      ],
+      "description": "Frozen copy-state axis. local_only = a single local authoritative copy exists, nothing is mirrored to a managed store. managed_copy_synced = a managed store holds a copy that matches the current record content. managed_copy_pending = a managed copy is mid-upload / mid-sync. managed_copy_stale = a managed copy exists but does not match the current record. managed_copy_only = the only copy lives in the managed store (local copy was never produced or was retired). absent = the record no longer has any copy under governance (typical after delete_complete). copy_state_unresolved = the axis cannot be resolved and MUST render as 'unresolved' rather than collapse to absent or local_only."
+    },
+
+    "hold_state": {
+      "type": "string",
+      "enum": [
+        "not_held",
+        "held_administrative_legal",
+        "held_user_pending_review",
+        "held_policy_freeze_window",
+        "held_support_investigation",
+        "held_system_integrity",
+        "held_retention_minimum",
+        "held_export_pending",
+        "hold_state_unresolved"
+      ],
+      "description": "Frozen hold-state axis. not_held = no hold prevents lifecycle progress. held_administrative_legal = an admin or legal authority placed a hold that blocks deletion and export suppression. held_user_pending_review = a user action placed the record on hold for review before further mutation. held_policy_freeze_window = an in-effect freeze window prevents state change. held_support_investigation = support placed the record on hold for an investigation bundle. held_system_integrity = the system placed a hold because an integrity check is outstanding. held_retention_minimum = the record has not yet reached its retention floor and may not be deleted. held_export_pending = an export against this record is in flight and deletion is paused until the export completes or is revoked. hold_state_unresolved = the axis cannot be resolved and MUST render as 'unresolved'."
+    },
+
+    "delete_request_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "requested_user",
+        "requested_policy",
+        "requested_retention_expiry",
+        "requested_admin",
+        "pending_propagation",
+        "blocked_by_hold",
+        "blocked_by_export_pending",
+        "refused_by_policy",
+        "completed_in_place",
+        "completed_with_tombstone",
+        "delete_request_state_unresolved"
+      ],
+      "description": "Frozen delete-request-state axis. none = no deletion has been asked for. requested_* = a deletion was requested (with its originator class). pending_propagation = the local side of deletion completed; propagation to managed copies / derived indexes is outstanding. blocked_by_hold / blocked_by_export_pending = deletion is intercepted by an active hold or export. refused_by_policy = policy denied the delete and the request is closed without completion. completed_in_place = the record bytes were deleted and no tombstone is retained. completed_with_tombstone = a minimal tombstone (metadata only) survives so audit and admin surfaces can cite the prior existence. delete_request_state_unresolved = axis cannot be resolved and MUST render as 'unresolved'."
+    },
+
+    "export_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "requested",
+        "building",
+        "available",
+        "expired",
+        "revoked",
+        "failed",
+        "export_state_unresolved"
+      ],
+      "description": "Frozen export-state axis. Mirrors the admin / user-visible export pipeline. A surface rendering 'download' or 'export available' MUST read this axis; a stale or unresolved value MUST NOT collapse to 'available'."
+    },
+
+    "primary_state_label": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "held",
+        "delete_requested",
+        "delete_complete",
+        "export_available"
+      ],
+      "description": "Frozen primary-state label vocabulary. This is the rendered chip a summary surface (admin list, support card, deletion / export UX) projects when space for a single label is tight. The label MUST be derived from the four axes (copy_state, hold_state, delete_request_state, export_state) using the projection rules in docs/governance/record_state_and_policy_simulation_models.md. A surface that renders one of these six labels MUST also carry the four axis values on a details panel; collapsing to the label alone is non-conforming."
+    },
+
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "user_action",
+        "admin_action",
+        "policy_engine",
+        "retention_expiry",
+        "export_pipeline",
+        "legal_hold_change",
+        "migration",
+        "import",
+        "system_cleanup",
+        "integrity_check",
+        "policy_simulation_apply",
+        "remembered_decision_expiry",
+        "waiver_expiry",
+        "external_reload"
+      ],
+      "description": "Frozen trigger-class vocabulary for transition events. Names who or what moved the record along an axis."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "user_initiated_delete",
+        "admin_force_delete",
+        "policy_scheduled_delete",
+        "retention_floor_reached",
+        "retention_ceiling_reached",
+        "hold_applied_legal",
+        "hold_applied_support",
+        "hold_applied_integrity",
+        "hold_released_by_admin",
+        "hold_released_by_retention",
+        "hold_released_by_export_completion",
+        "export_requested_user",
+        "export_requested_admin",
+        "export_build_started",
+        "export_build_completed",
+        "export_window_expired",
+        "export_revoked_by_admin",
+        "export_revoked_by_policy",
+        "managed_copy_sync_started",
+        "managed_copy_sync_completed",
+        "managed_copy_drift_detected",
+        "delete_blocked_hold_active",
+        "delete_blocked_export_in_flight",
+        "delete_refused_policy_forbids",
+        "delete_completed_bytes_removed",
+        "delete_completed_tombstone_retained",
+        "state_imported_from_replay",
+        "state_imported_from_support_bundle",
+        "state_imported_from_migration",
+        "remembered_decision_expired_reprompt_required",
+        "waiver_expired_reprompt_required",
+        "policy_simulation_projected_change"
+      ],
+      "description": "Frozen reason-code vocabulary for transition events and simulation projections. Every transition names exactly one reason_code; a surface that cannot resolve a reason_code denies with reason_code_unresolved rather than defaulting to 'unknown'."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch in effect at the moment the record, transition, or simulation was recorded. Re-validated on every render and on every replay."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "Workspace-trust state at the moment of record. Null when trust is not applicable (e.g. system-level records)."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "description": "Execution-context id if the record was produced inside a live execution."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class. Mirrors the vocabulary used by capability-lifecycle and evidence-packet schemas; the broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "governed_record_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_state_schema_version",
+        "governed_record_id",
+        "subject_ref",
+        "copy_state",
+        "hold_state",
+        "delete_request_state",
+        "export_state",
+        "primary_state_label",
+        "declared_chronology",
+        "last_state_change_chronology",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "governed_record_row_record" },
+        "record_state_schema_version": { "$ref": "#/$defs/record_state_schema_version" },
+        "governed_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_ref": { "$ref": "#/$defs/subject_ref" },
+        "copy_state": { "$ref": "#/$defs/copy_state" },
+        "hold_state": { "$ref": "#/$defs/hold_state" },
+        "delete_request_state": { "$ref": "#/$defs/delete_request_state" },
+        "export_state": { "$ref": "#/$defs/export_state" },
+        "primary_state_label": { "$ref": "#/$defs/primary_state_label" },
+        "active_hold_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ids of the active hold records attached to this row. Empty when hold_state = not_held. A hold_state != not_held with an empty active_hold_refs is non-conforming."
+        },
+        "active_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ids of exports currently in flight or available for this record. Empty when export_state = none."
+        },
+        "retention_policy_ref": {
+          "type": "string",
+          "description": "Opaque id of the retention policy currently bound to this record. Null when no retention policy applies (e.g. local_only records that retention has not yet enrolled)."
+        },
+        "retention_floor_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Earliest chronology at which the record becomes eligible for deletion under its retention policy. Null when no retention floor applies."
+        },
+        "retention_ceiling_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology at which the record becomes subject to policy-scheduled deletion under its retention policy. Null when no retention ceiling applies."
+        },
+        "export_window_close_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology at which the current available export window closes. Null unless export_state = available."
+        },
+        "declared_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology at which this row was first minted for the subject."
+        },
+        "last_state_change_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology of the most recent transition on any axis."
+        },
+        "active_waiver_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Active waiver ids (from schemas/governance/waiver_expiry.schema.json) that currently narrow or defer the state of this record."
+        },
+        "active_remembered_decision_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Active remembered-decision ids that currently gate reprompts for this subject."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "primary_state_label = delete_complete requires delete_request_state in { completed_in_place, completed_with_tombstone }.",
+          "if": {
+            "properties": { "primary_state_label": { "const": "delete_complete" } },
+            "required": ["primary_state_label"]
+          },
+          "then": {
+            "properties": {
+              "delete_request_state": {
+                "enum": ["completed_in_place", "completed_with_tombstone"]
+              }
+            },
+            "required": ["delete_request_state"]
+          }
+        },
+        {
+          "description": "primary_state_label = delete_requested requires delete_request_state to name an outstanding request; a completed delete MUST NOT carry label = delete_requested.",
+          "if": {
+            "properties": { "primary_state_label": { "const": "delete_requested" } },
+            "required": ["primary_state_label"]
+          },
+          "then": {
+            "properties": {
+              "delete_request_state": {
+                "enum": [
+                  "requested_user",
+                  "requested_policy",
+                  "requested_retention_expiry",
+                  "requested_admin",
+                  "pending_propagation",
+                  "blocked_by_hold",
+                  "blocked_by_export_pending"
+                ]
+              }
+            },
+            "required": ["delete_request_state"]
+          }
+        },
+        {
+          "description": "primary_state_label = held requires hold_state != not_held and at least one active_hold_refs entry.",
+          "if": {
+            "properties": { "primary_state_label": { "const": "held" } },
+            "required": ["primary_state_label"]
+          },
+          "then": {
+            "properties": {
+              "hold_state": {
+                "not": { "const": "not_held" }
+              },
+              "active_hold_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["hold_state", "active_hold_refs"]
+          }
+        },
+        {
+          "description": "primary_state_label = export_available requires export_state = available and a non-empty active_export_refs list.",
+          "if": {
+            "properties": { "primary_state_label": { "const": "export_available" } },
+            "required": ["primary_state_label"]
+          },
+          "then": {
+            "properties": {
+              "export_state": { "const": "available" },
+              "active_export_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["export_state", "active_export_refs"]
+          }
+        }
+      ],
+      "description": "Governed-record row. Every record that support, admin, policy, retention, export, evidence, or deletion flows reason about resolves to exactly one instance. The four axis values (copy_state, hold_state, delete_request_state, export_state) are the truth; primary_state_label is the rendered chip projected from the axes."
+    },
+
+    "governed_record_state_transition_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_state_schema_version",
+        "transition_id",
+        "governed_record_id",
+        "axis",
+        "from_value",
+        "to_value",
+        "trigger_class",
+        "reason_code",
+        "chronology",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "governed_record_state_transition_event_record" },
+        "record_state_schema_version": { "$ref": "#/$defs/record_state_schema_version" },
+        "transition_id": { "$ref": "#/$defs/opaque_id" },
+        "governed_record_id": { "$ref": "#/$defs/opaque_id" },
+        "axis": {
+          "type": "string",
+          "enum": [
+            "copy_state",
+            "hold_state",
+            "delete_request_state",
+            "export_state",
+            "primary_state_label",
+            "retention_policy_binding",
+            "export_window_close",
+            "remembered_decision_binding",
+            "waiver_binding"
+          ],
+          "description": "Which axis the event moved. primary_state_label transitions are a derived event emitted when the projected label changes even if no axis value changed (e.g. hold_state flipped across held_* variants)."
+        },
+        "from_value": {
+          "type": "string",
+          "description": "Previous value on the affected axis. Empty string when the row was just minted."
+        },
+        "to_value": {
+          "type": "string",
+          "description": "Next value on the affected axis."
+        },
+        "trigger_class": { "$ref": "#/$defs/trigger_class" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "actor_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "display_name": { "type": "string" },
+            "stable_id": { "type": "string" },
+            "role": { "type": "string" }
+          },
+          "description": "Actor who performed the transition. Redaction-aware; never carries raw identifier bytes. Null for trigger_class = policy_engine / retention_expiry / system_cleanup / integrity_check."
+        },
+        "chronology": { "$ref": "#/$defs/chronology_packet" },
+        "linked_policy_simulation_ref": {
+          "type": "string",
+          "description": "Id of the policy_simulation_record whose projection this transition matches, when trigger_class = policy_simulation_apply. Null otherwise."
+        },
+        "linked_waiver_ref": {
+          "type": "string",
+          "description": "Id of a waiver whose expiry / renewal drove this transition, when trigger_class = waiver_expiry. Null otherwise."
+        },
+        "linked_remembered_decision_ref": {
+          "type": "string",
+          "description": "Id of a remembered decision whose expiry / renewal drove this transition, when trigger_class = remembered_decision_expiry. Null otherwise."
+        },
+        "observer_subject": {
+          "type": "string",
+          "description": "Stable subject reference of the observer that recorded the event (surface id, retention daemon id, export pipeline id). Never a raw token."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Transition event emitted on the record_state audit stream whenever any axis of a governed_record_row_record changes. The event names the axis, the before / after values, the trigger class, the reason code, and the chronology under which it happened. Every transition that matters to admin explainability (delete request vs complete, hold applied vs released, export available vs expired) MUST emit one event."
+    },
+
+    "simulation_class": {
+      "type": "string",
+      "enum": [
+        "deletion_simulation",
+        "retention_change_simulation",
+        "export_eligibility_simulation",
+        "hold_release_simulation",
+        "policy_upgrade_simulation",
+        "waiver_expiry_simulation",
+        "remembered_decision_expiry_simulation",
+        "compound_simulation"
+      ],
+      "description": "Frozen simulation-class vocabulary. deletion_simulation = 'what would happen if I applied this deletion policy.' retention_change_simulation = 'what would happen if I changed retention durations.' export_eligibility_simulation = 'which records would become export_available / expired under this policy.' hold_release_simulation = 'which holds would release and which would still block.' policy_upgrade_simulation = 'what changes when the policy epoch bumps.' waiver_expiry_simulation / remembered_decision_expiry_simulation = 'who gets reprompted when these waivers / remembered decisions expire.' compound_simulation = multiple classes applied together."
+    },
+
+    "projected_effect_code": {
+      "type": "string",
+      "enum": [
+        "would_force_delete",
+        "would_move_to_managed_copy",
+        "would_release_hold",
+        "would_apply_hold",
+        "would_make_export_available",
+        "would_expire_export",
+        "would_revoke_export",
+        "would_extend_retention",
+        "would_shorten_retention",
+        "would_require_reprompt",
+        "would_retire_waiver",
+        "would_supersede_remembered_decision",
+        "would_be_blocked_by_hold",
+        "would_be_blocked_by_export_pending",
+        "would_be_refused_by_policy"
+      ],
+      "description": "Frozen projected-effect vocabulary for simulation outputs. Every projected transition cites exactly one projected_effect_code; a simulation row that cannot resolve its effect denies with projected_effect_unresolved rather than rendering a bland 'would change'."
+    },
+
+    "policy_simulation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_state_schema_version",
+        "simulation_id",
+        "simulation_class",
+        "proposed_policy_ref",
+        "scope_ref",
+        "simulated_chronology",
+        "projected_transitions",
+        "summary_effects",
+        "simulation_determinism",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_record" },
+        "record_state_schema_version": { "$ref": "#/$defs/record_state_schema_version" },
+        "simulation_id": { "$ref": "#/$defs/opaque_id" },
+        "simulation_class": { "$ref": "#/$defs/simulation_class" },
+        "proposed_policy_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque id of the proposed policy bundle being simulated. Raw bundle bytes never appear here."
+        },
+        "baseline_policy_ref": {
+          "type": "string",
+          "description": "Opaque id of the baseline policy bundle the proposed bundle is compared against. Null when the simulation is standalone (no baseline)."
+        },
+        "scope_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scope_kind", "scope_id"],
+          "properties": {
+            "scope_kind": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "root",
+                "workset",
+                "window",
+                "session",
+                "global",
+                "tenant",
+                "fleet"
+              ]
+            },
+            "scope_id": { "$ref": "#/$defs/opaque_id" }
+          },
+          "description": "Scope over which the simulation was run. Admin UX MUST render this value verbatim; a simulation with scope_kind = global is forbidden from rendering as a narrower scope."
+        },
+        "simulated_chronology": {
+          "$ref": "#/$defs/chronology_packet",
+          "description": "Chronology at which the simulation was evaluated. Replay consumers compare the simulation's policy_context.policy_epoch and simulated_chronology against the current epoch before quoting projected transitions."
+        },
+        "projected_transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "subject_ref",
+              "axis",
+              "projected_from",
+              "projected_to",
+              "projected_effect_code",
+              "projected_chronology"
+            ],
+            "properties": {
+              "subject_ref": { "$ref": "#/$defs/subject_ref" },
+              "axis": {
+                "type": "string",
+                "enum": [
+                  "copy_state",
+                  "hold_state",
+                  "delete_request_state",
+                  "export_state",
+                  "primary_state_label",
+                  "retention_policy_binding",
+                  "export_window_close",
+                  "remembered_decision_binding",
+                  "waiver_binding"
+                ]
+              },
+              "projected_from": { "type": "string" },
+              "projected_to": { "type": "string" },
+              "projected_effect_code": { "$ref": "#/$defs/projected_effect_code" },
+              "projected_chronology": { "$ref": "#/$defs/chronology_packet" },
+              "would_be_blocked_by": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/opaque_id" },
+                "description": "Ids of holds, exports, or policies that would intercept the projected transition. Non-empty iff projected_effect_code is one of the would_be_blocked_* codes."
+              },
+              "notes": {
+                "type": "string",
+                "description": "Short, redaction-aware summary. Never carries raw record bodies."
+              }
+            }
+          },
+          "description": "Every projected transition the simulation computed. Empty array is legal (the simulation found no record would change); the field itself is required so consumers can distinguish 'computed, nothing changes' from 'not computed'."
+        },
+        "summary_effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "would_force_delete_count",
+            "would_release_hold_count",
+            "would_apply_hold_count",
+            "would_make_export_available_count",
+            "would_expire_export_count",
+            "would_extend_retention_count",
+            "would_require_reprompt_count",
+            "would_be_blocked_count"
+          ],
+          "properties": {
+            "would_force_delete_count": { "type": "integer", "minimum": 0 },
+            "would_release_hold_count": { "type": "integer", "minimum": 0 },
+            "would_apply_hold_count": { "type": "integer", "minimum": 0 },
+            "would_make_export_available_count": { "type": "integer", "minimum": 0 },
+            "would_expire_export_count": { "type": "integer", "minimum": 0 },
+            "would_extend_retention_count": { "type": "integer", "minimum": 0 },
+            "would_require_reprompt_count": { "type": "integer", "minimum": 0 },
+            "would_be_blocked_count": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Summary counters over projected_transitions. Admin explainability surfaces render these verbatim; a simulation surface MUST NOT collapse different effects into a single 'affected' count."
+        },
+        "simulation_determinism": {
+          "type": "string",
+          "enum": [
+            "deterministic",
+            "approximate_sample",
+            "partial_observable",
+            "stale_inputs"
+          ],
+          "description": "Frozen determinism class for the simulation result. deterministic = exhaustive, reproducible. approximate_sample = computed against a sample (scale / cost reasons). partial_observable = some records were hidden by redaction or scope. stale_inputs = the underlying record state has drifted since the simulation ran; consumers MUST re-run or mark the result stale before quoting."
+        },
+        "remembered_decision_binding_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Remembered-decision ids a consumer should read before quoting the simulation (e.g. 'do not re-prompt' decisions that shape who is asked about the simulated change)."
+        },
+        "waiver_binding_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Waiver ids whose scope overlaps the simulation. A simulation that would cross an active waiver boundary MUST list it here."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Policy-simulation record. Admin explainability, deletion / export UX, and shiproom / release dashboards read this record when rendering 'what would happen if…' previews. Simulation results are never executed in-place; an apply uses trigger_class = policy_simulation_apply with linked_policy_simulation_ref on every resulting transition event so the admin trail links the simulation to the real-world change."
+    }
+  }
+}

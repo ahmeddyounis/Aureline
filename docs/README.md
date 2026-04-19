@@ -27,6 +27,20 @@ code.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
+- [`governance/record_state_and_policy_simulation_models.md`](./governance/record_state_and_policy_simulation_models.md)
+  — governed-record state model (local_only / managed_copy / held /
+  delete_requested / delete_complete / export_available), orthogonal
+  copy / hold / delete-request / export axes, chronology packet
+  (utc_instant, civil-time rendering, monotonic duration, skew /
+  partial-order flags, export and rendering representation rules),
+  policy-simulation vocabulary, and waiver / remembered-decision
+  expiry envelope. Boundary schemas in
+  [`/schemas/governance/record_state.schema.json`](../schemas/governance/record_state.schema.json)
+  and
+  [`/schemas/governance/waiver_expiry.schema.json`](../schemas/governance/waiver_expiry.schema.json);
+  worked fixtures (including the required mixed-chronology admin
+  timeline) in
+  [`/fixtures/governance/record_state_examples/`](../fixtures/governance/record_state_examples/).
 
 ## Decision records
 
