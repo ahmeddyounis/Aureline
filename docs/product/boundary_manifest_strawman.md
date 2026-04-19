@@ -389,10 +389,10 @@ documents under `.t2/docs/`; quotes are illustrative, not exhaustive.
   "local product fully usable under the last-known policy" without
   reclassifying identity as out-of-scope.**
 - **Linked decisions:** `D-0009` (identity modes and workspace-trust
-  posture).
+  posture), closed by `docs/adr/0001-identity-modes.md`.
 - **Linked lanes:** `aureline-vfs`, `aureline-rpc`,
   `release_evidence`.
-- **Status:** `proposed`.
+- **Status:** `accepted`.
 
 #### `collaboration_relay` — Presence and session relay
 
@@ -619,9 +619,9 @@ documents under `.t2/docs/`; quotes are illustrative, not exhaustive.
   hosted control plane narrows fleet observability without
   reclassifying identity or policy as out-of-scope.**
 - **Linked decisions:** `D-0009` (identity modes and workspace-trust
-  posture).
+  posture), closed by `docs/adr/0001-identity-modes.md`.
 - **Linked lanes:** `release_evidence`, `docs_public_truth`.
-- **Status:** `proposed`.
+- **Status:** `accepted`.
 
 ### Out of scope
 
@@ -659,9 +659,9 @@ documents under `.t2/docs/`; quotes are illustrative, not exhaustive.
   to flip this to in-scope would supersede the row rather than edit
   it.
 - **Linked decisions:** `D-0009` (identity modes and workspace-trust
-  posture).
+  posture), closed by `docs/adr/0001-identity-modes.md`.
 - **Linked lanes:** none.
-- **Status:** `proposed`.
+- **Status:** `accepted`.
 
 #### `general_ci_platform` — General CI / cloud control plane replacement
 
