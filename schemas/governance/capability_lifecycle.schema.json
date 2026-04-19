@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/capability_lifecycle.schema.json",
+  "title": "Aureline capability-lifecycle and dependency-marker vocabulary",
+  "description": "Boundary schema for the capability-lifecycle row, the dependency-marker record, and the capability-lifecycle audit-event record frozen in docs/adr/0011-capability-lifecycle-and-dependency-markers.md. Every capability rendered on a protected surface (settings row, bundle card, command palette entry, install review step, docs / help page, support / export row, claim-manifest entry, and future SDK / API surface) resolves to exactly one capability_lifecycle_row_record, exactly zero-or-more dependency_marker_record instances, and emits capability_lifecycle_audit_event_record entries on the capability_lifecycle audit stream. Raw provider tokens, raw policy-bundle bytes, and raw kill-switch material never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual capability-lifecycle crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new lifecycle state, support class, release channel, freshness class, client scope, marker kind, reason code, effect-on-parent value, audit-event id, or denial reason is additive-minor and requires a capability_lifecycle_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/capability_lifecycle_row_record" },
+    { "$ref": "#/$defs/dependency_marker_record" },
+    { "$ref": "#/$defs/capability_lifecycle_audit_event_record" }
+  ],
+  "$defs": {
+    "capability_lifecycle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this capability-lifecycle vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "capability_lifecycle_row_record",
+        "dependency_marker_record",
+        "capability_lifecycle_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Frozen lifecycle-state vocabulary. Readiness progression is monotonic through labs -> preview -> beta -> stable <= lts_facing; deprecated is reachable from any of those states; retired is reachable from deprecated only; disabled_by_policy is orthogonal and may overlay any non-retired state. preview -> labs is admissible when announced on the audit stream. A generic 'available' / 'unavailable' chip is forbidden; every surface renders one of these tokens or renders an 'unresolved_axis' repair hook."
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only_support",
+        "no_support"
+      ],
+      "description": "Frozen support-class vocabulary. Independent of lifecycle_state: a capability may be lifecycle_state=stable while support_class=operator_only_support."
+    },
+
+    "release_channel": {
+      "type": "string",
+      "enum": [
+        "nightly_channel",
+        "experimental_channel",
+        "preview_channel",
+        "stable_channel",
+        "lts_channel",
+        "managed_only_channel"
+      ],
+      "description": "Frozen release-channel vocabulary. Independent of lifecycle_state: a capability may live on stable_channel while lifecycle_state is preview (stable channel carries it under the preview posture) or on preview_channel while lifecycle_state is stable."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Frozen freshness-class vocabulary. A surface whose canonical owner has not been contacted within its refresh window MUST NOT render authoritative_live; it renders warm_cached, degraded_cached, stale, or unverified as appropriate."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Frozen client-scope vocabulary. A capability whose client_scope excludes the rendering surface MUST NOT render as available on that surface; at most it renders a tombstone with a typed reason."
+    },
+
+    "marker_kind": {
+      "type": "string",
+      "enum": [
+        "non_stable_capability_dependency",
+        "disabled_by_policy_dependency",
+        "deprecated_dependency",
+        "retired_dependency",
+        "provider_linked_dependency",
+        "client_scope_restricted_dependency",
+        "freshness_floor_dependency",
+        "kill_switch_dependency",
+        "managed_only_dependency"
+      ],
+      "description": "Frozen dependency-marker kind vocabulary. Every live marker on a capability row renders its marker_kind, its effect_on_parent, and its disclosure_summary; a generic 'has caveats' badge collapse is forbidden."
+    },
+
+    "effect_on_parent": {
+      "type": "string",
+      "enum": [
+        "narrows_effective_lifecycle_state",
+        "narrows_effective_support_class",
+        "narrows_effective_release_channel",
+        "narrows_effective_freshness_class",
+        "narrows_effective_client_scope",
+        "gates_entire_capability"
+      ],
+      "description": "Frozen effect-on-parent vocabulary. gates_entire_capability absorbs the parent into disabled_by_policy or retired regardless of declared state; the other values narrow the specified axis via the monotonic-meet rule."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "dependency_state_below_parent_declared_state",
+        "dependency_disabled_by_policy",
+        "dependency_kill_switch_tripped",
+        "dependency_deprecated_within_window",
+        "dependency_retired",
+        "provider_grant_narrowed",
+        "provider_connection_unhealthy",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "managed_only_channel_required"
+      ],
+      "description": "Frozen marker-reason vocabulary. provider_grant_narrowed and provider_connection_unhealthy reuse the grant-resolution-reason set frozen in ADR-0010 rather than mint parallel vocabulary; consumers cross-reference schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "lifecycle_state_unresolved",
+        "axis_value_not_in_vocabulary",
+        "declared_state_below_dependency_ceiling",
+        "dependency_marker_repair_unavailable",
+        "effective_state_absorbed_by_retirement",
+        "freshness_floor_unmet",
+        "client_scope_excludes_surface",
+        "disabled_by_policy_no_repair_hook",
+        "kill_switch_tripped",
+        "managed_only_channel_required",
+        "claim_effective_state_below_declared",
+        "review_disclosure_incomplete"
+      ],
+      "description": "Frozen denial-reason vocabulary for the capability_lifecycle audit stream. Denials fail closed; silent downgrade to a generic 'unavailable' chip is forbidden."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "capability_lifecycle_row_created",
+        "capability_lifecycle_row_updated",
+        "capability_lifecycle_row_deprecated",
+        "capability_lifecycle_row_retired",
+        "capability_lifecycle_row_disabled_by_policy",
+        "capability_lifecycle_row_re_enabled",
+        "dependency_marker_minted",
+        "dependency_marker_updated",
+        "dependency_marker_cleared",
+        "dependency_marker_repair_unavailable",
+        "dependency_marker_stale_not_refreshed",
+        "effective_lifecycle_state_narrowed",
+        "effective_lifecycle_state_absorbed",
+        "kill_switch_tripped",
+        "lifecycle_claim_refused",
+        "capability_lifecycle_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the capability_lifecycle audit stream. Events MUST NOT carry raw provider tokens, raw policy-bundle bytes, or raw kill-switch material."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class. Mirrors the vocabulary used by ADR-0007, ADR-0008, and ADR-0010; the broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the row / marker / event was recorded."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the row / marker was recorded inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "deprecation_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["announced_at"],
+      "properties": {
+        "announced_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "earliest_removal_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Earliest date the capability may transition to retired. Null when the removal horizon is open."
+        },
+        "committed_removal_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Firm removal date if committed. Null when the removal is announced but not yet committed."
+        }
+      },
+      "description": "Deprecation window a deprecated row is obliged to render. A deprecated row without an announced_at is non-conforming."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": {
+          "type": "string",
+          "description": "Short human-legible label the surface may render next to the chip."
+        }
+      },
+      "description": "Typed repair hook for a dependency marker or a disabled_by_policy lifecycle row. A marker or disabled row without a repair_hook_ref is non-conforming."
+    },
+
+    "dependency_marker_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dependency_marker_id", "marker_kind", "effect_on_parent"],
+      "properties": {
+        "dependency_marker_id": { "$ref": "#/$defs/opaque_id" },
+        "marker_kind": { "$ref": "#/$defs/marker_kind" },
+        "effect_on_parent": { "$ref": "#/$defs/effect_on_parent" }
+      },
+      "description": "Light-weight inline summary embedded on a capability_lifecycle_row_record. Full marker payloads live in separate dependency_marker_record instances."
+    },
+
+    "capability_lifecycle_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "capability_lifecycle_schema_version",
+        "capability_lifecycle_row_id",
+        "capability_ref",
+        "declared_lifecycle_state",
+        "effective_lifecycle_state",
+        "support_class",
+        "release_channel",
+        "freshness_class",
+        "client_scopes",
+        "lifecycle_label",
+        "declared_at",
+        "last_refreshed_at",
+        "policy_context",
+        "redaction_class",
+        "live_dependency_markers"
+      ],
+      "properties": {
+        "record_kind": { "const": "capability_lifecycle_row_record" },
+        "capability_lifecycle_schema_version": {
+          "$ref": "#/$defs/capability_lifecycle_schema_version"
+        },
+        "capability_lifecycle_row_id": { "$ref": "#/$defs/opaque_id" },
+        "capability_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capability_kind", "capability_id"],
+          "properties": {
+            "capability_kind": {
+              "type": "string",
+              "enum": [
+                "setting",
+                "bundle",
+                "command",
+                "provider_linked_feature",
+                "workspace_capability",
+                "extension_capability",
+                "sdk_or_api_surface",
+                "docs_capability",
+                "support_capability"
+              ],
+              "description": "Which kind of capability this row describes. Settings, bundles, commands, provider-linked features, and the reserved SDK / API surface are the canonical six; workspace, extension, docs, and support surfaces round out the set."
+            },
+            "capability_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Stable id of the capability within its kind (setting id, bundle id, command id, feature id, capability id, SDK binding id, docs page id, support row id)."
+            }
+          },
+          "description": "Reference to the capability this row describes."
+        },
+        "declared_lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "effective_lifecycle_state": {
+          "$ref": "#/$defs/lifecycle_state",
+          "description": "Render-time monotonic meet of declared_lifecycle_state and every live dependency marker's contribution. Every surface MUST render this value rather than declared_lifecycle_state when they differ."
+        },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "effective_support_class": {
+          "$ref": "#/$defs/support_class",
+          "description": "Render-time narrowed support_class when a marker narrows it. Null when no marker narrows support_class."
+        },
+        "release_channel": { "$ref": "#/$defs/release_channel" },
+        "effective_release_channel": {
+          "$ref": "#/$defs/release_channel",
+          "description": "Render-time narrowed release_channel when a marker narrows it. Null when no marker narrows release_channel."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes this capability surfaces on. A single-surface capability names one entry; a multi-surface capability names all applicable entries. A capability whose client_scopes excludes the rendering surface MUST NOT render as available there."
+        },
+        "effective_client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Render-time client-scope set after marker narrowing. Empty when a client_scope_restricted_dependency has removed the surface entirely."
+        },
+        "lifecycle_label": {
+          "type": "string",
+          "description": "Renderer hint surfaces use when they project this row. ADR-0008 settings rows carry this field on effective_setting_record; other surfaces render it next to the primary chip."
+        },
+        "deprecation_window": {
+          "$ref": "#/$defs/deprecation_window",
+          "description": "Required when declared_lifecycle_state or effective_lifecycle_state is deprecated. Null otherwise."
+        },
+        "replacement_ref": {
+          "type": "string",
+          "description": "Reference to the replacement capability when the row is deprecated or retired. Null only when the retirement is outright (no replacement)."
+        },
+        "since_label": {
+          "type": "string",
+          "description": "Channel / milestone where the capability reached its declared state. Surfaced on docs / help pages."
+        },
+        "declared_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "live_dependency_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency_marker_summary" },
+          "description": "Inline summary list of live dependency markers. Full payloads live in separate dependency_marker_record instances with matching dependency_marker_id values. A surface rendering a capability row MUST also render every entry in this list."
+        },
+        "disabled_by_policy_reason": {
+          "type": "string",
+          "description": "Typed reason code when declared_lifecycle_state or effective_lifecycle_state is disabled_by_policy. Values come from the marker reason_code vocabulary (dependency_disabled_by_policy, dependency_kill_switch_tripped, managed_only_channel_required, client_scope_excludes_surface, freshness_floor_unmet) or the lifecycle denial_reason vocabulary. Null otherwise."
+        },
+        "kill_switch_state": {
+          "type": "string",
+          "enum": ["inactive", "armed", "tripped"],
+          "description": "State of any kill switch attached to this capability row. armed means the kill switch exists but has not fired; tripped means it has fired and the row's effective_lifecycle_state MUST reflect the absorption."
+        }
+      }
+    },
+
+    "dependency_marker_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "capability_lifecycle_schema_version",
+        "dependency_marker_id",
+        "dependency_marker_schema_version",
+        "marker_kind",
+        "parent_capability_ref",
+        "dependency_lifecycle_state",
+        "effect_on_parent",
+        "reason_code",
+        "repair_hook_ref",
+        "disclosure_summary",
+        "declared_at",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "dependency_marker_record" },
+        "capability_lifecycle_schema_version": {
+          "$ref": "#/$defs/capability_lifecycle_schema_version"
+        },
+        "dependency_marker_id": { "$ref": "#/$defs/opaque_id" },
+        "dependency_marker_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Integer schema version pinned into the marker so a replayed marker can be validated against the exact shape it was minted under."
+        },
+        "marker_kind": { "$ref": "#/$defs/marker_kind" },
+        "parent_capability_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Id of the parent capability_lifecycle_row this marker is attached to."
+        },
+        "dependency_capability_ref": {
+          "type": "string",
+          "description": "Id of the sub-capability this marker describes. For marker_kind = provider_linked_dependency this carries the connected_provider_record id from ADR-0010; for marker_kind = kill_switch_dependency this carries the kill-switch id."
+        },
+        "dependency_lifecycle_state": {
+          "$ref": "#/$defs/lifecycle_state",
+          "description": "Sub-capability's current lifecycle state. For provider_linked_dependency this encodes the effective grant-resolution posture (allowed_with_downgrade maps to preview-equivalent; denied_* absorbs to disabled_by_policy)."
+        },
+        "dependency_support_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_class" }
+          ]
+        },
+        "dependency_release_channel": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/release_channel" }
+          ]
+        },
+        "dependency_freshness_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/freshness_class" }
+          ]
+        },
+        "dependency_client_scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "$ref": "#/$defs/client_scope" } }
+          ]
+        },
+        "effect_on_parent": { "$ref": "#/$defs/effect_on_parent" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" },
+        "disclosure_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible paragraph naming the sub-capability, the reduced axis, and the user-visible consequence. A marker without a disclosure_summary is non-conforming."
+        },
+        "declared_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "refreshed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Timestamp of the last freshness refresh. A marker that crosses its freshness threshold without refreshing emits dependency_marker_stale_not_refreshed."
+        },
+        "cleared_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Populated when the marker is cleared because the dependency resolved back to the parent's declared state."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "capability_lifecycle_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "capability_lifecycle_schema_version",
+        "audit_event_id",
+        "event_id",
+        "occurred_at",
+        "capability_lifecycle_row_id",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "capability_lifecycle_audit_event_record" },
+        "capability_lifecycle_schema_version": {
+          "$ref": "#/$defs/capability_lifecycle_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "capability_lifecycle_row_id": { "$ref": "#/$defs/opaque_id" },
+        "dependency_marker_id": {
+          "type": "string",
+          "description": "Id of the dependency marker the event is about. Null for row-level events that do not reference a marker."
+        },
+        "previous_value": {
+          "type": "string",
+          "description": "Previous value on the affected axis (lifecycle_state, support_class, release_channel, freshness_class, client_scope) when the event is a change."
+        },
+        "next_value": {
+          "type": "string",
+          "description": "Next value on the affected axis when the event is a change."
+        },
+        "affected_axis": {
+          "type": "string",
+          "enum": [
+            "lifecycle_state",
+            "support_class",
+            "release_channel",
+            "freshness_class",
+            "client_scope",
+            "kill_switch",
+            "dependency_marker",
+            "schema_version"
+          ],
+          "description": "Which axis the event affected."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Typed denial reason when the event records a denial. Null otherwise."
+        },
+        "observer_subject": {
+          "type": "string",
+          "description": "Stable subject reference for the observer that recorded the event (surface id, registry process id, claim propagator id). Never a raw token."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

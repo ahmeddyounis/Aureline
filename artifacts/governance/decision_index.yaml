@@ -1832,3 +1832,191 @@ decisions:
           default is replaced by the ADR's frozen posture; the
           narrowed inspect-only-and-cached-docs-only posture does not
           apply.
+
+  - decision_id: D-0017
+    title: Capability lifecycle and dependency-marker vocabulary
+    status: decided
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-09-15"
+    decision_deadline: "2026-09-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: product_scope_review
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "lifecycle, release, and support sections"
+        quote: "normative MUST / SHOULD language on lifecycle posture, support class, and release channel discipline"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "capability-lifecycle architecture discussion"
+        quote: "how capability lifecycle, support class, release channel, freshness, and client scope decompose across product, docs, support, and release"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "capability surfaces, dependency propagation, and disabled / deprecated / retired posture"
+        quote: "detailed component discussion of capability surfaces on settings, bundles, commands, and support exports"
+      - doc: .t2/docs/Aureline_Milestones_Document.md
+        anchor: "lifecycle posture of milestone deliverables"
+        quote: "which capabilities land in which channels, which carry extended support, and which explicitly stay in labs / preview / beta posture"
+      - doc: docs/product/boundary_manifest_strawman.md
+        anchor: "residual-dependency and self-hostable narrowing posture"
+        quote: "residual-dependency placeholders and explicit local-core continuity notes so later claim packets do not retrofit these fields inconsistently"
+    affected_artifacts:
+      - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+      - schemas/governance/capability_lifecycle.schema.json
+      - artifacts/governance/dependency_marker_examples.yaml
+      - governance_lane:product_scope_review
+      - governance_lane:release_council
+      - governance_lane:docs_public_truth
+      - governance_lane:support_export
+      - governance_lane:governance_packets
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the product to a two-state experimental / stable
+        vocabulary with no dependency markers, no separate support /
+        channel / freshness / client-scope axes, no disabled_by_policy
+        state, and no retired state; block every lane that needs a
+        broader lifecycle or dependency vocabulary (settings, bundles,
+        command / install review, docs / help, support-export,
+        release-evidence, claim-manifest, and the reserved SDK / API
+        surface) until an ADR lands.
+      applies_on: "2026-09-15"
+      requires_approval_from:
+        - product_scope_review
+    linked_assumptions:
+      - A-0001
+    linked_dependencies: []
+    linked_adr: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: product_scope_review
+        outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: product_scope_review
+        outcome: accept
+        notes: >
+          Closed by
+          docs/adr/0011-capability-lifecycle-and-dependency-markers.md.
+          Freezes five orthogonal axes (lifecycle_state, support_class,
+          release_channel, freshness_class, client_scope) that every
+          capability row carries independently even when a UI chip
+          collapses them visually; the lifecycle_state vocabulary
+          (labs, preview, beta, stable, lts_facing, deprecated,
+          disabled_by_policy, retired) with monotonic transition rules
+          and two admissible non-monotonic moves (preview -> labs
+          announced on the audit stream; any non-retired ->
+          disabled_by_policy as an orthogonal move); the
+          support_class set (best_effort, community_supported,
+          standard_support, extended_support, operator_only_support,
+          no_support); the release_channel set (nightly_channel,
+          experimental_channel, preview_channel, stable_channel,
+          lts_channel, managed_only_channel); the freshness_class set
+          (authoritative_live, warm_cached, degraded_cached, stale,
+          unverified); the client_scope set (desktop_product, cli,
+          companion_surface, remote_agent, sdk_or_api,
+          managed_admin_surface); the dependency_marker_record shape
+          (dependency_marker_id, dependency_marker_schema_version,
+          marker_kind, parent_capability_ref,
+          dependency_capability_ref, dependency_lifecycle_state,
+          dependency_support_class, dependency_release_channel,
+          dependency_freshness_class, dependency_client_scope,
+          effect_on_parent, reason_code, repair_hook_ref,
+          disclosure_summary, declared_at, refreshed_at, cleared_at,
+          policy_context, redaction_class) with the marker_kind set
+          (non_stable_capability_dependency,
+          disabled_by_policy_dependency, deprecated_dependency,
+          retired_dependency, provider_linked_dependency,
+          client_scope_restricted_dependency,
+          freshness_floor_dependency, kill_switch_dependency,
+          managed_only_dependency), the effect_on_parent set
+          (narrows_effective_lifecycle_state,
+          narrows_effective_support_class,
+          narrows_effective_release_channel,
+          narrows_effective_freshness_class,
+          narrows_effective_client_scope, gates_entire_capability),
+          the reason_code set
+          (dependency_state_below_parent_declared_state,
+          dependency_disabled_by_policy,
+          dependency_kill_switch_tripped,
+          dependency_deprecated_within_window, dependency_retired,
+          provider_grant_narrowed, provider_connection_unhealthy,
+          client_scope_excludes_surface, freshness_floor_unmet,
+          managed_only_channel_required), and a typed repair_hook_ref
+          vocabulary (enable_feature_flag,
+          request_admin_policy_change, request_provider_link,
+          reconnect_provider, upgrade_release_channel,
+          refresh_freshness, migrate_to_replacement,
+          request_managed_access, contact_support); the render-time
+          downgrade rule (effective_lifecycle_state is the monotonic
+          meet of declared_lifecycle_state and every live dependency
+          marker's contribution along its named axis, with
+          disabled_by_policy and retired absorbing; declared state is
+          an upper bound and dependency markers only narrow it; the
+          meet is recomputed on every render and not cached past the
+          freshness window); the projection requirements for settings
+          rows, bundle cards, command / install review, docs / help
+          pages, support / export, claim manifests, and the reserved
+          SDK / API surface with chip-collapse a UI freedom but
+          record addressability mandatory; the audit-event id set on
+          the capability_lifecycle audit stream
+          (capability_lifecycle_row_created / updated / deprecated /
+          retired / disabled_by_policy / re_enabled,
+          dependency_marker_minted / updated / cleared /
+          repair_unavailable / stale_not_refreshed,
+          effective_lifecycle_state_narrowed / absorbed,
+          kill_switch_tripped, lifecycle_claim_refused,
+          capability_lifecycle_schema_version_bumped) with raw
+          provider tokens, raw policy-bundle bytes, and raw
+          kill-switch material forbidden on every event; the
+          denial-reason set (lifecycle_state_unresolved,
+          axis_value_not_in_vocabulary,
+          declared_state_below_dependency_ceiling,
+          dependency_marker_repair_unavailable,
+          effective_state_absorbed_by_retirement,
+          freshness_floor_unmet, client_scope_excludes_surface,
+          disabled_by_policy_no_repair_hook, kill_switch_tripped,
+          managed_only_channel_required,
+          claim_effective_state_below_declared,
+          review_disclosure_incomplete) with fail-closed semantics
+          that never silently downgrade to a generic unavailable
+          chip; the process-boundary constraints (row and marker
+          records cross RPC as typed payloads; raw provider tokens,
+          raw policy-bundle bytes, and raw kill-switch material never
+          cross; extensions and AI tool calls read lifecycle rows
+          only through the shared subscription envelope with
+          authority class derived_knowledge and a declared freshness
+          hint; remote-agent attach surfaces carry a remote-scoped
+          capability view whose client scope is remote_agent; crash
+          dumps do not inherit unresolved lifecycle projections;
+          mutation-journal entries, save manifests, support bundles,
+          and claim manifests name row ids and marker ids only); the
+          redaction-default posture across logs_local, traces_local,
+          support_bundle, evidence_packet, ai_context_capture,
+          recipe_manifest, profile_export / sync, crash_dump,
+          mutation_journal_entry, save_manifest, claim_manifest, and
+          terminal_transcript with narrowing-only overrides; and the
+          schema-of-record posture (Rust types in the eventual
+          capability-lifecycle crate are the source of truth; the
+          JSON Schema export at
+          schemas/governance/capability_lifecycle.schema.json is the
+          cross-tool boundary; no external IDL or code-generator
+          toolchain at this milestone; mirrors ADR 0004, ADR 0005,
+          ADR 0006, ADR 0007, ADR 0008, ADR 0009, and ADR 0010).
+          Rides ADR 0008 (the settings resolver's lifecycle_label,
+          control_stack, and capability_dependencies fields name the
+          vocabulary frozen here), ADR 0010 (the grant-resolution-
+          reason set is reused by provider_linked_dependency markers
+          rather than minting parallel vocabulary), ADR 0001 (the
+          managed / self-hosted / account-free-local identity modes
+          gate the managed_only_channel release channel and the
+          managed_admin_surface client scope), and ADR 0005
+          (projected lifecycle views ride the shared subscription
+          envelope with authority class derived_knowledge and a
+          declared freshness hint). The narrowing default is replaced
+          by the ADR's frozen posture; the experimental / stable
+          toggle narrowing does not apply.

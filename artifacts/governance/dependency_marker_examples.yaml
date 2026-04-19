@@ -1,0 +1,659 @@
+# Dependency-marker worked examples.
+#
+# Companion to ADR 0011
+# (docs/adr/0011-capability-lifecycle-and-dependency-markers.md)
+# and the boundary schema at
+# schemas/governance/capability_lifecycle.schema.json. Every example
+# shows how the five orthogonal axes (lifecycle_state, support_class,
+# release_channel, freshness_class, client_scope) stay separate on a
+# real capability row, how dependency markers attach, and how the
+# render-time meet produces the effective_lifecycle_state the user
+# sees.
+#
+# Rules:
+#   - Every row conforms to schemas/governance/capability_lifecycle.schema.json.
+#   - If this file and the ADR disagree, the ADR wins and this file
+#     must be updated in the same change.
+#   - Adding an example is additive-minor; removing one needs a
+#     supersession note in the new row.
+#   - These examples exist so later badge, compatibility, and claim-
+#     propagation tooling can write against a shared corpus without
+#     inventing its own.
+
+schema_version: 1
+
+adr_source: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+decision_id: D-0017
+decision_register: artifacts/governance/decision_index.yaml
+boundary_schema: schemas/governance/capability_lifecycle.schema.json
+
+# Reference: axes frozen in ADR 0011 and re-exported by the schema.
+axes:
+  lifecycle_state:
+    - labs
+    - preview
+    - beta
+    - stable
+    - lts_facing
+    - deprecated
+    - disabled_by_policy
+    - retired
+  support_class:
+    - best_effort
+    - community_supported
+    - standard_support
+    - extended_support
+    - operator_only_support
+    - no_support
+  release_channel:
+    - nightly_channel
+    - experimental_channel
+    - preview_channel
+    - stable_channel
+    - lts_channel
+    - managed_only_channel
+  freshness_class:
+    - authoritative_live
+    - warm_cached
+    - degraded_cached
+    - stale
+    - unverified
+  client_scope:
+    - desktop_product
+    - cli
+    - companion_surface
+    - remote_agent
+    - sdk_or_api
+    - managed_admin_surface
+
+# Reference: marker kinds and reason codes frozen in ADR 0011.
+marker_vocabulary:
+  marker_kinds:
+    - non_stable_capability_dependency
+    - disabled_by_policy_dependency
+    - deprecated_dependency
+    - retired_dependency
+    - provider_linked_dependency
+    - client_scope_restricted_dependency
+    - freshness_floor_dependency
+    - kill_switch_dependency
+    - managed_only_dependency
+  reason_codes:
+    - dependency_state_below_parent_declared_state
+    - dependency_disabled_by_policy
+    - dependency_kill_switch_tripped
+    - dependency_deprecated_within_window
+    - dependency_retired
+    - provider_grant_narrowed
+    - provider_connection_unhealthy
+    - client_scope_excludes_surface
+    - freshness_floor_unmet
+    - managed_only_channel_required
+
+# ---------------------------------------------------------------------------
+# Worked examples. Each entry pairs a capability_lifecycle_row_record with
+# the dependency_marker_record entries attached to it.
+# ---------------------------------------------------------------------------
+examples:
+
+  # -------------------------------------------------------------------------
+  # Settings row: a stable setting whose underlying capability depends on a
+  # preview sub-capability. The surface MUST render effective_lifecycle_state
+  # = preview rather than the declared stable; the marker is visible under
+  # the row with a repair hook that flips the sub-capability's feature flag.
+  # -------------------------------------------------------------------------
+  - id: settings_row_stable_parent_preview_dependency
+    scenario: >
+      The editor.inline_diagnostics setting is declared stable and carried
+      on the stable release channel. Its underlying capability depends on
+      the structured-diagnostics service, which is still in preview. On
+      every surface that renders this setting row, the row MUST show
+      effective_lifecycle_state = preview and render the marker inline
+      with a repair hook that enables the preview feature flag.
+    adr_sections_exercised:
+      - Orthogonal axes (frozen)
+      - Dependency-marker record (frozen)
+      - Downgrade rule (frozen)
+      - Projection requirements per surface (frozen) -> Settings row
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:editor.inline_diagnostics
+      capability_ref:
+        capability_kind: setting
+        capability_id: editor.inline_diagnostics
+      declared_lifecycle_state: stable
+      effective_lifecycle_state: preview
+      support_class: standard_support
+      release_channel: stable_channel
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+      effective_client_scopes:
+        - desktop_product
+        - cli
+      lifecycle_label: "Inline diagnostics (preview while structured diagnostics ships)"
+      declared_at: "2026-04-19T13:00:00Z"
+      last_refreshed_at: "2026-04-19T14:20:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:structured_diagnostics_preview
+          marker_kind: non_stable_capability_dependency
+          effect_on_parent: narrows_effective_lifecycle_state
+      kill_switch_state: inactive
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:structured_diagnostics_preview
+        dependency_marker_schema_version: 1
+        marker_kind: non_stable_capability_dependency
+        parent_capability_ref: cap:lifecycle:row:editor.inline_diagnostics
+        dependency_capability_ref: cap:feature:structured_diagnostics
+        dependency_lifecycle_state: preview
+        dependency_support_class: best_effort
+        dependency_release_channel: preview_channel
+        dependency_freshness_class: authoritative_live
+        dependency_client_scope:
+          - desktop_product
+          - cli
+        effect_on_parent: narrows_effective_lifecycle_state
+        reason_code: dependency_state_below_parent_declared_state
+        repair_hook_ref:
+          hook_kind: enable_feature_flag
+          hook_id: flag:structured_diagnostics.preview
+          display_label: "Enable structured-diagnostics preview"
+        disclosure_summary: >
+          Inline diagnostics depends on the structured-diagnostics service,
+          which is currently in preview. While the preview flag is off,
+          inline diagnostics render using the legacy path and surface under
+          the preview chip. Enable the preview flag to switch to the
+          structured path.
+        declared_at: "2026-04-19T13:00:00Z"
+        refreshed_at: "2026-04-19T14:20:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+  # -------------------------------------------------------------------------
+  # Bundle card: a stable bundle whose install is blocked on a managed-only
+  # sub-capability. The install surface MUST render the marker as a blocking
+  # sub-panel rather than a generic 'unavailable' chip.
+  # -------------------------------------------------------------------------
+  - id: bundle_card_stable_managed_only_dependency
+    scenario: >
+      The enterprise-SSO-bundle is declared stable but its install
+      requires a managed-only control-plane capability. On self-hosted
+      and account-free-local identity modes, the marker absorbs the
+      bundle into disabled_by_policy with a repair hook that opens the
+      managed-access request flow; on managed identity the marker clears
+      and the bundle installs normally.
+    adr_sections_exercised:
+      - Lifecycle-state class definitions (frozen) -> disabled_by_policy
+      - Dependency-marker record (frozen) -> managed_only_dependency
+      - Downgrade rule (frozen) -> gates_entire_capability
+      - Projection requirements per surface (frozen) -> Bundle card
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:bundle.enterprise_sso
+      capability_ref:
+        capability_kind: bundle
+        capability_id: bundle.enterprise_sso
+      declared_lifecycle_state: stable
+      effective_lifecycle_state: disabled_by_policy
+      support_class: extended_support
+      release_channel: stable_channel
+      effective_release_channel: managed_only_channel
+      freshness_class: warm_cached
+      client_scopes:
+        - desktop_product
+        - managed_admin_surface
+      effective_client_scopes:
+        - managed_admin_surface
+      lifecycle_label: "Enterprise SSO (managed deployments only)"
+      declared_at: "2026-03-01T00:00:00Z"
+      last_refreshed_at: "2026-04-19T14:00:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: operator_only_restricted
+      disabled_by_policy_reason: managed_only_channel_required
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:managed_control_plane_required
+          marker_kind: managed_only_dependency
+          effect_on_parent: gates_entire_capability
+      kill_switch_state: inactive
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:managed_control_plane_required
+        dependency_marker_schema_version: 1
+        marker_kind: managed_only_dependency
+        parent_capability_ref: cap:lifecycle:row:bundle.enterprise_sso
+        dependency_capability_ref: cap:feature:managed_control_plane
+        dependency_lifecycle_state: stable
+        dependency_support_class: operator_only_support
+        dependency_release_channel: managed_only_channel
+        dependency_freshness_class: authoritative_live
+        dependency_client_scope:
+          - managed_admin_surface
+        effect_on_parent: gates_entire_capability
+        reason_code: managed_only_channel_required
+        repair_hook_ref:
+          hook_kind: request_managed_access
+          hook_id: hook:request_managed_access:enterprise_sso
+          display_label: "Request managed access"
+        disclosure_summary: >
+          Enterprise SSO requires the managed control plane. On
+          self-hosted and account-free-local installs, the bundle is
+          disabled by policy. Request managed access or deploy the
+          self-hostable reference control plane to enable it.
+        declared_at: "2026-03-01T00:00:00Z"
+        refreshed_at: "2026-04-19T14:00:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: operator_only_restricted
+
+  # -------------------------------------------------------------------------
+  # Command / install review: a stable command whose install review must
+  # disclose a preview dependency AND a provider-linked dependency. The
+  # review denies commit with review_disclosure_incomplete if either marker
+  # is hidden.
+  # -------------------------------------------------------------------------
+  - id: command_install_review_stable_command_two_markers
+    scenario: >
+      The workspace.publish_release command is declared stable and runs on
+      the stable channel. Its install review must disclose that it depends
+      on the preview signing attestation service (non-stable) and on a
+      connected release-publisher provider whose grant has been narrowed
+      to read-only because the user has not completed a step-up
+      authenticator. Both markers render in the review's typed disclosure
+      list; a review that hides either is denied.
+    adr_sections_exercised:
+      - Dependency-marker record (frozen)
+      - Projection requirements per surface (frozen) -> Command / install review
+      - Denial posture (frozen) -> review_disclosure_incomplete
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:command.publish_release
+      capability_ref:
+        capability_kind: command
+        capability_id: command.publish_release
+      declared_lifecycle_state: stable
+      effective_lifecycle_state: preview
+      support_class: standard_support
+      release_channel: stable_channel
+      freshness_class: warm_cached
+      client_scopes:
+        - desktop_product
+        - cli
+      effective_client_scopes:
+        - desktop_product
+        - cli
+      lifecycle_label: "Publish release (preview while signing attestation ships)"
+      declared_at: "2026-02-01T00:00:00Z"
+      last_refreshed_at: "2026-04-19T14:05:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:signing_attestation_preview
+          marker_kind: non_stable_capability_dependency
+          effect_on_parent: narrows_effective_lifecycle_state
+        - dependency_marker_id: cap:lifecycle:marker:release_publisher_narrowed
+          marker_kind: provider_linked_dependency
+          effect_on_parent: narrows_effective_support_class
+      kill_switch_state: inactive
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:signing_attestation_preview
+        dependency_marker_schema_version: 1
+        marker_kind: non_stable_capability_dependency
+        parent_capability_ref: cap:lifecycle:row:command.publish_release
+        dependency_capability_ref: cap:feature:signing_attestation
+        dependency_lifecycle_state: preview
+        dependency_support_class: best_effort
+        dependency_release_channel: preview_channel
+        dependency_freshness_class: authoritative_live
+        dependency_client_scope:
+          - desktop_product
+          - cli
+        effect_on_parent: narrows_effective_lifecycle_state
+        reason_code: dependency_state_below_parent_declared_state
+        repair_hook_ref:
+          hook_kind: enable_feature_flag
+          hook_id: flag:signing_attestation.preview
+          display_label: "Opt into signing-attestation preview"
+        disclosure_summary: >
+          Publishing the release uses the signing-attestation service,
+          which is still in preview. The published artifact is valid;
+          the attestation metadata is not yet stable across upgrades.
+        declared_at: "2026-02-01T00:00:00Z"
+        refreshed_at: "2026-04-19T14:05:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:release_publisher_narrowed
+        dependency_marker_schema_version: 1
+        marker_kind: provider_linked_dependency
+        parent_capability_ref: cap:lifecycle:row:command.publish_release
+        dependency_capability_ref: connected_provider:release_publisher:github_releases
+        dependency_lifecycle_state: stable
+        dependency_support_class: standard_support
+        dependency_release_channel: stable_channel
+        dependency_freshness_class: warm_cached
+        dependency_client_scope:
+          - desktop_product
+          - cli
+        effect_on_parent: narrows_effective_support_class
+        reason_code: provider_grant_narrowed
+        repair_hook_ref:
+          hook_kind: reconnect_provider
+          hook_id: hook:reconnect_provider:release_publisher
+          display_label: "Complete step-up authentication to publish"
+        disclosure_summary: >
+          The connected release-publisher grant has been narrowed to
+          read-only because a step-up authenticator is required.
+          Publishing will be denied until the grant is widened.
+          Complete step-up to restore publish capability.
+        declared_at: "2026-04-18T10:00:00Z"
+        refreshed_at: "2026-04-19T14:05:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+  # -------------------------------------------------------------------------
+  # Provider-linked feature: the ai.inline_completions feature depends on a
+  # connected AI provider whose actor class resolved to unknown_actor_class
+  # and whose health transitioned to degraded. Both markers narrow different
+  # axes; the row renders its dependencies separately.
+  # -------------------------------------------------------------------------
+  - id: provider_linked_feature_ai_inline_completions
+    scenario: >
+      The ai.inline_completions feature is declared beta. Its connected
+      AI provider currently resolves to unknown_actor_class (the repair
+      hook is a provider re-link flow) and the provider's health state
+      is degraded (the repair hook is a reconnect flow). The feature
+      row renders both markers; effective_lifecycle_state stays at beta
+      (the actor-class marker does not drop readiness below the declared
+      beta), but effective_freshness_class degrades to degraded_cached.
+    adr_sections_exercised:
+      - Orthogonal axes (frozen) -> freshness_class
+      - Dependency-marker record (frozen) -> provider_linked_dependency
+      - Downgrade rule (frozen) -> per-axis meet
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:ai.inline_completions
+      capability_ref:
+        capability_kind: provider_linked_feature
+        capability_id: ai.inline_completions
+      declared_lifecycle_state: beta
+      effective_lifecycle_state: beta
+      support_class: best_effort
+      release_channel: preview_channel
+      freshness_class: degraded_cached
+      client_scopes:
+        - desktop_product
+      effective_client_scopes:
+        - desktop_product
+      lifecycle_label: "Inline completions (beta, provider degraded)"
+      declared_at: "2026-03-15T00:00:00Z"
+      last_refreshed_at: "2026-04-19T14:10:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:ai_provider_unknown_actor
+          marker_kind: provider_linked_dependency
+          effect_on_parent: narrows_effective_support_class
+        - dependency_marker_id: cap:lifecycle:marker:ai_provider_degraded
+          marker_kind: provider_linked_dependency
+          effect_on_parent: narrows_effective_freshness_class
+      kill_switch_state: inactive
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:ai_provider_unknown_actor
+        dependency_marker_schema_version: 1
+        marker_kind: provider_linked_dependency
+        parent_capability_ref: cap:lifecycle:row:ai.inline_completions
+        dependency_capability_ref: connected_provider:ai_provider:primary
+        dependency_lifecycle_state: beta
+        dependency_support_class: best_effort
+        dependency_release_channel: preview_channel
+        dependency_freshness_class: warm_cached
+        dependency_client_scope:
+          - desktop_product
+        effect_on_parent: narrows_effective_support_class
+        reason_code: provider_grant_narrowed
+        repair_hook_ref:
+          hook_kind: request_provider_link
+          hook_id: hook:request_provider_link:ai_provider
+          display_label: "Re-link AI provider to resolve actor class"
+        disclosure_summary: >
+          The AI provider link cannot resolve which identity Aureline is
+          acting under. Inline completions continue under best-effort
+          support; re-link the provider to restore the expected actor
+          class.
+        declared_at: "2026-04-19T12:30:00Z"
+        refreshed_at: "2026-04-19T14:10:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:ai_provider_degraded
+        dependency_marker_schema_version: 1
+        marker_kind: provider_linked_dependency
+        parent_capability_ref: cap:lifecycle:row:ai.inline_completions
+        dependency_capability_ref: connected_provider:ai_provider:primary
+        dependency_lifecycle_state: beta
+        dependency_support_class: best_effort
+        dependency_release_channel: preview_channel
+        dependency_freshness_class: degraded_cached
+        dependency_client_scope:
+          - desktop_product
+        effect_on_parent: narrows_effective_freshness_class
+        reason_code: provider_connection_unhealthy
+        repair_hook_ref:
+          hook_kind: reconnect_provider
+          hook_id: hook:reconnect_provider:ai_provider
+          display_label: "Reconnect AI provider"
+        disclosure_summary: >
+          The AI provider health has degraded; recent completions are
+          served from a warm cache. Reconnect to restore an
+          authoritative live feed.
+        declared_at: "2026-04-19T13:50:00Z"
+        refreshed_at: "2026-04-19T14:10:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+  # -------------------------------------------------------------------------
+  # Policy-disabled row: a deprecated setting that an admin policy has
+  # disabled. The surface MUST render disabled_by_policy with a typed
+  # repair hook and the deprecation window; a plain 'disabled' toggle is
+  # non-conforming.
+  # -------------------------------------------------------------------------
+  - id: policy_disabled_row_deprecated_setting
+    scenario: >
+      The telemetry.send_crash_dumps setting is declared deprecated with
+      a committed removal date. The current admin policy bundle has
+      disabled it. The row MUST render effective_lifecycle_state =
+      disabled_by_policy, carry its deprecation window, name its
+      replacement (telemetry.send_redacted_bundle), and surface a repair
+      hook for the admin-policy change request.
+    adr_sections_exercised:
+      - Lifecycle-state class definitions (frozen) -> deprecated, disabled_by_policy
+      - Dependency-marker record (frozen) -> disabled_by_policy_dependency
+      - Projection requirements per surface (frozen) -> Settings row, Docs / help page
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:telemetry.send_crash_dumps
+      capability_ref:
+        capability_kind: setting
+        capability_id: telemetry.send_crash_dumps
+      declared_lifecycle_state: deprecated
+      effective_lifecycle_state: disabled_by_policy
+      support_class: community_supported
+      release_channel: stable_channel
+      freshness_class: authoritative_live
+      client_scopes:
+        - desktop_product
+        - cli
+      effective_client_scopes:
+        - desktop_product
+        - cli
+      lifecycle_label: "Send crash dumps (deprecated; disabled by policy)"
+      deprecation_window:
+        announced_at: "2025-11-01T00:00:00Z"
+        earliest_removal_at: "2026-05-01T00:00:00Z"
+        committed_removal_at: "2026-09-01T00:00:00Z"
+      replacement_ref: telemetry.send_redacted_bundle
+      since_label: "stable_channel since 2024-08"
+      declared_at: "2024-08-01T00:00:00Z"
+      last_refreshed_at: "2026-04-19T14:15:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      disabled_by_policy_reason: dependency_disabled_by_policy
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:policy_bundle_disables_crash_dump_send
+          marker_kind: disabled_by_policy_dependency
+          effect_on_parent: gates_entire_capability
+      kill_switch_state: inactive
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:policy_bundle_disables_crash_dump_send
+        dependency_marker_schema_version: 1
+        marker_kind: disabled_by_policy_dependency
+        parent_capability_ref: cap:lifecycle:row:telemetry.send_crash_dumps
+        dependency_capability_ref: policy_bundle:telemetry.redaction_required
+        dependency_lifecycle_state: disabled_by_policy
+        dependency_support_class: standard_support
+        dependency_release_channel: managed_only_channel
+        dependency_freshness_class: authoritative_live
+        dependency_client_scope:
+          - managed_admin_surface
+        effect_on_parent: gates_entire_capability
+        reason_code: dependency_disabled_by_policy
+        repair_hook_ref:
+          hook_kind: request_admin_policy_change
+          hook_id: hook:request_admin_policy_change:telemetry.redaction_required
+          display_label: "Request admin policy change"
+        disclosure_summary: >
+          The active admin policy bundle requires telemetry redaction and
+          has disabled raw crash-dump send. The setting remains visible
+          so users can see its deprecation window and replacement;
+          toggling it is denied. Admin policy change required.
+        declared_at: "2026-04-01T00:00:00Z"
+        refreshed_at: "2026-04-19T14:15:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
+
+  # -------------------------------------------------------------------------
+  # Future SDK / API surface: a reserved capability whose client scope is
+  # sdk_or_api. It is declared labs, carries a kill-switch that is armed
+  # but not tripped, and explicitly excludes the desktop_product and cli
+  # client classes via a client_scope_restricted_dependency.
+  # -------------------------------------------------------------------------
+  - id: future_sdk_api_surface_labs_client_scope_restricted
+    scenario: >
+      The sdk.workspace_extension_binding surface is reserved for a
+      future SDK / API lane. It is declared labs and intentionally
+      surfaces only on sdk_or_api; any desktop or CLI surface that
+      discovers it renders a client_scope_restricted_dependency marker
+      pointing at the sdk_or_api client class. The row also carries an
+      armed (not tripped) kill switch so the SDK can be gated off
+      mechanically if the surface is exercised outside the opt-in
+      consumer list.
+    adr_sections_exercised:
+      - Orthogonal axes (frozen) -> client_scope
+      - Lifecycle-state class definitions (frozen) -> labs
+      - Dependency-marker record (frozen) -> client_scope_restricted_dependency
+      - Projection requirements per surface (frozen) -> Future SDK / API surface
+      - Audit events (frozen) -> kill_switch_tripped (not yet fired)
+    capability_row:
+      record_kind: capability_lifecycle_row_record
+      capability_lifecycle_schema_version: 1
+      capability_lifecycle_row_id: cap:lifecycle:row:sdk.workspace_extension_binding
+      capability_ref:
+        capability_kind: sdk_or_api_surface
+        capability_id: sdk.workspace_extension_binding
+      declared_lifecycle_state: labs
+      effective_lifecycle_state: labs
+      support_class: no_support
+      release_channel: experimental_channel
+      freshness_class: unverified
+      client_scopes:
+        - sdk_or_api
+      effective_client_scopes:
+        - sdk_or_api
+      lifecycle_label: "Workspace extension binding (labs; SDK only)"
+      declared_at: "2026-04-19T09:00:00Z"
+      last_refreshed_at: "2026-04-19T14:25:00Z"
+      policy_context:
+        policy_epoch: "pe:2026-04-19:01"
+        trust_state: trusted
+      redaction_class: metadata_safe_default
+      live_dependency_markers:
+        - dependency_marker_id: cap:lifecycle:marker:sdk_extension_desktop_excluded
+          marker_kind: client_scope_restricted_dependency
+          effect_on_parent: narrows_effective_client_scope
+      kill_switch_state: armed
+    dependency_markers:
+      - record_kind: dependency_marker_record
+        capability_lifecycle_schema_version: 1
+        dependency_marker_id: cap:lifecycle:marker:sdk_extension_desktop_excluded
+        dependency_marker_schema_version: 1
+        marker_kind: client_scope_restricted_dependency
+        parent_capability_ref: cap:lifecycle:row:sdk.workspace_extension_binding
+        dependency_capability_ref: cap:client_scope_policy:desktop_and_cli_excluded
+        dependency_lifecycle_state: labs
+        dependency_support_class: no_support
+        dependency_release_channel: experimental_channel
+        dependency_freshness_class: unverified
+        dependency_client_scope:
+          - sdk_or_api
+        effect_on_parent: narrows_effective_client_scope
+        reason_code: client_scope_excludes_surface
+        repair_hook_ref:
+          hook_kind: contact_support
+          hook_id: hook:contact_support:sdk_extension_access
+          display_label: "Request SDK / API access"
+        disclosure_summary: >
+          The workspace-extension binding is reserved for the SDK / API
+          surface while in labs. Desktop product and CLI surfaces that
+          discover it MUST render it as a tombstone pointing at the
+          SDK / API client class; action on desktop or CLI is denied
+          with client_scope_excludes_surface.
+        declared_at: "2026-04-19T09:00:00Z"
+        refreshed_at: "2026-04-19T14:25:00Z"
+        policy_context:
+          policy_epoch: "pe:2026-04-19:01"
+          trust_state: trusted
+        redaction_class: metadata_safe_default
