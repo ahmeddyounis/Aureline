@@ -1,0 +1,665 @@
+# Search readiness, ranking-reason, hidden-scope, result-truth, and
+# deep-link drift vocabulary and worked examples.
+#
+# Companion to ADR 0014
+# (docs/adr/0014-search-readiness-ranking-result-truth.md) and the
+# boundary schema at schemas/search/search_result_truth.schema.json.
+# This file pins the vocabulary that the command palette, full
+# search, symbol jump, docs search, graph overlay, AI-explanation
+# overlay, and support-export surfaces all consume; a later parity
+# audit between palette, full search, symbol jump, docs search, and
+# support exports compares emitted search_result_packet_record
+# instances against the worked examples below field-for-field
+# without inventing additional result semantics.
+#
+# Rules:
+#   - Every record fragment conforms to
+#     schemas/search/search_result_truth.schema.json.
+#   - If this file and the ADR disagree, the ADR wins and this file
+#     MUST be updated in the same change.
+#   - Adding a worked example is additive-minor; removing one needs
+#     a supersession note in the new row.
+#   - Adding a vocabulary token requires a schema bump and a
+#     parallel ADR / decision-row update.
+#   - These examples exist so the ranking, graph-overlay,
+#     docs-search, AI-explanation-citation, bookmark /
+#     session-restore, and support-export lanes can write against a
+#     shared corpus without inventing their own.
+
+schema_version: 1
+
+adr_source: docs/adr/0014-search-readiness-ranking-result-truth.md
+decision_id: D-0020
+decision_register: artifacts/governance/decision_index.yaml
+boundary_schema: schemas/search/search_result_truth.schema.json
+linked_packets:
+  capability_lifecycle: schemas/governance/capability_lifecycle.schema.json
+  help_status_badge: schemas/docs/help_status_badge.schema.json
+  browser_handoff_packet: schemas/integration/browser_handoff_packet.schema.json
+  execution_context: schemas/runtime/execution_context.schema.json
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies (mirrored from ADR 0014 and the boundary schema).
+# Tooling reads these blocks; surfaces MUST NOT mint tokens outside the
+# enumerations below.
+# ---------------------------------------------------------------------------
+axes:
+
+  readiness_state:
+    description: >
+      Readiness of the index / pack / shard the result set reads
+      from. fully_indexed is the only state that renders a result
+      set as complete for the requested scope; every other state
+      MUST carry a stale_or_partial_explanation with at least one
+      partial_truth_cause.
+    values:
+      - not_indexed
+      - hot_set_ready
+      - partial_index
+      - warm_index
+      - fully_indexed
+      - stale_index
+      - reindexing
+      - index_unavailable
+
+  result_truth_class:
+    description: >
+      Truth class for the row. exact = proven from the current
+      graph or lexical index for this scope; imported = fact
+      pulled from a mirrored pack, docs pack, manifest, or
+      provider overlay; heuristic = probabilistic, naming-
+      similarity, or semantic-embedding derived; hybrid =
+      combines at least two of the above and MUST enumerate its
+      contributors in ranking_reason_classes. heuristic and
+      hybrid rows MUST NOT render alone as authoritative.
+    values:
+      - exact
+      - imported
+      - heuristic
+      - hybrid
+
+  ranking_reason_class:
+    description: >
+      Frozen ranking-reason classes the surface MAY emit. Every
+      row MUST emit the reasons that actually contributed to
+      ranking; per-surface free-form reason strings are
+      forbidden. structural_fallback names the parser / symbol-
+      inferred fallback used when the graph could not confirm a
+      relation; policy_hidden_placeholder is emitted only on rows
+      whose presence is disclosed but whose content is hidden.
+    values:
+      - exact_name_match
+      - exact_path_match
+      - lexical_prefix_match
+      - lexical_fuzzy_match
+      - symbol_kind_prior
+      - graph_neighbourhood_hop
+      - recent_file_bias
+      - recent_edit_bias
+      - frequent_use_bias
+      - imported_fact_match
+      - heuristic_summary_cluster
+      - semantic_embedding_neighbour
+      - docs_anchor_match
+      - palette_command_canonical
+      - symbol_jump_declaration_anchor
+      - structural_fallback
+      - policy_hidden_placeholder
+
+  hidden_scope_reason:
+    description: >
+      Frozen reasons a row or a class of rows is hidden from the
+      rendered result set. Every non-zero hidden_result_count
+      MUST enumerate at least one hidden_scope_reason; surfaces
+      MUST NOT silently drop the count.
+    values:
+      - trust_state_excludes_surface
+      - policy_narrows_source
+      - sparse_scope_excludes_root
+      - outside_loaded_scope
+      - excluded_by_user_filter
+      - client_scope_excludes_surface
+      - provider_overlay_unauthorised
+      - pack_quarantined
+      - redaction_narrowed
+      - remote_shard_unreachable
+
+  partial_truth_cause:
+    description: >
+      Frozen reasons the result set labels partial truth rather
+      than pretending global completeness. Every readiness_state
+      other than fully_indexed MUST carry at least one
+      partial_truth_cause.
+    values:
+      - hot_set_only
+      - manifest_only
+      - cache_only
+      - outside_loaded_scope
+      - indexing_in_progress
+      - semantic_service_unavailable
+      - remote_shard_unreachable
+      - provider_overlay_unreachable
+      - policy_blocked_shard
+      - freshness_floor_unmet
+      - stale_index_served
+
+  semantic_fallback_state:
+    description: >
+      Frozen semantic-fallback states. semantic_unavailable_lexical_only
+      is the canonical non-semantic fallback and the default for
+      palette / symbol-jump surfaces; semantic_available_as_supplement
+      is the only state under which a row may carry
+      result_truth_class = hybrid with a semantic contributor.
+    values:
+      - semantic_unavailable_lexical_only
+      - semantic_degraded_lexical_preferred
+      - semantic_available_as_supplement
+      - semantic_disabled_by_policy
+      - semantic_not_applicable
+
+  deep_link_drift_state:
+    description: >
+      Frozen deep-link drift states. Every deep-link resolution
+      on bookmark restore, session restore, AI evidence packet,
+      support export, or cross-surface navigation carries exactly
+      one drift state. resolved_remapped MUST carry a non-empty
+      remap_chain_refs; resolved_* states MUST carry a non-null
+      resolved_target_ref_opaque.
+    values:
+      - resolved_exact
+      - resolved_remapped
+      - resolved_ambiguous
+      - target_missing
+      - target_moved
+      - target_renamed
+      - target_branch_drifted
+      - target_policy_blocked
+      - target_scope_excluded
+      - index_not_ready_for_target
+      - unresolvable
+
+  surface_class:
+    description: >
+      Frozen surface-class vocabulary naming which protected
+      surface emitted the search record.
+    values:
+      - command_palette
+      - full_search
+      - symbol_jump
+      - docs_search
+      - graph_overlay
+      - ai_explanation_overlay
+      - support_export
+
+  scope_filter_class:
+    description: >
+      Re-exported from the execution-context / workset vocabulary
+      (ADR-0009). Every search_result_packet_record carries the
+      scope class the query ran against so parity audits can
+      compare palette / full-search / docs-search behaviour under
+      identical scope.
+    values:
+      - current_root
+      - named_workset
+      - sparse_slice
+      - full_workspace
+      - docs_pack_only
+      - policy_limited_view
+      - review_workspace
+      - companion_surface
+      - remote_workspace
+
+  freshness_class:
+    description: >
+      Re-exported from
+      schemas/governance/capability_lifecycle.schema.json
+      without modification (ADR-0011).
+    values:
+      - authoritative_live
+      - warm_cached
+      - degraded_cached
+      - stale
+      - unverified
+
+  client_scope:
+    description: >
+      Re-exported from
+      schemas/governance/capability_lifecycle.schema.json
+      without modification (ADR-0011).
+    values:
+      - desktop_product
+      - cli
+      - companion_surface
+      - remote_agent
+      - sdk_or_api
+      - managed_admin_surface
+
+  redaction_class:
+    description: >
+      Re-exported from
+      schemas/governance/capability_lifecycle.schema.json
+      without modification (ADR-0011). The broker-owned
+      redaction pass (ADR-0007) runs before bytes reach any
+      persistent or exportable sink.
+    values:
+      - metadata_safe_default
+      - operator_only_restricted
+      - internal_support_restricted
+      - signing_evidence_only
+
+  audit_event_id:
+    description: >
+      Audit-event ids on the search audit stream. Events MUST
+      NOT carry raw query bodies, raw document bodies, raw
+      symbol definitions, or raw URLs.
+    values:
+      - search_query_opened
+      - search_result_packet_emitted
+      - search_result_packet_refused
+      - search_readiness_state_changed
+      - search_partial_index_disclosed
+      - search_semantic_fallback_engaged
+      - search_semantic_restored
+      - search_hidden_result_count_updated
+      - search_result_truth_class_downgraded
+      - search_deep_link_resolved
+      - search_deep_link_drifted
+      - search_deep_link_unresolvable
+      - search_scope_narrowed_by_policy
+      - search_result_schema_version_bumped
+
+  denial_reason:
+    description: >
+      Denial-reason vocabulary on the search audit stream.
+      Denials fail closed; silent downgrade to an empty result
+      set is forbidden.
+    values:
+      - readiness_state_unresolved
+      - result_truth_class_unresolved
+      - ranking_reason_missing
+      - hidden_scope_count_unresolved
+      - partial_truth_cause_missing
+      - semantic_fallback_state_unlabelled
+      - deep_link_drift_unresolved
+      - surface_class_excludes_row
+      - client_scope_excludes_surface
+      - policy_blocked
+      - raw_query_body_forbidden_on_boundary
+      - raw_document_body_forbidden_on_boundary
+      - search_result_schema_version_lagging
+
+# ---------------------------------------------------------------------------
+# Required parity fields. The fields listed below MUST be present on every
+# emitted search_result_packet_record so a later parity audit can compare
+# palette, full search, symbol jump, docs search, graph overlay, AI
+# explanation overlay, and support exports mechanically.
+# ---------------------------------------------------------------------------
+required_parity_fields:
+  - surface_class
+  - readiness_state
+  - result_truth_class
+  - ranking_reason_classes
+  - semantic_fallback_state
+  - scope_filter_class
+  - freshness_class
+  - client_scopes
+  - hidden_result_disclosure       # explicit null is acceptable
+  - stale_or_partial_explanation   # explicit null iff every conditional rule allows null
+  - running_build_identity_ref
+  - policy_context
+  - redaction_class
+
+# ---------------------------------------------------------------------------
+# Source-of-truth ownership table. Each result family has exactly one
+# canonical owner; copy-only shadow surfaces are forbidden. The
+# "no-shadow-search" rule mirrors the "no-shadow" rules in ADR-0008 and
+# ADR-0013: a downstream surface quotes the canonical owner by id rather
+# than re-deriving the payload.
+# ---------------------------------------------------------------------------
+source_of_truth_ownership:
+  - result_family: palette_command_rows
+    canonical_owner: palette_command_registry
+    authority_class: derived_knowledge
+  - result_family: workspace_lexical_and_graph_rows
+    canonical_owner: search_indexer
+    authority_class: derived_knowledge
+  - result_family: symbol_jump_rows
+    canonical_owner: symbol_jump_resolver
+    authority_class: derived_knowledge
+  - result_family: graph_overlay_rows
+    canonical_owner: graph_authority
+    authority_class: derived_knowledge
+  - result_family: docs_search_rows
+    canonical_owner: docs_pack_registry
+    authority_class: derived_knowledge
+    must_cite_authoritative_anchor: true
+  - result_family: ai_explanation_overlay_rows
+    canonical_owner: derived_explanation_session
+    authority_class: derived_knowledge
+    must_cite_authoritative_anchor: true
+  - result_family: support_export_rows
+    canonical_owner: support_export_pipeline
+    authority_class: derived_knowledge
+    quotes_owners_above_only: true
+  - result_family: deep_link_resolutions
+    canonical_owner: deep_link_resolver
+    authority_class: derived_knowledge
+
+# ---------------------------------------------------------------------------
+# Frozen copy guidance. Every stale_or_partial_explanation.human_readable_summary
+# emitted on a packet MUST quote one of the sentences below. Surfaces MAY add
+# scope-specific detail only through typed fields, never by rewriting the
+# summary sentence. docs/search/search_readiness_vocabulary.md carries the
+# prose guidance for product / docs / support writers.
+# ---------------------------------------------------------------------------
+copy_guidance:
+  - id: copy.partial_index_still_loading
+    partial_truth_causes: [hot_set_only, indexing_in_progress]
+    human_readable_summary: "Still indexing the rest of the workspace — these results are partial."
+  - id: copy.manifest_only_pending_materialisation
+    partial_truth_causes: [manifest_only]
+    human_readable_summary: "Some scopes are listed but not yet loaded — results from those scopes are not included."
+  - id: copy.cache_only_offline
+    partial_truth_causes: [cache_only]
+    human_readable_summary: "Showing cached results — live index is not reachable right now."
+  - id: copy.outside_loaded_scope
+    partial_truth_causes: [outside_loaded_scope]
+    human_readable_summary: "Results outside the loaded scope are not included."
+  - id: copy.semantic_unavailable_lexical_only
+    partial_truth_causes: [semantic_service_unavailable]
+    human_readable_summary: "Semantic scoring is unavailable — showing lexical results only."
+  - id: copy.remote_shard_unreachable
+    partial_truth_causes: [remote_shard_unreachable]
+    human_readable_summary: "Some remote results are not reachable — results are partial."
+  - id: copy.provider_overlay_unreachable
+    partial_truth_causes: [provider_overlay_unreachable]
+    human_readable_summary: "Connected-provider results are unavailable — showing workspace results only."
+  - id: copy.policy_blocked_shard
+    partial_truth_causes: [policy_blocked_shard]
+    human_readable_summary: "Admin policy narrows the source of results — some scopes are excluded."
+  - id: copy.freshness_floor_unmet
+    partial_truth_causes: [freshness_floor_unmet]
+    human_readable_summary: "Results are below the required freshness — showing them with a staleness note."
+  - id: copy.stale_index_served
+    partial_truth_causes: [stale_index_served]
+    human_readable_summary: "Showing stale index — reindex is pending or failed."
+  - id: copy.heuristic_only
+    partial_truth_causes: [hot_set_only]
+    human_readable_summary: "Some results are heuristic — graph confirmation is pending."
+  - id: copy.hybrid_semantic_supplement
+    partial_truth_causes: [hot_set_only]
+    human_readable_summary: "Showing exact matches plus semantic suggestions — suggestions are not authoritative."
+
+# ---------------------------------------------------------------------------
+# Worked examples. Each entry pairs a search_result_packet_record (or a
+# search_deep_link_record / search_session_record / search_audit_event_record)
+# with the adjacent ADR sections it exercises so a parity audit can use the
+# corpus as conformance fixtures. Opaque ids are illustrative; real ids are
+# minted by the canonical owners.
+# ---------------------------------------------------------------------------
+examples:
+
+  # -------------------------------------------------------------------------
+  # Palette row, exact match, fully indexed, fresh.
+  # -------------------------------------------------------------------------
+  - id: palette_exact_command_fully_indexed
+    scenario: >
+      The user opens the command palette and types a fragment of
+      the canonical command name. The row pins to the running
+      build's exact-build identity, the palette registry is
+      fully indexed, and no partial-truth disclosure is
+      emitted. Semantic scoring is not applicable to palette
+      command rows.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen) -> palette_command_registry
+      - Readiness-state vocabulary (frozen) -> fully_indexed
+      - Result-truth-class vocabulary (frozen) -> exact
+      - Semantic-fallback-state vocabulary (frozen) -> semantic_not_applicable
+      - Required parity fields (frozen)
+    packet: search:packet:palette:01
+    fixture: fixtures/search/result_truth_examples/palette_exact_command_fully_indexed.json
+
+  # -------------------------------------------------------------------------
+  # Full search row, partial index, heuristic, with a hidden-result count
+  # and a frozen-copy disclosure.
+  # -------------------------------------------------------------------------
+  - id: full_search_partial_index_heuristic_with_hidden
+    scenario: >
+      The workspace is still indexing when the user opens full
+      search. The surface returns a heuristic naming-similarity
+      cluster drawn from the hot set, discloses a non-zero
+      hidden-result count with policy_narrows_source and
+      outside_loaded_scope reasons, and quotes the frozen
+      copy.partial_index_still_loading summary. A parity audit
+      against the palette run at the same scope compares this
+      row to palette_exact_command_fully_indexed without
+      inventing any additional truth labels.
+    adr_sections_exercised:
+      - Readiness-state vocabulary (frozen) -> partial_index
+      - Result-truth-class vocabulary (frozen) -> heuristic
+      - Hidden-scope vocabulary (frozen)
+      - Partial-truth-cause vocabulary (frozen)
+      - Semantic-fallback-state vocabulary (frozen) -> semantic_unavailable_lexical_only
+      - Copy guidance (frozen) -> copy.partial_index_still_loading
+    packet: search:packet:fullsearch:01
+    fixture: fixtures/search/result_truth_examples/full_search_partial_index_heuristic_with_hidden.json
+
+  # -------------------------------------------------------------------------
+  # Symbol jump row, structural fallback when the graph could not confirm
+  # the relation.
+  # -------------------------------------------------------------------------
+  - id: symbol_jump_structural_fallback
+    scenario: >
+      The user triggers symbol jump on an identifier the graph
+      authority has not yet indexed. The resolver returns a
+      structural fallback drawn from the parser's symbol table,
+      marks the row as heuristic, and engages
+      semantic_unavailable_lexical_only. The row carries the
+      symbol_jump_declaration_anchor and structural_fallback
+      ranking reasons together.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen) -> symbol_jump_resolver
+      - Result-truth-class vocabulary (frozen) -> heuristic
+      - Ranking-reason-class vocabulary (frozen) -> structural_fallback
+      - Semantic-fallback-state vocabulary (frozen) -> semantic_unavailable_lexical_only
+    packet: search:packet:symbol:01
+    fixture: fixtures/search/result_truth_examples/symbol_jump_structural_fallback.json
+
+  # -------------------------------------------------------------------------
+  # Docs search row, imported fact from a mirrored pack with citation
+  # anchors.
+  # -------------------------------------------------------------------------
+  - id: docs_search_imported_with_citations
+    scenario: >
+      The user searches the docs pane. The row is an imported
+      fact pulled from a mirrored docs pack; the packet carries
+      non-empty citation_anchor_refs that point into the
+      help_status_badge vocabulary so a parity audit against the
+      docs browser can compare field-for-field. Readiness is
+      fully_indexed for the docs pack; freshness is warm_cached.
+    adr_sections_exercised:
+      - Source-of-truth ownership (frozen) -> docs_pack_registry
+      - Result-truth-class vocabulary (frozen) -> imported
+      - Ranking-reason-class vocabulary (frozen) -> imported_fact_match, docs_anchor_match
+      - Citation-anchor reservation (frozen, ADR-0013) -> non-empty citation_anchor_refs
+    packet: search:packet:docs:01
+    fixture: fixtures/search/result_truth_examples/docs_search_imported_with_citations.json
+
+  # -------------------------------------------------------------------------
+  # AI-explanation overlay row, hybrid (exact + imported + semantic
+  # supplement) with citation anchors and a semantic-supplement
+  # disclosure.
+  # -------------------------------------------------------------------------
+  - id: ai_explanation_hybrid_with_semantic_supplement
+    scenario: >
+      The AI explanation overlay renders a row that combines an
+      exact graph fact, an imported docs-pack anchor, and a
+      semantic neighbour. result_truth_class is hybrid and
+      ranking_reason_classes enumerates every contributor. The
+      semantic_fallback_state is semantic_available_as_supplement
+      — this is the only state under which a semantic contributor
+      may appear on a row.
+    adr_sections_exercised:
+      - Result-truth-class vocabulary (frozen) -> hybrid
+      - Ranking-reason-class vocabulary (frozen) -> hybrid must enumerate >= 2 contributors
+      - Semantic-fallback-state vocabulary (frozen) -> semantic_available_as_supplement
+      - Citation-anchor reservation (frozen, ADR-0013)
+    packet: search:packet:ai:01
+    fixture: fixtures/search/result_truth_examples/ai_explanation_hybrid_with_semantic_supplement.json
+
+  # -------------------------------------------------------------------------
+  # Deep-link record, resolved_remapped: the saved bookmark still points
+  # at a canonical entity but the entity has moved.
+  # -------------------------------------------------------------------------
+  - id: deep_link_resolved_remapped_with_chain
+    scenario: >
+      The user restores a saved session. A bookmark pointed at a
+      symbol that has since been renamed and moved; the deep-
+      link resolver follows the recorded remap chain and returns
+      resolved_remapped. remap_chain_refs is non-empty and names
+      the predecessor deep_link_ids. The paired audit event is
+      search_deep_link_resolved.
+    adr_sections_exercised:
+      - Deep-link-drift-state vocabulary (frozen) -> resolved_remapped
+      - Deep-link remap-chain requirement (frozen)
+      - Audit-event vocabulary (frozen) -> search_deep_link_resolved
+    deep_link: search:link:01
+    fixture: fixtures/search/result_truth_examples/deep_link_resolved_remapped_with_chain.json
+
+  # -------------------------------------------------------------------------
+  # Deep-link record, target_missing: the saved link's target no longer
+  # exists in the running build's workspace.
+  # -------------------------------------------------------------------------
+  - id: deep_link_target_missing
+    scenario: >
+      Another bookmark from the same session points at a file
+      that no longer exists. The resolver returns target_missing,
+      resolved_target_ref_opaque is null, and the paired audit
+      event is search_deep_link_unresolvable.
+    adr_sections_exercised:
+      - Deep-link-drift-state vocabulary (frozen) -> target_missing
+      - Audit-event vocabulary (frozen) -> search_deep_link_unresolvable
+    deep_link: search:link:02
+    fixture: fixtures/search/result_truth_examples/deep_link_target_missing.json
+
+  # -------------------------------------------------------------------------
+  # Service-degraded row, semantic unavailable, lexical-only fallback,
+  # frozen copy disclosure.
+  # -------------------------------------------------------------------------
+  - id: full_search_semantic_unavailable_lexical_only
+    scenario: >
+      The semantic scoring service is offline. Full search
+      renders lexical-only results, engages
+      semantic_unavailable_lexical_only, and quotes the frozen
+      copy.semantic_unavailable_lexical_only summary. No hybrid
+      rows may appear on this packet.
+    adr_sections_exercised:
+      - Semantic-fallback-state vocabulary (frozen) -> semantic_unavailable_lexical_only
+      - Partial-truth-cause vocabulary (frozen) -> semantic_service_unavailable
+      - Copy guidance (frozen) -> copy.semantic_unavailable_lexical_only
+    packet: search:packet:fullsearch:02
+    fixture: fixtures/search/result_truth_examples/full_search_semantic_unavailable_lexical_only.json
+
+  # -------------------------------------------------------------------------
+  # Audit event paired with a refused packet emission.
+  # -------------------------------------------------------------------------
+  - id: audit_packet_refused_ranking_reason_missing
+    scenario: >
+      A surface attempted to emit a packet whose
+      ranking_reason_classes list was empty. The audit stream
+      records search_result_packet_refused with
+      denial_reason = ranking_reason_missing. The denial fails
+      closed; the surface does not render a generic
+      "unavailable" row.
+    adr_sections_exercised:
+      - Audit-event vocabulary (frozen) -> search_result_packet_refused
+      - Denial-reason vocabulary (frozen) -> ranking_reason_missing
+      - Fail-closed rule (frozen)
+    audit_event: search:audit:01
+    fixture: fixtures/search/result_truth_examples/audit_packet_refused_ranking_reason_missing.json
+
+# ---------------------------------------------------------------------------
+# Parity-audit checklist. Tooling iterates this list to compare emitted
+# search_result_packet_record instances across surfaces.
+# ---------------------------------------------------------------------------
+parity_audit_checklist:
+  - id: same_running_build_identity
+    description: >
+      Command palette, full search, symbol jump, docs search,
+      graph overlay, AI-explanation overlay, and support export
+      MUST all carry the same running_build_identity_ref for the
+      running build.
+    failure_event: search_result_packet_refused
+    failure_denial_reason: search_result_schema_version_lagging
+  - id: same_readiness_per_scope
+    description: >
+      For any given scope_filter_class, palette / full-search /
+      docs-search readiness_state MUST agree at a single point in
+      time; divergence MUST emit search_readiness_state_changed
+      against the canonical owner.
+    failure_event: search_readiness_state_changed
+    failure_denial_reason: readiness_state_unresolved
+  - id: same_hidden_result_count_per_scope
+    description: >
+      Hidden-result disclosure MUST not silently differ across
+      surfaces that share a scope; divergence MUST emit
+      search_hidden_result_count_updated against the canonical
+      owner.
+    failure_event: search_hidden_result_count_updated
+    failure_denial_reason: hidden_scope_count_unresolved
+  - id: stale_or_partial_explanation_required
+    description: >
+      Every packet whose readiness_state is not fully_indexed,
+      whose result_truth_class is heuristic or hybrid, whose
+      semantic_fallback_state is below semantic_available_as_supplement,
+      or whose hidden_result_disclosure is non-null MUST carry a
+      stale_or_partial_explanation whose human_readable_summary
+      quotes a sentence from copy_guidance.
+    failure_event: search_result_packet_refused
+    failure_denial_reason: partial_truth_cause_missing
+  - id: hybrid_must_enumerate_contributors
+    description: >
+      A packet whose result_truth_class is hybrid MUST list at
+      least two ranking_reason_classes. A hybrid row with one
+      reason is non-conforming.
+    failure_event: search_result_packet_refused
+    failure_denial_reason: ranking_reason_missing
+  - id: semantic_supplement_only_as_hybrid
+    description: >
+      semantic_embedding_neighbour MUST only appear on a packet
+      whose result_truth_class is hybrid and whose
+      semantic_fallback_state is semantic_available_as_supplement.
+      Semantic-only rows are non-conforming.
+    failure_event: search_result_truth_class_downgraded
+    failure_denial_reason: semantic_fallback_state_unlabelled
+  - id: docs_and_ai_rows_must_cite
+    description: >
+      Every packet whose surface_class is docs_search or
+      ai_explanation_overlay, or whose result_truth_class is
+      imported, MUST carry a non-empty citation_anchor_refs
+      array.
+    failure_event: search_result_packet_refused
+    failure_denial_reason: result_truth_class_unresolved
+  - id: deep_link_resolved_requires_target_ref
+    description: >
+      Every search_deep_link_record whose deep_link_drift_state
+      is in the resolved family (resolved_exact,
+      resolved_remapped, resolved_ambiguous) MUST carry a non-
+      null resolved_target_ref_opaque.
+    failure_event: search_deep_link_drifted
+    failure_denial_reason: deep_link_drift_unresolved
+  - id: no_raw_query_or_document_bodies
+    description: >
+      No record emitted against this schema may carry raw query
+      bodies, raw document bodies, raw symbol definitions, or
+      raw URLs; only opaque ids and typed vocabulary cross the
+      RPC boundary.
+    failure_event: search_result_packet_refused
+    failure_denial_reason: raw_query_body_forbidden_on_boundary
+  - id: schema_version_alignment
+    description: >
+      All emitted packets / sessions / deep-link records / audit
+      events MUST share search_result_schema_version with the
+      registry; surfaces lagging behind a schema bump are denied.
+    failure_event: search_result_schema_version_bumped
+    failure_denial_reason: search_result_schema_version_lagging

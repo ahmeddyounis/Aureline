@@ -1,0 +1,668 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_result_truth.schema.json",
+  "title": "Aureline search readiness, ranking-reason, hidden-scope, result-truth, and deep-link drift vocabulary",
+  "description": "Boundary schema for the search_result_packet_record, the search_session_record, the search_deep_link_record, and the search_audit_event_record frozen in docs/adr/0014-search-readiness-ranking-result-truth.md. Every result row rendered on the command palette, full search, symbol jump, docs search, graph overlay, AI-explanation overlay, or support-export surface resolves to exactly one search_result_packet_record. Raw query bodies, raw document bodies, raw symbol definitions, and raw URLs never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual search / navigation crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new readiness state, result-truth class, ranking-reason class, hidden-scope reason, deep-link drift state, partial-truth cause, semantic-fallback state, surface class, audit-event id, or denial reason is additive-minor and requires a search_result_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/search_result_packet_record" },
+    { "$ref": "#/$defs/search_session_record" },
+    { "$ref": "#/$defs/search_deep_link_record" },
+    { "$ref": "#/$defs/search_audit_event_record" }
+  ],
+  "$defs": {
+    "search_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this search vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "search_result_packet_record",
+        "search_session_record",
+        "search_deep_link_record",
+        "search_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Query text, raw symbol definitions, raw document bodies, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "full_search",
+        "symbol_jump",
+        "docs_search",
+        "graph_overlay",
+        "ai_explanation_overlay",
+        "support_export"
+      ],
+      "description": "Frozen surface-class vocabulary naming which protected surface emitted the search record."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_ready",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Frozen readiness-state vocabulary. hot_set_ready, partial_index, warm_index, stale_index, reindexing, and index_unavailable rows MUST surface a partial-truth disclosure; fully_indexed is the only state that renders a result set as complete for the requested scope. not_indexed means the surface has not started indexing this scope; index_unavailable means the surface cannot reach its indexer at all."
+    },
+
+    "result_truth_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported",
+        "heuristic",
+        "hybrid"
+      ],
+      "description": "Frozen result-truth vocabulary. exact = proven from the current graph or lexical index for this scope; imported = fact pulled from a mirrored pack, docs pack, manifest, or provider overlay; heuristic = probabilistic, naming-similarity, or semantic-embedding derived; hybrid = combines at least two of the above and MUST enumerate its contributors in ranking_reason_classes. A row whose truth class is heuristic or hybrid MUST carry a partial-truth disclosure and MUST NOT render alone as authoritative."
+    },
+
+    "ranking_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_name_match",
+        "exact_path_match",
+        "lexical_prefix_match",
+        "lexical_fuzzy_match",
+        "symbol_kind_prior",
+        "graph_neighbourhood_hop",
+        "recent_file_bias",
+        "recent_edit_bias",
+        "frequent_use_bias",
+        "imported_fact_match",
+        "heuristic_summary_cluster",
+        "semantic_embedding_neighbour",
+        "docs_anchor_match",
+        "palette_command_canonical",
+        "symbol_jump_declaration_anchor",
+        "structural_fallback",
+        "policy_hidden_placeholder"
+      ],
+      "description": "Frozen ranking-reason classes. Surfaces MUST emit the reasons that actually contributed to the ranking; per-surface free-form reason strings are forbidden. structural_fallback names the parser / symbol-inferred fallback used when the graph could not confirm a relation; policy_hidden_placeholder is emitted only on rows whose presence is disclosed but whose content is hidden (see hidden_scope_reason)."
+    },
+
+    "hidden_scope_reason": {
+      "type": "string",
+      "enum": [
+        "trust_state_excludes_surface",
+        "policy_narrows_source",
+        "sparse_scope_excludes_root",
+        "outside_loaded_scope",
+        "excluded_by_user_filter",
+        "client_scope_excludes_surface",
+        "provider_overlay_unauthorised",
+        "pack_quarantined",
+        "redaction_narrowed",
+        "remote_shard_unreachable"
+      ],
+      "description": "Frozen reasons a row or a class of rows is hidden from the rendered result set. Every non-zero hidden_result_count MUST enumerate at least one hidden_scope_reason. A surface MAY group hidden rows under a single reason; it MUST NOT silently drop the count."
+    },
+
+    "deep_link_drift_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "resolved_remapped",
+        "resolved_ambiguous",
+        "target_missing",
+        "target_moved",
+        "target_renamed",
+        "target_branch_drifted",
+        "target_policy_blocked",
+        "target_scope_excluded",
+        "index_not_ready_for_target",
+        "unresolvable"
+      ],
+      "description": "Frozen deep-link drift states. Every deep-link resolution on bookmark restore, session restore, AI evidence packet, support export, or cross-surface navigation carries exactly one drift state. target_branch_drifted names the case where the target still exists but under a different branch / revision from the saved link; resolved_remapped names the case where the surface automatically followed a rename / move with a recorded mapping; resolved_ambiguous names the case where more than one candidate matched the saved link."
+    },
+
+    "partial_truth_cause": {
+      "type": "string",
+      "enum": [
+        "hot_set_only",
+        "manifest_only",
+        "cache_only",
+        "outside_loaded_scope",
+        "indexing_in_progress",
+        "semantic_service_unavailable",
+        "remote_shard_unreachable",
+        "provider_overlay_unreachable",
+        "policy_blocked_shard",
+        "freshness_floor_unmet",
+        "stale_index_served"
+      ],
+      "description": "Frozen reasons the result set labels partial truth rather than pretending global completeness. Every readiness_state other than fully_indexed MUST carry at least one partial_truth_cause."
+    },
+
+    "semantic_fallback_state": {
+      "type": "string",
+      "enum": [
+        "semantic_unavailable_lexical_only",
+        "semantic_degraded_lexical_preferred",
+        "semantic_available_as_supplement",
+        "semantic_disabled_by_policy",
+        "semantic_not_applicable"
+      ],
+      "description": "Frozen semantic-fallback states. semantic_unavailable_lexical_only is the canonical non-semantic fallback and is the default for palette / symbol-jump surfaces; semantic_available_as_supplement is the only state under which a row may carry result_truth_class = hybrid with a semantic contributor; semantic_disabled_by_policy names the admin-policy narrowing; semantic_not_applicable names surfaces whose contract does not include semantic scoring (e.g. palette command rows)."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Frozen scope / filter vocabulary re-exported from the execution-context and workset vocabulary (ADR-0009). Every search_result_packet_record carries the scope class the query ran against so parity audits can compare palette / full-search / docs-search behaviour under identical scope."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A surface whose canonical owner has not been contacted within its refresh window MUST NOT render authoritative_live."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A row whose client_scope excludes the rendering surface MUST NOT render as available there."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "search_query_opened",
+        "search_result_packet_emitted",
+        "search_result_packet_refused",
+        "search_readiness_state_changed",
+        "search_partial_index_disclosed",
+        "search_semantic_fallback_engaged",
+        "search_semantic_restored",
+        "search_hidden_result_count_updated",
+        "search_result_truth_class_downgraded",
+        "search_deep_link_resolved",
+        "search_deep_link_drifted",
+        "search_deep_link_unresolvable",
+        "search_scope_narrowed_by_policy",
+        "search_result_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the search audit stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "readiness_state_unresolved",
+        "result_truth_class_unresolved",
+        "ranking_reason_missing",
+        "hidden_scope_count_unresolved",
+        "partial_truth_cause_missing",
+        "semantic_fallback_state_unlabelled",
+        "deep_link_drift_unresolved",
+        "surface_class_excludes_row",
+        "client_scope_excludes_surface",
+        "policy_blocked",
+        "raw_query_body_forbidden_on_boundary",
+        "raw_document_body_forbidden_on_boundary",
+        "search_result_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary for the search audit stream. Denials fail closed; silent downgrade to an empty result set is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the packet / session / link / event was recorded."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "hidden_result_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hidden_result_count", "count_is_approximate", "hidden_scope_reasons"],
+      "properties": {
+        "hidden_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of rows withheld from the rendered result set under the hidden_scope_reasons below. MAY be an upper bound when the surface cannot compute an exact count; count_is_approximate MUST then be true. Zero is a valid value and MUST still enumerate the reasons that would apply."
+        },
+        "count_is_approximate": {
+          "type": "boolean",
+          "description": "True when hidden_result_count is an upper bound. Surfaces MUST NOT silently round a known count to zero."
+        },
+        "hidden_scope_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hidden_scope_reason" }
+        }
+      },
+      "description": "Disclosure block for rows hidden from the rendered result set. A surface that hides at least one row MUST emit a non-null disclosure."
+    },
+
+    "stale_or_partial_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partial_truth_causes", "human_readable_summary"],
+      "properties": {
+        "partial_truth_causes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_truth_cause" }
+        },
+        "human_readable_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short operator / user-facing sentence from the frozen copy guidance (docs/search/search_readiness_vocabulary.md). Surfaces MUST quote the frozen copy verbatim rather than minting surface-local copy."
+        }
+      },
+      "description": "Typed stale-or-partial explanation. Required when readiness_state is anything other than fully_indexed, when result_truth_class is heuristic or hybrid, when semantic_fallback_state is anything other than semantic_available_as_supplement or semantic_not_applicable, or when hidden_result_disclosure is non-null."
+    },
+
+    "search_result_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_result_schema_version",
+        "packet_id",
+        "query_session_id_ref",
+        "surface_class",
+        "readiness_state",
+        "result_truth_class",
+        "ranking_reason_classes",
+        "semantic_fallback_state",
+        "scope_filter_class",
+        "freshness_class",
+        "client_scopes",
+        "hidden_result_disclosure",
+        "stale_or_partial_explanation",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_result_packet_record" },
+        "search_result_schema_version": { "$ref": "#/$defs/search_result_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the search_session_record that opened the query. Raw query text never crosses the boundary; the session record holds a redacted classification."
+        },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ranking_reason_class" },
+          "description": "Every class that contributed to the ranking of this row. A hybrid result_truth_class MUST list at least two contributors."
+        },
+        "semantic_fallback_state": { "$ref": "#/$defs/semantic_fallback_state" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hidden_result_disclosure" }
+          ],
+          "description": "Non-null whenever at least one row was withheld from the rendered result set for any reason in hidden_scope_reason."
+        },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stale_or_partial_explanation" }
+          ],
+          "description": "Required (non-null) when readiness_state is not fully_indexed, result_truth_class is heuristic or hybrid, semantic_fallback_state is below semantic_available_as_supplement, or hidden_result_disclosure is non-null."
+        },
+        "deep_link_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to search_deep_link_record entries the packet exposes (e.g. jump-to-symbol, open-docs, restore-session)."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back the row's truth claim. Required (non-empty) when result_truth_class = imported or when surface_class = docs_search or ai_explanation_overlay."
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "stale_or_partial_explanation MUST be non-null when readiness_state is not fully_indexed.",
+          "if": {
+            "properties": {
+              "readiness_state": {
+                "not": { "const": "fully_indexed" }
+              }
+            },
+            "required": ["readiness_state"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "stale_or_partial_explanation MUST be non-null when result_truth_class is heuristic or hybrid.",
+          "if": {
+            "properties": {
+              "result_truth_class": { "enum": ["heuristic", "hybrid"] }
+            },
+            "required": ["result_truth_class"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "hidden_result_disclosure MUST be non-null when a row was withheld.",
+          "if": {
+            "properties": {
+              "hidden_result_disclosure": { "type": "object" }
+            },
+            "required": ["hidden_result_disclosure"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        }
+      ],
+      "description": "Per-emission contract between the search / navigation surfaces and every downstream consumer (support export, AI evidence, docs overlay, parity audit). Raw query bodies, raw document bodies, raw symbol definitions, and raw URLs never appear on this record; only ids and typed vocabulary cross the RPC boundary."
+    },
+
+    "search_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_result_schema_version",
+        "query_session_id",
+        "surface_class",
+        "scope_filter_class",
+        "readiness_state_at_open",
+        "semantic_fallback_state_at_open",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_session_record" },
+        "search_result_schema_version": { "$ref": "#/$defs/search_result_schema_version" },
+        "query_session_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "readiness_state_at_open": { "$ref": "#/$defs/readiness_state" },
+        "semantic_fallback_state_at_open": { "$ref": "#/$defs/semantic_fallback_state" },
+        "query_classification": {
+          "type": "string",
+          "enum": [
+            "palette_command_lookup",
+            "symbol_jump_lookup",
+            "text_substring_lookup",
+            "regex_lookup",
+            "docs_topic_lookup",
+            "semantic_concept_lookup",
+            "deep_link_resolve",
+            "ai_evidence_lookup"
+          ],
+          "description": "Redacted query classification. Raw query text never crosses; surfaces emit the class. Null when the surface does not classify the query at open time."
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Session / query envelope for the search lane. Multiple search_result_packet_records reference a single session; raw query text never appears on the record."
+    },
+
+    "search_deep_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_result_schema_version",
+        "deep_link_id",
+        "deep_link_drift_state",
+        "target_kind",
+        "target_ref_opaque",
+        "resolved_target_ref_opaque",
+        "originating_surface_class",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_deep_link_record" },
+        "search_result_schema_version": { "$ref": "#/$defs/search_result_schema_version" },
+        "deep_link_id": { "$ref": "#/$defs/opaque_id" },
+        "deep_link_drift_state": { "$ref": "#/$defs/deep_link_drift_state" },
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "workspace_file",
+            "buffer_anchor",
+            "graph_symbol",
+            "graph_edge",
+            "docs_page_anchor",
+            "runbook_step",
+            "service_health_event",
+            "ai_evidence_anchor",
+            "bookmark"
+          ],
+          "description": "Frozen deep-link target kinds. Raw paths and raw URLs never appear on the record; target_ref_opaque is an id."
+        },
+        "target_ref_opaque": { "$ref": "#/$defs/opaque_id" },
+        "resolved_target_ref_opaque": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque id of the resolved target after drift resolution. Null when the target could not be resolved (target_missing, unresolvable, index_not_ready_for_target)."
+        },
+        "originating_surface_class": { "$ref": "#/$defs/surface_class" },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "remap_chain_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Predecessor deep_link_id(s) this link was remapped from. Non-empty when deep_link_drift_state = resolved_remapped."
+        }
+      },
+      "allOf": [
+        {
+          "description": "resolved_target_ref_opaque MUST be non-null when deep_link_drift_state is in the resolved family.",
+          "if": {
+            "properties": {
+              "deep_link_drift_state": {
+                "enum": ["resolved_exact", "resolved_remapped", "resolved_ambiguous"]
+              }
+            },
+            "required": ["deep_link_drift_state"]
+          },
+          "then": {
+            "properties": { "resolved_target_ref_opaque": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["resolved_target_ref_opaque"]
+          }
+        }
+      ],
+      "description": "Deep-link record emitted whenever a bookmark, session-restore pointer, AI evidence anchor, or cross-surface navigation link is resolved."
+    },
+
+    "search_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_result_schema_version",
+        "audit_event_id",
+        "query_session_id_ref",
+        "surface_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_audit_event_record" },
+        "search_result_schema_version": { "$ref": "#/$defs/search_result_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "packet_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "deep_link_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "readiness_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/readiness_state" }
+          ]
+        },
+        "result_truth_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/result_truth_class" }
+          ]
+        },
+        "semantic_fallback_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semantic_fallback_state" }
+          ]
+        },
+        "deep_link_drift_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deep_link_drift_state" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) for search_result_packet_refused and for any drift / disclosure event whose outcome was a denial."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted on the search audit stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    }
+  }
+}

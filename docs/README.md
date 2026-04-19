@@ -56,6 +56,20 @@ code.
   Conforms to
   [`/schemas/product/boundary_manifest.schema.json`](../schemas/product/boundary_manifest.schema.json).
 
+## Frozen vocabularies
+
+- [`search/search_readiness_vocabulary.md`](./search/search_readiness_vocabulary.md)
+  — copy-guidance companion to the search readiness, ranking-reason,
+  hidden-scope, result-truth, and deep-link drift ADR. Frozen sentence
+  corpus every palette, full-search, symbol-jump, docs-search,
+  graph-overlay, AI-explanation-overlay, and support-export surface
+  quotes. Machine-readable corpus in
+  [`/artifacts/search/result_truth_labels.yaml`](../artifacts/search/result_truth_labels.yaml);
+  boundary schema in
+  [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
+  worked fixtures in
+  [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+
 ## Machine-readable registers
 
 These live outside `docs/` because tooling reads them; the narrative
