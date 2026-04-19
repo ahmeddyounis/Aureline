@@ -1,0 +1,125 @@
+# Package inventory.
+#
+# Authoritative mapping of internal crates to canonical work packages,
+# protected-path posture, and allowed internal dependencies. Future governance
+# tooling consumes this file directly. Keep entries sorted by `name`.
+#
+# Schema:
+#   schema_version: int
+#   packages:
+#     - name: cargo crate name
+#       path: repo-relative directory
+#       layer: L0 | L1 | L2 | L3 | LX
+#       protected_path: bool
+#       work_packages: [string]   # canonical owner work-package IDs
+#       allowed_internal_deps: [string]   # crate names this package may depend on
+#       depended_on_by_production: bool
+#       notes: free-form, optional
+
+schema_version: 1
+packages:
+  - name: aureline-bench
+    path: crates/aureline-bench
+    layer: LX
+    protected_path: false
+    work_packages: [WP-14]
+    allowed_internal_deps:
+      - aureline-shell-spike
+      - aureline-render
+      - aureline-text
+      - aureline-buffer
+      - aureline-vfs
+      - aureline-rpc
+      - aureline-telemetry
+    depended_on_by_production: false
+    notes: >
+      Benchmark harness. May depend on any internal crate to exercise it from
+      a benchmark; production crates must never depend on it.
+
+  - name: aureline-buffer
+    path: crates/aureline-buffer
+    layer: L2
+    protected_path: true
+    work_packages: [WP-02]
+    allowed_internal_deps:
+      - aureline-text
+      - aureline-telemetry
+    depended_on_by_production: true
+
+  - name: aureline-render
+    path: crates/aureline-render
+    layer: L2
+    protected_path: true
+    work_packages: [WP-01]
+    allowed_internal_deps:
+      - aureline-text
+      - aureline-telemetry
+    depended_on_by_production: true
+
+  - name: aureline-rpc
+    path: crates/aureline-rpc
+    layer: L1
+    protected_path: true
+    work_packages: [WP-13]
+    allowed_internal_deps:
+      - aureline-telemetry
+    depended_on_by_production: true
+
+  - name: aureline-shell-spike
+    path: crates/aureline-shell-spike
+    layer: L3
+    protected_path: false
+    work_packages: [WP-01]
+    allowed_internal_deps:
+      - aureline-render
+      - aureline-text
+      - aureline-buffer
+      - aureline-vfs
+      - aureline-rpc
+      - aureline-telemetry
+    depended_on_by_production: false
+    notes: >
+      Throwaway integration spike. Must be replaced or removed before stable.
+
+  - name: aureline-telemetry
+    path: crates/aureline-telemetry
+    layer: L0
+    protected_path: true
+    work_packages: [WP-13, WP-14]
+    allowed_internal_deps: []
+    depended_on_by_production: true
+
+  - name: aureline-text
+    path: crates/aureline-text
+    layer: L0
+    protected_path: true
+    work_packages: [WP-01, WP-02]
+    allowed_internal_deps: []
+    depended_on_by_production: true
+
+  - name: aureline-vfs
+    path: crates/aureline-vfs
+    layer: L2
+    protected_path: true
+    work_packages: [WP-03]
+    allowed_internal_deps:
+      - aureline-text
+      - aureline-telemetry
+    depended_on_by_production: true
+
+work_package_index:
+  WP-01:
+    title: Core shell and renderer
+    crates: [aureline-shell-spike, aureline-render, aureline-text]
+  WP-02:
+    title: Editor and buffer core
+    crates: [aureline-buffer, aureline-text]
+  WP-03:
+    title: Workspace, VFS, and persistence
+    crates: [aureline-vfs]
+  WP-13:
+    title: Release engineering and governance
+    crates: [aureline-rpc, aureline-telemetry]
+  WP-14:
+    title: Quality engineering, certification, and claim publication
+    crates: [aureline-telemetry, aureline-bench]
