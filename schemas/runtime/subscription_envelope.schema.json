@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/subscription_envelope.schema.json",
+  "title": "Aureline reactive subscription envelope",
+  "description": "Boundary schema for the reactive subscription envelope carried inside the typed RPC event-stream envelope. See docs/adr/0005-subscription-envelope-and-invalidation-semantics.md. The subscription envelope rides the ADR-0004 event envelope as its typed payload; this schema describes the reactive-truth fields (freshness, completeness, stale reasons, authority / derivation classification, materialized-view class, and the subscription lifecycle frame_class) that every reactive consumer MUST observe consistently. The Rust types in the eventual reactive-state crate are the schema of record; this file is the cross-tool export that external readers (docs, audit, CLI, companions, support-bundle exporter, timeline / replay lane) rely on and that stays stable across per-query-family payload evolution.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/snapshot_frame" },
+    { "$ref": "#/$defs/delta_frame" },
+    { "$ref": "#/$defs/resync_required_frame" },
+    { "$ref": "#/$defs/terminal_frame" }
+  ],
+  "$defs": {
+    "subscription_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the subscription payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "subscription_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Stable diagnostic and audit handle allocated by the producer at subscribe time. Copied from the enclosing ADR-0004 event envelope."
+    },
+    "query_family": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical id of the query contract or view family (for example, 'vfs.tree', 'editor.buffer_snapshot', 'search.results', 'review.overlay'). Resolved against the method manifest."
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ],
+          "description": "Scope class. Unscoped ambient subscriptions are forbidden on protected surfaces."
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier within the scope class."
+        }
+      },
+      "description": "Typed subscription scope. Every subscription declares exactly one scope."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Canonical-owner classification. Distinguishes where authoritative state lives (Appendix DB of the TAD)."
+    },
+    "derivation_class": {
+      "type": "string",
+      "enum": ["authoritative", "derived"],
+      "description": "Whether the frame is the canonical owner's own state or a projection produced from named inputs. Derived frames MUST populate producer_refs with input digests and MAY NOT claim freshness = authoritative."
+    },
+    "snapshot_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic counter per (query_family, scope_ref). Changes only when a snapshot is republished."
+    },
+    "delta_seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic counter within the current snapshot_epoch. Snapshot frame is 0; deltas strictly increase."
+    },
+    "frame_class": {
+      "type": "string",
+      "enum": ["snapshot", "delta", "resync_required", "terminal"],
+      "description": "Lifecycle frame class. Determines how the consumer applies the payload."
+    },
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Frozen freshness posture at emit time. Derived producers MAY NOT claim 'authoritative' unless every input is authoritative and the derivation epoch is current."
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"],
+      "description": "Whether the producer believes the current scope's results are complete. Orthogonal to freshness."
+    },
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required"],
+      "description": "Declared at subscribe time. Switching modes forces a resync_required frame."
+    },
+    "view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ],
+      "description": "Materialized-view class. Consumers MAY NOT persist beyond what the producer advertised."
+    },
+    "stale_reason": {
+      "type": "string",
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost"
+      ],
+      "description": "Frozen stale-reason taxonomy. Adding a code is additive-minor; repurposing a code is breaking and requires a new decision row."
+    },
+    "terminal_reason": {
+      "type": "string",
+      "enum": [
+        "consumer_cancelled",
+        "producer_shutdown",
+        "scope_removed",
+        "policy_terminated",
+        "unavailable"
+      ],
+      "description": "Terminal reason for the subscription. Consumers observe at most one terminal frame per subscription_id."
+    },
+    "producer_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "producer_instance"],
+      "properties": {
+        "producer_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Service identifier of the producer."
+        },
+        "producer_instance": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Instance identifier (host + pid + boot epoch) so consumers can distinguish producer restarts."
+        },
+        "producer_version": {
+          "type": "string",
+          "description": "Optional producer build identity."
+        },
+        "input_digests": {
+          "type": "array",
+          "description": "Zero or more digest references naming inputs this frame was derived from. Required on derived frames.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "digest"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "digest": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "derivation_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional derivation epoch for derived producers."
+        },
+        "source": {
+          "type": "string",
+          "description": "Optional human-readable source hint (for example 'imported-lsif', 'replay-bundle:<id>'). Required when freshness is 'imported' or 'replayed'."
+        }
+      }
+    },
+    "producer_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/producer_ref" },
+      "description": "One or more producer references supporting provenance and support-bundle attribution."
+    },
+    "invalidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale_reason"],
+      "properties": {
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "caused_by": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional attribution pointing at the event or epoch that caused the invalidation.",
+          "properties": {
+            "authority_epoch": { "type": "integer", "minimum": 0 },
+            "policy_epoch": { "type": "integer", "minimum": 0 },
+            "upstream_digest": { "type": "string", "minLength": 1 },
+            "trace_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$",
+              "description": "Optional ADR-0004 trace_id of the mutation or event that caused the invalidation."
+            },
+            "note": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "common_required_fields": {
+      "type": "object",
+      "description": "Shared shape documented inline; every frame_class inlines these fields.",
+      "required": [
+        "subscription_schema_version",
+        "subscription_id",
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "view_class",
+        "producer_refs"
+      ]
+    },
+    "snapshot_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_schema_version",
+        "subscription_id",
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "view_class",
+        "producer_refs",
+        "payload"
+      ],
+      "properties": {
+        "subscription_schema_version": { "$ref": "#/$defs/subscription_schema_version" },
+        "subscription_id": { "$ref": "#/$defs/subscription_id" },
+        "query_family": { "$ref": "#/$defs/query_family" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "snapshot_epoch": { "$ref": "#/$defs/snapshot_epoch" },
+        "delta_seq": {
+          "type": "integer",
+          "const": 0,
+          "description": "Snapshot frame always carries delta_seq = 0."
+        },
+        "frame_class": {
+          "type": "string",
+          "const": "snapshot"
+        },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "producer_refs": { "$ref": "#/$defs/producer_refs" },
+        "invalidation": { "$ref": "#/$defs/invalidation" },
+        "payload": {
+          "description": "Typed, query-family-specific snapshot body. Opaque to this boundary schema."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Non-authoritative freshness values MUST carry an invalidation reason.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "enum": ["cached", "stale", "replayed", "imported"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": { "required": ["invalidation"] }
+        }
+      ]
+    },
+    "delta_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_schema_version",
+        "subscription_id",
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "view_class",
+        "producer_refs",
+        "payload"
+      ],
+      "properties": {
+        "subscription_schema_version": { "$ref": "#/$defs/subscription_schema_version" },
+        "subscription_id": { "$ref": "#/$defs/subscription_id" },
+        "query_family": { "$ref": "#/$defs/query_family" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "snapshot_epoch": { "$ref": "#/$defs/snapshot_epoch" },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Delta frames strictly increase within the snapshot_epoch."
+        },
+        "frame_class": {
+          "type": "string",
+          "const": "delta"
+        },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "producer_refs": { "$ref": "#/$defs/producer_refs" },
+        "invalidation": { "$ref": "#/$defs/invalidation" },
+        "payload": {
+          "description": "Typed, query-family-specific delta body. Opaque to this boundary schema."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "freshness": {
+                "enum": ["cached", "stale", "replayed", "imported"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": { "required": ["invalidation"] }
+        }
+      ]
+    },
+    "resync_required_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_schema_version",
+        "subscription_id",
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "view_class",
+        "producer_refs",
+        "invalidation"
+      ],
+      "properties": {
+        "subscription_schema_version": { "$ref": "#/$defs/subscription_schema_version" },
+        "subscription_id": { "$ref": "#/$defs/subscription_id" },
+        "query_family": { "$ref": "#/$defs/query_family" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "snapshot_epoch": {
+          "$ref": "#/$defs/snapshot_epoch",
+          "description": "Epoch the producer is leaving. A fresh snapshot follows with a higher snapshot_epoch."
+        },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Last observed delta_seq on the epoch being abandoned."
+        },
+        "frame_class": {
+          "type": "string",
+          "const": "resync_required"
+        },
+        "freshness": {
+          "type": "string",
+          "const": "stale",
+          "description": "resync_required frames always carry freshness = stale."
+        },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "producer_refs": { "$ref": "#/$defs/producer_refs" },
+        "invalidation": { "$ref": "#/$defs/invalidation" }
+      }
+    },
+    "terminal_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_schema_version",
+        "subscription_id",
+        "query_family",
+        "scope_ref",
+        "authority_class",
+        "derivation_class",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "view_class",
+        "producer_refs",
+        "terminal_reason"
+      ],
+      "properties": {
+        "subscription_schema_version": { "$ref": "#/$defs/subscription_schema_version" },
+        "subscription_id": { "$ref": "#/$defs/subscription_id" },
+        "query_family": { "$ref": "#/$defs/query_family" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "derivation_class": { "$ref": "#/$defs/derivation_class" },
+        "snapshot_epoch": { "$ref": "#/$defs/snapshot_epoch" },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Final delta_seq observed on the subscription."
+        },
+        "frame_class": {
+          "type": "string",
+          "const": "terminal"
+        },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "completeness": { "$ref": "#/$defs/completeness" },
+        "backpressure_mode": { "$ref": "#/$defs/backpressure_mode" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "producer_refs": { "$ref": "#/$defs/producer_refs" },
+        "invalidation": { "$ref": "#/$defs/invalidation" },
+        "terminal_reason": { "$ref": "#/$defs/terminal_reason" }
+      }
+    }
+  }
+}

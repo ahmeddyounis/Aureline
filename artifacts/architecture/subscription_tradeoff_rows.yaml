@@ -1,0 +1,423 @@
+# Subscription tradeoff rows.
+#
+# Machine-readable tradeoff table backing ADR 0005
+# (docs/adr/0005-subscription-envelope-and-invalidation-semantics.md).
+# Each row names one decision axis, what the chosen subscription /
+# invalidation posture commits to, the rejected alternative that came
+# closest, why the chosen posture wins on that axis, and the
+# observable signal that would force the row to reopen. Tooling
+# (shell, VFS, editor, search, graph, review, AI, CLI, support-bundle
+# exporter, eventual timeline / replay lane, benchmark lab,
+# governance packets) may read these rows to avoid inventing parallel
+# vocabulary for the same tradeoff.
+#
+# Scope rules:
+#   - Every row MUST name an axis, a chosen_stack summary, a
+#     best_rejected_alternative, at least one supporting
+#     source_anchor, and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - Do not re-litigate a rejected alternative by editing its row;
+#     open a new decision row instead (see ADR 0005's "Consequences"
+#     and "Alternatives considered" sections).
+
+schema_version: 1
+
+adr_source: docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+decision_id: D-0005
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Axis vocabulary.
+#
+# Every row's `axis` field MUST be one of these. A new axis requires a
+# schema bump and a note on the ADR.
+# -----------------------------------------------------------------------------
+axes:
+  - one_envelope_across_surfaces
+  - causal_continuity_vs_throughput
+  - authoritative_vs_derived
+  - freshness_and_completeness_labels
+  - materialized_view_classes
+  - replay_and_import_posture
+  - schema_discipline
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers. `blocker` forces a new
+# decision row on sight; `watch` logs a row for shiproom review.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - axis: one_envelope_across_surfaces
+    chosen_stack:
+      summary: >
+        One typed subscription envelope rides the ADR-0004 event-stream
+        envelope across every reactive surface (shell, editor, search,
+        graph, review, AI, CLI, companion, support-bundle exporter,
+        replay). The same freshness / completeness / stale-reason /
+        view-class vocabulary applies to every query family.
+      commits:
+        - single envelope schema at schemas/runtime/subscription_envelope.schema.json
+        - one vocabulary across ephemeral, durable, export, and replicated views
+        - per-surface envelopes are forbidden on protected surfaces
+        - subscription_id, query_family, scope_ref, and producer_refs
+          are the same shape everywhere
+    best_rejected_alternative:
+      summary: >
+        Let each surface (file tree, editor, search, review, AI, CLI)
+        define its own subscription shape.
+      rejection_reason: >
+        Per-surface envelopes make cross-surface truth claims
+        unprovable. Support bundles and timeline replay need a
+        translation layer per surface; mutating actions cannot
+        consistently decide whether a surface saw authoritative
+        truth.
+    why_chosen_wins: >
+        One vocabulary lets every consumer surface freshness honestly,
+        lets the support-bundle exporter capture one frame class per
+        subscription, and lets the benchmark lab instrument one set
+        of hooks rather than N per surface.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1688"
+        quote: "every cross-surface consumer uses one typed subscription contract"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 5878"
+        quote: "Every visible surface agrees on current workspace truth"
+    protected_hot_path_hooks:
+      - subscription_subscribe
+      - subscription_snapshot_emit
+      - subscription_delta_emit
+      - subscription_delta_apply
+    reopen_triggers:
+      - id: surface_needs_private_envelope
+        severity: blocker
+        description: >
+          A protected surface demonstrates it cannot express its
+          reactive truth within the shared envelope (for example, a
+          collaboration surface forces a CRDT-shaped frame vocabulary
+          the envelope cannot carry).
+      - id: support_bundle_cannot_cite_envelope
+        severity: blocker
+        description: >
+          The support-bundle exporter cannot reconstruct what a
+          surface showed the user because the envelope is missing a
+          required attribution field.
+
+  - axis: causal_continuity_vs_throughput
+    chosen_stack:
+      summary: >
+        Snapshot frame + strictly monotonic delta_seq + explicit
+        resync_required frame with a typed stale_reason. Gaps are
+        never silent; producers emit a resync_required before any
+        further deltas can be applied.
+      commits:
+        - snapshot_epoch bumps only on snapshot republish
+        - delta_seq strictly monotonic inside an epoch
+        - resync_required carries a typed stale_reason
+        - at_least_once deliveries MUST carry idempotency_key
+    best_rejected_alternative:
+      summary: >
+        Best-effort pub/sub with silent gaps; rely on consumers to
+        reconcile via poll or watchdog.
+      rejection_reason: >
+        Silent gaps hide stale derived actions. Consumers would
+        present stale affordances as exact truth; the benchmark lab
+        could not instrument causal continuity; support bundles
+        could not reconstruct the user's view.
+    why_chosen_wins: >
+        Every loss of causal continuity surfaces as a typed
+        stale_reason and a hop in snapshot_epoch. The UI can label
+        truth honestly; the timeline / replay lane can reason about
+        epoch boundaries without guessing.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1690"
+        quote: "they must never continue presenting stale derived actions as exact truth after the snapshot guarantee is lost"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 7820"
+        quote: "stable event handlers must tolerate duplicate delivery and unknown additive fields"
+    protected_hot_path_hooks:
+      - subscription_resync_required_emit
+      - subscription_delta_emit
+      - subscription_delta_apply
+    reopen_triggers:
+      - id: gap_detection_budget_breach
+        severity: blocker
+        description: >
+          subscription_resync_required_emit or
+          subscription_delta_apply exceeds its budget on a claimed
+          corpus and the fix would require changing the lifecycle
+          contract (for example, permitting silent gaps on a named
+          query family).
+      - id: delivery_mode_expansion_required
+        severity: watch
+        description: >
+          A query family needs a delivery mode beyond exactly_once /
+          at_least_once / best_effort (for example, a CRDT merge
+          mode) and cannot express that requirement in the existing
+          vocabulary.
+
+  - axis: authoritative_vs_derived
+    chosen_stack:
+      summary: >
+        Explicit authority_class (one of workspace_vfs, buffer_editor,
+        derived_knowledge, execution, policy_entitlement,
+        provider_overlay) plus derivation_class (authoritative vs
+        derived). Derived frames carry producer_refs with input
+        digests and MAY NOT claim freshness = authoritative.
+      commits:
+        - every frame declares authority_class and derivation_class
+        - derived frames name every input digest
+        - mutating affordances re-consult the authority when derived
+        - provider / overlay frames never silently replace local truth
+    best_rejected_alternative:
+      summary: >
+        A single "freshness score" combining authority and
+        derivation into one numeric field.
+      rejection_reason: >
+        Collapsing provenance into a score destroys the signal a
+        mutating command needs to decide whether the data it sees is
+        the authority or a projection whose inputs are stale.
+    why_chosen_wins: >
+        Mutating affordances, audit records, and support bundles can
+        route on class ids rather than parsing a score; derived
+        producers cannot accidentally masquerade as canonical
+        owners.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9634"
+        quote: "DB.1 Authority-class matrix"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 1618"
+        quote: "Authority class | Canonical owner | Typical entities | Materialized-view rule"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: authority_class_gap
+        severity: blocker
+        description: >
+          A producer has a legitimate authority role that cannot
+          honestly classify as any of the six authority_class values
+          without misattribution; the row reopens to extend the
+          taxonomy.
+      - id: derived_promotion_pressure
+        severity: watch
+        description: >
+          A lane repeatedly asks to label a derived frame as
+          authoritative to silence a UI badge; the row reopens to
+          examine whether the producer should be promoted or whether
+          the UI affordance is miscalibrated.
+
+  - axis: freshness_and_completeness_labels
+    chosen_stack:
+      summary: >
+        Six freshness values (authoritative, warming, cached, stale,
+        replayed, imported) orthogonal to four completeness values
+        (full, partial, unloaded, unavailable). A frozen stale-reason
+        taxonomy attributes every non-authoritative frame.
+      commits:
+        - freshness is a fixed enum; producers emit one value per frame
+        - completeness is orthogonal; a frame can be authoritative+partial
+        - every non-authoritative frame carries a stale_reason
+        - adding a stale_reason is additive-minor; repurposing is breaking
+    best_rejected_alternative:
+      summary: >
+        Binary fresh / stale labelling.
+      rejection_reason: >
+        Binary labels cannot express warming vs cached vs replayed vs
+        imported. Support bundles cannot quote them consistently and
+        consumers default to optimism ("it looks fine, call it
+        fresh").
+    why_chosen_wins: >
+        The six-value freshness vocabulary plus the stale-reason
+        taxonomy lets every surface label truth honestly and lets the
+        support-bundle exporter preserve attribution verbatim.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1694"
+        quote: "every view that renders derived truth must be able to explain where the data came from, how fresh it is, whether scope is partial, and what event or invalidation caused it to change"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9645"
+        quote: "DB.2 Subscription envelope minimum"
+    protected_hot_path_hooks:
+      - subscription_freshness_downgrade
+      - subscription_completeness_changed
+    reopen_triggers:
+      - id: freshness_gap_emerges
+        severity: blocker
+        description: >
+          A producer has a legitimate freshness state that cannot
+          honestly classify as any of the six values without
+          misattribution; the row reopens to extend the vocabulary.
+      - id: stale_reason_exhaustion
+        severity: watch
+        description: >
+          A frequently observed stale cause cannot be attributed to
+          any of the taxonomy's codes and is collapsing to
+          causality_lost as a default; the row reopens to add a
+          more specific code.
+
+  - axis: materialized_view_classes
+    chosen_stack:
+      summary: >
+        Four view classes (ephemeral_projection,
+        durable_local_materialization, exportable_snapshot,
+        managed_replicated_view) with declared persistence and
+        invalidation rules. Consumers cannot promote a frame to a
+        stronger class than the producer advertised.
+      commits:
+        - every frame carries view_class
+        - consumers honor the producer's declared class
+        - exportable_snapshot frames carry their own snapshot_epoch
+        - managed_replicated_view frames never silently overwrite local truth
+    best_rejected_alternative:
+      summary: >
+        Ad-hoc per-surface persistence decisions without a shared
+        class vocabulary.
+      rejection_reason: >
+        Ad-hoc persistence drifts across surfaces. The support-export
+        and replay lanes need a shared class vocabulary to decide
+        what to capture and what to replay.
+    why_chosen_wins: >
+        One class vocabulary makes the support bundle, the replay
+        lane, and the managed-service overlays reason about
+        persistence uniformly; consumer surfaces cannot accidentally
+        promote a live projection to a durable cache.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1691"
+        quote: "materialized views are classified as ephemeral projection, durable local materialization, exportable snapshot, or managed replicated view"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9660"
+        quote: "DB.3 Materialized-view and invalidation rules"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: view_class_gap
+        severity: blocker
+        description: >
+          A persistence need (for example, a peer-to-peer replicated
+          view with different authority semantics than
+          managed_replicated_view) cannot honestly classify as any
+          of the four values; the row reopens to extend the list.
+      - id: class_promotion_pressure
+        severity: watch
+        description: >
+          A consumer repeatedly caches frames beyond what the
+          producer's declared class permits and the drift is not a
+          single-call bug; the row reopens to examine whether the
+          producer's class should change.
+
+  - axis: replay_and_import_posture
+    chosen_stack:
+      summary: >
+        freshness = replayed and freshness = imported are isolated.
+        Replayed frames never advance the live snapshot_epoch;
+        imported frames never merge into authoritative state. Both
+        carry a stale_reason (replayed_from_bundle /
+        imported_from_external) and a source identifier in
+        producer_refs.
+      commits:
+        - replayed frames emitted only from captured logs / bundles
+        - imported frames carry a producer_refs source identifier
+        - neither is eligible to back a mutating affordance
+        - subscription_replay_begin and subscription_imported_attach
+          are observability-only hooks
+    best_rejected_alternative:
+      summary: >
+        Merge replayed or imported frames into the live producer
+        state (present them as live).
+      rejection_reason: >
+        Merging collapses provenance, collides with policy epochs,
+        destroys the eventual replay engine's ability to reason
+        about capture windows, and silently widens authority claims
+        beyond what the user can audit.
+    why_chosen_wins: >
+        Replay and import remain inspectable, reversible, and
+        attributable; future diagnostics / timeline / replay work
+        extends this branch of the envelope without a second
+        vocabulary.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 7809"
+        quote: "Appendix AF — Event Ordering, Consistency, and Replay Model"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 5762"
+        quote: "ARCH-DATA-004 — replayable and attributable distributed state"
+    protected_hot_path_hooks:
+      - subscription_replay_begin
+      - subscription_replay_end
+      - subscription_imported_attach
+    reopen_triggers:
+      - id: replay_window_semantics_needed
+        severity: blocker
+        description: >
+          The diagnostics / timeline / replay lane forces a replay
+          mode that cannot be expressed with the current
+          freshness = replayed branch (for example, scrubbable
+          bi-directional replay with capture-window bounds).
+      - id: imported_merge_pressure
+        severity: watch
+        description: >
+          A lane repeatedly asks to merge imported frames into
+          authoritative state to skip a refresh; the row reopens to
+          examine whether the producer should run a revalidation
+          path instead.
+
+  - axis: schema_discipline
+    chosen_stack:
+      summary: >
+        Rust types in the eventual reactive-state crate are the
+        schema of record; the JSON Schema export at
+        schemas/runtime/subscription_envelope.schema.json is the
+        cross-tool boundary. No external IDL or codegen toolchain at
+        M0; additive-minor evolution preserved under unknown-field
+        preservation.
+      commits:
+        - boundary JSON Schema is the external-facing contract
+        - Rust types are the source of truth inside the repo
+        - additive-minor evolution is allowed; breaking changes bump
+          subscription_schema_version
+        - consumers preserve unknown fields on read
+    best_rejected_alternative:
+      summary: >
+        Full IDL + codegen toolchain (Protobuf / Cap'n Proto /
+        Thrift) for the subscription payload at M0.
+      rejection_reason: >
+        Same argument as ADR 0004's schema-discipline row: an IDL
+        without a second-language consumer costs more than it buys.
+        The boundary JSON Schema reserves a clean integration point
+        if a future consumer forces the choice.
+    why_chosen_wins: >
+        Lane authors define contracts in Rust; external tooling
+        (support bundle, replay lane, audit) reads the stable JSON
+        Schema; the generator row stays open for the day it is
+        actually needed.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 6224"
+        quote: "exact internal typed RPC framework and schema tooling"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2154"
+        quote: "Schema version must travel with the artifact; unknown fields are handled per schema policy, not ad hoc"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: second_language_consumer_lands
+        severity: blocker
+        description: >
+          A concrete consumer outside Rust (public SDK, browser
+          companion, remote helper in another language) forces the
+          lane to produce bindings from a schema of record; the row
+          reopens to choose the IDL and generator.
+      - id: boundary_schema_maintenance_cost_grows
+        severity: watch
+        description: >
+          Maintaining the subscription-envelope JSON Schema by hand
+          grows beyond what a hygiene PR can absorb; the row reopens
+          to choose a lightweight generator.
