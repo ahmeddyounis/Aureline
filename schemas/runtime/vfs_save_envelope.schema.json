@@ -1,0 +1,617 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/vfs_save_envelope.schema.json",
+  "title": "Aureline VFS save and filesystem-identity envelope",
+  "description": "Boundary schema for the filesystem-identity, save-target, and save-manifest records frozen in docs/adr/0006-vfs-save-cache-identity.md. The five identity layers (presentation_path, logical_workspace_identity, canonical_filesystem_object, alias_set, save_target_token), the save-mode taxonomy, the root-capability envelope, the watcher-source and watcher-health taxonomy, and the cache-identity rules live here in a language-neutral form. The Rust types in the eventual VFS crate (crates/aureline-vfs) are the schema of record; this file is the cross-tool export that external readers (support-bundle exporter, mutation-journal exporter, remote-agent handshake, audit, companion surfaces, benchmark lab) rely on and that stays stable across per-root adapter evolution.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/identity_record" },
+    { "$ref": "#/$defs/save_target_token" },
+    { "$ref": "#/$defs/save_manifest" },
+    { "$ref": "#/$defs/root_capability_envelope" },
+    { "$ref": "#/$defs/watcher_health_frame" },
+    { "$ref": "#/$defs/cache_identity_record" }
+  ],
+  "$defs": {
+    "vfs_save_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the VFS save / identity envelope. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "identity_record",
+        "save_target_token",
+        "save_manifest",
+        "root_capability_envelope",
+        "watcher_health_frame",
+        "cache_identity_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "presentation_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "display_label", "root_badge"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The URI the user opened. Preserved for tabs, breadcrumbs, copy / paste, and user-visible messages."
+        },
+        "display_label": {
+          "type": "string",
+          "description": "Human-readable label. Surface chrome shows this verbatim; the label is never inferred from the canonical path when the presentation path was opened under a different string."
+        },
+        "root_badge": {
+          "type": "string",
+          "description": "Short chip labelling the root the path belongs to (local, remote, container, virtual, archive). Surface chrome shows this verbatim."
+        }
+      },
+      "description": "Layer 1: the path the user opened. Carried alongside layers 2-5 on every file-open, rename, save, autosave, compare, restore, external-change, and AI / apply flow."
+    },
+
+    "logical_workspace_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_id", "root_id", "logical_uri", "trust_state"],
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable workspace identifier."
+        },
+        "root_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier for the workspace root the object lives under."
+        },
+        "logical_uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace-relative logical URI. Search, history, AI, review, and CLI address one workspace object through this URI regardless of the visible path."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "pending_evaluation"],
+          "description": "Workspace trust posture at the time the record was emitted."
+        },
+        "policy_scope": {
+          "type": "string",
+          "description": "Optional policy scope the workspace is attached to (managed overlay, tenant policy bundle, compliance scope). Surfaces cite this when a policy blocks save or rename."
+        }
+      },
+      "description": "Layer 2: the workspace object the product is tracking."
+    },
+
+    "canonical_filesystem_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_uri", "normalization_form", "strongest_identity_token"],
+      "properties": {
+        "canonical_uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical URI after symlink / junction / alias resolution."
+        },
+        "normalization_form": {
+          "type": "string",
+          "enum": ["none", "nfc", "nfd", "mixed_observed"],
+          "description": "Unicode normalization form recorded for the canonical URI. mixed_observed means the root mixes forms and the canonical URI is kept in the form the root observed."
+        },
+        "strongest_identity_token": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "file_id_generation",
+                "device_inode_generation",
+                "windows_object_id",
+                "provider_object_id_revision",
+                "logical_document_id_source_refs",
+                "content_hash_only"
+              ]
+            },
+            "value": {
+              "type": "string",
+              "description": "Opaque string encoding of the identity token. Adapter code is responsible for the encoding; consumers treat it as an opaque equality-comparable handle."
+            }
+          },
+          "description": "The strongest identity token the root can provide. Drives compare-before-write."
+        },
+        "fallback_identity_tokens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "value"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "device_inode",
+                  "inode_mtime_size",
+                  "content_hash",
+                  "remote_revision_token"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Ordered fallback identity tokens the root guarantees."
+        }
+      },
+      "description": "Layer 3: the real object the next write will target."
+    },
+
+    "alias_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aliases"],
+      "properties": {
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["alias_uri", "alias_kind"],
+            "properties": {
+              "alias_uri": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alias_kind": {
+                "type": "string",
+                "enum": [
+                  "symlink",
+                  "junction",
+                  "hardlink_sibling",
+                  "case_only_variant",
+                  "unicode_normalization_variant",
+                  "remote_alias",
+                  "bind_mount_alias",
+                  "container_mount_alias",
+                  "archive_inner_alias"
+                ]
+              },
+              "resolution_chain": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional step-by-step resolution chain. Support bundles quote this verbatim."
+              }
+            }
+          }
+        }
+      },
+      "description": "Layer 4: the known alternative paths to the same canonical object."
+    },
+
+    "save_target_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "capability_flags",
+        "atomic_write_mode",
+        "compare_before_write_generation_token",
+        "permission_snapshot"
+      ],
+      "properties": {
+        "record_kind": { "const": "save_target_token" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "logical_workspace_identity": { "$ref": "#/$defs/logical_workspace_identity" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "alias_set": { "$ref": "#/$defs/alias_set" },
+        "capability_flags": { "$ref": "#/$defs/capability_flags" },
+        "atomic_write_mode": {
+          "type": "string",
+          "enum": ["atomic_replace", "in_place_write", "conditional_remote_write", "blocked"],
+          "description": "The save mode this token authorises. Derived from capability_flags at token-allocation time."
+        },
+        "compare_before_write_generation_token": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value", "observed_at"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "file_id_generation",
+                "device_inode_generation",
+                "windows_object_id",
+                "provider_object_id_revision",
+                "inode_mtime_size",
+                "remote_revision_token",
+                "content_hash"
+              ]
+            },
+            "value": {
+              "type": "string"
+            },
+            "observed_at": {
+              "type": "string",
+              "description": "Producer-local monotonic timestamp at which this generation token was observed. Consumer treats it as opaque."
+            }
+          },
+          "description": "Generation token observed at token-allocation time. Compared against a fresh read at save time."
+        },
+        "permission_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["writable", "mode"],
+          "properties": {
+            "writable": { "type": "boolean" },
+            "mode": { "type": "string" },
+            "owner": { "type": "string" },
+            "group": { "type": "string" },
+            "acl_summary": { "type": "string" }
+          }
+        },
+        "review_required_before_save": { "type": "boolean", "default": false },
+        "review_required_before_rename": { "type": "boolean", "default": false }
+      },
+      "description": "Layer 5: the save-target token the editor pins at open time and that the save pipeline compares on write."
+    },
+
+    "capability_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supports_atomic_replace",
+        "supports_in_place_write",
+        "supports_conditional_remote_write",
+        "case_sensitivity",
+        "unicode_normalization",
+        "symlink_escape_policy",
+        "read_only",
+        "policy_constrained"
+      ],
+      "properties": {
+        "supports_atomic_replace": { "type": "boolean" },
+        "supports_in_place_write": { "type": "boolean" },
+        "supports_conditional_remote_write": { "type": "boolean" },
+        "case_sensitivity": {
+          "type": "string",
+          "enum": ["sensitive", "insensitive_preserving", "insensitive_non_preserving"]
+        },
+        "unicode_normalization": {
+          "type": "string",
+          "enum": ["none", "nfc", "nfd", "mixed_observed"]
+        },
+        "supports_case_only_rename": { "type": "boolean", "default": false },
+        "supports_unicode_normalization_rename": { "type": "boolean", "default": false },
+        "symlink_escape_policy": {
+          "type": "string",
+          "enum": ["allow", "warn", "block"]
+        },
+        "read_only": { "type": "boolean" },
+        "policy_constrained": { "type": "boolean" },
+        "review_required_before_save": { "type": "boolean", "default": false },
+        "review_required_before_rename": { "type": "boolean", "default": false },
+        "remote_container_adaptation": { "type": "boolean", "default": false }
+      }
+    },
+
+    "identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "alias_set"
+      ],
+      "properties": {
+        "record_kind": { "const": "identity_record" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "logical_workspace_identity": { "$ref": "#/$defs/logical_workspace_identity" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "alias_set": { "$ref": "#/$defs/alias_set" }
+      },
+      "description": "The full five-layer identity record (layers 1-4; the save-target token is a separate record)."
+    },
+
+    "save_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "presentation_path",
+        "canonical_filesystem_object",
+        "generation_token",
+        "capability_mode",
+        "committed_at",
+        "outcome"
+      ],
+      "properties": {
+        "record_kind": { "const": "save_manifest" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "generation_token": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "file_id_generation",
+                "device_inode_generation",
+                "windows_object_id",
+                "provider_object_id_revision",
+                "inode_mtime_size",
+                "remote_revision_token",
+                "content_hash"
+              ]
+            },
+            "value": { "type": "string" }
+          }
+        },
+        "capability_mode": {
+          "type": "string",
+          "enum": ["atomic_replace", "in_place_write", "conditional_remote_write", "blocked"]
+        },
+        "save_participant_group_id": {
+          "type": "string",
+          "description": "Optional save-participant-group id (ADR 0003). Composes the save under one undo class."
+        },
+        "checkpoint_ref": {
+          "type": "string",
+          "description": "Optional checkpoint reference recorded by the recovery journal (ADR 0003)."
+        },
+        "committed_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the commit point (rename, in-place write, conditional remote write) succeeded."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "committed",
+            "external_change_detected",
+            "watcher_uncertainty",
+            "save_conflict",
+            "wrong_target_prevented",
+            "save_participant_failed",
+            "degraded_guarantee_declared",
+            "generated_or_managed_write_blocked",
+            "read_only_or_policy_blocked",
+            "review_required_before_save",
+            "review_required_before_rename"
+          ],
+          "description": "Save-pipeline outcome. The mutation journal and support-bundle exporter quote this verbatim."
+        },
+        "failure_detail": {
+          "type": "string",
+          "description": "Optional typed detail for non-committed outcomes. Opaque to this schema; the VFS crate defines per-outcome variants."
+        }
+      },
+      "description": "Save manifest recorded on every save-pipeline outcome (committed or failed)."
+    },
+
+    "root_capability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "root_id",
+        "root_class",
+        "capability_flags",
+        "strongest_identity_token_kind",
+        "preferred_save_mode",
+        "watcher_source"
+      ],
+      "properties": {
+        "record_kind": { "const": "root_capability_envelope" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "root_id": { "type": "string", "minLength": 1 },
+        "root_class": {
+          "type": "string",
+          "enum": [
+            "local_posix_like",
+            "local_windows_like",
+            "remote_agent_mount",
+            "container_mount",
+            "virtual_generated_document",
+            "archive_like_view"
+          ]
+        },
+        "capability_flags": { "$ref": "#/$defs/capability_flags" },
+        "strongest_identity_token_kind": {
+          "type": "string",
+          "enum": [
+            "file_id_generation",
+            "device_inode_generation",
+            "windows_object_id",
+            "provider_object_id_revision",
+            "logical_document_id_source_refs",
+            "content_hash_only"
+          ]
+        },
+        "fallback_identity_token_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "device_inode",
+              "inode_mtime_size",
+              "content_hash",
+              "remote_revision_token"
+            ]
+          }
+        },
+        "preferred_save_mode": {
+          "type": "string",
+          "enum": ["atomic_replace", "in_place_write", "conditional_remote_write", "blocked"]
+        },
+        "permitted_save_modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["atomic_replace", "in_place_write", "conditional_remote_write", "blocked"]
+          }
+        },
+        "watcher_source": {
+          "type": "string",
+          "enum": [
+            "os_native_watcher",
+            "remote_agent_watcher_stream",
+            "scalable_watcher_integration",
+            "polling_fallback"
+          ]
+        },
+        "mount_graph_hash": {
+          "type": "string",
+          "description": "Optional content-addressable hash of the mount graph (remote / container roots). The agent / container attach refreshes this field on reconnect."
+        }
+      },
+      "description": "Per-root capability envelope advertised at vfs_root_attach. Drives save-mode selection and rename policy."
+    },
+
+    "watcher_health_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "root_id",
+        "watcher_source",
+        "watcher_health"
+      ],
+      "properties": {
+        "record_kind": { "const": "watcher_health_frame" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "root_id": { "type": "string", "minLength": 1 },
+        "watcher_source": {
+          "type": "string",
+          "enum": [
+            "os_native_watcher",
+            "remote_agent_watcher_stream",
+            "scalable_watcher_integration",
+            "polling_fallback"
+          ]
+        },
+        "watcher_health": {
+          "type": "string",
+          "enum": ["healthy", "warming", "degraded", "fallback_polling", "unavailable"]
+        },
+        "reason_code": {
+          "type": "string",
+          "description": "Optional typed reason attributed to this transition. Support bundles quote verbatim."
+        },
+        "observed_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the health transition was observed."
+        }
+      },
+      "description": "Watcher-health transition frame. Pairs with subscription-envelope freshness downgrade (ADR 0005, stale_reason = watcher_dropped) when health transitions toward less healthy."
+    },
+
+    "cache_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "vfs_save_envelope_schema_version",
+        "cache_class",
+        "cache_schema_version",
+        "producer_id",
+        "producer_version",
+        "input_digest_set",
+        "output_digest",
+        "generated_at",
+        "drift_state",
+        "durability_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "cache_identity_record" },
+        "vfs_save_envelope_schema_version": { "$ref": "#/$defs/vfs_save_envelope_schema_version" },
+        "cache_class": {
+          "type": "string",
+          "enum": [
+            "ephemeral_projection",
+            "durable_local_materialization",
+            "exportable_snapshot",
+            "managed_replicated_view"
+          ],
+          "description": "Cache class; matches ADR-0005 view_class."
+        },
+        "cache_schema_version": { "type": "integer", "minimum": 1 },
+        "producer_id": { "type": "string", "minLength": 1 },
+        "producer_version": { "type": "string", "minLength": 1 },
+        "input_digest_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "digest_kind", "digest_value"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "digest_kind": {
+                "type": "string",
+                "enum": [
+                  "content_hash",
+                  "file_id_generation",
+                  "device_inode_generation",
+                  "windows_object_id",
+                  "provider_object_id_revision",
+                  "remote_revision_token"
+                ]
+              },
+              "digest_value": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "output_digest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["digest_kind", "digest_value"],
+          "properties": {
+            "digest_kind": { "type": "string", "enum": ["content_hash"] },
+            "digest_value": { "type": "string", "minLength": 1 }
+          }
+        },
+        "generated_at": { "type": "string" },
+        "drift_state": {
+          "type": "string",
+          "enum": [
+            "in_sync",
+            "stale_inputs",
+            "generator_changed",
+            "manually_diverged",
+            "unknown_lineage"
+          ]
+        },
+        "durability_class": {
+          "type": "string",
+          "enum": ["durable", "disposable"]
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Optional source identifier for imported or replayed caches. Required on caches whose producer is not Aureline itself."
+        }
+      },
+      "description": "Cache-identity record. Every cache entry (search shard, graph index, docs pack, symbol bundle, preview runtime, thumbnail cache, imported index, support-bundle export, replay capture) records one of these alongside its payload."
+    }
+  }
+}

@@ -281,7 +281,7 @@ decisions:
   # ---------------------------------------------------------------------------
   - decision_id: D-0003
     title: Workspace VFS path identity and watcher model
-    status: open
+    status: decided
     target_milestone: pre-implementation-foundations
     freeze_by_milestone: first-beta-milestone
     freeze_by_date: "2026-07-15"
@@ -300,6 +300,14 @@ decisions:
         quote: "Real filesystem identity, canonical path, and save-coordination architecture"
     affected_artifacts:
       - crates/aureline-vfs
+      - crates/aureline-buffer
+      - crates/aureline-rpc
+      - crates/aureline-telemetry
+      - schemas/runtime/vfs_save_envelope.schema.json
+      - artifacts/architecture/vfs_tradeoff_rows.yaml
+      - artifacts/io/root_capability_matrix.yaml
+      - fixtures/runtime/vfs_decision_examples/
+      - docs/adr/
     default_if_unresolved:
       posture: narrow
       description: >
@@ -312,7 +320,7 @@ decisions:
     linked_assumptions:
       - A-0002
     linked_dependencies: []
-    linked_adr: null
+    linked_adr: docs/adr/0006-vfs-save-cache-identity.md
     linked_rfc: null
     superseded_by: []
     decision_history:
@@ -320,6 +328,83 @@ decisions:
         actor: "@ahmedyounis"
         forum: architecture_council
         outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: accept
+        notes: >
+          Closed by docs/adr/0006-vfs-save-cache-identity.md. Freezes the
+          five-layer filesystem-identity model (presentation_path,
+          logical_workspace_identity, canonical_filesystem_object,
+          alias_set, save_target_token) with the rule that every
+          file-open, rename, save, autosave, compare, restore,
+          external-change, and AI/apply flow carries both the
+          presentation path and the canonical object identity when the
+          root can provide it; the identity rules (alias convergence
+          onto one dirty-buffer authority, explicit capability checks
+          and previewable plans for case-only rename, Unicode
+          normalization change, and symlink/junction escape,
+          canonical-identity-first external-change detection, no
+          feature-specific filesystem crawl outside the VFS);
+          the watcher-source set (os_native_watcher,
+          remote_agent_watcher_stream, scalable_watcher_integration,
+          polling_fallback); the watcher-health taxonomy (healthy,
+          warming, degraded, fallback_polling, unavailable) with
+          compare-before-write as the save correctness floor so save
+          does not depend on watcher perfection; the save pipeline
+          (stage, save-participant chain that never silently downgrades,
+          compare-before-write on the strongest generation token,
+          atomic replace preferred with named degraded classes,
+          save-manifest record); the save-mode taxonomy
+          (atomic_replace, in_place_write, conditional_remote_write,
+          blocked); the root-capability envelope with frozen capability
+          flags (supports_atomic_replace, supports_in_place_write,
+          supports_conditional_remote_write, case_sensitivity,
+          unicode_normalization, supports_case_only_rename,
+          supports_unicode_normalization_rename,
+          symlink_escape_policy, read_only, policy_constrained,
+          review_required_before_save, review_required_before_rename,
+          remote_container_adaptation, strongest_identity_token,
+          fallback_identity_tokens); the cache-identity rules
+          (cache_class matching ADR-0005 view_class,
+          cache_schema_version, producer_id / producer_version,
+          input_digest_set, output_digest, generated_at, drift_state,
+          durability_class) with durable vs disposable state boundary
+          and the rule that imported / replayed caches never promote to
+          authoritative; the failure-case reason set
+          (external_change_detected, watcher_uncertainty, save_conflict,
+          wrong_target_prevention, save_participant_failed,
+          degraded_guarantee_declared, generated_or_managed_write_blocked,
+          read_only_or_policy_blocked, review_required_before_save,
+          review_required_before_rename); the protected-hot-path hook
+          vocabulary (vfs_root_attach, vfs_root_detach, vfs_canonicalize,
+          vfs_alias_converge, vfs_watcher_event,
+          vfs_watcher_health_changed, vfs_external_change_detected,
+          vfs_save_stage, vfs_save_participant_run,
+          vfs_save_participant_failed, vfs_save_compare_before_write,
+          vfs_save_conflict, vfs_save_atomic_commit,
+          vfs_save_in_place_commit, vfs_save_remote_conditional_commit,
+          vfs_save_blocked, vfs_save_manifest_record,
+          vfs_rename_plan_previewed, vfs_rename_commit,
+          vfs_cache_lookup, vfs_cache_invalidate, vfs_cache_rebuild,
+          vfs_degraded_guarantee_declared); and the schema-of-record
+          posture (Rust types in crates/aureline-vfs are the source of
+          truth; the JSON Schema export at
+          schemas/runtime/vfs_save_envelope.schema.json is the cross-
+          tool boundary; no external IDL or code generator toolchain
+          at this milestone). Supporting artifacts:
+          artifacts/architecture/vfs_tradeoff_rows.yaml,
+          artifacts/io/root_capability_matrix.yaml,
+          schemas/runtime/vfs_save_envelope.schema.json, and
+          fixtures/runtime/vfs_decision_examples/ (local_atomic_save,
+          external_change_conflict, remote_conditional_conflict,
+          case_only_rename_preview, alias_convergence,
+          symlink_escape_blocked, read_only_root_blocked,
+          watcher_fallback_polling, generated_write_blocked,
+          durable_cache_supersession). The narrowing default is
+          replaced by the ADR's frozen posture; the narrowed single-
+          root / canonical-path / polling-fallback posture does not
+          apply.
 
   # ---------------------------------------------------------------------------
   # RPC transport

@@ -1,0 +1,434 @@
+# Root capability matrix.
+#
+# Machine-readable companion to ADR 0006
+# (docs/adr/0006-vfs-save-cache-identity.md). Lists the root classes
+# Aureline supports, the capability envelope each class advertises at
+# attach time, and the save / rename / cache behaviour each envelope
+# authorises. Tooling (VFS, buffer, editor, save pipeline, mutation
+# journal, support-bundle exporter, remote-agent handshake, benchmark
+# lab, governance packets) reads this file to avoid inventing parallel
+# vocabulary for per-root capability claims.
+#
+# Scope rules:
+#   - The taxonomy here MUST match the capability flags frozen in
+#     ADR 0006's "Root-capability envelope" section and the save-mode
+#     taxonomy frozen in ADR 0006's "Save pipeline" section.
+#   - Adding a new root_class, a new capability flag, or a new
+#     save_mode is an additive-minor change recorded here and in the
+#     tradeoff register; repurposing any existing value is breaking
+#     and requires a new decision row.
+#   - If tooling and the ADR disagree, the ADR wins and this file must
+#     be updated in the same change.
+
+schema_version: 1
+
+adr_source: docs/adr/0006-vfs-save-cache-identity.md
+decision_id: D-0003
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Frozen taxonomies.
+# -----------------------------------------------------------------------------
+root_classes:
+  - local_posix_like
+  - local_windows_like
+  - remote_agent_mount
+  - container_mount
+  - virtual_generated_document
+  - archive_like_view
+
+capability_flags:
+  - supports_atomic_replace
+  - supports_in_place_write
+  - supports_conditional_remote_write
+  - case_sensitivity                  # enum: sensitive | insensitive_preserving | insensitive_non_preserving
+  - unicode_normalization             # enum: none | nfc | nfd | mixed_observed
+  - supports_case_only_rename
+  - supports_unicode_normalization_rename
+  - symlink_escape_policy             # enum: allow | warn | block
+  - read_only
+  - policy_constrained
+  - review_required_before_save
+  - review_required_before_rename
+  - remote_container_adaptation
+  - strongest_identity_token          # enum: file_id_generation | device_inode_generation | windows_object_id | provider_object_id_revision | logical_document_id_source_refs | content_hash_only
+  - fallback_identity_tokens          # ordered subset of { device_inode, inode_mtime_size, content_hash, remote_revision_token }
+
+save_modes:
+  - atomic_replace
+  - in_place_write
+  - conditional_remote_write
+  - blocked
+
+watcher_sources:
+  - os_native_watcher
+  - remote_agent_watcher_stream
+  - scalable_watcher_integration
+  - polling_fallback
+
+watcher_health_states:
+  - healthy
+  - warming
+  - degraded
+  - fallback_polling
+  - unavailable
+
+# -----------------------------------------------------------------------------
+# Root-class rows.
+#
+# Each row describes one root class's default capability envelope. A
+# concrete root instance MAY narrow these capabilities at attach time
+# (for example, a POSIX root mounted read-only reports read_only = true)
+# but MAY NOT claim a capability the class cannot honestly provide.
+# -----------------------------------------------------------------------------
+rows:
+  - root_class: local_posix_like
+    description: >
+      Local roots backed by a POSIX-like filesystem (ext4, APFS,
+      btrfs, zfs, xfs, and similar). Atomic replace is the preferred
+      save mode; identity is strongest as device + inode + generation
+      where the kernel exposes it.
+    default_capability_envelope:
+      supports_atomic_replace: true
+      supports_in_place_write: true
+      supports_conditional_remote_write: false
+      case_sensitivity: sensitive              # APFS default differs; narrowed per instance
+      unicode_normalization: mixed_observed    # APFS normalises; ext4 does not; narrowed per instance
+      supports_case_only_rename: true
+      supports_unicode_normalization_rename: true
+      symlink_escape_policy: warn
+      read_only: false
+      policy_constrained: false
+      review_required_before_save: false
+      review_required_before_rename: false
+      remote_container_adaptation: false
+      strongest_identity_token: device_inode_generation
+      fallback_identity_tokens:
+        - device_inode
+        - inode_mtime_size
+        - content_hash
+    preferred_save_mode: atomic_replace
+    permitted_save_modes:
+      - atomic_replace
+      - in_place_write
+      - blocked
+    alias_hazards:
+      - symlink
+      - hardlink
+      - case_only_variant
+      - unicode_normalization_variant
+    watcher_posture:
+      primary: os_native_watcher
+      fallback: polling_fallback
+      optional_scalable: scalable_watcher_integration
+      notes: >
+        APFS, ext4, btrfs, zfs emit native change notifications via
+        fsevents / inotify / kqueue. Overflow drops are possible under
+        burst load and MUST surface as watcher_health = degraded.
+    degraded_save_note: >
+      in_place_write on a POSIX root is used only when a tool requires
+      it (truncate + write on the same inode); surfaces MUST label the
+      degraded guarantee visibly and the save manifest MUST record
+      capability_mode = in_place_write.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+      - "Root-capability envelope"
+
+  - root_class: local_windows_like
+    description: >
+      Local roots backed by a Windows filesystem (NTFS, ReFS, and
+      similar). Case-preserving but case-insensitive by default; file
+      ID / object ID is the strongest identity token.
+    default_capability_envelope:
+      supports_atomic_replace: true            # via ReplaceFileW or rename + tx
+      supports_in_place_write: true
+      supports_conditional_remote_write: false
+      case_sensitivity: insensitive_preserving
+      unicode_normalization: none
+      supports_case_only_rename: true          # requires explicit capability check + preview
+      supports_unicode_normalization_rename: false
+      symlink_escape_policy: warn
+      read_only: false
+      policy_constrained: false
+      review_required_before_save: false
+      review_required_before_rename: false
+      remote_container_adaptation: false
+      strongest_identity_token: windows_object_id
+      fallback_identity_tokens:
+        - inode_mtime_size
+        - content_hash
+    preferred_save_mode: atomic_replace
+    permitted_save_modes:
+      - atomic_replace
+      - in_place_write
+      - blocked
+    alias_hazards:
+      - junction
+      - symlink_reparse_point
+      - eight_dot_three_alias
+      - case_only_variant
+    watcher_posture:
+      primary: os_native_watcher               # ReadDirectoryChangesW
+      fallback: polling_fallback
+      optional_scalable: scalable_watcher_integration
+      notes: >
+        ReadDirectoryChangesW can drop events on buffer overflow; the
+        VFS reports watcher_health = degraded and falls back to
+        polling when the buffer is saturated repeatedly.
+    degraded_save_note: >
+      Case-only renames require a previewable rename plan on case-
+      insensitive roots; the pipeline MUST refuse a case-only rename
+      that would collide with an existing sibling and MUST NOT simulate
+      success.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+      - "Root-capability envelope"
+
+  - root_class: remote_agent_mount
+    description: >
+      Roots served by a remote agent (SSH agent, cloud workspace
+      agent, or similar). Identity is typically a provider object ID
+      plus a revision token / ETag; atomic replace is not guaranteed;
+      the preferred save mode is conditional_remote_write against the
+      revision token.
+    default_capability_envelope:
+      supports_atomic_replace: false           # narrowed true only if the agent attests to it
+      supports_in_place_write: true
+      supports_conditional_remote_write: true
+      case_sensitivity: sensitive              # narrowed per agent capability
+      unicode_normalization: mixed_observed
+      supports_case_only_rename: false         # narrowed true only if the agent attests to it
+      supports_unicode_normalization_rename: false
+      symlink_escape_policy: block
+      read_only: false
+      policy_constrained: false
+      review_required_before_save: false
+      review_required_before_rename: false
+      remote_container_adaptation: true
+      strongest_identity_token: provider_object_id_revision
+      fallback_identity_tokens:
+        - remote_revision_token
+        - content_hash
+    preferred_save_mode: conditional_remote_write
+    permitted_save_modes:
+      - conditional_remote_write
+      - in_place_write
+      - atomic_replace                         # only when the agent attests to it
+      - blocked
+    alias_hazards:
+      - mount_rebasing
+      - path_remap
+      - case_difference_between_host_and_target
+      - stale_metadata
+    watcher_posture:
+      primary: remote_agent_watcher_stream
+      fallback: polling_fallback
+      optional_scalable: null
+      notes: >
+        A remote-agent reconnect MUST emit watcher_health = warming
+        until the agent re-delivers the attached root's change
+        notifications; a dropped stream is watcher_health = degraded.
+    degraded_save_note: >
+      conditional_remote_write with a stale revision token yields a
+      save_conflict; the pipeline MUST NOT retry the write without
+      user or policy resolution.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+      - "Root-capability envelope"
+      - "Failure cases: save_conflict"
+
+  - root_class: container_mount
+    description: >
+      Roots served via a container mount (devcontainer, Docker bind
+      mount, OCI layer mount, and similar). Capability depends on the
+      host mount and the container runtime; the VFS reads the envelope
+      at attach time and re-reads it on container restart.
+    default_capability_envelope:
+      supports_atomic_replace: true            # narrowed per host mount
+      supports_in_place_write: true
+      supports_conditional_remote_write: false
+      case_sensitivity: sensitive              # host-dependent
+      unicode_normalization: mixed_observed
+      supports_case_only_rename: false         # narrowed per host mount
+      supports_unicode_normalization_rename: false
+      symlink_escape_policy: warn              # container boundary is a trust boundary
+      read_only: false
+      policy_constrained: false
+      review_required_before_save: false
+      review_required_before_rename: false
+      remote_container_adaptation: true
+      strongest_identity_token: device_inode_generation
+      fallback_identity_tokens:
+        - device_inode
+        - inode_mtime_size
+        - content_hash
+    preferred_save_mode: atomic_replace
+    permitted_save_modes:
+      - atomic_replace
+      - in_place_write
+      - blocked
+    alias_hazards:
+      - bind_mount_alias
+      - overlay_fs_alias
+      - container_boundary_symlink
+      - host_path_shadow
+    watcher_posture:
+      primary: os_native_watcher               # via the container runtime
+      fallback: polling_fallback
+      optional_scalable: null
+      notes: >
+        Container restart invalidates in-flight watchers; the VFS
+        MUST re-attach on restart and emit watcher_health = warming
+        until re-enumeration completes.
+    degraded_save_note: >
+      symlink_escape_policy defaults to warn; a symlink that resolves
+      outside the container root is surfaced with an alias disclosure
+      and the save pipeline applies the host root's policy before
+      writing.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+      - "Root-capability envelope"
+
+  - root_class: virtual_generated_document
+    description: >
+      Virtual documents (unsaved buffers, scratch documents, generator
+      previews, preview runtimes, build outputs addressed by logical
+      id). No raw filesystem object exists unless the document is
+      explicitly materialised.
+    default_capability_envelope:
+      supports_atomic_replace: false
+      supports_in_place_write: false
+      supports_conditional_remote_write: false
+      case_sensitivity: sensitive
+      unicode_normalization: none
+      supports_case_only_rename: false
+      supports_unicode_normalization_rename: false
+      symlink_escape_policy: block
+      read_only: true                          # by default; narrowed true -> false only on explicit materialisation
+      policy_constrained: true
+      review_required_before_save: true
+      review_required_before_rename: true
+      remote_container_adaptation: false
+      strongest_identity_token: logical_document_id_source_refs
+      fallback_identity_tokens:
+        - content_hash
+    preferred_save_mode: blocked
+    permitted_save_modes:
+      - blocked
+      - atomic_replace                         # only after explicit materialisation to a real root
+    alias_hazards:
+      - regenerated_alias_path
+      - temporary_materialization_path
+    watcher_posture:
+      primary: null
+      fallback: null
+      optional_scalable: null
+      notes: >
+        Virtual documents do not participate in filesystem watching;
+        change notifications come from the producing generator via the
+        ADR-0005 subscription envelope (derived producer).
+    degraded_save_note: >
+      Save on a virtual document is blocked by default; the surface
+      offers save_as to a real root, which then runs the save pipeline
+      against the selected root's capability envelope.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+      - "Failure cases: generated_or_managed_write_blocked"
+
+  - root_class: archive_like_view
+    description: >
+      Read-only archive-like views (zip, tar, jar, container image
+      layer inspection, git object inspection). Writes are never legal
+      against the archive itself; save_as is the only path.
+    default_capability_envelope:
+      supports_atomic_replace: false
+      supports_in_place_write: false
+      supports_conditional_remote_write: false
+      case_sensitivity: sensitive              # archive-dependent
+      unicode_normalization: mixed_observed
+      supports_case_only_rename: false
+      supports_unicode_normalization_rename: false
+      symlink_escape_policy: block
+      read_only: true
+      policy_constrained: false
+      review_required_before_save: false
+      review_required_before_rename: false
+      remote_container_adaptation: false
+      strongest_identity_token: content_hash_only
+      fallback_identity_tokens:
+        - content_hash
+    preferred_save_mode: blocked
+    permitted_save_modes:
+      - blocked
+    alias_hazards:
+      - archive_inner_path_collision
+      - archive_symlink_entry
+    watcher_posture:
+      primary: null
+      fallback: null
+      optional_scalable: null
+      notes: >
+        Archive-like views do not emit live change events; the VFS
+        treats the archive as immutable until the surface re-opens it.
+    degraded_save_note: >
+      Save is blocked; the surface offers save_as to a writable root
+      and the extracted content flows through that root's save
+      pipeline.
+    ADR_sections:
+      - "Filesystem-identity layers"
+      - "Save pipeline"
+
+# -----------------------------------------------------------------------------
+# Cross-cutting review gates.
+#
+# A root MAY carry review_required_before_save or
+# review_required_before_rename flags that force the pipeline to route
+# through review before committing. These gates apply regardless of the
+# root class.
+# -----------------------------------------------------------------------------
+review_gates:
+  - id: review_required_before_save
+    trigger: >
+      Root advertises review_required_before_save = true (policy-
+      constrained root, protected branch shadow, or managed overlay).
+    pipeline_behaviour: >
+      Pipeline halts after save-participant chain (step 2) and before
+      compare-before-write (step 3). Surface routes to review; on
+      acceptance, the pipeline resumes at step 3 with a fresh
+      generation-token read.
+  - id: review_required_before_rename
+    trigger: >
+      Root advertises review_required_before_rename = true.
+    pipeline_behaviour: >
+      Rename is queued as a previewable rename plan. Execution is
+      blocked until review accepts; cancellation drops the plan
+      without mutation.
+
+# -----------------------------------------------------------------------------
+# Reopen triggers specific to this matrix.
+#
+# Observed drift between a concrete root's behaviour and its declared
+# envelope reopens the relevant tradeoff row in
+# artifacts/architecture/vfs_tradeoff_rows.yaml.
+# -----------------------------------------------------------------------------
+reopen_triggers:
+  - id: envelope_drift_against_observed_behaviour
+    severity: blocker
+    description: >
+      A concrete root instance is observed to violate its declared
+      envelope (for example, a POSIX root that does not honour
+      atomic rename on a cross-volume save target). The tradeoff row
+      root_capability_envelope reopens; the capability matrix is
+      updated in the same change.
+  - id: new_root_class_needed
+    severity: watch
+    description: >
+      A legitimate root class cannot be expressed with the current
+      six classes (for example, a distributed-object-store mount with
+      its own consistency rules). The tradeoff row
+      root_capability_envelope reopens to extend the taxonomy.

@@ -1,0 +1,500 @@
+# VFS identity, save semantics, and cache-identity tradeoff rows.
+#
+# Machine-readable tradeoff table backing ADR 0006
+# (docs/adr/0006-vfs-save-cache-identity.md). Each row names one
+# decision axis, what the chosen filesystem-identity / save /
+# cache-identity posture commits to, the rejected alternative that came
+# closest, why the chosen posture wins on that axis, and the observable
+# signal that would force the row to reopen. Tooling (VFS, buffer,
+# editor, search, graph, review, AI apply, mutation-journal, support-
+# bundle exporter, eventual replay / timeline lane, benchmark lab,
+# governance packets, remote-agent lane) may read these rows to avoid
+# inventing parallel vocabulary for the same tradeoff.
+#
+# Scope rules:
+#   - Every row MUST name an axis, a chosen_stack summary, a
+#     best_rejected_alternative, at least one supporting
+#     source_anchor, and at least one reopen_trigger.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+#   - Do not re-litigate a rejected alternative by editing its row;
+#     open a new decision row instead (see ADR 0006's "Consequences"
+#     and "Alternatives considered" sections).
+
+schema_version: 1
+
+adr_source: docs/adr/0006-vfs-save-cache-identity.md
+decision_id: D-0003
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Axis vocabulary.
+#
+# Every row's `axis` field MUST be one of these. A new axis requires a
+# schema bump and a note on the ADR.
+# -----------------------------------------------------------------------------
+axes:
+  - identity_layering
+  - watcher_correctness_floor
+  - save_mode_taxonomy
+  - root_capability_envelope
+  - alias_handling
+  - cache_identity
+  - conflict_posture
+  - schema_discipline
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary for reopen triggers. `blocker` forces a new
+# decision row on sight; `watch` logs a row for shiproom review.
+# -----------------------------------------------------------------------------
+reopen_severity_levels:
+  - blocker
+  - watch
+
+# -----------------------------------------------------------------------------
+# Rows.
+# -----------------------------------------------------------------------------
+rows:
+  - axis: identity_layering
+    chosen_stack:
+      summary: >
+        Five-layer filesystem identity: presentation_path,
+        logical_workspace_identity, canonical_filesystem_object,
+        alias_set, and save_target_token. Every file-open, rename,
+        save, autosave, compare, restore, and AI-apply flow carries
+        both the presentation path and the canonical object identity
+        when the root can provide it.
+      commits:
+        - presentation_path preserved in UI (tabs, breadcrumbs, copy / paste)
+        - canonical_filesystem_object drives save and external-change decisions
+        - alias_set tracks symlinks, junctions, hardlink siblings, case-only
+          variants, Unicode-normalization variants, remote aliases,
+          bind / container mounts
+        - save_target_token carries capability_flags, atomic_write_mode,
+          generation token, permission snapshot, review-required flags
+        - raw platform paths stay inside adapter code; surfaces talk to the
+          VFS contract only
+    best_rejected_alternative:
+      summary: >
+        Path-as-identity: treat the file path string as the file's
+        identity and resolve symlinks / case-folds only when the OS
+        complains.
+      rejection_reason: >
+        Symlinks, junctions, case-insensitive roots, Unicode
+        normalisation, remote aliases, bind mounts, and container
+        mounts all create cases where two paths point at the same
+        object or one path points at different objects over time.
+        A save pipeline built on path identity cannot honestly
+        explain what it wrote.
+    why_chosen_wins: >
+        The five-layer rule is what lets the save pipeline answer "same
+        file, different alias" with convergence instead of silent
+        duplicate-buffer drift, and what lets the support bundle and
+        mutation journal record which real object was written.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1641"
+        quote: "all file-open, rename, save, external-change, compare, restore, and AI/apply flows must carry both the presentation path and the canonical object identity"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 1488"
+        quote: "prevent duplicate dirty states, wrong-target saves, case-only surprises, and symlink confusion"
+    protected_hot_path_hooks:
+      - vfs_canonicalize
+      - vfs_alias_converge
+      - vfs_save_stage
+      - vfs_save_manifest_record
+    reopen_triggers:
+      - id: identity_layer_gap
+        severity: blocker
+        description: >
+          A root type has a legitimate identity concept that cannot
+          honestly classify as any of the five layers without
+          misattribution; the row reopens to extend the taxonomy.
+      - id: layer_collapse_pressure
+        severity: watch
+        description: >
+          A lane repeatedly asks to drop a layer to simplify a surface
+          (for example, to skip carrying canonical identity on rename);
+          the row reopens to examine whether the affordance is
+          miscalibrated.
+
+  - axis: watcher_correctness_floor
+    chosen_stack:
+      summary: >
+        compare_before_write is the save correctness floor. The watcher
+        is a latency optimisation, not a correctness guarantee. Watcher
+        sources are frozen at os_native_watcher,
+        remote_agent_watcher_stream, scalable_watcher_integration, and
+        polling_fallback; watcher_health is frozen at healthy, warming,
+        degraded, fallback_polling, unavailable.
+      commits:
+        - no surface may skip compare_before_write on the assertion
+          that the watcher reported no change
+        - watcher_health transitions emit subscription-envelope
+          freshness downgrades (ADR 0005, stale_reason = watcher_dropped)
+        - degraded watcher states are visible to the user and to support
+        - feature-specific hidden watchers are forbidden
+    best_rejected_alternative:
+      summary: >
+        Trust the watcher: skip compare_before_write when the watcher
+        reports no change since open.
+      rejection_reason: >
+        Every watcher source loses events under overflow, replay, or
+        remote-agent reconnect. Trusting the watcher silently corrupts
+        files whenever the watcher is wrong; the benchmark lab cannot
+        instrument a correctness floor that depends on a perfect
+        watcher.
+    why_chosen_wins: >
+        Compare-before-write composes with every watcher source,
+        keeps correctness under fallback_polling, and preserves
+        honesty across remote-agent reconnect and Watchman-class
+        overflow.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1624"
+        quote: "save and external-change behavior do not depend on watcher perfection"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1644"
+        quote: "save and autosave flows must use compare-before-write semantics"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "line 1476"
+        quote: "Every degraded watcher state must be visible to the user and to support tooling"
+    protected_hot_path_hooks:
+      - vfs_watcher_event
+      - vfs_save_compare_before_write
+      - vfs_external_change_detected
+    reopen_triggers:
+      - id: compare_before_write_budget_breach
+        severity: blocker
+        description: >
+          vfs_save_compare_before_write exceeds its budget on a claimed
+          corpus and the fix would require dropping the correctness
+          floor on a named root class (for example, permitting silent
+          skip on a frequently-saved path).
+      - id: new_watcher_source_needed
+        severity: watch
+        description: >
+          A legitimate watcher source cannot express itself as any of
+          the four frozen sources; the row reopens to extend the set.
+
+  - axis: save_mode_taxonomy
+    chosen_stack:
+      summary: >
+        Four frozen save modes: atomic_replace (preferred),
+        in_place_write (degraded, visibly labelled),
+        conditional_remote_write (remote revision precondition),
+        blocked (read-only, policy-constrained, or review-required).
+        Adaptive selection by root-capability envelope.
+      commits:
+        - atomic_replace = temp-write + durability barrier + rename
+        - in_place_write used only where atomic_replace cannot be
+          provided or a tool requires it
+        - conditional_remote_write fails with a typed conflict rather
+          than overwriting blindly
+        - blocked surfaces route to review / save_as / export
+          affordances only
+        - autosave uses the same pipeline and the same save modes
+    best_rejected_alternative:
+      summary: >
+        Always in-place write, or always atomic replace (one code
+        path).
+      rejection_reason: >
+        Always-in-place loses crash safety that atomic replace provides
+        for free on local roots; always-atomic refuses legitimate
+        remote, container, and policy-constrained roots. Both lose
+        honesty compared to a named, visibly-labelled taxonomy.
+    why_chosen_wins: >
+        The four-mode taxonomy matches the four capability classes the
+        root-capability envelope surfaces. Support bundles quote the
+        save mode; the benchmark lab budgets each mode separately;
+        surfaces pick the strongest mode the root admits.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1115"
+        quote: "save flow defaults to atomic write via temp-file plus rename"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1645"
+        quote: "atomic replace is the preferred save mode, but roots that cannot provide it must advertise the degraded guarantee explicitly"
+    protected_hot_path_hooks:
+      - vfs_save_atomic_commit
+      - vfs_save_in_place_commit
+      - vfs_save_remote_conditional_commit
+    reopen_triggers:
+      - id: save_mode_gap
+        severity: blocker
+        description: >
+          A root class has a legitimate save semantics that cannot
+          honestly classify as any of the four save modes; the row
+          reopens to extend the taxonomy.
+      - id: atomic_replace_budget_breach
+        severity: watch
+        description: >
+          vfs_save_atomic_commit exceeds its budget on a claimed
+          corpus; the row reopens to examine whether the mode needs a
+          further sub-classification (for example, batched commit).
+
+  - axis: root_capability_envelope
+    chosen_stack:
+      summary: >
+        Each workspace root advertises a capability envelope at attach
+        time declaring case sensitivity, unicode normalisation,
+        supports_atomic_replace, supports_in_place_write,
+        supports_conditional_remote_write, supports_case_only_rename,
+        supports_unicode_normalization_rename, symlink_escape_policy,
+        read_only, policy_constrained, review_required_before_save,
+        review_required_before_rename, remote_container_adaptation,
+        and strongest_identity_token with a fallback chain.
+      commits:
+        - capability envelope registered on vfs_root_attach
+        - save-mode selection reads the envelope; no save mode is
+          attempted without a declared capability
+        - case-only rename, normalisation rename, and symlink escape
+          require explicit previewable rename plans
+        - remote-agent and container attach carries additional flags
+          (mount_graph_hash, path_semantics_metadata, watcher_model)
+    best_rejected_alternative:
+      summary: >
+        One global filesystem posture applied to every root.
+      rejection_reason: >
+        Forces the product to either assume POSIX everywhere (breaks
+        Windows, remote, and virtual roots) or pessimise everywhere
+        (breaks performance on POSIX). Neither keeps honesty across
+        the supported root classes.
+    why_chosen_wins: >
+        Per-root capability is the only posture that lets the save
+        pipeline be honest on the full matrix (local POSIX-like,
+        Windows-like, remote agent mount, virtual / generated) without
+        forcing a lowest-common-denominator penalty.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9678"
+        quote: "DC.1 Root and identity matrix"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1597"
+        quote: "VFS responsibilities"
+    protected_hot_path_hooks:
+      - vfs_root_attach
+      - vfs_root_detach
+    reopen_triggers:
+      - id: capability_flag_gap
+        severity: blocker
+        description: >
+          A root class has a legitimate capability that cannot be
+          expressed with the current flag set (for example, a
+          journalled filesystem offering an explicit transactional
+          save); the row reopens to extend the flags.
+      - id: capability_matrix_drift
+        severity: watch
+        description: >
+          artifacts/io/root_capability_matrix.yaml diverges from
+          observed root behaviour on a claimed corpus; the row reopens
+          to reconcile.
+
+  - axis: alias_handling
+    chosen_stack:
+      summary: >
+        Alias sets converge onto one dirty-buffer authority with
+        disclosure. Duplicate tabs and wrong-target saves are
+        prevented; aliases are surfaced, not hidden.
+      commits:
+        - vfs_alias_converge fires when two presentation paths resolve
+          to one canonical object
+        - case-only rename, normalisation rename, and symlink escape
+          require explicit capability check and preview
+        - external-change detection keys on canonical identity first,
+          path string only second
+    best_rejected_alternative:
+      summary: >
+        Treat each path as a separate mutable file.
+      rejection_reason: >
+        Two dirty buffers for the same underlying file is a corruption
+        path. The user cannot audit which write landed; support cannot
+        reconstruct it.
+    why_chosen_wins: >
+        Convergence plus disclosure is the only posture where the user
+        can see that two paths refer to one file and where the VFS can
+        refuse a wrong-target write deterministically.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 1642"
+        quote: "converge them onto one dirty-buffer authority"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9690"
+        quote: "Same object opened through two aliases"
+    protected_hot_path_hooks:
+      - vfs_alias_converge
+      - vfs_canonicalize
+    reopen_triggers:
+      - id: alias_convergence_incorrect
+        severity: blocker
+        description: >
+          vfs_alias_converge produces a wrong-target write or a
+          duplicate dirty buffer on a claimed corpus that the current
+          identity layers cannot prevent; the row reopens.
+      - id: alias_disclosure_pressure
+        severity: watch
+        description: >
+          A lane asks to hide alias disclosure to simplify UI; the row
+          reopens to examine whether the affordance is miscalibrated.
+
+  - axis: cache_identity
+    chosen_stack:
+      summary: >
+        Content-digest plus input-digest-set keys. Every cache entry
+        records cache_class (matching ADR-0005 view_class),
+        cache_schema_version, producer_id / producer_version,
+        input_digest_set, output_digest, generated_at, drift_state, and
+        durability_class. Durable caches survive restart only after a
+        supersession check; disposable caches are dropped.
+      commits:
+        - no cache keys by path string alone
+        - durable caches re-check input_digest_set before claiming
+          authoritative freshness
+        - disposable caches label freshness = warming during rebuild
+        - imported and replayed caches carry source identifiers and
+          never promote to authoritative
+    best_rejected_alternative:
+      summary: >
+        Path-keyed caches invalidated by mtime alone.
+      rejection_reason: >
+        Path-keyed caches survive path changes that should invalidate
+        them (a rename swap silently keeps the old cache) and
+        invalidate on path changes that should not (a case-only
+        rewrite blows away a valid cache). mtime alone misses generator
+        and input-digest changes.
+    why_chosen_wins: >
+        Digest keys invalidate exactly on input change; the drift-state
+        taxonomy lets surfaces label stale / regenerated / manually
+        diverged cases honestly; durable / disposable separation lets
+        the benchmark lab budget rebuild cost.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9740"
+        quote: "DE.2 Drift-state matrix"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 1114"
+        quote: "inode/mtime fingerprints where available, and content hashes where they are not"
+    protected_hot_path_hooks:
+      - vfs_cache_lookup
+      - vfs_cache_invalidate
+    reopen_triggers:
+      - id: durable_cache_rebuild_budget_breach
+        severity: blocker
+        description: >
+          vfs_cache_rebuild exceeds its budget on a claimed corpus and
+          the fix would require promoting a cache to durable despite
+          unbounded rebuild cost, or demoting a widely-used cache to
+          disposable.
+      - id: drift_state_gap
+        severity: watch
+        description: >
+          A cache state cannot be expressed as any of the five
+          drift_state values without misattribution; the row reopens
+          to extend the taxonomy.
+
+  - axis: conflict_posture
+    chosen_stack:
+      summary: >
+        external_change_detected is the only conflict outcome; the
+        pipeline surfaces review_diff, overwrite, merge, save_as, or
+        cancel as the only legitimate affordances. Silent overwrite is
+        never a resolution.
+      commits:
+        - compare_before_write produces a typed conflict on mismatch
+        - conditional_remote_write surfaces a conditional-write
+          conflict rather than overwriting
+        - wrong_target_prevention refuses a save that would hit a
+          different canonical object than the buffer authority's
+        - save_participant_failed preserves the unformatted buffer
+    best_rejected_alternative:
+      summary: >
+        Last-writer-wins default: silently overwrite on external
+        change.
+      rejection_reason: >
+        Silently loses the user's other session's work; the support
+        bundle cannot explain who wrote what when; the benchmark lab
+        cannot measure a correctness floor that assumes silent
+        overwrite is legal.
+    why_chosen_wins: >
+        Typed affordances are the only auditable outcome. The support
+        bundle records the affordance the user chose; the mutation
+        journal (deferred appendix) records the resolution.
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9692"
+        quote: "External replacement under same path"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 9693"
+        quote: "fail with conditional-write conflict rather than overwriting blindly"
+    protected_hot_path_hooks:
+      - vfs_save_conflict
+      - vfs_external_change_detected
+    reopen_triggers:
+      - id: silent_overwrite_pressure
+        severity: blocker
+        description: >
+          A lane demonstrates a use case that requires silent
+          overwrite (for example, a generator that writes through the
+          save pipeline without user mediation); the row reopens to
+          examine whether the use case should route around the save
+          pipeline entirely or under a new conflict affordance.
+      - id: conflict_affordance_gap
+        severity: watch
+        description: >
+          A user-observable conflict cannot be attributed to any of
+          the current affordances without defaulting to cancel; the
+          row reopens to add a specific affordance.
+
+  - axis: schema_discipline
+    chosen_stack:
+      summary: >
+        Rust types in crates/aureline-vfs are the schema of record.
+        The JSON Schema export at
+        schemas/runtime/vfs_save_envelope.schema.json is the cross-tool
+        boundary. No external IDL or codegen toolchain at this
+        milestone; additive-minor evolution preserved under unknown-
+        field preservation.
+      commits:
+        - boundary JSON Schema is the external-facing contract
+        - Rust types are the source of truth inside the repo
+        - additive-minor evolution is allowed; breaking changes bump
+          vfs_save_envelope_schema_version
+        - consumers preserve unknown fields on read
+    best_rejected_alternative:
+      summary: >
+        Full IDL + codegen toolchain (Protobuf / Cap'n Proto / Thrift)
+        for the save-target token and capability envelope at this
+        milestone.
+      rejection_reason: >
+        Same argument as ADR 0004 and ADR 0005: an IDL without a
+        second-language consumer costs more than it buys. The boundary
+        JSON Schema reserves a clean integration point if a future
+        consumer forces the choice.
+    why_chosen_wins: >
+        Lane authors define contracts in Rust; external tooling
+        (support bundle, mutation-journal exporter, remote-agent
+        handshake, audit) reads the stable JSON Schema; the generator
+        row stays open for the day it is actually needed.
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 2154"
+        quote: "Schema version must travel with the artifact; unknown fields are handled per schema policy, not ad hoc"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 6224"
+        quote: "exact internal typed RPC framework and schema tooling"
+    protected_hot_path_hooks: []
+    reopen_triggers:
+      - id: second_language_consumer_lands
+        severity: blocker
+        description: >
+          A concrete consumer outside Rust (public SDK, browser
+          companion, remote agent in another language) forces the lane
+          to produce bindings from a schema of record; the row reopens
+          to choose the IDL and generator.
+      - id: boundary_schema_maintenance_cost_grows
+        severity: watch
+        description: >
+          Maintaining schemas/runtime/vfs_save_envelope.schema.json by
+          hand grows beyond what a hygiene PR can absorb; the row
+          reopens to choose a lightweight generator.
