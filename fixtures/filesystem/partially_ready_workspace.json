@@ -1,0 +1,224 @@
+{
+  "$schema": "../../schemas/filesystem/save_target_token.schema.json",
+  "__fixture__": {
+    "name": "partially_ready_workspace",
+    "scenario": "User opens a freshly cloned monorepo. The VFS is attached and the file tree is exact; the lexical search index is partial with reason producer_warming; the semantic graph is partial with reason partial_enumeration (only payments and auth roots enumerated so far); a vendor-imported type index is imported with reason imported_source; a policy-restricted infra root is unavailable with reason policy_blocked. The composite workspace chip renders Partially ready; the detail surface lists each producer's state, reason, explainer, and safe next action. The support bundle exports the same composite record verbatim.",
+    "vocabulary_sections": ["§2.1 semantic_readiness_state", "§2.2 not_ready_reason", "§2.3 safe_next_action", "§2.4 support / export parity", "§3 projection fields", "§4.4 Partially ready workspace"]
+  },
+  "record_kind": "semantic_readiness_record",
+  "filesystem_identity_schema_version": 1,
+  "subject": {
+    "kind": "workspace",
+    "workspace_id": "ws-aureline-primary",
+    "root_id": "root-1"
+  },
+  "semantic_readiness": {
+    "state": "partial",
+    "not_ready_reason": "partial_enumeration",
+    "safe_next_action": "open_support_bundle",
+    "producer_id": "workspace_readiness_composite",
+    "producer_version": "readiness-composite-0.1.0",
+    "observed_at": "mono:4812:00:02:11.4430",
+    "explainer": "Workspace is editable and saveable. Some producers are still warming or restricted; see details.",
+    "readiness_chip": {
+      "state": "partial",
+      "detail_target": "aureline.workspace.showReadinessDetails"
+    },
+    "not_ready_explainer": {
+      "title": "Partially ready",
+      "body": "Every file in this workspace is editable and saveable. The lexical search index is warming, the semantic graph has enumerated only two roots so far, a vendor-imported type index is providing imported facts, and one infra root is blocked by policy. Local editing, save, and Git continue unchanged.",
+      "what_still_works": [
+        "Opening, editing, and saving any file the VFS has canonicalised",
+        "Local Git operations (status, stage, commit, diff, blame)",
+        "Lexical search over files the index has already enumerated"
+      ]
+    },
+    "safe_next_actions": [
+      {
+        "action": "wait",
+        "command_id": "aureline.workspace.noop",
+        "consequence": "Producers will converge in the background; no action required."
+      },
+      {
+        "action": "open_support_bundle",
+        "command_id": "aureline.support.openBundlePreview",
+        "consequence": "Opens a preview of the readiness packet that would be exported to support."
+      }
+    ],
+    "support_export": {
+      "packet_family": "semantic_readiness",
+      "redaction_policy": "default_filesystem_redaction_v1"
+    }
+  },
+  "child_records": [
+    {
+      "record_kind": "semantic_readiness_record",
+      "filesystem_identity_schema_version": 1,
+      "subject": {
+        "kind": "producer",
+        "producer_id": "workspace_vfs"
+      },
+      "semantic_readiness": {
+        "state": "exact",
+        "producer_id": "workspace_vfs",
+        "producer_version": "vfs-proto-0.1.0",
+        "observed_at": "mono:4812:00:02:11.4430",
+        "readiness_chip": { "state": "exact" }
+      }
+    },
+    {
+      "record_kind": "semantic_readiness_record",
+      "filesystem_identity_schema_version": 1,
+      "subject": {
+        "kind": "producer",
+        "producer_id": "lexical_search_index"
+      },
+      "semantic_readiness": {
+        "state": "partial",
+        "not_ready_reason": "producer_warming",
+        "safe_next_action": "wait",
+        "producer_id": "lexical_search_index",
+        "producer_version": "lexical-idx-0.4.2",
+        "observed_at": "mono:4812:00:02:11.4430",
+        "explainer": "Initial enumeration is in progress; 63% of files indexed.",
+        "readiness_chip": {
+          "state": "partial",
+          "detail_target": "aureline.producers.lexicalSearch.showDetails"
+        },
+        "not_ready_explainer": {
+          "title": "Lexical search is warming",
+          "body": "Initial file enumeration is in progress on a freshly cloned workspace. Results widen as enumeration completes.",
+          "what_still_works": [
+            "Searching files the index has already enumerated",
+            "Quick open by path"
+          ]
+        },
+        "safe_next_actions": [
+          {
+            "action": "wait",
+            "command_id": "aureline.producers.lexicalSearch.noop",
+            "consequence": "Enumeration continues in the background."
+          }
+        ]
+      }
+    },
+    {
+      "record_kind": "semantic_readiness_record",
+      "filesystem_identity_schema_version": 1,
+      "subject": {
+        "kind": "producer",
+        "producer_id": "semantic_graph"
+      },
+      "semantic_readiness": {
+        "state": "partial",
+        "not_ready_reason": "partial_enumeration",
+        "safe_next_action": "widen_scope",
+        "producer_id": "semantic_graph",
+        "producer_version": "semgraph-0.2.11",
+        "observed_at": "mono:4812:00:02:11.4430",
+        "explainer": "payments and auth roots enumerated; remaining roots scheduled.",
+        "readiness_chip": {
+          "state": "partial",
+          "detail_target": "aureline.producers.semanticGraph.showDetails"
+        },
+        "not_ready_explainer": {
+          "title": "Semantic graph partial",
+          "body": "Two of the workspace's declared roots (payments, auth) are fully enumerated. The remaining roots are scheduled for enumeration; semantic navigation in those areas falls back to lexical matching until enumeration completes.",
+          "what_still_works": [
+            "Semantic navigation inside payments and auth roots",
+            "Lexical navigation across every root"
+          ]
+        },
+        "safe_next_actions": [
+          {
+            "action": "widen_scope",
+            "command_id": "aureline.producers.semanticGraph.enumerateAll",
+            "consequence": "Schedules enumeration of all remaining roots."
+          },
+          {
+            "action": "wait",
+            "command_id": "aureline.producers.semanticGraph.noop",
+            "consequence": "Background enumeration proceeds under the default budget."
+          }
+        ]
+      }
+    },
+    {
+      "record_kind": "semantic_readiness_record",
+      "filesystem_identity_schema_version": 1,
+      "subject": {
+        "kind": "producer",
+        "producer_id": "vendor_type_index"
+      },
+      "semantic_readiness": {
+        "state": "imported",
+        "not_ready_reason": "imported_source",
+        "safe_next_action": "no_action_required",
+        "producer_id": "vendor_type_index",
+        "producer_version": "vendor-import-2026.04",
+        "observed_at": "mono:4812:00:02:11.4430",
+        "explainer": "Vendored type index from upstream. Imported facts never promote to authoritative.",
+        "readiness_chip": {
+          "state": "imported",
+          "detail_target": "aureline.producers.vendorTypeIndex.showDetails"
+        },
+        "not_ready_explainer": {
+          "title": "Imported facts",
+          "body": "The vendor-supplied type index provides imported facts. Aureline never promotes imported facts to authoritative; results are labelled as imported wherever they are shown.",
+          "what_still_works": [
+            "Navigation using imported symbols",
+            "Searching imported documentation"
+          ]
+        },
+        "safe_next_actions": [
+          {
+            "action": "no_action_required",
+            "command_id": "aureline.producers.vendorTypeIndex.noop",
+            "consequence": "No action required; imported facts continue to serve."
+          }
+        ]
+      }
+    },
+    {
+      "record_kind": "semantic_readiness_record",
+      "filesystem_identity_schema_version": 1,
+      "subject": {
+        "kind": "producer",
+        "producer_id": "infra_root_index"
+      },
+      "semantic_readiness": {
+        "state": "unavailable",
+        "not_ready_reason": "policy_blocked",
+        "safe_next_action": "open_offline_details",
+        "producer_id": "infra_root_index",
+        "producer_version": "infra-idx-0.1.0",
+        "observed_at": "mono:4812:00:02:11.4430",
+        "explainer": "The infra root is gated by the tenant policy bundle; indexing is blocked.",
+        "readiness_chip": {
+          "state": "unavailable",
+          "detail_target": "aureline.producers.infraRoot.showPolicy"
+        },
+        "not_ready_explainer": {
+          "title": "Infra root blocked by policy",
+          "body": "The tenant policy bundle blocks indexing of the infra root from this workspace. Local editing of files outside the infra root continues unchanged; infra files are read-only from this session.",
+          "what_still_works": [
+            "Editing and saving every file outside the infra root",
+            "Opening infra files in read-only mode"
+          ]
+        },
+        "safe_next_actions": [
+          {
+            "action": "open_offline_details",
+            "command_id": "aureline.policy.showBlockingBundle",
+            "consequence": "Opens the policy-bundle detail surface explaining which rule blocks indexing."
+          },
+          {
+            "action": "reauthenticate",
+            "command_id": "aureline.identity.refreshSession",
+            "consequence": "Refreshes the identity session in case an updated policy admits this root."
+          }
+        ]
+      }
+    }
+  ]
+}

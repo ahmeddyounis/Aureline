@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json",
+  "title": "Aureline filesystem-identity, save-target-token, and semantic-readiness vocabulary",
+  "description": "Cross-surface vocabulary schema for the filesystem-identity layers (presentation_path, logical_workspace_identity, canonical_filesystem_object, alias_set, save_target_token) and the semantic-readiness state set frozen in docs/filesystem/filesystem_identity_vocabulary.md. The ADR of record for the underlying filesystem-identity, watcher, save-pipeline, root-capability, and cache-identity rules is docs/adr/0006-vfs-save-cache-identity.md; the VFS crate Rust types are the schema of record and this file is the export boundary every non-VFS surface (product, CLI, support/export, graph, search, AI apply, review, mutation-journal, replay) reads. This schema freezes the names each surface uses when it renders, logs, exports, or explains the same object; it reserves projection fields for readiness chips, not-ready explainers, safe-next-action rows, and support/export parity so later M0 conformance packets do not invent parallel readiness dialects. Adding a new semantic_readiness_state, not_ready_reason, safe_next_action, or projection slot is additive-minor; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/save_target_token_record" },
+    { "$ref": "#/$defs/semantic_readiness_record" },
+    { "$ref": "#/$defs/filesystem_identity_record" }
+  ],
+  "$defs": {
+    "filesystem_identity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this filesystem-identity vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "save_target_token_record",
+        "semantic_readiness_record",
+        "filesystem_identity_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "presentation_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "display_label", "root_badge"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Layer 1 of the filesystem-identity model: the URI the user opened. Preserved verbatim by tabs, breadcrumbs, copy/paste, CLI output, and support bundle entries; never silently rewritten to the canonical URI."
+        },
+        "display_label": {
+          "type": "string",
+          "description": "Human-readable label. Surface chrome shows this verbatim; the label is never inferred from the canonical path when the presentation path was opened under a different string."
+        },
+        "root_badge": {
+          "type": "string",
+          "description": "Short chip labelling the root the path belongs to (local, remote, container, virtual, archive). Surface chrome shows this verbatim."
+        }
+      },
+      "description": "Layer 1: the path the user opened. Carried alongside layers 2-5 on every file-open, rename, save, autosave, compare, restore, external-change, and AI / apply flow."
+    },
+
+    "logical_workspace_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_id", "root_id", "logical_uri", "trust_state"],
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable workspace identifier. Survives rename, alias change, and canonical-path renormalisation."
+        },
+        "root_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier for the workspace root the object lives under."
+        },
+        "logical_uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace-relative logical URI. Search, history, AI, review, and CLI address one workspace object through this URI regardless of the visible path or alias."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "pending_evaluation"],
+          "description": "Workspace trust posture at the time the record was emitted."
+        },
+        "policy_scope": {
+          "type": "string",
+          "description": "Optional policy scope the workspace is attached to (managed overlay, tenant policy bundle, compliance scope). Surfaces cite this when a policy blocks save or rename."
+        }
+      },
+      "description": "Layer 2: the workspace object the product is tracking."
+    },
+
+    "canonical_filesystem_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_uri", "normalization_form", "strongest_identity_token"],
+      "properties": {
+        "canonical_uri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical URI after symlink / junction / alias resolution."
+        },
+        "normalization_form": {
+          "type": "string",
+          "enum": ["none", "nfc", "nfd", "mixed_observed"],
+          "description": "Unicode normalization form recorded for the canonical URI. mixed_observed means the root mixes forms and the canonical URI is kept in the form the root observed."
+        },
+        "strongest_identity_token": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "file_id_generation",
+                "device_inode_generation",
+                "windows_object_id",
+                "provider_object_id_revision",
+                "logical_document_id_source_refs",
+                "content_hash_only"
+              ]
+            },
+            "value": {
+              "type": "string",
+              "description": "Opaque string encoding of the identity token. Adapter code is responsible for the encoding; consumers treat it as an opaque equality-comparable handle."
+            }
+          },
+          "description": "The strongest identity token the root can provide. Drives compare-before-write and external-change detection."
+        },
+        "fallback_identity_tokens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "value"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "device_inode",
+                  "inode_mtime_size",
+                  "content_hash",
+                  "remote_revision_token"
+                ]
+              },
+              "value": { "type": "string" }
+            }
+          },
+          "description": "Ordered fallback identity tokens the root guarantees."
+        }
+      },
+      "description": "Layer 3: the real object the next write will target."
+    },
+
+    "alias_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aliases"],
+      "properties": {
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["alias_uri", "alias_kind"],
+            "properties": {
+              "alias_uri": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alias_kind": {
+                "type": "string",
+                "enum": [
+                  "symlink",
+                  "junction",
+                  "hardlink_sibling",
+                  "case_only_variant",
+                  "unicode_normalization_variant",
+                  "remote_alias",
+                  "bind_mount_alias",
+                  "container_mount_alias",
+                  "archive_inner_alias"
+                ]
+              },
+              "resolution_chain": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Optional step-by-step resolution chain. Support bundles and alias-disclosure affordances quote this verbatim."
+              }
+            }
+          }
+        }
+      },
+      "description": "Layer 4: the known alternative paths to the same canonical object."
+    },
+
+    "capability_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supports_atomic_replace",
+        "supports_in_place_write",
+        "supports_conditional_remote_write",
+        "case_sensitivity",
+        "unicode_normalization",
+        "symlink_escape_policy",
+        "read_only",
+        "policy_constrained"
+      ],
+      "properties": {
+        "supports_atomic_replace": { "type": "boolean" },
+        "supports_in_place_write": { "type": "boolean" },
+        "supports_conditional_remote_write": { "type": "boolean" },
+        "case_sensitivity": {
+          "type": "string",
+          "enum": ["sensitive", "insensitive_preserving", "insensitive_non_preserving"]
+        },
+        "unicode_normalization": {
+          "type": "string",
+          "enum": ["none", "nfc", "nfd", "mixed_observed"]
+        },
+        "supports_case_only_rename": { "type": "boolean", "default": false },
+        "supports_unicode_normalization_rename": { "type": "boolean", "default": false },
+        "symlink_escape_policy": {
+          "type": "string",
+          "enum": ["allow", "warn", "block"]
+        },
+        "read_only": { "type": "boolean" },
+        "policy_constrained": { "type": "boolean" },
+        "review_required_before_save": { "type": "boolean", "default": false },
+        "review_required_before_rename": { "type": "boolean", "default": false },
+        "remote_container_adaptation": { "type": "boolean", "default": false }
+      },
+      "description": "Mirror of the ADR-0006 capability-flags set. Carried on every save-target token so non-VFS surfaces can explain which guarantees hold without re-querying the root."
+    },
+
+    "compare_before_write_generation_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value", "observed_at"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "file_id_generation",
+            "device_inode_generation",
+            "windows_object_id",
+            "provider_object_id_revision",
+            "inode_mtime_size",
+            "remote_revision_token",
+            "content_hash"
+          ]
+        },
+        "value": { "type": "string" },
+        "observed_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which this generation token was observed. Consumer treats it as opaque."
+        }
+      },
+      "description": "Generation token observed at save-target-token allocation time. The save pipeline compares against a fresh read before writing."
+    },
+
+    "permission_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["writable", "mode"],
+      "properties": {
+        "writable": { "type": "boolean" },
+        "mode": { "type": "string" },
+        "owner": { "type": "string" },
+        "group": { "type": "string" },
+        "acl_summary": { "type": "string" }
+      }
+    },
+
+    "filesystem_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "filesystem_identity_schema_version",
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "alias_set"
+      ],
+      "properties": {
+        "record_kind": { "const": "filesystem_identity_record" },
+        "filesystem_identity_schema_version": { "$ref": "#/$defs/filesystem_identity_schema_version" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "logical_workspace_identity": { "$ref": "#/$defs/logical_workspace_identity" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "alias_set": { "$ref": "#/$defs/alias_set" },
+        "semantic_readiness": {
+          "$ref": "#/$defs/semantic_readiness",
+          "description": "Optional semantic-readiness frame attached to the identity record. Present on partially-ready workspaces and on any surface that renders a readiness chip next to the object."
+        }
+      },
+      "description": "The four-layer filesystem-identity record (layers 1-4 of the vocabulary). Exported by every surface that names a file."
+    },
+
+    "save_target_token_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "filesystem_identity_schema_version",
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "capability_flags",
+        "atomic_write_mode",
+        "compare_before_write_generation_token",
+        "permission_snapshot"
+      ],
+      "properties": {
+        "record_kind": { "const": "save_target_token_record" },
+        "filesystem_identity_schema_version": { "$ref": "#/$defs/filesystem_identity_schema_version" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "logical_workspace_identity": { "$ref": "#/$defs/logical_workspace_identity" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "alias_set": { "$ref": "#/$defs/alias_set" },
+        "capability_flags": { "$ref": "#/$defs/capability_flags" },
+        "atomic_write_mode": {
+          "type": "string",
+          "enum": ["atomic_replace", "in_place_write", "conditional_remote_write", "blocked"],
+          "description": "The save mode this token authorises. Derived from capability_flags at token-allocation time."
+        },
+        "compare_before_write_generation_token": {
+          "$ref": "#/$defs/compare_before_write_generation_token"
+        },
+        "permission_snapshot": { "$ref": "#/$defs/permission_snapshot" },
+        "review_required_before_save": { "type": "boolean", "default": false },
+        "review_required_before_rename": { "type": "boolean", "default": false },
+        "semantic_readiness": {
+          "$ref": "#/$defs/semantic_readiness",
+          "description": "Optional readiness frame attached to the save-target token. Surfaces that preview apply/revert against the token render this frame; the exporter writes it verbatim."
+        }
+      },
+      "description": "Layer 5: the save-target token the editor, AI apply, review apply, or CLI pins at open time and that the save pipeline compares on write. A surface that cannot produce one MUST NOT offer a save affordance."
+    },
+
+    "semantic_readiness_state": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported",
+        "heuristic",
+        "stale",
+        "partial",
+        "unavailable",
+        "out_of_scope"
+      ],
+      "description": "Frozen state set (§2.1 of the vocabulary). Only `exact` may ride with ADR-0005 freshness=authoritative."
+    },
+
+    "not_ready_reason": {
+      "type": "string",
+      "enum": [
+        "producer_warming",
+        "producer_restart",
+        "watcher_degraded",
+        "input_digest_stale",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage",
+        "imported_source",
+        "heuristic_fallback",
+        "partial_enumeration",
+        "scope_excluded",
+        "entitlement_missing",
+        "policy_blocked",
+        "offline_unreachable",
+        "review_required",
+        "large_input_deferred",
+        "corrupt_input_quarantined"
+      ],
+      "description": "Typed not-ready reason (§2.2 of the vocabulary). Required when semantic_readiness is anything other than `exact`. Support bundles and attention-center rows quote this code verbatim."
+    },
+
+    "safe_next_action": {
+      "type": "string",
+      "enum": [
+        "retry_now",
+        "wait",
+        "refresh_input_digests",
+        "regenerate",
+        "restore_from_backup",
+        "review_and_approve",
+        "widen_scope",
+        "reduce_scope",
+        "reauthenticate",
+        "acquire_entitlement",
+        "open_offline_details",
+        "open_support_bundle",
+        "open_alias_details",
+        "open_review_diff",
+        "save_as",
+        "cancel",
+        "no_action_required"
+      ],
+      "description": "Frozen safe-next-action set (§2.3 of the vocabulary). A not-ready surface MUST expose at least one entry."
+    },
+
+    "readiness_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "$ref": "#/$defs/semantic_readiness_state" },
+        "detail_target": {
+          "type": "string",
+          "description": "Canonical command id or deep link the chip opens. Must resolve through the command plane."
+        }
+      },
+      "description": "Projection slot reserved for the compact UI chip surface. The product, CLI, and support share this record."
+    },
+
+    "not_ready_explainer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "body"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Short title (<= 64 graphemes) that leads the not-ready detail surface."
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Longer explanation (<= 1024 graphemes) quoted verbatim by the support bundle and by assistive-tech announcements."
+        },
+        "what_still_works": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Narrowed capability list the user can still rely on. Aligned with the PRD local-core continuity rules."
+        }
+      },
+      "description": "Projection slot reserved for the not-ready detail surface."
+    },
+
+    "safe_next_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "command_id"],
+      "properties": {
+        "action": { "$ref": "#/$defs/safe_next_action" },
+        "command_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical command id invoked by the affordance. Must resolve in the command plane."
+        },
+        "consequence": {
+          "type": "string",
+          "description": "One-sentence description of what invoking the action will do. Support bundles quote verbatim."
+        }
+      },
+      "description": "Projection slot reserved for one safe-next-action row. Multiple rows may be offered, but a surface MUST expose at least one."
+    },
+
+    "support_export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_family", "redaction_policy"],
+      "properties": {
+        "packet_family": {
+          "type": "string",
+          "enum": [
+            "filesystem_identity",
+            "semantic_readiness",
+            "mutation_journal_entry",
+            "replay_capture",
+            "support_bundle_export"
+          ]
+        },
+        "redaction_policy": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redaction policy id applied to the exported record. The policy is never overridden per-surface."
+        },
+        "parity_signature": {
+          "type": "string",
+          "description": "Content digest that lets the support surface and the in-product surface prove they are showing the same record."
+        }
+      },
+      "description": "Projection slot reserved for support / export parity fields."
+    },
+
+    "semantic_readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "producer_id", "producer_version", "observed_at"],
+      "properties": {
+        "state": { "$ref": "#/$defs/semantic_readiness_state" },
+        "not_ready_reason": { "$ref": "#/$defs/not_ready_reason" },
+        "safe_next_action": { "$ref": "#/$defs/safe_next_action" },
+        "producer_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable producer id (graph, lexical search, docs pack, type index, generator, import source)."
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "description": "Producer-local monotonic timestamp at which the readiness state was observed. Consumers treat it as opaque."
+        },
+        "explainer": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Optional short, redaction-aware free-text explainer (<= 240 graphemes). The product surface and the support bundle render the same explainer."
+        },
+        "readiness_chip": { "$ref": "#/$defs/readiness_chip" },
+        "not_ready_explainer": { "$ref": "#/$defs/not_ready_explainer" },
+        "safe_next_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_next_action_row" },
+          "description": "One or more safe-next-action rows. At least one row is required when state is not `exact`; `no_action_required` is a valid row."
+        },
+        "support_export": { "$ref": "#/$defs/support_export_projection" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "state": { "const": "exact" } },
+            "required": ["state"]
+          },
+          "then": true,
+          "else": {
+            "required": ["not_ready_reason", "safe_next_action"]
+          }
+        }
+      ],
+      "description": "Semantic-readiness frame (§2 of the vocabulary). Rides alongside the identity layers and the save-target token; every surface that displays, exports, or reasons about an object renders this frame verbatim."
+    },
+
+    "semantic_readiness_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "filesystem_identity_schema_version",
+        "subject",
+        "semantic_readiness"
+      ],
+      "properties": {
+        "record_kind": { "const": "semantic_readiness_record" },
+        "filesystem_identity_schema_version": { "$ref": "#/$defs/filesystem_identity_schema_version" },
+        "subject": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "identity"],
+              "properties": {
+                "kind": { "const": "object" },
+                "identity": { "$ref": "#/$defs/filesystem_identity_record" }
+              },
+              "description": "Readiness claim scoped to a single canonical filesystem object."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "workspace_id"],
+              "properties": {
+                "kind": { "const": "workspace" },
+                "workspace_id": { "type": "string", "minLength": 1 },
+                "root_id": { "type": "string", "minLength": 1 },
+                "workset_id": { "type": "string", "minLength": 1 }
+              },
+              "description": "Readiness claim scoped to a workspace, root, or workset. Used by the partially-ready composite chip."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "producer_id"],
+              "properties": {
+                "kind": { "const": "producer" },
+                "producer_id": { "type": "string", "minLength": 1 }
+              },
+              "description": "Readiness claim scoped to a single producer (graph, lexical search, docs pack, type index, generator). Used by producer-detail surfaces."
+            }
+          ]
+        },
+        "semantic_readiness": { "$ref": "#/$defs/semantic_readiness" },
+        "child_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_readiness_record" },
+          "description": "Optional nested readiness records. A workspace-scoped composite record carries one child per producer; a partially-ready workspace exports the composite plus its children so support bundles and CLI doctor flows can reconstruct the detail surface."
+        }
+      },
+      "description": "Standalone semantic-readiness record. Rendered by partially-ready workspace chrome, the CLI `doctor`-equivalent, support bundles, and attention-center rows. The same record ships to every surface."
+    }
+  }
+}
