@@ -69,6 +69,16 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`ux/shell_interaction_safety_contract.md`](./ux/shell_interaction_safety_contract.md)
+  — shell-level interaction-safety contract covering focus return,
+  batch-scope review, preview / apply / revert, typed permission
+  prompts, safe preview of high-risk content classes,
+  representation-labeled copy / export, and responsive fallback on
+  protected shell surfaces. Boundary schema in
+  [`/schemas/ux/interaction_safety.schema.json`](../schemas/ux/interaction_safety.schema.json);
+  worked fixtures (destructive core path, publish-capable /
+  externally-mutating path, responsive-fallback denial) in
+  [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
 
 ## Machine-readable registers
 

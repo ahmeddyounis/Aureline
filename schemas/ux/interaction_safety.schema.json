@@ -1,0 +1,1165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/interaction_safety.schema.json",
+  "title": "Aureline shell-level interaction-safety contract",
+  "description": "Boundary schema for the interaction_safety_packet_record, the preview_apply_revert_record, the batch_scope_record, the permission_prompt_record, the copy_export_representation_record, the focus_return_record, the responsive_fallback_record, and the interaction_safety_audit_event_record frozen in docs/ux/shell_interaction_safety_contract.md. Every consequence-bearing interaction on the editor, terminal, review / diff, palette / search, install / update / attach, AI apply, collaboration, provider-bearing, docs / help / service-health, and support-export surfaces emits exactly one interaction_safety_packet_record. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never cross the RPC boundary; this schema carries ids and typed vocabulary only. The eventual shell / interaction-safety crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new authority class, consequence class, high-risk preview class, phase, revert class, permission grant scope, authority-renewal trigger, representation class, batch scope class, focus-return state, responsive-fallback mode, required-visible-field class, audit-event id, or denial reason is additive-minor and requires an interaction_safety_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/interaction_safety_packet_record" },
+    { "$ref": "#/$defs/preview_apply_revert_record" },
+    { "$ref": "#/$defs/batch_scope_record" },
+    { "$ref": "#/$defs/permission_prompt_record" },
+    { "$ref": "#/$defs/copy_export_representation_record" },
+    { "$ref": "#/$defs/focus_return_record" },
+    { "$ref": "#/$defs/responsive_fallback_record" },
+    { "$ref": "#/$defs/interaction_safety_audit_event_record" }
+  ],
+  "$defs": {
+    "interaction_safety_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this interaction-safety vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "interaction_safety_packet_record",
+        "preview_apply_revert_record",
+        "batch_scope_record",
+        "permission_prompt_record",
+        "copy_export_representation_record",
+        "focus_return_record",
+        "responsive_fallback_record",
+        "interaction_safety_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_canvas",
+        "terminal_canvas",
+        "review_and_diff_canvas",
+        "palette_and_search_canvas",
+        "install_update_attach_canvas",
+        "ai_apply_canvas",
+        "collaboration_canvas",
+        "provider_bearing_canvas",
+        "docs_help_service_health_canvas",
+        "support_export_canvas"
+      ],
+      "description": "Frozen surface-class vocabulary naming which protected shell surface emitted the interaction-safety record."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_local",
+        "user_initiated_shared",
+        "ai_initiated",
+        "extension_initiated",
+        "automation_recipe_initiated",
+        "collaboration_remote_initiated",
+        "admin_policy_initiated"
+      ],
+      "description": "Frozen authority-class vocabulary. Names the initiator of the consequence-bearing action, not the target. A surface that cannot resolve its authority class MUST deny with authority_class_unresolved rather than defaulting to user_initiated_local."
+    },
+
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "reversible_local",
+        "recoverable_durable",
+        "external_shared",
+        "irreversible_high_blast"
+      ],
+      "description": "Frozen four-class destruction / mutation vocabulary re-exported from UI/UX Spec §9.4 verbatim. external_shared and irreversible_high_blast MUST focus the safest action by default and MUST NOT occupy the default Enter path unless the user is already inside an explicit destructive review. A surface MAY escalate a consequence class; it MAY NOT silently narrow."
+    },
+
+    "high_risk_preview_class": {
+      "type": "string",
+      "enum": [
+        "multiline_terminal_paste",
+        "remote_clipboard_bridge",
+        "paste_then_run",
+        "file_drop_mass_mutation",
+        "rich_active_content_render",
+        "notebook_widget_payload",
+        "oversized_generated_artifact",
+        "install_or_update",
+        "remote_attach",
+        "collaboration_invite",
+        "publish_external",
+        "destructive_bulk_mutation",
+        "secret_access",
+        "browser_handoff",
+        "bidi_or_invisible_formatting_reveal",
+        "confusable_identifier_reveal"
+      ],
+      "description": "Frozen typed preview classes that force the safe-preview posture (sanitised / sandboxed / raw-inspection / metadata-only) before bytes render or execute. A tooltip-only or hover-only disclosure is non-conforming; disclosures render on the primary surface."
+    },
+
+    "preview_apply_revert_phase": {
+      "type": "string",
+      "enum": [
+        "propose",
+        "preview",
+        "apply",
+        "validate",
+        "keep_or_revert"
+      ],
+      "description": "Frozen preview / apply / revert phase vocabulary. Apply MAY NOT silently widen or materially change scope after preview. If the basis drifts, the surface MUST invalidate the preview, emit interaction_safety_apply_basis_drifted, and reopen review."
+    },
+
+    "revert_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regenerate_from_source",
+        "restore_from_checkpoint",
+        "evidence_only_no_rerun",
+        "no_recovery_available"
+      ],
+      "description": "Frozen revert-class vocabulary. evidence_only_no_rerun is the canonical claim for restored terminals, debug sessions, notebooks, API requests, and remote shells. no_recovery_available is permitted only on irreversible_high_blast consequence classes."
+    },
+
+    "permission_grant_scope": {
+      "type": "string",
+      "enum": [
+        "once",
+        "session",
+        "workspace",
+        "profile",
+        "policy_managed"
+      ],
+      "description": "Frozen permission grant-scope vocabulary re-exported from UI/UX Spec §9.6. Remembered decisions are never indefinite by default for destructive, networked, provider-backed, or secret-bearing capabilities. policy_managed grants are reviewable but not silently editable by the end user."
+    },
+
+    "authority_renewal_trigger": {
+      "type": "string",
+      "enum": [
+        "target_changed",
+        "route_changed",
+        "actor_changed",
+        "policy_source_changed",
+        "policy_epoch_changed",
+        "trust_state_changed",
+        "scope_filter_changed",
+        "grant_expired",
+        "grant_revoked",
+        "basis_snapshot_drifted",
+        "authority_class_escalated"
+      ],
+      "description": "Frozen authority-renewal triggers. A grant never silently crosses a target / route / actor / policy-source / epoch / trust / scope / expiry / revocation / basis / authority-class boundary. Any renewal trigger reopens the prompt with the delta (not the full envelope)."
+    },
+
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "rendered",
+        "escaped",
+        "sanitized",
+        "sandboxed",
+        "generated",
+        "blocked_metadata_only"
+      ],
+      "description": "Frozen representation-class vocabulary for copy / export. raw preserves exact bytes; rendered reflects the current rendered representation; escaped preserves source representation with metacharacters rendered safe; sanitized removes active / scriptable content; sandboxed renders within a safe boundary; generated names model-produced content (MUST carry citation_anchor_refs when quoting authoritative material); blocked_metadata_only withholds the raw body entirely."
+    },
+
+    "batch_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_rows",
+        "loaded_items",
+        "all_matching_query",
+        "custom_identity_set",
+        "query_snapshot_stale"
+      ],
+      "description": "Frozen batch-scope vocabulary re-exported from UI/UX Spec §9.12 and Appendix EO.3. Select all MUST say whether it means visible rows, loaded rows, or all matching items; query_snapshot_stale marks a selection built against a drifted query basis."
+    },
+
+    "batch_member_status": {
+      "type": "string",
+      "enum": [
+        "included",
+        "excluded_by_user_filter",
+        "blocked_by_policy",
+        "blocked_by_ownership",
+        "blocked_by_protected_path",
+        "hidden_missing_permission",
+        "hidden_stale_membership",
+        "query_derived"
+      ],
+      "description": "Frozen batch-member-status vocabulary. Destructive batch previews MUST summarise every status present before commit."
+    },
+
+    "focus_return_state": {
+      "type": "string",
+      "enum": [
+        "returned_exact",
+        "returned_nearest_safe_ancestor",
+        "returned_current_batch_or_detail_owner",
+        "returned_placeholder_announced",
+        "focus_loss_denied",
+        "focus_not_applicable_non_interactive"
+      ],
+      "description": "Frozen focus-return vocabulary re-exported from UI/UX Spec §19.4 and Appendix EL.2. Focus MUST return to the invoking control or its row / card on modal confirm / cancel; a surface that cannot locate a safe ancestor MUST render a returned_placeholder_announced placeholder whose announcement explains why focus could not return. Silent focus loss is non-conforming."
+    },
+
+    "responsive_fallback_mode": {
+      "type": "string",
+      "enum": [
+        "full_chrome",
+        "compact_shell",
+        "split_shell",
+        "narrow_width_sheet",
+        "very_narrow_compare",
+        "zoom_400_overflow",
+        "missing_extension_placeholder",
+        "presentation_overlay_dimmed"
+      ],
+      "description": "Frozen responsive-fallback vocabulary re-exported from UI/UX Spec §6.1–§6.9 and Appendix EP. A responsive fallback MAY collapse secondary chrome; it MUST NOT hide any field from the required_visible_field_class set applicable to the current consequence class."
+    },
+
+    "shell_zone": {
+      "type": "string",
+      "enum": [
+        "rail",
+        "sidebar",
+        "main_workspace",
+        "inspector",
+        "bottom_panel"
+      ],
+      "description": "Frozen shell-zone vocabulary re-exported from UI/UX Spec Appendix EP.1."
+    },
+
+    "required_visible_field_class": {
+      "type": "string",
+      "enum": [
+        "target_identity",
+        "actor_identity",
+        "authority_class_label",
+        "consequence_class_label",
+        "scope_statement",
+        "recovery_class_label",
+        "policy_source_label",
+        "expiry_or_revocation_claim",
+        "blocked_or_hidden_member_count",
+        "representation_class_label",
+        "basis_snapshot_freshness"
+      ],
+      "description": "Frozen required-visible-field vocabulary. Fields that MUST remain visible at the same time as the confirm action on every external_shared and irreversible_high_blast consequence class, and on every high-risk preview class, even under the most aggressive responsive fallback."
+    },
+
+    "validation_outcome": {
+      "type": "string",
+      "enum": [
+        "not_run",
+        "running",
+        "passed",
+        "failed",
+        "mixed",
+        "manual_review_required"
+      ],
+      "description": "Frozen validation-outcome vocabulary from UI/UX Spec §9.5. passed MUST NOT be rendered while validation_plan_ref is null."
+    },
+
+    "partial_outcome": {
+      "type": "string",
+      "enum": [
+        "not_partial",
+        "partial_success",
+        "partial_revert",
+        "partial_validation"
+      ],
+      "description": "Frozen partial-outcome vocabulary. Partial apply, partial validation, and partial revert are first-class outcomes with their own user-visible states, not footnotes inside generic Failed banners."
+    },
+
+    "permission_decision_outcome": {
+      "type": "string",
+      "enum": [
+        "granted",
+        "denied",
+        "cancelled",
+        "expired",
+        "revoked_before_commit"
+      ],
+      "description": "Frozen permission-decision vocabulary. Null until the user decides."
+    },
+
+    "copy_export_action_kind": {
+      "type": "string",
+      "enum": ["copy", "export"],
+      "description": "Frozen copy / export action kinds."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A row whose client_scope excludes the rendering surface MUST NOT render as available there."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Re-exported from schemas/runtime/execution_context.schema.json without modification (ADR-0009)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "interaction_safety_preview_emitted",
+        "interaction_safety_apply_committed",
+        "interaction_safety_apply_basis_drifted",
+        "interaction_safety_validate_completed",
+        "interaction_safety_revert_requested",
+        "interaction_safety_batch_scope_labelled",
+        "interaction_safety_batch_stale_query_detected",
+        "interaction_safety_permission_prompt_opened",
+        "interaction_safety_permission_prompt_granted",
+        "interaction_safety_permission_prompt_denied",
+        "interaction_safety_permission_prompt_expired",
+        "interaction_safety_permission_prompt_revoked",
+        "interaction_safety_authority_renewal_required",
+        "interaction_safety_focus_returned",
+        "interaction_safety_focus_return_target_lost",
+        "interaction_safety_representation_label_rendered",
+        "interaction_safety_safe_preview_engaged",
+        "interaction_safety_copy_export_labelled",
+        "interaction_safety_responsive_fallback_engaged",
+        "interaction_safety_chrome_collapse_field_preserved",
+        "interaction_safety_denial_emitted",
+        "interaction_safety_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the interaction_safety audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "authority_class_unresolved",
+        "consequence_class_unresolved",
+        "preview_required_but_absent",
+        "apply_basis_drifted",
+        "authority_renewal_required",
+        "permission_expired",
+        "permission_revoked",
+        "permission_grant_scope_unlabelled",
+        "representation_label_missing",
+        "representation_escalation_required",
+        "batch_scope_class_unlabelled",
+        "batch_membership_not_disclosed",
+        "hidden_members_not_disclosed",
+        "partial_failure_not_explained",
+        "focus_return_target_lost",
+        "chrome_hid_required_field",
+        "safe_preview_bypassed",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "citation_anchor_missing_on_generated",
+        "policy_blocked",
+        "interaction_safety_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort apply is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every render."
+    },
+
+    "interaction_safety_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "packet_id",
+        "interaction_session_id_ref",
+        "surface_class",
+        "authority_class",
+        "actor_identity_ref",
+        "target_identity_ref",
+        "consequence_class",
+        "preview_apply_revert_phase",
+        "revert_class",
+        "high_risk_preview_classes",
+        "scope_filter_class",
+        "responsive_fallback_mode",
+        "visible_fields_at_commit",
+        "focus_return_state",
+        "authority_renewal_triggers_observed",
+        "basis_snapshot_ref",
+        "freshness_class",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "interaction_safety_packet_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "interaction_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "actor_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the actor of record. Raw identity bodies never cross the boundary."
+        },
+        "target_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the target of the interaction. Raw paths, raw URLs, raw handles, raw prompt text never cross the boundary."
+        },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "preview_apply_revert_phase": { "$ref": "#/$defs/preview_apply_revert_phase" },
+        "revert_class": { "$ref": "#/$defs/revert_class" },
+        "high_risk_preview_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/high_risk_preview_class" },
+          "description": "Every high-risk preview class that applies to this interaction. MAY be empty for reversible_local non-high-risk actions."
+        },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "batch_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a batch_scope_record. Non-null when the interaction operates on more than one target."
+        },
+        "preview_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the preview_apply_revert_record the apply phase is approved against. Required (non-null) when preview_apply_revert_phase = apply."
+        },
+        "permission_prompt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the permission_prompt_record the interaction commits against. Non-null when a grant was used."
+        },
+        "permission_grant_scope_at_commit": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/permission_grant_scope" }
+          ]
+        },
+        "representation_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/representation_class" }
+          ],
+          "description": "Non-null whenever bytes leave the product on copy / export."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back the row's truth claim. Required (non-empty) when representation_class = generated and the row quotes authoritative material, or when surface_class = docs_help_service_health_canvas."
+        },
+        "responsive_fallback_mode": { "$ref": "#/$defs/responsive_fallback_mode" },
+        "visible_fields_at_commit": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/required_visible_field_class" },
+          "description": "The required-visible-field classes that were on screen at commit. MUST include every field the contract requires for the current consequence class. A surface whose responsive fallback hid any required field MUST deny with chrome_hid_required_field rather than emit this packet."
+        },
+        "focus_return_state": { "$ref": "#/$defs/focus_return_state" },
+        "focus_return_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the focus_return_record for this interaction. Non-null whenever the interaction closed a surface."
+        },
+        "copy_export_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to copy_export_representation_record entries produced by this interaction."
+        },
+        "authority_renewal_triggers_observed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/authority_renewal_trigger" },
+          "description": "Every authority-renewal trigger the surface observed between the last grant and this packet. Non-empty whenever the packet represents a renewal / reissue."
+        },
+        "basis_snapshot_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the preview basis snapshot (query snapshot, repo revision, branch anchor, etc.) the interaction committed against."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "preview_packet_ref MUST be non-null when preview_apply_revert_phase = apply.",
+          "if": {
+            "properties": {
+              "preview_apply_revert_phase": { "const": "apply" }
+            },
+            "required": ["preview_apply_revert_phase"]
+          },
+          "then": {
+            "properties": { "preview_packet_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["preview_packet_ref"]
+          }
+        },
+        {
+          "description": "citation_anchor_refs MUST be non-empty when representation_class = generated.",
+          "if": {
+            "properties": {
+              "representation_class": { "const": "generated" }
+            },
+            "required": ["representation_class"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        },
+        {
+          "description": "batch_scope_ref MUST be non-null whenever the interaction operates on more than one target. A surface MAY emit a batch_scope_record for a single target; this constraint is additive-optional and enforced at emission time rather than structurally here."
+        },
+        {
+          "description": "visible_fields_at_commit MUST include consequence_class_label, target_identity, and recovery_class_label at a minimum.",
+          "properties": {
+            "visible_fields_at_commit": {
+              "type": "array",
+              "contains": { "const": "target_identity" }
+            }
+          }
+        }
+      ],
+      "description": "Per-interaction safety envelope. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear on this record; only ids and typed vocabulary cross the RPC boundary."
+    },
+
+    "preview_apply_revert_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "preview_apply_revert_id",
+        "interaction_session_id_ref",
+        "phase",
+        "consequence_class",
+        "revert_class",
+        "basis_snapshot_ref",
+        "target_identities_ref",
+        "included_member_count",
+        "blocked_member_count",
+        "hidden_member_count",
+        "policy_context",
+        "running_build_identity_ref",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_apply_revert_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "preview_apply_revert_id": { "$ref": "#/$defs/opaque_id" },
+        "interaction_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "phase": { "$ref": "#/$defs/preview_apply_revert_phase" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "revert_class": { "$ref": "#/$defs/revert_class" },
+        "basis_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_identities_ref": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "included_member_count": { "type": "integer", "minimum": 0 },
+        "blocked_member_count": { "type": "integer", "minimum": 0 },
+        "hidden_member_count": { "type": "integer", "minimum": 0 },
+        "approval_requirements_ref": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to approval / step-up / policy-ack requirements that must be satisfied before this phase can proceed. Empty when no step-up is required."
+        },
+        "validation_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the validation plan that accompanies this preview / apply. Required (non-null) on phase = preview and phase = apply; MAY be null on phase = propose."
+        },
+        "validation_outcome": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/validation_outcome" }
+          ]
+        },
+        "partial_outcome": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/partial_outcome" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "validation_plan_ref MUST be non-null when phase = apply.",
+          "if": {
+            "properties": { "phase": { "const": "apply" } },
+            "required": ["phase"]
+          },
+          "then": {
+            "properties": { "validation_plan_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["validation_plan_ref"]
+          }
+        },
+        {
+          "description": "validation_outcome = passed MUST NOT be rendered while validation_plan_ref is null.",
+          "if": {
+            "properties": {
+              "validation_outcome": { "const": "passed" },
+              "validation_plan_ref": { "type": "null" }
+            },
+            "required": ["validation_outcome"]
+          },
+          "then": { "not": {} }
+        }
+      ],
+      "description": "Per-phase record with the shared lineage every phase quotes. Supports mechanical parity audit of propose / preview / apply / validate / keep_or_revert across surfaces."
+    },
+
+    "batch_scope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "batch_scope_id",
+        "batch_scope_class",
+        "basis_snapshot_freshness",
+        "member_summary",
+        "stale_query_marker",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "batch_scope_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "batch_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "batch_scope_class": { "$ref": "#/$defs/batch_scope_class" },
+        "query_basis_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the query basis the selection was built from. Required (non-null) when batch_scope_class is all_matching_query or query_snapshot_stale."
+        },
+        "basis_snapshot_freshness": { "$ref": "#/$defs/freshness_class" },
+        "member_summary": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["member_status", "count"],
+            "properties": {
+              "member_status": { "$ref": "#/$defs/batch_member_status" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "description": "Typed membership summary. Destructive batch previews MUST summarise included, excluded, blocked, hidden, and query-derived members before commit."
+        },
+        "stale_query_marker": {
+          "type": "boolean",
+          "description": "True when the selection was built against a query snapshot that has since drifted. A surface that runs a destructive or broad action against a stale selection without rendering this marker is non-conforming."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "query_basis_ref MUST be non-null when batch_scope_class is all_matching_query or query_snapshot_stale.",
+          "if": {
+            "properties": {
+              "batch_scope_class": { "enum": ["all_matching_query", "query_snapshot_stale"] }
+            },
+            "required": ["batch_scope_class"]
+          },
+          "then": {
+            "properties": { "query_basis_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["query_basis_ref"]
+          }
+        }
+      ],
+      "description": "Typed batch-scope record for every interaction whose target set is more than one."
+    },
+
+    "permission_prompt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "permission_prompt_id",
+        "requester_identity_ref",
+        "requested_capability_class",
+        "scope_target_ref",
+        "grant_scope_requested",
+        "denial_fallback_label",
+        "revocation_path_label",
+        "high_risk_preview_classes",
+        "authority_renewal_triggers",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "permission_prompt_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "permission_prompt_id": { "$ref": "#/$defs/opaque_id" },
+        "requester_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the actor requesting the grant (user, extension, AI tool, automation recipe, remote collaborator, connected provider, admin policy). Raw identity bodies never cross."
+        },
+        "requested_capability_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed capability-class name naming the precise boundary the grant covers (e.g. 'browser_handoff', 'extension_effective_permission', 'remote_attach')."
+        },
+        "scope_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "grant_scope_requested": { "$ref": "#/$defs/permission_grant_scope" },
+        "denial_fallback_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short productive-fallback text rendered when the user denies (e.g. 'Continue with local-only review'). A dead-end refusal without a typed fallback is non-conforming when safe work is still possible."
+        },
+        "revocation_path_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short inspector-path text rendered on the prompt (e.g. 'Settings › Trust › Active grants')."
+        },
+        "prior_grant_delta": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["prior_grant_ref", "delta_summary_label"],
+              "properties": {
+                "prior_grant_ref": { "$ref": "#/$defs/opaque_id" },
+                "delta_summary_label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Short summary naming only the delta the prompt widens beyond the prior grant. Restating the full envelope as if everything were new is non-conforming."
+                }
+              }
+            }
+          ]
+        },
+        "high_risk_preview_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/high_risk_preview_class" }
+        },
+        "authority_renewal_triggers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/authority_renewal_trigger" },
+          "description": "Every authority-renewal trigger the surface observed. Non-empty when the prompt is a renewal."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "decision_outcome": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/permission_decision_outcome" }
+          ],
+          "description": "Null until the user decides."
+        },
+        "decision_minted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "One record per prompt open. Remembered decisions are never indefinite by default for destructive, networked, provider-backed, or secret-bearing capabilities."
+    },
+
+    "copy_export_representation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "copy_export_id",
+        "action_kind",
+        "representation_class",
+        "source_surface_class",
+        "source_target_identity_ref",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "copy_export_representation_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "copy_export_id": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/copy_export_action_kind" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "source_surface_class": { "$ref": "#/$defs/surface_class" },
+        "source_target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back the bytes leaving the product. Required (non-empty) when representation_class = generated and the bytes quote authoritative material, and when source_surface_class = docs_help_service_health_canvas."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "citation_anchor_refs MUST be non-empty when representation_class = generated.",
+          "if": {
+            "properties": { "representation_class": { "const": "generated" } },
+            "required": ["representation_class"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        },
+        {
+          "description": "citation_anchor_refs MUST be non-empty when source_surface_class = docs_help_service_health_canvas.",
+          "if": {
+            "properties": { "source_surface_class": { "const": "docs_help_service_health_canvas" } },
+            "required": ["source_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Emitted whenever bytes leave the product on copy / export. Representation labels survive screenshots, support exports, copied evidence, and review handoff artifacts."
+    },
+
+    "focus_return_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "focus_return_id",
+        "invoker_identity_ref",
+        "focus_return_state",
+        "responsive_fallback_mode",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "focus_return_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "focus_return_id": { "$ref": "#/$defs/opaque_id" },
+        "invoker_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Nullable when focus_return_state is focus_loss_denied or focus_not_applicable_non_interactive."
+        },
+        "focus_return_state": { "$ref": "#/$defs/focus_return_state" },
+        "announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Required (non-null) on returned_placeholder_announced and focus_loss_denied. Explains why focus could not return to the missing surface."
+        },
+        "responsive_fallback_mode": { "$ref": "#/$defs/responsive_fallback_mode" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "announcement_label MUST be non-null when focus_return_state is returned_placeholder_announced or focus_loss_denied.",
+          "if": {
+            "properties": {
+              "focus_return_state": {
+                "enum": ["returned_placeholder_announced", "focus_loss_denied"]
+              }
+            },
+            "required": ["focus_return_state"]
+          },
+          "then": {
+            "properties": { "announcement_label": { "type": "string", "minLength": 1 } },
+            "required": ["announcement_label"]
+          }
+        }
+      ],
+      "description": "Emitted on every close / dismiss / commit that closes a surface. Silent focus loss is non-conforming."
+    },
+
+    "responsive_fallback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "responsive_fallback_id",
+        "shell_zone",
+        "responsive_fallback_mode",
+        "preserved_required_fields",
+        "dropped_fields_if_any",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "responsive_fallback_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "responsive_fallback_id": { "$ref": "#/$defs/opaque_id" },
+        "shell_zone": { "$ref": "#/$defs/shell_zone" },
+        "responsive_fallback_mode": { "$ref": "#/$defs/responsive_fallback_mode" },
+        "collapsed_chrome_items_ref": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to chrome items the surface collapsed (secondary nav rows, secondary detail panes, toolbars, etc.)."
+        },
+        "preserved_required_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/required_visible_field_class" }
+        },
+        "dropped_fields_if_any": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/required_visible_field_class" },
+          "description": "Required-visible-field classes that were dropped under this fallback. MUST be empty for external_shared and irreversible_high_blast consequence classes; a non-empty array at commit denies the interaction with chrome_hid_required_field."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Emitted on every responsive-fallback engagement on a protected surface."
+    },
+
+    "interaction_safety_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interaction_safety_schema_version",
+        "audit_event_id",
+        "interaction_session_id_ref",
+        "surface_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "interaction_safety_audit_event_record" },
+        "interaction_safety_schema_version": { "$ref": "#/$defs/interaction_safety_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "interaction_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "packet_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "preview_apply_revert_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "batch_scope_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "permission_prompt_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "copy_export_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "focus_return_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "responsive_fallback_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "consequence_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/consequence_class" }
+          ]
+        },
+        "phase": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/preview_apply_revert_phase" }
+          ]
+        },
+        "representation_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/representation_class" }
+          ]
+        },
+        "authority_renewal_triggers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/authority_renewal_trigger" },
+          "description": "Non-empty on interaction_safety_authority_renewal_required events."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) for interaction_safety_denial_emitted and for any drift / disclosure event whose outcome was a denial."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for interaction_safety_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "interaction_safety_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the interaction_safety audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    }
+  }
+}
