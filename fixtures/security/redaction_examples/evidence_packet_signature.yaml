@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: evidence_packet_signature
+  scenario: >
+    A release lane signs a binary artefact with a signing_key_material
+    handle backed by an HSM. The evidence packet carries the signer
+    identity, the signing authority class, the signature bytes, and
+    the signed-proof ref. Raw signing-key bytes never leave the HSM
+    and MUST NOT appear in the packet. The packet also records the
+    signing-key alias and the approval-ticket ref so downstream
+    review can trace the authority.
+  adr_section: "Redaction defaults (frozen) - evidence_packet"
+  exercised_classes_summary:
+    secret_classes:
+      - signing_key_material
+    trust_store_classes:
+      - hsm_or_kms_backed
+    unlock_states:
+      - unlocked
+    projection_modes:
+      - sign_only
+    audit_event_ids:
+      - secret_projection_used
+      - secret_export_redaction_applied
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: evidence_packet_signature
+scenario: >
+  Release evidence packet for a signed binary. The packet carries the
+  signer identity, the signing authority class, the signature bytes,
+  and a signed-proof ref. Raw signing-key material never leaves the
+  HSM and is excluded from the packet by construction.
+redaction_class: evidence_packet
+
+exercised_classes:
+  secret_classes:
+    - signing_key_material
+  trust_store_classes:
+    - hsm_or_kms_backed
+  unlock_states:
+    - unlocked
+  projection_modes:
+    - sign_only
+  audit_event_ids:
+    - secret_projection_used
+    - secret_export_redaction_applied
+
+input_surface:
+  surface_id: release_evidence_packet
+  raw_input_shape: >
+    Packet payload that without the sign_only boundary would carry
+    raw private-key bytes, raw notarization credentials, and raw
+    release-publish tokens. Placeholders: "<redacted:
+    signing_key_material>".
+
+redacted_output:
+  shape: >
+    Sealed evidence packet carrying signer identity, signing
+    authority class, signature bytes, signed-proof ref, and the
+    signing-key alias and approval-ticket ref. Raw signing-key
+    material is absent by construction (sign_only projection).
+  fields:
+    signer_identity: signer/aureline-release-ed25519-v1
+    signing_authority_class: hsm_or_kms_backed
+    secret_class: signing_key_material
+    alias: alias/release-signing-v1
+    projection_mode: sign_only
+    approval_ticket_ref: tkt-release-0042
+    signature_bytes_ref: signed-proof/aurl-release-0042
+    signed_proof_ref: proof/releases/aurl-v1.0.0.sig
+    signed_artefact_digest: sha256:b5a3a8e6d19f...not-real
+    excluded_from_packet:
+      - raw_signing_key_material
+      - raw_notarization_credentials
+      - raw_release_publish_tokens
+
+audit_events:
+  - event_id: secret_projection_used
+    note: >
+      Fired when the signing runner submits the signing request to
+      the HSM through the sign_only projection boundary. The event
+      records the alias, consumer, and approval-ticket ref; the
+      event MUST NOT carry the signing-request payload.
+  - event_id: secret_export_redaction_applied
+    note: >
+      Fired when the evidence-packet lane seals the packet. The
+      event carries the redaction_class (evidence_packet) and a
+      guarantee that no signing_key_material projection payload was
+      included.

@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: clipboard_reveal_audit
+  scenario: >
+    User opens the secret-broker inspector, selects the
+    alias/openai-default handle, and initiates reveal_on_demand. The
+    UI prompts for fresh re-authentication (step_up_required is not
+    active, so the prompt is a policy-gated confirmation). The raw
+    API key is surfaced in a bounded UI buffer behind a boundary
+    label. The user clicks the copy-to-clipboard affordance. The
+    clipboard carries the raw bytes for a short class-specific
+    timeout with a visible "raw secret on clipboard; clears in N
+    seconds" indicator. On timeout the clipboard is cleared and the
+    UI buffer closes. Every step emits structured audit events; raw
+    material is session-ephemeral and is not written to logs, traces,
+    or bundles. OSC-52 / remote-clipboard bridging is denied by
+    default for this class.
+  adr_section: "Clipboard / reveal-on-demand behaviour"
+  exercised_classes_summary:
+    secret_classes:
+      - ai_provider_token
+    trust_store_classes:
+      - os_keychain
+    unlock_states:
+      - unlocked
+    projection_modes:
+      - reveal_on_demand
+    audit_event_ids:
+      - secret_reveal_started
+      - secret_clipboard_projected
+      - secret_clipboard_cleared
+      - secret_reveal_ended
+      - secret_export_redaction_applied
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: clipboard_reveal_audit
+scenario: >
+  User-initiated reveal_on_demand for an ai_provider_token handle,
+  followed by a bounded clipboard projection with timeout. All
+  audit events fire; raw material is session-ephemeral and is
+  never written to logs, traces, or support bundles.
+redaction_class: clipboard_projection
+
+exercised_classes:
+  secret_classes:
+    - ai_provider_token
+  trust_store_classes:
+    - os_keychain
+  unlock_states:
+    - unlocked
+  projection_modes:
+    - reveal_on_demand
+  audit_event_ids:
+    - secret_reveal_started
+    - secret_clipboard_projected
+    - secret_clipboard_cleared
+    - secret_reveal_ended
+    - secret_export_redaction_applied
+
+input_surface:
+  surface_id: inspector_reveal_surface_and_clipboard
+  raw_input_shape: >
+    Reveal surface that would otherwise make raw bytes screen-
+    capturable indefinitely and leak them to OSC-52 / remote
+    clipboard bridges. Placeholders: "<redacted: ai_provider_token>".
+
+redacted_output:
+  shape: >
+    Bounded UI buffer with a boundary label and a reveal timeout;
+    clipboard write with a clear-on-timeout timer; audit events
+    quoting alias / class / consumer / approval-ticket ref; no
+    material in logs / traces / bundles; OSC-52 denied.
+  fields:
+    revealed_alias: alias/openai-default
+    revealed_secret_class: ai_provider_token
+    revealed_in_ui_buffer_lifetime_seconds: 15
+    clipboard_timeout_seconds: 20
+    boundary_label_text: "raw secret on clipboard; clears in 20 seconds"
+    osc_52_remote_clipboard: denied_by_default
+    approval_ticket_ref: tkt-reveal-0001
+    logs_captured_raw_material: false
+    traces_captured_raw_material: false
+    bundles_captured_raw_material: false
+
+audit_events:
+  - event_id: secret_reveal_started
+    note: >
+      Fired when the user confirms the reveal prompt. Records the
+      alias, class, consumer, approval-ticket ref, and the reveal
+      timeout.
+  - event_id: secret_clipboard_projected
+    note: >
+      Fired when the user copies the revealed material to the
+      clipboard. Records the clipboard-lifetime timer and the
+      class-specific timeout.
+  - event_id: secret_clipboard_cleared
+    note: >
+      Fired when the clipboard clears on timeout, focus change, or
+      explicit dismiss.
+  - event_id: secret_reveal_ended
+    note: >
+      Fired when the UI buffer closes on timeout or explicit
+      dismiss. Records the total reveal duration.
+  - event_id: secret_export_redaction_applied
+    note: >
+      Fired on every concurrent export surface (logs, traces,
+      bundles) to record that none of them captured raw material
+      during the reveal window.

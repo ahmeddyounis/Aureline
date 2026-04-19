@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: denied_projection
+  scenario: >
+    An AI tool call requests raw bytes for an ai_provider_token via a
+    projection_denied_class_rule path (the tool asks the broker for
+    "the raw key"). The broker denies with ai_tool_reveal_denied,
+    emits a secret_denial audit event with the typed reason, and
+    surfaces a repair affordance (the tool may use broker_callback or
+    request_header_signer projection instead). No raw material is
+    projected; no silent downgrade occurs. A separate sub-scenario in
+    the same fixture covers policy_denied_projection for a
+    database_credential reveal attempt in a managed-mode tenant where
+    policy forbids raw reveal.
+  adr_section: "Denial posture"
+  exercised_classes_summary:
+    secret_classes:
+      - ai_provider_token
+      - database_credential
+    trust_store_classes:
+      - os_keychain
+      - enterprise_vault_adapter
+    unlock_states:
+      - unlocked
+    projection_modes:
+      - reveal_on_demand
+      - broker_callback
+      - request_header_signer
+    denial_reasons:
+      - ai_tool_reveal_denied
+      - policy_denied_projection
+      - projection_denied_class_rule
+    audit_event_ids:
+      - secret_denial
+      - secret_projection_failed
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: denied_projection
+scenario: >
+  Two denial paths in one fixture: an AI tool asks the broker for a
+  raw ai_provider_token (ai_tool_reveal_denied) and a managed-mode
+  tenant's policy forbids raw database_credential reveal
+  (policy_denied_projection). The broker fails closed with a typed
+  reason, emits secret_denial, and offers a repair affordance; no
+  silent downgrade happens.
+redaction_class: logs_local
+
+exercised_classes:
+  secret_classes:
+    - ai_provider_token
+    - database_credential
+  trust_store_classes:
+    - os_keychain
+    - enterprise_vault_adapter
+  unlock_states:
+    - unlocked
+  projection_modes:
+    - reveal_on_demand
+    - broker_callback
+    - request_header_signer
+  denial_reasons:
+    - ai_tool_reveal_denied
+    - policy_denied_projection
+    - projection_denied_class_rule
+  audit_event_ids:
+    - secret_denial
+    - secret_projection_failed
+
+input_surface:
+  surface_id: broker_denial_log_stream
+  raw_input_shape: >
+    If the broker were to grant the request, the log would carry a
+    raw token on the AI path or a raw database password on the
+    managed-mode path. Placeholders: "<redacted:
+    ai_provider_token>", "<redacted: database_credential>".
+
+redacted_output:
+  shape: >
+    Two secret_denial events on the broker audit stream, each
+    carrying the typed denial reason, the requesting consumer
+    identity, the alias, the class, and a repair affordance. No raw
+    material is projected; no downgrade occurs.
+  fields:
+    ai_tool_denial:
+      event_id: secret_denial
+      denial_reason: ai_tool_reveal_denied
+      secret_class: ai_provider_token
+      alias: alias/openai-default
+      consumer_identity: ai_tool_call.inspect-env@capability:cap-ai-tool-0
+      repair_affordance:
+        permitted_projection_modes:
+          - broker_callback
+          - request_header_signer
+        note: >
+          The tool may receive an alias or call through a broker-
+          owned outbound request; it may not receive raw bytes.
+    managed_mode_denial:
+      event_id: secret_denial
+      denial_reason: policy_denied_projection
+      secret_class: database_credential
+      alias: alias/warehouse-prod
+      consumer_identity: cli.db.query@capability:cap-cli-db-0
+      policy_context:
+        tenant_scope: tenant/acme-prod
+        policy_epoch: epoch-15
+      repair_affordance:
+        permitted_projection_modes:
+          - broker_callback
+          - ephemeral_fd
+        note: >
+          Policy forbids raw reveal on this class for this tenant;
+          the CLI may accept a broker_callback or an ephemeral_fd
+          projection.
+
+audit_events:
+  - event_id: secret_denial
+    note: >
+      Fired twice: once for the AI tool raw-reveal request
+      (ai_tool_reveal_denied) and once for the managed-mode
+      database raw-reveal attempt (policy_denied_projection). Each
+      event carries the typed denial reason, the consumer identity,
+      and the class; neither carries raw material.
+  - event_id: secret_projection_failed
+    note: >
+      Fired on the consumer side to record that the requested
+      projection was refused. Carries the same typed reason; no
+      silent downgrade occurs.

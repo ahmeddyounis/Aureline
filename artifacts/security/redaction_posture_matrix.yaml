@@ -1,0 +1,459 @@
+# Per-surface default redaction posture matrix.
+#
+# Machine-readable companion to the "Redaction defaults (frozen)" and
+# "Support-bundle inclusion and exclusion" sections of
+# docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md.
+#
+# Every surface that emits observable state names exactly one of the
+# fourteen frozen redaction_class surface values. This file binds each
+# surface to its frozen default posture, its allowed overrides, the
+# audit event that fires when the redaction pass runs, and the recall
+# test the conformance corpus uses to catch regressions. Tooling (logs
+# lane, traces lane, support-bundle exporter, evidence-packet lane,
+# AI lane, recipe / profile / sync surfaces, crash reporter, mutation-
+# journal lane, VFS save lane, replay / timeline lane, terminal
+# lane, clipboard surface) reads this file to avoid inventing parallel
+# posture vocabulary.
+#
+# Scope rules:
+#   - Every surface named here MUST be one of the frozen redaction_class
+#     values in schemas/security/secret_class_rows.schema.json.
+#   - Override rules are narrowing-only: policy MAY narrow collection
+#     further; policy MUST NOT widen collection beyond a class's
+#     frozen rule without a declared policy bundle.
+#   - adr_source is the canonical human-readable form. If tooling and
+#     the ADR disagree, the ADR wins and this file must be updated in
+#     the same change.
+
+schema_version: 1
+
+adr_source: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+decision_id: D-0013
+decision_register: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Surfaces.
+#
+# Keys MUST be drawn from the redaction_class enum in
+# schemas/security/secret_class_rows.schema.json. Adding a surface is
+# additive-minor and requires a schema bump; repurposing an existing
+# surface is breaking.
+# -----------------------------------------------------------------------------
+surfaces:
+
+  - surface: logs_local
+    include_by_default:
+      - handle_id
+      - alias
+      - consumer_identity
+      - secret_class
+      - projection_mode
+      - unlock_state
+      - typed_failure_code
+      - approval_ticket_ref
+      - trust_state
+    exclude_by_default:
+      - raw_secret_values
+      - raw_request_headers
+      - raw_query_string_parameters
+      - raw_request_body_fields_known_to_carry_tokens
+      - raw_environment_variable_values
+    redaction_pass_runs_before: persistent_log_sink
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Admin policy MAY drop even alias logging for high-sensitivity
+        tenants. Policy MUST NOT widen logs_local to capture raw
+        tokens.
+    conformance_recall_tests:
+      - raw_token_literal_in_error_string
+      - raw_authorization_header_in_request_log
+      - env_var_value_interpolated_into_span_attribute
+      - handle_id_confused_with_raw_token
+
+  - surface: traces_local
+    include_by_default:
+      - handle_id
+      - alias
+      - consumer_identity
+      - secret_class
+      - projection_mode
+      - unlock_state
+      - typed_failure_code
+      - sanitised_trace_attributes
+    exclude_by_default:
+      - raw_secret_values
+      - span_names_containing_raw_material
+      - trace_attribute_values_containing_raw_material
+    redaction_pass_runs_before: trace_exporter
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Admin policy MAY drop handle_id from trace attributes entirely
+        for high-sensitivity tenants; raw material remains excluded.
+    conformance_recall_tests:
+      - raw_bearer_in_span_name
+      - raw_token_in_trace_attribute_value
+      - tool_call_prompt_leaking_into_span
+
+  - surface: support_bundle
+    include_by_default:
+      - broker_health_summary
+      - handle_alias_registry_aliases_only
+      - active_trust_store_class
+      - active_unlock_state
+      - last_issue_use_failure_counts_per_class
+      - projection_event_metadata_under_inspect_metadata
+      - denial_event_metadata
+      - reveal_on_demand_started_ended_events_durations_only
+      - clipboard_projection_opened_cleared_events
+      - trust_store_unlock_state_transitions
+      - rotation_outcome_events
+      - env_var_names_known_to_hold_secrets_with_values_redacted
+    exclude_by_default:
+      - raw_secret_bytes
+      - raw_handle_ids
+      - raw_environment_variable_values
+      - raw_client_certs
+      - raw_private_keys
+      - raw_request_headers
+      - raw_projection_outputs
+      - signing_class_projection_payloads
+    redaction_pass_runs_before: bundle_packaging
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Admin policy MAY include hashed handle ids for correlation
+        while raw handle ids remain out; admin policy MAY widen the
+        env-var capture allowlist but values stay redacted to
+        [redacted: <class>]. No "include raw" affordance exists for
+        the user.
+    conformance_recall_tests:
+      - raw_secret_in_bundle_payload
+      - raw_env_value_in_bundle_process_snapshot
+      - signing_class_projection_output_in_bundle
+      - raw_ssh_private_key_in_bundle
+
+  - surface: evidence_packet
+    include_by_default:
+      - signer_identity
+      - signing_authority_class
+      - signature_bytes_or_attestation
+      - signed_proof_ref
+      - timestamp_or_nonce_metadata
+      - secret_class_and_alias_for_signer
+    exclude_by_default:
+      - raw_signing_key_material
+      - raw_notarization_credentials
+      - raw_release_publish_tokens
+      - raw_private_key_bytes_of_any_class
+    redaction_pass_runs_before: packet_sealing
+    audit_events:
+      - secret_projection_used
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Evidence packets carry the artefact of a sign_only /
+        decrypt_only projection; they never carry the material that
+        produced it. There is no override that adds raw signing-key
+        bytes to an evidence packet.
+    conformance_recall_tests:
+      - raw_private_key_in_evidence_packet
+      - raw_notarization_credential_in_packet
+      - raw_release_publish_token_in_packet
+
+  - surface: ai_context_capture
+    include_by_default:
+      - secret_class_label_on_redacted_spans
+      - alias_on_redacted_spans
+      - consumer_identity_when_tool_call
+      - denial_reason_when_ai_tool_reveal_denied
+    exclude_by_default:
+      - raw_secret_values_in_prompts
+      - raw_secret_values_in_tool_call_inputs
+      - raw_secret_values_in_retrieved_context
+      - raw_secret_values_in_capture_durable_cache
+    redaction_pass_runs_before: retention
+    audit_events:
+      - secret_export_redaction_applied
+      - secret_denial
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        The capture lane MAY drop alias labels on redacted spans for
+        high-sensitivity tenants. The capture lane MUST NOT widen
+        ai_context_capture to persist raw material; there is no
+        durable-cache affordance for raw material.
+    conformance_recall_tests:
+      - raw_ai_key_in_prompt_history
+      - raw_header_in_tool_call_log
+      - ai_tool_call_requesting_raw_reveal_not_denied
+
+  - surface: recipe_manifest
+    include_by_default:
+      - alias_references
+      - required_secret_classes_declared_by_recipe
+      - required_projection_modes_declared_by_recipe
+    exclude_by_default:
+      - raw_secret_literals
+      - handle_ids
+      - raw_environment_variable_values
+    redaction_pass_runs_before: manifest_write
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Recipes may omit even the alias references by referring only
+        to the required class; they MUST NOT inline a raw literal.
+        Raw literals are a lint-level block on protected recipe
+        surfaces.
+    conformance_recall_tests:
+      - raw_token_literal_in_recipe_yaml
+      - handle_id_inlined_in_recipe_step
+      - env_var_value_inlined_in_recipe_step
+
+  - surface: profile_export
+    include_by_default:
+      - alias_references
+      - class_posture_metadata_per_alias
+      - preferred_trust_store_class_per_alias
+      - consumer_identity_per_alias
+    exclude_by_default:
+      - raw_secret_material
+      - handle_ids
+      - raw_environment_variable_values
+      - plaintext_fallback_files
+    redaction_pass_runs_before: profile_serialisation
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Profile portability MUST rebind aliases to broker-issued
+        handles at import time; the exported profile never carries
+        the raw material for the remote machine to use.
+    conformance_recall_tests:
+      - raw_secret_in_portable_profile
+      - plaintext_fallback_file_co_shipped_with_profile
+
+  - surface: sync
+    include_by_default:
+      - alias_references
+      - class_posture_metadata_per_alias
+    exclude_by_default:
+      - raw_secret_material
+      - handle_ids
+      - session_memory_cache_contents
+    redaction_pass_runs_before: sync_upload
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Sync is a transport for portable-profile shapes; it inherits
+        profile_export's exclusions. Session-only cache contents MUST
+        NOT be synced.
+    conformance_recall_tests:
+      - session_memory_cache_contents_synced
+      - raw_secret_in_sync_payload
+
+  - surface: crash_dump
+    include_by_default: []
+    exclude_by_default:
+      - projected_environment_variable_values
+      - process_memory_regions_holding_session_memory_cache
+      - raw_secret_bytes
+      - raw_request_headers
+      - raw_client_cert_bytes
+      - raw_signing_key_bytes
+    redaction_pass_runs_before: crash_dump_packaging
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Crash-dump capture is opt-in only and denied by default for
+        signing-class and provider-session handles. Coredump
+        redaction is enabled on supported platforms before
+        packaging; env_var_isolated_child values MUST NOT inherit
+        into the parent's coredump.
+    conformance_recall_tests:
+      - projected_env_value_in_parent_coredump
+      - session_memory_cache_region_in_coredump
+      - signing_class_handle_in_coredump_despite_denial
+
+  - surface: mutation_journal_entry
+    include_by_default:
+      - secret_class
+      - alias
+      - projection_mode
+      - approval_ticket_ref
+      - consumer_identity
+      - audit_event_id_chain
+    exclude_by_default:
+      - raw_secret_bytes
+      - raw_request_headers
+      - raw_environment_variable_values
+      - projection_output_bytes
+    redaction_pass_runs_before: journal_commit
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Mutation-journal entries describe what happened and what
+        authority admitted it; they never carry the raw material
+        that was acted upon.
+    conformance_recall_tests:
+      - raw_bytes_in_mutation_journal_entry
+      - raw_header_in_mutation_journal_entry
+
+  - surface: save_manifest
+    include_by_default:
+      - secret_class
+      - alias
+      - projection_mode
+      - approval_ticket_ref
+      - consumer_identity
+    exclude_by_default:
+      - raw_secret_bytes
+      - raw_request_headers
+      - raw_environment_variable_values
+      - projection_output_bytes
+    redaction_pass_runs_before: save_commit_record
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Save manifests (ADR-0006) name the secret reference that
+        permitted a save-participant run or a remote conditional
+        write; they never carry the raw material.
+    conformance_recall_tests:
+      - raw_token_in_save_manifest
+      - raw_header_in_save_manifest_for_remote_conditional_write
+
+  - surface: replay_or_timeline_capture
+    include_by_default:
+      - secret_class
+      - alias
+      - projection_mode
+      - imported_posture_metadata
+    exclude_by_default:
+      - raw_secret_bytes
+      - raw_request_headers
+      - raw_environment_variable_values
+      - projection_output_bytes
+    redaction_pass_runs_before: capture_write
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Imported and replayed frames never claim authoritative
+        freshness and never advance live producer state (ADR-0005).
+        Raw material excluded at capture time cannot be promoted on
+        replay; replay frames inherit the imported_posture_only
+        redaction class.
+    conformance_recall_tests:
+      - raw_secret_in_replay_bundle
+      - replay_frame_promoting_to_authoritative_reveal
+
+  - surface: terminal_transcript
+    include_by_default:
+      - visible_terminal_output_without_raw_tokens
+      - redacted_env_var_names_with_values_redacted
+      - prompt_boundary_indicators
+    exclude_by_default:
+      - known_env_var_value_injections
+      - known_command_line_token_shapes
+      - agent_prompt_echoes_containing_raw_material
+    redaction_pass_runs_before: transcript_capture
+    audit_events:
+      - secret_export_redaction_applied
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Terminal capture requires a boundary-labelled raw-paste
+        confirmation before the user commits a raw literal to the
+        transcript; the redaction pass runs on every subsequent
+        line until the boundary closes.
+    conformance_recall_tests:
+      - raw_env_injection_in_transcript
+      - agent_prompt_echo_with_raw_header
+      - raw_command_line_token_shape_in_transcript
+
+  - surface: clipboard_projection
+    include_by_default:
+      - boundary_label_indicator_for_reveal_duration
+      - class_label_on_indicator
+      - clipboard_lifetime_timer
+      - clear_on_timeout_action
+      - clear_on_focus_change_action
+    exclude_by_default:
+      - clipboard_material_in_logs_or_traces_or_bundles
+      - osc_52_remote_clipboard_bridges_for_secret_classes
+      - raw_material_on_clipboard_for_signing_session_device_ephemeral_classes
+    redaction_pass_runs_before: clipboard_write
+    audit_events:
+      - secret_clipboard_projected
+      - secret_clipboard_cleared
+    allowed_override_posture:
+      direction: narrow_only
+      notes: >
+        Clipboard projection is session-ephemeral. OSC-52 /
+        equivalent remote clipboard bridges are denied by default
+        for secret classes; admin policy MAY widen only through an
+        explicit allowlist. Clipboard projection MUST NOT be
+        offered for signing_key_material, device_secret,
+        provider_session, or ephemeral_operation_token.
+    conformance_recall_tests:
+      - clipboard_material_in_support_bundle
+      - osc_52_forwarding_raw_secret_to_remote_clipboard
+      - clipboard_offered_for_signing_class_handle
+      - clipboard_not_cleared_after_timeout
+
+# -----------------------------------------------------------------------------
+# Policy-override rules (cross-surface).
+#
+# These apply on top of each surface's narrow_only override posture.
+# -----------------------------------------------------------------------------
+cross_surface_override_rules:
+  - id: override_direction_is_narrow_only
+    description: >
+      Admin policy MAY narrow collection further on any surface.
+      Policy MUST NOT silently widen collection beyond a class's
+      frozen redaction rule; any widening lands through a declared
+      policy bundle that itself redacts to its class.
+  - id: overrides_are_audited
+    description: >
+      Every override (narrowing or declared-bundle widening) is
+      itself audited under the secret_export_redaction_applied
+      event and carries the policy bundle ref and policy epoch.
+  - id: reveal_on_demand_does_not_flip_surface_class
+    description: >
+      A user-initiated reveal is per-operation, audited, and
+      narrowly scoped; it MUST NOT flip a surface's default
+      redaction class for other consumers on that surface.
+  - id: signing_class_projection_payload_excluded_from_bundles
+    description: >
+      signing_key_material projection payloads (the data to be
+      signed, the HSM request, the KMS request, the notarization
+      request) MUST NOT appear in support_bundle, crash_dump,
+      ai_context_capture, mutation_journal_entry, save_manifest,
+      replay_or_timeline_capture, or terminal_transcript. Release
+      evidence lives in evidence_packet instead.
+  - id: imported_or_replayed_material_never_promotes
+    description: >
+      Imported / replayed frames (replay_or_timeline_capture,
+      profile_export, sync) never promote to authoritative raw-
+      material reveal; the imported posture is carried through to
+      every downstream surface that reads them.

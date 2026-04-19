@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: support_bundle_redaction
+  scenario: >
+    User exports a support bundle while troubleshooting an intermittent
+    AI-provider failure and a broken database connection. The bundle
+    captures broker health, alias registry, unlock state, recent
+    projection and denial events, and env-var names known to hold
+    secrets. Raw secret bytes, raw handle ids, raw env-var values, raw
+    request headers, and signing-class projection payloads are
+    excluded by default. The user sees the final exported shape in
+    preview; there is no "include raw" affordance.
+  adr_section: "Support-bundle inclusion and exclusion (explicit defaults)"
+  exercised_classes_summary:
+    secret_classes:
+      - ai_provider_token
+      - database_credential
+      - signing_key_material
+    trust_store_classes:
+      - os_keychain
+      - hsm_or_kms_backed
+    unlock_states:
+      - unlocked
+      - step_up_required
+    projection_modes:
+      - request_header_signer
+      - env_var_isolated_child
+      - sign_only
+    audit_event_ids:
+      - secret_export_redaction_applied
+      - secret_projection_used
+      - secret_denial
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: support_bundle_redaction
+scenario: >
+  Support-bundle export for an intermittent AI-provider failure and a
+  broken database connection. The bundle carries broker health, alias
+  registry, unlock state, recent projection / denial events, and
+  env-var names; it MUST NOT carry raw secret bytes, raw handle ids,
+  raw env values, raw request headers, or signing-class projection
+  payloads.
+redaction_class: support_bundle
+
+exercised_classes:
+  secret_classes:
+    - ai_provider_token
+    - database_credential
+    - signing_key_material
+  trust_store_classes:
+    - os_keychain
+    - hsm_or_kms_backed
+  unlock_states:
+    - unlocked
+    - step_up_required
+  projection_modes:
+    - request_header_signer
+    - env_var_isolated_child
+    - sign_only
+  audit_event_ids:
+    - secret_export_redaction_applied
+    - secret_projection_used
+    - secret_denial
+
+input_surface:
+  surface_id: support_bundle_payload
+  raw_input_shape: >
+    Bundle payload that without redaction would carry raw API keys in
+    provider adapter logs, a raw database password in an env-var dump,
+    a raw client authorization header in an HTTP-trace sample, and a
+    raw signing-key bytes region captured during a crash-time memory
+    dump. Placeholders stand in: "<redacted: ai_provider_token>",
+    "<redacted: database_credential>", "<redacted:
+    signing_key_material>".
+
+redacted_output:
+  shape: >
+    Bundle payload with a secret_broker section carrying health,
+    alias registry, unlock state, and event counts; all raw material
+    excluded. Process-env dump lists env-var names with values
+    redacted to [redacted: <class>]. Signing-class projection
+    payloads are excluded entirely (release evidence lives in the
+    evidence-packet surface instead).
+  fields:
+    secret_broker_section:
+      active_trust_store_class: os_keychain
+      active_unlock_state: unlocked
+      broker_health: healthy
+      handle_alias_registry:
+        - alias: alias/openai-default
+          secret_class: ai_provider_token
+          consumer_identity: provider_adapter.openai@capability:cap-openai-0
+          last_issue_at: mono-000123
+          last_failure_at: mono-000124
+          last_failure_code: upstream_http_401
+        - alias: alias/warehouse-prod
+          secret_class: database_credential
+          consumer_identity: db_connection_broker@capability:cap-db-0
+          last_issue_at: mono-000125
+          last_failure_at: mono-000126
+          last_failure_code: trust_store_locked
+      recent_projection_events_count_by_mode:
+        request_header_signer: 42
+        env_var_isolated_child: 3
+        sign_only: 0
+      recent_denial_events_count_by_reason:
+        trust_store_locked: 1
+        step_up_required: 1
+      reveal_on_demand_events_count: 0
+      clipboard_projection_events_count: 0
+      rotation_events_count_by_outcome:
+        completed: 2
+        failed: 0
+    process_env_snapshot_entry_example:
+      var_name: AURELINE_WAREHOUSE_DSN
+      var_value: "[redacted: database_credential]"
+    excluded_from_bundle:
+      - raw_secret_bytes
+      - raw_handle_ids
+      - raw_environment_variable_values
+      - raw_request_headers
+      - signing_class_projection_payloads
+
+audit_events:
+  - event_id: secret_export_redaction_applied
+    note: >
+      Fired when the bundle exporter runs the redaction pass before
+      packaging. The event carries the redaction_class
+      (support_bundle) and a per-class count of excluded entries.
+  - event_id: secret_projection_used
+    note: >
+      Historical events that appear in the bundle as aggregate
+      counts, never as raw payloads.
+  - event_id: secret_denial
+    note: >
+      Historical denials (trust_store_locked, step_up_required)
+      appear in the bundle as counts with typed reasons.

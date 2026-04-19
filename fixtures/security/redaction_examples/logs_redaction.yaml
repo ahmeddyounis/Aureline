@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: logs_redaction
+  scenario: >
+    A provider adapter logs that a completion request failed with HTTP
+    401. Before the broker-owned redaction pass the free-form string
+    would interpolate the raw bearer token from the Authorization
+    header and the raw query string. The structured-event form the
+    adapter is required to use instead names handle_id, alias,
+    consumer_identity, secret_class, projection_mode, unlock_state,
+    and typed_failure_code; no raw material reaches the log sink.
+  adr_section: "Redaction defaults (frozen) - logs_local"
+  exercised_classes_summary:
+    secret_classes: [ai_provider_token]
+    trust_store_classes: [os_keychain]
+    unlock_states: [unlocked]
+    projection_modes: [request_header_signer]
+    denial_reasons: []
+    audit_event_ids:
+      - secret_projection_used
+      - secret_projection_failed
+      - secret_export_redaction_applied
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: logs_redaction
+scenario: >
+  Provider adapter logs a 401 after a request_header_signer projection.
+  The redaction pass removes the raw Authorization header bytes and
+  the raw query-string token before the line reaches the log sink.
+redaction_class: logs_local
+
+exercised_classes:
+  secret_classes: [ai_provider_token]
+  trust_store_classes: [os_keychain]
+  unlock_states: [unlocked]
+  projection_modes: [request_header_signer]
+  audit_event_ids:
+    - secret_projection_used
+    - secret_projection_failed
+    - secret_export_redaction_applied
+
+input_surface:
+  surface_id: provider_adapter_log_line
+  raw_input_shape: >
+    Free-form adapter log line of the form
+    "POST https://api.example.com/v1/complete?token=<redacted:
+    ai_provider_token> -> 401 (authorization=<redacted:
+    ai_provider_token>)". The placeholders stand in for what the
+    redaction pass MUST never allow to reach the sink.
+
+redacted_output:
+  shape: >
+    Structured SecretEvent with event_id = secret_projection_failed
+    and a redacted log line carrying only handle / alias / consumer /
+    class / projection_mode / unlock_state / typed_failure_code.
+  fields:
+    event_id: secret_projection_failed
+    handle_id: sh-0001
+    alias: alias/openai-default
+    consumer_identity: provider_adapter.openai@capability:cap-openai-0
+    secret_class: ai_provider_token
+    projection_mode: request_header_signer
+    unlock_state: unlocked
+    typed_failure_code: upstream_http_401
+    redacted_request_url: "https://api.example.com/v1/complete?token=[redacted: ai_provider_token]"
+    redacted_authorization_header: "Bearer [redacted: ai_provider_token]"
+    approval_ticket_ref: tkt-alpha-0001
+    trust_state: trusted
+
+audit_events:
+  - event_id: secret_projection_used
+    note: >
+      Fired when the broker materialises the Authorization header
+      for the outbound request. The raw header never returns to the
+      adapter process; the broker owns the outbound send.
+  - event_id: secret_projection_failed
+    note: >
+      Fired when the upstream returns 401. The typed_failure_code is
+      upstream_http_401. No raw material is interpolated into the
+      event.
+  - event_id: secret_export_redaction_applied
+    note: >
+      Fired when the redaction pass runs before the log sink write.
+      The event carries the redaction_class (logs_local) and the
+      redaction rule version, not raw values.

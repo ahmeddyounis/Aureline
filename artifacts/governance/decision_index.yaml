@@ -957,3 +957,191 @@ decisions:
       narrowing behaviour so later shiproom automation can rely on the
       same status transition on every row. Do not reuse D-0012 if this
       decision is ever reopened; mint a new id.
+
+  # ---------------------------------------------------------------------------
+  # Secret broker / credential handle / trust store / redaction defaults
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0013
+    title: Secret broker, credential handles, trust-store classes, and redaction defaults
+    status: decided
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-01"
+    decision_deadline: "2026-07-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: security_trust_review
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 3069"
+        quote: "10.22 Diagnostic data classes and support-bundle redaction"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 3078"
+        quote: "Secret-bearing / high risk ... never included by default; inclusion requires explicit, high-friction opt-in or is prohibited by policy"
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 4085"
+        quote: "Support bundles or diagnostics leak sensitive data ... default redaction, and high-friction inclusion for risky payloads"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4378"
+        quote: "22.11 Secret broker, credential-handle, and vault-integration architecture"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4391"
+        quote: "raw secret values never land in repo files, portable profiles, workspace state, query history, recipe exports, telemetry, crash dumps, or support bundles by default"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 4528"
+        quote: "if the OS keychain or trust store is unavailable, Aureline degrades visibly and safely rather than falling back to plaintext secret storage"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 8783"
+        quote: "Appendix BT - Secret Broker, Vault, and Credential-Handle Matrix"
+    affected_artifacts:
+      - schemas/security/secret_class_rows.schema.json
+      - artifacts/security/secret_class_rows.yaml
+      - artifacts/security/secret_broker_tradeoff_rows.yaml
+      - artifacts/security/redaction_posture_matrix.yaml
+      - fixtures/security/redaction_examples/
+      - governance_lane:security_trust_review
+      - governance_lane:support_export
+      - governance_lane:release_evidence
+      - governance_lane:governance_packets
+      - docs/adr/
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the secret broker to a single projection mode
+        (alias_only), no reveal affordance, no clipboard projection,
+        no session-only fallback, os_keychain on desktop only, and
+        block every lane that requires any broader projection
+        (provider adapters that need request_header_signer, database
+        connection brokers that need broker_callback, signing
+        runners that need sign_only, remote-agent brokers, enterprise
+        vault integration) until an ADR lands.
+      applies_on: "2026-08-01"
+      requires_approval_from:
+        - security_trust_review
+    linked_assumptions:
+      - A-0001
+    linked_dependencies: []
+    linked_adr: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: security_trust_review
+        outcome: opened
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: security_trust_review
+        outcome: accept
+        notes: >
+          Closed by
+          docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md.
+          Freezes the credential-handle versus raw-secret-material
+          posture (typed credential_handle values cross every product
+          boundary; raw secret material lives only inside the broker
+          and inside a narrowly-scoped projection target; raw bytes
+          MUST NOT cross the RPC boundary; handles MUST NOT be
+          persisted in workspace files, profiles, sync exports,
+          recipes, scaffolds, shell history, mutation-journal
+          entries, save manifests, or support bundles; profiles and
+          recipes reference aliases, not handles); the secret-class
+          set (ai_provider_token, code_host_token,
+          package_registry_token, database_credential,
+          ssh_key_material, client_certificate, signing_key_material,
+          provider_session, device_secret, ephemeral_operation_token);
+          the trust-store class set (os_keychain,
+          enterprise_vault_adapter, platform_agent, hsm_or_kms_backed,
+          session_memory_cache, managed_policy_injector); the
+          unlock-state set (locked, unlocking, unlocked,
+          step_up_required, degraded_session_only, unavailable); the
+          projection-mode set (alias_only, broker_callback,
+          request_header_signer, ephemeral_fd, bounded_mount,
+          env_var_isolated_child, sign_only, decrypt_only,
+          token_exchange, policy_materialised, inspect_metadata,
+          reveal_on_demand); the plaintext-fallback posture
+          (long-lived secrets MUST NOT fall back to plaintext on
+          disk or in persistent environment state; the only
+          acceptable fallback is session_memory_cache with unlock
+          state degraded_session_only, visibly degraded,
+          process-local, in-memory, session-only, forbidden for
+          signing_key_material, device_secret, and provider_session,
+          and expiring on process exit, trust-state change,
+          policy-epoch roll, or explicit user lock); the redaction-
+          default posture per surface (logs_local, traces_local,
+          support_bundle, evidence_packet, ai_context_capture,
+          recipe_manifest, profile_export, sync, crash_dump,
+          mutation_journal_entry, save_manifest,
+          replay_or_timeline_capture, terminal_transcript,
+          clipboard_projection) with narrowing-only overrides; the
+          clipboard / reveal-on-demand posture (per-handle,
+          user-initiated, high-friction, bounded clipboard with
+          clear-on-timeout, OSC-52 / remote-clipboard-bridge denied
+          by default for secret classes, reveal denied for
+          signing_key_material, device_secret, provider_session,
+          and ephemeral_operation_token, ssh_key_material and
+          client_certificate surface fingerprint or public key
+          only, AI agents / extensions / recipes / remote sessions
+          MUST NOT trigger reveal on the user's behalf); the
+          denial-reason set (secret_handle_unknown,
+          secret_handle_revoked, secret_handle_expired,
+          trust_store_locked, trust_store_unavailable,
+          step_up_required, approval_ticket_missing,
+          policy_denied_projection,
+          projection_denied_unsupported_mode,
+          projection_denied_class_rule, consumer_capability_mismatch,
+          trust_state_downgraded, ai_tool_reveal_denied,
+          remote_broker_scope_mismatch,
+          session_fallback_class_forbidden) with fail-closed
+          semantics (never silently retry, never silently downgrade
+          projection to a weaker mode, every denial emits a typed
+          secret_denial audit event); the audit-event id set
+          (secret_handle_issued, secret_handle_renewed,
+          secret_handle_revoked, secret_handle_expired,
+          secret_projection_used, secret_projection_failed,
+          secret_denial, secret_reveal_started, secret_reveal_ended,
+          secret_clipboard_projected, secret_clipboard_cleared,
+          secret_trust_store_unlocked, secret_trust_store_locked,
+          secret_trust_store_degraded, secret_trust_store_recovered,
+          secret_rotation_started, secret_rotation_completed,
+          secret_rotation_failed, secret_import_mapped,
+          secret_export_redaction_applied,
+          secret_policy_epoch_rolled, secret_broker_remote_attached,
+          secret_broker_remote_detached, secret_broker_health_changed);
+          the support-bundle inclusion / exclusion defaults
+          (broker health summary, alias registry with aliases only,
+          active store class and unlock state, event counts,
+          projection / denial / reveal / clipboard / rotation
+          metadata included; raw secret bytes, raw handle ids, raw
+          env values, raw client certs, raw private keys, raw
+          request headers, raw projection outputs, and signing-class
+          projection payloads excluded; override direction is narrow
+          only); the process-boundary constraints (broker runs in
+          the host process with the strongest trust-store authority;
+          remote-agent brokers carry an attach-time broker_scope
+          and MAY NOT serve handles bound to the host workspace or
+          to a different agent scope; extensions and untrusted
+          child processes MUST NOT receive raw secret material
+          except through a projection mode naming the extension's
+          capability hash; AI tool calls receive handles or aliases
+          only; crash dumps MUST NOT inherit projected env by
+          default; mutation-journal entries and save manifests name
+          class / alias / approval-ticket ref only); and the
+          schema-of-record posture (Rust types in the eventual
+          secret-broker crate are the source of truth; JSON Schema
+          export at schemas/security/secret_class_rows.schema.json
+          is the cross-tool boundary; no external IDL or code
+          generator toolchain at this milestone; mirrors ADR 0004,
+          ADR 0005, ADR 0006). Supporting artifacts:
+          schemas/security/secret_class_rows.schema.json,
+          artifacts/security/secret_class_rows.yaml,
+          artifacts/security/secret_broker_tradeoff_rows.yaml,
+          artifacts/security/redaction_posture_matrix.yaml, and
+          fixtures/security/redaction_examples/ (logs_redaction,
+          support_bundle_redaction, evidence_packet_signature,
+          clipboard_reveal_audit, denied_projection,
+          degraded_session_only_fallback). The narrowing default is
+          replaced by the ADR's frozen posture; the narrowed
+          alias_only / no-reveal / no-clipboard / no-session-only /
+          keychain-only posture does not apply.

@@ -61,6 +61,7 @@ register; this table is a navigational index only.
 | D-0009      | Identity modes and workspace-trust posture                          | Security / trust review     | Narrow to single trusted mode |
 | D-0010      | Release posture — cadence, channels, and rollback                   | Release council             | Defer promotion |
 | D-0011      | Exact-build identity — one identity across artifact families        | Release council             | Narrow to foundations identity |
+| D-0013      | Secret broker, credential handles, trust-store classes, and redaction defaults | Security / trust review     | Narrow to alias-only / keychain-only; block broader projection lanes |
 
 ## Worked example of automatic narrowing
 
