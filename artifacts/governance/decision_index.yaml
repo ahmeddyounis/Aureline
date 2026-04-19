@@ -1,0 +1,665 @@
+# Decision index.
+#
+# Machine-readable register of every architecture decision in scope at the
+# current milestone. Tooling reads this file; the human-readable narrative
+# is in docs/governance/decision_backlog.md. If they disagree, this file is
+# authoritative for tooling and the narrative must be updated in the same
+# change.
+#
+# Conformance: this file conforms to
+#   schemas/governance/decision_index.schema.json
+#
+# Rules:
+#   - Every decision row MUST name a primary owner, a forum, a freeze date,
+#     and a default_if_unresolved posture. No silent blanks.
+#   - Every row whose backup_owner is null MUST cite an active waiver from
+#     artifacts/governance/ownership_matrix.yaml#waivers.
+#   - Superseding a decision mints a new decision_id and points
+#     superseded_by at it; the original row is never deleted and its
+#     decision_history is append-only.
+#   - When status is decided, linked_adr MUST point at the ADR that
+#     closed the decision.
+#   - When the freeze_by_date passes and the row is still open or
+#     deciding, default_if_unresolved applies automatically on
+#     applies_on. The row status transitions to narrowed_by_default (or
+#     deferred / freeze_lane / rebaselined per the posture) without
+#     further approval unless requires_approval_from is populated.
+
+schema_version: 1
+
+# -----------------------------------------------------------------------------
+# Assumptions
+#
+# Linked from decision rows via linked_assumptions. Assumptions are held
+# open until validated; if invalidated, any decision that depends on
+# them reopens.
+# -----------------------------------------------------------------------------
+assumptions:
+  - id: A-0001
+    statement: >
+      The project remains in a solo-maintainer posture through the
+      pre-implementation foundations milestone; the single-maintainer
+      backup waiver covers every protected lane.
+    owner: "@ahmedyounis"
+    status: open
+    validated_on: null
+
+  - id: A-0002
+    statement: >
+      macOS and Linux are the minimum supported dev hosts for the
+      first-beta milestone; Windows has compile parity if feasible but
+      not as a blocking constraint.
+    owner: "@ahmedyounis"
+    status: open
+    validated_on: null
+
+  - id: A-0003
+    statement: >
+      One build identity covers official binaries, docs, schemas, SDK
+      artifacts, SBOMs, attestations, symbols, and rollback metadata;
+      artifact families do not mint their own build identities.
+    owner: "@ahmedyounis"
+    status: open
+    validated_on: null
+
+# -----------------------------------------------------------------------------
+# Dependencies
+#
+# Linked from decision rows via linked_dependencies. Dependencies describe
+# external-to-the-decision work whose absence blocks the decision.
+# -----------------------------------------------------------------------------
+dependencies:
+  - id: DEP-0001
+    statement: >
+      Reproducible-build baseline is in place (pinned toolchain,
+      bootstrap command, build-identity record) before exact-build
+      identity can be frozen.
+    owner: "@ahmedyounis"
+    status: satisfied
+    target_date: "2026-04-19"
+    notes: >
+      Satisfied by docs/build/reproducible_build_baseline.md and the
+      bootstrap scripts landed at the foundations milestone.
+
+  - id: DEP-0002
+    statement: >
+      Ownership matrix and CODEOWNERS are in place so every decision row
+      can resolve a forum and an owner.
+    owner: "@ahmedyounis"
+    status: satisfied
+    target_date: "2026-04-19"
+
+  - id: DEP-0003
+    statement: >
+      Accessibility / input review packet family is seeded so
+      input-model and accessibility decisions have an evidence home.
+    owner: "@ahmedyounis"
+    status: open
+    target_date: "2026-06-01"
+
+# -----------------------------------------------------------------------------
+# Decisions
+# -----------------------------------------------------------------------------
+decisions:
+  # ---------------------------------------------------------------------------
+  # Renderer
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0001
+    title: Renderer stack and rendering primitive
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-07-01"
+    decision_deadline: "2026-06-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 401"
+        quote: "custom native shell on wgpu/winit-class stack with accessibility bridge"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 425"
+        quote: "wgpu/windowing stack, text shaping, accessibility bridges"
+    affected_artifacts:
+      - crates/aureline-render
+      - crates/aureline-text
+      - docs/adr/
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the renderer contract to the minimum surface exercised by
+        the shell spike (single window, single surface, no compositing
+        experiments) and defer advanced rendering primitives to the
+        first post-beta milestone. A rendering ADR must still land
+        before any non-spike renderer code is accepted.
+      applies_on: "2026-07-01"
+      requires_approval_from: []
+    linked_assumptions:
+      - A-0001
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Buffer / editor core
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0002
+    title: Buffer and editor-core persistence model
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-07-01"
+    decision_deadline: "2026-06-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "line 150"
+        quote: "piece-table-derived piece tree for standard editable files"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 403"
+        quote: "piece-table / piece-tree — proven editing semantics and strong undo/redo"
+    affected_artifacts:
+      - crates/aureline-buffer
+      - crates/aureline-text
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Commit to a piece-tree buffer for standard editable files and
+        defer the large-file mmap + paged rope path to a later
+        milestone behind an explicit fitness function. Closing this
+        default requires an ADR describing the narrowed surface.
+      applies_on: "2026-07-01"
+      requires_approval_from: []
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Workspace VFS
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0003
+    title: Workspace VFS path identity and watcher model
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-07-15"
+    decision_deadline: "2026-07-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 654"
+        quote: "workspace roots, path identity, file watching, ignore resolution"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 43"
+        quote: "Real filesystem identity, canonical path, and save-coordination architecture"
+    affected_artifacts:
+      - crates/aureline-vfs
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the VFS to a single-root, canonical-path, polling-fallback
+        watcher model for the first beta and defer multi-root and
+        platform-specific watcher optimizations. Closing this default
+        requires an ADR describing the narrowed surface.
+      applies_on: "2026-07-15"
+      requires_approval_from: []
+    linked_assumptions:
+      - A-0002
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # RPC transport
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0004
+    title: RPC transport and cross-process contract
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-07-15"
+    decision_deadline: "2026-07-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 409"
+        quote: "typed binary RPC + event streams — performance, observability, capability negotiation"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 411"
+        quote: "same logical contracts locally and remotely"
+    affected_artifacts:
+      - crates/aureline-rpc
+      - crates/aureline-telemetry
+    default_if_unresolved:
+      posture: freeze_lane
+      description: >
+        Block any non-spike work that depends on a cross-process RPC
+        contract until an ADR lands. The shell spike may continue using
+        in-process channels; external-process consumers must not land
+        against an unfrozen transport.
+      applies_on: "2026-07-15"
+      requires_approval_from:
+        - architecture_council
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Shared subscription envelope
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0005
+    title: Shared subscription envelope for reactive truth
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-07-31"
+    decision_deadline: "2026-07-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 44"
+        quote: "Reactive state, subscription, and materialized-view architecture"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 201"
+        quote: "Reactive State, Subscription, and Materialized-View Matrix"
+    affected_artifacts:
+      - crates/aureline-buffer
+      - crates/aureline-vfs
+      - crates/aureline-rpc
+      - crates/aureline-telemetry
+    default_if_unresolved:
+      posture: freeze_lane
+      description: >
+        Hold every cross-subsystem reactive contract at the foundations
+        baseline until an ADR lands. Lanes may continue internal work
+        but must not export materialized views across the RPC boundary
+        until the envelope is frozen.
+      applies_on: "2026-07-31"
+      requires_approval_from:
+        - architecture_council
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Shell / command system
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0006
+    title: Shell / command-system contract and non-throwaway home
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-15"
+    decision_deadline: "2026-08-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 333"
+        quote: "automation, CLI, AI, and extensions must use the same command and execution contracts"
+    affected_artifacts:
+      - crates/aureline-shell-spike
+      - governance_lane:shell_command_system
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Keep the command-system lane hosted inside the shell spike for
+        one additional milestone and freeze its public surface to the
+        spike's exported contracts. A non-throwaway home must land in
+        the next milestone or this row rebaselines.
+      applies_on: "2026-08-15"
+      requires_approval_from: []
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Input / keyboard model
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0007
+    title: Keyboard-complete command graph and input model
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-15"
+    decision_deadline: "2026-08-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 324"
+        quote: "accessibility bridge, keyboard-complete command graph, semantic surfaces"
+    affected_artifacts:
+      - crates/aureline-shell-spike
+      - governance_lane:accessibility_input_review
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Ship the first beta with a keyboard-complete command graph for
+        the spike's command surface only; narrow out experimental input
+        bindings and non-default chord schemes. Non-default schemes
+        return when this decision closes post-beta.
+      applies_on: "2026-08-15"
+      requires_approval_from: []
+    linked_assumptions: []
+    linked_dependencies:
+      - DEP-0003
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Accessibility surface
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0008
+    title: Accessibility bridge and semantic surface contract
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-15"
+    decision_deadline: "2026-08-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: architecture_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 324"
+        quote: "accessibility bridge, keyboard-complete command graph, semantic surfaces"
+    affected_artifacts:
+      - crates/aureline-render
+      - governance_lane:accessibility_input_review
+    default_if_unresolved:
+      posture: freeze_lane
+      description: >
+        Block first-beta promotion of any renderer surface that does
+        not expose the baseline accessibility tree. Lanes may continue
+        visual work behind the beta gate but cannot claim accessibility
+        readiness until the ADR lands.
+      applies_on: "2026-08-15"
+      requires_approval_from:
+        - architecture_council
+        - release_council
+    linked_assumptions: []
+    linked_dependencies:
+      - DEP-0003
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Identity modes / workspace trust
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0009
+    title: Identity modes and workspace-trust posture
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-01"
+    decision_deadline: "2026-07-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: security_trust_review
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 278"
+        quote: "workspace trust, least privilege, network/egress governance, signed artifacts"
+    affected_artifacts:
+      - crates/aureline-vfs
+      - crates/aureline-rpc
+      - governance_lane:release_evidence
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Freeze the identity model to a single trusted-workspace mode for
+        the first beta; untrusted workspaces open read-only and cannot
+        run extensions or commands that escape the sandbox. Expanded
+        modes return when this decision closes post-beta.
+      applies_on: "2026-08-01"
+      requires_approval_from:
+        - security_trust_review
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: security_trust_review
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Release posture
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0010
+    title: Release posture — cadence, channels, and rollback
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-08-31"
+    decision_deadline: "2026-08-15"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: release_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "line 336"
+        quote: "monthly stable releases and optional LTS lines"
+      - doc: .t2/docs/Aureline_Milestones_Document.md
+        anchor: "line 438"
+        quote: "Release publication, provenance, attestation, advisory, and revocation discipline"
+    affected_artifacts:
+      - artifacts/release/
+      - governance_lane:release_evidence
+    default_if_unresolved:
+      posture: defer
+      description: >
+        If the cadence / channel / rollback decision is not closed by
+        the freeze date, the first beta ships as a single unnumbered
+        preview with no promotion pathway. A promotion ADR must land
+        before any subsequent channel opens.
+      applies_on: "2026-08-31"
+      requires_approval_from: []
+    linked_assumptions: []
+    linked_dependencies: []
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: release_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Exact-build identity
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0011
+    title: Exact-build identity — one identity across artifact families
+    status: open
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: first-beta-milestone
+    freeze_by_date: "2026-06-15"
+    decision_deadline: "2026-06-01"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: release_council
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Milestones_Document.md
+        anchor: "line 456"
+        quote: "One build identity should cover official binaries, docs, schemas, SDK artifacts, SBOMs, attestations, symbols, and rollback metadata"
+      - doc: .t2/docs/Aureline_Milestones_Document.md
+        anchor: "line 377"
+        quote: "reproducibility pack: exact build identity, environment assumptions, commands, known caveats, and freshness timestamp"
+    affected_artifacts:
+      - docs/build/
+      - artifacts/release/
+      - governance_lane:release_evidence
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        Use the foundations build-identity record as the single identity
+        for every artifact family produced before the ADR lands; defer
+        cross-family attestation stitching to a later milestone. Any
+        artifact family that needs a different identity opens a freeze
+        exception.
+      applies_on: "2026-06-15"
+      requires_approval_from: []
+    linked_assumptions:
+      - A-0003
+    linked_dependencies:
+      - DEP-0001
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-19"
+        actor: "@ahmedyounis"
+        forum: release_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Worked example of automatic narrowing-by-default.
+  #
+  # This decision had a freeze date that has already passed. Because no
+  # ADR closed it and the default_if_unresolved posture is `narrow`, the
+  # row transitioned automatically on its applies_on date. Tooling reads
+  # the narrowed_by_default status and the decision_history entry dated
+  # on applies_on; the row remains in the register with its history
+  # intact rather than being deleted.
+  # ---------------------------------------------------------------------------
+  - decision_id: D-0012
+    title: Initial copy surface for the About / build-identity dialog
+    status: narrowed_by_default
+    target_milestone: pre-implementation-foundations
+    freeze_by_milestone: pre-implementation-foundations
+    freeze_by_date: "2026-04-15"
+    decision_deadline: "2026-04-10"
+    owner: "@ahmedyounis"
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    forum: product_scope_review
+    related_requirement_ids: []
+    source_anchors:
+      - doc: .t2/docs/Aureline_Milestones_Document.md
+        anchor: "line 377"
+        quote: "reproducibility pack: exact build identity, environment assumptions, commands, known caveats, and freshness timestamp"
+    affected_artifacts:
+      - docs/build/
+      - governance_lane:docs_public_truth
+    default_if_unresolved:
+      posture: narrow
+      description: >
+        If the dialog's copy surface is not closed by the freeze, ship
+        with the raw build-identity record from
+        docs/build/reproducible_build_baseline.md verbatim and no
+        marketing copy. Reopening this decision requires a new row.
+      applies_on: "2026-04-15"
+      requires_approval_from: []
+    linked_assumptions: []
+    linked_dependencies:
+      - DEP-0001
+    linked_adr: null
+    linked_rfc: null
+    superseded_by: []
+    decision_history:
+      - date: "2026-04-01"
+        actor: "@ahmedyounis"
+        forum: product_scope_review
+        outcome: opened
+      - date: "2026-04-15"
+        actor: automation
+        forum: product_scope_review
+        outcome: narrow
+        notes: >
+          Freeze date reached with status still open. default_if_unresolved
+          applied automatically; the dialog ships with the raw build-identity
+          record until a follow-on decision row is opened.
+    notes: >
+      Pedagogical seed row. Demonstrates the register's automatic
+      narrowing behaviour so later shiproom automation can rely on the
+      same status transition on every row. Do not reuse D-0012 if this
+      decision is ever reopened; mint a new id.

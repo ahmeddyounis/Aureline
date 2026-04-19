@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/decision_index.schema.json",
+  "title": "Decision index",
+  "description": "Machine-readable register of every architecture decision in scope at the current milestone. Pairs with docs/governance/decision_backlog.md (narrative) and docs/adr/, docs/rfc/ (decision records). Tooling reads this file; no silent blanks are allowed. Every decision row MUST carry a freeze date, a default-if-unresolved posture, an owner, and either a backup owner or an active waiver.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "assumptions", "dependencies", "decisions"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version of this document. Increment on breaking field changes."
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Assumption rows referenced by decision entries via linked_assumptions.",
+      "items": { "$ref": "#/$defs/assumption_row" }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Dependency rows referenced by decision entries via linked_dependencies.",
+      "items": { "$ref": "#/$defs/dependency_row" }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Decision rows. Each row represents one decision that must be closed (or explicitly narrowed by default) before its freeze deadline.",
+      "items": { "$ref": "#/$defs/decision_row" }
+    }
+  },
+  "$defs": {
+    "assumption_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "owner", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^A-[0-9]{4}$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["open", "validated", "invalidated", "superseded"]
+        },
+        "validated_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "dependency_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "owner", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DEP-[0-9]{4}$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["open", "satisfied", "blocked", "superseded"]
+        },
+        "target_date": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "decision_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "title",
+        "status",
+        "target_milestone",
+        "freeze_by_milestone",
+        "freeze_by_date",
+        "decision_deadline",
+        "owner",
+        "backup_owner",
+        "backup_waiver",
+        "forum",
+        "related_requirement_ids",
+        "source_anchors",
+        "affected_artifacts",
+        "default_if_unresolved",
+        "linked_assumptions",
+        "linked_dependencies",
+        "linked_adr",
+        "linked_rfc",
+        "superseded_by",
+        "decision_history"
+      ],
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "pattern": "^D-[0-9]{4}$",
+          "description": "Stable decision identifier. Do not reuse when a decision is superseded; mint a new id and point superseded_by at it."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "deciding",
+            "decided",
+            "deferred",
+            "narrowed_by_default",
+            "superseded"
+          ]
+        },
+        "target_milestone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Milestone slug the decision is scoped to. Must match the slug convention used in artifacts/governance/scorecards/."
+        },
+        "freeze_by_milestone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Milestone slug by which the decision MUST be closed or narrowed. May equal target_milestone."
+        },
+        "freeze_by_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar freeze. On this date, if status is still open or deciding, default_if_unresolved applies automatically."
+        },
+        "decision_deadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Soft deadline: the forum's target for closing the decision before the freeze. Earlier than or equal to freeze_by_date."
+        },
+        "owner": { "type": "string", "minLength": 1 },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Waiver id from ownership_matrix.waivers, required when backup_owner is null."
+        },
+        "forum": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Decision forum id from ownership_matrix.decision_forums that owns closure of this decision."
+        },
+        "related_requirement_ids": {
+          "type": "array",
+          "description": "Requirement ids from the PRD or other source-of-truth documents, e.g. PRD-FOO-001.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_anchors": {
+          "type": "array",
+          "description": "Pointers into source documents that motivate this decision. Used so the decision can be traced back without restating the spec.",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "affected_artifacts": {
+          "type": "array",
+          "description": "Repo-relative paths or lane ids whose behaviour or contracts this decision will freeze or change.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "default_if_unresolved": { "$ref": "#/$defs/default_if_unresolved" },
+        "linked_assumptions": {
+          "type": "array",
+          "description": "Assumption ids this decision depends on.",
+          "items": { "type": "string", "pattern": "^A-[0-9]{4}$" }
+        },
+        "linked_dependencies": {
+          "type": "array",
+          "description": "Dependency ids this decision depends on.",
+          "items": { "type": "string", "pattern": "^DEP-[0-9]{4}$" }
+        },
+        "linked_adr": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Repo-relative path to the ADR that closes this decision. Null while the decision is open."
+        },
+        "linked_rfc": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Repo-relative path to the RFC exploring this decision, if one exists. Null otherwise."
+        },
+        "superseded_by": {
+          "type": "array",
+          "description": "Decision ids that supersede this row. Non-empty only when status is superseded.",
+          "items": { "type": "string", "pattern": "^D-[0-9]{4}$" }
+        },
+        "decision_history": {
+          "type": "array",
+          "description": "Append-only history of status transitions. Never rewrite entries; add new ones.",
+          "items": { "$ref": "#/$defs/decision_history_entry" }
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Every decision row must name a backup owner or cite an active waiver.",
+          "if": {
+            "properties": { "backup_owner": { "type": "null" } },
+            "required": ["backup_owner"]
+          },
+          "then": {
+            "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+            "required": ["backup_waiver"]
+          }
+        },
+        {
+          "description": "superseded_by MUST be non-empty when status is superseded.",
+          "if": {
+            "properties": { "status": { "const": "superseded" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "superseded_by": { "type": "array", "minItems": 1 } }
+          }
+        },
+        {
+          "description": "linked_adr MUST be set when status is decided.",
+          "if": {
+            "properties": { "status": { "const": "decided" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "linked_adr": { "type": "string", "minLength": 1 } },
+            "required": ["linked_adr"]
+          }
+        }
+      ]
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc", "anchor"],
+      "properties": {
+        "doc": { "type": "string", "minLength": 1 },
+        "anchor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Line number, heading slug, or other stable anchor inside the referenced document."
+        },
+        "quote": { "type": "string" }
+      }
+    },
+    "default_if_unresolved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture", "description", "applies_on"],
+      "properties": {
+        "posture": {
+          "type": "string",
+          "enum": ["narrow", "defer", "freeze_lane", "rebaseline"],
+          "description": "What happens automatically if the freeze date passes with the decision unresolved. narrow = reduce committed scope; defer = push the decision to a later milestone with a restated freeze; freeze_lane = block all dependent work on the affected lane; rebaseline = trigger a milestone rebaseline review."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete statement of what narrowing / deferral / freeze / rebaseline means for this specific decision."
+        },
+        "applies_on": {
+          "type": "string",
+          "format": "date",
+          "description": "Date on which the posture applies automatically if the decision is still open. Normally equal to freeze_by_date."
+        },
+        "requires_approval_from": {
+          "type": "array",
+          "description": "Forum ids whose approval is needed to override the default posture. Empty means the default is automatic.",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "decision_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "actor", "forum", "outcome"],
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "actor": { "type": "string", "minLength": 1 },
+        "forum": { "type": "string", "minLength": 1 },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "opened",
+            "status_change",
+            "narrow",
+            "defer",
+            "accept",
+            "reject",
+            "supersede",
+            "rebaseline"
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
