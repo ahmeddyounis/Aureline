@@ -289,7 +289,7 @@ they are the language the ADR's hook list refers to.
   against the shaping run.
 - **Permitted:** dependency refresh (bumping `wgpu`, `winit`,
   `rustybuzz`, `accesskit`, etc.) is a hygiene change governed by the
-  compliance checklist, not a new ADR.
+  dependency register and dependency review policy, not a new ADR.
 - **Follow-up:** the renderer spike instruments every hot-path hook
   before claiming latency budgets. The benchmark lab stabilises
   traces against the claimed GPU targets. The accessibility /

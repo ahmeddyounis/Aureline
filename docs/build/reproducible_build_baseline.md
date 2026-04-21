@@ -55,8 +55,9 @@ the only supported way to bump them.
 
 Benchmark helper tooling is intentionally not pinned yet. `aureline-bench`
 is seeded empty; the first bench task to add a helper (e.g. `criterion`)
-must add it here as a pinned input in the same change that introduces the
-dependency.
+must add it here as a pinned input and in
+`artifacts/governance/dependency_register.yaml` in the same change that
+introduces the dependency.
 
 ## The one bootstrap command
 
@@ -158,8 +159,9 @@ below.
 - **Release signing and transparency.** Out of scope; only the identity
   surface that a future signing pipeline will consume is established here.
 - **SBOM and license review.** The workspace has no external dependencies
-  yet; dependency-level provenance is picked up by release engineering
-  when the first external crate is introduced.
+  yet; dependency-level provenance now lands through the dependency
+  review policy and the canonical dependency/import registers when the
+  first external crate or imported asset is introduced.
 - **Remote build cache policy.** Deliberately absent: remote caches must
   not substitute for rebuildability, so the baseline does not even enable
   one.

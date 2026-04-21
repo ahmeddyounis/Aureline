@@ -18,8 +18,8 @@
 #   2. emits a minimal structural SBOM stub describing the workspace
 #      crates declared in Cargo.toml;
 #   3. records a placeholder provenance summary that names the build
-#      identity, the toolchain pin, and the compliance checklist
-#      version it consumed;
+#      identity, the toolchain pin, and the canonical dependency/import
+#      register revisions it consumed;
 #   4. exits zero on success.
 #
 # See docs/governance/provenance_and_compliance_baseline.md for the
@@ -67,6 +67,18 @@ extract_field() {
       }
     }
   ' "${file}"
+}
+
+extract_yaml_schema_version() {
+  local file="$1"
+  awk -F ':' '
+    /^schema_version[[:space:]]*:/ {
+      val = $2
+      gsub(/[[:space:]]/, "", val)
+      print val
+      exit
+    }
+  ' "${file}" 2>/dev/null || echo "0"
 }
 
 COMMIT="$(extract_field commit "${BUILD_IDENTITY_FILE}")"
@@ -120,7 +132,7 @@ done < <(awk '
   printf '  },\n'
   printf '  "workspace_license": "Apache-2.0",\n'
   printf '  "external_dependencies": [],\n'
-  printf '  "external_dependencies_note": "Workspace currently has zero external Cargo dependencies; see artifacts/governance/compliance_checklist.yaml.",\n'
+  printf '  "external_dependencies_note": "Workspace currently has zero external Cargo dependencies; broader third-party selections, imports, and notice classes live in artifacts/governance/dependency_register.yaml, artifacts/governance/third_party_import_register.yaml, and artifacts/governance/release_notice_seed.yaml.",\n'
   printf '  "workspace_members": [\n'
   total="${#WORKSPACE_MEMBERS[@]}"
   i=0
@@ -140,15 +152,14 @@ done < <(awk '
 PROVENANCE_FILE="${OUT_DIR}/provenance_summary.json"
 log "writing provenance summary stub to ${PROVENANCE_FILE}"
 
+DEPENDENCY_REGISTER_PATH="artifacts/governance/dependency_register.yaml"
+IMPORT_REGISTER_PATH="artifacts/governance/third_party_import_register.yaml"
+NOTICE_SEED_PATH="artifacts/governance/release_notice_seed.yaml"
 CHECKLIST_PATH="artifacts/governance/compliance_checklist.yaml"
-CHECKLIST_SCHEMA_VERSION="$(awk -F ':' '
-  /^schema_version[[:space:]]*:/ {
-    val = $2
-    gsub(/[[:space:]]/, "", val)
-    print val
-    exit
-  }
-' "${REPO_ROOT}/${CHECKLIST_PATH}" 2>/dev/null || echo "unknown")"
+DEPENDENCY_REGISTER_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${DEPENDENCY_REGISTER_PATH}")"
+IMPORT_REGISTER_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${IMPORT_REGISTER_PATH}")"
+NOTICE_SEED_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${NOTICE_SEED_PATH}")"
+CHECKLIST_SCHEMA_VERSION="$(extract_yaml_schema_version "${REPO_ROOT}/${CHECKLIST_PATH}")"
 
 {
   printf '{\n'
@@ -164,6 +175,18 @@ CHECKLIST_SCHEMA_VERSION="$(awk -F ':' '
   printf '    "workspace_version": "%s",\n' "${WORKSPACE_VERSION}"
   printf '    "source_date_epoch": %s,\n' "${SOURCE_DATE_EPOCH_VAL:-0}"
   printf '    "build_timestamp_utc": "%s"\n' "${BUILD_TIMESTAMP_UTC}"
+  printf '  },\n'
+  printf '  "dependency_register": {\n'
+  printf '    "path": "%s",\n' "${DEPENDENCY_REGISTER_PATH}"
+  printf '    "schema_version": %s\n' "${DEPENDENCY_REGISTER_SCHEMA_VERSION:-0}"
+  printf '  },\n'
+  printf '  "third_party_import_register": {\n'
+  printf '    "path": "%s",\n' "${IMPORT_REGISTER_PATH}"
+  printf '    "schema_version": %s\n' "${IMPORT_REGISTER_SCHEMA_VERSION:-0}"
+  printf '  },\n'
+  printf '  "release_notice_seed": {\n'
+  printf '    "path": "%s",\n' "${NOTICE_SEED_PATH}"
+  printf '    "schema_version": %s\n' "${NOTICE_SEED_SCHEMA_VERSION:-0}"
   printf '  },\n'
   printf '  "compliance_checklist": {\n'
   printf '    "path": "%s",\n' "${CHECKLIST_PATH}"

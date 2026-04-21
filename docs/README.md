@@ -27,6 +27,9 @@ code.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
+- [`governance/dependency_review_policy.md`](./governance/dependency_review_policy.md)
+  — dependency/import admission policy, build-vs-buy linkage rules,
+  stale-row thresholds, and notice/SBOM/provenance flow.
 - [`governance/record_state_and_policy_simulation_models.md`](./governance/record_state_and_policy_simulation_models.md)
   — governed-record state model (local_only / managed_copy / held /
   delete_requested / delete_complete / export_available), orthogonal
@@ -434,9 +437,17 @@ above is paired with a YAML form that is authoritative for automation:
   — decision rows with freeze dates and default-if-unresolved postures.
 - [`/artifacts/governance/package_inventory.yaml`](../artifacts/governance/package_inventory.yaml)
   — package topology and protected-path posture.
+- [`/artifacts/governance/dependency_register.yaml`](../artifacts/governance/dependency_register.yaml)
+  — canonical register of selected and admitted third-party
+  dependencies.
+- [`/artifacts/governance/third_party_import_register.yaml`](../artifacts/governance/third_party_import_register.yaml)
+  — canonical register of copied, bundled, or mirrored third-party
+  bytes.
+- [`/artifacts/governance/release_notice_seed.yaml`](../artifacts/governance/release_notice_seed.yaml)
+  — third-party attribution seed keyed by stable dependency/import ids.
 - [`/artifacts/governance/compliance_checklist.yaml`](../artifacts/governance/compliance_checklist.yaml)
-  — register of dependencies, vendored sources, generators, and
-  pending notice rows.
+  — bridge artifact pointing at the canonical dependency/import/notice
+  registers, plus deferred compliance sweeps.
 - [`/artifacts/governance/milestone_scorecard_template.yaml`](../artifacts/governance/milestone_scorecard_template.yaml)
   — per-milestone lane status.
 - [`/artifacts/governance/governance_packet_template.yaml`](../artifacts/governance/governance_packet_template.yaml)

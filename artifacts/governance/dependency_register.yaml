@@ -1,0 +1,601 @@
+# Critical dependency register.
+#
+# Canonical register of third-party dependencies that either:
+#   1. are already required to build, verify, or generate repository
+#      artifacts; or
+#   2. have been selected in an ADR for a protected path and therefore
+#      need an owner, health review, and exit strategy before manifest
+#      admission.
+#
+# This file records upstream choices and fragility. It does not track
+# copied or mirrored third-party bytes; those live in
+# third_party_import_register.yaml. It also does not mint a second
+# notice-id system; release_notice_seed.yaml keys off the ids in this
+# register and in the import register.
+
+schema_version: 1
+
+policy_doc: docs/governance/dependency_review_policy.md
+companion_registers:
+  third_party_import_register: artifacts/governance/third_party_import_register.yaml
+  release_notice_seed: artifacts/governance/release_notice_seed.yaml
+  compliance_bridge: artifacts/governance/compliance_checklist.yaml
+
+update_cadence_classes:
+  - per_change
+  - on_pin_change
+  - quarterly
+  - per_release
+
+admission_state_classes:
+  - admitted_repo_tooling
+  - selected_not_admitted
+
+version_track_classes:
+  - pinned_in_repo
+  - selected_candidate_unpinned
+  - host_runtime_unpinned
+
+license_class_classes:
+  - permissive_oss
+  - permissive_oss_expected_pending_admission
+  - redistributable_font_expected_pending_import
+  - permissive_runtime
+  - strong_copyleft_runtime
+  - permissive_toolchain_runtime
+
+provenance_status_classes:
+  - pinned_in_repo_and_observed
+  - selected_by_adr_not_manifested
+  - host_runtime_required_not_pinned
+
+health_status_classes:
+  - machine_refresh_seeded
+  - manual_review_seeded
+  - pending_first_admission_review
+
+criticality_classes:
+  - protected_path_release_critical
+  - release_engineering_critical
+  - benchmark_lab_required
+  - repo_operations_required
+
+release_notice_classes:
+  - runtime_dependency_notice_if_distributed
+  - build_input_only_no_notice
+  - host_runtime_not_redistributed
+  - bundled_asset_notice_required
+
+refresh_mode_classes:
+  - manual_until_manifested
+  - mixed_manual_machine
+  - machine_observable_host_runtime
+
+automation_seed:
+  upstream_health_ingest_fields:
+    - latest_release_or_tag
+    - latest_release_published_at
+    - default_branch_last_commit_at
+    - open_security_advisory_count
+    - maintainer_count_estimate
+    - license_expression
+  stale_threshold_profiles:
+    - id: protected_path_selected
+      manual_review_after_days: 30
+      machine_refresh_after_days: null
+    - id: admitted_repo_tooling
+      manual_review_after_days: 90
+      machine_refresh_after_days: 14
+    - id: required_host_runtime
+      manual_review_after_days: 120
+      machine_refresh_after_days: 30
+
+rows:
+  - id: dep.renderer.wgpu
+    name: wgpu
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-render]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Open replacement or local-fork review if a claimed-backend bug or
+      hot-path budget blocker cannot be corrected inside one release
+      family without waiting on upstream.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.renderer.winit
+    name: winit
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-render]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Open replacement or local-fork review if claimed-platform windowing,
+      DPI, or accessibility-root requirements can no longer be met
+      without per-platform shell forks.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.text.rustybuzz
+    name: rustybuzz-class shaper
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-text]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Reopen the shaping choice if a claimed script or locale requires
+      fixes the Rust-native path cannot carry in time and the platform-
+      native seam is no longer sufficient.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.text.swash
+    name: swash-class rasterisation
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_renderer_tradeoff_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-text, aureline-render]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    selection_basis_refs:
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Open replacement review if glyph raster correctness, color-font
+      coverage, or atlas pressure on claimed hosts cannot be corrected
+      without diverging locally.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.text.fontdb
+    name: fontdb-class discovery layer
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-text]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Replace or fork if discovery cannot maintain stable font handles
+      across the claimed desktop matrix without host-specific escape
+      hatches that would leak raw-path dependencies into the shell.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.accessibility.accesskit
+    name: accesskit-class accessibility bridge
+    dependency_kind: cargo_crate
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_manifest_admission
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-render]
+    owning_lanes: [shell_command_system, accessibility_input_review]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Reopen bridge selection if a claimed OS accessibility API drifts
+      faster than upstream can track, or if semantic-tree parity would
+      otherwise require a private host bridge.
+    release_notice_class: runtime_dependency_notice_if_distributed
+    sbom_inclusion_class: runtime_dependency_when_manifested
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - artifacts/architecture/renderer_tradeoff_rows.yaml
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.text.noto_class_fallback_font
+    name: Noto-class fallback font source
+    dependency_kind: asset_family
+    version_track: selected_candidate_unpinned
+    version_ref: selected_by_adr_0002_until_first_import
+    admission_state: selected_not_admitted
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-text, aureline-render]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    build_vs_buy_reference_required: true
+    build_vs_buy_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    selection_basis_refs:
+      - prototypes/text_stack/README.md
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    license_class: redistributable_font_expected_pending_import
+    provenance_status: selected_by_adr_not_manifested
+    health_status: pending_first_admission_review
+    criticality: protected_path_release_critical
+    update_cadence_class: per_release
+    fork_or_replace_trigger: >
+      Replace the source family if redistributable subset terms,
+      signing posture, or glyph-coverage maintenance can no longer be
+      satisfied on the release cadence.
+    release_notice_class: bundled_asset_notice_required
+    sbom_inclusion_class: bundled_asset_source_when_imported
+    automation_refresh:
+      mode: manual_until_manifested
+      stale_threshold_profile: protected_path_selected
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - prototypes/text_stack/README.md
+      machine_refresh_fields: []
+      manual_fields:
+        - version_ref
+        - owner_dri
+        - build_vs_buy_refs
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.repo.rust_toolchain
+    name: rustup-managed Rust toolchain
+    dependency_kind: toolchain
+    version_track: pinned_in_repo
+    version_ref: rust-toolchain.toml#channel=1.84.0
+    admission_state: admitted_repo_tooling
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [release_evidence, governance_packets]
+    protected_path: false
+    build_vs_buy_reference_required: false
+    build_vs_buy_refs: []
+    selection_basis_refs:
+      - rust-toolchain.toml
+      - docs/build/reproducible_build_baseline.md
+    license_class: permissive_toolchain_runtime
+    provenance_status: pinned_in_repo_and_observed
+    health_status: machine_refresh_seeded
+    criticality: release_engineering_critical
+    update_cadence_class: on_pin_change
+    fork_or_replace_trigger: >
+      Open toolchain replacement or split-lane review if the pinned
+      channel no longer services the declared target matrix or stops
+      receiving required security and compiler fixes.
+    release_notice_class: build_input_only_no_notice
+    sbom_inclusion_class: build_tooling_input
+    automation_refresh:
+      mode: mixed_manual_machine
+      stale_threshold_profile: admitted_repo_tooling
+      evidence_sources:
+        - rust-toolchain.toml
+        - docs/build/reproducible_build_baseline.md
+        - tools/build/print_build_identity.sh
+      machine_refresh_fields:
+        - version_ref
+        - observed_rustc_version
+        - observed_cargo_version
+        - target_matrix
+      manual_fields:
+        - owner_dri
+        - license_class
+        - provenance_status
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.repo.rustup
+    name: rustup
+    dependency_kind: host_tool
+    version_track: host_runtime_unpinned
+    version_ref: host_runtime_unpinned
+    admission_state: admitted_repo_tooling
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [release_evidence, governance_packets]
+    protected_path: false
+    build_vs_buy_reference_required: false
+    build_vs_buy_refs: []
+    selection_basis_refs:
+      - tools/build/bootstrap.sh
+      - docs/build/reproducible_build_baseline.md
+    license_class: permissive_toolchain_runtime
+    provenance_status: host_runtime_required_not_pinned
+    health_status: machine_refresh_seeded
+    criticality: release_engineering_critical
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Replace the acquisition path if rustup is no longer viable for
+      the declared connected and offline bootstrap flows.
+    release_notice_class: host_runtime_not_redistributed
+    sbom_inclusion_class: build_environment_observed_only
+    automation_refresh:
+      mode: machine_observable_host_runtime
+      stale_threshold_profile: required_host_runtime
+      evidence_sources:
+        - tools/build/bootstrap.sh
+        - docs/build/reproducible_build_baseline.md
+      machine_refresh_fields:
+        - observed_runtime_version
+        - host_presence
+      manual_fields:
+        - owner_dri
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.repo.git_cli
+    name: Git CLI
+    dependency_kind: host_tool
+    version_track: host_runtime_unpinned
+    version_ref: host_runtime_unpinned
+    admission_state: admitted_repo_tooling
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [release_evidence, docs_public_truth]
+    protected_path: false
+    build_vs_buy_reference_required: false
+    build_vs_buy_refs: []
+    selection_basis_refs:
+      - tools/build/print_build_identity.sh
+      - docs/build/reproducible_build_baseline.md
+    license_class: strong_copyleft_runtime
+    provenance_status: host_runtime_required_not_pinned
+    health_status: machine_refresh_seeded
+    criticality: repo_operations_required
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Review a replacement path only if build identity, lockfile truth,
+      or release scripts can no longer rely on a standard Git CLI on
+      the supported developer and CI hosts.
+    release_notice_class: host_runtime_not_redistributed
+    sbom_inclusion_class: build_environment_observed_only
+    automation_refresh:
+      mode: machine_observable_host_runtime
+      stale_threshold_profile: required_host_runtime
+      evidence_sources:
+        - tools/build/print_build_identity.sh
+        - docs/build/reproducible_build_baseline.md
+      machine_refresh_fields:
+        - observed_runtime_version
+        - host_presence
+      manual_fields:
+        - owner_dri
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.repo.bash
+    name: bash
+    dependency_kind: host_runtime
+    version_track: host_runtime_unpinned
+    version_ref: host_runtime_unpinned
+    admission_state: admitted_repo_tooling
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [governance_packets, benchmark_lab, release_evidence]
+    protected_path: false
+    build_vs_buy_reference_required: false
+    build_vs_buy_refs: []
+    selection_basis_refs:
+      - ci/build.sh
+      - ci/sbom_provenance.sh
+      - tools/build/bootstrap.sh
+      - tools/benchmark_lab.sh
+    license_class: strong_copyleft_runtime
+    provenance_status: host_runtime_required_not_pinned
+    health_status: machine_refresh_seeded
+    criticality: repo_operations_required
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Rework the wrapper layer if a portable POSIX-shell path becomes
+      necessary across the supported developer and CI matrix.
+    release_notice_class: host_runtime_not_redistributed
+    sbom_inclusion_class: build_environment_observed_only
+    automation_refresh:
+      mode: machine_observable_host_runtime
+      stale_threshold_profile: required_host_runtime
+      evidence_sources:
+        - ci/
+        - tools/
+      machine_refresh_fields:
+        - observed_runtime_version
+        - host_presence
+      manual_fields:
+        - owner_dri
+        - criticality
+        - fork_or_replace_trigger
+
+  - id: dep.benchmark.python3
+    name: python3 runtime
+    dependency_kind: host_runtime
+    version_track: host_runtime_unpinned
+    version_ref: host_runtime_unpinned
+    admission_state: admitted_repo_tooling
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [benchmark_lab, governance_packets]
+    protected_path: false
+    build_vs_buy_reference_required: false
+    build_vs_buy_refs: []
+    selection_basis_refs:
+      - tools/benchmark_lab.sh
+      - tools/journey_harness.sh
+      - tools/benchmark_lab_emit.py
+      - tools/journey_harness/journey_harness.py
+    license_class: permissive_runtime
+    provenance_status: host_runtime_required_not_pinned
+    health_status: machine_refresh_seeded
+    criticality: benchmark_lab_required
+    update_cadence_class: quarterly
+    fork_or_replace_trigger: >
+      Replace the runtime requirement if committed-seed generation or
+      verification can no longer run portably on the supported host
+      matrix without a virtualenv or non-standard package manager.
+    release_notice_class: host_runtime_not_redistributed
+    sbom_inclusion_class: generator_runtime_observed_only
+    automation_refresh:
+      mode: machine_observable_host_runtime
+      stale_threshold_profile: required_host_runtime
+      evidence_sources:
+        - tools/benchmark_lab.sh
+        - tools/journey_harness.sh
+      machine_refresh_fields:
+        - observed_runtime_version
+        - host_presence
+      manual_fields:
+        - owner_dri
+        - criticality
+        - fork_or_replace_trigger

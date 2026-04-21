@@ -15,9 +15,22 @@ Companion artifacts:
 
 - [`/CONTRIBUTING.md`](../../CONTRIBUTING.md) — contributor-facing
   rules (DCO, REUSE/SPDX, third-party imports, generated code).
+- [`/docs/governance/dependency_review_policy.md`](./dependency_review_policy.md)
+  — lightweight admission policy for third-party dependencies,
+  imported bytes, build-vs-buy linkage, automation posture, and
+  notice/SBOM/provenance flow.
+- [`/artifacts/governance/dependency_register.yaml`](../../artifacts/governance/dependency_register.yaml)
+  — canonical register of selected and admitted third-party
+  dependencies.
+- [`/artifacts/governance/third_party_import_register.yaml`](../../artifacts/governance/third_party_import_register.yaml)
+  — canonical register of copied, bundled, or mirrored third-party
+  bytes.
+- [`/artifacts/governance/release_notice_seed.yaml`](../../artifacts/governance/release_notice_seed.yaml)
+  — third-party attribution seed keyed by stable dependency/import
+  ids.
 - [`/artifacts/governance/compliance_checklist.yaml`](../../artifacts/governance/compliance_checklist.yaml)
-  — machine-readable register of dependencies, vendored files,
-  generators, and pending notice-file rows.
+  — bridge artifact and sweep ledger that points tooling at the
+  canonical registers above.
 - [`/docs/build/reproducible_build_baseline.md`](../build/reproducible_build_baseline.md)
   — pinned toolchain, bootstrap command, and build-identity record
   that this baseline composes with.
@@ -38,9 +51,10 @@ Companion artifacts:
    open-source license.
 2. **Every maintained file declares its license.** REUSE-style SPDX
    metadata is present from the first source-bearing change.
-3. **Every external input is reviewable in one place.** New
-   dependencies, vendored files, and generators land with a row in the
-   compliance checklist before merge.
+3. **Every external input is reviewable in one canonical register.**
+   New dependencies and imported bytes land in the dedicated
+   dependency/import registers before merge; the compliance checklist
+   remains only the bridge and sweep ledger.
 4. **Every public surface follows a versioning policy.** Schemas, CLI
    surfaces, RPC envelopes, manifests, and saved artefacts have a
    declared SemVer-aligned policy that applies once they are declared
@@ -86,36 +100,32 @@ Companion artifacts:
 
 ## Third-party imports and dependency review
 
-- Every external Cargo dependency or vendored third-party file is
-  represented by exactly one row in `compliance_checklist.yaml`.
-- Each row records:
-  - `id` — short stable identifier;
-  - `kind` — `cargo_dependency`, `vendored_source`, `generator`, or
-    `pending_notice`;
-  - `name` and `version` — exact upstream identity;
-  - `origin` — upstream URL or registry reference;
-  - `license` — declared SPDX identifier;
-  - `local_modifications` — `none` or a description;
-  - `notice_required` — boolean; controls inclusion in the eventual
-    `NOTICE` file;
-  - `update_owner` — DRI handle from the ownership matrix;
-  - `status` — `proposed`, `accepted`, `under_review`, or `retired`;
-  - `notes` — free form, including any ADR or RFC references.
-- The workspace currently has zero external Cargo dependencies, so
-  the dependency portion of the register is intentionally empty. The
-  generator section is seeded with the rustc / clippy / rustfmt
-  toolchain pinned by `rust-toolchain.toml`, since the toolchain is
-  the one external generator already present.
-- Adding the first external Cargo dependency must update both this
-  register and `Cargo.lock` in the same change.
+- Third-party dependency rows live in
+  `dependency_register.yaml`. Copied, bundled, or mirrored bytes live
+  in `third_party_import_register.yaml`.
+- The dependency register records the upstream choice and its
+  fragility posture: owner, owning scope, license class, provenance
+  status, health status, criticality, update cadence, build-vs-buy
+  linkage when required, fork-or-replace trigger, release-notice
+  class, and automation-refresh posture.
+- The import register records the byte-level state: copied or mirrored
+  source, local-path home, local modifications, provenance, and the
+  publication targets that will eventually emit notices, SBOM entries,
+  or provenance statements.
+- The workspace still has zero external Cargo dependencies admitted in
+  `Cargo.toml`; the seeded dependency rows are a mix of repo tooling
+  already required today and protected-path choices selected by ADR
+  but not yet manifested.
+- Adding the first external Cargo dependency still requires a truthful
+  `Cargo.lock` update in the same change.
 
 ## Generated code provenance
 
 - Every generated file carries the standard SPDX header plus a
   single-line annotation identifying the generator name and version.
-- Generators that are external tools also have a `generator` row in
-  the compliance checklist so their origin and licence are tracked
-  alongside other supply-chain inputs.
+- External generators or generator runtimes live in
+  `dependency_register.yaml` so their origin, license class, and
+  provenance posture are tracked alongside other supply-chain inputs.
 - Hand-edits to generated files are not accepted; either regenerate
   from source, or convert the file to hand-maintained in a deliberate
   change that removes the "generated by" annotation.
@@ -124,14 +134,15 @@ Companion artifacts:
 
 - The repository does not yet ship a binary distribution, so there is
   no `NOTICE` file at this milestone.
-- Every dependency or vendored file whose licence requires
-  attribution sets `notice_required: true` in its checklist row. The
-  release-engineering DRI consumes that flag when standing up the
-  first distribution channel and producing the initial `NOTICE`
-  contents.
-- Removing a dependency that previously required notice does **not**
-  retire its row; instead, the row's `status` moves to `retired` so
-  the audit trail of "this attribution was once required" survives.
+- `release_notice_seed.yaml` is the canonical seed for third-party
+  attribution. It keys off the stable dependency/import ids rather than
+  a separate notice-id system.
+- A dependency or import row that carries a notice-bearing
+  `release_notice_class` must update `release_notice_seed.yaml` in the
+  same change that introduces or changes the source row.
+- Retiring a dependency or import does not justify deleting its source
+  row; the audit trail of "this attribution once applied" survives in
+  the canonical register and in the release-notice seed.
 
 ## SBOM and provenance commands
 
@@ -156,8 +167,8 @@ The placeholder:
    structural placeholder that downstream lanes can extend.
 3. Records the placeholder provenance summary to
    `target/ci-artifacts/provenance_summary.json`. The summary names
-   the build identity, the toolchain pin, and the compliance
-   checklist version it consumed.
+   the build identity, the toolchain pin, and the canonical
+   dependency/import register revisions it consumed.
 4. Exits zero on success. Failures of the underlying scripts surface
    as CI failures; the script does not swallow errors.
 
@@ -207,23 +218,27 @@ will eventually validate against:
   `governance_packet_template.yaml` will instantiate per release with
   the diff between two adjacent versions of each stable surface.
 
-## Compliance checklist as the single register
+## Compliance checklist as bridge and sweep ledger
 
-The compliance checklist (`compliance_checklist.yaml`) is the only
-canonical home for new dependencies, vendored files, generators, and
-pending notice rows. Adding a parallel register in another part of
-the repository is a governance error.
+The compliance checklist (`compliance_checklist.yaml`) is no longer the
+canonical home for dependency or import rows. Its role is narrow:
+
+- it points reviewers and tooling at
+  `dependency_register.yaml`, `third_party_import_register.yaml`, and
+  `release_notice_seed.yaml`; and
+- it records repository-wide compliance sweeps that are not themselves
+  third-party dependency or import rows.
 
 Change discipline:
 
-- Adding a row requires the same fields listed under "Third-party
-  imports and dependency review" above. Missing fields are validation
-  failures.
-- Retiring a row sets its `status` to `retired` and leaves the row in
-  place with a closing note in `notes`. Rows are not deleted.
-- When this document and the YAML checklist disagree, the YAML is
-  authoritative for tooling and this document must be updated in the
-  same change.
+- Adding a third-party dependency or import row requires updating the
+  canonical register plus this bridge artifact in the same change.
+- Retiring a sweep entry or closing a deferred sweep still happens
+  here; those entries are not dependency rows and do not move into the
+  canonical registers.
+- When this document and the YAML artifacts disagree, the YAML
+  artifacts are authoritative for tooling and this document must be
+  updated in the same change.
 
 ## Solo-maintainer posture
 
@@ -256,5 +271,7 @@ the workspace licence) shares the same discipline:
 1. Open or extend a decision row in
    [`artifacts/governance/decision_index.yaml`](../../artifacts/governance/decision_index.yaml).
 2. Land an ADR that closes it.
-3. Update this document and the compliance checklist in the same
-   change so the baseline and the registers never disagree.
+3. Update this document, the dependency review policy, and whichever of
+   the canonical dependency/import/notice registers or compliance
+   bridge changed in the same commit so the baseline and the registers
+   never disagree.

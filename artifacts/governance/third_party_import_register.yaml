@@ -1,0 +1,150 @@
+# Third-party import register.
+#
+# Canonical register of copied, bundled, or mirrored third-party bytes.
+# This file answers "which non-first-party bytes do we ship or mirror,
+# where did they come from, and how do they flow into notice/SBOM/
+# provenance outputs?" Upstream dependency choices without imported
+# bytes live in dependency_register.yaml.
+
+schema_version: 1
+
+policy_doc: docs/governance/dependency_review_policy.md
+companion_registers:
+  dependency_register: artifacts/governance/dependency_register.yaml
+  release_notice_seed: artifacts/governance/release_notice_seed.yaml
+  compliance_bridge: artifacts/governance/compliance_checklist.yaml
+
+import_kind_classes:
+  - bundled_asset_subset
+  - mirrored_pack
+
+admission_state_classes:
+  - reserved_not_yet_imported
+  - imported_and_tracked
+
+local_modification_classes:
+  - none
+  - subset_or_repack_only
+  - mirror_metadata_only
+
+provenance_status_classes:
+  - reserved_by_contract_not_imported
+  - imported_with_origin_recorded
+
+health_status_classes:
+  - manual_review_seeded
+  - pending_first_import_review
+
+criticality_classes:
+  - protected_path_release_critical
+  - docs_public_truth_supporting
+
+license_class_classes:
+  - redistributable_font_expected_pending_import
+  - upstream_pack_license_to_verify_on_first_mirror
+
+update_cadence_classes:
+  - per_release
+
+release_notice_classes:
+  - bundled_asset_notice_required
+  - docs_pack_manifest_attribution
+
+refresh_mode_classes:
+  - manual_until_imported
+  - mixed_after_first_import
+
+automation_seed:
+  upstream_health_ingest_fields:
+    - upstream_version_or_revision
+    - upstream_source_archive_digest
+    - mirror_revision
+    - signature_or_digest_status
+    - local_patch_digest
+    - notice_text_ref
+  stale_threshold_profiles:
+    - id: reserved_import
+      manual_review_after_days: 30
+      machine_refresh_after_days: null
+    - id: imported_release_asset
+      manual_review_after_days: 90
+      machine_refresh_after_days: 14
+
+rows:
+  - id: import.fonts.noto_subset
+    name: Last-resort bundled Noto-class fallback subset
+    import_kind: bundled_asset_subset
+    admission_state: reserved_not_yet_imported
+    source_dependency_id: dep.text.noto_class_fallback_font
+    local_path_ref: not_yet_seeded
+    owner_dri: "@ahmeddyounis"
+    owning_packages: [aureline-text, aureline-render]
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    license_class: redistributable_font_expected_pending_import
+    provenance_status: reserved_by_contract_not_imported
+    health_status: pending_first_import_review
+    criticality: protected_path_release_critical
+    local_modifications: subset_or_repack_only
+    update_cadence_class: per_release
+    fork_or_replace_trigger: >
+      Replace the source family or subset plan if redistribution terms,
+      signature posture, or glyph coverage can no longer satisfy the
+      renderer fallback contract on the release cadence.
+    release_notice_class: bundled_asset_notice_required
+    sbom_inclusion_class: bundled_asset_when_imported
+    automation_refresh:
+      mode: manual_until_imported
+      stale_threshold_profile: reserved_import
+      evidence_sources:
+        - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+        - prototypes/text_stack/README.md
+        - artifacts/governance/dependency_register.yaml#dep.text.noto_class_fallback_font
+      machine_refresh_fields: []
+      manual_fields:
+        - source_dependency_id
+        - local_path_ref
+        - owner_dri
+        - license_class
+        - provenance_status
+        - criticality
+        - local_modifications
+        - fork_or_replace_trigger
+
+  - id: import.docs.mirrored_official_pack
+    name: Mirrored official docs pack source
+    import_kind: mirrored_pack
+    admission_state: reserved_not_yet_imported
+    source_dependency_id: null
+    local_path_ref: not_yet_seeded
+    owner_dri: "@ahmeddyounis"
+    owning_packages: []
+    owning_lanes: [docs_public_truth, release_evidence]
+    protected_path: false
+    license_class: upstream_pack_license_to_verify_on_first_mirror
+    provenance_status: reserved_by_contract_not_imported
+    health_status: manual_review_seeded
+    criticality: docs_public_truth_supporting
+    local_modifications: mirror_metadata_only
+    update_cadence_class: per_release
+    fork_or_replace_trigger: >
+      Stop mirroring and fall back to project docs or browser handoff if
+      upstream redistribution terms, signature continuity, or mirror
+      freshness can no longer be proven.
+    release_notice_class: docs_pack_manifest_attribution
+    sbom_inclusion_class: docs_pack_component_when_published
+    automation_refresh:
+      mode: manual_until_imported
+      stale_threshold_profile: reserved_import
+      evidence_sources:
+        - docs/adr/0013-docs-help-service-health-truth.md
+        - docs/docs/docs_pack_manifest_contract.md
+      machine_refresh_fields: []
+      manual_fields:
+        - local_path_ref
+        - owner_dri
+        - license_class
+        - provenance_status
+        - criticality
+        - local_modifications
+        - fork_or_replace_trigger

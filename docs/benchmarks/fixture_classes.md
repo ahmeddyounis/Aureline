@@ -172,9 +172,12 @@ is checked in today.
 - `synthetic_no_real_content` — synthetic bytes; no real code,
   customer data, or third-party content.
 - `vendored_with_attribution_pending_notice` — vendored third-party
-  content that requires a NOTICE/SPDX row; the
-  [`compliance_checklist.yaml`](../../artifacts/governance/compliance_checklist.yaml)
-  gains a row in the same change.
+  content that requires an import-register row and a release-notice
+  seed entry; the
+  [`third_party_import_register.yaml`](../../artifacts/governance/third_party_import_register.yaml)
+  and
+  [`release_notice_seed.yaml`](../../artifacts/governance/release_notice_seed.yaml)
+  gain rows in the same change.
 - `requires_extra_privacy_review_before_ci` — the fixture carries
   privacy, export, or retention concerns beyond the public /
   internal classes; the fixture MUST also be marked with a
