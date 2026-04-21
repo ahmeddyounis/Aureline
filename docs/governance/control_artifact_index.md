@@ -134,9 +134,16 @@ governance-packet template. The index only names, routes, and scopes.
   `route_build_truth` rows are the anchor points for release assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
-- Frozen-surface manifests and stable-surface contract metadata are
-  explicitly out of scope at this milestone; the row exists so that
-  the home is reserved and not accidentally duplicated elsewhere.
+- The release-evidence family is now seeded with a narrative packet
+  template in [`docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md),
+  a filled seed example, a release-waiver schema under
+  [`schemas/release/`](../../schemas/release/), and a shared evidence
+  metadata catalog under
+  [`artifacts/evidence/`](../../artifacts/evidence/). Concrete release
+  packets still land under `artifacts/release/` when a real candidate is
+  assembled.
+- Frozen-surface manifests and stable-surface contract metadata remain
+  explicitly out of scope at this milestone.
 
 ## Review cadence semantics
 

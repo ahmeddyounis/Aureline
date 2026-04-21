@@ -1,0 +1,251 @@
+# Evidence metadata field catalog.
+#
+# Shared field names and vocabularies for release-evidence packets,
+# waiver packets, benchmark reports, continuity notes, and later
+# freshness / rehearsal automation.
+#
+# Consumers reuse these field names; they do not mint per-packet
+# freshness keys or private comparability vocabularies.
+
+schema_version: 1
+catalog_id: aureline.release_evidence_metadata_fields
+status: seeded
+
+packet_template_source: docs/release/release_evidence_packet_template.md
+waiver_schema_source: schemas/release/waiver_packet.schema.json
+exact_build_identity_source: docs/build/exact_build_identity_model.md
+continuity_catalog_source: artifacts/support/deployment_drill_catalog_seed.yaml
+benchmark_catalog_source: artifacts/bench/fitness_function_catalog.yaml
+
+artifact_family_vocabulary:
+  - architecture_anchor
+  - benchmark_dashboard
+  - benchmark_run_result
+  - claim_manifest_note
+  - compatibility_row
+  - continuity_drill
+  - exact_build_identity
+  - fitness_catalog_snapshot
+  - install_topology_record
+  - release_evidence_packet
+  - release_note
+  - release_waiver_packet
+
+channel_context_vocabulary:
+  - dev_local
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+  - mixed
+  - not_applicable
+
+deployment_context_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+  - mixed
+  - not_applicable
+
+field_definitions:
+  - field: evidence_id
+    group: core_identity
+    required: true
+    type: string
+    example: evidence.seed.exact_build.ide_binary
+    purpose: Stable id for the evidence item within a packet or export.
+
+  - field: packet_id
+    group: core_identity
+    required: true
+    type: string
+    example: release-evidence.seed.current-repository-baseline
+    purpose: Stable packet id that owns the evidence row.
+
+  - field: artifact_family
+    group: core_identity
+    required: true
+    type: enum
+    vocabulary: artifact_family_vocabulary
+    example: exact_build_identity
+    purpose: Tells automation what class of evidence this is without parsing the ref.
+
+  - field: evidence_ref
+    group: core_identity
+    required: true
+    type: string
+    example: fixtures/build/exact_build_examples/ci_release_stable_linux_ide_binary.json
+    purpose: Repo-relative path or opaque stable ref to the evidence artifact.
+
+  - field: captured_at
+    group: freshness
+    required: true
+    type: RFC3339 UTC timestamp
+    example: 2026-04-13T14:05:12Z
+    purpose: When the evidence item was captured or minted.
+
+  - field: stale_after
+    group: freshness
+    required: true
+    type: ISO-8601 duration or null
+    example: P30D
+    purpose: Time window after which the evidence should be treated as stale unless a stricter trigger fires first.
+
+  - field: source_revision
+    group: provenance
+    required: true
+    type: string
+    example: commit:a4d1c3f0e27b6f91d8e2c1a4b7f3e0c5d9a8b2e1
+    purpose: Revision of the primary source that produced this evidence item.
+
+  - field: trigger_revision
+    group: provenance
+    required: true
+    type: string or null
+    example: exact_build_identity_schema:1
+    purpose: Revision that should force re-baseline or reapproval when it changes even if the evidence bytes do not.
+
+  - field: channel_context
+    group: scope
+    required: true
+    type: enum
+    vocabulary: channel_context_vocabulary
+    example: stable
+    purpose: Release-channel or packet-channel scope under which the evidence was captured.
+
+  - field: deployment_context
+    group: scope
+    required: true
+    type: list of enum values
+    vocabulary: deployment_context_vocabulary
+    example:
+      - individual_local
+      - self_hosted
+    purpose: Deployment profiles the evidence truthfully covers.
+
+  - field: comparability_note
+    group: scope
+    required: true
+    type: string
+    example: Same coordinated artifact set as the paired debug-symbol and docs-pack identities.
+    purpose: Plain-language statement of whether the evidence is comparable, seed-only, or otherwise narrowed.
+
+  - field: exact_build_identity_ref
+    group: cross_refs
+    required: false
+    type: string or null
+    example: build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b
+    purpose: Exact-build anchor when the evidence resolves to a specific build identity.
+
+  - field: source_anchor_refs
+    group: cross_refs
+    required: false
+    type: list of strings
+    example:
+      - docs/build/exact_build_identity_model.md#public-evidence-packet
+    purpose: Anchors that explain the governing contract this evidence is meant to satisfy.
+
+  - field: qualification_row_refs
+    group: cross_refs
+    required: false
+    type: list of strings
+    example:
+      - compat_row:release_identity.exact_build_propagation
+    purpose: Compatibility or qualification rows this evidence speaks for.
+
+  - field: continuity_drill_refs
+    group: cross_refs
+    required: false
+    type: list of strings
+    example:
+      - benchmark_lab_local_only_capture
+    purpose: Continuity or impairment drills that define the truthful degraded envelope.
+
+  - field: waiver_packet_refs
+    group: cross_refs
+    required: false
+    type: list of strings
+    example:
+      - waiver.release.preview_only.remote_attach
+    purpose: Active waiver packets that currently narrow or condition this evidence.
+
+freshness_rules:
+  - captured_at is always UTC and never inferred from a human-readable note alone.
+  - stale_after is mandatory even when its truthful value is null; automation must not guess whether evidence is time-bound.
+  - source_revision and trigger_revision are separate on purpose: source_revision says what generated the evidence, trigger_revision says what should invalidate it.
+  - comparability_note is mandatory whenever evidence is seed-only, self-captured, partially stale, or otherwise not claim-bearing.
+  - channel_context and deployment_context describe the envelope in which the evidence was captured; widening either envelope requires a fresh evidence row or a waiver.
+
+seed_examples:
+  - evidence_id: evidence.seed.exact_build.ide_binary
+    packet_id: release-evidence.seed.current-repository-baseline
+    artifact_family: exact_build_identity
+    evidence_ref: fixtures/build/exact_build_examples/ci_release_stable_linux_ide_binary.json
+    captured_at: 2026-04-13T14:05:12Z
+    stale_after: null
+    source_revision: commit:a4d1c3f0e27b6f91d8e2c1a4b7f3e0c5d9a8b2e1
+    trigger_revision: exact_build_identity_schema:1
+    channel_context: stable
+    deployment_context:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    comparability_note: Same coordinated artifact set as the paired debug-symbol and docs-pack identities.
+    exact_build_identity_ref: build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b
+    source_anchor_refs:
+      - docs/build/exact_build_identity_model.md#public-evidence-packet
+    qualification_row_refs:
+      - compat_row:release_identity.exact_build_propagation
+    continuity_drill_refs: []
+    waiver_packet_refs: []
+
+  - evidence_id: evidence.seed.benchmark.self_capture
+    packet_id: release-evidence.seed.current-repository-baseline
+    artifact_family: benchmark_run_result
+    evidence_ref: artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json
+    captured_at: 1970-01-01T00:00:00Z
+    stale_after: P0D
+    source_revision: benchmark_run.seed.self_capture
+    trigger_revision: aureline.protected_fitness_function_catalog@1
+    channel_context: dev_local
+    deployment_context:
+      - individual_local
+      - self_hosted
+      - air_gapped
+    comparability_note: Seed-only self-capture; useful for packet assembly, not for claim widening.
+    exact_build_identity_ref: exact_build_identity.seed.self_capture
+    source_anchor_refs:
+      - docs/benchmarks/fitness_function_catalog.md#10-export-format-for-shiproom-review-packets
+    qualification_row_refs:
+      - compat_row:desktop_benchmark_lab.exact_build_identity
+    continuity_drill_refs:
+      - benchmark_lab_local_only_capture
+    waiver_packet_refs: []
+
+  - evidence_id: evidence.seed.continuity.benchmark_lab_local_only_capture
+    packet_id: release-evidence.seed.current-repository-baseline
+    artifact_family: continuity_drill
+    evidence_ref: fixtures/deployment/impairment_cases/benchmark_lab_local_only_capture.json
+    captured_at: 2026-04-21T20:45:00Z
+    stale_after: P30D
+    source_revision: deployment_drill_catalog_seed@1
+    trigger_revision: drill:benchmark_lab_local_only_capture
+    channel_context: not_applicable
+    deployment_context:
+      - individual_local
+      - self_hosted
+      - air_gapped
+    comparability_note: Continuity truth is intentionally local-only; hosted compare and managed publish remain out of scope.
+    exact_build_identity_ref: null
+    source_anchor_refs:
+      - docs/deployment/drill_catalog_seed.md
+    qualification_row_refs: []
+    continuity_drill_refs:
+      - benchmark_lab_local_only_capture
+    waiver_packet_refs: []

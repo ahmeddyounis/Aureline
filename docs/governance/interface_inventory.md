@@ -90,6 +90,7 @@ Owning lane: `aureline-telemetry`. Related review lane:
 ### Release and compatibility surfaces
 
 - Release channel, cadence, and rollback posture.
+- Release-evidence packet structure, waiver workflow, and evidence-freshness metadata.
 - Frozen-surface manifest (which surfaces are frozen under which
   promise).
 - Compatibility report deltas between releases.

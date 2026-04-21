@@ -1,0 +1,153 @@
+# Release-evidence packet template
+
+<!--
+Copy this template when assembling a release-evidence packet or a
+pre-release seed packet.
+
+Related control artifacts:
+- docs/build/exact_build_identity_model.md
+- docs/benchmarks/fitness_function_catalog.md
+- docs/compat/compatibility_row_seed.md
+- docs/deployment/drill_catalog_seed.md
+- schemas/release/waiver_packet.schema.json
+- artifacts/evidence/evidence_metadata_fields.yaml
+
+This packet is intentionally structured around stable refs:
+exact_build_identity_ref, evidence_id, compat_row id, drill_id,
+source_anchor_ref, and waiver packet id. Do not substitute free-text
+"same build as..." naming where a stable ref exists.
+-->
+
+- **Packet id:** `<release-evidence-packet-id>`
+- **Packet state:** `draft` | `in_review` | `accepted` | `blocked` | `superseded`
+- **Readiness:** `releasable` | `preview_only` | `narrow_claims` | `blocked`
+- **Candidate or scope:** `<candidate-or-snapshot-label>`
+- **Opened on:** `YYYY-MM-DD`
+- **Assembled on:** `YYYY-MM-DDTHH:MM:SSZ`
+- **Release channel scope:** `nightly` | `preview` | `beta` | `stable` | `lts` | `hotfix`
+- **Deployment profile scope:** deployment-profile ids from `artifacts/compat/qualification_matrix_seed.yaml`
+- **Owner:** `@handle`
+- **Evidence owner:** `@handle`
+- **Review forums:** `release_council`, `shiproom_executive_scope_review`, `<other forum if required>`
+- **Benchmark-governance revision:** `<catalog-id>@<catalog-revision>`
+- **Primary exact-build identity set:** list of `exact_build_identity_ref`
+- **Active waiver packet refs:** waiver packet ids or `none`
+
+## Executive summary
+
+Two or three sentences: what this packet is asserting, what is
+explicitly out of scope, and whether the current state is releasable,
+preview-only, or claim-narrowed.
+
+## Architecture anchors
+
+- **Source anchor refs:**
+  - `<path>#<anchor>` or `<doc> §<section>` — short note on why this
+    anchor matters to the packet.
+  - ...
+- **Protected rows or requirement refs:**
+  - `<requirement-id>` / `<fitness-row-id>` / `<compat-row-id>`
+  - ...
+
+## Exact-build identity set
+
+| Artifact family | `exact_build_identity_ref` | Evidence linkage | Source |
+|---|---|---|---|
+| `<ide_binary>` | `<exact_build_identity_ref>` | `build_log_ref`, `artifact_graph_node_ref`, `public_release_note_ref` | `<repo-relative path>` |
+| `<docs_pack>` | `<exact_build_identity_ref>` | `provenance_statement_ref`, `sbom_document_ref` | `<repo-relative path>` |
+| ... | ... | ... | ... |
+
+## Benchmark and fitness evidence
+
+- **Catalog:** `artifacts/bench/fitness_function_catalog.yaml` (`catalog_revision: <n>`)
+- **Runs or dashboards cited:** `benchmark_run_id`, `dashboard_id`, or both
+- **Freshness and comparability:** one sentence that says whether the
+  evidence is claim-bearing, seed-only, stale, or not yet comparable.
+
+| `evidence_id` | Row or run ref | Captured at | `stale_after` | Comparability note | Source |
+|---|---|---|---|---|---|
+| `<evidence-id>` | `<fitness-row-id or run-id>` | `YYYY-MM-DDTHH:MM:SSZ` | `<duration or null>` | `<why comparable or not>` | `<repo-relative path>` |
+| ... | ... | ... | ... | ... | ... |
+
+## Qualification and compatibility
+
+- **Qualification row refs:**
+  - `<compat-row-id>` — verdict, evidence status, and source path.
+  - ...
+- **Qualification packet or report refs:**
+  - `<packet-id or stable ref>` — `present`, `seed_only`, or `not_yet_available`.
+  - ...
+- **Future conformance or compatibility rows to refresh before widening claim:**
+  - `<compat-row-id>` — reason it is still future or narrowed.
+  - ...
+
+## Locality and continuity truth
+
+- **Deployment context:** `<profiles, install posture, or ring scope>`
+- **Continuity drill refs:** `drill_id` values from `artifacts/support/deployment_drill_catalog_seed.yaml`
+- **Locality / region / tenant / key posture:** plain truth for the
+  claimed path; do not hide `not_applicable` or `local_only` states.
+- **Linked release inputs:** install-topology, state-root, or mirror
+  packet refs that explain the deployment envelope.
+
+## Active waivers
+
+List every active waiver packet that narrows or temporarily bypasses a
+claimed row. A packet with no active waivers should say `none` here,
+not leave the section blank.
+
+- **Waiver packet:** `<waiver-packet-id>`
+  - **Workflow state:** `draft` | `submitted_for_review` | `active` | `renewal_requested` | `renewed` | `rejected` | `closed` | `expired`
+  - **Affected requirement / protected path:** `<requirement-id>` / `<fitness-row-id>` / `<protected-path-id>`
+  - **Mitigation now:** `<short mitigation>`
+  - **Compensating evidence:** `<evidence-id>` values
+  - **Owner and expiry:** `@handle`, `YYYY-MM-DDTHH:MM:SSZ`
+
+## Waiver workflow
+
+1. Open a packet that conforms to `schemas/release/waiver_packet.schema.json`.
+2. Move `workflow_state` from `draft` to `submitted_for_review` once
+   the exact gap, owner, mitigation, compensating evidence, and expiry
+   are present.
+3. Only list the waiver in **Active waivers** after the packet reaches
+   `active` or `renewed`.
+4. Renewals must cite a new `source_revision`, updated compensating
+   evidence freshness, and a new expiry; silent roll-forward is
+   non-conforming.
+5. Close or let the waiver expire before widening the next release
+   gate. Expired waivers stay visible in the packet until replaced or
+   closed.
+
+## Risks and disclosure
+
+- User-visible or enterprise-relevant risks that still remain.
+- Release-note disclosures required by active waivers or narrowed claims.
+- Evidence that is stale, seed-only, or pending re-baseline.
+
+## Evidence index
+
+Every evidence item listed here should use the shared field names from
+`artifacts/evidence/evidence_metadata_fields.yaml`.
+
+- **`evidence_id:`** `<evidence-id>`
+  - **Artifact family:** `<artifact-family>`
+  - **Packet id:** `<release-evidence-packet-id>`
+  - **Evidence ref:** `<repo-relative path or opaque ref>`
+  - **Captured at:** `YYYY-MM-DDTHH:MM:SSZ`
+  - **Stale after:** `<ISO-8601 duration or null>`
+  - **Source revision:** `<commit, schema revision, or document revision>`
+  - **Trigger revision:** `<catalog/schema/anchor revision or null>`
+  - **Channel context:** `<channel>`
+  - **Deployment context:** `<profile ids>`
+  - **Comparability note:** `<one sentence>`
+  - **Exact-build identity ref:** `<exact_build_identity_ref or null>`
+  - **Source anchor refs:** `<anchor refs or none>`
+  - **Qualification row refs:** `<compat-row ids or none>`
+  - **Continuity drill refs:** `<drill ids or none>`
+  - **Waiver packet refs:** `<waiver ids or none>`
+
+## Signoff and next action
+
+- **Decision:** `accept packet` | `keep preview-only` | `narrow claims` | `block release`
+- **Named next action:** one sentence that says what evidence refresh,
+  waiver closure, or compatibility recheck is required next.

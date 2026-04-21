@@ -1,0 +1,764 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/waiver_packet.schema.json",
+  "title": "Aureline release waiver packet",
+  "description": "Boundary schema for the release_waiver_packet consumed by release-evidence assembly, shiproom review, and later waiver-expiry automation. A packet names the exact gap being waived, the affected requirement / protected path / fitness row, the release and deployment envelope, the mitigation, the compensating evidence, and the expiry or renewal workflow. The narrative companion lives in docs/release/release_evidence_packet_template.md; the shared evidence freshness field names live in artifacts/evidence/evidence_metadata_fields.yaml. Raw ticket text, raw reviewer notes, and secret-bearing evidence never cross this boundary; the packet carries stable ids, typed vocabulary, UTC timestamps, and opaque refs only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "waiver_packet_schema_version",
+    "record_kind",
+    "packet_id",
+    "workflow_state",
+    "opened_at",
+    "owner",
+    "evidence_owner",
+    "approver_forum",
+    "scope_kind",
+    "affected_release_channels",
+    "deployment_profiles",
+    "gap_summary",
+    "risk_summary",
+    "mitigation_summary",
+    "planned_exit",
+    "release_note_disclosure",
+    "compensating_evidence",
+    "expiry",
+    "renewal_count",
+    "source_revision"
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/utc_datetime"
+        }
+      ]
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable handle or team alias, for example '@release-dri' or 'release-evidence@team'."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Release-channel vocabulary aligned with schemas/build/exact_build_identity.schema.json."
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary aligned with artifacts/compat/qualification_matrix_seed.yaml."
+    },
+    "deployment_context_value": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "mixed",
+        "not_applicable"
+      ]
+    },
+    "channel_context_value": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "mixed",
+        "not_applicable"
+      ]
+    },
+    "scope_kind": {
+      "type": "string",
+      "enum": [
+        "requirement_gap",
+        "fitness_regression",
+        "architecture_conformance_gap",
+        "compatibility_gap",
+        "continuity_gap",
+        "publication_gap",
+        "security_or_compliance_gap",
+        "other"
+      ],
+      "description": "What class of release gap is being waived."
+    },
+    "workflow_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted_for_review",
+        "active",
+        "renewal_requested",
+        "renewed",
+        "rejected",
+        "closed",
+        "expired"
+      ],
+      "description": "Release-waiver workflow. Only active and renewed waivers may narrow a live release packet."
+    },
+    "approver_forum": {
+      "type": "string",
+      "enum": [
+        "architecture_council",
+        "performance_council",
+        "security_trust_review",
+        "compatibility_ecosystem_review",
+        "product_scope_review",
+        "release_council",
+        "shiproom_executive_scope_review"
+      ],
+      "description": "Forum that approves or rejects the waiver."
+    },
+    "reapproval_trigger": {
+      "type": "string",
+      "enum": [
+        "next_release_gate",
+        "channel_widening",
+        "deployment_profile_widening",
+        "source_revision_change",
+        "trigger_revision_change",
+        "evidence_freshness_expired",
+        "exact_build_identity_change"
+      ],
+      "description": "Events that force reapproval before the waiver may remain active."
+    },
+    "renewal_policy": {
+      "type": "string",
+      "enum": [
+        "fresh_evidence_required",
+        "forum_reapproval_required",
+        "executive_review_required",
+        "no_renewal_allowed"
+      ],
+      "description": "Renewal rule once the expiry boundary is reached."
+    },
+    "maximum_validity_window": {
+      "type": "string",
+      "enum": [
+        "next_release_gate",
+        "ninety_days",
+        "one_minor_release",
+        "custom"
+      ],
+      "description": "Maximum validity envelope recorded for review; used to keep waivers time-bounded."
+    },
+    "stale_evidence_behavior": {
+      "type": "string",
+      "enum": [
+        "block_release",
+        "narrow_claim",
+        "renew_before_gate"
+      ],
+      "description": "What happens if the compensating evidence becomes stale before the waiver closes."
+    },
+    "evidence_artifact_family": {
+      "type": "string",
+      "enum": [
+        "architecture_anchor",
+        "benchmark_dashboard",
+        "benchmark_run_result",
+        "claim_manifest_note",
+        "compatibility_row",
+        "continuity_drill",
+        "exact_build_identity",
+        "fitness_catalog_snapshot",
+        "install_topology_record",
+        "release_evidence_packet",
+        "release_note",
+        "release_waiver_packet"
+      ],
+      "description": "Shared evidence-artifact family vocabulary used by release packets and waiver packets."
+    },
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "artifact_family",
+        "evidence_ref",
+        "captured_at",
+        "stale_after",
+        "source_revision",
+        "trigger_revision",
+        "channel_context",
+        "deployment_context",
+        "comparability_note"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable id for the compensating evidence item."
+        },
+        "artifact_family": {
+          "$ref": "#/$defs/evidence_artifact_family"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative path or opaque stable ref."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/utc_datetime"
+        },
+        "stale_after": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "description": "ISO 8601 duration or null when the evidence is event-bound rather than time-bound."
+        },
+        "source_revision": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Revision of the evidence source itself: commit, schema revision, run id, or document revision."
+        },
+        "trigger_revision": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ],
+          "description": "Revision that should force re-baseline or reapproval when it changes."
+        },
+        "channel_context": {
+          "$ref": "#/$defs/channel_context_value"
+        },
+        "deployment_context": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_context_value"
+          }
+        },
+        "comparability_note": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exact_build_identity_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "source_anchor_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    "release_note_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "description": "Whether the waiver must be disclosed in release notes or shiproom-facing public truth."
+        },
+        "public_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "release_note_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at",
+        "renewal_policy",
+        "maximum_validity_window",
+        "reapproval_triggers",
+        "stale_evidence_behavior"
+      ],
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/utc_datetime"
+        },
+        "renewal_policy": {
+          "$ref": "#/$defs/renewal_policy"
+        },
+        "maximum_validity_window": {
+          "$ref": "#/$defs/maximum_validity_window"
+        },
+        "custom_validity_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reapproval_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reapproval_trigger"
+          }
+        },
+        "stale_evidence_behavior": {
+          "$ref": "#/$defs/stale_evidence_behavior"
+        }
+      }
+    }
+  },
+  "properties": {
+    "waiver_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this release-waiver packet export."
+    },
+    "record_kind": {
+      "const": "release_waiver_packet"
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Stable release-waiver packet id."
+    },
+    "workflow_state": {
+      "$ref": "#/$defs/workflow_state"
+    },
+    "opened_at": {
+      "$ref": "#/$defs/utc_datetime"
+    },
+    "submitted_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "approved_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "closed_at": {
+      "$ref": "#/$defs/nullable_utc_datetime"
+    },
+    "owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Primary accountable owner for the gap and its closure."
+    },
+    "evidence_owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Owner responsible for the compensating evidence staying current."
+    },
+    "approver_forum": {
+      "$ref": "#/$defs/approver_forum"
+    },
+    "approved_by": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/owner_ref"
+      }
+    },
+    "scope_kind": {
+      "$ref": "#/$defs/scope_kind"
+    },
+    "affected_requirement_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "description": "Requirement ids affected by the waiver."
+    },
+    "affected_fitness_function_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "description": "Protected fitness row ids affected by the waiver."
+    },
+    "affected_protected_path_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "description": "Protected-path or workflow ids affected by the waiver."
+    },
+    "affected_release_channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/release_channel_class"
+      }
+    },
+    "deployment_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/deployment_profile"
+      }
+    },
+    "source_anchor_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "description": "Source anchors that explain the waived contract, when such anchors exist."
+    },
+    "exact_build_identity_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "qualification_row_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "continuity_drill_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "gap_summary": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Plain-language statement of what is not currently meeting the claim."
+    },
+    "user_visible_effect": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Plain-language effect when the waived gap is user-visible or operator-visible."
+    },
+    "risk_summary": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "mitigation_summary": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "planned_exit": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Concrete condition or work item that closes the waiver."
+    },
+    "source_revision": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Revision of the primary waived source: commit, schema revision, packet revision, or report revision."
+    },
+    "trigger_revision": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ],
+      "description": "External revision that should invalidate the current waiver if it changes."
+    },
+    "release_note_disclosure": {
+      "$ref": "#/$defs/release_note_disclosure"
+    },
+    "compensating_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_item"
+      },
+      "description": "Evidence that makes the narrowed or temporary release posture reviewable."
+    },
+    "expiry": {
+      "$ref": "#/$defs/expiry"
+    },
+    "renewal_of_packet_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ]
+    },
+    "renewal_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many times this packet has been renewed. Silent rollover is non-conforming."
+    },
+    "related_release_packet_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "description": "A waiver must target at least one requirement, fitness row, or protected path.",
+      "anyOf": [
+        {
+          "properties": {
+            "affected_requirement_refs": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "affected_requirement_refs"
+          ]
+        },
+        {
+          "properties": {
+            "affected_fitness_function_refs": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "affected_fitness_function_refs"
+          ]
+        },
+        {
+          "properties": {
+            "affected_protected_path_refs": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "affected_protected_path_refs"
+          ]
+        }
+      ]
+    },
+    {
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "submitted_for_review",
+              "active",
+              "renewal_requested",
+              "renewed",
+              "rejected",
+              "closed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "workflow_state"
+        ]
+      },
+      "then": {
+        "required": [
+          "submitted_at"
+        ],
+        "properties": {
+          "submitted_at": {
+            "$ref": "#/$defs/utc_datetime"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "active",
+              "renewed",
+              "closed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "workflow_state"
+        ]
+      },
+      "then": {
+        "required": [
+          "approved_at",
+          "approved_by"
+        ],
+        "properties": {
+          "approved_at": {
+            "$ref": "#/$defs/utc_datetime"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "enum": [
+              "rejected",
+              "closed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "workflow_state"
+        ]
+      },
+      "then": {
+        "required": [
+          "closed_at"
+        ],
+        "properties": {
+          "closed_at": {
+            "$ref": "#/$defs/utc_datetime"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "workflow_state": {
+            "const": "renewed"
+          }
+        },
+        "required": [
+          "workflow_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "renewal_count": {
+            "minimum": 1
+          },
+          "renewal_of_packet_id": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "required": [
+          "renewal_of_packet_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "renewal_count": {
+            "minimum": 1
+          }
+        },
+        "required": [
+          "renewal_count"
+        ]
+      },
+      "then": {
+        "properties": {
+          "renewal_of_packet_id": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "required": [
+          "renewal_of_packet_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "release_note_disclosure": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            },
+            "required": [
+              "required"
+            ]
+          }
+        },
+        "required": [
+          "release_note_disclosure"
+        ]
+      },
+      "then": {
+        "properties": {
+          "release_note_disclosure": {
+            "required": [
+              "public_summary"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "expiry": {
+            "properties": {
+              "maximum_validity_window": {
+                "const": "custom"
+              }
+            },
+            "required": [
+              "maximum_validity_window"
+            ]
+          }
+        },
+        "required": [
+          "expiry"
+        ]
+      },
+      "then": {
+        "properties": {
+          "expiry": {
+            "required": [
+              "custom_validity_note"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
