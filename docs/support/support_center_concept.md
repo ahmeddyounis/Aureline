@@ -99,12 +99,19 @@ show:
 - what is excluded by default;
 - what was redacted;
 - which artifacts were collected locally versus generated on demand;
+- which shared `record_class_id` each artifact resolves to, and whether
+  the item is local-only, a managed reference, an export packet, or a
+  receipt reference;
 - which build, finding, and repair identifiers remain visible even after
   redaction.
 
 The Center should treat bundle preview as a review surface, not a final
 confirmation dialog. If policy prevents adding or removing an item, the
-user should see that in the preview itself.
+user should see that in the preview itself. The preview quotes the
+shared record-class registry
+([`docs/governance/record_class_governance.md`](../governance/record_class_governance.md))
+so support exports do not invent their own retention or offboarding
+labels.
 
 ## Object-specific issue handoff
 

@@ -1,0 +1,523 @@
+# Record-class registry seed.
+#
+# Machine-readable registry backing docs/governance/record_class_governance.md.
+# Each row names one governed record class before implementation hard-codes
+# retention, export, delete, hold, or offboarding behavior into a feature.
+#
+# Tooling and future product surfaces (policy explainers, support-bundle
+# preview, schema-registry exports, boundary reviews, access/export flows,
+# delete/destruction flows, AI evidence packets, and offboarding packets)
+# read these rows so they do not invent a private "retention class" or
+# vague lifecycle label.
+#
+# Conformance: every row conforms to
+#   schemas/governance/record_class.schema.json
+# as a `record_class_row`.
+#
+# Rules:
+#   - docs/governance/record_state_and_policy_simulation_models.md remains
+#     the per-record state machine. This registry is the class-level
+#     default posture that composes over it.
+#   - Delete, export, hold, offboarding, and retention stay in separate
+#     objects on every row; no row collapses them into one lifecycle
+#     string.
+#   - New managed copies, support exports, AI evidence packets, usage
+#     exports, offboarding packets, and destruction receipts land a row
+#     here in the same change that introduces the class.
+#   - Every row cites at least one redaction artifact and one retention
+#     artifact so later policy or support claims do not hide record
+#     behavior behind implementation details.
+
+schema_version: 1
+schema_ref: schemas/governance/record_class.schema.json
+overview_page: docs/governance/record_class_governance.md
+paired_record_state_model_ref: docs/governance/record_state_and_policy_simulation_models.md
+
+rows:
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: telemetry_contract_schema
+    title: Telemetry schema and taxonomy descriptor
+    description: >
+      Versioned schema and taxonomy rows that define telemetry event,
+      metric, crash-tag, and redaction semantics. This class governs the
+      descriptor and generated-reference row, not the user's emitted event
+      stream.
+    scope_posture:
+      authoritative_scope: local_device
+      local_materialization: required_local_authoritative
+      managed_copy_posture: optional_opt_in
+      export_packet_posture: can_be_emitted_as_export_packet
+    retention_posture:
+      local_retention_owner_ref: docs_public_truth
+      managed_retention_owner_ref: support_export
+      default_trigger_class: version_replace_or_user_reset
+      retention_notes:
+        - Older schema revisions stay available long enough to interpret retained telemetry, crash, or usage packets honestly.
+    hold_posture:
+      eligible: false
+      hold_classes: []
+    delete_posture:
+      request_supported: false
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: false
+      completion_evidence: not_applicable
+    export_posture:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - yaml
+      manifest_required: false
+    offboarding_posture:
+      package_role: include_as_export
+      open_format_required: true
+      notes:
+        - Usage or offboarding packets should cite the schema revision they were built against.
+    partial_result_cause_set: []
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/settings/settings_vocabulary.md
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+    notes: >
+      Schema-registry and generated-reference surfaces should quote this
+      row rather than inventing an implied retention class for telemetry
+      descriptors.
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: crash_diagnostic_payload
+    title: Crash and diagnostic payload
+    description: >
+      Crash dumps, doctor probe captures, symbolication inputs, and
+      diagnostic sidecars produced while investigating a local or remote
+      failure. The payload may remain local-only or be promoted into a
+      managed support case under explicit export or upload posture.
+    scope_posture:
+      authoritative_scope: local_device
+      local_materialization: required_local_authoritative
+      managed_copy_posture: optional_opt_in
+      export_packet_posture: can_be_emitted_as_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: support_export
+      default_trigger_class: case_close_or_policy_timer
+      retention_notes:
+        - Local copies stay user-owned until they are exported or attached to a managed support case.
+        - Managed copies follow case closure, explicit retention floor, or support-policy timer rather than the local file's deletion.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - tar_gz_archive
+        - markdown
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_inventory
+      open_format_required: true
+      notes:
+        - Local-only crash artifacts may require manual capture during access or offboarding workflows.
+    partial_result_cause_set:
+      - omitted_by_redaction
+      - manual_local_capture_required
+      - reference_only_managed_content
+      - source_unavailable_or_expired
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_center_concept.md
+        - docs/build/exact_build_identity_model.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: support_bundle_archive
+    title: Support bundle archive
+    description: >
+      Redaction-aware bundle assembled for local review, escalation, or
+      parity audit. The archive is itself an export packet and may embed
+      local artifacts plus managed references when policy allows.
+    scope_posture:
+      authoritative_scope: local_device
+      local_materialization: required_local_authoritative
+      managed_copy_posture: optional_opt_in
+      export_packet_posture: is_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: support_export
+      default_trigger_class: packet_expiry_or_case_close
+      retention_notes:
+        - Local bundle files remain user-controlled even when a managed case later keeps a copy or a manifest row.
+        - Managed bundle retention follows case closure, packet expiry, or a stricter policy hold.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+        - export_pending
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: packet_is_export
+      default_formats:
+        - tar_gz_archive
+        - json
+        - markdown
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_inventory
+      open_format_required: true
+      notes:
+        - Exit packets may quote bundle manifests or managed references, but a prior support bundle is not itself the offboarding package.
+    partial_result_cause_set:
+      - omitted_by_redaction
+      - reference_only_managed_content
+      - source_unavailable_or_expired
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_center_concept.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+    notes: >
+      Preview surfaces should quote this row to distinguish local bytes,
+      managed refs, and omitted classes instead of collapsing them into a
+      generic "bundle size" summary.
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: collaboration_evidence_packet
+    title: Collaboration and review evidence packet
+    description: >
+      Comments, replay packs, role-grant history, review metadata, and
+      similar shared-session evidence. Managed archives are the durable
+      source of record for shared history; local replay or cache material
+      remains a separate posture.
+    scope_posture:
+      authoritative_scope: mixed_control_plane
+      local_materialization: local_preview_or_cache
+      managed_copy_posture: managed_authoritative
+      export_packet_posture: is_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: operator_admin
+      default_trigger_class: session_end_or_archive_seal
+      retention_notes:
+        - Archived review or session evidence may outlive live presence state.
+        - Local replay caches are not proof that the managed archive was erased.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: packet_is_export
+      default_formats:
+        - jsonl
+        - csv
+        - markdown
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_export
+      open_format_required: true
+      notes:
+        - Offboarding should separate shared-session archives from any local-only replay cache or manual capture step.
+    partial_result_cause_set:
+      - blocked_by_hold
+      - omitted_by_redaction
+      - manual_local_capture_required
+      - outside_platform_scope
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: ai_retained_evidence_packet
+    title: AI retained evidence packet
+    description: >
+      AI evidence packets, tainted-fence state, route and spend receipts,
+      and citation anchors preserved for review, support replay, or audit.
+      The packet is the export shape; local copies and managed retained
+      copies remain separately governed.
+    scope_posture:
+      authoritative_scope: mixed_control_plane
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      export_packet_posture: is_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: operator_admin
+      default_trigger_class: packet_expiry_or_case_close
+      retention_notes:
+        - Review, incident, or support linkage may extend retention beyond the ordinary packet-expiry timer.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - markdown
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_export
+      open_format_required: true
+      notes:
+        - Offboarding and access-export flows should preserve citation and tainted-fence metadata without requiring live provider access.
+    partial_result_cause_set:
+      - omitted_by_redaction
+      - blocked_by_hold
+      - reference_only_managed_content
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        - docs/ai/context_assembly_contract.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/ai/context_assembly_contract.md
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+      schema_refs:
+        - schemas/ai/context_assembly.schema.json
+        - schemas/ai/evidence_packet.schema.json
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: entitlement_usage_export_packet
+    title: Entitlement and usage export packet
+    description: >
+      Usage snapshots, seat or quota summaries, entitlement state, and
+      policy-adjacent export packets made available to an end user or
+      admin during access, export, or managed offboarding workflows.
+    scope_posture:
+      authoritative_scope: generated_packet_only
+      local_materialization: local_export_copy_only
+      managed_copy_posture: required_when_managed
+      export_packet_posture: is_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: operator_admin
+      default_trigger_class: billing_period_close_or_policy_event
+      retention_notes:
+        - Managed aggregates follow finance, audit, or entitlement-policy retention even after a local export file is deleted.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: packet_is_export
+      default_formats:
+        - csv
+        - json
+        - signed_json
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_export
+      open_format_required: true
+      notes:
+        - Restricted or offboarded managed users still need the last contractually promised usage and policy snapshot.
+    partial_result_cause_set:
+      - policy_retained
+      - omitted_by_redaction
+      - outside_platform_scope
+      - manual_local_capture_required
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+    notes: >
+      Export, delete, and offboarding remain separate actions for this
+      class. Deleting a downloaded packet does not imply the managed
+      aggregate or entitlement ledger was erased.
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: offboarding_exit_packet
+    title: Offboarding and access-end packet
+    description: >
+      Exit package that inventories managed artifacts, links the usage
+      export and policy or registry export, declares held-data notes, and
+      records the managed access-end date together with any manual local
+      capture requirement.
+    scope_posture:
+      authoritative_scope: generated_packet_only
+      local_materialization: local_export_copy_only
+      managed_copy_posture: required_when_managed
+      export_packet_posture: is_export_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: operator_admin
+      default_trigger_class: export_delivery_or_access_end
+      retention_notes:
+        - The packet should outlive the access cutover long enough for the user or org to verify what remained held, exported, or outside platform scope.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+    export_posture:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+    offboarding_posture:
+      package_role: is_exit_packet
+      open_format_required: true
+      notes:
+        - The exit packet is the user-visible proof of what was exported, what remained held, and what local-only capture stayed outside platform scope.
+    partial_result_cause_set:
+      - blocked_by_hold
+      - policy_retained
+      - manual_local_capture_required
+      - outside_platform_scope
+      - omitted_by_redaction
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+
+  - record_kind: record_class_row
+    record_class_schema_version: 1
+    record_class_id: destruction_receipt_record
+    title: Destruction receipt
+    description: >
+      Evidence of a delete, redaction, or destruction action that names
+      destroyed refs, retained refs, skipped-held refs, verifier identity,
+      and timestamp. The receipt is proof of action, not a hidden payload
+      resurrection channel.
+    scope_posture:
+      authoritative_scope: generated_packet_only
+      local_materialization: local_export_copy_only
+      managed_copy_posture: managed_authoritative
+      export_packet_posture: is_receipt_packet
+    retention_posture:
+      local_retention_owner_ref: local_user
+      managed_retention_owner_ref: governance_packets
+      default_trigger_class: delete_action_completion
+      retention_notes:
+        - The managed receipt store may be append-only or otherwise integrity-preserving even when the underlying payload was destroyed.
+    hold_posture:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_posture:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: tombstone_or_summary
+    export_posture:
+      availability: receipt_emitted_on_action
+      default_formats:
+        - json
+        - markdown
+        - signed_json
+      manifest_required: true
+    offboarding_posture:
+      package_role: include_as_receipt_reference
+      open_format_required: true
+      notes:
+        - Offboarding and delete-case summaries should cite receipt ids rather than implying invisible backend completion.
+    partial_result_cause_set:
+      - blocked_by_hold
+      - policy_retained
+      - outside_platform_scope
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+        - docs/support/support_center_concept.md
+      supportability_refs:
+        - docs/support/support_center_concept.md
+    notes: >
+      A receipt may prove only partial completion. It must list retained
+      and skipped-held refs rather than imply total erasure.

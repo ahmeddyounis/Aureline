@@ -14,11 +14,24 @@ The machine-readable schemas live at:
 - [`/schemas/governance/record_state.schema.json`](../../schemas/governance/record_state.schema.json)
 - [`/schemas/governance/waiver_expiry.schema.json`](../../schemas/governance/waiver_expiry.schema.json)
 
+The class-level registry that answers *what kind of record is this* and
+*does this class have local-only copies, managed copies, export packets,
+or receipts* lives at:
+
+- [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
+- [`/schemas/governance/record_class.schema.json`](../../schemas/governance/record_class.schema.json)
+
 Both schemas share one chronology packet (defined in
 `record_state.schema.json` and re-used by `waiver_expiry.schema.json`)
 so every record, transition event, simulation row, waiver, and
 remembered decision discloses absolute time, civil time, monotonic
 duration, skew, ordering, and representation rules the same way.
+
+The distinction is deliberate: this document governs the state of one
+record instance, while the record-class registry governs the default
+retention, export, delete, hold, and offboarding posture of the class
+that instance belongs to. Surfaces that need both answers must read both
+artifacts.
 
 This document does not restate ADR 0001, ADR 0006, ADR 0007, ADR 0008,
 ADR 0011, or the capability-lifecycle or evidence-packet schemas. It

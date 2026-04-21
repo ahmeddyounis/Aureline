@@ -43,6 +43,11 @@ deleted; they are superseded.
 - [`/docs/governance/control_artifact_index.md`](../governance/control_artifact_index.md)
   — the control-artifact index carries a `boundary_manifest_strawman`
   row so this file has one canonical home and one owner.
+- [`/docs/governance/record_class_governance.md`](../governance/record_class_governance.md)
+  — boundary rows that introduce managed copies, support exports, AI
+  evidence, usage exports, exit packets, or destruction receipts should
+  land or extend a record-class row in the same change so boundary
+  claims do not hide record behavior.
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — every row's `linked_lanes` entry resolves to an id in
   `scorecard_lane_index` there.
@@ -747,10 +752,14 @@ of narrowing — claim contraction, never reclassification.
 3. Reserve the deployment-profile, residual-dependency,
    data-boundary, and portability slots even if the first
    implementation fills them later.
-4. When an ADR ratifies the classification, set the row's status to
+4. If the row introduces or changes a retained/exported/offboarding
+   artifact class, add or update the corresponding record-class row in
+   [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
+   in the same change.
+5. When an ADR ratifies the classification, set the row's status to
    `accepted` and link the ADR from the row's `linked_decisions`
    entry (and from the decision register row itself).
-5. When this document and the machine form disagree, the machine
+6. When this document and the machine form disagree, the machine
    form wins for tooling and this document must be updated in the
    same change. (The machine form is reserved under
    `artifacts/product/boundary_manifest.yaml`; it is not yet

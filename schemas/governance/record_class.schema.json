@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/record_class.schema.json",
+  "title": "Aureline record-class registry vocabulary",
+  "description": "Boundary schema for the class-level record rows frozen in docs/governance/record_class_governance.md and seeded in artifacts/governance/record_class_registry.yaml. A record_class_row names the class-level governance that composes over docs/governance/record_state_and_policy_simulation_models.md: where authoritative copies live, whether local materialization or managed copies exist, how export packets and receipts behave, who owns retention locally versus managed, which hold classes apply, how delete requests complete, what offboarding role the class plays, which partial-result caveats must be surfaced, and which redaction and retention artifacts constrain the class. The per-record state machine lives in record_state.schema.json; this schema is the class-level registry non-owning surfaces consult before hard-coding lifecycle assumptions. Adding a new scope-posture value, retention-trigger class, hold class, completion-evidence value, export-availability value, export format, offboarding package role, or partial-result cause is additive-minor and requires a record_class_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/record_class_row",
+  "$defs": {
+    "record_class_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this record-class vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "owner_ref": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier for the local or managed retention owner (for example local_user, support_export, docs_public_truth, governance_packets)."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference the row depends on. Consumers treat it as opaque text."
+    },
+
+    "posture_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence that clarifies a class-level posture."
+    },
+
+    "record_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_class_schema_version",
+        "record_class_id",
+        "title",
+        "description",
+        "scope_posture",
+        "retention_posture",
+        "hold_posture",
+        "delete_posture",
+        "export_posture",
+        "offboarding_posture",
+        "partial_result_cause_set",
+        "governance_links"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "record_class_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "record_class_schema_version": { "$ref": "#/$defs/record_class_schema_version" },
+        "record_class_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable lower_snake identifier for the governed record class. Mint a new id rather than reusing an old one for a different class."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-readable title for the row."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-paragraph statement of what the class is and what it does not cover."
+        },
+        "scope_posture": { "$ref": "#/$defs/scope_posture" },
+        "retention_posture": { "$ref": "#/$defs/retention_posture" },
+        "hold_posture": { "$ref": "#/$defs/hold_posture" },
+        "delete_posture": { "$ref": "#/$defs/delete_posture" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "offboarding_posture": { "$ref": "#/$defs/offboarding_posture" },
+        "partial_result_cause_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_result_cause" },
+          "description": "Typed caveats surfaces MUST disclose when the class resolves partially on export, delete, or offboarding paths."
+        },
+        "governance_links": { "$ref": "#/$defs/governance_links" },
+        "notes": {
+          "type": "string",
+          "description": "Optional additional note for future consumers."
+        }
+      }
+    },
+
+    "scope_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_scope",
+        "local_materialization",
+        "managed_copy_posture",
+        "export_packet_posture"
+      ],
+      "properties": {
+        "authoritative_scope": {
+          "type": "string",
+          "enum": [
+            "local_device",
+            "customer_control_plane",
+            "vendor_control_plane",
+            "mixed_control_plane",
+            "generated_packet_only"
+          ],
+          "description": "Where the class is authoritative by default. generated_packet_only is used for export packets, exit packets, and receipts whose source-of-record is the assembled packet rather than a mutable body store."
+        },
+        "local_materialization": {
+          "type": "string",
+          "enum": [
+            "required_local_authoritative",
+            "optional_local_copy",
+            "local_preview_or_cache",
+            "local_export_copy_only",
+            "none"
+          ],
+          "description": "How the class appears on the user's machine. This is separate from managed_copy_posture so local-only, cached, export-copy-only, and managed-authoritative classes stay distinct."
+        },
+        "managed_copy_posture": {
+          "type": "string",
+          "enum": [
+            "forbidden",
+            "optional_opt_in",
+            "required_when_managed",
+            "managed_authoritative"
+          ],
+          "description": "Whether a managed copy exists and how strong that expectation is."
+        },
+        "export_packet_posture": {
+          "type": "string",
+          "enum": [
+            "not_an_export_packet",
+            "can_be_emitted_as_export_packet",
+            "is_export_packet",
+            "is_receipt_packet"
+          ],
+          "description": "Whether the class may merely be exported, is itself the export packet, or is a receipt packet emitted by another action."
+        }
+      }
+    },
+
+    "retention_trigger_class": {
+      "type": "string",
+      "enum": [
+        "version_replace_or_user_reset",
+        "session_end_or_archive_seal",
+        "case_close_or_policy_timer",
+        "packet_expiry_or_case_close",
+        "event_creation_or_supersede",
+        "workspace_closure_or_org_offboarding",
+        "billing_period_close_or_policy_event",
+        "export_delivery_or_access_end",
+        "delete_action_completion"
+      ],
+      "description": "Frozen default trigger that starts or closes the retention window for the class."
+    },
+
+    "retention_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_retention_owner_ref",
+        "managed_retention_owner_ref",
+        "default_trigger_class",
+        "retention_notes"
+      ],
+      "properties": {
+        "local_retention_owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "managed_retention_owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "default_trigger_class": { "$ref": "#/$defs/retention_trigger_class" },
+        "retention_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Class-specific notes about retained copies, expiry windows, or interpretation requirements."
+        }
+      }
+    },
+
+    "hold_class": {
+      "type": "string",
+      "enum": [
+        "administrative_legal",
+        "user_pending_review",
+        "policy_freeze_window",
+        "support_investigation",
+        "system_integrity",
+        "retention_minimum",
+        "export_pending"
+      ],
+      "description": "Class-level hold eligibility vocabulary aligned with the governed-record hold-state model."
+    },
+
+    "hold_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible", "hold_classes"],
+      "properties": {
+        "eligible": {
+          "type": "boolean",
+          "description": "Whether rows of this class may be held at all."
+        },
+        "hold_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hold_class" },
+          "description": "Hold classes admissible for the row when eligible = true."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "eligible": { "const": true } },
+            "required": ["eligible"]
+          },
+          "then": {
+            "properties": {
+              "hold_classes": { "minItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "hold_classes": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+
+    "completion_evidence": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "tombstone_or_summary",
+        "destruction_receipt",
+        "destruction_receipt_with_retained_subset"
+      ],
+      "description": "What evidence proves terminal delete completion for the class."
+    },
+
+    "delete_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_supported",
+        "local_and_managed_actions_are_distinct",
+        "hold_blocks_completion",
+        "completion_evidence"
+      ],
+      "properties": {
+        "request_supported": {
+          "type": "boolean",
+          "description": "Whether the class participates in an explicit delete-request path."
+        },
+        "local_and_managed_actions_are_distinct": {
+          "type": "boolean",
+          "description": "Whether deleting the local materialization is a separate action from deleting a managed copy."
+        },
+        "hold_blocks_completion": {
+          "type": "boolean",
+          "description": "Whether an active hold can block terminal delete completion for this class."
+        },
+        "completion_evidence": { "$ref": "#/$defs/completion_evidence" }
+      }
+    },
+
+    "export_availability": {
+      "type": "string",
+      "enum": [
+        "not_exportable",
+        "exportable_on_request",
+        "local_export_only",
+        "packet_is_export",
+        "receipt_emitted_on_action"
+      ],
+      "description": "How the class reaches an export or receipt surface."
+    },
+
+    "export_format": {
+      "type": "string",
+      "enum": [
+        "json",
+        "jsonl",
+        "yaml",
+        "markdown",
+        "csv",
+        "tar_gz_archive",
+        "signed_json",
+        "manifest_bundle"
+      ],
+      "description": "Closed set of default export formats for the seed rows."
+    },
+
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "default_formats", "manifest_required"],
+      "properties": {
+        "availability": { "$ref": "#/$defs/export_availability" },
+        "default_formats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_format" },
+          "description": "Default export or packet formats for this class."
+        },
+        "manifest_required": {
+          "type": "boolean",
+          "description": "Whether a separate manifest is required to call the export complete or interpretable."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "availability": { "const": "not_exportable" } },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": { "default_formats": { "maxItems": 0 } }
+          },
+          "else": {
+            "properties": { "default_formats": { "minItems": 1 } }
+          }
+        }
+      ]
+    },
+
+    "offboarding_package_role": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "include_as_inventory",
+        "include_as_export",
+        "is_exit_packet",
+        "include_as_receipt_reference"
+      ],
+      "description": "How the class participates in offboarding or access-end packages."
+    },
+
+    "offboarding_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_role", "open_format_required", "notes"],
+      "properties": {
+        "package_role": { "$ref": "#/$defs/offboarding_package_role" },
+        "open_format_required": {
+          "type": "boolean",
+          "description": "Whether this class must stay inspectable in an open or text-friendly format when it participates in offboarding."
+        },
+        "notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/posture_note" },
+          "description": "Offboarding-specific notes the UI or packet builder must preserve."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "package_role": { "const": "not_applicable" } },
+            "required": ["package_role"]
+          },
+          "then": {
+            "properties": { "open_format_required": { "const": false } }
+          }
+        }
+      ]
+    },
+
+    "partial_result_cause": {
+      "type": "string",
+      "enum": [
+        "omitted_by_redaction",
+        "blocked_by_hold",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "reference_only_managed_content",
+        "source_unavailable_or_expired"
+      ],
+      "description": "Typed partial-result caveat surfaced on export, delete, or offboarding flows when the class does not resolve completely."
+    },
+
+    "governance_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_artifact_refs",
+        "retention_artifact_refs",
+        "source_docs"
+      ],
+      "properties": {
+        "redaction_artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Canonical redaction artifacts the class inherits."
+        },
+        "retention_artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Canonical retention, delete-honesty, or hold artifacts the class inherits."
+        },
+        "source_docs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Repo docs a reviewer should consult when changing the class."
+        },
+        "boundary_manifest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional boundary-manifest or product-boundary references that justify the class."
+        },
+        "supportability_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional supportability references that explain preview, escalation, or evidence posture."
+        },
+        "schema_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional downstream boundary schemas associated with the class."
+        }
+      }
+    }
+  }
+}

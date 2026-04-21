@@ -36,6 +36,11 @@ must be updated in the same change.
   — six short fixtures exercising the scope set, the precedence order,
   the effective-setting record shape, the lock states, the denial
   reasons, the preview classes, and the control-stack fields.
+- [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
+  — class-level registry the schema-registry and support-bundle
+  exporter quote when a settings-related export, sync packet, or
+  offboarding packet needs explicit retention/export posture instead of
+  a private "retention class" label.
 
 ## Vocabulary surfaces share
 
@@ -119,13 +124,20 @@ renames on protected surfaces are forbidden.
    manifest, replay / timeline capture, terminal transcript, or
    clipboard projection applies the setting's `redaction_class`
    per ADR-0007. `credential_alias` values carry aliases only.
-9. **Mutation journal carries setting writes.** Every applied
+9. **Schema-registry and support-export views quote record class.**
+   Any generated-reference or support/export surface that emits a
+   settings-related export, sync packet, delete packet, or offboarding
+   packet MUST name the corresponding `record_class_id` from
+   `record_class_registry.yaml`. Those surfaces MAY NOT invent a
+   parallel "retention class", "export safe", or "offboarding class"
+   vocabulary of their own.
+10. **Mutation journal carries setting writes.** Every applied
    settings write records `setting_id`, `resolved_scope`,
    `source_label`, `write_intent`, `preview_class`, and
    `rollback_checkpoint_ref` (when the preview class required one).
    The mutation journal MUST NOT embed raw secret material or raw
    `credential_alias` secret payloads.
-10. **Audit every observable action.** Every resolver action the
+11. **Audit every observable action.** Every resolver action the
     user, an administrator, a support engineer, or a governance
     reviewer could ask about emits one of the frozen audit events.
     Audit events never carry raw secret material.

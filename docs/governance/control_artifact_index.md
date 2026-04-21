@@ -127,6 +127,10 @@ governance-packet template. The index only names, routes, and scopes.
   canonical homes for supportability artifacts. Field runbooks, the
   crash-diagnostics corpus, and export-safe packet schemas all live
   there.
+- The `record_class_registry` row is the canonical home for class-level
+  retention, export, hold, delete, and offboarding posture that
+  support bundles, issue handoff packets, and later managed support
+  claims must quote instead of re-labelling privately.
 - The deployment continuity drill catalog seed lives under
   [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   with narrative guidance in
@@ -206,6 +210,10 @@ governance-packet template. The index only names, routes, and scopes.
   new product capability or managed service must either map to an
   existing row or land a new row in the same change; adding a
   managed service without a row is a governance error.
+- Capability rows that introduce managed copies, support exports, AI
+  evidence, usage exports, exit packets, or destruction receipts also
+  resolve through the `record_class_registry` row so the managed claim
+  does not hide record behavior.
 
 ## What this index is not
 

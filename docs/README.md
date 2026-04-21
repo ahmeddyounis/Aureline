@@ -52,6 +52,14 @@ code.
   worked fixtures (including the required mixed-chronology admin
   timeline) in
   [`/fixtures/governance/record_state_examples/`](../fixtures/governance/record_state_examples/).
+- [`governance/record_class_governance.md`](./governance/record_class_governance.md)
+  — record-class registry seed for telemetry schemas, crash and support
+  evidence, collaboration evidence, AI retained evidence, entitlement
+  and usage export packets, exit packets, and destruction receipts.
+  Machine-readable registry in
+  [`/artifacts/governance/record_class_registry.yaml`](../artifacts/governance/record_class_registry.yaml);
+  boundary schema in
+  [`/schemas/governance/record_class.schema.json`](../schemas/governance/record_class.schema.json).
 
 ## Decision records
 
