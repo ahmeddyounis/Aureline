@@ -130,6 +130,20 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`security/safe_preview_trust_classes.md`](./security/safe_preview_trust_classes.md)
+  — safe-preview trust-class and suspicious-content vocabulary for raw
+  text, sanitized rich content, trusted local active content, and
+  isolated remote / embedded content. Freezes owner/origin chrome,
+  downgrade-to-static-snapshot or metadata-only behavior, strict
+  annotation rules on install/publish/attach/approval/delete-review
+  surfaces, and the explicit transfer actions `copy_raw`,
+  `copy_rendered`, `copy_escaped`, `export_sanitized_snapshot`, and
+  `export_metadata_only`. Boundary schemas in
+  [`/schemas/security/trust_class.schema.json`](../schemas/security/trust_class.schema.json)
+  and
+  [`/schemas/security/text_representation_policy.schema.json`](../schemas/security/text_representation_policy.schema.json);
+  worked fixtures in
+  [`/fixtures/security/suspicious_content_cases/`](../fixtures/security/suspicious_content_cases/).
 - [`ai/context_assembly_contract.md`](./ai/context_assembly_contract.md)
   — AI context-assembly contract covering included / omitted /
   pinned / redacted / policy-blocked / tainted context segments
