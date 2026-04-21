@@ -17,19 +17,25 @@ to change, update this map in the same change.
 | `fixtures/`    | Reusable test inputs and golden artifacts. Subtrees grow per protected-path corpus.                  |
 | `tools/`       | Repository-local tooling (lint helpers, codegen scripts, governance checkers).                       |
 | `ci/`          | CI configuration shared across pipelines (job definitions, gate scripts).                            |
-| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `governance/`, `release/`, `ux/`, `support/`.  |
+| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `governance/`, `compat/`, `release/`, `ux/`, `support/`.  |
 
 ## Reserved subtrees inside `artifacts/`
 
 | Path                   | Purpose                                                                              |
 |------------------------|--------------------------------------------------------------------------------------|
 | `artifacts/governance/`| Package inventory, ownership matrix, scorecard/packet templates, waiver registers.   |
+| `artifacts/compat/`    | Compatibility qualification matrix, version-skew register, and boundary-row seeds.   |
 | `artifacts/release/`   | Provenance, SBOMs, compatibility reports, claim manifests, rollback packets.          |
 | `artifacts/ux/`        | Design-system snapshots, accessibility audits, UX review packets.                    |
 | `artifacts/support/`   | Support-bundle templates, recovery drill outputs, Project Doctor seeded scenarios.   |
 
-Other M0 tasks land additional subtrees (release engineering, UX, support);
-they extend this map rather than relocating it.
+The `artifacts/compat/` subtree is the pre-release compatibility seed
+home. Later release-time compatibility reports still land under
+`artifacts/release/`; they extend the seeded row ids rather than
+replacing them.
+
+Other M0 tasks land additional subtrees (release engineering, UX,
+support); they extend this map rather than relocating it.
 
 ## Seeded crates
 

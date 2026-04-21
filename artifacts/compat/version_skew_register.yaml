@@ -1,0 +1,333 @@
+# Compatibility version-skew register seed.
+#
+# Machine-readable companion to artifacts/compat/qualification_matrix_seed.yaml.
+# The qualification matrix says which boundary rows exist and what they
+# claim; this register decomposes each row into supported, best-effort,
+# untested, and unsupported skew cases without collapsing them into one
+# vague status.
+#
+# Rules.
+#   - Each register entry MUST point at exactly one qualification_row_ref.
+#   - Every skew_case_id is stable and may be cited by later
+#     compatibility_report or claim-manifest tooling.
+#   - supported, best_effort, untested, and unsupported are distinct
+#     buckets. A case may appear in only one bucket.
+#   - outside_window_posture names what the system should do once the
+#     case's claimed window is exceeded; "unsupported" is not implied by
+#     omission.
+
+schema_version: 1
+status: seeded
+
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+overview_page: docs/compat/compatibility_row_seed.md
+
+skew_status_vocabulary:
+  - supported
+  - best_effort
+  - untested
+  - unsupported
+
+outside_window_posture_vocabulary:
+  - fail_closed
+  - read_only
+  - degraded
+  - explicitly_unsupported
+
+register:
+  - register_id: skew_register:desktop_benchmark_lab.exact_build_identity
+    qualification_row_ref: compat_row:desktop_benchmark_lab.exact_build_identity
+    artifact_or_protocol_boundary_label: boundary.build.exact_build_identity
+    supported:
+      - skew_case_id: skew_case:desktop_benchmark_lab.same_identity
+        combination_label: same exact_build_identity_ref across trace, run result, dashboard, and report
+        window_class: exact_match
+        outside_window_posture: fail_closed
+        notes: >
+          Claim-bearing benchmark evidence resolves to one identity chain,
+          including clean-room rebuilds that explicitly name
+          rebuild_of_identity_ref.
+    best_effort:
+      - skew_case_id: skew_case:desktop_benchmark_lab.minimum_build_identity_only
+        combination_label: trace carries only the minimum build stamp while release-evidence linkage is pending
+        window_class: exact_match
+        outside_window_posture: degraded
+        notes: >
+          Diagnostic-only local comparison is allowed; release promotion,
+          public claims, and certified-archetype packets must not use it.
+    untested:
+      - skew_case_id: skew_case:desktop_benchmark_lab.cross_channel_same_commit
+        combination_label: same commit but different release channel used as the comparison peer
+        window_class: exact_match
+        outside_window_posture: degraded
+        notes: >
+          The seed does not yet claim benchmark comparability across
+          channel moves, even when the commit hash matches.
+    unsupported:
+      - skew_case_id: skew_case:desktop_benchmark_lab.identity_missing_or_conflicting
+        combination_label: run result or dashboard resolves to no exact_build_identity_ref or to a conflicting commit/target/profile
+        window_class: exact_match
+        outside_window_posture: explicitly_unsupported
+        notes: >
+          Report generation must refuse the claim-bearing path rather than
+          render a best guess.
+
+  - register_id: skew_register:command_plane.command_descriptor_schema
+    qualification_row_ref: compat_row:command_plane.command_descriptor_schema
+    artifact_or_protocol_boundary_label: boundary.commands.command_descriptor
+    supported:
+      - skew_case_id: skew_case:command_plane.same_schema_epoch
+        combination_label: command_descriptor_schema_version and invocation payload contract stay in the same additive epoch
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: fail_closed
+        notes: >
+          Unknown additive fields are preserved, and disabled-reason /
+          preview / approval semantics retain their original meanings.
+    best_effort:
+      - skew_case_id: skew_case:command_plane.render_only_unknown_slot_hint
+        combination_label: a consumer sees an additive ui_slot_hint it can ignore while still preserving the record
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+        notes: >
+          Render-only consumers may narrow their UI projection without
+          claiming full parity on the new slot.
+    untested:
+      - skew_case_id: skew_case:command_plane.preview_channel_descriptor_consumer_lag
+        combination_label: preview-channel surface lags a newly added additive field without updated fixtures
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+        notes: >
+          The seed reserves the case explicitly instead of treating it as
+          silently supported.
+    unsupported:
+      - skew_case_id: skew_case:command_plane.required_field_or_meaning_change
+        combination_label: required field removed, repurposed, or interpreted differently across producers and consumers
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: fail_closed
+        notes: >
+          Breaking command-shape drift blocks execution and claim
+          publication; it is not a warning-only condition.
+
+  - register_id: skew_register:release_identity.exact_build_propagation
+    qualification_row_ref: compat_row:release_identity.exact_build_propagation
+    artifact_or_protocol_boundary_label: boundary.build.exact_build_identity_propagation
+    supported:
+      - skew_case_id: skew_case:release_identity.same_artifact_set
+        combination_label: binaries, symbols, docs/help, and release-evidence rows resolve through one coordinated artifact set
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: fail_closed
+    best_effort:
+      - skew_case_id: skew_case:release_identity.same_commit_missing_optional_help_linkage
+        combination_label: commit and toolchain match but optional help/about or support-export linkage is not yet wired
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: degraded
+        notes: >
+          Internal diagnosis may proceed; public release wording and
+          automated parity claims may not.
+    untested:
+      - skew_case_id: skew_case:release_identity.same_semver_different_producer_lane
+        combination_label: same semver and channel but different producer lane and no coordinating artifact graph
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: degraded
+    unsupported:
+      - skew_case_id: skew_case:release_identity.version_only_fallback
+        combination_label: consumer relies on a version string without the exact_build_identity axes
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: fail_closed
+        notes: >
+          "Version only" fallback is outside the compatibility promise by
+          rule.
+
+  - register_id: skew_register:state.profile_layout_schema
+    qualification_row_ref: compat_row:state.profile_layout_schema
+    artifact_or_protocol_boundary_label: boundary.profile.portable_profile_and_layout_restore
+    supported:
+      - skew_case_id: skew_case:state.profile_same_epoch_or_additive
+        combination_label: source and destination preserve one profile schema epoch with additive-field tolerance
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+        notes: >
+          Supported restore may still truthfully downgrade from exact to
+          compatible depending on validator outcomes.
+    best_effort:
+      - skew_case_id: skew_case:state.profile_layout_only_downgrade
+        combination_label: destination preserves layout and user-authored durable truth but cannot claim exact state parity
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+        notes: >
+          Layout-only and manual-review restores are explicit best-effort
+          paths, not silent support.
+    untested:
+      - skew_case_id: skew_case:state.profile_cross_profile_machine_addendum
+        combination_label: machine-local addendum crosses a differently managed deployment profile
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+    unsupported:
+      - skew_case_id: skew_case:state.profile_excluded_or_admin_owned_treated_as_portable
+        combination_label: excluded or admin-owned state is presented as portable user truth
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: explicitly_unsupported
+
+  - register_id: skew_register:extension_host.sdk_wit_permission_window
+    qualification_row_ref: compat_row:extension_host.sdk_wit_permission_window
+    artifact_or_protocol_boundary_label: boundary.extensions.host_contract_and_permission_vocab
+    supported:
+      - skew_case_id: skew_case:extension_host.within_sdk_wit_permission_window
+        combination_label: manifest SDK range, WIT ABI version, and permission vocabulary all fall within the published support window
+        window_class: published_sdk_support_window
+        outside_window_posture: explicitly_unsupported
+        notes: >
+          The extension may run only when all three axes line up; the
+          resulting posture remains strict even for supported cases.
+    best_effort:
+      - skew_case_id: skew_case:extension_host.bridge_profile_with_caveats
+        combination_label: compatibility_bridge profile is in-range but carries declared caveats or partial-state notes
+        window_class: published_sdk_support_window
+        outside_window_posture: degraded
+        notes: >
+          The row remains claim-bearing only on surfaces that render the
+          bridge/native state and caveat set explicitly.
+    untested:
+      - skew_case_id: skew_case:extension_host_helper_or_remote_family_reserved
+        combination_label: helper_binary or remote_side_component host families use the reserved seed values before the runtime lands
+        window_class: published_sdk_support_window
+        outside_window_posture: explicitly_unsupported
+    unsupported:
+      - skew_case_id: skew_case:extension_host_unknown_required_contract
+        combination_label: required WIT world, permission version, or SDK floor is unknown or outside range
+        window_class: published_sdk_support_window
+        outside_window_posture: explicitly_unsupported
+        notes: >
+          The extension is disabled or quarantined, never partially loaded
+          in ambiguous mode.
+
+  - register_id: skew_register:launcher.local_helper_contracts
+    qualification_row_ref: compat_row:launcher.local_helper_contracts
+    artifact_or_protocol_boundary_label: boundary.runtime.launcher_local_sidecars
+    supported:
+      - skew_case_id: skew_case:launcher.local_helper_same_artifact_set
+        combination_label: launcher and helper binaries come from one coordinated artifact set
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: fail_closed
+    best_effort: []
+    untested:
+      - skew_case_id: skew_case:launcher.local_helper_same_contract_version_different_build
+        combination_label: helper declares the same contract version but not the same coordinated build provenance
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: fail_closed
+        notes: >
+          Explicitly reserved as untested so "same contract string"
+          cannot drift into an accidental support promise.
+    unsupported:
+      - skew_case_id: skew_case:launcher.local_helper_mixed_startup
+        combination_label: mixed launcher/helper startup outside the coordinated artifact set
+        window_class: coordinated_artifact_set_only
+        outside_window_posture: fail_closed
+
+  - register_id: skew_register:remote.attach_envelope_and_drift
+    qualification_row_ref: compat_row:remote.attach_envelope_and_drift
+    artifact_or_protocol_boundary_label: boundary.remote.agent_attach_envelope
+    supported:
+      - skew_case_id: skew_case:remote.attach_adjacent_window
+        combination_label: client and agent stay within the declared adjacent support window and negotiate only the capability intersection
+        window_class: declared_adjacent_window
+        outside_window_posture: degraded
+        notes: >
+          Supported does not mean identical. Capability intersection and
+          visible drift state remain mandatory.
+    best_effort:
+      - skew_case_id: skew_case:remote.attach_review_only_downgrade
+        combination_label: skew permits review-only or file-only attach but not full mutation parity
+        window_class: declared_adjacent_window
+        outside_window_posture: degraded
+    untested:
+      - skew_case_id: skew_case:remote.attach_beyond_adjacent_same_major
+        combination_label: same major line but outside the explicitly declared adjacent window
+        window_class: declared_adjacent_window
+        outside_window_posture: degraded
+        notes: >
+          The seed records this as untested rather than assuming the PRD's
+          future target window has already been ratified.
+    unsupported:
+      - skew_case_id: skew_case:remote.attach_unknown_required_feature
+        combination_label: required capability or protocol floor is absent, unknown, or outside the published window
+        window_class: declared_adjacent_window
+        outside_window_posture: explicitly_unsupported
+
+  - register_id: skew_register:tooling.task_event_envelope
+    qualification_row_ref: compat_row:tooling.task_event_envelope
+    artifact_or_protocol_boundary_label: boundary.tooling.task_event_envelope
+    supported:
+      - skew_case_id: skew_case:tooling.task_event_additive_epoch
+        combination_label: task-event producers and consumers preserve one stable epoch with additive-only field evolution
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: fail_closed
+    best_effort:
+      - skew_case_id: skew_case:tooling.task_event_heuristic_source_kind
+        combination_label: heuristic parser producers emit canonical envelope fields with lower confidence
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+        notes: >
+          The envelope stays consumable, but the producer does not claim
+          full source parity with native or structured adapters.
+    untested:
+      - skew_case_id: skew_case:tooling.task_event_appendix_only_clients
+        combination_label: downstream consumer relies on appendix-defined envelope text before a dedicated schema export lands
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: degraded
+    unsupported:
+      - skew_case_id: skew_case:tooling.task_event_required_kind_or_retention_mismatch
+        combination_label: consumer cannot attribute a required payload kind or retention class
+        window_class: same_schema_epoch_additive_only
+        outside_window_posture: fail_closed
+
+  - register_id: skew_register:provider.service_api_and_browser_handoff
+    qualification_row_ref: compat_row:provider.service_api_and_browser_handoff
+    artifact_or_protocol_boundary_label: boundary.provider.service_api_family
+    supported:
+      - skew_case_id: skew_case:provider.current_plus_previous_minor_or_lts
+        combination_label: provider-linked client stays within the current published family plus the declared previous minor or LTS window
+        window_class: current_plus_previous_minor_or_lts
+        outside_window_posture: read_only
+    best_effort:
+      - skew_case_id: skew_case:provider.cached_metadata_only
+        combination_label: client can still render cached metadata and safe read paths while write-capable APIs are out of window
+        window_class: current_plus_previous_minor_or_lts
+        outside_window_posture: read_only
+    untested:
+      - skew_case_id: skew_case:provider_self_hosted_or_air_gap_family_before_openapi
+        combination_label: self-hosted or air-gapped service family claimed before a dedicated OpenAPI contract lands
+        window_class: current_plus_previous_minor_or_lts
+        outside_window_posture: read_only
+    unsupported:
+      - skew_case_id: skew_case:provider_privileged_write_out_of_window
+        combination_label: privileged write or approval-bearing action targets an API family outside the published window
+        window_class: current_plus_previous_minor_or_lts
+        outside_window_posture: explicitly_unsupported
+
+  - register_id: skew_register:certification.launch_archetype_matrix
+    qualification_row_ref: compat_row:certification.launch_archetype_matrix
+    artifact_or_protocol_boundary_label: boundary.certification.launch_archetype_matrix
+    supported:
+      - skew_case_id: skew_case:certification.current_report_and_row_ids
+        combination_label: current reference workspace report and linked archetype ids are in-window for the named build/profile set
+        window_class: certified_report_freshness_window
+        outside_window_posture: degraded
+        notes: >
+          Even certified rows may narrow to caveated support when the
+          evidence changes; freshness is part of the support window.
+    best_effort:
+      - skew_case_id: skew_case:certification_supported_with_caveats
+        combination_label: archetype or launch-language row remains supported with explicit caveats but not certified
+        window_class: certified_report_freshness_window
+        outside_window_posture: degraded
+    untested:
+      - skew_case_id: skew_case:certification_new_archetype_not_in_corpus
+        combination_label: new archetype id appears before a reference workspace report or corpus entry exists
+        window_class: certified_report_freshness_window
+        outside_window_posture: explicitly_unsupported
+    unsupported:
+      - skew_case_id: skew_case:certification_stale_or_missing_report_claimed_as_certified
+        combination_label: claim surface renders certified wording after the report window expired or without a linked row
+        window_class: certified_report_freshness_window
+        outside_window_posture: explicitly_unsupported

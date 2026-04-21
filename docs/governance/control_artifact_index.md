@@ -21,12 +21,13 @@ Companion artifacts:
 
 **One home, one owner, one review path.** Every control asset — the
 artifact graph, the interface inventory, benchmark governance, the
-qualification cadence, the dependency register, release evidence, docs
-and help truth, route and build-truth artifacts, accessibility review
-packets, surface-traceability artifacts, and frozen-surface manifests
-— appears as exactly one row in the index file. If two documents
-describe the same asset, the index names only the canonical one and
-the other is either merged in or retired.
+qualification cadence, the compatibility qualification seed, the
+dependency register, release evidence, docs and help truth, route and
+build-truth artifacts, accessibility review packets, surface-
+traceability artifacts, and frozen-surface manifests — appears as
+exactly one row in the index file. If two documents describe the same
+asset, the index names only the canonical one and the other is either
+merged in or retired.
 
 The index does not restate the content of the assets it points at. The
 detailed governance workflow lives in
@@ -64,7 +65,8 @@ governance-packet template. The index only names, routes, and scopes.
 ### Quality engineering
 
 - The `benchmark_governance`, `fitness_function_catalog`,
-  `benchmark_corpus_manifest`, `qualification_cadence`, and
+  `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
+  `qualification_cadence`, and
   `dependency_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
   land under the lanes named by those rows. Protected speed and
@@ -101,10 +103,11 @@ governance-packet template. The index only names, routes, and scopes.
 
 ### Release
 
-- The `release_evidence`, `frozen_surface_manifests`, and
-  `route_build_truth` rows are the anchor points for release
-  assembly. `review_cadence: each_release` means the release-engineer
-  DRI MUST re-consult the artifact's rules before cutting a release.
+- The `release_evidence`, `compatibility_qualification_seed`,
+  `frozen_surface_manifests`, and `route_build_truth` rows are the
+  anchor points for release assembly. `review_cadence: each_release`
+  means the release-engineer DRI MUST re-consult the artifact's rules
+  before cutting a release.
 - Frozen-surface manifests and stable-surface contract metadata are
   explicitly out of scope at this milestone; the row exists so that
   the home is reserved and not accidentally duplicated elsewhere.
