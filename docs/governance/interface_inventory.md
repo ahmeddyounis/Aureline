@@ -90,13 +90,17 @@ Owning lane: `aureline-telemetry`. Related review lane:
 ### Release and compatibility surfaces
 
 - Release channel, cadence, and rollback posture.
-- Release-evidence packet structure, waiver workflow, and evidence-freshness metadata.
+- Release-artifact graph completeness, debug-artifact manifest linkage,
+  and promotion-evidence ownership.
+- Release-evidence packet structure, waiver workflow,
+  benchmark-publication packet linkage, and evidence-freshness metadata.
 - Frozen-surface manifest (which surfaces are frozen under which
   promise).
 - Compatibility report deltas between releases.
 
 Owning lane: `release_evidence`. Change control: each_release,
-producing a release-evidence packet and a compatibility report.
+producing a release-evidence packet, a release-artifact graph check,
+and a compatibility report.
 
 ### Public documentation surfaces
 

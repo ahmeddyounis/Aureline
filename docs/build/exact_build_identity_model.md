@@ -21,6 +21,18 @@ disagree, the baseline's four pinned files (`rust-toolchain.toml`,
 this document's schema is the cross-artifact boundary; both MUST be
 updated in the same change.
 
+Companion artifacts:
+
+- [`/docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)
+  and
+  [`/artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml)
+  — release-artifact graph completeness rules that bind this identity
+  model to docs/help truth, benchmark-publication packs, debug sidecars,
+  advisories, and promotion evidence.
+- [`/docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md)
+  — aggregate release-truth packet that cites exact-build identities by
+  stable ref.
+
 ## Why freeze this now
 
 The foundations baseline ships a single `build_identity.json` per
@@ -254,7 +266,7 @@ surface renders is sourced from this record field-for-field.
 |------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Running binary (ide / cli)                     | `propagation.binary_embed_class = embedded_in_binary` plus `symbol_tag_refs`. Resolver path returns `exact_build_identity_ref` to crash symbolication and Help / About.         | A binary with no embedded identity is non-conforming. Crash symbolication denies symbol lookup with a typed "identity missing" cause rather than guessing.                                                           |
 | Debug symbols / source maps                    | `artifact_family_class = *_debug_symbols` / `source_map_bundle`, `binary_embed_class = sidecar_manifest_beside_binary`, `evidence.split_symbols_ref` on the paired binary.      | The paired binary's `evidence.split_symbols_ref` MUST resolve to the `exact_build_identity_ref` of this record. Orphan symbol archives are quarantined.                                                                |
-| Artifact graph                                 | `evidence.artifact_graph_node_ref` on every non-dev identity.                                                                                                                   | The technical-architecture rule that the artifact graph point at a single build identity is enforced by the non-null requirement on non-dev lanes.                                                                    |
+| Artifact graph                                 | `evidence.artifact_graph_node_ref` on every non-dev identity.                                                                                                                   | The technical-architecture rule that the artifact graph point at a single build identity is enforced by the non-null requirement on non-dev lanes. Node-family completeness and claim ownership are governed by `docs/release/release_artifact_graph.md` and `artifacts/release/artifact_graph_rules.yaml`. |
 | SBOM document                                  | `artifact_family_class = sbom_document` (when this record is itself the SBOM) or `provenance.sbom_document_ref` (when this record is a binary / symbols / etc.).                | A binary whose `provenance.sbom_document_ref` is null on a release lane is a publishable blocker.                                                                                                                     |
 | Signed attestation                             | `artifact_family_class = signed_attestation` or `provenance.attestation_predicate_refs`.                                                                                        | Predicate refs are typed opaque ids; the predicate schema itself is governed upstream (SLSA, in-toto).                                                                                                                |
 | Help / About                                   | `evidence.help_about_payload_ref` on the ide_binary / cli_binary identity. The About dialog's copy-build-info payload renders the identity verbatim.                            | ADR-0013 requires Help / About to deny render and route to a repair hook when the publisher cannot resolve the running build; this record is the resolution target.                                                   |

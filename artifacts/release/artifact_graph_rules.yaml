@@ -1,0 +1,373 @@
+# Release artifact-graph completeness rules.
+#
+# Machine-readable companion to docs/release/release_artifact_graph.md.
+# One node family owns one claim family. Aggregate packets quote stable
+# refs back to these families; they do not re-mint parallel truth.
+
+schema_version: 1
+graph_id: aureline.release_artifact_graph_rules
+status: seeded
+
+overview_document: docs/release/release_artifact_graph.md
+exact_build_identity_source: docs/build/exact_build_identity_model.md
+release_evidence_packet_source: docs/release/release_evidence_packet_template.md
+benchmark_publication_pack_source: docs/benchmarks/benchmark_publication_pack_template.md
+evidence_metadata_source: artifacts/evidence/evidence_metadata_fields.yaml
+docs_pack_manifest_source: docs/docs/docs_pack_manifest_contract.md
+install_topology_source: artifacts/release/install_topology_matrix.yaml
+deployment_drill_source: artifacts/support/deployment_drill_catalog_seed.yaml
+security_advisory_source: docs/security/severity_matrix.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.7 Release artifact graph and promotion evidence"
+      - "Appendix AG — Benchmark governance and publication matrix"
+      - "Appendix AO — Build, CI/CD, Provenance, and Artifact-Publication Matrix"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Appendix N — Release artifact graph and promotion evidence"
+      - "Appendix O — Benchmark corpus governance and protected-metrics policy"
+
+publication_posture_vocabulary:
+  - public_required
+  - public_conditional
+  - public_summary_plus_internal_ref
+
+non_overlap_rules:
+  - Each fact family belongs to exactly one node_family id below.
+  - Aggregate packets may summarize a node family but must cite its stable refs.
+  - A conditional family is omitted only when not applicable to the claim.
+  - If a family changes meaning, schema_version and the narrative overview update together.
+  - Public packets never rely on version-only naming when an exact-build identity exists.
+
+node_families:
+  - id: build_identity
+    title: Exact-build identity set
+    publication_posture: public_required
+    canonical_sources:
+      - docs/build/exact_build_identity_model.md
+      - schemas/build/exact_build_identity.schema.json
+    required_when: always
+    exact_build_required: true
+    required_refs:
+      - exact_build_identity_ref
+      - artifact_graph_node_ref
+    may_remain_internal:
+      - none
+    notes: >
+      Every release-bearing node that can resolve through an
+      exact-build identity does so. Version strings alone are never
+      admissible for public release or benchmark truth.
+
+  - id: runtime_binary
+    title: Runtime payloads
+    publication_posture: public_required
+    canonical_sources:
+      - docs/build/exact_build_identity_model.md
+      - docs/release/release_evidence_packet_template.md
+    required_when: every claimed runnable binary, helper, or library payload
+    exact_build_required: true
+    required_refs:
+      - exact_build_identity_ref
+      - build_log_ref
+      - artifact_graph_node_ref
+    may_remain_internal:
+      - raw_build_logs
+      - raw_platform_smoke_logs
+    notes: >
+      Covers first-party runnable artifacts only. Docs/help truth,
+      benchmark packets, and advisories quote the payload by stable ref.
+
+  - id: debug_artifact_manifest
+    title: Debug and source-map manifests
+    publication_posture: public_conditional
+    canonical_sources:
+      - docs/build/exact_build_identity_model.md
+      - schemas/build/exact_build_identity.schema.json
+    required_when: debug info is stripped, sidecar debug/source-map payloads ship, or retention is support-only
+    exact_build_required: true
+    required_refs:
+      - exact_build_identity_ref
+      - split_symbols_ref_or_source_map_manifest_ref
+      - artifact_graph_node_ref
+    may_remain_internal:
+      - raw_symbol_bytes
+      - raw_source_map_bytes
+      - raw_profiler_sidecar_bytes
+    notes: >
+      The manifest and retention posture are public release truth even
+      when the payload bytes stay internal or mirror-only.
+
+  - id: docs_help_truth
+    title: Docs/help applicability and version-match truth
+    publication_posture: public_conditional
+    canonical_sources:
+      - docs/docs/docs_pack_manifest_contract.md
+      - schemas/docs/docs_pack_manifest.schema.json
+      - schemas/docs/help_status_badge.schema.json
+      - docs/build/exact_build_identity_model.md
+    required_when: release docs/help applicability is claimed or a docs pack ships
+    exact_build_required: true
+    required_refs:
+      - pack_revision_ref_or_source_revision_ref
+      - running_build_identity_ref
+      - version_match_state
+    may_remain_internal:
+      - raw_docs_bytes
+    notes: >
+      Owns docs applicability, version-match, and publishable-blocking
+      reasons. Release packets and benchmark packets do not re-derive it.
+
+  - id: schema_contract_export
+    title: Public schema and contract exports
+    publication_posture: public_conditional
+    canonical_sources:
+      - schemas/
+      - docs/
+    required_when: a public machine-readable contract changed or ships with the release
+    exact_build_required: true
+    required_refs:
+      - schema_path_or_contract_ref
+      - source_revision
+    may_remain_internal:
+      - raw_codegen_logs
+      - internal_generator_state
+    notes: >
+      Public schemas, manifests, and contract exports are release-bearing
+      nodes, not post-release cleanup.
+
+  - id: supply_chain_evidence
+    title: SBOM, provenance, attestation, and reproducibility evidence
+    publication_posture: public_required
+    canonical_sources:
+      - docs/governance/provenance_and_compliance_baseline.md
+      - docs/build/cleanroom_rebuild_lane.md
+      - artifacts/release/provenance_capture_seed.json
+    required_when: always
+    exact_build_required: true
+    required_refs:
+      - sbom_document_ref
+      - provenance_statement_ref
+      - attestation_predicate_refs_or_reproducibility_pack_ref
+    may_remain_internal:
+      - raw_signing_material
+      - private_signing_workflow_steps
+    notes: >
+      Public bundles must expose the existence and linkage of these nodes
+      even when some signing-domain detail remains private.
+
+  - id: benchmark_public_proof
+    title: Benchmark-publication and public-proof packets
+    publication_posture: public_conditional
+    canonical_sources:
+      - docs/benchmarks/benchmark_publication_pack_template.md
+      - docs/benchmarks/benchmark_lab_run_results.md
+      - schemas/benchmarks/run_result.schema.json
+      - artifacts/bench/fitness_function_catalog.yaml
+      - fixtures/benchmarks/corpus_manifest.yaml
+    required_when: a public or release-facing performance claim is cited
+    exact_build_required: true
+    required_refs:
+      - benchmark_run_id_or_dashboard_ref
+      - evidence_id
+      - exact_build_identity_ref
+      - corpus_manifest_revision
+      - fitness_catalog_revision
+      - comparability_note
+      - docs_help_version_match_state
+    may_remain_internal:
+      - raw_trace_bundles
+      - restricted_fixture_bytes
+      - private_partner_repo_ids
+      - internal_dashboards
+      - competitor_license_material
+    notes: >
+      Dashboard outputs are raw internal evidence inputs. Public claims
+      flow through the publication pack, not ad hoc screenshots or slides.
+
+  - id: known_limit_and_disclosure_note
+    title: Known-limit, exclusion, and waiver disclosures
+    publication_posture: public_required
+    canonical_sources:
+      - docs/release/release_evidence_packet_template.md
+      - schemas/release/waiver_packet.schema.json
+      - docs/
+    required_when: always
+    exact_build_required: false
+    required_refs:
+      - packet_id_or_note_id
+      - source_anchor_refs
+      - waiver_packet_refs_when_active
+    may_remain_internal:
+      - internal_review_discussion
+    notes: >
+      Narrowed claims, exclusions, and caveats must have a canonical
+      public note. Silence is not an allowed disclosure mode.
+
+  - id: advisory_or_revocation_notice
+    title: Security advisory, revocation, and forced-disable notices
+    publication_posture: public_conditional
+    canonical_sources:
+      - docs/security/severity_matrix.md
+      - schemas/security/advisory_record.schema.json
+      - schemas/security/incident_workspace_packet.schema.json
+    required_when: an active advisory or revocation touches the claimed scope
+    exact_build_required: true
+    required_refs:
+      - aureline_advisory_id_or_revocation_ref
+      - exact_build_identity_refs
+      - install_profile_card_refs
+    may_remain_internal:
+      - private_triage_packet_bodies
+      - private_evidence_bodies
+    notes: >
+      Public advisory or revocation state is a release-bearing node when
+      it narrows installability, trust, or supportability.
+
+  - id: promotion_evidence
+    title: Promotion, rollout, rollback, and continuity evidence
+    publication_posture: public_required
+    canonical_sources:
+      - artifacts/release/install_topology_matrix.yaml
+      - docs/release/install_topology_plan.md
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+      - docs/release/release_evidence_packet_template.md
+    required_when: every preview, beta, stable, or lts promotion claim
+    exact_build_required: true
+    required_refs:
+      - install_profile_card_refs
+      - channel_or_ring_scope
+      - continuity_drill_refs
+      - rollback_target_or_waiver_refs
+    may_remain_internal:
+      - operator_runbooks
+      - internal_rollout_transcripts
+    notes: >
+      Promotion moves the artifact graph as one set, not one package at a
+      time.
+
+  - id: release_truth_bundle
+    title: Aggregate release-truth packet
+    publication_posture: public_required
+    canonical_sources:
+      - docs/release/release_evidence_packet_template.md
+      - artifacts/evidence/evidence_metadata_fields.yaml
+      - artifacts/release/artifact_graph_rules.yaml
+    required_when: always
+    exact_build_required: false
+    required_refs:
+      - packet_id
+      - primary_exact_build_identity_set
+      - evidence_index
+    may_remain_internal:
+      - none
+    notes: >
+      The aggregate packet binds the graph together. It does not become
+      the source of truth for any leaf node family.
+
+bundle_profiles:
+  - id: publishable_release_truth_bundle
+    required_families:
+      - build_identity
+      - runtime_binary
+      - supply_chain_evidence
+      - known_limit_and_disclosure_note
+      - promotion_evidence
+      - release_truth_bundle
+    conditional_families:
+      - debug_artifact_manifest
+      - docs_help_truth
+      - schema_contract_export
+      - benchmark_public_proof
+      - advisory_or_revocation_notice
+    may_remain_internal_by_ref:
+      - raw_build_logs
+      - raw_signing_material
+      - raw_symbol_or_source_map_bytes
+      - raw_benchmark_traces
+      - private_triage_packet_bodies
+      - support_bundle_payload_bodies
+    fail_closed_conditions:
+      - missing_exact_build_identity_for_claimed_artifact
+      - missing_supply_chain_evidence
+      - missing_known_limit_or_disclosure_note
+      - missing_promotion_evidence
+
+  - id: publishable_benchmark_pack
+    required_families:
+      - build_identity
+      - benchmark_public_proof
+      - known_limit_and_disclosure_note
+      - docs_help_truth
+    conditional_families:
+      - advisory_or_revocation_notice
+    must_declare_fields:
+      - exact_command_line
+      - config_ref_or_digest
+      - release_channel_and_workspace_version
+      - run_context
+      - comparability_or_quarantine_note
+      - corpus_manifest_revision
+      - task_script_or_success_criterion
+      - docs_help_version_match_state
+      - known_limits_and_exclusions
+      - competitor_settings_when_comparison_is_public
+    may_remain_internal_by_ref:
+      - raw_trace_bundles
+      - machine_serial_numbers
+      - restricted_fixture_bytes
+      - private_partner_repo_ids
+      - competitor_license_material
+
+contract_surface_index:
+  - surface_id: release_evidence
+    canonical_sources:
+      - docs/release/release_evidence_packet_template.md
+      - artifacts/evidence/evidence_metadata_fields.yaml
+      - artifacts/release/artifact_graph_rules.yaml
+      - schemas/release/waiver_packet.schema.json
+    owned_families:
+      - release_truth_bundle
+      - known_limit_and_disclosure_note
+      - promotion_evidence
+    rule: aggregate release truth by stable ref; never overwrite leaf-node ownership
+
+  - surface_id: docs_help_truth
+    canonical_sources:
+      - docs/docs/docs_pack_manifest_contract.md
+      - schemas/docs/docs_pack_manifest.schema.json
+      - schemas/docs/help_status_badge.schema.json
+      - docs/build/exact_build_identity_model.md
+    owned_families:
+      - docs_help_truth
+    rule: docs applicability and version-match state resolve here first
+
+  - surface_id: benchmark_claims
+    canonical_sources:
+      - docs/benchmarks/benchmark_publication_pack_template.md
+      - docs/benchmarks/benchmark_lab_run_results.md
+      - schemas/benchmarks/run_result.schema.json
+      - artifacts/bench/fitness_function_catalog.yaml
+      - fixtures/benchmarks/corpus_manifest.yaml
+    owned_families:
+      - benchmark_public_proof
+    rule: public benchmark caveats and competitor disclosures resolve here, not on raw dashboards
+
+  - surface_id: support_export_packets
+    canonical_sources:
+      - artifacts/support/
+      - docs/state/profile_and_state_map.md
+      - docs/build/exact_build_identity_model.md
+      - docs/security/severity_matrix.md
+      - docs/docs/docs_pack_manifest_contract.md
+    owned_families: []
+    rule: quote upstream refs and redaction classes; do not mint a private release or benchmark dialect
+
+  - surface_id: debug_artifact_manifests
+    canonical_sources:
+      - docs/build/exact_build_identity_model.md
+      - schemas/build/exact_build_identity.schema.json
+    owned_families:
+      - debug_artifact_manifest
+    rule: debug/source-map retention and linkage resolve here first

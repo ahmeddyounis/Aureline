@@ -5,7 +5,10 @@ Copy this template when assembling a release-evidence packet or a
 pre-release seed packet.
 
 Related control artifacts:
+- docs/release/release_artifact_graph.md
+- artifacts/release/artifact_graph_rules.yaml
 - docs/build/exact_build_identity_model.md
+- docs/benchmarks/benchmark_publication_pack_template.md
 - docs/benchmarks/fitness_function_catalog.md
 - docs/compat/compatibility_row_seed.md
 - docs/deployment/drill_catalog_seed.md
@@ -63,6 +66,8 @@ preview-only, or claim-narrowed.
 - **Runs or dashboards cited:** `benchmark_run_id`, `dashboard_id`, or both
 - **Freshness and comparability:** one sentence that says whether the
   evidence is claim-bearing, seed-only, stale, or not yet comparable.
+- **Publication-pack refs:** cite `benchmark-publication-pack-id` when a
+  public performance claim leaves the raw dashboard or shiproom packet.
 
 | `evidence_id` | Row or run ref | Captured at | `stale_after` | Comparability note | Source |
 |---|---|---|---|---|---|

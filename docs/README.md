@@ -63,11 +63,26 @@ code.
 - [`repo/topology.md`](./repo/topology.md) — package topology.
 - [`repo/dependency_rules.md`](./repo/dependency_rules.md) — allowed
   dependency directions between packages.
+- [`build/exact_build_identity_model.md`](./build/exact_build_identity_model.md)
+  — exact-build identity model and per-surface propagation rules for
+  release, docs/help, benchmark, and support/export truth.
 - [`build/reproducible_build_baseline.md`](./build/reproducible_build_baseline.md)
   — pinned toolchain, bootstrap command, and build-identity record.
 - [`build/cleanroom_rebuild_lane.md`](./build/cleanroom_rebuild_lane.md)
   — first clean-room rebuild lane, emitted input-manifest shape,
   artifact-digest comparison rules, and named reproducibility gaps.
+
+## Release and benchmark publication
+
+- [`release/release_artifact_graph.md`](./release/release_artifact_graph.md)
+  — publishable release-artifact graph, bundle-completeness rules, and
+  contract-surface index.
+- [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
+  — release-truth packet template and waiver-aware shiproom structure.
+- [`benchmarks/benchmark_publication_pack_template.md`](./benchmarks/benchmark_publication_pack_template.md)
+  — public benchmark/public-proof packet template with exact command
+  line, comparability, docs applicability, exclusion, and competitor
+  disclosure fields.
 
 ## Product boundary
 

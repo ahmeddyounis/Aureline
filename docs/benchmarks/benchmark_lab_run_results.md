@@ -27,6 +27,10 @@ Companion artifacts:
   self-capture that covers every fitness-catalog row, and the
   regression-demonstration record that intentionally trips
   `ff.benchmark_lab_health`.
+- [`/docs/benchmarks/benchmark_publication_pack_template.md`](./benchmark_publication_pack_template.md)
+  — public benchmark/public-proof packet template that composes over
+  the raw run-result record when results leave the internal dashboard
+  context.
 - [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
   — protected register whose `rows[].id` every run-result row cites.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)

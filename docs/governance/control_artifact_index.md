@@ -29,11 +29,12 @@ Companion artifacts:
   will eventually cover.
 
 **One home, one owner, one review path.** Every control asset — the
-artifact graph, the interface inventory, benchmark governance, the
-qualification cadence, the compatibility qualification seed, the
-decision dependency register, the supply-chain dependency and import
-registers, the experiment/Labs control registers, the release-notice
-seed, release evidence, docs and help truth, route and build-truth
+control-artifact graph, the interface inventory, benchmark governance,
+the benchmark-publication pack, the qualification cadence, the
+compatibility qualification seed, the decision dependency register, the
+supply-chain dependency and import registers, the experiment/Labs
+control registers, the release-notice seed, the release-artifact graph,
+release evidence, docs and help truth, route and build-truth
 artifacts, accessibility review packets, surface-traceability
 artifacts, and frozen-surface manifests — appears as exactly one row
 in the index file. If two documents describe the same asset, the index
@@ -79,7 +80,8 @@ governance-packet template. The index only names, routes, and scopes.
 
 ### Quality engineering
 
-- The `benchmark_governance`, `fitness_function_catalog`,
+- The `benchmark_governance`, `benchmark_publication_pack`,
+  `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
   `qualification_cadence`, `decision_dependency_register`,
   `critical_dependency_register`, `feature_flag_policy`, and
@@ -89,6 +91,12 @@ governance-packet template. The index only names, routes, and scopes.
   safety claims MUST cite a row in the fitness-function catalog via
   the `fitness_function_snapshot` packet shape rather than invent a
   parallel metric.
+- Public benchmark claims do not ship straight from the raw dashboard
+  or a slide deck. They now route through
+  [`docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
+  so exact command line, corpus revision, comparability, docs
+  applicability, known limits, and competitor settings are frozen in
+  one packet.
 - Disputes about benchmark results route through the benchmark-council
   charter (see `benchmark_governance`); do not open ad-hoc comparison
   threads outside that forum. The `fitness_function_catalog` row is
@@ -132,12 +140,21 @@ governance-packet template. The index only names, routes, and scopes.
 
 ### Release
 
-- The `release_evidence`, `compatibility_qualification_seed`,
+- The `release_artifact_graph`, `release_evidence`,
+  `compatibility_qualification_seed`,
   `release_notice_seed`, `frozen_surface_manifests`,
   `route_build_truth`, and `cleanroom_rebuild_lane` rows are the
   anchor points for release assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
+- Release completeness is no longer implicit. The canonical graph and
+  machine-readable rules now live in
+  [`docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)
+  and
+  [`artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml),
+  which bind binaries, debug manifests, docs/help truth, benchmark
+  proof packets, advisories, and promotion evidence into one
+  non-overlapping release graph.
 - The release-evidence family is now seeded with a narrative packet
   template in [`docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md),
   a filled seed example, a release-waiver schema under

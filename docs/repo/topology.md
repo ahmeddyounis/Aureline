@@ -26,7 +26,7 @@ to change, update this map in the same change.
 | `artifacts/governance/`| Package inventory, ownership matrix, scorecard/packet templates, waiver registers.   |
 | `artifacts/compat/`    | Compatibility qualification matrix, version-skew register, and boundary-row seeds.   |
 | `artifacts/evidence/`  | Shared evidence metadata catalogs and freshness field vocabularies used by release-facing packets. |
-| `artifacts/release/`   | Provenance, SBOMs, compatibility reports, claim manifests, rollback packets.          |
+| `artifacts/release/`   | Release-artifact graph rules, provenance, SBOMs, compatibility reports, claim manifests, rollback packets. |
 | `artifacts/ux/`        | Design-system snapshots, accessibility audits, UX review packets.                    |
 | `artifacts/support/`   | Support-bundle templates, recovery drill outputs, Project Doctor seeded scenarios.   |
 

@@ -24,6 +24,10 @@ Companion artifacts:
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — the `benchmark_lab` lane and the `performance_council` decision
   forum referenced below.
+- [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
+  — canonical public benchmark packet skeleton. It freezes packet
+  contents and caveat disclosure, but it does not replace the still-
+  deferred public-comparison policy.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — the `benchmark_dispute` and `perf_regression` issue classes
   route to this council.
