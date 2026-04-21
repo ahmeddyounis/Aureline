@@ -4,7 +4,7 @@
 - **Status:** Accepted
 - **Decision date:** 2026-04-19
 - **Freeze deadline:** 2026-07-31
-- **Owner:** `@ahmedyounis`
+- **Owner:** `@ahmeddyounis`
 - **Backup owner:** `null` (covered by waiver `single-maintainer-backup` in `artifacts/governance/ownership_matrix.yaml#waivers`)
 - **Forum:** architecture_council
 - **Related requirement ids:** none

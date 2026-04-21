@@ -61,21 +61,21 @@ with named backups is part of the exit criteria of the next program review.
 
 | Lane                              | Primary DRI     | Backup owner | Backup status                 | Protected |
 |-----------------------------------|-----------------|--------------|-------------------------------|-----------|
-| Renderer                          | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Buffer / editor core              | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Workspace VFS                     | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Text foundation                   | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| RPC transport                     | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Telemetry foundation              | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Shell / command system            | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Shell spike (throwaway)           | @ahmedyounis    | (none)       | Not required (unprotected)    | no        |
-| Benchmark lab                     | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Release evidence                  | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Docs / public truth               | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Support / export                  | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Design-system seeds               | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Accessibility / input review      | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
-| Governance forums                 | @ahmedyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Renderer                          | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Buffer / editor core              | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Workspace VFS                     | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Text foundation                   | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| RPC transport                     | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Telemetry foundation              | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Shell / command system            | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Shell spike (throwaway)           | @ahmeddyounis    | (none)       | Not required (unprotected)    | no        |
+| Benchmark lab                     | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Release evidence                  | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Docs / public truth               | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Support / export                  | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Design-system seeds               | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Accessibility / input review      | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
+| Governance forums                 | @ahmeddyounis    | (none)       | Single-maintainer waiver      | yes       |
 
 The `Shell / command system` row is listed separately from the `Shell spike`
 row on purpose: the command-system lane persists beyond the spike and is

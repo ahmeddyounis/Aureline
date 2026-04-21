@@ -4,7 +4,7 @@
 - **Status:** Proposed — this is an ADR seed. The vocabulary, field set, and invariants named below reserve shape and record fields so the extension-runtime, install-review, registry-mirror, and publisher-continuity lanes at a later milestone cannot invent them ad hoc. Full freeze lands in a successor ADR once the open questions in §Open questions are closed.
 - **Decision date:** pending
 - **Freeze deadline:** 2026-12-15
-- **Owner:** `@ahmedyounis`
+- **Owner:** `@ahmeddyounis`
 - **Backup owner:** `null` (covered by waiver `single-maintainer-backup` in `artifacts/governance/ownership_matrix.yaml#waivers`)
 - **Forum:** compatibility_ecosystem_review (co-required with security_trust_review because the permission-projection and policy-pack invariants ride the trust-review remit)
 - **Related requirement ids:** none
