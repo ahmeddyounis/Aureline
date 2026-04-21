@@ -1,0 +1,771 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/advisory_record.schema.json",
+  "title": "Aureline security advisory record",
+  "description": "Boundary schema for the advisory_record frozen in docs/security/severity_matrix.md. One record carries the stable Aureline advisory identity, the CVE and GHSA aliases reserved alongside it, the advisory subject kind, the affected-subject refs, signer / source state, affected-install linkage (install-profile cards, exact-build identity refs, channel classes, publication posture, mirror freshness, local continuity), disclosure class, deployment-profile scope, evidence refs with typed embedding state, and reserved hooks into emergency-action, revocation, and disable-bundle artifacts. Raw binary bytes, raw signing material, raw dependency source, raw exploit payloads, raw evidence bodies, and raw reporter identities never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-class metadata only. The eventual security-response crate's Rust types are the schema of record; this file is the cross-tool boundary every public advisory, release-note, About / Help surface, support-bundle export, release-evidence packet, and revocation / disable-bundle record reads. Adding a new security_severity_class, advisory_subject_kind, mirror_freshness_class, embedding_state, disclosure_class, or publication_posture value is additive-minor and requires an advisory_record_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "$ref": "#/$defs/advisory_record",
+  "$defs": {
+    "advisory_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this advisory record export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "advisory_record",
+      "description": "Discriminator. Every advisory carries record_kind = advisory_record so parity audits and support exports can validate payloads mechanically."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / release-evidence packets. Raw binary bytes, raw signing material, raw dependency source, raw evidence bodies, and raw reporter identities never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing a posture or note. Raw secret material and raw exploit payloads MUST NOT appear."
+    },
+
+    "security_severity_class": {
+      "type": "string",
+      "enum": [
+        "security_severity.operational_emergency",
+        "security_severity.critical",
+        "security_severity.high",
+        "security_severity.medium",
+        "security_severity.low"
+      ],
+      "description": "Frozen severity vocabulary. See docs/security/severity_matrix.md 'Severity vocabulary' for owner, response-clock, minimum-review-forum, and documentation / update obligation per level. A record whose severity cannot be resolved fails closed with severity_class_unresolved rather than defaulting."
+    },
+
+    "advisory_subject_kind": {
+      "type": "string",
+      "enum": [
+        "build_binary",
+        "build_symbol",
+        "docs_pack",
+        "extension",
+        "capability_gate",
+        "settings_definition",
+        "secret_class_posture",
+        "signing_material",
+        "install_profile_card",
+        "runtime_component",
+        "managed_cloud_surface",
+        "third_party_dependency",
+        "workspace_trust_policy",
+        "ai_context_assembly"
+      ],
+      "description": "Frozen advisory-subject-kind vocabulary. A record whose subject cannot be typed fails closed with subject_kind_unresolved rather than defaulting. Adding a new value is additive-minor and requires a schema version bump."
+    },
+
+    "cve_id_string": {
+      "type": "string",
+      "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$",
+      "description": "CVE identifier in the form CVE-YYYY-NNNN+. Year is four digits; sequence is at least four digits. The record carries a null cve_id until a CVE is assigned."
+    },
+
+    "ghsa_id_string": {
+      "type": "string",
+      "pattern": "^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$",
+      "description": "GHSA identifier in the form GHSA-xxxx-yyyy-zzzz. Lower-case alphanumeric segments. The record carries a null ghsa_id until a GHSA is minted."
+    },
+
+    "aureline_advisory_id_string": {
+      "type": "string",
+      "pattern": "^AURELINE-ADV-[0-9]{4}-[0-9]{4,}$",
+      "description": "Stable Aureline advisory id in the form AURELINE-ADV-YYYY-NNNN+. Year is four digits; sequence is at least four digits. Stable for the life of the advisory even when the finding is reclassified."
+    },
+
+    "advisory_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aureline_advisory_id",
+        "cve_id",
+        "ghsa_id",
+        "additional_alias_refs"
+      ],
+      "properties": {
+        "aureline_advisory_id": { "$ref": "#/$defs/aureline_advisory_id_string" },
+        "cve_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/cve_id_string" }
+          ],
+          "description": "CVE alias. Null when no CVE has been assigned. Populated in place, not by minting a new advisory id."
+        },
+        "ghsa_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ghsa_id_string" }
+          ],
+          "description": "GHSA alias. Null when no GHSA has been minted. Populated in place, not by minting a new advisory id."
+        },
+        "additional_alias_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque alias refs for future disclosure schemes. Empty at this milestone; later alias classes land under this array rather than adding a new top-level field."
+        }
+      },
+      "description": "Advisory identity envelope. aureline_advisory_id is required on every advisory; cve_id and ghsa_id are nullable alias slots that downstream disclosure, revocation, and disable-bundle artifacts resolve against so no parallel identity system is minted. additional_alias_refs is reserved so later schemes (for example OSV or a coordinated-disclosure group's id format) attach without a top-level schema change."
+    },
+
+    "affected_subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/advisory_subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Typed reference to an affected subject. Raw subject bodies never appear here."
+    },
+
+    "signing_class": {
+      "type": "string",
+      "enum": [
+        "unsigned_development_only",
+        "ephemeral_developer_signature",
+        "ci_transparent_sign",
+        "release_production_sign",
+        "release_hardware_key_sign"
+      ],
+      "description": "Frozen signing-class vocabulary. Mirrors the exact-build identity model (schemas/build/exact_build_identity.schema.json) so an advisory that names a build resolves into the same signing vocabulary the build itself carries."
+    },
+
+    "signing_material_state_class": {
+      "type": "string",
+      "enum": [
+        "not_signed",
+        "signed_unverified",
+        "signed_verified",
+        "signed_revoked"
+      ],
+      "description": "Frozen signing-material state vocabulary. Mirrors the exact-build identity model. signed_revoked is a publishable blocker on every downstream surface."
+    },
+
+    "signer_source_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signing_class",
+        "signing_material_state",
+        "source_note"
+      ],
+      "properties": {
+        "signing_class": { "$ref": "#/$defs/signing_class" },
+        "signing_material_state": { "$ref": "#/$defs/signing_material_state_class" },
+        "signing_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the signing authority the affected subject was signed by. Null when the subject was unsigned_development_only or when the signing authority is not known."
+        },
+        "transparency_log_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the transparency-log entry for the subject's signature. Null when the subject is unsigned or when the signing class does not require a transparency-log anchor."
+        },
+        "source_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Signer / source state for the affected subject. The record names the signing class and signing-material state the subject was published under and carries an opaque ref to the signing authority plus a transparency-log ref when applicable. Raw signing material never appears here."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary. Mirrors schemas/build/exact_build_identity.schema.json so an advisory resolves the same channel vocabulary the exact-build identity carries."
+    },
+
+    "publication_posture_class": {
+      "type": "string",
+      "enum": [
+        "online_vendor",
+        "offline_signed_bundle",
+        "customer_managed_mirror",
+        "third_party_package_index"
+      ],
+      "description": "Frozen publication-posture vocabulary. Mirrors docs/release/install_topology_plan.md 'Mirror / air-gap publication posture'."
+    },
+
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "up_to_date",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_expired",
+        "unknown"
+      ],
+      "description": "Frozen mirror-freshness vocabulary. A mirror that does not carry the fix is stale_within_grace (fix is recent, grace window applies), stale_past_grace (grace window elapsed), offline_expired (air-gap bundle past its offline_expiration_at), or unknown (the freshness cannot be resolved). up_to_date means the mirror or local cache already carries the fix."
+    },
+
+    "affected_install_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "install_profile_card_refs",
+        "exact_build_identity_refs",
+        "channel_classes",
+        "publication_posture_classes",
+        "mirror_freshness_class",
+        "local_continuity_note"
+      ],
+      "properties": {
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. Each ref names one install_profile_card_record the advisory applies to. A critical or high advisory MUST NOT carry an empty list."
+        },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json (exact_build_identity_ref values). Each ref names one exact-build identity the advisory applies to. The record MUST carry at least one ref — free-text 'version 1.x' is non-conforming."
+        },
+        "channel_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "description": "Release channel classes the advisory applies to. Drawn from the exact-build identity model's vocabulary."
+        },
+        "publication_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/publication_posture_class" },
+          "description": "Publication postures the advisory applies to. An advisory that affects every posture lists every value."
+        },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "offline_expiration_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "ISO 8601 UTC timestamp when a currently-shipped offline bundle containing the affected subject expires without a fix. Null when the advisory does not carry an offline / air-gapped scope."
+        },
+        "local_continuity_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Affected-install assessment linkage. Names the install-profile cards, exact-build identities, channels, publication postures, and mirror-freshness class the advisory applies to, plus a local-continuity note describing what still works locally if the affected install is disabled before the fix is available. An operational-emergency, critical, or high advisory with an empty install_profile_card_refs or empty exact_build_identity_refs is non-conforming at the record level."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Frozen deployment-profile vocabulary. Mirrors docs/product/boundary_manifest_strawman.md so an advisory resolves into the same deployment-profile ids the boundary manifest uses."
+    },
+
+    "disclosure_class": {
+      "type": "string",
+      "enum": [
+        "public_immediate",
+        "public_on_fix",
+        "public_on_advisory",
+        "private_indefinite"
+      ],
+      "description": "Frozen disclosure-class vocabulary. Mirrors artifacts/governance/issue_routing.yaml disclosure_classes. security_issue reports default to public_on_advisory; downgrading to private_indefinite is a governance decision recorded in decision_history[]."
+    },
+
+    "public_summary_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending_drafting",
+        "pending_review",
+        "pending_publication",
+        "published",
+        "withdrawn"
+      ],
+      "description": "Frozen public-summary-state vocabulary. not_required applies only at security_severity.low. pending_* states cover drafting, review, and publication gates. published is the published state. withdrawn is the explicit-retraction state and requires a decision-history row."
+    },
+
+    "embedding_state": {
+      "type": "string",
+      "enum": [
+        "omitted",
+        "embedded",
+        "redacted",
+        "by_reference"
+      ],
+      "description": "Frozen evidence-embedding vocabulary. See docs/security/severity_matrix.md 'Evidence embedding vocabulary' for semantics. An evidence item that asserts embedded but carries no body, redacted but no redaction-pass class, or by_reference but no reference_ref, is non-conforming."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public",
+        "private_triage_only"
+      ],
+      "description": "Frozen redaction-class vocabulary for this record. log_safe / support_export_only / evidence_packet_only / release_public mirror the redaction envelope pinned in schemas/build/exact_build_identity.schema.json; private_triage_only is admissible only when the advisory's evidence is carried inside a named private-triage workspace scope and is not otherwise exported. release_public is the only class that may appear verbatim in public release notes or About / Help dialogs."
+    },
+
+    "redaction_pass_class": {
+      "type": "string",
+      "enum": [
+        "broker_default_support_bundle",
+        "broker_default_evidence_packet",
+        "broker_default_logs_local",
+        "broker_default_ai_context_capture",
+        "private_triage_manual_review"
+      ],
+      "description": "Frozen redaction-pass-class vocabulary. Names which redaction pass ran before the evidence body was embedded. broker_default_* values inherit the redaction defaults frozen in schemas/security/secret_class_rows.schema.json (ADR-0007). private_triage_manual_review applies only inside a private-triage workspace scope."
+    },
+
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "evidence_kind_note",
+        "embedding_state",
+        "embedded_payload_ref",
+        "reference_ref",
+        "redaction_pass_class",
+        "placeholder_shape"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the evidence item. Stable across a redaction-pass rerun; different passes do not mint new ids."
+        },
+        "evidence_kind_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "embedding_state": { "$ref": "#/$defs/embedding_state" },
+        "embedded_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the embedded payload. Non-null only when embedding_state is embedded or redacted; null otherwise. Raw payloads never appear in this record; the ref resolves through the evidence resolver under the redaction envelope named on redaction_class."
+        },
+        "reference_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the artefact that carries the body when embedding_state is by_reference (support bundle, release-evidence packet, private-triage workspace note). Null when embedding_state is embedded, redacted, or omitted."
+        },
+        "redaction_pass_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_pass_class" }
+          ],
+          "description": "Which redaction pass ran before the evidence body was embedded. Non-null when embedding_state is redacted; null for embedded (no redaction applied, admissible only for non-secret classes), by_reference, and omitted."
+        },
+        "placeholder_shape": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short description of the placeholder that stands in for every redacted span (for example '<redacted: ai_provider_token>'). Non-null when embedding_state is redacted; null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "embedding_state = embedded or redacted requires embedded_payload_ref.",
+          "if": {
+            "properties": {
+              "embedding_state": {
+                "enum": ["embedded", "redacted"]
+              }
+            },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "embedded_payload_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["embedded_payload_ref"]
+          }
+        },
+        {
+          "description": "embedding_state = by_reference requires reference_ref.",
+          "if": {
+            "properties": { "embedding_state": { "const": "by_reference" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "reference_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reference_ref"]
+          }
+        },
+        {
+          "description": "embedding_state = redacted requires redaction_pass_class and placeholder_shape.",
+          "if": {
+            "properties": { "embedding_state": { "const": "redacted" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "redaction_pass_class": { "$ref": "#/$defs/redaction_pass_class" },
+              "placeholder_shape": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["redaction_pass_class", "placeholder_shape"]
+          }
+        },
+        {
+          "description": "embedding_state = omitted forbids embedded_payload_ref and reference_ref.",
+          "if": {
+            "properties": { "embedding_state": { "const": "omitted" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "embedded_payload_ref": { "type": "null" },
+              "reference_ref": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "One evidence item referenced by the advisory. Raw bodies never appear; the item carries an embedding state, an opaque ref to the body (embedded, by-reference) or no ref at all (omitted), a redaction-pass class when the body was embedded after redaction, and a placeholder shape describing what redacted spans look like in the embedded body."
+    },
+
+    "decision_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recorded_at", "actor_ref", "forum", "outcome"],
+      "properties": {
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor (maintainer pseudonym, forum chair, co-signer). Raw reporter identities never appear here."
+        },
+        "forum": {
+          "type": "string",
+          "enum": [
+            "security_trust_review",
+            "release_council",
+            "architecture_council",
+            "performance_council",
+            "product_scope_review",
+            "compatibility_ecosystem_review",
+            "shiproom_executive_scope_review"
+          ],
+          "description": "Forum the decision event is recorded against. Mirrors artifacts/governance/ownership_matrix.yaml decision_forums[]. Operational-emergency, critical, and high advisories MUST record at least one entry with forum: security_trust_review and at least one co-sign entry with forum: release_council."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "opened",
+            "acknowledged",
+            "severity_set",
+            "severity_upgraded",
+            "severity_downgraded",
+            "mitigation_drafted",
+            "mitigation_shipped",
+            "advisory_drafted",
+            "advisory_reviewed",
+            "advisory_published",
+            "advisory_withdrawn",
+            "revocation_issued",
+            "disable_bundle_published",
+            "emergency_action_invoked",
+            "closed"
+          ],
+          "description": "Frozen outcome vocabulary for decision-history entries. severity_upgraded / severity_downgraded are the only mechanisms by which severity_class changes; there is no backdating."
+        },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "One decision-history entry. The entry is append-only; prior entries never mutate. A severity change without a corresponding severity_upgraded / severity_downgraded entry is non-conforming."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008)."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "restricted",
+            "trusted",
+            "managed_admin"
+          ],
+          "description": "ADR-0009 trust state of the producing context."
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 so downstream lanes can reason about the advisory's policy provenance without re-deriving it."
+    },
+
+    "advisory_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_record_schema_version",
+        "record_kind",
+        "advisory_identity",
+        "advisory_subject_kind",
+        "severity_class",
+        "title",
+        "summary",
+        "affected_subjects",
+        "signer_source_state",
+        "affected_install_linkage",
+        "deployment_profile_scope",
+        "disclosure_class",
+        "public_summary_state",
+        "public_summary_ref",
+        "monitored_contact_ref",
+        "private_triage_workspace_ref",
+        "evidence",
+        "emergency_action_refs",
+        "revocation_refs",
+        "disable_bundle_refs",
+        "decision_history",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "advisory_record_schema_version": { "$ref": "#/$defs/advisory_record_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "advisory_identity": { "$ref": "#/$defs/advisory_identity" },
+
+        "advisory_subject_kind": { "$ref": "#/$defs/advisory_subject_kind" },
+
+        "severity_class": { "$ref": "#/$defs/security_severity_class" },
+
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable advisory title. Never carries raw secret material or raw exploit payload. Used as the public-advisory heading and the About / Help notice heading."
+        },
+
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+
+        "affected_subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_subject_ref" },
+          "description": "Typed refs to every subject the advisory applies to. At least one entry is required."
+        },
+
+        "signer_source_state": { "$ref": "#/$defs/signer_source_state" },
+
+        "affected_install_linkage": { "$ref": "#/$defs/affected_install_linkage" },
+
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment profiles the advisory applies to. Drawn from the boundary-manifest deployment-profile vocabulary."
+        },
+
+        "disclosure_class": { "$ref": "#/$defs/disclosure_class" },
+
+        "public_summary_state": { "$ref": "#/$defs/public_summary_state" },
+
+        "public_summary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the published public-summary artefact (release note row, advisory page, coordinated-disclosure summary). Non-null when public_summary_state is published; null otherwise. A security_severity.medium, security_severity.high, security_severity.critical, or security_severity.operational_emergency advisory with a null public_summary_ref at public_summary_state = published is non-conforming."
+        },
+
+        "monitored_contact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the monitored SECURITY.md contact path (security_md_monitored_contact). See docs/security/severity_matrix.md 'Monitored contact path'. An advisory with an unresolved monitored_contact_ref fails closed; publication is blocked."
+        },
+
+        "private_triage_workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the private-triage workspace the advisory was triaged in. Resolves into an incident_workspace_packet_record (schemas/security/incident_workspace_packet.schema.json). An advisory with an unresolved private_triage_workspace_ref fails closed."
+        },
+
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_item" },
+          "description": "Evidence items referenced by the advisory. Each item names its own embedding state (omitted / embedded / redacted / by_reference) and, when applicable, the redaction-pass class that ran before the body was embedded. Raw secret material MUST NOT appear; placeholders stand in."
+        },
+
+        "emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to emergency-action records linked to this advisory. The emergency-action state model is out of scope at this milestone; the refs are reserved so the linkage shape does not churn later."
+        },
+
+        "revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to revocation records linked to this advisory. The revocation-record schema is a later lane co-owned by security / trust review and release council."
+        },
+
+        "disable_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to disable-bundle artifacts linked to this advisory. The disable-bundle artefact is a later lane."
+        },
+
+        "decision_history": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/decision_history_entry" },
+          "description": "Append-only decision history. Every severity reclassification, mitigation event, advisory-publication event, revocation event, and emergency-action invocation lands here. Single-forum close on security_severity.operational_emergency / security_severity.critical / security_severity.high is non-conforming: both security_trust_review and release_council MUST appear in the history."
+        },
+
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "security_severity.low advisories MUST NOT carry emergency_action_refs, revocation_refs, or disable_bundle_refs entries.",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "security_severity.low" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "emergency_action_refs": { "maxItems": 0 },
+              "revocation_refs": { "maxItems": 0 },
+              "disable_bundle_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "security_severity.operational_emergency, security_severity.critical, and security_severity.high advisories MUST carry a non-empty affected_install_linkage.install_profile_card_refs and a non-empty affected_install_linkage.exact_build_identity_refs.",
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_install_linkage": {
+                "properties": {
+                  "install_profile_card_refs": { "minItems": 1 },
+                  "exact_build_identity_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "public_summary_state = not_required is admissible only at security_severity.low.",
+          "if": {
+            "properties": { "public_summary_state": { "const": "not_required" } },
+            "required": ["public_summary_state"]
+          },
+          "then": {
+            "properties": {
+              "severity_class": { "const": "security_severity.low" }
+            }
+          }
+        },
+        {
+          "description": "Operational-emergency, critical, and high advisories require both security_trust_review and release_council entries on the decision trail.",
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "forum": { "const": "security_trust_review" }
+                      },
+                      "required": ["forum"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "forum": { "const": "release_council" }
+                      },
+                      "required": ["forum"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "public_summary_state = published requires a non-null public_summary_ref.",
+          "if": {
+            "properties": { "public_summary_state": { "const": "published" } },
+            "required": ["public_summary_state"]
+          },
+          "then": {
+            "properties": {
+              "public_summary_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["public_summary_ref"]
+          }
+        }
+      ],
+      "description": "Advisory record. One record per advisory. The record carries the Aureline advisory id plus CVE and GHSA alias slots, the advisory subject kind and affected subject refs, signer / source state, affected-install linkage into the install-topology matrix and exact-build identity model, deployment-profile scope, disclosure class, public-summary state, monitored contact ref, private-triage workspace ref, evidence refs with typed embedding state, reserved hooks into emergency-action / revocation / disable-bundle artifacts, append-only decision history, policy context, and redaction class. Downstream public advisories, release notes, About / Help notices, support-bundle exports, and release-evidence packets resolve a single advisory_identity.aureline_advisory_id into one record — no parallel identity system."
+    }
+  }
+}

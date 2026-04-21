@@ -1,0 +1,742 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/incident_workspace_packet.schema.json",
+  "title": "Aureline security incident workspace packet",
+  "description": "Boundary schema for the incident_workspace_packet_record frozen in docs/security/severity_matrix.md. One record carries the private-triage workspace scope, the monitored SECURITY.md contact path anchor, the severity class the packet is being triaged at, an append-only chronology of timeline events, evidence items each carrying a typed embedding_state (omitted / embedded / redacted / by_reference), artifact refs (advisory id, support bundle, exact-build identity, install-profile cards, impacted subject refs), continuity notes describing what still works locally if the affected install lanes are disabled before a fix ships, typed handoff and export routing, deployment-profile scope, reserved hooks into emergency-action / revocation / disable-bundle artifacts, and policy context. Raw binary bytes, raw signing material, raw dependency source, raw exploit payloads, raw evidence bodies, and raw reporter identities never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-class metadata only. The eventual security-response crate's Rust types are the schema of record; this file is the cross-tool boundary every private-triage export, support-bundle companion, release-evidence companion, and advisory-publication evidence resolver reads. Adding a new handoff_routing_class, export_routing_class, private_triage_workspace_scope, evidence_kind_class, timeline_event_class, or embedding_state value is additive-minor and requires an incident_workspace_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "$ref": "#/$defs/incident_workspace_packet_record",
+  "$defs": {
+    "incident_workspace_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this incident workspace packet export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "incident_workspace_packet_record",
+      "description": "Discriminator. Every packet carries record_kind = incident_workspace_packet_record so parity audits and support exports can validate payloads mechanically."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / release-evidence packets. Raw binary bytes, raw signing material, raw dependency source, raw evidence bodies, and raw reporter identities never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing a posture, note, or observation. Raw secret material and raw exploit payloads MUST NOT appear."
+    },
+
+    "security_severity_class": {
+      "type": "string",
+      "enum": [
+        "security_severity.operational_emergency",
+        "security_severity.critical",
+        "security_severity.high",
+        "security_severity.medium",
+        "security_severity.low"
+      ],
+      "description": "Frozen severity vocabulary. Mirrors schemas/security/advisory_record.schema.json so a packet and the advisory it feeds cannot drift on severity. See docs/security/severity_matrix.md 'Severity vocabulary'."
+    },
+
+    "triage_status_class": {
+      "type": "string",
+      "enum": [
+        "triage_open",
+        "triage_in_progress",
+        "triage_blocked_pending_reporter",
+        "triage_blocked_pending_forum",
+        "triage_resolved_to_advisory",
+        "triage_resolved_without_advisory",
+        "triage_withdrawn",
+        "triage_closed_duplicate"
+      ],
+      "description": "Frozen triage-status vocabulary. A packet whose status cannot be resolved fails closed with triage_status_unresolved rather than defaulting."
+    },
+
+    "private_triage_workspace_scope": {
+      "type": "string",
+      "enum": [
+        "private_security_channel",
+        "private_partner_channel",
+        "coordinated_disclosure_group",
+        "vendor_only"
+      ],
+      "description": "Frozen private-triage workspace scope. Mirrors docs/security/severity_matrix.md 'Private-triage workspace' and schemas/security/advisory_record.schema.json. private_triage_only redaction is admissible only inside one of these scopes."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public",
+        "private_triage_only"
+      ],
+      "description": "Frozen redaction-class vocabulary for this record. Mirrors schemas/security/advisory_record.schema.json. release_public is the only class that may appear verbatim in public release notes or About / Help dialogs. private_triage_only is admissible only when the packet's private_triage_workspace_scope is set."
+    },
+
+    "redaction_pass_class": {
+      "type": "string",
+      "enum": [
+        "broker_default_support_bundle",
+        "broker_default_evidence_packet",
+        "broker_default_logs_local",
+        "broker_default_ai_context_capture",
+        "private_triage_manual_review"
+      ],
+      "description": "Frozen redaction-pass-class vocabulary. Names which redaction pass ran before the evidence body was embedded. broker_default_* values inherit the redaction defaults frozen in schemas/security/secret_class_rows.schema.json (ADR-0007). private_triage_manual_review applies only inside a private-triage workspace scope."
+    },
+
+    "embedding_state": {
+      "type": "string",
+      "enum": [
+        "omitted",
+        "embedded",
+        "redacted",
+        "by_reference"
+      ],
+      "description": "Frozen evidence-embedding vocabulary. Mirrors schemas/security/advisory_record.schema.json. See docs/security/severity_matrix.md 'Evidence embedding vocabulary' for semantics."
+    },
+
+    "evidence_kind_class": {
+      "type": "string",
+      "enum": [
+        "reporter_submission",
+        "reproduction_steps",
+        "crash_artifact",
+        "log_excerpt",
+        "network_capture_reference",
+        "code_pointer",
+        "configuration_snapshot",
+        "dependency_manifest_excerpt",
+        "redacted_telemetry",
+        "exploit_payload_placeholder",
+        "mitigation_note",
+        "reviewer_finding",
+        "partner_supplied_artefact",
+        "coordinated_disclosure_attachment_reference",
+        "internal_analysis_note"
+      ],
+      "description": "Frozen evidence-kind vocabulary. Names what category of evidence the item is. exploit_payload_placeholder is the only class admissible for exploit material and MUST be carried as by_reference or redacted; embedding a raw exploit payload is non-conforming. reporter_submission and coordinated_disclosure_attachment_reference MUST be by_reference when the body is outside vendor_only scope."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Frozen deployment-profile vocabulary. Mirrors docs/product/boundary_manifest_strawman.md and schemas/security/advisory_record.schema.json."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary. Mirrors schemas/build/exact_build_identity.schema.json."
+    },
+
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "up_to_date",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_expired",
+        "unknown"
+      ],
+      "description": "Frozen mirror-freshness vocabulary. Mirrors schemas/security/advisory_record.schema.json."
+    },
+
+    "handoff_routing_class": {
+      "type": "string",
+      "enum": [
+        "within_private_triage",
+        "to_release_council",
+        "to_support_export",
+        "to_coordinated_disclosure_group",
+        "to_partner_channel"
+      ],
+      "description": "Frozen handoff-routing vocabulary. Mirrors docs/security/severity_matrix.md 'Handoff and export routing'. within_private_triage means the packet stays inside the private-triage workspace and export_routing MUST be no_export."
+    },
+
+    "export_routing_class": {
+      "type": "string",
+      "enum": [
+        "no_export",
+        "export_embedded_in_advisory",
+        "export_by_reference_from_advisory",
+        "export_to_support_bundle",
+        "export_to_release_evidence_packet"
+      ],
+      "description": "Frozen export-routing vocabulary. Mirrors docs/security/severity_matrix.md 'Handoff and export routing'. export_embedded_in_advisory is admissible only at redaction_class: evidence_packet_only or redaction_class: private_triage_only (the latter only when the advisory itself is inside the triage scope)."
+    },
+
+    "timeline_event_class": {
+      "type": "string",
+      "enum": [
+        "report_received",
+        "acknowledged_to_reporter",
+        "triage_opened",
+        "severity_assigned",
+        "severity_upgraded",
+        "severity_downgraded",
+        "reproduction_confirmed",
+        "reproduction_failed",
+        "mitigation_drafted",
+        "mitigation_applied",
+        "mitigation_shipped",
+        "advisory_drafted",
+        "advisory_reviewed",
+        "advisory_published",
+        "advisory_withdrawn",
+        "revocation_issued",
+        "disable_bundle_published",
+        "emergency_action_invoked",
+        "evidence_added",
+        "evidence_redacted",
+        "evidence_withdrawn",
+        "handoff_to_release_council",
+        "handoff_to_support_export",
+        "handoff_to_coordinated_disclosure_group",
+        "handoff_to_partner_channel",
+        "status_changed",
+        "note_recorded",
+        "closed"
+      ],
+      "description": "Frozen timeline-event vocabulary. Names what kind of event the timeline entry records. Timeline entries are append-only; prior entries never mutate and are never backdated."
+    },
+
+    "artifact_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_record_refs",
+        "exact_build_identity_refs",
+        "install_profile_card_refs",
+        "impacted_subject_refs",
+        "support_bundle_refs",
+        "release_evidence_packet_refs",
+        "related_packet_refs"
+      ],
+      "properties": {
+        "advisory_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/security/advisory_record.schema.json. One packet may feed more than one advisory when a single finding splits across subject kinds; every advisory the packet feeds names this packet in its private_triage_workspace_ref."
+        },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json. The packet names the precise builds it observed the finding in; free-text 'version 1.x' is non-conforming."
+        },
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. Names the install-profile cards the packet observed the finding in."
+        },
+        "impacted_subject_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the impacted subjects. Resolves into the advisory_record.affected_subjects envelope when the packet feeds an advisory."
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to support-bundle exports carrying companion diagnostics. The support-bundle schema is a later lane; refs are opaque at this milestone."
+        },
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to release-evidence packets the packet feeds or draws from. The release-evidence schema is a later lane; refs are opaque at this milestone."
+        },
+        "related_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to other incident_workspace_packet_record ids this packet is related to (split findings, merged triage, duplicate closures). Empty by default."
+        }
+      },
+      "description": "Artifact-refs envelope. Every cross-artefact linkage the packet carries is an opaque ref resolved through its owning schema. Raw bodies never appear in this envelope."
+    },
+
+    "affected_install_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_classes",
+        "mirror_freshness_class",
+        "local_continuity_note"
+      ],
+      "properties": {
+        "channel_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "description": "Release channels the packet observed the finding in."
+        },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "offline_expiration_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "ISO 8601 UTC timestamp when the currently-shipped offline bundle containing the affected subject expires without a fix. Null when the packet does not carry an offline / air-gapped scope."
+        },
+        "local_continuity_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, reviewable sentence describing what still works locally if the admin disables the affected install-profile card before a fix ships. Pairs with the advisory_record.affected_install_linkage.local_continuity_note."
+        }
+      },
+      "description": "Affected-install note carried on the packet so the triage forum can reason about mirror freshness, offline expiration, and local continuity without having to resolve the advisory record first. A packet whose affected_install_note disagrees with the downstream advisory_record.affected_install_linkage is non-conforming on publication."
+    },
+
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "evidence_kind",
+        "evidence_kind_note",
+        "embedding_state",
+        "embedded_payload_ref",
+        "reference_ref",
+        "redaction_pass_class",
+        "placeholder_shape",
+        "captured_at"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the evidence item. Stable across redaction-pass reruns; different passes do not mint new ids. The matching advisory_record.evidence_item.evidence_id points back to this id."
+        },
+        "evidence_kind": { "$ref": "#/$defs/evidence_kind_class" },
+        "evidence_kind_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "embedding_state": { "$ref": "#/$defs/embedding_state" },
+        "embedded_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the embedded payload. Non-null only when embedding_state is embedded or redacted; null otherwise. Raw payloads never appear in this record; the ref resolves through the evidence resolver under the redaction envelope named on redaction_class."
+        },
+        "reference_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the artefact that carries the body when embedding_state is by_reference (support bundle, release-evidence packet, private-triage workspace note, coordinated-disclosure attachment). Null when embedding_state is embedded, redacted, or omitted."
+        },
+        "redaction_pass_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_pass_class" }
+          ],
+          "description": "Which redaction pass ran before the evidence body was embedded. Non-null when embedding_state is redacted; null for embedded (no redaction applied, admissible only for non-secret classes), by_reference, and omitted."
+        },
+        "placeholder_shape": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short description of the placeholder that stands in for every redacted span (for example '<redacted: ai_provider_token>'). Non-null when embedding_state is redacted; null otherwise."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "embedding_state = embedded or redacted requires embedded_payload_ref.",
+          "if": {
+            "properties": {
+              "embedding_state": { "enum": ["embedded", "redacted"] }
+            },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "embedded_payload_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["embedded_payload_ref"]
+          }
+        },
+        {
+          "description": "embedding_state = by_reference requires reference_ref.",
+          "if": {
+            "properties": { "embedding_state": { "const": "by_reference" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "reference_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["reference_ref"]
+          }
+        },
+        {
+          "description": "embedding_state = redacted requires redaction_pass_class and placeholder_shape.",
+          "if": {
+            "properties": { "embedding_state": { "const": "redacted" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "redaction_pass_class": { "$ref": "#/$defs/redaction_pass_class" },
+              "placeholder_shape": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["redaction_pass_class", "placeholder_shape"]
+          }
+        },
+        {
+          "description": "embedding_state = omitted forbids embedded_payload_ref and reference_ref.",
+          "if": {
+            "properties": { "embedding_state": { "const": "omitted" } },
+            "required": ["embedding_state"]
+          },
+          "then": {
+            "properties": {
+              "embedded_payload_ref": { "type": "null" },
+              "reference_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "evidence_kind = exploit_payload_placeholder MUST be by_reference or redacted; embedded is non-conforming.",
+          "if": {
+            "properties": { "evidence_kind": { "const": "exploit_payload_placeholder" } },
+            "required": ["evidence_kind"]
+          },
+          "then": {
+            "properties": {
+              "embedding_state": { "enum": ["redacted", "by_reference", "omitted"] }
+            }
+          }
+        }
+      ],
+      "description": "One evidence item referenced by the packet. Raw bodies never appear; the item carries an embedding state, an opaque ref to the body (embedded, by-reference) or no ref at all (omitted), a redaction-pass class when the body was embedded after redaction, and a placeholder shape describing what redacted spans look like in the embedded body."
+    },
+
+    "timeline_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recorded_at", "actor_ref", "event_class", "note"],
+      "properties": {
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor (maintainer pseudonym, forum chair, reporter handle). Raw reporter identities never appear here; a pseudonymous reporter id is admissible."
+        },
+        "event_class": { "$ref": "#/$defs/timeline_event_class" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional reviewable note for the event. Raw secret material and raw exploit payloads MUST NOT appear."
+        }
+      },
+      "description": "One timeline event. Append-only; prior events never mutate and are never backdated. Severity changes land as severity_upgraded / severity_downgraded events with a matching decision-history row on the downstream advisory record."
+    },
+
+    "continuity_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_id", "posture_class", "note"],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/opaque_id" },
+        "posture_class": {
+          "type": "string",
+          "enum": [
+            "local_continuity_intact",
+            "local_continuity_partial",
+            "local_continuity_blocked",
+            "managed_continuity_intact",
+            "managed_continuity_partial",
+            "managed_continuity_blocked",
+            "offline_continuity_intact",
+            "offline_continuity_partial",
+            "offline_continuity_blocked"
+          ],
+          "description": "Frozen continuity-posture vocabulary. local_* applies to individual_local / self_hosted, managed_* applies to enterprise_online / managed_cloud, offline_* applies to air_gapped."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One continuity note. Describes what still works, what partially works, and what is blocked if the affected install lanes are disabled or narrowed before the fix ships. Pairs with the advisory_record.affected_install_linkage.local_continuity_note."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008)."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "restricted",
+            "trusted",
+            "managed_admin"
+          ],
+          "description": "ADR-0009 trust state of the producing context."
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 so downstream lanes can reason about the packet's policy provenance without re-deriving it."
+    },
+
+    "incident_workspace_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incident_workspace_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "title",
+        "summary",
+        "severity_class",
+        "triage_status",
+        "private_triage_workspace_scope",
+        "monitored_contact_ref",
+        "deployment_profile_scope",
+        "artifact_refs",
+        "affected_install_note",
+        "evidence_items",
+        "timeline",
+        "continuity_notes",
+        "handoff_routing",
+        "export_routing",
+        "emergency_action_refs",
+        "revocation_refs",
+        "disable_bundle_refs",
+        "policy_context",
+        "redaction_class",
+        "opened_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "incident_workspace_packet_schema_version": { "$ref": "#/$defs/incident_workspace_packet_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "packet_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for this incident workspace packet. Stable for the life of the triage even when the packet is reclassified or split."
+        },
+
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable packet title. Never carries raw secret material or raw exploit payload. Used as the in-workspace heading; the public-advisory heading is the downstream advisory_record.title, not this field."
+        },
+
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+
+        "severity_class": { "$ref": "#/$defs/security_severity_class" },
+
+        "triage_status": { "$ref": "#/$defs/triage_status_class" },
+
+        "private_triage_workspace_scope": { "$ref": "#/$defs/private_triage_workspace_scope" },
+
+        "monitored_contact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the monitored SECURITY.md contact path (security_md_monitored_contact). Mirrors schemas/security/advisory_record.schema.json. A packet with an unresolved monitored_contact_ref fails closed; advisory handoff is blocked."
+        },
+
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment profiles the finding applies to. Drawn from the boundary-manifest deployment-profile vocabulary. An operational-emergency, critical, or high packet with an empty scope is non-conforming."
+        },
+
+        "artifact_refs": { "$ref": "#/$defs/artifact_refs" },
+
+        "affected_install_note": { "$ref": "#/$defs/affected_install_note" },
+
+        "evidence_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_item" },
+          "description": "Evidence items carried by the packet. Each item names its own embedding state (omitted / embedded / redacted / by_reference) and, when applicable, the redaction-pass class that ran before the body was embedded. Raw secret material MUST NOT appear; placeholders stand in."
+        },
+
+        "timeline": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_event" },
+          "description": "Append-only chronology of triage events. The first entry MUST be a report_received, acknowledged_to_reporter, or triage_opened event. Severity reclassification lands as severity_upgraded / severity_downgraded with a matching decision-history row on the downstream advisory record."
+        },
+
+        "continuity_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/continuity_note" },
+          "description": "Continuity notes describing what still works locally, under management, or offline if the affected install lanes are disabled before a fix ships. Empty when continuity is not in scope (for example a duplicate closure or a triage packet with no install-lane impact)."
+        },
+
+        "handoff_routing": { "$ref": "#/$defs/handoff_routing_class" },
+
+        "export_routing": { "$ref": "#/$defs/export_routing_class" },
+
+        "emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to emergency-action records linked to this packet. The emergency-action state model is out of scope at this milestone; refs are reserved so the linkage shape does not churn later."
+        },
+
+        "revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to revocation records linked to this packet. The revocation-record schema is a later lane co-owned by security / trust review and release council."
+        },
+
+        "disable_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to disable-bundle artifacts linked to this packet. The disable-bundle artefact is a later lane."
+        },
+
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "handoff_routing = within_private_triage requires export_routing = no_export.",
+          "if": {
+            "properties": { "handoff_routing": { "const": "within_private_triage" } },
+            "required": ["handoff_routing"]
+          },
+          "then": {
+            "properties": {
+              "export_routing": { "const": "no_export" }
+            }
+          }
+        },
+        {
+          "description": "redaction_class = private_triage_only requires private_triage_workspace_scope in {private_security_channel, vendor_only, private_partner_channel, coordinated_disclosure_group}.",
+          "if": {
+            "properties": { "redaction_class": { "const": "private_triage_only" } },
+            "required": ["redaction_class"]
+          },
+          "then": {
+            "properties": {
+              "private_triage_workspace_scope": {
+                "enum": [
+                  "private_security_channel",
+                  "vendor_only",
+                  "private_partner_channel",
+                  "coordinated_disclosure_group"
+                ]
+              }
+            },
+            "required": ["private_triage_workspace_scope"]
+          }
+        },
+        {
+          "description": "export_routing = export_embedded_in_advisory requires redaction_class in {evidence_packet_only, private_triage_only}.",
+          "if": {
+            "properties": { "export_routing": { "const": "export_embedded_in_advisory" } },
+            "required": ["export_routing"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["evidence_packet_only", "private_triage_only"]
+              }
+            }
+          }
+        },
+        {
+          "description": "security_severity.low packets MUST NOT carry emergency_action_refs, revocation_refs, or disable_bundle_refs entries.",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "security_severity.low" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "emergency_action_refs": { "maxItems": 0 },
+              "revocation_refs": { "maxItems": 0 },
+              "disable_bundle_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "security_severity.operational_emergency, security_severity.critical, and security_severity.high packets MUST carry a non-empty artifact_refs.exact_build_identity_refs.",
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_refs": {
+                "properties": {
+                  "exact_build_identity_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "handoff_routing = to_coordinated_disclosure_group requires private_triage_workspace_scope = coordinated_disclosure_group.",
+          "if": {
+            "properties": { "handoff_routing": { "const": "to_coordinated_disclosure_group" } },
+            "required": ["handoff_routing"]
+          },
+          "then": {
+            "properties": {
+              "private_triage_workspace_scope": { "const": "coordinated_disclosure_group" }
+            }
+          }
+        },
+        {
+          "description": "handoff_routing = to_partner_channel requires private_triage_workspace_scope = private_partner_channel.",
+          "if": {
+            "properties": { "handoff_routing": { "const": "to_partner_channel" } },
+            "required": ["handoff_routing"]
+          },
+          "then": {
+            "properties": {
+              "private_triage_workspace_scope": { "const": "private_partner_channel" }
+            }
+          }
+        }
+      ],
+      "description": "Incident workspace packet record. One record per triage (split triage mints a new packet with related_packet_refs pointing back). The record carries the private-triage workspace scope, the monitored SECURITY.md contact path anchor, the severity class and triage status, an append-only chronology of timeline events, evidence items with typed embedding state, artifact refs into the advisory record and exact-build identity and install-topology and support-bundle and release-evidence lanes, continuity notes, typed handoff and export routing, deployment-profile scope, reserved hooks into emergency-action / revocation / disable-bundle artifacts, policy context, and the redaction envelope the packet is carried under. Downstream advisory publication, support-bundle companions, and release-evidence companions resolve a single packet_id into one record — no parallel identity system."
+    }
+  }
+}
