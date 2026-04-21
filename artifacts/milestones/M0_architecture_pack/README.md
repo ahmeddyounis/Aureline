@@ -31,6 +31,7 @@ Packet tree
 - `../M0_scorecard.yaml` - lane-by-lane review surface keyed to the ownership matrix.
 - `../M0_risk_register.yaml` - named risks, explicit mitigations, and carry-forward owners.
 - `../M0_design_evidence_index.yaml` - stable evidence IDs with owner, freshness, artifact ref, and source task reference.
+- `../M0_signoff_packet.md` - shared M0 signoff packet covering the checklist, reviewer matrix, mandatory signed sections, and contract-family coverage cross-checks.
 
 Top-down review order
 
@@ -38,7 +39,8 @@ Top-down review order
 2. Read `canonical_matrices.yaml` to confirm the driver, principle, scheduler, route, and truth matrices that M1 must inherit.
 3. Read `coverage_and_freeze_exceptions.yaml` before approving any M1 breadth so missing contract families stay explicit.
 4. Read `../M0_scorecard.yaml` and `../M0_risk_register.yaml` together; the scorecard names lane health and the risk register names why specific yellows and reds still exist.
-5. Use `../M0_design_evidence_index.yaml` as the evidence lookup table instead of reconstructing provenance from handoffs or git history.
+5. Read `../M0_signoff_packet.md` for the reviewer-facing exit checklist, required signoffs, freshness blockers, and shared packet sections.
+6. Use `../M0_design_evidence_index.yaml` as the evidence lookup table instead of reconstructing provenance from handoffs or git history.
 
 M0 to M1 cutline
 
