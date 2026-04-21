@@ -7,12 +7,18 @@ doc's build-vs-buy posture into a repository-local review workflow.
 
 Companion artifacts:
 
+- [`/artifacts/governance/build_vs_buy_register.yaml`](../../artifacts/governance/build_vs_buy_register.yaml)
+  — canonical machine-readable build-vs-buy domain register and scoring
+  rubric.
 - [`/artifacts/governance/dependency_register.yaml`](../../artifacts/governance/dependency_register.yaml)
   — canonical register of selected and admitted third-party
   dependencies.
 - [`/artifacts/governance/third_party_import_register.yaml`](../../artifacts/governance/third_party_import_register.yaml)
   — canonical register of copied, bundled, or mirrored third-party
   bytes.
+- [`/docs/governance/fork_review_policy.md`](./fork_review_policy.md)
+  — required review bar for protected-path forks and long-lived patch
+  stacks.
 - [`/artifacts/governance/release_notice_seed.yaml`](../../artifacts/governance/release_notice_seed.yaml)
   — third-party attribution seed keyed by the stable ids from the two
   canonical registers above.
@@ -80,10 +86,12 @@ of the following are true:
   posture for that domain.
 
 The link may point at an ADR, a structured tradeoff-row register, or
-the build-vs-buy tables in
-`.t2/docs/Aureline_Technical_Architecture_Document.md`. Do not mint a
-parallel build-vs-buy id space inside this repository just to satisfy
-this policy.
+the canonical build-vs-buy register in
+`artifacts/governance/build_vs_buy_register.yaml`. The originating ADR
+or the build-vs-buy tables in
+`.t2/docs/Aureline_Technical_Architecture_Document.md` may be cited as
+supporting context when needed. Do not mint ad-hoc build-vs-buy ids
+outside the canonical register, ADR set, or architecture sources.
 
 Repo tooling and host runtimes that exist only to build or verify the
 repository do not require a build-vs-buy row. Those rows instead cite
@@ -181,6 +189,11 @@ Local forks, long-lived upstream patch stacks, and mirrored upstream
 packs raise the review bar:
 
 - the dependency or import row MUST name why upstreaming is not enough;
+- the relevant build-vs-buy row MUST still name the exit or fork
+  posture for that domain;
+- protected-path forks MUST satisfy
+  `docs/governance/fork_review_policy.md`, including a named owner,
+  divergence review cadence, and re-upstream plan;
 - the row MUST name an exit path, not just a fork reason; and
 - the row MUST tighten its review cadence to at least `per_release`
   until the divergence is gone or formally ratified.

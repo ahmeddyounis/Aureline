@@ -35,9 +35,15 @@ code.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
+- [`architecture/build_vs_buy_register.md`](./architecture/build_vs_buy_register.md)
+  — canonical launch-critical build-vs-buy register, scoring rubric,
+  and dependency traceability for protected-path selections.
 - [`governance/dependency_review_policy.md`](./governance/dependency_review_policy.md)
   — dependency/import admission policy, build-vs-buy linkage rules,
   stale-row thresholds, and notice/SBOM/provenance flow.
+- [`governance/fork_review_policy.md`](./governance/fork_review_policy.md)
+  — review bar for protected-path forks, long-lived patch stacks, exit
+  strategy, and re-upstream planning.
 - [`governance/record_state_and_policy_simulation_models.md`](./governance/record_state_and_policy_simulation_models.md)
   — governed-record state model (local_only / managed_copy / held /
   delete_requested / delete_complete / export_available), orthogonal

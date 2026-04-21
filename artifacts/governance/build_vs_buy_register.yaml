@@ -1,0 +1,509 @@
+# Build-vs-buy register.
+#
+# Canonical register of launch-critical domains where Aureline must
+# decide whether to build, reuse, wrap, extend, or fork upstream inputs.
+# This file turns TAD section 4.3 and Appendix Z into the machine-readable
+# review surface that dependency review, ADRs, and fork review cite.
+
+schema_version: 1
+
+overview_page: docs/architecture/build_vs_buy_register.md
+fork_review_policy: docs/governance/fork_review_policy.md
+companion_registers:
+  dependency_register: artifacts/governance/dependency_register.yaml
+  third_party_import_register: artifacts/governance/third_party_import_register.yaml
+  control_artifact_index: artifacts/governance/control_artifact_index.yaml
+
+posture_classes:
+  - build
+  - reuse_curate
+  - reuse_extend
+  - reuse_wrap
+  - reuse_integrate
+  - hybrid
+  - build_on_standards
+  - reuse_security_patterns
+  - build_selectively
+
+review_cadence_classes:
+  - each_change
+  - per_release
+
+score_direction_classes:
+  - higher_favors_build
+  - higher_favors_reuse
+
+dependency_trace_state_classes:
+  - fully_traced_to_dependency_register
+  - repo_tooling_only_seeded
+  - no_selected_dependency_rows_yet
+
+rubric:
+  scale:
+    min: 0
+    max: 5
+    semantics: >
+      Score every field before selecting a new subsystem dependency or
+      proposing a build-first posture. Zero is the weakest signal for
+      the stated direction; five is the strongest.
+  fields:
+    - id: user_facing_differentiation
+      direction: higher_favors_build
+      prompt: >
+        How much does owning this subsystem materially differentiate the
+        user experience or trust posture?
+      anchors:
+        "0": commodity capability users will not notice as implementation-specific
+        "3": some differentiated UX above standard compatibility expectations
+        "5": core product reason to exist or trust boundary users directly judge
+    - id: hot_path_performance_sensitivity
+      direction: higher_favors_build
+      prompt: >
+        How directly does this subsystem sit on a protected latency or
+        responsiveness path?
+      anchors:
+        "0": off the hot path and tolerant of indirection
+        "3": visible in interactive flows but not the tightest budget
+        "5": directly on a protected path with little latency slack
+    - id: standard_maturity
+      direction: higher_favors_reuse
+      prompt: >
+        How mature and compatibility-preserving are the relevant open
+        standards or ecosystem contracts?
+      anchors:
+        "0": no credible common standard or reusable contract
+        "3": usable standard with notable portability gaps
+        "5": mature standard with strong compatibility value
+    - id: contributor_depth
+      direction: higher_favors_reuse
+      prompt: >
+        How deep is the credible contributor and reviewer pool around the
+        upstream option?
+      anchors:
+        "0": one thinly staffed upstream or little review capacity
+        "3": healthy but shallow bench
+        "5": broad contributor and reviewer pool with sustainable maintenance
+    - id: license_notice_risk
+      direction: higher_favors_build
+      prompt: >
+        How much license, notice, or redistribution complexity would the
+        upstream choice add on this path?
+      anchors:
+        "0": permissive and low-friction notice posture
+        "3": manageable obligations with some review complexity
+        "5": ambiguous, restrictive, or high-overhead posture on a critical path
+    - id: maintainer_health
+      direction: higher_favors_reuse
+      prompt: >
+        How healthy and responsive is the upstream maintainer posture?
+      anchors:
+        "0": orphaned, erratic, or effectively unmaintained
+        "3": mixed signals but acceptable
+        "5": active maintainers, regular releases, and credible issue response
+    - id: replacement_feasibility
+      direction: higher_favors_reuse
+      prompt: >
+        How feasible would replacement be if the chosen upstream stopped
+        meeting expectations?
+      anchors:
+        "0": swap would be extremely expensive or architecture-shaping
+        "3": adapter boundary exists but replacement would still be disruptive
+        "5": clean boundary and realistic replacement path
+    - id: fork_cost
+      direction: higher_favors_reuse
+      prompt: >
+        What is the expected carrying cost if Aureline forks or carries a
+        long-lived patch stack here?
+      anchors:
+        "0": low-cost temporary patch or little divergence pressure
+        "3": meaningful carrying cost and review burden
+        "5": high ongoing rebase, audit, and divergence cost
+  decision_bands:
+    - id: build_default
+      recommendation: build
+      when:
+        build_pressure_average_at_least: 4.0
+        reuse_pressure_average_at_most: 3.0
+      notes: >
+        Default when differentiation and hot-path needs dominate and no
+        credible upstream clears the protected-path bar.
+    - id: reuse_default
+      recommendation: reuse_or_wrap
+      when:
+        reuse_pressure_average_at_least: 4.0
+        build_pressure_average_at_most: 3.0
+      notes: >
+        Default when mature standards, healthy upstreams, and realistic
+        replacement paths dominate.
+    - id: hybrid_or_extend
+      recommendation: reuse_extend_or_hybrid
+      when:
+        build_pressure_average_at_least: 3.0
+        reuse_pressure_average_at_least: 3.0
+      notes: >
+        Preserve upstream contracts, then differentiate in Aureline-owned
+        orchestration, metadata, caching, UX, or safety layers.
+    - id: fork_exception_only
+      recommendation: fork_by_exception
+      when:
+        release_blocking_gap: true
+        upstream_path_not_viable_on_release_cadence: true
+      notes: >
+        Fork only when the gap is explicit, temporary or intentionally
+        ratified, and the fork review policy is satisfied in full.
+  protected_path_gates:
+    - >
+      Every protected-path dependency row MUST cite at least one
+      domain row from this register in build_vs_buy_refs.
+    - >
+      Every protected-path fork or long-lived patch stack MUST be
+      traceable to both this register and the dependency or import
+      register row that carries the actual upstream selection.
+    - >
+      License or notice ambiguity on a protected path blocks admission
+      until the dependency and publication posture are explicit.
+
+rows:
+  - id: domain.shell_renderer_editor_core
+    name: Shell / renderer / editor core
+    owner_dri: "@ahmeddyounis"
+    owner_role: renderer + editor leads
+    owning_lanes: [shell_command_system, accessibility_input_review]
+    protected_path: true
+    default_posture: build
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    preferred_upstreams:
+      - wgpu and windowing primitives
+      - text shaping and rasterisation primitives
+      - accessibility bridges
+    key_concerns:
+      - hot-path latency regression and graphics-driver drift
+      - platform accessibility parity across claimed desktop profiles
+      - maintainer depth on critical renderer and text seams
+    dependency_trace:
+      dependency_ids:
+        - dep.renderer.wgpu
+        - dep.renderer.winit
+        - dep.text.rustybuzz
+        - dep.text.swash
+        - dep.text.fontdb
+        - dep.accessibility.accesskit
+        - dep.text.noto_class_fallback_font
+      import_ids:
+        - import.fonts.noto_subset
+      trace_state: fully_traced_to_dependency_register
+      next_required_update: >
+        Keep new renderer, text, or accessibility dependencies tied to
+        this row unless a narrower domain row is deliberately added.
+    exit_or_fork_strategy: >
+      Own the latency-critical shell, editor, and rendering loop
+      in-repo. Keep third-party seams narrow enough to swap or retire a
+      fork within one release family.
+
+  - id: domain.syntax_grammars
+    name: Syntax grammars
+    owner_dri: "@ahmeddyounis"
+    owner_role: language platform
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    default_posture: reuse_curate
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - Tree-sitter grammar ecosystem
+    key_concerns:
+      - grammar maintenance health and release cadence
+      - license compatibility across curated grammars
+      - local query and injection drift across language upgrades
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add the first dependency or import row in the same change that
+        admits a grammar package, vendored grammar, or grammar bundle.
+    exit_or_fork_strategy: >
+      Upstream fixes first; carry only minimal, time-boxed local
+      patches, and retire them once upstream ships.
+
+  - id: domain.language_debug_protocols
+    name: Language and debug protocols
+    owner_dri: "@ahmeddyounis"
+    owner_role: language platform
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    default_posture: reuse_extend
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - LSP
+      - DAP
+      - JSON-RPC where required
+    key_concerns:
+      - protocol-version skew and capability negotiation drift
+      - vendor-extension sprawl that breaks compatibility expectations
+      - hidden semantic divergence behind richer Aureline UX
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency rows when a protocol library, adapter runtime, or
+        bundled debugger transport is selected for admission.
+    exit_or_fork_strategy: >
+      Preserve protocol compatibility, add Aureline-owned graph and
+      caching above the protocol, and avoid protocol forks without an
+      ADR-backed cause.
+
+  - id: domain.git_execution
+    name: Git execution
+    owner_dri: "@ahmeddyounis"
+    owner_role: VCS lead
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    default_posture: reuse_wrap
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - Git CLI
+      - mature library bindings
+    key_concerns:
+      - large-repo edge cases and platform auth behavior
+      - truthful provenance for background Git operations
+      - avoiding a private semantic fork of Git behavior
+    dependency_trace:
+      dependency_ids:
+        - dep.repo.git_cli
+      import_ids: []
+      trace_state: repo_tooling_only_seeded
+      next_required_update: >
+        Add a product-surface dependency row if Aureline admits a Git
+        library, ships a bundled Git runtime, or depends on more than
+        repo-tooling CLI presence.
+    exit_or_fork_strategy: >
+      Wrap semantics behind a replaceable adapter, keep behavior
+      truthful to Git, and do not clone Git semantics casually.
+
+  - id: domain.search_core
+    name: Search core
+    owner_dri: "@ahmeddyounis"
+    owner_role: search lead
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    default_posture: reuse_integrate
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - ripgrep-compatible search engines
+    key_concerns:
+      - Unicode, ignore, and path-semantics parity
+      - scheduling and cancellation around protected interaction paths
+      - result composition and ranking truth across mixed providers
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add a dependency row when the first search engine, parser, or
+        prebuilt index component is selected.
+    exit_or_fork_strategy: >
+      Keep the engine behind an adapter, own orchestration and ranking,
+      and prefer engine replacement over forking when feasible.
+
+  - id: domain.pty_terminal_parsing
+    name: PTY and terminal parsing
+    owner_dri: "@ahmeddyounis"
+    owner_role: tooling and terminal lead
+    owning_lanes: [shell_command_system]
+    protected_path: true
+    default_posture: hybrid
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - PTY libraries
+      - ANSI and VT parsers
+    key_concerns:
+      - cross-platform shell quirks and session restore fidelity
+      - integrated render, metadata, and policy-hook correctness
+      - hidden drift between parser truth and shell UI truth
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency rows when Aureline selects PTY bindings, parser
+        crates, or bundled shell-support assets.
+    exit_or_fork_strategy: >
+      Keep parser contracts stable and rendering, metadata, and policy
+      surfaces Aureline-owned; time-box any divergence.
+
+  - id: domain.remote_environment_descriptors
+    name: Remote environment descriptors
+    owner_dri: "@ahmeddyounis"
+    owner_role: remote platform
+    owning_lanes: [shell_command_system]
+    protected_path: false
+    default_posture: reuse_integrate
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - Dev Container spec
+      - SSH
+      - container runtimes
+      - OCI-compatible metadata
+    key_concerns:
+      - standards drift and partial feature parity across hosts
+      - local-path, mount, and identity mapping gaps
+      - creeping private descriptor dialects
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency or import rows when Aureline selects descriptor
+        libraries, parser crates, or mirrored spec fixtures.
+    exit_or_fork_strategy: >
+      Preserve compatibility adapters and keep Aureline augmentation
+      separate from upstream descriptor formats.
+
+  - id: domain.extension_sandbox
+    name: Extension sandbox
+    owner_dri: "@ahmeddyounis"
+    owner_role: ecosystem lead
+    owning_lanes: [shell_command_system, security_trust_review]
+    protected_path: true
+    default_posture: build_on_standards
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - Wasm
+      - WIT and the component model
+      - process isolation
+    key_concerns:
+      - capability creep and ambient-privilege regressions
+      - ABI stability across host and extension upgrades
+      - opaque host coupling that would trap the ecosystem
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency rows when a runtime, sandbox backend, or
+        component host implementation is selected.
+    exit_or_fork_strategy: >
+      Version the WIT worlds, keep the sandbox replaceable, and refuse
+      private opaque ABI lock-in for core contracts.
+
+  - id: domain.policy_identity_plumbing
+    name: Policy and identity plumbing
+    owner_dri: "@ahmeddyounis"
+    owner_role: enterprise platform
+    owning_lanes: [governance_packets, security_trust_review]
+    protected_path: true
+    default_posture: build_selectively
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - OIDC
+      - SCIM
+      - OpenFeature
+      - Rego and open policy models
+    key_concerns:
+      - offline behavior and degraded-mode truth
+      - inspectable policy bundles and entitlement lineage
+      - hidden dependence on a single commercial control plane
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency rows when Aureline selects an auth client,
+        policy engine, or identity-sync library for admission.
+    exit_or_fork_strategy: >
+      Keep policy and entitlement bundles text-based, exportable, and
+      provider-replaceable behind normalized claims.
+
+  - id: domain.update_provenance_stack
+    name: Update and provenance stack
+    owner_dri: "@ahmeddyounis"
+    owner_role: release and security
+    owning_lanes: [release_evidence, security_trust_review]
+    protected_path: true
+    default_posture: reuse_security_patterns
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - TUF
+      - Sigstore
+      - SLSA
+      - SPDX
+      - CycloneDX
+    key_concerns:
+      - mirror continuity and offline verification
+      - key rotation and signer agility
+      - supply-chain inspectability without private trust formats
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency or import rows when Aureline selects concrete
+        update, signing, or SBOM/provenance generators.
+    exit_or_fork_strategy: >
+      Preserve content-addressed internal abstractions, reuse proven
+      signing and provenance patterns, and avoid custom trust protocols
+      unless a reviewed gap forces one.
+
+  - id: domain.collaboration_control_plane_services
+    name: Optional collaboration and control-plane services
+    owner_dri: "@ahmeddyounis"
+    owner_role: cloud and service lead
+    owning_lanes: [governance_packets, shell_command_system]
+    protected_path: false
+    default_posture: build_selectively
+    review_cadence_class: per_release
+    posture_basis_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#4.3-build-vs-buy-and-strategic-reuse-posture
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-z-build-vs-buy-and-strategic-reuse-register
+    preferred_upstreams:
+      - commodity object storage
+      - queues and pub-sub
+      - open auth
+      - regional deployment primitives
+    key_concerns:
+      - hidden desktop prerequisites or lock-in to hosted services
+      - retention, export, and offboarding posture
+      - replacement cost and runaway operational coupling
+    dependency_trace:
+      dependency_ids: []
+      import_ids: []
+      trace_state: no_selected_dependency_rows_yet
+      next_required_update: >
+        Add dependency rows when Aureline selects hosted collaboration,
+        sync, or control-plane infrastructure libraries or services.
+    exit_or_fork_strategy: >
+      Isolate service APIs, keep local degradation strong, and forbid
+      hosted services from becoming silent prerequisites for core local
+      editing, search, Git, or task workflows.

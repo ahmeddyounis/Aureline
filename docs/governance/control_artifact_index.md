@@ -32,14 +32,14 @@ Companion artifacts:
 control-artifact graph, the interface inventory, benchmark governance,
 the benchmark-publication pack, the qualification cadence, the
 compatibility qualification seed, the decision dependency register, the
-supply-chain dependency and import registers, the experiment/Labs
-control registers, the release-notice seed, the release-artifact graph,
-release evidence, docs and help truth, route and build-truth
-artifacts, accessibility review packets, surface-traceability
-artifacts, and frozen-surface manifests — appears as exactly one row
-in the index file. If two documents describe the same asset, the index
-names only the canonical one and the other is either merged in or
-retired.
+build-vs-buy register, the fork-review policy, the supply-chain
+dependency and import registers, the experiment/Labs control registers,
+the release-notice seed, the release-artifact graph, release evidence,
+docs and help truth, route and build-truth artifacts,
+accessibility review packets, surface-traceability artifacts, and
+frozen-surface manifests — appears as exactly one row in the index
+file. If two documents describe the same asset, the index names only
+the canonical one and the other is either merged in or retired.
 
 The index does not restate the content of the assets it points at. The
 detailed governance workflow lives in
@@ -59,6 +59,10 @@ governance-packet template. The index only names, routes, and scopes.
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer
   toggle in script help text alone.
+- Protected-path dependency choices and deliberate upstream divergence
+  now route through `build_vs_buy_register`, `dependency_review_policy`,
+  `critical_dependency_register`, and `fork_review_policy`. Do not keep
+  build-vs-buy posture or fork rationale only in an ADR or PR comment.
 - When a pull request changes anything under a canonical-location path
   named in the index, update the corresponding row's `status` or
   `notes` if the change moves the artifact between `outline_only`,
@@ -84,7 +88,8 @@ governance-packet template. The index only names, routes, and scopes.
   `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
   `qualification_cadence`, `decision_dependency_register`,
-  `critical_dependency_register`, `feature_flag_policy`, and
+  `build_vs_buy_register`, `critical_dependency_register`,
+  `fork_review_policy`, `feature_flag_policy`, and
   `experiments_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
   land under the lanes named by those rows. Protected speed and
