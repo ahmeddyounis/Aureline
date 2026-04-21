@@ -21,9 +21,12 @@ harden.
 ## What ships in this revision
 
 - `src/lib.rs` — module surface covering `hooks`, `zones`, `input_path`,
-  `render_path`, `frame_timing`, `fixture_scene`, `capabilities`, `trace`.
-  The hook names are the ADR 0002 vocabulary verbatim; the zone set is
-  the four placeholder zones the spike composites.
+  `render_path`, `frame_timing`, `fixture_scene`, `capabilities`, `trace`,
+  `timing_trace`, and `text_layer`. The hook names are the ADR 0002
+  vocabulary verbatim; the zone set is the four placeholder zones the
+  spike composites. `timing_trace` wraps the raw marks with exact-build
+  identity, protected-path classification, and counters per
+  `docs/benchmarks/spike_metric_names.md`.
 - `src/bin/shell_spike.rs` — binary that runs the fixture scene and
   either prints the resulting JSON or writes it under a directory. The
   binary runs headless in this revision; the window-wiring task will
@@ -44,13 +47,17 @@ From the workspace root, after bootstrap:
 cargo run --bin shell_spike -- --print
 cargo run --bin shell_spike -- --scene-only
 cargo run --bin shell_spike -- --emit-artifacts artifacts/render
+cargo run --bin shell_spike -- --emit-timing-traces artifacts/traces/examples
 cargo test -p aureline-shell-spike
 ```
 
 The committed artifacts under `artifacts/render/spike_capabilities.json`
 and `artifacts/render/spike_trace_samples/*.json` are regenerated from
-the last command; commit the regenerated files when the fixture scene
-or capability schema changes intentionally.
+the `--emit-artifacts` command; the committed spike-timing trace
+examples under `artifacts/traces/examples/*.json` are regenerated
+from the `--emit-timing-traces` command. Commit the regenerated files
+when the fixture scene, capability schema, or timing-trace schema
+changes intentionally.
 
 ## Work packages
 - WP-01 (Core shell and renderer)

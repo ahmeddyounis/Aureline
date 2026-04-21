@@ -2,7 +2,7 @@
 //!
 //! The binary runs the fixture scene from `aureline_shell_spike` and
 //! emits the capability manifest plus per-label trace samples. It can
-//! run in four modes:
+//! run in five modes:
 //!
 //! * `--print` (default) — print the manifest JSON to stdout, then
 //!   print the per-label trace samples one per blank-line-separated
@@ -13,6 +13,14 @@
 //!   committed fixtures under `artifacts/render/` are regenerated.
 //! * `--scene-only` — just run the fixture scene and print the
 //!   resulting hooks-fired list. Used by smoke-test invocations.
+//! * `--emit-timing-traces <dir>` — write structured spike-timing
+//!   traces (schema `aureline.spike_timing.v1`, see
+//!   `schemas/traces/spike_timing.schema.json`) to `<dir>/<label>.json`
+//!   plus the aggregate `<dir>/full_scene.json`. The mapping from
+//!   hook names to protected-path journey buckets is frozen in
+//!   `docs/benchmarks/spike_metric_names.md`. The committed examples
+//!   under `artifacts/traces/examples/` are regenerated from this
+//!   mode.
 //! * `--text-stack-smoke <corpus_path>` — drive the prototype text
 //!   stack (shape + fallback + cache) against the given TSV corpus
 //!   and print a JSON summary. The default corpus is
@@ -40,6 +48,7 @@ use aureline_shell_spike::capabilities::{Backend, CapabilityManifest};
 use aureline_shell_spike::fixture_scene::{run, FixtureRunResult, FIXTURE_SCENE_ID};
 use aureline_shell_spike::frame_timing::CountingClock;
 use aureline_shell_spike::text_layer::{run_smoke_cases, summary_to_json};
+use aureline_shell_spike::timing_trace::SpikeTimingTrace;
 use aureline_shell_spike::trace::per_label_samples;
 use aureline_shell_spike::zones::ShellFrame;
 
@@ -49,6 +58,7 @@ const DEFAULT_TEXT_CORPUS: &str = "fixtures/text/shaping_smoke_cases.txt";
 enum Mode {
     Print,
     EmitArtifacts(PathBuf),
+    EmitTimingTraces(PathBuf),
     SceneOnly,
     TextStackSmoke(PathBuf),
 }
@@ -65,6 +75,12 @@ fn parse_mode(args: &[String]) -> Result<Mode, String> {
                     .next()
                     .ok_or_else(|| "--emit-artifacts requires a directory path".to_owned())?;
                 mode = Mode::EmitArtifacts(PathBuf::from(dir.as_str()));
+            }
+            "--emit-timing-traces" => {
+                let dir = iter.next().ok_or_else(|| {
+                    "--emit-timing-traces requires a directory path".to_owned()
+                })?;
+                mode = Mode::EmitTimingTraces(PathBuf::from(dir.as_str()));
             }
             "--text-stack-smoke" => {
                 let corpus = iter
@@ -85,6 +101,7 @@ fn usage() -> String {
      Usage:\n\
      \tshell_spike [--print]\n\
      \tshell_spike --emit-artifacts <dir>\n\
+     \tshell_spike --emit-timing-traces <dir>\n\
      \tshell_spike --scene-only\n\
      \tshell_spike --text-stack-smoke [corpus_path]\n"
         .to_owned()
@@ -115,6 +132,13 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Mode::EmitArtifacts(dir) => match write_artifacts(&dir, &frame, &result) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                let _ = writeln!(io::stderr(), "shell_spike: {err}");
+                ExitCode::from(1)
+            }
+        },
+        Mode::EmitTimingTraces(dir) => match write_timing_traces(&dir, &result) {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
                 let _ = writeln!(io::stderr(), "shell_spike: {err}");
@@ -182,6 +206,14 @@ fn write_artifacts(
     fs::create_dir_all(&trace_dir)?;
     for (filename, sample) in per_label_samples(result) {
         fs::write(trace_dir.join(filename), sample.to_json())?;
+    }
+    Ok(())
+}
+
+fn write_timing_traces(dir: &Path, result: &FixtureRunResult) -> io::Result<()> {
+    fs::create_dir_all(dir)?;
+    for (filename, trace) in SpikeTimingTrace::per_label_plus_full(result, Backend::Headless) {
+        fs::write(dir.join(filename), trace.to_json())?;
     }
     Ok(())
 }

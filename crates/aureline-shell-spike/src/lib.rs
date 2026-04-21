@@ -52,6 +52,7 @@ pub mod hooks;
 pub mod input_path;
 pub mod render_path;
 pub mod text_layer;
+pub mod timing_trace;
 pub mod trace;
 pub mod zones;
 
