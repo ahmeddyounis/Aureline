@@ -1,0 +1,1122 @@
+# Protected benchmark corpus manifest.
+#
+# Single machine-readable register of every fixture the benchmark lab, the
+# journey harness, the boundary-truth validators, the compatibility
+# scoreboards, and the support-export lanes read when they need to name
+# "which corpus revision was exercised, on which platform class, against
+# which protected journey, under which retention and visibility class".
+#
+# Consumers MUST resolve fixtures by stable id from this file, never by
+# guessing paths. A fixture that no downstream lane reads is non-conforming;
+# a fixture that no longer exists but is still cited is a validation failure.
+#
+# The human-readable companion is docs/benchmarks/fixture_classes.md; that
+# document is normative for the corpus-class, size-class, journey-tag,
+# support-class, and archetype-tag vocabularies. If the two disagree, the
+# document wins and this file is updated in the same change.
+#
+# Planning / milestone slugs MUST NOT appear in any id, path, tag, or note
+# on this file. Identities here will ride into product-adjacent surfaces
+# (support bundles, release-evidence claim manifests, benchmark reports).
+
+schema_version: 1
+manifest_id: aureline.protected_benchmark_corpus
+manifest_revision: 1
+vocabulary_source: docs/benchmarks/fixture_classes.md
+
+# -----------------------------------------------------------------------------
+# Corpus classes.
+#
+# The closed set of roles a fixture can play in the benchmark corpus. Every
+# fixture entry below carries exactly one `corpus_class`; adding a value is
+# additive-minor, renaming is breaking and opens a decision row.
+# -----------------------------------------------------------------------------
+corpus_classes:
+  - microbenchmark_scenario
+  - workflow_scenario
+  - archetype_seed
+  - large_file_trigger
+  - recovery_or_restore_scenario
+  - reference_workspace
+  - boundary_truth_case
+
+# -----------------------------------------------------------------------------
+# Protected journeys.
+#
+# Aligned with docs/benchmarks/spike_metric_names.md and ADR-0002's
+# protected-hot-path bucket set. A fixture MAY exercise zero journeys (some
+# reference workspaces do); a fixture MUST NOT invent a journey tag outside
+# this set.
+# -----------------------------------------------------------------------------
+protected_journeys:
+  - startup
+  - first_useful_chrome
+  - first_paint
+  - input_to_paint
+  - render_submission
+  - frame_budget
+  - placeholder_open
+  - placeholder_edit
+  - placeholder_save
+  - fallback_resolution
+  - observability
+  - vfs_root_enumeration
+  - save_pipeline
+  - recovery_journal_write
+  - recovery_journal_restore
+  - boundary_truth_contract
+
+# -----------------------------------------------------------------------------
+# Size classes.
+#
+# Closed size tiers. Fixtures that are too large to materialise in the repo
+# are declared with `size_class: oversize` and MUST carry a synthesis recipe
+# on the fixture entry rather than checked-in bytes.
+# -----------------------------------------------------------------------------
+size_classes:
+  - micro          # < 1 KiB
+  - tiny           # 1 KiB – 10 KiB
+  - small          # 10 KiB – 100 KiB
+  - medium         # 100 KiB – 1 MiB
+  - large          # 1 MiB – 10 MiB
+  - oversize       # > 10 MiB; not materialised in the repo, recipe-only
+
+# -----------------------------------------------------------------------------
+# Visibility / retention / license classes.
+#
+# Visibility mirrors the governance control-artifact index's vocabulary.
+# `restricted` is reserved for fixtures that need extra privacy, export, or
+# retention review before broader CI use; it MUST NOT be used for fixtures
+# that live in this repository.
+# -----------------------------------------------------------------------------
+visibility_classes:
+  - public           # ships with the repository; admissible in public CI
+  - internal         # repository-internal control fixture; not a published surface
+  - restricted       # requires extra privacy / export / retention review; not in this repo
+
+retention_classes:
+  - permanent_seed          # kept across milestones; retirement requires a decision row
+  - milestone_scoped        # may be retired between milestones with an audit entry
+  - derived_regenerable     # regenerated from a recipe; retirement is bookkeeping only
+
+license_statuses:
+  - original_author_aureline_project_mit_0bsd_choice
+  - synthetic_no_real_content
+  - vendored_with_attribution_pending_notice
+  - requires_extra_privacy_review_before_ci
+
+# -----------------------------------------------------------------------------
+# Platform and toolchain posture.
+#
+# Values are closed; a fixture that needs a new posture lands the value here
+# and in docs/benchmarks/fixture_classes.md in the same change.
+# -----------------------------------------------------------------------------
+host_platform_classes:
+  - host_independent    # bytes identical across host OS / arch
+  - host_dependent      # bytes differ per host (harness records host_os, rustc_target_triple)
+  - host_os_pinned      # fixture is pinned to one host OS and declares it
+
+toolchain_assumptions:
+  - none
+  - synthetic_bytes_no_toolchain
+  - rust_toolchain_pinned_v1
+  - node_js_declared_only            # manifest declares engine; no install required by the fixture
+  - python_interpreter_declared_only # manifest declares interpreter; no venv required by the fixture
+
+# -----------------------------------------------------------------------------
+# Archetype placeholder tags.
+#
+# Reserves archetype identities so later certified-workspace and
+# compatibility-scoreboard work composes against one vocabulary. The
+# task-success corpus seed reserves the matching `fixture.archetype_*` ids;
+# where a reference-workspace seed already exists it carries a
+# `task_success_corpus_ref` back to that reservation.
+# -----------------------------------------------------------------------------
+archetype_tags:
+  - ts_web_app
+  - python_data_app
+  - rust_workspace_self_host
+  - misc_folder
+  - not_archetype_bound    # fixture is not archetype-sensitive (microbenchmarks, boundary cases)
+
+# -----------------------------------------------------------------------------
+# Support classes.
+#
+# Aligned with the task-success corpus archetype_detection_outcome vocabulary
+# and with the archetype program's support tiers. A fixture records which
+# support class it is used to exercise so later compatibility and
+# certified-workspace lanes can read the corpus by tier.
+# -----------------------------------------------------------------------------
+support_classes:
+  - certified_archetype_match
+  - supported_archetype_match
+  - community_archetype_match
+  - experimental_archetype_match
+  - probable_archetype_partial
+  - unrecognised_archetype
+  - archetype_detection_unavailable
+  - not_support_bound            # fixture does not qualify an archetype support tier
+
+# -----------------------------------------------------------------------------
+# Evidence-consumer channels.
+#
+# Every fixture MUST name at least one evidence consumer. A fixture that no
+# channel reads is non-conforming.
+# -----------------------------------------------------------------------------
+evidence_consumer_channels:
+  - benchmark_lab.text_stack
+  - benchmark_lab.large_file
+  - benchmark_lab.bootstrap_entry_parity
+  - benchmark_lab.migration_keymap_settings_theme_profile
+  - benchmark_lab.certified_archetype_workflows
+  - benchmark_lab.vfs_save_pipeline
+  - benchmark_lab.recovery_ladder
+  - ux_evidence.first_run_audit_packet
+  - ux_evidence.migration_dry_run_diff_packet
+  - support_bundle.first_run_summary
+  - support_bundle.performance_summary
+  - support_bundle.crash_recovery_summary
+  - support_bundle.recent_work_summary
+  - support_bundle.managed_workspace_summary
+  - support_bundle.semantic_readiness_packet
+  - release_evidence.claim_manifest
+  - boundary_truth.save_target_token
+  - boundary_truth.semantic_readiness_record
+  - boundary_truth.mutation_journal
+  - boundary_truth.entry_and_restore_result
+  - boundary_truth.generated_artifact_lineage
+
+# -----------------------------------------------------------------------------
+# Fixture entries.
+#
+# Every entry MUST carry: id, corpus_class, path OR resolution_mode,
+# size_class, visibility_class, retention_class, license_status,
+# toolchain_assumption, host_platform_class, protected_journeys[],
+# support_classes[], archetype_tags[], evidence_consumer_channels[], and
+# source_revision metadata. `notes` is free-form and optional.
+#
+# `path` is a repo-relative path to the authoritative fixture when
+# resolution_mode is omitted (the default is `concrete_file`). When a
+# fixture needs a synthesis recipe instead of checked-in bytes, it declares
+# `resolution_mode: recipe_only` and names the recipe.
+#
+# Ordering: corpus class major; then alphabetical by id within each class.
+# -----------------------------------------------------------------------------
+fixtures:
+
+  # -- microbenchmark scenarios -----------------------------------------------
+
+  - id: corpus.micro.shaping_smoke_cases
+    corpus_class: microbenchmark_scenario
+    path: fixtures/text/shaping_smoke_cases.txt
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: small
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: original_author_aureline_project_mit_0bsd_choice
+    toolchain_assumption: rust_toolchain_pinned_v1
+    host_platform_class: host_dependent
+    protected_journeys:
+      - first_paint
+      - input_to_paint
+      - fallback_resolution
+      - render_submission
+      - observability
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.text_stack
+    notes: >
+      21-case shaping smoke corpus consumed by aureline-bench via the
+      committed seed artifact at artifacts/bench/text_stack_metrics_seed.json.
+      Host-dependent because rustc_target_triple and host_os are recorded
+      in the paired benchmark report.
+
+  - id: corpus.micro.interaction_safety_cases
+    corpus_class: microbenchmark_scenario
+    path: fixtures/ux/interaction_safety_cases/
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - input_to_paint
+      - observability
+      - boundary_truth_contract
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - boundary_truth.save_target_token
+      - ux_evidence.first_run_audit_packet
+
+  # -- workflow scenarios -----------------------------------------------------
+
+  - id: corpus.workflow.startup_warm_to_first_paint
+    corpus_class: workflow_scenario
+    resolution_mode: recipe_only
+    recipe:
+      kind: harness_script
+      inputs:
+        - corpus.reference.micro_local_folder
+      steps:
+        - open_workspace
+        - warm_start_to_first_paint_marker
+        - input_to_paint_marker
+        - frame_submit_marker
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: scripted_by_harness
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: rust_toolchain_pinned_v1
+    host_platform_class: host_dependent
+    protected_journeys:
+      - startup
+      - first_paint
+      - input_to_paint
+      - render_submission
+    support_classes:
+      - unrecognised_archetype
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - support_bundle.performance_summary
+    notes: >
+      The recipe materialises refws.micro_local_folder, opens it, and
+      records the first-paint / input-to-paint / frame-submit markers.
+      No archetype-specific state is required; the workflow qualifies
+      the "startup does not depend on archetype detection" rule.
+
+  - id: corpus.workflow.first_useful_edit_rust_self_host
+    corpus_class: workflow_scenario
+    resolution_mode: recipe_only
+    recipe:
+      kind: harness_script
+      inputs:
+        - corpus.reference.small_rust_self_host_slice
+      steps:
+        - open_workspace
+        - await_first_useful_navigation
+        - type_single_keystroke
+        - save_buffer
+        - assert_recovery_journal_entry_present
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: scripted_by_harness
+      since_manifest_revision: 1
+    size_class: small
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: original_author_aureline_project_mit_0bsd_choice
+    toolchain_assumption: rust_toolchain_pinned_v1
+    host_platform_class: host_dependent
+    protected_journeys:
+      - first_paint
+      - input_to_paint
+      - placeholder_edit
+      - placeholder_save
+      - save_pipeline
+      - recovery_journal_write
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - rust_workspace_self_host
+    evidence_consumer_channels:
+      - benchmark_lab.certified_archetype_workflows
+      - benchmark_lab.vfs_save_pipeline
+      - support_bundle.performance_summary
+
+  - id: corpus.workflow.plain_open_unknown_archetype
+    corpus_class: workflow_scenario
+    resolution_mode: recipe_only
+    recipe:
+      kind: harness_script
+      inputs:
+        - corpus.reference.misc_folder_unknown_archetype
+      steps:
+        - open_workspace
+        - assert_archetype_detection_outcome_unrecognised
+        - await_first_useful_navigation
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: scripted_by_harness
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - startup
+      - first_paint
+      - input_to_paint
+    support_classes:
+      - unrecognised_archetype
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - support_bundle.first_run_summary
+
+  # -- archetype seeds --------------------------------------------------------
+
+  - id: corpus.archetype.ts_web_app_seed
+    corpus_class: archetype_seed
+    path: fixtures/workspaces/reference/ts_web_app_archetype_seed.json
+    task_success_corpus_ref: fixture.archetype_ts_web_app_seed
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: node_js_declared_only
+    host_platform_class: host_independent
+    protected_journeys:
+      - startup
+      - vfs_root_enumeration
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - ts_web_app
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - benchmark_lab.certified_archetype_workflows
+    degraded_notes:
+      - no_lockfile_intentional_to_exercise_recommended_soon_readiness_bucket
+      - no_installed_node_modules_tree_populated_by_benchmark_out_of_band
+
+  - id: corpus.archetype.python_data_app_seed
+    corpus_class: archetype_seed
+    path: fixtures/workspaces/reference/python_data_app_archetype_seed.json
+    task_success_corpus_ref: fixture.archetype_python_data_app_seed
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: python_interpreter_declared_only
+    host_platform_class: host_independent
+    protected_journeys:
+      - startup
+      - vfs_root_enumeration
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - python_data_app
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - benchmark_lab.certified_archetype_workflows
+    degraded_notes:
+      - no_lockfile_intentional_to_exercise_recommended_soon_readiness_bucket
+      - no_venv_populated_by_benchmark_out_of_band
+
+  - id: corpus.archetype.misc_folder_unknown
+    corpus_class: archetype_seed
+    path: fixtures/workspaces/reference/misc_folder_unknown_archetype.json
+    task_success_corpus_ref: fixture.archetype_unrecognised_misc_folder
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - unrecognised_archetype
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+
+  # -- large-file triggers ----------------------------------------------------
+
+  - id: corpus.large_file.clean_small_text
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/clean_small_text.txt
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+      - placeholder_edit
+      - placeholder_save
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+      - boundary_truth.save_target_token
+    notes: >
+      Control fixture: exercises the "no trigger fires" path of the
+      ADR-0003 large-file-mode evaluator under the prototype's
+      tightened thresholds.
+
+  - id: corpus.large_file.above_size_threshold
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/above_threshold_text.txt
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: size_threshold
+
+  - id: corpus.large_file.null_byte_blob
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/null_byte_blob.bin
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: classification_binary
+
+  - id: corpus.large_file.minified_long_line
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/minified_long_line.js
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: classification_minified
+
+  - id: corpus.large_file.pack_suffix_clean
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/pack_suffix_clean.min.js
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: classification_pack_rule
+
+  - id: corpus.large_file.decode_recovery
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/decode_recovery_target.txt
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: decode_posture
+
+  - id: corpus.large_file.operator_override
+    corpus_class: large_file_trigger
+    path: fixtures/text/large/operator_override_target.txt
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: operator_override
+
+  - id: corpus.large_file.multi_gib_synthetic_recipe
+    corpus_class: large_file_trigger
+    resolution_mode: recipe_only
+    recipe:
+      kind: byte_generator
+      generator_id: aureline.bench.large_file.multi_gib_synthetic
+      byte_count: 2147483648
+      deterministic_seed: "aureline.corpus.large_file.multi_gib.v1"
+      content_class: pseudo_random_ascii
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: generated_by_recipe
+      since_manifest_revision: 1
+    size_class: oversize
+    visibility_class: public
+    retention_class: derived_regenerable
+    license_status: synthetic_no_real_content
+    toolchain_assumption: rust_toolchain_pinned_v1
+    host_platform_class: host_independent
+    protected_journeys:
+      - placeholder_open
+      - placeholder_save
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.large_file
+    trigger_exercised: size_threshold
+    degraded_notes:
+      - not_materialised_in_repository_because_size_class_is_oversize
+      - recipe_is_authoritative_identity_bytes_are_regenerated_per_run
+
+  # -- recovery / restore scenarios -------------------------------------------
+
+  - id: corpus.recovery.restore_last_session_compatible
+    corpus_class: recovery_or_restore_scenario
+    path: fixtures/workspace/entry_restore_examples/restore_last_session.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - recovery_journal_restore
+      - boundary_truth_contract
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - benchmark_lab.recovery_ladder
+      - support_bundle.crash_recovery_summary
+      - boundary_truth.entry_and_restore_result
+    notes: >
+      Exercises the ADR-0003 recovery-journal / ADR-0009 session-
+      checkpoint restore paths against a compatible_restore level with
+      binary_or_extension_version_changed and missing_extension_host
+      missing-target states.
+
+  - id: corpus.recovery.recent_work_missing_target
+    corpus_class: recovery_or_restore_scenario
+    path: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - boundary_truth_contract
+    support_classes:
+      - probable_archetype_partial
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - support_bundle.recent_work_summary
+      - boundary_truth.entry_and_restore_result
+
+  - id: corpus.recovery.resume_managed_workspace_reauth
+    corpus_class: recovery_or_restore_scenario
+    path: fixtures/workspace/entry_restore_examples/resume_managed_workspace.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - boundary_truth_contract
+    support_classes:
+      - supported_archetype_match
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - support_bundle.managed_workspace_summary
+      - boundary_truth.entry_and_restore_result
+
+  # -- reference workspaces ---------------------------------------------------
+
+  - id: corpus.reference.micro_local_folder
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/micro_local_folder.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - unrecognised_archetype
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+
+  - id: corpus.reference.small_rust_self_host_slice
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/small_rust_self_host_slice.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: repo_slice_live_resolution
+      since_manifest_revision: 1
+    size_class: small
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: original_author_aureline_project_mit_0bsd_choice
+    toolchain_assumption: rust_toolchain_pinned_v1
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - rust_workspace_self_host
+    evidence_consumer_channels:
+      - benchmark_lab.certified_archetype_workflows
+      - benchmark_lab.vfs_save_pipeline
+    notes: >
+      The slice points at the live repository; benchmark reports
+      against this fixture MUST record the repository commit and the
+      resolved file list alongside the metrics so comparisons across
+      runs remain well-defined.
+
+  - id: corpus.reference.ts_web_app_archetype_seed
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/ts_web_app_archetype_seed.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: node_js_declared_only
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - ts_web_app
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - benchmark_lab.certified_archetype_workflows
+
+  - id: corpus.reference.python_data_app_archetype_seed
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/python_data_app_archetype_seed.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: python_interpreter_declared_only
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - certified_archetype_match
+    archetype_tags:
+      - python_data_app
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+      - benchmark_lab.certified_archetype_workflows
+
+  - id: corpus.reference.misc_folder_unknown_archetype
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/misc_folder_unknown_archetype.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: micro
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+    support_classes:
+      - unrecognised_archetype
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.bootstrap_entry_parity
+
+  - id: corpus.reference.partially_ready_restore_seed
+    corpus_class: reference_workspace
+    path: fixtures/workspaces/reference/partially_ready_restore_seed.json
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - vfs_root_enumeration
+      - recovery_journal_restore
+    support_classes:
+      - probable_archetype_partial
+    archetype_tags:
+      - misc_folder
+    evidence_consumer_channels:
+      - benchmark_lab.recovery_ladder
+      - support_bundle.semantic_readiness_packet
+
+  # -- boundary-truth cases ---------------------------------------------------
+
+  - id: corpus.boundary.filesystem_identity_cases
+    corpus_class: boundary_truth_case
+    path: fixtures/filesystem/
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - boundary_truth_contract
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - boundary_truth.save_target_token
+      - boundary_truth.semantic_readiness_record
+      - support_bundle.semantic_readiness_packet
+    notes: >
+      Four-case filesystem-identity corpus (path_case_change, symlink_alias,
+      moved_file, partially_ready_workspace). Consumed by the
+      save_target_token boundary validator and the semantic-readiness
+      support-export family.
+
+  - id: corpus.boundary.mutation_lineage_cases
+    corpus_class: boundary_truth_case
+    path: fixtures/workspace/mutation_lineage_examples/
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - boundary_truth_contract
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - boundary_truth.mutation_journal
+      - boundary_truth.generated_artifact_lineage
+
+  - id: corpus.boundary.entry_restore_cases
+    corpus_class: boundary_truth_case
+    path: fixtures/workspace/entry_restore_examples/
+    source_revision:
+      origin: original_author_aureline_project
+      provenance: authored_in_this_repository
+      since_manifest_revision: 1
+    size_class: tiny
+    visibility_class: public
+    retention_class: permanent_seed
+    license_status: synthetic_no_real_content
+    toolchain_assumption: none
+    host_platform_class: host_independent
+    protected_journeys:
+      - boundary_truth_contract
+    support_classes:
+      - not_support_bound
+    archetype_tags:
+      - not_archetype_bound
+    evidence_consumer_channels:
+      - boundary_truth.entry_and_restore_result
+      - support_bundle.crash_recovery_summary
+      - support_bundle.recent_work_summary
+      - support_bundle.managed_workspace_summary
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+#
+# Quick-reference coverage across corpus classes and protected journeys.
+# Tooling can validate that every corpus class has at least one entry and
+# every protected journey the manifest claims to exercise is exercised by
+# at least one fixture, without re-parsing the fixture block.
+# -----------------------------------------------------------------------------
+coverage:
+  by_corpus_class:
+    microbenchmark_scenario:
+      - corpus.micro.shaping_smoke_cases
+      - corpus.micro.interaction_safety_cases
+    workflow_scenario:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.workflow.plain_open_unknown_archetype
+    archetype_seed:
+      - corpus.archetype.ts_web_app_seed
+      - corpus.archetype.python_data_app_seed
+      - corpus.archetype.misc_folder_unknown
+    large_file_trigger:
+      - corpus.large_file.clean_small_text
+      - corpus.large_file.above_size_threshold
+      - corpus.large_file.null_byte_blob
+      - corpus.large_file.minified_long_line
+      - corpus.large_file.pack_suffix_clean
+      - corpus.large_file.decode_recovery
+      - corpus.large_file.operator_override
+      - corpus.large_file.multi_gib_synthetic_recipe
+    recovery_or_restore_scenario:
+      - corpus.recovery.restore_last_session_compatible
+      - corpus.recovery.recent_work_missing_target
+      - corpus.recovery.resume_managed_workspace_reauth
+    reference_workspace:
+      - corpus.reference.micro_local_folder
+      - corpus.reference.small_rust_self_host_slice
+      - corpus.reference.ts_web_app_archetype_seed
+      - corpus.reference.python_data_app_archetype_seed
+      - corpus.reference.misc_folder_unknown_archetype
+      - corpus.reference.partially_ready_restore_seed
+    boundary_truth_case:
+      - corpus.boundary.filesystem_identity_cases
+      - corpus.boundary.mutation_lineage_cases
+      - corpus.boundary.entry_restore_cases
+
+  by_protected_journey:
+    startup:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.workflow.plain_open_unknown_archetype
+      - corpus.archetype.ts_web_app_seed
+      - corpus.archetype.python_data_app_seed
+    first_useful_chrome: []
+    first_paint:
+      - corpus.micro.shaping_smoke_cases
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.workflow.plain_open_unknown_archetype
+    input_to_paint:
+      - corpus.micro.shaping_smoke_cases
+      - corpus.micro.interaction_safety_cases
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.workflow.plain_open_unknown_archetype
+    render_submission:
+      - corpus.micro.shaping_smoke_cases
+      - corpus.workflow.startup_warm_to_first_paint
+    frame_budget: []
+    placeholder_open:
+      - corpus.large_file.clean_small_text
+      - corpus.large_file.above_size_threshold
+      - corpus.large_file.null_byte_blob
+      - corpus.large_file.minified_long_line
+      - corpus.large_file.pack_suffix_clean
+      - corpus.large_file.decode_recovery
+      - corpus.large_file.operator_override
+      - corpus.large_file.multi_gib_synthetic_recipe
+    placeholder_edit:
+      - corpus.large_file.clean_small_text
+      - corpus.workflow.first_useful_edit_rust_self_host
+    placeholder_save:
+      - corpus.large_file.clean_small_text
+      - corpus.large_file.multi_gib_synthetic_recipe
+      - corpus.workflow.first_useful_edit_rust_self_host
+    fallback_resolution:
+      - corpus.micro.shaping_smoke_cases
+    observability:
+      - corpus.micro.shaping_smoke_cases
+      - corpus.micro.interaction_safety_cases
+    vfs_root_enumeration:
+      - corpus.archetype.ts_web_app_seed
+      - corpus.archetype.python_data_app_seed
+      - corpus.archetype.misc_folder_unknown
+      - corpus.reference.micro_local_folder
+      - corpus.reference.small_rust_self_host_slice
+      - corpus.reference.ts_web_app_archetype_seed
+      - corpus.reference.python_data_app_archetype_seed
+      - corpus.reference.misc_folder_unknown_archetype
+      - corpus.reference.partially_ready_restore_seed
+    save_pipeline:
+      - corpus.workflow.first_useful_edit_rust_self_host
+    recovery_journal_write:
+      - corpus.workflow.first_useful_edit_rust_self_host
+    recovery_journal_restore:
+      - corpus.recovery.restore_last_session_compatible
+      - corpus.reference.partially_ready_restore_seed
+    boundary_truth_contract:
+      - corpus.micro.interaction_safety_cases
+      - corpus.recovery.restore_last_session_compatible
+      - corpus.recovery.recent_work_missing_target
+      - corpus.recovery.resume_managed_workspace_reauth
+      - corpus.boundary.filesystem_identity_cases
+      - corpus.boundary.mutation_lineage_cases
+      - corpus.boundary.entry_restore_cases
+
+  by_archetype_tag:
+    ts_web_app:
+      - corpus.archetype.ts_web_app_seed
+      - corpus.reference.ts_web_app_archetype_seed
+    python_data_app:
+      - corpus.archetype.python_data_app_seed
+      - corpus.reference.python_data_app_archetype_seed
+    rust_workspace_self_host:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.reference.small_rust_self_host_slice
+    misc_folder:
+      - corpus.archetype.misc_folder_unknown
+      - corpus.workflow.plain_open_unknown_archetype
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+      - corpus.reference.misc_folder_unknown_archetype
+      - corpus.reference.partially_ready_restore_seed
+
+  reserved_protected_journeys:
+    - journey: first_useful_chrome
+      reason: >
+        Reserved slot from docs/benchmarks/spike_metric_names.md. No
+        hook fires in this bucket today; the slot exists so a later
+        Start Center / chrome-liveness corpus can land without
+        reshaping the manifest.
+    - journey: frame_budget
+      reason: >
+        Reserved slot from docs/benchmarks/spike_metric_names.md. The
+        steady-state per-frame budget is not yet measured by any
+        corpus scenario; reserved so a later journey harness under
+        load can land without reshaping the manifest.
+
+# -----------------------------------------------------------------------------
+# Segregation markers.
+#
+# Fixtures that would require extra privacy, export, or retention review
+# before broader CI use are named here (by id) and cross-referenced with the
+# reason. A fixture with a segregation marker MUST also carry
+# license_status: requires_extra_privacy_review_before_ci OR
+# visibility_class: restricted.
+#
+# At this manifest revision no fixtures in this repository require
+# segregation; the block is named so later additions have a defined home.
+# -----------------------------------------------------------------------------
+segregation_markers: []

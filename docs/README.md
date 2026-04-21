@@ -266,6 +266,27 @@ code.
   layer and scrim tokens in
   [`/artifacts/design/layer_and_scrim_tokens.yaml`](../artifacts/design/layer_and_scrim_tokens.yaml).
 
+## Benchmarks and corpus
+
+- [`benchmarks/spike_metric_names.md`](./benchmarks/spike_metric_names.md)
+  — mapping from the ADR-0002 protected-hot-path hook vocabulary to
+  the journey-budget buckets the benchmark lab and journey harness
+  measure against.
+- [`benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md)
+  — normative vocabulary for the protected benchmark corpus:
+  corpus classes (`microbenchmark_scenario`, `workflow_scenario`,
+  `archetype_seed`, `large_file_trigger`,
+  `recovery_or_restore_scenario`, `reference_workspace`,
+  `boundary_truth_case`), size classes, visibility / retention /
+  license classes, host-platform and toolchain postures, archetype
+  placeholder tags, support classes, evidence-consumer channels,
+  `resolution_mode` rules (`concrete_file`, `live_repo_slice`,
+  `recipe_only`), and segregation-marker rules. Companion to the
+  machine-readable manifest in
+  [`/fixtures/benchmarks/corpus_manifest.yaml`](../fixtures/benchmarks/corpus_manifest.yaml);
+  reference-workspace seeds live under
+  [`/fixtures/workspaces/reference/`](../fixtures/workspaces/reference/).
+
 ## Machine-readable registers
 
 These live outside `docs/` because tooling reads them; the narrative
@@ -295,3 +316,13 @@ above is paired with a YAML form that is authoritative for automation:
   registers conform to.
 - [`/schemas/product/boundary_manifest.schema.json`](../schemas/product/boundary_manifest.schema.json)
   — contract for the product boundary manifest strawman.
+- [`/fixtures/benchmarks/corpus_manifest.yaml`](../fixtures/benchmarks/corpus_manifest.yaml)
+  — protected benchmark corpus manifest: one register of every
+  fixture the benchmark lab, journey harness, boundary-truth
+  validators, compatibility scoreboards, and support-export lanes
+  read, with corpus class, size class, visibility / retention /
+  license status, host-platform and toolchain posture, protected
+  journeys exercised, archetype tags, support classes, evidence-
+  consumer channels, source lineage, and segregation markers per
+  fixture. Normative companion in
+  [`/docs/benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md).
