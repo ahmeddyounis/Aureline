@@ -26,6 +26,10 @@ code.
   narrowing postures.
 - [`governance/decision_workflow.md`](./governance/decision_workflow.md)
   — how decisions open, close, supersede, and narrow.
+- [`governance/dogfood_issue_taxonomy.md`](./governance/dogfood_issue_taxonomy.md)
+  — dogfood intake taxonomy covering category, severity, evidence-link,
+  exact-build, route-truth, and hidden-dependency fields for issue
+  templates and intake automation.
 - [`governance/templates/`](./governance/templates/) — waiver,
   verification packet, and freeze-exception templates.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
@@ -120,6 +124,13 @@ code.
   [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../artifacts/support/deployment_drill_catalog_seed.yaml);
   concrete impairment fixtures in
   [`/fixtures/deployment/impairment_cases/`](../fixtures/deployment/impairment_cases/).
+
+## Supportability
+
+- [`support/support_center_concept.md`](./support/support_center_concept.md)
+  — concept note for Project Doctor, safe mode, support-bundle preview,
+  repair-preview transactions, object-specific issue handoff, and the
+  exact-build/docs/route truth the support center should preserve.
 
 ## Frozen vocabularies
 

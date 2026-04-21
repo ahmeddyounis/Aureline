@@ -10,6 +10,24 @@ point for contributors and reviewers. It pairs with:
   ownership, blocker aging, and escalation.
 - [`docs/governance/decision_workflow.md`](./docs/governance/decision_workflow.md)
   — how architecture decisions open, close, supersede, and narrow.
+- [`docs/repo/topology.md`](./docs/repo/topology.md),
+  [`docs/repo/dependency_rules.md`](./docs/repo/dependency_rules.md),
+  and
+  [`artifacts/governance/package_inventory.yaml`](./artifacts/governance/package_inventory.yaml)
+  — the package map, layering rules, and protected-path inventory.
+- [`docs/build/reproducible_build_baseline.md`](./docs/build/reproducible_build_baseline.md)
+  and
+  [`docs/build/exact_build_identity_model.md`](./docs/build/exact_build_identity_model.md)
+  — developer setup, supported hosts, and the exact-build identity
+  every build, packet, and bug report should quote.
+- [`docs/governance/dogfood_issue_taxonomy.md`](./docs/governance/dogfood_issue_taxonomy.md)
+  — category, severity, and evidence-link rules for dogfood and
+  supportability issues.
+- [`docs/benchmarks/benchmark_lab_run_results.md`](./docs/benchmarks/benchmark_lab_run_results.md)
+  and
+  [`docs/benchmarks/benchmark_publication_pack_template.md`](./docs/benchmarks/benchmark_publication_pack_template.md)
+  — benchmark-lab and public-proof packet rules for claim-bearing
+  performance work.
 - [`docs/governance/provenance_and_compliance_baseline.md`](./docs/governance/provenance_and_compliance_baseline.md)
   — provenance, SBOM, and supply-chain expectations this guide enforces.
 - [`docs/governance/dependency_review_policy.md`](./docs/governance/dependency_review_policy.md)
@@ -44,6 +62,115 @@ debt does not accumulate silently.
 4. For changes that affect a protected lane or a public surface, open
    or extend the appropriate decision row before broad implementation
    (see [`decision_workflow.md`](./docs/governance/decision_workflow.md)).
+
+The repository already contains a Cargo workspace, prototype crates,
+schemas, fixtures, and governance artifacts. After bootstrap and build,
+run the narrowest affected checks for your change. There is not yet a
+single repo-wide lint/test wrapper covering every lane, so PRs **MUST**
+state the exact commands that were run. If your change affects a
+protected metric or a claim-bearing surface, capture the relevant
+evidence or attach an approved waiver before requesting review.
+
+## Read The Architecture First
+
+Non-trivial changes start from the authoritative specs in `.t2/docs/`.
+Use targeted search/read rather than loading those files wholesale.
+
+Start with:
+
+- `.t2/docs/Aureline_PRD.md` for requirement families, verification
+  classes, supportability posture, and dogfood-ring expectations.
+- `.t2/docs/Aureline_Technical_Architecture_Document.md` for system
+  boundaries, supportability contracts, repair flows, exact-build
+  linkage, and route-truth vocabulary.
+- `.t2/docs/Aureline_Technical_Design_Document.md` for component-level
+  contracts and dependency-marker behavior.
+- `.t2/docs/Aureline_UI_UX_Spec_Document.md` for support-center,
+  recovery-ladder, repair-preview, and public-truth UX obligations.
+
+Then use the repo-local contracts under `docs/`:
+
+- [`docs/README.md`](./docs/README.md) for the checked-in docs map.
+- [`docs/repo/topology.md`](./docs/repo/topology.md) and
+  [`docs/repo/dependency_rules.md`](./docs/repo/dependency_rules.md)
+  for package placement and allowed internal edges.
+- [`artifacts/governance/package_inventory.yaml`](./artifacts/governance/package_inventory.yaml)
+  for protected-path status and allowed internal dependencies.
+- [`docs/product/boundary_manifest_strawman.md`](./docs/product/boundary_manifest_strawman.md)
+  when a change affects the open-source core versus managed/service
+  boundary.
+
+## Development Setup And Workflow
+
+The contributor baseline is defined by
+[`docs/build/reproducible_build_baseline.md`](./docs/build/reproducible_build_baseline.md).
+Do not invent alternate setup instructions in PR comments or issue
+threads when the checked-in build docs can be updated instead.
+
+Contributor expectations:
+
+- Use the pinned toolchain from [`rust-toolchain.toml`](./rust-toolchain.toml).
+- Treat `./tools/build/bootstrap.sh` and `./tools/build/build.sh` as the
+  canonical setup and build entry points.
+- If you change toolchain pins, build inputs, or artifact identity
+  semantics, update the build baseline and exact-build identity docs in
+  the same change.
+- If you touch a benchmark, support bundle, crash artifact, docs/help
+  surface, or claim packet, quote the exact-build identity instead of a
+  loose version string.
+
+## Package Boundaries And Protected Paths
+
+The package map is a contract, not a suggestion.
+
+- New crates, renamed crates, or new internal dependency edges **MUST**
+  update:
+  [`docs/repo/topology.md`](./docs/repo/topology.md),
+  [`docs/repo/dependency_rules.md`](./docs/repo/dependency_rules.md),
+  and
+  [`artifacts/governance/package_inventory.yaml`](./artifacts/governance/package_inventory.yaml)
+  in the same change.
+- Production crates must not grow dependencies on spike or benchmark
+  crates. `aureline-shell-spike` is disposable; `aureline-bench` is off
+  the production cone.
+- Protected-path crates and governance lanes need higher review
+  discipline. If `protected_path: true` in the package inventory, assume
+  that evidence, routing, and decision-record rules apply.
+- Changes that introduce or widen a managed/service-plane dependency
+  should update the boundary manifest so the dependency is declared,
+  reviewable, and not left as a hidden product assumption.
+
+## ADR, RFC, And Review Artifact Workflow
+
+Use the decision workflow before broad implementation when a change:
+
+- changes protected-lane-visible behavior;
+- adds or changes a shared contract, schema, envelope, or stable public
+  surface;
+- changes package boundaries or lifecycle/dependency-marker semantics;
+- narrows a committed protected path, supportability promise, or public
+  claim.
+
+Primary references:
+
+- [`docs/adr/README.md`](./docs/adr/README.md)
+- [`docs/rfc/README.md`](./docs/rfc/README.md)
+- [`docs/governance/decision_workflow.md`](./docs/governance/decision_workflow.md)
+- [`docs/governance/templates/verification_packet_template.md`](./docs/governance/templates/verification_packet_template.md)
+- [`docs/governance/templates/waiver_template.md`](./docs/governance/templates/waiver_template.md)
+- [`docs/governance/templates/freeze_exception_template.md`](./docs/governance/templates/freeze_exception_template.md)
+
+Rules:
+
+- ADRs are required before broad implementation of protected-lane or
+  contract-shaping changes.
+- RFCs are for changes that span multiple packages, teams, or design
+  forums and need a written proposal before the ADR closes the decision.
+- Do not quietly land architecture in code, schemas, or docs without the
+  matching decision-row updates.
+- If a change cannot yet meet the required evidence bar, attach a waiver
+  or freeze exception with scope, risk, mitigation, owner, expiry, and
+  planned exit. "We will follow up later" is not a waiver.
 
 ## Developer Certificate of Origin (DCO)
 
@@ -218,6 +345,72 @@ The same rules apply to public Rust API in any crate that is later
 declared a public SDK. Until then, internal cross-crate APIs follow
 the dependency rules in [`docs/repo/dependency_rules.md`](./docs/repo/dependency_rules.md).
 
+## Filing Bugs, Dogfood Issues, And Supportability Defects
+
+Use the routing table in
+[`artifacts/governance/issue_routing.yaml`](./artifacts/governance/issue_routing.yaml)
+and the intake rules in
+[`docs/governance/dogfood_issue_taxonomy.md`](./docs/governance/dogfood_issue_taxonomy.md).
+
+Routing defaults:
+
+- `perf_regression` for measured protected-metric regressions.
+- `supportability_issue` for blocked-user recovery, Doctor, bundle,
+  route, or safe-mode failures.
+- `docs_truth_defect` when public docs, known limits, help surfaces, or
+  claim language disagree with product behavior.
+- `design_system_defect` for accessibility and design-system defects when
+  the issue is primarily on a UI contract rather than subsystem logic.
+- `security_issue` for vulnerabilities or trust bugs that should stay on
+  the private route.
+
+Every non-trivial bug report should include, where applicable:
+
+- the exact-build identity ref or the `build_identity.json` produced by
+  the build you are using;
+- OS, arch, workspace archetype, and workspace size class;
+- enabled extensions or runtime hosts involved;
+- whether the issue reproduces in safe mode, restricted mode, or
+  headless mode;
+- command, invocation-session, route, or target identifiers if the bug
+  crossed an execution or transport boundary;
+- evidence refs such as journey traces, benchmark runs, support-bundle
+  manifests, crash IDs, Doctor finding codes, or checkpoint IDs;
+- known-limit refs, dependency-marker refs, or compatibility/public-proof
+  packet refs when the issue is really a truth-surface mismatch.
+
+Dogfood reports that only say "it felt broken" are not actionable on
+protected paths. Attach the best evidence you have and let the issue
+state what remains unknown.
+
+## Benchmark, Compatibility, And Public-Proof Expectations
+
+Protected performance work and claim-bearing evidence follow the checked-
+in benchmark/public-proof contracts:
+
+- [`docs/benchmarks/fitness_function_catalog.md`](./docs/benchmarks/fitness_function_catalog.md)
+- [`docs/benchmarks/benchmark_lab_run_results.md`](./docs/benchmarks/benchmark_lab_run_results.md)
+- [`docs/benchmarks/benchmark_publication_pack_template.md`](./docs/benchmarks/benchmark_publication_pack_template.md)
+- [`docs/release/release_evidence_packet_template.md`](./docs/release/release_evidence_packet_template.md)
+
+Use the benchmark-lab entry point:
+
+```sh
+./tools/benchmark_lab.sh
+```
+
+Rules:
+
+- Developer captures default to `run_context=self_capture`; they are for
+  local comparison and debugging, not for release or public-proof claims.
+- Claim-bearing benchmark or public-proof work should preserve the exact
+  command line, corpus revision, comparability class, exact-build
+  identity refs, docs/help version-match state, and known limits.
+- Protected-metric regressions above the published threshold need either
+  passing fresh evidence or an explicit approved waiver before merge.
+- Public-facing benchmark, compatibility, or replacement-grade language
+  must never get ahead of the checked-in packet/report state.
+
 ## Third-party imports and dependencies
 
 Aureline minimises external dependencies on protected paths. Every new
@@ -286,6 +479,33 @@ keyed by the stable dependency/import ids from the canonical registers.
 If you add a dependency or imported asset whose release-notice class
 requires publication, update the seed in the same change.
 
+## Protected-Path Evidence And Waiver Discipline
+
+Protected-path and claim-bearing changes need evidence, not optimism.
+
+At minimum, a PR touching a protected path or truth surface should link
+to the relevant evidence:
+
+- build/setup changes: build baseline or exact-build identity updates;
+- performance changes: benchmark-lab output or benchmark packet updates;
+- recovery/supportability changes: Doctor findings, recovery-ladder
+  drills, support-bundle or repair-preview evidence;
+- compatibility or migration changes: updated compatibility report,
+  known-limits note, or migration packet;
+- docs/public-truth changes: docs-pack or claim-manifest parity updates.
+
+When evidence is not yet green, attach a waiver instead of leaving the
+reviewer to infer intent. Waivers must be time-bounded and should cite:
+
+- the affected protected path or claim family;
+- scope and current user impact;
+- risk and mitigation;
+- owner and expiry;
+- the concrete exit path back to verified status.
+
+Repeated waivers on the same protected path are a correction signal, not
+business as usual.
+
 ## Pull-request hygiene
 
 - Every commit is signed off (DCO).
@@ -293,6 +513,8 @@ requires publication, update the seed in the same change.
 - Every new external dependency or vendored file has a canonical
   dependency/import row
   in the same change.
+- Every protected-path or claim-bearing change attaches fresh evidence or
+  an approved waiver/freeze exception in the same change.
 - Every change to a public-interface surface bumps the relevant
   `schema_version` (or attaches an ADR waiving the bump).
 - Every change to a protected lane links to the appropriate decision
