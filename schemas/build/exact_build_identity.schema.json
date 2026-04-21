@@ -1,0 +1,732 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/build/exact_build_identity.schema.json",
+  "title": "Aureline exact-build identity record",
+  "description": "Boundary schema for the exact_build_identity_record frozen in docs/build/exact_build_identity_model.md. One identity covers binaries, symbols / source maps, docs packs, schema exports, SDK libraries, SBOM documents, signed attestations, source bundles, crash-symbol archives, reproducibility packs, and support-runbook bundles, so that the artifact graph, Help / About surfaces, release center, and support exports can all point at the same record without inventing per-family version strings. Raw binaries, raw symbol bodies, raw signing material, raw build logs, and raw SBOM bodies never cross this boundary; the record carries opaque refs, typed vocabulary, digests, and timestamps only. The reproducible-build baseline record (schemas/build/build_identity.schema.json) is the minimal per-build identity; this record is the super-set every artifact family resolves a running_build_identity_ref into. Adding a new artifact-family class, release-channel class, tree-state class, toolchain field, target-tier class, cargo-profile class, debug-info class, panic class, strip class, build-epoch derivation class, producer-lane class, signing class, signing-material state, binary-embed class, hash algorithm, or evidence-link field is additive-minor and requires a schema version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/exact_build_identity_record",
+  "$defs": {
+    "exact_build_identity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this exact-build identity export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "exact_build_identity_record",
+      "description": "Discriminator. Every exact-build identity carries record_kind = exact_build_identity_record so parity audits and support exports can validate payloads mechanically."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / release notes. Raw URLs, raw file paths, raw signing material, and raw build-log bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "hash_algorithm_class": {
+      "type": "string",
+      "enum": [
+        "sha1_git",
+        "sha256_git",
+        "sha256_content",
+        "blake3_content"
+      ],
+      "description": "Frozen hash-algorithm vocabulary. sha1_git is the legacy git object hash kept for parity with the reproducible-build baseline record. sha256_git is the SHA-256 git object hash. sha256_content and blake3_content are content hashes used on artifacts that are not git objects (e.g. split debug info, SBOM body, signed attestation payload). Every hashed field carries an explicit algorithm token so a verifier never has to infer one."
+    },
+
+    "product_name_class": {
+      "type": "string",
+      "enum": [
+        "aureline"
+      ],
+      "description": "Frozen product-name vocabulary. Only one product name is admissible today. The field exists so a parity audit can diff identities mechanically across future sibling products without re-keying the record shape."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary. dev_local is a developer workstation build. nightly is the automated daily lane. preview is the gated pre-release lane that downstream surfaces render with the pre_release_unverified docs version-match state. beta is a publicly announced pre-release. stable is the general-availability lane. lts is a long-term-support branch on a stable line. hotfix is a patched release off a stable or lts line."
+    },
+
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "ide_debug_symbols",
+        "cli_binary",
+        "cli_debug_symbols",
+        "sdk_library",
+        "source_map_bundle",
+        "docs_pack",
+        "schema_export",
+        "reference_pack",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "crash_symbols_archive",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet"
+      ],
+      "description": "Frozen artifact-family vocabulary. ide_binary / cli_binary carry the platform executables; the matching *_debug_symbols family carries split / stripped debug info. source_map_bundle pairs bundled renderer output to sources. docs_pack is the docs-pack manifest (docs/docs/docs_pack_manifest_contract.md). schema_export is the versioned JSON Schema / SDL export. reference_pack is the generated-reference index. sbom_document is an SPDX / CycloneDX SBOM. signed_attestation is an in-toto / SLSA attestation payload. source_bundle is a distributable source archive. crash_symbols_archive is the symbolication archive consumed by the crash pipeline. reproducibility_pack is the clean-room rebuild instruction pack (milestones doc 'reproducibility pack'). support_runbook_bundle is the support-export runbook payload. release_evidence_packet is the aggregated public release-evidence envelope."
+    },
+
+    "tree_state_class": {
+      "type": "string",
+      "enum": [
+        "clean_checkout",
+        "dirty_local",
+        "patched_from_clean",
+        "shallow_clone_accepted",
+        "archive_export_no_git"
+      ],
+      "description": "Frozen tree-state vocabulary. clean_checkout is the only state admissible on beta / stable / lts / hotfix release lanes. dirty_local is admissible only on dev_local and explicitly rejected by ci_release / ci_hotfix lanes. patched_from_clean means a clean checkout had a listed set of named patches applied (used by reproducibility packs and offline mirror rebuilds). shallow_clone_accepted is admissible for dev_local only. archive_export_no_git covers a source_bundle rebuilt from a signed archive where git metadata is not available; committer_epoch is then derived from the signed archive header."
+    },
+
+    "tree_state_rejected_reason_class": {
+      "type": "string",
+      "enum": [
+        "dirty_tree_on_release_lane",
+        "shallow_clone_on_release_lane",
+        "missing_toolchain_pin_digest",
+        "missing_lockfile_digest",
+        "patch_set_not_reproducible"
+      ],
+      "description": "Frozen vocabulary for rejected tree states. When producer_lane.lane_class is a release lane and tree_state_class is not clean_checkout, at least one rejected reason MUST be recorded (for dev_local lanes this field is empty)."
+    },
+
+    "cargo_profile_class": {
+      "type": "string",
+      "enum": [
+        "dev",
+        "release",
+        "release_lto",
+        "bench"
+      ],
+      "description": "Frozen cargo-profile vocabulary. dev / release mirror the baseline record; release_lto is the link-time-optimization release profile the release lane uses; bench is the benchmark-runner profile pinned by the bench council baseline. No other profile strings are admissible."
+    },
+
+    "debug_info_class": {
+      "type": "string",
+      "enum": [
+        "no_debug_info",
+        "line_tables_only",
+        "limited_debug_info",
+        "full_debug_info",
+        "split_debug_info_external"
+      ],
+      "description": "Frozen debug-info vocabulary. no_debug_info is admissible only when a matching *_debug_symbols family ships separately. line_tables_only / limited_debug_info are admissible on release / release_lto. full_debug_info is admissible on dev. split_debug_info_external means debug info is stripped from the primary binary and shipped as a separate ide_debug_symbols / cli_debug_symbols artifact; a matching split_symbols_ref MUST be non-null."
+    },
+
+    "panic_class": {
+      "type": "string",
+      "enum": [
+        "unwind",
+        "abort"
+      ],
+      "description": "Frozen panic-strategy vocabulary. Fixed at build time and material to crash-symbolication."
+    },
+
+    "strip_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "strip_debuginfo_only",
+        "strip_symbols",
+        "strip_all"
+      ],
+      "description": "Frozen strip-class vocabulary. strip_symbols / strip_all require a matching *_debug_symbols artifact family cross-referenced via evidence.split_symbols_ref."
+    },
+
+    "target_os_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux_glibc",
+        "linux_musl",
+        "windows_msvc",
+        "ios",
+        "android",
+        "wasi",
+        "other_unspecified"
+      ],
+      "description": "Frozen target-OS vocabulary. other_unspecified is admissible only on artifact families that are OS-agnostic (docs_pack, schema_export, reference_pack, sbom_document, reproducibility_pack, release_evidence_packet)."
+    },
+
+    "target_cpu_class": {
+      "type": "string",
+      "enum": [
+        "arm64",
+        "x86_64",
+        "riscv64",
+        "wasm32",
+        "cpu_agnostic"
+      ],
+      "description": "Frozen target-CPU vocabulary. cpu_agnostic is admissible only on artifact families that are CPU-agnostic (same list as target_os_class = other_unspecified)."
+    },
+
+    "target_tier_class": {
+      "type": "string",
+      "enum": [
+        "tier_one_primary",
+        "tier_one_supported",
+        "tier_two_must_build",
+        "tier_three_provisional",
+        "tier_not_applicable"
+      ],
+      "description": "Frozen target-tier vocabulary. Mirrors the tier table in docs/build/reproducible_build_baseline.md. tier_not_applicable is used for OS/CPU-agnostic artifact families."
+    },
+
+    "build_epoch_derivation_class": {
+      "type": "string",
+      "enum": [
+        "committer_timestamp_of_head",
+        "manually_pinned_epoch",
+        "release_pipeline_pinned_epoch",
+        "archive_header_pinned_epoch"
+      ],
+      "description": "Frozen build-epoch derivation vocabulary. committer_timestamp_of_head is the default for dev_local / nightly / preview / beta. release_pipeline_pinned_epoch is the release lane's pinned epoch (must match the committer timestamp of the commit on release lanes). manually_pinned_epoch is admissible only on dev_local and reproducibility-pack replays. archive_header_pinned_epoch pairs with tree_state_class = archive_export_no_git."
+    },
+
+    "producer_lane_class": {
+      "type": "string",
+      "enum": [
+        "developer_local",
+        "ci_preview",
+        "ci_merge_queue",
+        "ci_nightly",
+        "ci_beta",
+        "ci_release",
+        "ci_hotfix",
+        "reproduced_clean_room",
+        "offline_mirror_rebuild"
+      ],
+      "description": "Frozen producer-lane vocabulary. developer_local is the only lane that tolerates dirty_local trees or unsigned outputs. ci_preview / ci_merge_queue / ci_nightly / ci_beta / ci_release / ci_hotfix are the gated automated lanes. reproduced_clean_room is a verifier lane that rebuilds a prior identity; rebuild_of_identity_ref MUST be non-null. offline_mirror_rebuild is the air-gapped mirror lane; acquired_via on the downstream artifact MUST be air_gapped_media."
+    },
+
+    "signing_class": {
+      "type": "string",
+      "enum": [
+        "unsigned_development_only",
+        "ephemeral_developer_signature",
+        "ci_transparent_sign",
+        "release_production_sign",
+        "release_hardware_key_sign"
+      ],
+      "description": "Frozen signing-class vocabulary. unsigned_development_only is admissible only on developer_local. ephemeral_developer_signature is a non-release short-lived signature admissible on ci_preview / ci_merge_queue only. ci_transparent_sign is the transparency-log-backed signature used on ci_nightly / ci_beta. release_production_sign / release_hardware_key_sign are admissible on ci_release / ci_hotfix / reproduced_clean_room / offline_mirror_rebuild; the HSM-backed path must name the signing_material_state signed_verified. Final signing / notarization workflows are out of scope at this freeze; this axis pins only the vocabulary every artifact family references."
+    },
+
+    "signing_material_state_class": {
+      "type": "string",
+      "enum": [
+        "not_signed",
+        "signed_unverified",
+        "signed_verified",
+        "signed_revoked"
+      ],
+      "description": "Frozen signing-material state. Mirrors the docs-pack signature_status values. signed_verified is the only state that clears the release-evidence gate; signed_revoked is a publishable blocker on every downstream surface (release center, Help / About, public evidence packets)."
+    },
+
+    "binary_embed_class": {
+      "type": "string",
+      "enum": [
+        "embedded_in_binary",
+        "sidecar_manifest_beside_binary",
+        "external_registry_only",
+        "embedded_in_archive_manifest"
+      ],
+      "description": "Frozen vocabulary for how the identity is carried with the artifact. embedded_in_binary is the default for ide_binary / cli_binary / sdk_library (linked as a read-only symbol and projected by Help / About's copy-build-info). sidecar_manifest_beside_binary pairs with *_debug_symbols / source_map_bundle artifacts. external_registry_only is admissible on docs_pack / reference_pack / schema_export where the manifest is the primary carrier and the identity is reached through a registry resolver. embedded_in_archive_manifest is the source_bundle / reproducibility_pack / release_evidence_packet mode: the archive's top-level manifest carries the identity verbatim."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public"
+      ],
+      "description": "Frozen redaction-class vocabulary for this record. Matches the ADR-0007 / ADR-0008 redaction envelope. release_public is the only class that may appear verbatim in public release notes / About dialogs; support_export_only and evidence_packet_only may appear only under the matching export redaction frames."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ADR-0008 policy epoch. Release lanes pin the policy epoch the build resolved settings against."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "restricted",
+            "trusted",
+            "managed_admin"
+          ],
+          "description": "ADR-0009 trust state of the producer context."
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009. Present on every record so downstream lanes can reason about the build's policy provenance without re-deriving it."
+    },
+
+    "commit_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "full_hash",
+        "short_hash",
+        "hash_algorithm",
+        "committer_epoch"
+      ],
+      "properties": {
+        "full_hash": {
+          "type": "string",
+          "minLength": 40,
+          "description": "Full VCS commit digest, lower-case hex. When tree_state_class is archive_export_no_git the value MUST be the synthetic digest minted by the archive-manifest signer."
+        },
+        "short_hash": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 12,
+          "description": "12-character lower-case hex prefix of full_hash, convenience field for human-readable rendering. The rendering surface MUST NOT use this field for diffing; diffs use full_hash."
+        },
+        "hash_algorithm": {
+          "$ref": "#/$defs/hash_algorithm_class"
+        },
+        "committer_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Committer timestamp of the commit at HEAD, in seconds since the Unix epoch. Release lanes pin build_epoch.source_date_epoch to this value."
+        },
+        "tree_hash": {
+          "type": "string",
+          "minLength": 40,
+          "description": "VCS tree hash of the commit's root tree. Present when tree_state_class is clean_checkout, dirty_local, patched_from_clean, or shallow_clone_accepted. Absent for archive_export_no_git."
+        }
+      },
+      "description": "Commit / tree digest pair. The record carries both the full and short hash so human-readable rendering does not have to re-derive the short form."
+    },
+
+    "toolchain_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "rustc_version",
+        "cargo_version",
+        "host_triple",
+        "toolchain_pin_digest",
+        "lockfile_digest"
+      ],
+      "properties": {
+        "channel": {
+          "type": "string",
+          "minLength": 1,
+          "description": "rust-toolchain.toml [toolchain].channel, e.g. '1.84.0'. Must match rustc_version."
+        },
+        "rustc_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full 'rustc --version' string."
+        },
+        "cargo_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full 'cargo --version' string."
+        },
+        "host_triple": {
+          "type": "string",
+          "minLength": 1,
+          "description": "rustc -vV host triple of the machine that ran the build."
+        },
+        "llvm_version_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the LLVM version string rustc linked against. Null when the LLVM version is implied by rustc_version alone."
+        },
+        "toolchain_pin_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content digest of rust-toolchain.toml. Used to detect a bumped pin between two otherwise-identical identities."
+        },
+        "toolchain_pin_digest_algorithm": {
+          "$ref": "#/$defs/hash_algorithm_class"
+        },
+        "lockfile_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content digest of Cargo.lock. Used to detect a dependency-graph drift between two otherwise-identical identities."
+        },
+        "lockfile_digest_algorithm": {
+          "$ref": "#/$defs/hash_algorithm_class"
+        }
+      },
+      "description": "Toolchain-pin record. Pairs the four reproducible-build-baseline pinned files (rust-toolchain.toml, .cargo/config.toml, Cargo.toml, Cargo.lock) with the cargo / rustc runtime versions the build actually resolved."
+    },
+
+    "target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_triple",
+        "target_os_class",
+        "target_cpu_class",
+        "target_tier_class"
+      ],
+      "properties": {
+        "target_triple": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target triple the artifact was built for (e.g. aarch64-apple-darwin). Defaults to host_triple when no cross-target was specified."
+        },
+        "target_os_class": { "$ref": "#/$defs/target_os_class" },
+        "target_cpu_class": { "$ref": "#/$defs/target_cpu_class" },
+        "target_tier_class": { "$ref": "#/$defs/target_tier_class" },
+        "libc_or_runtime_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the libc / runtime floor (e.g. glibc 2.31, musl 1.2, Windows CRT pin). Null for cpu_agnostic / OS-agnostic artifact families."
+        }
+      },
+      "description": "Target descriptor. Carries both the triple string and the closed-vocabulary axes so a parity audit can compare two builds mechanically without parsing the triple."
+    },
+
+    "profile_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cargo_profile_class",
+        "opt_level_ref",
+        "debug_info_class",
+        "panic_class",
+        "strip_class"
+      ],
+      "properties": {
+        "cargo_profile_class": { "$ref": "#/$defs/cargo_profile_class" },
+        "opt_level_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the opt-level token the profile resolved to (e.g. 'opt_level:0', 'opt_level:3', 'opt_level:z'). Opaque so that future opt-level strings do not bump the schema."
+        },
+        "debug_info_class": { "$ref": "#/$defs/debug_info_class" },
+        "panic_class": { "$ref": "#/$defs/panic_class" },
+        "strip_class": { "$ref": "#/$defs/strip_class" }
+      },
+      "description": "Profile descriptor. Splits the cargo profile into the five independently-addressable axes every downstream lane diffs on (opt level, debug info, panic, strip, profile name)."
+    },
+
+    "build_epoch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_date_epoch",
+        "build_timestamp_utc",
+        "derivation_class"
+      ],
+      "properties": {
+        "source_date_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Deterministic build epoch. Seconds since the Unix epoch."
+        },
+        "build_timestamp_utc": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO-8601 UTC rendering of source_date_epoch. The record carries both the integer and the rendered string so human-readable surfaces do not have to re-format."
+        },
+        "derivation_class": { "$ref": "#/$defs/build_epoch_derivation_class" }
+      },
+      "description": "Build-epoch envelope. Names how the timestamp was derived so a reproducibility verifier can reject a release lane that pinned a manual epoch."
+    },
+
+    "producer_lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_class",
+        "producer_identifier_ref",
+        "rebuild_of_identity_ref"
+      ],
+      "properties": {
+        "lane_class": { "$ref": "#/$defs/producer_lane_class" },
+        "producer_identifier_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque identifier for the producer. For developer_local this resolves to a workstation pseudonym. For CI lanes this resolves to the CI job identity. For reproduced_clean_room / offline_mirror_rebuild this resolves to the verifier identity."
+        },
+        "rebuild_of_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the prior exact_build_identity_ref that this lane is reproducing. Null for non-rebuild lanes. MUST be non-null when lane_class is reproduced_clean_room or offline_mirror_rebuild."
+        }
+      },
+      "description": "Producer-lane envelope. Pins which lane minted the identity, who the producer was, and (for verifier lanes) which prior identity this rebuild is of."
+    },
+
+    "provenance_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signing_class",
+        "signing_material_state",
+        "attestation_predicate_refs",
+        "sbom_document_ref",
+        "provenance_statement_ref",
+        "transparency_log_ref"
+      ],
+      "properties": {
+        "signing_class": { "$ref": "#/$defs/signing_class" },
+        "signing_material_state": { "$ref": "#/$defs/signing_material_state_class" },
+        "attestation_predicate_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to attestation predicates this identity is covered by (e.g. SLSA provenance, build-provenance, reproducible-build attestation). May be empty only on unsigned_development_only identities."
+        },
+        "sbom_document_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the SBOM document covering this artifact. Null only on unsigned_development_only identities. Required on every release lane."
+        },
+        "provenance_statement_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the build-provenance statement. Null only on unsigned_development_only identities."
+        },
+        "transparency_log_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the transparency-log entry the signature is anchored in. Null only on unsigned_development_only and ephemeral_developer_signature identities."
+        }
+      },
+      "description": "Provenance / signing linkage. Final signing and notarization workflows are out of scope at this freeze; the record pins only the typed refs every downstream lane resolves. signing_material_state is the only gate that clears release-evidence publication."
+    },
+
+    "evidence_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_log_ref",
+        "reproducibility_pack_ref",
+        "artifact_graph_node_ref"
+      ],
+      "properties": {
+        "build_log_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the build log. Null only on developer_local lanes where no log is retained."
+        },
+        "reproducibility_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the reproducibility pack (milestones doc 'reproducibility pack'). Required on every release lane."
+        },
+        "artifact_graph_node_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the artifact-graph node that represents this (identity, artifact family) pair. Required on every non-dev lane; the technical-architecture requirement is that the artifact graph point at a single build identity."
+        },
+        "support_bundle_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the support-bundle anchor where this identity is referenced. Present on identities that ship inside a support export."
+        },
+        "help_about_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the Help / About about_packet_publisher payload that renders this identity. Present on identities that back a running ide_binary / cli_binary."
+        },
+        "public_release_note_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the public release-note row that announces this identity. Required on every release lane; null on pre-release and dev lanes."
+        },
+        "split_symbols_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the *_debug_symbols identity that carries the split debug info for this artifact. Required when profile_descriptor.debug_info_class is split_debug_info_external."
+        },
+        "source_map_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the source_map_bundle identity that pairs sources to compiled output. Present on identities that ship a renderer bundle."
+        }
+      },
+      "description": "Evidence-linkage envelope. Every identity points back to the lanes that consume it: binaries, symbols, source maps, artifact graph node, support bundle, Help / About payload, public release note. Raw bodies never appear in this record; each field is an opaque ref a resolver turns into the underlying artifact under the redaction envelope named on redaction_class."
+    },
+
+    "propagation_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binary_embed_class",
+        "symbol_tag_refs"
+      ],
+      "properties": {
+        "binary_embed_class": { "$ref": "#/$defs/binary_embed_class" },
+        "symbol_tag_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to build-id / symbol-tag rows that carry the exact_build_identity_ref as a signed label on the emitted binary or symbol archive. Required non-empty when binary_embed_class is embedded_in_binary or sidecar_manifest_beside_binary; may be empty for registry-only families."
+        }
+      },
+      "description": "Propagation envelope. Names how the identity is carried physically with the artifact (embedded, sidecar, registry-only, archive-manifest) so crash symbolication and About / Help can resolve a running binary back to one identity."
+    },
+
+    "exact_build_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_schema_version",
+        "record_kind",
+        "exact_build_identity_ref",
+        "product_name_class",
+        "workspace_version",
+        "semver_core",
+        "release_channel_class",
+        "artifact_family_class",
+        "commit",
+        "tree_state_class",
+        "tree_state_rejected_reasons",
+        "toolchain",
+        "target",
+        "profile",
+        "build_epoch",
+        "producer_lane",
+        "provenance",
+        "propagation",
+        "evidence",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "exact_build_identity_schema_version": { "$ref": "#/$defs/exact_build_identity_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, globally-unique pin for this identity. Downstream records (docs_pack_manifest.running_build_identity_ref, help_status_badge_record.running_build_identity_ref, search_result_truth_record.running_build_identity_ref, evidence_packet fields, support-bundle anchors) MUST resolve to this value field-for-field. No parallel 'build version' string is admissible anywhere else."
+        },
+
+        "product_name_class": { "$ref": "#/$defs/product_name_class" },
+
+        "workspace_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "[workspace.package].version in the root Cargo.toml. The rendered display version. MUST match semver_core.major.minor.patch plus the semver_prerelease_ids (when non-empty) joined by '.' with a leading '-' and the semver_build_metadata joined by '.' with a leading '+'."
+        },
+
+        "semver_core": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["major", "minor", "patch"],
+          "properties": {
+            "major": { "type": "integer", "minimum": 0 },
+            "minor": { "type": "integer", "minimum": 0 },
+            "patch": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Structured split of the semver core. Required so parity audits can diff major / minor / patch axes mechanically rather than string-parsing workspace_version."
+        },
+
+        "semver_prerelease_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ordered list of semver pre-release identifiers (the dotted tokens after the '-'). Empty on stable / lts / hotfix release channels when the release is GA."
+        },
+
+        "semver_build_metadata": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ordered list of semver build-metadata tokens (the dotted tokens after the '+'). MUST NOT include wall-clock timestamps; the committer timestamp lives in build_epoch.source_date_epoch. Used for producer-lane tagging (e.g. 'ci.release', 'repro.clean-room')."
+        },
+
+        "release_channel_class": { "$ref": "#/$defs/release_channel_class" },
+
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+
+        "commit": { "$ref": "#/$defs/commit_digest" },
+
+        "tree_state_class": { "$ref": "#/$defs/tree_state_class" },
+
+        "tree_state_rejected_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tree_state_rejected_reason_class" },
+          "description": "Ordered list of rejected-tree-state reasons. MUST be empty when tree_state_class is clean_checkout and when the producer lane tolerates the state. MUST be non-empty when a release lane (ci_release, ci_hotfix, reproduced_clean_room, offline_mirror_rebuild) observes a tree_state_class other than clean_checkout or patched_from_clean."
+        },
+
+        "toolchain": { "$ref": "#/$defs/toolchain_pin" },
+
+        "target": { "$ref": "#/$defs/target_descriptor" },
+
+        "profile": { "$ref": "#/$defs/profile_descriptor" },
+
+        "build_epoch": { "$ref": "#/$defs/build_epoch" },
+
+        "producer_lane": { "$ref": "#/$defs/producer_lane" },
+
+        "provenance": { "$ref": "#/$defs/provenance_linkage" },
+
+        "propagation": { "$ref": "#/$defs/propagation_envelope" },
+
+        "evidence": { "$ref": "#/$defs/evidence_linkage" },
+
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Exact-build identity record. One record per (exact_build_identity_ref, artifact_family_class) pair. A single release cuts N records (one per artifact family) that share commit, tree state, toolchain, target axis, build epoch, producer lane, and provenance, and differ only on artifact_family_class, profile / strip / debug-info axis, propagation envelope, and evidence linkage. This is the super-set every downstream running_build_identity_ref resolves to."
+    }
+  }
+}
