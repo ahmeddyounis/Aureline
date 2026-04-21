@@ -2,7 +2,7 @@
 //!
 //! The binary runs the fixture scene from `aureline_shell_spike` and
 //! emits the capability manifest plus per-label trace samples. It can
-//! run in three modes:
+//! run in four modes:
 //!
 //! * `--print` (default) — print the manifest JSON to stdout, then
 //!   print the per-label trace samples one per blank-line-separated
@@ -13,6 +13,13 @@
 //!   committed fixtures under `artifacts/render/` are regenerated.
 //! * `--scene-only` — just run the fixture scene and print the
 //!   resulting hooks-fired list. Used by smoke-test invocations.
+//! * `--text-stack-smoke <corpus_path>` — drive the prototype text
+//!   stack (shape + fallback + cache) against the given TSV corpus
+//!   and print a JSON summary. The default corpus is
+//!   `fixtures/text/shaping_smoke_cases.txt`. This mode is a
+//!   side-channel: it does NOT touch the fixture scene, the
+//!   capability manifest, or any committed trace sample; it only
+//!   exercises the text-layer seam from `src/text_layer.rs`.
 //!
 //! The binary intentionally does not open a native window in this spike
 //! revision. Wiring `winit` and a software-render or `wgpu`-backed
@@ -32,14 +39,18 @@ use std::process::ExitCode;
 use aureline_shell_spike::capabilities::{Backend, CapabilityManifest};
 use aureline_shell_spike::fixture_scene::{run, FixtureRunResult, FIXTURE_SCENE_ID};
 use aureline_shell_spike::frame_timing::CountingClock;
+use aureline_shell_spike::text_layer::{run_smoke_cases, summary_to_json};
 use aureline_shell_spike::trace::per_label_samples;
 use aureline_shell_spike::zones::ShellFrame;
+
+const DEFAULT_TEXT_CORPUS: &str = "fixtures/text/shaping_smoke_cases.txt";
 
 #[derive(Debug)]
 enum Mode {
     Print,
     EmitArtifacts(PathBuf),
     SceneOnly,
+    TextStackSmoke(PathBuf),
 }
 
 fn parse_mode(args: &[String]) -> Result<Mode, String> {
@@ -55,6 +66,13 @@ fn parse_mode(args: &[String]) -> Result<Mode, String> {
                     .ok_or_else(|| "--emit-artifacts requires a directory path".to_owned())?;
                 mode = Mode::EmitArtifacts(PathBuf::from(dir.as_str()));
             }
+            "--text-stack-smoke" => {
+                let corpus = iter
+                    .next()
+                    .cloned()
+                    .unwrap_or_else(|| DEFAULT_TEXT_CORPUS.to_owned());
+                mode = Mode::TextStackSmoke(PathBuf::from(corpus));
+            }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
         }
@@ -67,7 +85,8 @@ fn usage() -> String {
      Usage:\n\
      \tshell_spike [--print]\n\
      \tshell_spike --emit-artifacts <dir>\n\
-     \tshell_spike --scene-only\n"
+     \tshell_spike --scene-only\n\
+     \tshell_spike --text-stack-smoke [corpus_path]\n"
         .to_owned()
 }
 
@@ -108,7 +127,44 @@ fn main() -> ExitCode {
             }
             ExitCode::SUCCESS
         }
+        Mode::TextStackSmoke(corpus_path) => match run_text_stack_smoke(&corpus_path) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                let _ = writeln!(io::stderr(), "shell_spike: {err}");
+                ExitCode::from(1)
+            }
+        },
     }
+}
+
+fn run_text_stack_smoke(corpus_path: &Path) -> Result<(), String> {
+    let contents = fs::read_to_string(corpus_path)
+        .map_err(|e| format!("reading text-stack corpus {:?}: {e}", corpus_path))?;
+    let cases = parse_corpus_lines(&contents)?;
+    if cases.is_empty() {
+        return Err("text-stack corpus is empty".to_owned());
+    }
+    let summary = run_smoke_cases(&cases);
+    print!("{}", summary_to_json(&summary));
+    Ok(())
+}
+
+/// Minimal TSV parser for the text-stack smoke corpus. Kept local to
+/// the binary so the spike does not depend on `aureline-bench`.
+fn parse_corpus_lines(contents: &str) -> Result<Vec<(String, String)>, String> {
+    let mut cases = Vec::new();
+    for (idx, raw) in contents.lines().enumerate() {
+        let line_number = idx + 1;
+        let line = raw.trim_end_matches('\r');
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (label, text) = line
+            .split_once('\t')
+            .ok_or_else(|| format!("line {line_number}: expected <label><TAB><text>"))?;
+        cases.push((label.to_owned(), text.to_owned()));
+    }
+    Ok(cases)
 }
 
 fn write_artifacts(

@@ -31,6 +31,11 @@
 //!   startup. Later benchmark and conformance tasks consume it by name.
 //! - [`trace`] — trace-record format and JSON emission shared between the
 //!   binary and the fixture-scene tests.
+//! - [`text_layer`] — side-channel integration of the prototype text
+//!   stack. The default fixture scene does not route through here so
+//!   the committed `artifacts/render/spike_trace_samples/` stay
+//!   byte-stable; the binary's `--text-stack-smoke` mode runs the
+//!   committed shaping corpus through it.
 //!
 //! # Intentional non-goals
 //!
@@ -46,6 +51,7 @@ pub mod frame_timing;
 pub mod hooks;
 pub mod input_path;
 pub mod render_path;
+pub mod text_layer;
 pub mod trace;
 pub mod zones;
 
