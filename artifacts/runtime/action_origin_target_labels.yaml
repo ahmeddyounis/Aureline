@@ -1,0 +1,1776 @@
+# Action origin / target / route / exposure / route-change-reason /
+# authority-linkage matrix.
+#
+# Machine-readable companion to
+# docs/runtime/origin_target_route_taxonomy.md. Binds every frozen
+# token in the six vocabularies to its minimum packet fields, its
+# admissible pairings with the other vocabularies, its required
+# redaction class and default export-inclusion posture, and at
+# least one conformance test.
+#
+# This matrix is consumed by:
+#   - the command router and shell / CLI / AI dispatcher so every
+#     invocation emits one route-truth packet per session,
+#   - the ADR-0010 browser-handoff launcher and callback receiver
+#     so every handoff is typed and every callback is validated,
+#   - the managed-workspace control plane so every control-plane
+#     action names its linkage token and exposure class,
+#   - the publish pipeline and tunnel exposer so every externally
+#     visible action names its exposure class inline,
+#   - the support-export, mutation-journal, replay, and
+#     evidence-packet exporters so every export quotes the
+#     frozen tokens and redaction posture.
+#
+# Rules:
+#   - Every row MUST name one token from the frozen vocabulary, a
+#     minimum-field set, the admissible companion classes, the
+#     required redaction class and default export-inclusion
+#     posture, and at least one conformance test.
+#   - If this file and docs/runtime/origin_target_route_taxonomy.md
+#     disagree, the doc wins and this file MUST be updated in the
+#     same change. If either disagrees with ADR-0009, ADR-0010,
+#     ADR-0011, or docs/commands/command_descriptor_contract.md,
+#     the ADR / contract wins.
+#   - Adding a token to any vocabulary is additive-minor: bump
+#     action_route_truth_schema_version, extend this matrix, and
+#     update the taxonomy doc in the same change.
+#   - Repurposing any existing token is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml.
+
+action_route_truth_schema_version: 1
+
+taxonomy_source: docs/runtime/origin_target_route_taxonomy.md
+related_adrs:
+  - docs/adr/0001-identity-modes.md
+  - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - docs/adr/0006-vfs-save-cache-identity.md
+  - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0009-execution-context-and-scope.md
+  - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+related_contracts:
+  - docs/commands/command_descriptor_contract.md
+  - docs/runtime/execution_context_vocabulary.md
+  - docs/runtime/target_discovery_and_install_review_taxonomy.md
+boundary_schemas:
+  - schemas/runtime/execution_context.schema.json
+  - schemas/integration/browser_handoff_packet.schema.json
+  - schemas/integration/approval_ticket.schema.json
+  - schemas/commands/command_descriptor.schema.json
+
+# ---------------------------------------------------------------------------
+# Vocabulary 1 — action_origin_class (frozen)
+# ---------------------------------------------------------------------------
+action_origin_class_vocabulary:
+  - user_keystroke_local
+  - user_voice_or_gesture_local
+  - cli_invocation_local
+  - ai_tool_call_local
+  - ai_tool_call_managed
+  - recipe_or_automation_local
+  - extension_host_local
+  - remote_agent_request
+  - managed_control_plane_request
+  - provider_callback_inbound
+  - webhook_inbound
+  - scheduled_trigger
+  - supervisor_repair_origin
+  - import_or_restore_session
+  - unknown_origin_class
+
+# ---------------------------------------------------------------------------
+# Vocabulary 2 — action_target_class (frozen)
+# ---------------------------------------------------------------------------
+action_target_class_vocabulary:
+  - local_host_target
+  - user_mode_sandbox_target
+  - container_local_target
+  - devcontainer_target
+  - remote_ssh_target
+  - remote_agent_target
+  - managed_workspace_target
+  - notebook_kernel_local_target
+  - notebook_kernel_remote_target
+  - ai_sandbox_target
+  - connected_provider_target
+  - embedded_webview_target
+  - system_browser_target
+  - native_os_callback_target
+  - publish_release_target
+  - tunnel_exposed_target
+  - bridged_helper_target
+  - unknown_target_class
+
+# Cross-walk from action_target_class to the ADR-0009 target_class
+# enum (when the target is an execution target). Route-only targets
+# carry null because they are not ADR-0009 execution targets.
+target_class_crosswalk:
+  local_host_target: local_host
+  user_mode_sandbox_target: local_host
+  container_local_target: container_local
+  devcontainer_target: devcontainer
+  remote_ssh_target: remote_ssh
+  remote_agent_target: remote_agent
+  managed_workspace_target: managed_workspace
+  notebook_kernel_local_target: notebook_kernel_local
+  notebook_kernel_remote_target: notebook_kernel_remote
+  ai_sandbox_target: ai_sandbox
+  connected_provider_target: null
+  embedded_webview_target: null
+  system_browser_target: null
+  native_os_callback_target: null
+  publish_release_target: null
+  tunnel_exposed_target: null
+  bridged_helper_target: null
+  unknown_target_class: null
+
+# ---------------------------------------------------------------------------
+# Vocabulary 3 — action_route_class (frozen)
+# ---------------------------------------------------------------------------
+action_route_class_vocabulary:
+  - in_process_route
+  - local_rpc_route
+  - remote_rpc_route
+  - managed_control_plane_route
+  - remote_agent_attach_route
+  - approval_gated_route
+  - browser_handoff_route
+  - embedded_webview_route
+  - native_callback_route
+  - provider_webhook_return_route
+  - publish_pipeline_route
+  - tunnel_exposed_route
+  - mirror_or_private_registry_route
+  - bridged_helper_route
+  - heuristic_unknown_route
+
+# ---------------------------------------------------------------------------
+# Vocabulary 4 — action_exposure_class (frozen)
+# ---------------------------------------------------------------------------
+action_exposure_class_vocabulary:
+  - no_side_effect_local_read
+  - local_only_mutation
+  - workspace_visible_mutation
+  - provider_visible_mutation
+  - publicly_visible_publish
+  - cross_tenant_visible
+  - third_party_callback_visible
+  - browser_session_visible
+  - tunnel_exposed_public
+  - exposure_unknown_requires_review
+
+# ---------------------------------------------------------------------------
+# Vocabulary 5 — route_change_reason_code (frozen)
+# ---------------------------------------------------------------------------
+route_change_reason_code_vocabulary:
+  - canonical_no_route_change
+  - route_escalated_to_approval_required
+  - route_escalated_to_browser_handoff
+  - route_escalated_to_publish_pipeline
+  - route_escalated_to_tunnel_exposure
+  - route_changed_target_unreachable
+  - route_changed_target_reassigned
+  - route_changed_policy_narrowed
+  - route_changed_authority_escalation
+  - route_changed_wrong_target_detected
+  - route_changed_approval_withdrawn
+  - route_changed_freshness_floor_unmet
+  - route_changed_host_mismatch
+  - route_unknown_requires_review
+
+# ---------------------------------------------------------------------------
+# Vocabulary 6 — authority_linkage_class (frozen)
+# ---------------------------------------------------------------------------
+authority_linkage_class_vocabulary:
+  - no_authority_required_read_only
+  - local_user_keystroke_authority
+  - approval_ticket_linked
+  - browser_handoff_packet_linked
+  - publish_evidence_packet_linked
+  - remote_agent_attach_ticket_linked
+  - managed_control_plane_token_linked
+  - policy_injected_service_identity_linked
+  - supervisor_repair_ticket_linked
+  - authority_missing_denied
+
+# Export-inclusion postures (frozen).
+export_inclusion_posture_vocabulary:
+  - metadata_safe_default
+  - operator_only_restricted
+  - broadened_capture_opt_in
+
+# ---------------------------------------------------------------------------
+# Audit events (frozen) — emitted on the action_route_truth stream.
+# Adding an event id is additive-minor.
+# ---------------------------------------------------------------------------
+action_route_truth_audit_event_vocabulary:
+  - action_route_packet_minted
+  - action_route_packet_updated
+  - action_route_changed
+  - action_route_target_corrected
+  - action_route_exposure_upgraded
+  - action_route_authority_missing_denied
+  - action_route_unknown_requires_review
+  - action_route_export_posture_widened
+  - action_route_schema_version_bumped
+
+# ---------------------------------------------------------------------------
+# action_origin_class rows
+# ---------------------------------------------------------------------------
+origin_rows:
+
+  - origin_class: user_keystroke_local
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+      - policy_context.trust_state
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - remote_rpc_route
+      - managed_control_plane_route
+      - remote_agent_attach_route
+      - approval_gated_route
+      - browser_handoff_route
+      - embedded_webview_route
+      - native_callback_route
+      - publish_pipeline_route
+      - tunnel_exposed_route
+      - mirror_or_private_registry_route
+      - bridged_helper_route
+    admissible_target_classes:
+      - local_host_target
+      - user_mode_sandbox_target
+      - container_local_target
+      - devcontainer_target
+      - remote_ssh_target
+      - remote_agent_target
+      - managed_workspace_target
+      - notebook_kernel_local_target
+      - notebook_kernel_remote_target
+      - ai_sandbox_target
+      - connected_provider_target
+      - embedded_webview_target
+      - system_browser_target
+      - native_os_callback_target
+      - publish_release_target
+      - tunnel_exposed_target
+      - bridged_helper_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: keystroke_origin_carries_trust_state
+        description: >
+          A user_keystroke_local packet MUST carry
+          policy_context.trust_state; surfaces MAY NOT attribute a
+          keystroke action without the trust state of the workspace
+          it originated in.
+
+  - origin_class: user_voice_or_gesture_local
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+      - policy_context.trust_state
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+    admissible_target_classes:
+      - local_host_target
+      - connected_provider_target
+      - system_browser_target
+      - embedded_webview_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: voice_origin_does_not_collapse_to_keystroke
+        description: >
+          A voice / gesture origin MUST render as
+          user_voice_or_gesture_local; collapsing to
+          user_keystroke_local in logs, transcripts, or exports is
+          non-conforming (accessibility disclosure).
+
+  - origin_class: cli_invocation_local
+    canonical_owner: cli_dispatcher
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+      - policy_context.trust_state
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - remote_rpc_route
+      - managed_control_plane_route
+      - remote_agent_attach_route
+      - approval_gated_route
+      - browser_handoff_route
+      - publish_pipeline_route
+      - tunnel_exposed_route
+      - mirror_or_private_registry_route
+    admissible_target_classes:
+      - local_host_target
+      - devcontainer_target
+      - container_local_target
+      - remote_ssh_target
+      - remote_agent_target
+      - managed_workspace_target
+      - connected_provider_target
+      - publish_release_target
+      - tunnel_exposed_target
+      - system_browser_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: cli_origin_prints_route_line
+        description: >
+          Every cli_invocation_local packet MUST be printable as a
+          single "[route] origin=... target=... route=... exposure=...
+          authority=... reason=..." line using the frozen tokens.
+
+  - origin_class: ai_tool_call_local
+    canonical_owner: ai_tool_call_plane
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+      - policy_context.trust_state
+      - action_origin_ref.origin_session_ref
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+    admissible_target_classes:
+      - local_host_target
+      - ai_sandbox_target
+      - connected_provider_target
+      - system_browser_target
+      - embedded_webview_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: ai_local_mutation_requires_authority_linkage
+        description: >
+          An ai_tool_call_local packet whose action_exposure_class is
+          not no_side_effect_local_read MUST carry a non-null
+          authority_linkage_ref; AI-initiated mutations without a
+          linked authority deny with authority_missing_denied.
+
+  - origin_class: ai_tool_call_managed
+    canonical_owner: ai_tool_call_plane
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+      - policy_context.trust_state
+      - action_origin_ref.origin_session_ref
+      - action_target_ref.managed_workspace_instance_ref
+    admissible_route_classes:
+      - managed_control_plane_route
+      - remote_agent_attach_route
+      - approval_gated_route
+    admissible_target_classes:
+      - managed_workspace_target
+      - ai_sandbox_target
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: ai_managed_names_managed_instance
+        description: >
+          An ai_tool_call_managed packet MUST name
+          action_target_ref.managed_workspace_instance_ref; the
+          packet MUST NOT be renderable without identifying which
+          managed workspace the AI tool call landed on.
+
+  - origin_class: recipe_or_automation_local
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - policy_context.identity_mode
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - remote_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+      - managed_control_plane_route
+      - publish_pipeline_route
+    admissible_target_classes:
+      - local_host_target
+      - devcontainer_target
+      - container_local_target
+      - remote_ssh_target
+      - managed_workspace_target
+      - connected_provider_target
+      - publish_release_target
+      - system_browser_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: recipe_does_not_inherit_prior_ticket
+        description: >
+          Replaying a recipe step MUST mint a fresh authority
+          linkage (new approval ticket, fresh browser-handoff
+          packet); inheriting the prior ticket id is forbidden.
+
+  - origin_class: extension_host_local
+    canonical_owner: extension_host
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - action_origin_ref.origin_subject_ref
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+      - bridged_helper_route
+    admissible_target_classes:
+      - local_host_target
+      - user_mode_sandbox_target
+      - bridged_helper_target
+      - connected_provider_target
+      - system_browser_target
+      - embedded_webview_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: extension_names_origin_subject
+        description: >
+          An extension_host_local packet MUST name the extension's
+          origin_subject_ref so attribution crosses logs, transcripts,
+          and support bundles.
+
+  - origin_class: remote_agent_request
+    canonical_owner: remote_agent_attach_service
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - action_origin_ref.origin_session_ref
+      - authority_linkage_ref.remote_agent_attach_ticket_ref
+    admissible_route_classes:
+      - remote_agent_attach_route
+      - remote_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+    admissible_target_classes:
+      - remote_agent_target
+      - connected_provider_target
+      - system_browser_target
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: remote_agent_carries_attach_ticket
+        description: >
+          A remote_agent_request packet MUST carry a non-null
+          remote_agent_attach_ticket_ref; remote-agent-initiated
+          actions without an attach ticket deny with
+          authority_missing_denied.
+
+  - origin_class: managed_control_plane_request
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - authority_linkage_ref.managed_control_plane_token_ref
+      - action_target_ref.managed_workspace_instance_ref
+    admissible_route_classes:
+      - managed_control_plane_route
+    admissible_target_classes:
+      - managed_workspace_target
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: managed_control_plane_names_token
+        description: >
+          A managed_control_plane_request packet MUST carry a
+          non-null managed_control_plane_token_ref; control-plane
+          actions without a token ref are non-conforming.
+
+  - origin_class: provider_callback_inbound
+    canonical_owner: provider_callback_receiver
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - authority_linkage_ref.browser_handoff_packet_ref
+      - action_origin_ref.origin_actor_class
+    admissible_route_classes:
+      - provider_webhook_return_route
+      - native_callback_route
+      - embedded_webview_route
+    admissible_target_classes:
+      - embedded_webview_target
+      - local_host_target
+      - managed_workspace_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: callback_validates_origin_disclosure
+        description: >
+          A provider_callback_inbound packet MUST reference the
+          browser_handoff_packet_ref that was minted at handoff
+          time; callbacks whose origin_disclosure does not match
+          the packet deny with browser_handoff_origin_mismatch.
+
+  - origin_class: webhook_inbound
+    canonical_owner: provider_webhook_receiver
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - action_origin_ref.origin_actor_class
+    admissible_route_classes:
+      - provider_webhook_return_route
+    admissible_target_classes:
+      - local_host_target
+      - managed_workspace_target
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: webhook_idempotent_by_delivery_id
+        description: >
+          A webhook_inbound packet MUST be idempotent by external
+          delivery identity plus scoped object reference;
+          redelivery refreshes freshness markers but does not mint
+          a duplicate side-effect packet.
+
+  - origin_class: scheduled_trigger
+    canonical_owner: scheduler
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - action_origin_ref.origin_session_ref
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - managed_control_plane_route
+    admissible_target_classes:
+      - local_host_target
+      - managed_workspace_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: scheduled_trigger_names_schedule
+        description: >
+          A scheduled_trigger packet MUST name its origin_session_ref
+          (the schedule id) so support and audit surfaces can
+          correlate the triggered action to its declaring schedule.
+
+  - origin_class: supervisor_repair_origin
+    canonical_owner: supervisor
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - authority_linkage_ref.supervisor_repair_ticket_ref
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - remote_rpc_route
+      - managed_control_plane_route
+      - approval_gated_route
+    admissible_target_classes:
+      - local_host_target
+      - managed_workspace_target
+      - remote_agent_target
+      - devcontainer_target
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: supervisor_repair_carries_ticket
+        description: >
+          A supervisor_repair_origin packet MUST carry a non-null
+          supervisor_repair_ticket_ref; silent "automatic" repair
+          without a ticket is non-conforming.
+
+  - origin_class: import_or_restore_session
+    canonical_owner: import_restore_controller
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - action_origin_ref.origin_session_ref
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+    admissible_target_classes:
+      - local_host_target
+      - managed_workspace_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: import_origin_does_not_masquerade_as_user
+        description: >
+          An import_or_restore_session packet MUST NOT render as
+          user_keystroke_local in logs / transcripts / exports;
+          replay audits depend on the import origin being
+          distinguishable.
+
+  - origin_class: unknown_origin_class
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_origin_class
+      - invocation_session_id
+      - repair_hook_ref
+    admissible_route_classes:
+      - heuristic_unknown_route
+      - in_process_route
+    admissible_target_classes:
+      - unknown_target_class
+      - local_host_target
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: unknown_origin_denies_mutation
+        description: >
+          A packet whose action_origin_class is unknown_origin_class
+          MUST deny any mutating action; silent attribution to
+          user_keystroke_local is non-conforming.
+
+# ---------------------------------------------------------------------------
+# action_target_class rows
+# ---------------------------------------------------------------------------
+target_rows:
+
+  - target_class: local_host_target
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - local_host_boundary
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+      - browser_handoff_route
+      - embedded_webview_route
+      - native_callback_route
+      - provider_webhook_return_route
+      - publish_pipeline_route
+      - tunnel_exposed_route
+      - mirror_or_private_registry_route
+      - bridged_helper_route
+      - heuristic_unknown_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+      - publicly_visible_publish
+      - browser_session_visible
+      - tunnel_exposed_public
+      - third_party_callback_visible
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: local_host_round_trips_execution_context
+        description: >
+          A local_host_target packet MUST round-trip to an ADR-0009
+          execution-context record whose target_class is local_host.
+
+  - target_class: user_mode_sandbox_target
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - user_mode_sandbox_boundary
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: sandbox_cue_required
+        description: >
+          A user_mode_sandbox_target packet MUST carry
+          user_mode_sandbox_boundary in its host_boundary_cue_stack.
+
+  - target_class: container_local_target
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - container_kernel_boundary
+    admissible_route_classes:
+      - local_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: container_cue_required
+        description: >
+          A container_local_target packet MUST carry
+          container_kernel_boundary in its host_boundary_cue_stack.
+
+  - target_class: devcontainer_target
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - devcontainer_boundary
+    admissible_route_classes:
+      - local_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: devcontainer_cue_required
+        description: >
+          A devcontainer_target packet MUST carry
+          devcontainer_boundary in its host_boundary_cue_stack.
+
+  - target_class: remote_ssh_target
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - remote_ssh_boundary
+    admissible_route_classes:
+      - remote_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: remote_ssh_cue_required
+        description: >
+          A remote_ssh_target packet MUST carry remote_ssh_boundary
+          in its host_boundary_cue_stack.
+
+  - target_class: remote_agent_target
+    canonical_owner: remote_agent_attach_service
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+      - authority_linkage_ref.remote_agent_attach_ticket_ref
+    required_host_boundary_cue_stack:
+      - remote_agent_boundary
+    admissible_route_classes:
+      - remote_agent_attach_route
+      - remote_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: remote_agent_attach_ticket_required
+        description: >
+          A remote_agent_target packet MUST carry a non-null
+          remote_agent_attach_ticket_ref; attach without ticket
+          denies.
+
+  - target_class: managed_workspace_target
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.managed_workspace_instance_ref
+    required_host_boundary_cue_stack:
+      - managed_workspace_boundary
+    admissible_route_classes:
+      - managed_control_plane_route
+      - remote_agent_attach_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+      - cross_tenant_visible
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: managed_workspace_instance_ref_required
+        description: >
+          A managed_workspace_target packet MUST carry a non-null
+          managed_workspace_instance_ref; rendering a managed target
+          without identifying the instance is non-conforming.
+
+  - target_class: notebook_kernel_local_target
+    canonical_owner: notebook_kernel_controller
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - notebook_kernel_boundary
+    admissible_route_classes:
+      - local_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: notebook_local_requires_trust_rung
+        description: >
+          A notebook_kernel_local_target packet MUST quote the
+          notebook_trust_rung taxonomy; silently treating all
+          notebooks as trusted is non-conforming.
+
+  - target_class: notebook_kernel_remote_target
+    canonical_owner: notebook_kernel_controller
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - notebook_kernel_boundary
+      - remote_ssh_boundary
+    admissible_route_classes:
+      - remote_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: notebook_remote_cue_stack_two_deep
+        description: >
+          A notebook_kernel_remote_target packet MUST carry a cue
+          stack that includes notebook_kernel_boundary and the
+          underlying remote boundary (remote_ssh_boundary or
+          remote_agent_boundary).
+
+  - target_class: ai_sandbox_target
+    canonical_owner: ai_tool_call_plane
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.execution_context_id
+    required_host_boundary_cue_stack:
+      - ai_sandbox_boundary
+    admissible_route_classes:
+      - in_process_route
+      - local_rpc_route
+      - approval_gated_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: ai_sandbox_cue_required
+        description: >
+          An ai_sandbox_target packet MUST carry ai_sandbox_boundary
+          in its host_boundary_cue_stack.
+
+  - target_class: connected_provider_target
+    canonical_owner: connected_provider_registry
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.connected_provider_record_id
+      - action_origin_ref.origin_actor_class
+    required_host_boundary_cue_stack: []
+    admissible_route_classes:
+      - approval_gated_route
+      - browser_handoff_route
+      - provider_webhook_return_route
+      - publish_pipeline_route
+      - mirror_or_private_registry_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - provider_visible_mutation
+      - publicly_visible_publish
+      - cross_tenant_visible
+      - third_party_callback_visible
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: connected_provider_requires_actor_class
+        description: >
+          A connected_provider_target packet MUST carry
+          action_origin_ref.origin_actor_class resolved to one of
+          the frozen provider_actor_class tokens; a generic
+          "Connected" target label is forbidden.
+
+  - target_class: embedded_webview_target
+    canonical_owner: embedded_webview_host
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.browser_handoff_packet_ref
+    required_host_boundary_cue_stack: []
+    admissible_route_classes:
+      - embedded_webview_route
+      - provider_webhook_return_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - browser_session_visible
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: embedded_webview_requires_packet
+        description: >
+          An embedded_webview_target packet MUST reference the
+          browser_handoff_packet_ref that minted the webview's
+          content scope; raw URL routing into an embedded webview
+          is non-conforming.
+
+  - target_class: system_browser_target
+    canonical_owner: browser_handoff_launcher
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.browser_handoff_packet_ref
+    required_host_boundary_cue_stack:
+      - browser_handoff_return_boundary
+    admissible_route_classes:
+      - browser_handoff_route
+    admissible_exposure_classes:
+      - browser_session_visible
+      - provider_visible_mutation
+      - publicly_visible_publish
+      - third_party_callback_visible
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: system_browser_requires_packet
+        description: >
+          A system_browser_target packet MUST reference a live
+          browser_handoff_packet_ref; raw URL launches are
+          forbidden.
+
+  - target_class: native_os_callback_target
+    canonical_owner: native_callback_receiver
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.browser_handoff_packet_ref
+    required_host_boundary_cue_stack:
+      - browser_handoff_return_boundary
+    admissible_route_classes:
+      - native_callback_route
+    admissible_exposure_classes:
+      - browser_session_visible
+      - provider_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: native_callback_validates_origin
+        description: >
+          A native_os_callback_target packet MUST validate
+          browser_handoff_packet.origin_disclosure before
+          mutating local state; a callback whose origin does not
+          match denies with browser_handoff_origin_mismatch.
+
+  - target_class: publish_release_target
+    canonical_owner: publish_pipeline
+    minimum_fields:
+      - action_target_class
+      - authority_linkage_ref.publish_evidence_packet_ref
+    required_host_boundary_cue_stack: []
+    admissible_route_classes:
+      - publish_pipeline_route
+    admissible_exposure_classes:
+      - publicly_visible_publish
+      - cross_tenant_visible
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: publish_requires_evidence_packet
+        description: >
+          A publish_release_target packet MUST carry a non-null
+          publish_evidence_packet_ref; publishing without evidence
+          is non-conforming.
+
+  - target_class: tunnel_exposed_target
+    canonical_owner: tunnel_exposer
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.tunnel_session_ref
+    required_host_boundary_cue_stack: []
+    admissible_route_classes:
+      - tunnel_exposed_route
+    admissible_exposure_classes:
+      - tunnel_exposed_public
+    default_export_inclusion_posture: operator_only_restricted
+    conformance_tests:
+      - id: tunnel_declares_public_reachability
+        description: >
+          A tunnel_exposed_target packet MUST render its
+          exposure_disclosure_summary naming the public reachability
+          of the exposed endpoint; tooltip-only disclosure is
+          non-conforming.
+
+  - target_class: bridged_helper_target
+    canonical_owner: compatibility_bridge_host
+    minimum_fields:
+      - action_target_class
+      - action_target_ref.bridged_helper_ref
+    required_host_boundary_cue_stack:
+      - bridged_host_boundary
+    admissible_route_classes:
+      - bridged_helper_route
+      - local_rpc_route
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: bridged_helper_ref_required
+        description: >
+          A bridged_helper_target packet MUST name bridged_helper_ref
+          so compatibility-bridge profiles can be audited.
+
+  - target_class: unknown_target_class
+    canonical_owner: execution_context_resolver
+    minimum_fields:
+      - action_target_class
+      - repair_hook_ref
+    required_host_boundary_cue_stack: []
+    admissible_route_classes:
+      - heuristic_unknown_route
+    admissible_exposure_classes:
+      - exposure_unknown_requires_review
+    default_export_inclusion_posture: metadata_safe_default
+    conformance_tests:
+      - id: unknown_target_denies_launch
+        description: >
+          A packet whose action_target_class is unknown_target_class
+          MUST deny launch and MUST carry a repair_hook_ref.
+
+# ---------------------------------------------------------------------------
+# action_route_class rows
+# ---------------------------------------------------------------------------
+route_rows:
+
+  - route_class: in_process_route
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_route_class
+    required_authority_linkage_classes:
+      - no_authority_required_read_only
+      - local_user_keystroke_authority
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: in_process_no_rpc_boundary
+        description: >
+          An in_process_route packet MUST NOT reference a remote
+          execution-context id or a remote-agent attach ticket; the
+          route is entirely inside the local process.
+
+  - route_class: local_rpc_route
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_route_class
+    required_authority_linkage_classes:
+      - no_authority_required_read_only
+      - local_user_keystroke_authority
+      - approval_ticket_linked
+      - supervisor_repair_ticket_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: local_rpc_crosses_only_local_boundaries
+        description: >
+          A local_rpc_route packet's host_boundary_cue_stack MUST NOT
+          include remote_ssh_boundary, remote_agent_boundary, or
+          managed_workspace_boundary.
+
+  - route_class: remote_rpc_route
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_route_class
+    required_authority_linkage_classes:
+      - approval_ticket_linked
+      - remote_agent_attach_ticket_linked
+      - local_user_keystroke_authority
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: remote_rpc_names_remote_boundary
+        description: >
+          A remote_rpc_route packet's host_boundary_cue_stack MUST
+          include exactly one of remote_ssh_boundary,
+          remote_agent_boundary, or managed_workspace_boundary.
+
+  - route_class: managed_control_plane_route
+    canonical_owner: managed_workspace_control_plane
+    minimum_fields:
+      - action_route_class
+      - authority_linkage_ref.managed_control_plane_token_ref
+    required_authority_linkage_classes:
+      - managed_control_plane_token_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: control_plane_token_required
+        description: >
+          A managed_control_plane_route packet MUST carry a non-null
+          managed_control_plane_token_ref; raw control-plane tokens
+          never cross the RPC boundary.
+
+  - route_class: remote_agent_attach_route
+    canonical_owner: remote_agent_attach_service
+    minimum_fields:
+      - action_route_class
+      - authority_linkage_ref.remote_agent_attach_ticket_ref
+    required_authority_linkage_classes:
+      - remote_agent_attach_ticket_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: attach_ticket_required
+        description: >
+          A remote_agent_attach_route packet MUST carry a non-null
+          remote_agent_attach_ticket_ref; attach without ticket
+          denies.
+
+  - route_class: approval_gated_route
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_route_class
+      - authority_linkage_ref.approval_ticket_ref
+    required_authority_linkage_classes:
+      - approval_ticket_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: approval_ticket_round_trips
+        description: >
+          The approval_ticket_ref MUST round-trip to a live
+          ADR-0010 approval_ticket_record whose action_class admits
+          the route; a ticket whose action_class does not admit
+          denies with ticket_widening_forbidden.
+
+  - route_class: browser_handoff_route
+    canonical_owner: browser_handoff_launcher
+    minimum_fields:
+      - action_route_class
+      - authority_linkage_ref.browser_handoff_packet_ref
+    required_authority_linkage_classes:
+      - browser_handoff_packet_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: browser_handoff_no_raw_url
+        description: >
+          A browser_handoff_route packet MUST reference a
+          browser_handoff_packet_ref; raw URLs MUST NOT appear on
+          the route packet.
+
+  - route_class: embedded_webview_route
+    canonical_owner: embedded_webview_host
+    minimum_fields:
+      - action_route_class
+      - action_target_ref.browser_handoff_packet_ref
+    required_authority_linkage_classes:
+      - browser_handoff_packet_linked
+      - no_authority_required_read_only
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: embedded_webview_scope_declared
+        description: >
+          An embedded_webview_route packet MUST name the webview's
+          content scope via the browser_handoff_packet_ref; raw
+          URL scopes are non-conforming.
+
+  - route_class: native_callback_route
+    canonical_owner: native_callback_receiver
+    minimum_fields:
+      - action_route_class
+      - action_target_ref.browser_handoff_packet_ref
+    required_authority_linkage_classes:
+      - browser_handoff_packet_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: native_callback_validates_packet
+        description: >
+          A native_callback_route packet MUST validate the
+          browser_handoff_packet.intent_signature; invalid
+          signatures deny with origin_signature_invalid.
+
+  - route_class: provider_webhook_return_route
+    canonical_owner: provider_webhook_receiver
+    minimum_fields:
+      - action_route_class
+      - action_origin_ref.origin_actor_class
+    required_authority_linkage_classes:
+      - browser_handoff_packet_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: webhook_origin_matches_provider_record
+        description: >
+          A provider_webhook_return_route packet MUST name
+          action_origin_ref.origin_actor_class and a connected
+          provider record id matching the provider that delivered
+          the webhook.
+
+  - route_class: publish_pipeline_route
+    canonical_owner: publish_pipeline
+    minimum_fields:
+      - action_route_class
+      - authority_linkage_ref.publish_evidence_packet_ref
+    required_authority_linkage_classes:
+      - publish_evidence_packet_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: publish_pipeline_has_evidence
+        description: >
+          A publish_pipeline_route packet MUST carry a non-null
+          publish_evidence_packet_ref.
+
+  - route_class: tunnel_exposed_route
+    canonical_owner: tunnel_exposer
+    minimum_fields:
+      - action_route_class
+      - action_target_ref.tunnel_session_ref
+    required_authority_linkage_classes:
+      - approval_ticket_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: tunnel_reachability_declared
+        description: >
+          A tunnel_exposed_route packet MUST render its public
+          reachability inline via exposure_disclosure_summary.
+
+  - route_class: mirror_or_private_registry_route
+    canonical_owner: mirror_private_registry_adapter
+    minimum_fields:
+      - action_route_class
+    required_authority_linkage_classes:
+      - approval_ticket_linked
+      - policy_injected_service_identity_linked
+      - local_user_keystroke_authority
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: mirror_names_registry
+        description: >
+          A mirror_or_private_registry_route packet MUST name the
+          mirror / registry record id; silent use of a mirror is
+          non-conforming.
+
+  - route_class: bridged_helper_route
+    canonical_owner: compatibility_bridge_host
+    minimum_fields:
+      - action_route_class
+      - action_target_ref.bridged_helper_ref
+    required_authority_linkage_classes:
+      - local_user_keystroke_authority
+      - approval_ticket_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: bridged_helper_named
+        description: >
+          A bridged_helper_route packet MUST name the bridge's
+          compatibility profile.
+
+  - route_class: heuristic_unknown_route
+    canonical_owner: shell_command_router
+    minimum_fields:
+      - action_route_class
+      - repair_hook_ref
+    required_authority_linkage_classes:
+      - authority_missing_denied
+      - no_authority_required_read_only
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: heuristic_unknown_denies_mutation
+        description: >
+          A heuristic_unknown_route packet MUST deny any action
+          whose action_exposure_class is not
+          no_side_effect_local_read.
+
+# ---------------------------------------------------------------------------
+# action_exposure_class rows
+# ---------------------------------------------------------------------------
+exposure_rows:
+
+  - exposure_class: no_side_effect_local_read
+    admissible_authority_linkage_classes:
+      - no_authority_required_read_only
+      - local_user_keystroke_authority
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: read_only_has_no_mutation_journal
+        description: >
+          A no_side_effect_local_read packet MUST NOT reference a
+          mutation-journal entry; read-only actions do not mutate.
+
+  - exposure_class: local_only_mutation
+    admissible_authority_linkage_classes:
+      - local_user_keystroke_authority
+      - approval_ticket_linked
+      - supervisor_repair_ticket_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: local_only_carries_mutation_journal
+        description: >
+          A local_only_mutation packet MUST reference a
+          mutation-journal entry ref on the invocation-session
+          packet.
+
+  - exposure_class: workspace_visible_mutation
+    admissible_authority_linkage_classes:
+      - local_user_keystroke_authority
+      - approval_ticket_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: workspace_visible_declared_inline
+        description: >
+          A workspace_visible_mutation packet MUST render its
+          exposure_disclosure_summary inline on every confirmation /
+          approval / preview surface.
+
+  - exposure_class: provider_visible_mutation
+    admissible_authority_linkage_classes:
+      - approval_ticket_linked
+      - browser_handoff_packet_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: provider_visible_names_actor_class
+        description: >
+          A provider_visible_mutation packet MUST carry
+          action_origin_ref.origin_actor_class; the acting
+          provider-actor class MUST be named on every surface.
+
+  - exposure_class: publicly_visible_publish
+    admissible_authority_linkage_classes:
+      - approval_ticket_linked
+      - publish_evidence_packet_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: publish_requires_evidence
+        description: >
+          A publicly_visible_publish packet MUST carry a non-null
+          publish_evidence_packet_ref; publish without evidence is
+          non-conforming.
+
+  - exposure_class: cross_tenant_visible
+    admissible_authority_linkage_classes:
+      - approval_ticket_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: cross_tenant_declares_both_tenants
+        description: >
+          A cross_tenant_visible packet MUST declare the tenant pair
+          (source + destination) on the exposure_disclosure_summary;
+          hiding a tenant is non-conforming.
+
+  - exposure_class: third_party_callback_visible
+    admissible_authority_linkage_classes:
+      - approval_ticket_linked
+      - browser_handoff_packet_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: third_party_callback_names_subscribers
+        description: >
+          A third_party_callback_visible packet MUST name the
+          subscriber classes (webhook targets, notification
+          endpoints) in the exposure_disclosure_summary.
+
+  - exposure_class: browser_session_visible
+    admissible_authority_linkage_classes:
+      - browser_handoff_packet_linked
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: browser_session_references_packet
+        description: >
+          A browser_session_visible packet MUST reference the
+          browser_handoff_packet_ref that minted the session; the
+          packet's replay_posture MUST be honoured.
+
+  - exposure_class: tunnel_exposed_public
+    admissible_authority_linkage_classes:
+      - approval_ticket_linked
+      - policy_injected_service_identity_linked
+    required_redaction_class: operator_only_restricted
+    conformance_tests:
+      - id: tunnel_renders_public_reachability
+        description: >
+          A tunnel_exposed_public packet MUST render its public
+          reachability inline; tooltip-only disclosure is
+          non-conforming.
+
+  - exposure_class: exposure_unknown_requires_review
+    admissible_authority_linkage_classes:
+      - authority_missing_denied
+    required_redaction_class: metadata_safe_default
+    conformance_tests:
+      - id: unknown_exposure_denies
+        description: >
+          A packet whose action_exposure_class is
+          exposure_unknown_requires_review MUST deny the action and
+          MUST carry a repair_hook_ref.
+
+# ---------------------------------------------------------------------------
+# route_change_reason_code rows
+# ---------------------------------------------------------------------------
+route_change_reason_rows:
+
+  - reason_code: canonical_no_route_change
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_packet_minted
+    conformance_tests:
+      - id: canonical_is_default
+        description: >
+          A packet with no route change MUST carry
+          canonical_no_route_change rather than leaving the field
+          null.
+
+  - reason_code: route_escalated_to_approval_required
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: true
+    new_authority_linkage_class: approval_ticket_linked
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: approval_escalation_mints_ticket
+        description: >
+          A route_escalated_to_approval_required packet MUST carry a
+          non-null approval_ticket_ref admitting the new route.
+
+  - reason_code: route_escalated_to_browser_handoff
+    requires_prior_target_ref: true
+    requires_new_authority_linkage: true
+    new_authority_linkage_class: browser_handoff_packet_linked
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: handoff_escalation_preserves_prior_route
+        description: >
+          A route_escalated_to_browser_handoff packet MUST carry
+          prior_route_class and prior_target_ref; dropping the prior
+          target is non-conforming.
+
+  - reason_code: route_escalated_to_publish_pipeline
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: true
+    new_authority_linkage_class: publish_evidence_packet_linked
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: publish_escalation_attaches_evidence
+        description: >
+          A route_escalated_to_publish_pipeline packet MUST reference
+          the publish_evidence_packet_ref admitting the pipeline.
+
+  - reason_code: route_escalated_to_tunnel_exposure
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: true
+    new_authority_linkage_class: approval_ticket_linked
+    emits_audit_event: action_route_exposure_upgraded
+    conformance_tests:
+      - id: tunnel_escalation_declares_reachability
+        description: >
+          A route_escalated_to_tunnel_exposure packet MUST render
+          exposure_disclosure_summary naming the tunnel's public
+          reachability.
+
+  - reason_code: route_changed_target_unreachable
+    requires_prior_target_ref: true
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: unreachable_names_prior_target
+        description: >
+          A route_changed_target_unreachable packet MUST name both
+          the prior target and the fallback (if any); silent
+          fallback is non-conforming.
+
+  - reason_code: route_changed_target_reassigned
+    requires_prior_target_ref: true
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_target_corrected
+    conformance_tests:
+      - id: reassigned_names_both_targets
+        description: >
+          A route_changed_target_reassigned packet MUST name prior
+          and corrected target refs.
+
+  - reason_code: route_changed_policy_narrowed
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: policy_narrowing_names_epoch
+        description: >
+          A route_changed_policy_narrowed packet MUST record the
+          policy_epoch at which narrowing took effect.
+
+  - reason_code: route_changed_authority_escalation
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: true
+    new_authority_linkage_class: approval_ticket_linked
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: authority_escalation_mints_ticket
+        description: >
+          A route_changed_authority_escalation packet MUST carry a
+          fresh approval_ticket_ref; reusing the prior ticket is
+          forbidden.
+
+  - reason_code: route_changed_wrong_target_detected
+    requires_prior_target_ref: true
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_target_corrected
+    conformance_tests:
+      - id: wrong_target_names_prior_and_corrected
+        description: >
+          A route_changed_wrong_target_detected packet MUST carry
+          both prior_target_ref and the corrected
+          action_target_ref; dropping the prior target is
+          non-conforming.
+
+  - reason_code: route_changed_approval_withdrawn
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_authority_missing_denied
+    conformance_tests:
+      - id: approval_withdrawn_fails_closed
+        description: >
+          A route_changed_approval_withdrawn packet MUST deny the
+          action and MUST render outcome_class as
+          denied_by_approval or denied_authority_withdrawn on the
+          invocation-session packet.
+
+  - reason_code: route_changed_freshness_floor_unmet
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: freshness_floor_names_floor
+        description: >
+          A route_changed_freshness_floor_unmet packet MUST render a
+          typed freshness-floor description in
+          exposure_disclosure_summary; generic "out of date"
+          messages are non-conforming.
+
+  - reason_code: route_changed_host_mismatch
+    requires_prior_target_ref: true
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_changed
+    conformance_tests:
+      - id: host_mismatch_names_expected_host
+        description: >
+          A route_changed_host_mismatch packet MUST name the
+          expected canonical_host / tenant_or_org_scope of the
+          grant that denied.
+
+  - reason_code: route_unknown_requires_review
+    requires_prior_target_ref: false
+    requires_new_authority_linkage: false
+    emits_audit_event: action_route_unknown_requires_review
+    conformance_tests:
+      - id: unknown_requires_repair_hook
+        description: >
+          A route_unknown_requires_review packet MUST carry a
+          repair_hook_ref.
+
+# ---------------------------------------------------------------------------
+# authority_linkage_class rows
+# ---------------------------------------------------------------------------
+authority_linkage_rows:
+
+  - linkage_class: no_authority_required_read_only
+    requires_non_null_ref_slot: null
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+    conformance_tests:
+      - id: read_only_only_for_read_only_exposure
+        description: >
+          no_authority_required_read_only is legal only with
+          no_side_effect_local_read exposure.
+
+  - linkage_class: local_user_keystroke_authority
+    requires_non_null_ref_slot: null
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    conformance_tests:
+      - id: keystroke_authority_bounded_by_trust
+        description: >
+          local_user_keystroke_authority is bounded by ADR-0001
+          workspace trust state; a restricted-trust workspace MUST
+          deny the action with workspace_trust_restricted.
+
+  - linkage_class: approval_ticket_linked
+    requires_non_null_ref_slot: authority_linkage_ref.approval_ticket_ref
+    admissible_exposure_classes:
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+      - publicly_visible_publish
+      - cross_tenant_visible
+      - third_party_callback_visible
+      - tunnel_exposed_public
+    conformance_tests:
+      - id: ticket_ref_live_and_unrevoked
+        description: >
+          A packet whose authority_linkage_class is
+          approval_ticket_linked MUST reference a ticket whose
+          revoke_epoch is null and whose expires_at is in the
+          future at spend time.
+
+  - linkage_class: browser_handoff_packet_linked
+    requires_non_null_ref_slot: authority_linkage_ref.browser_handoff_packet_ref
+    admissible_exposure_classes:
+      - browser_session_visible
+      - provider_visible_mutation
+      - third_party_callback_visible
+    conformance_tests:
+      - id: packet_ref_origin_validated
+        description: >
+          A browser_handoff_packet_linked packet MUST reference a
+          packet whose origin_disclosure validates against the
+          minting host; invalid origin denies with
+          browser_handoff_origin_mismatch.
+
+  - linkage_class: publish_evidence_packet_linked
+    requires_non_null_ref_slot: authority_linkage_ref.publish_evidence_packet_ref
+    admissible_exposure_classes:
+      - publicly_visible_publish
+      - cross_tenant_visible
+    conformance_tests:
+      - id: evidence_ref_names_signer
+        description: >
+          A publish_evidence_packet_linked packet MUST reference an
+          evidence packet naming the signer identity and
+          signing-authority class.
+
+  - linkage_class: remote_agent_attach_ticket_linked
+    requires_non_null_ref_slot: authority_linkage_ref.remote_agent_attach_ticket_ref
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+      - provider_visible_mutation
+    conformance_tests:
+      - id: attach_ticket_not_for_provider_publish
+        description: >
+          A remote_agent_attach_ticket_linked packet MUST NOT admit
+          publicly_visible_publish; publish requires
+          publish_evidence_packet_linked.
+
+  - linkage_class: managed_control_plane_token_linked
+    requires_non_null_ref_slot: authority_linkage_ref.managed_control_plane_token_ref
+    admissible_exposure_classes:
+      - no_side_effect_local_read
+      - local_only_mutation
+      - workspace_visible_mutation
+    conformance_tests:
+      - id: control_plane_token_not_for_publish
+        description: >
+          A managed_control_plane_token_linked packet MUST NOT admit
+          publicly_visible_publish; control-plane tokens govern
+          managed-workspace lifecycle, not publish authority.
+
+  - linkage_class: policy_injected_service_identity_linked
+    requires_non_null_ref_slot: authority_linkage_ref.policy_injected_service_identity_ref
+    admissible_exposure_classes:
+      - provider_visible_mutation
+      - cross_tenant_visible
+      - third_party_callback_visible
+      - tunnel_exposed_public
+    conformance_tests:
+      - id: service_identity_names_policy_epoch
+        description: >
+          A policy_injected_service_identity_linked packet MUST name
+          the issuing policy_epoch; tickets whose epoch rolled fail
+          closed.
+
+  - linkage_class: supervisor_repair_ticket_linked
+    requires_non_null_ref_slot: authority_linkage_ref.supervisor_repair_ticket_ref
+    admissible_exposure_classes:
+      - local_only_mutation
+      - workspace_visible_mutation
+    conformance_tests:
+      - id: supervisor_ticket_scoped_to_repair
+        description: >
+          A supervisor_repair_ticket_linked packet MUST NOT admit
+          provider_visible_mutation or publicly_visible_publish;
+          supervisor repair is scoped to local / workspace mutation.
+
+  - linkage_class: authority_missing_denied
+    requires_non_null_ref_slot: null
+    admissible_exposure_classes:
+      - exposure_unknown_requires_review
+    conformance_tests:
+      - id: missing_authority_denies
+        description: >
+          A packet whose authority_linkage_class is
+          authority_missing_denied MUST deny the action and MUST
+          carry a repair_hook_ref.
+
+# ---------------------------------------------------------------------------
+# Worked scenarios — fixture corpus pointers.
+# Each entry pairs a fixture file to the axes it exercises; the fixture
+# bodies live under /fixtures/runtime/route_taxonomy_examples/.
+# ---------------------------------------------------------------------------
+fixture_corpus:
+
+  - id: local_read_search_in_workspace
+    file: fixtures/runtime/route_taxonomy_examples/local_read_search_in_workspace.yaml
+    exercises:
+      action_origin_class: cli_invocation_local
+      action_target_class: local_host_target
+      action_route_class: in_process_route
+      action_exposure_class: no_side_effect_local_read
+      route_change_reason_code: canonical_no_route_change
+      authority_linkage_class: no_authority_required_read_only
+
+  - id: local_mutating_save_dirty_buffer
+    file: fixtures/runtime/route_taxonomy_examples/local_mutating_save_dirty_buffer.yaml
+    exercises:
+      action_origin_class: user_keystroke_local
+      action_target_class: local_host_target
+      action_route_class: local_rpc_route
+      action_exposure_class: local_only_mutation
+      route_change_reason_code: canonical_no_route_change
+      authority_linkage_class: local_user_keystroke_authority
+
+  - id: approval_gated_git_push_to_provider
+    file: fixtures/runtime/route_taxonomy_examples/approval_gated_git_push_to_provider.yaml
+    exercises:
+      action_origin_class: user_keystroke_local
+      action_target_class: connected_provider_target
+      action_route_class: approval_gated_route
+      action_exposure_class: provider_visible_mutation
+      route_change_reason_code: route_escalated_to_approval_required
+      authority_linkage_class: approval_ticket_linked
+
+  - id: browser_mediated_oauth_callback_return
+    file: fixtures/runtime/route_taxonomy_examples/browser_mediated_oauth_callback_return.yaml
+    exercises:
+      action_origin_class: provider_callback_inbound
+      action_target_class: embedded_webview_target
+      action_route_class: provider_webhook_return_route
+      action_exposure_class: browser_session_visible
+      route_change_reason_code: canonical_no_route_change
+      authority_linkage_class: browser_handoff_packet_linked
+
+  - id: wrong_target_detected_managed_workspace_drift
+    file: fixtures/runtime/route_taxonomy_examples/wrong_target_detected_managed_workspace_drift.yaml
+    exercises:
+      action_origin_class: user_keystroke_local
+      action_target_class: managed_workspace_target
+      action_route_class: managed_control_plane_route
+      action_exposure_class: workspace_visible_mutation
+      route_change_reason_code: route_changed_wrong_target_detected
+      authority_linkage_class: managed_control_plane_token_linked
+
+  - id: route_changed_to_browser_handoff_publish
+    file: fixtures/runtime/route_taxonomy_examples/route_changed_to_browser_handoff_publish.yaml
+    exercises:
+      action_origin_class: user_keystroke_local
+      action_target_class: system_browser_target
+      action_route_class: browser_handoff_route
+      action_exposure_class: provider_visible_mutation
+      route_change_reason_code: route_escalated_to_browser_handoff
+      authority_linkage_class: browser_handoff_packet_linked
+
+# ---------------------------------------------------------------------------
+# Export-inclusion posture defaults per surface (frozen).
+# Matches the table in docs/runtime/origin_target_route_taxonomy.md.
+# ---------------------------------------------------------------------------
+export_inclusion_defaults:
+  product_ui_route_truth_disclosure: metadata_safe_default
+  cli_transcript: metadata_safe_default
+  support_bundle: operator_only_restricted
+  mutation_journal_entry: metadata_safe_default
+  save_manifest: metadata_safe_default
+  evidence_packet: operator_only_restricted
+  replay_timeline_capture: metadata_safe_default
+  ai_context_capture: metadata_safe_default
+  crash_dump: broadened_capture_opt_in
+  clipboard_projection: metadata_safe_default
