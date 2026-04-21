@@ -187,6 +187,34 @@ code.
   [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
   example compatibility-label and activation-budget-summary
   packet shapes are embedded in the taxonomy doc.
+- [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
+  — command-descriptor contract every palette, application /
+  context menu, keybinding / shortcut-help layer, CLI help, AI-
+  tool surface, automation recipe, and invocation-session packet
+  reads before a command is surfaced, enabled, disabled with a
+  typed reason, previewed, approved, executed, or replayed.
+  Freezes the `command_descriptor_record` (stable command id,
+  canonical verb, accessibility label path, docs / help anchor,
+  shortcut narration, typed arguments, capability scope class,
+  discoverability metadata, UI-slot hints, lifecycle metadata,
+  result contract) and the `invocation_session_packet_record`
+  (issuing surface, authority class, argument-provenance map,
+  context snapshot, enablement decision, preview / approval
+  posture, execution intent, outcome, created-artifact refs,
+  evidence refs). Freezes the high-risk preview-class taxonomy
+  (destructive, broad-scope, irreversible-publish, externally-
+  mutating, credential / policy / managed / remote-attach /
+  install / collaboration / browser-handoff / rich-active-content
+  / bidi / confusable preview classes) and the closed disabled-
+  reason vocabulary. Boundary schema in
+  [`/schemas/commands/command_descriptor.schema.json`](../schemas/commands/command_descriptor.schema.json);
+  worked fixtures (six first-party descriptors covering baseline
+  reversible, reversible-editor, read-only-search, externally-
+  publishing, policy-authoring, and destructive-snapshot-reset
+  commands, plus invocation-session packets covering result-
+  evidence success, approval-required pending, and disabled-with-
+  reason trust denial) in
+  [`/fixtures/commands/command_descriptor_examples/`](../fixtures/commands/command_descriptor_examples/).
 - [`design/design_token_component_state_vocabulary.md`](./design/design_token_component_state_vocabulary.md)
   — design-token, component-state, theme-support, accessibility-
   posture, and layer / scrim vocabulary every shell, docs / help,

@@ -1,0 +1,1321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/command_descriptor.schema.json",
+  "title": "Aureline command-descriptor contract",
+  "description": "Boundary schema for the command_descriptor_record and the invocation_session_packet_record frozen in docs/commands/command_descriptor_contract.md. A command descriptor is the governed product object every command palette, application and context menu, keybinding / shortcut help surface, CLI help output, AI-tool surface, automation recipe, and invocation-session packet reads before a command is surfaced, enabled, disabled with a typed reason, previewed, approved, executed, or replayed. An invocation-session packet is the typed envelope every consequence-bearing invocation emits so palette, menu, keybinding, CLI, AI-tool, and automation-recipe call sites project against one enablement decision, one preview / approval posture, one execution intent, one outcome, and one evidence-ref set. Raw command bodies, raw argument values, raw paths, raw URLs, raw prompt text, and raw credential material never cross this boundary; this schema carries opaque ids and typed vocabulary only. The eventual command-registry / invocation-session crates' Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new invocation surface, authority class, UI slot class, argument kind, argument-provenance value, capability class, enablement decision, disabled-reason code, preview-class, approval posture, execution intent, result-contract class, outcome value, evidence-ref class, or policy-context field is additive-minor and requires a command_descriptor_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/command_descriptor_record" },
+    { "$ref": "#/$defs/invocation_session_packet_record" }
+  ],
+  "$defs": {
+    "command_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this command-descriptor export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "command_descriptor_record",
+        "invocation_session_packet_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw command bodies, raw argument values, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "issuing_surface": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "global_application_menu",
+        "context_menu",
+        "toolbar_button",
+        "keybinding_chord",
+        "cli_surface",
+        "ai_tool_surface",
+        "automation_recipe_surface",
+        "scripted_invocation_surface",
+        "remote_agent_surface",
+        "extension_invocation_surface"
+      ],
+      "description": "Frozen issuing-surface vocabulary. Names which surface minted the invocation-session packet. A surface that cannot resolve its issuing class MUST deny with issuing_surface_unresolved rather than defaulting to command_palette."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_local",
+        "user_initiated_shared",
+        "ai_initiated",
+        "extension_initiated",
+        "automation_recipe_initiated",
+        "collaboration_remote_initiated",
+        "admin_policy_initiated"
+      ],
+      "description": "Frozen authority-class vocabulary re-exported from docs/ux/shell_interaction_safety_contract.md. Names the initiator of the invocation, not the target. A surface that cannot resolve the authority class MUST deny with authority_class_unresolved rather than default to user_initiated_local."
+    },
+
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "externally_visible_mutation",
+        "irreversible_high_blast_mutation",
+        "credential_or_secret_bearing",
+        "managed_workspace_control",
+        "policy_authoring_or_waiver"
+      ],
+      "description": "Frozen capability-scope class the command effects when it succeeds. Aligned with consequence_class from docs/ux/shell_interaction_safety_contract.md but specialises the class so a descriptor can advertise inert / read / credential / policy intents without reusing the general consequence vocabulary. Silent promotion of the scope class at invocation time is forbidden; an invocation that drifts beyond its declared scope denies with scope_class_drifted_from_descriptor."
+    },
+
+    "argument_kind": {
+      "type": "string",
+      "enum": [
+        "string_free_form",
+        "string_enum",
+        "boolean_flag",
+        "integer_bounded",
+        "decimal_bounded",
+        "opaque_id_ref",
+        "path_ref_opaque",
+        "workspace_scope_ref",
+        "selection_ref",
+        "range_ref",
+        "provider_ref",
+        "capability_ref",
+        "credential_handle_ref",
+        "docs_anchor_ref",
+        "file_set_ref",
+        "glob_expression",
+        "duration_seconds",
+        "locale_tag",
+        "semver_range",
+        "multi_value_list"
+      ],
+      "description": "Frozen argument-kind vocabulary a command descriptor's typed argument slot resolves to. Raw paths / raw URLs / raw prompt text MUST NOT ride these slots; they ride opaque refs resolved by the relevant registry. Adding a kind is additive-minor and bumps command_descriptor_schema_version."
+    },
+
+    "argument_provenance": {
+      "type": "string",
+      "enum": [
+        "user_typed",
+        "user_selected_from_palette_suggestion",
+        "default_from_descriptor",
+        "inferred_from_focused_context",
+        "inferred_from_selection",
+        "supplied_by_keybinding_args",
+        "supplied_by_cli_argv",
+        "ai_proposed_requires_review",
+        "automation_recipe_supplied",
+        "extension_supplied",
+        "policy_pinned_cannot_edit"
+      ],
+      "description": "Frozen argument-provenance vocabulary. Every argument in an invocation session resolves to exactly one provenance so preview / approval / audit surfaces can quote where the value came from without interpretation drift. ai_proposed_requires_review arguments MUST surface the provenance on the primary preview; tooltip-only disclosure is non-conforming."
+    },
+
+    "ui_slot_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "global_application_menu",
+        "editor_context_menu",
+        "explorer_context_menu",
+        "review_context_menu",
+        "source_control_context_menu",
+        "terminal_context_menu",
+        "search_context_menu",
+        "primary_toolbar",
+        "secondary_toolbar",
+        "status_bar_control",
+        "keybinding_help",
+        "cli_help",
+        "ai_tool_surface"
+      ],
+      "description": "Frozen UI-slot vocabulary a descriptor may hint at. A descriptor that lists a slot is requesting surfacing; the owning surface MAY narrow (policy / lifecycle / client-scope) but MAY NOT silently widen to a slot the descriptor did not declare."
+    },
+
+    "palette_visibility_class": {
+      "type": "string",
+      "enum": [
+        "always_visible",
+        "visible_when_enabled",
+        "visible_when_focused_context_matches",
+        "developer_only",
+        "policy_restricted",
+        "hidden_palette_callable_only"
+      ],
+      "description": "Frozen palette-visibility vocabulary. A descriptor that declares hidden_palette_callable_only MUST still resolve from keybinding / CLI / AI-tool surfaces; hidden_palette_callable_only means the palette does not list the command, not that the command is disabled."
+    },
+
+    "ai_tool_surfacing_class": {
+      "type": "string",
+      "enum": [
+        "not_ai_callable",
+        "ai_callable_read_only",
+        "ai_callable_reversible_mutation",
+        "ai_callable_recoverable_durable_mutation",
+        "ai_callable_externally_visible_mutation_requires_approval",
+        "ai_callable_irreversible_high_blast_denied"
+      ],
+      "description": "Frozen AI-tool-surfacing vocabulary. ai_callable_irreversible_high_blast_denied means the command is never exposed as an AI tool; irreversible / high-blast consequences ride a human-in-the-loop path regardless of AI capability. ai_callable_externally_visible_mutation_requires_approval means AI invocation MUST emit an approval_required invocation-session packet before apply."
+    },
+
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "inline_summary_preview",
+        "structured_diff_preview",
+        "batch_scope_preview",
+        "destructive_bulk_mutation_preview",
+        "broad_workspace_scope_preview",
+        "irreversible_publish_preview",
+        "externally_mutating_preview",
+        "credential_or_secret_access_preview",
+        "policy_authoring_or_waiver_preview",
+        "managed_workspace_control_preview",
+        "remote_attach_preview",
+        "install_or_update_preview",
+        "collaboration_invite_preview",
+        "browser_handoff_preview",
+        "rich_active_content_preview",
+        "bidi_or_invisible_formatting_reveal_preview",
+        "confusable_identifier_reveal_preview"
+      ],
+      "description": "Frozen high-risk preview-class taxonomy. A descriptor that declares a non-'no_preview_required' class MUST be invoked through the preview / apply / revert posture before side effects ship. A surface that elides the preview is non-conforming; the invocation-session packet denies apply with preview_required_not_shown."
+    },
+
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "explicit_confirmation_required",
+        "step_up_authentication_required",
+        "admin_policy_approval_required",
+        "second_party_review_required",
+        "managed_only_approval_required"
+      ],
+      "description": "Frozen approval-posture vocabulary. explicit_confirmation_required is the floor for user_initiated destructive or externally-visible mutations; step_up_authentication_required pairs with credential / broker-bearing commands; admin_policy_approval_required pairs with policy-authoring commands; second_party_review_required is the human-in-the-loop path for AI-initiated recoverable-durable or externally-visible commands; managed_only_approval_required applies when the managed workspace control plane gates the invocation."
+    },
+
+    "enablement_decision_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_with_reason",
+        "hidden_with_reason"
+      ],
+      "description": "Frozen enablement-decision vocabulary. disabled_with_reason MUST carry a typed disabled_reason_code and a repair_hook_ref; hidden_with_reason MUST still resolve the typed reason (parity audits and support exports enumerate hidden commands) but MAY be omitted from palette / menu surfaces per the descriptor's palette_visibility."
+    },
+
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_lifecycle_retired",
+        "capability_disabled_by_policy",
+        "kill_switch_tripped",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "required_provider_unlinked",
+        "required_credential_missing",
+        "required_argument_unresolved",
+        "execution_context_unavailable",
+        "managed_only_channel_required",
+        "dependency_state_below_command_ceiling",
+        "command_deprecated_within_window",
+        "command_retired",
+        "command_version_unknown",
+        "preview_denial_no_safe_preview",
+        "approval_denial_no_approval_path",
+        "publisher_not_permitted",
+        "policy_blocked_in_context",
+        "authority_class_unresolved",
+        "issuing_surface_unresolved",
+        "scope_class_drifted_from_descriptor",
+        "preview_required_not_shown",
+        "basis_snapshot_drifted"
+      ],
+      "description": "Frozen disabled-reason vocabulary used in enablement decisions and in invocation-session outcomes that denied the apply. Every reason pairs with a repair_hook_ref; silent disable with no typed reason is non-conforming."
+    },
+
+    "execution_intent_class": {
+      "type": "string",
+      "enum": [
+        "query_only_no_mutation",
+        "propose_preview_only",
+        "apply_after_preview",
+        "apply_with_approval",
+        "apply_direct_trusted_path",
+        "rollback_or_revert",
+        "simulate_or_dry_run",
+        "schedule_for_background_execution",
+        "cancel_pending_invocation"
+      ],
+      "description": "Frozen execution-intent vocabulary. apply_direct_trusted_path is admissible only when the descriptor's capability_scope_class is inert_metadata_only or reversible_local_read / reversible_local_mutation and the preview_class is no_preview_required. Every other scope requires an apply_after_preview or apply_with_approval intent; silent apply_direct on a non-trivial scope denies with preview_required_not_shown."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "succeeded_with_warnings",
+        "denied_by_enablement",
+        "denied_by_preview",
+        "denied_by_approval",
+        "cancelled_by_user",
+        "failed_with_typed_error",
+        "rolled_back_after_apply",
+        "partially_applied_and_halted",
+        "scheduled_pending_background"
+      ],
+      "description": "Frozen outcome vocabulary a completed invocation-session packet carries. denied_by_enablement / denied_by_preview / denied_by_approval MUST carry a disabled_reason_code; failed_with_typed_error MUST carry a typed error_reason_code (distinct vocabulary, out of scope for this schema); partially_applied_and_halted MUST enumerate applied and unapplied artifact refs in the result_contract."
+    },
+
+    "result_contract_class": {
+      "type": "string",
+      "enum": [
+        "no_result_emitted",
+        "typed_value_returned",
+        "artifact_created_ref",
+        "artifact_modified_ref",
+        "artifact_deleted_ref",
+        "journal_entry_appended_ref",
+        "audit_event_emitted_ref",
+        "preview_record_emitted_ref",
+        "approval_ticket_emitted_ref",
+        "browser_handoff_packet_emitted_ref",
+        "evidence_packet_emitted_ref",
+        "rollback_ticket_emitted_ref"
+      ],
+      "description": "Frozen result-contract vocabulary the descriptor advertises and the invocation-session packet enumerates under created_artifact_refs / evidence_refs. Used so a parity audit can compare palette / menu / CLI / AI-tool invocations of the same descriptor and detect drift in what a success produces."
+    },
+
+    "evidence_ref_class": {
+      "type": "string",
+      "enum": [
+        "preview_record_ref",
+        "approval_ticket_ref",
+        "permission_prompt_ref",
+        "interaction_safety_packet_ref",
+        "mutation_journal_entry_ref",
+        "audit_event_ref",
+        "capability_lifecycle_audit_event_ref",
+        "ai_evidence_packet_ref",
+        "support_export_row_ref",
+        "browser_handoff_packet_ref",
+        "rollback_ticket_ref",
+        "docs_citation_anchor_ref"
+      ],
+      "description": "Frozen evidence-ref vocabulary. Every invocation-session packet that applied any non-trivial scope MUST carry at least one evidence_ref that points into the broker-owned evidence registry; bare apply without an evidence_ref is non-conforming and denies with basis_snapshot_drifted on replay."
+    },
+
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A generic 'available' chip is forbidden; every descriptor renders exactly one of these tokens."
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only_support",
+        "no_support"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "release_channel": {
+      "type": "string",
+      "enum": [
+        "nightly_channel",
+        "experimental_channel",
+        "preview_channel",
+        "stable_channel",
+        "lts_channel",
+        "managed_only_channel"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A command whose client_scopes excludes the rendering surface MUST NOT render as enabled there; at most it renders the typed client_scope_excludes_surface disabled_reason_code."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0007 / ADR-0011). Declared per-record; the broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": {
+          "type": "string",
+          "description": "Short human-legible label the surface may render next to the disabled / denied chip."
+        }
+      },
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Required on every disabled_with_reason enablement decision and on every denied_by_enablement / denied_by_preview / denied_by_approval invocation-session outcome."
+    },
+
+    "accessibility_label_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_label_ref", "role_class"],
+      "properties": {
+        "primary_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the accessibility-facing primary label string (resolved by the docs / localisation pipeline). Raw label text never appears here."
+        },
+        "short_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a short label variant (toolbar / compact-shell rendering). Null when no short label is authored."
+        },
+        "long_description_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a long description string a screen reader reads when the user requests more detail. Null when no long description is authored."
+        },
+        "role_class": {
+          "type": "string",
+          "enum": [
+            "command",
+            "toggle_command",
+            "menu_command",
+            "destructive_command",
+            "command_that_opens_dialog",
+            "command_that_opens_preview",
+            "command_that_launches_external"
+          ],
+          "description": "Frozen accessibility role class a screen reader announces alongside the label. destructive_command pairs with a typed destructive disclosure on the primary surface; tooltip-only disclosure is non-conforming."
+        },
+        "keyboard_shortcut_narration_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the accessibility narration of the bound keyboard shortcut (or 'no shortcut bound')."
+        }
+      },
+      "description": "Accessibility-facing label path every palette / menu / toolbar / context-menu / keybinding-help / CLI-help / AI-tool surface quotes. Label churn is detectable mechanically: any surface that mints a different label_ref for the same command_id is non-conforming."
+    },
+
+    "docs_help_anchor_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack_id", "anchor_id", "anchor_kind"],
+      "properties": {
+        "pack_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the docs_pack_manifest_record.pack_id the anchor resolves against (docs/docs/docs_pack_manifest_contract.md)."
+        },
+        "anchor_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the anchor inside the pack."
+        },
+        "anchor_kind": {
+          "type": "string",
+          "enum": [
+            "docs_page_anchor",
+            "generated_reference_anchor",
+            "symbol_reference_anchor",
+            "code_span_anchor",
+            "runbook_step_anchor",
+            "release_note_anchor",
+            "mirrored_docs_anchor",
+            "curated_pack_anchor"
+          ],
+          "description": "Frozen anchor-kind subset re-exported from the docs_pack_manifest contract. Commands whose capability_scope_class is policy_authoring_or_waiver typically carry a runbook_step_anchor; commands that wrap generated / symbol surfaces carry generated_reference_anchor or symbol_reference_anchor."
+        }
+      },
+      "description": "Opaque ref to the docs / help entry every palette tooltip, menu help, keybinding-help expansion, CLI --help output, and AI-tool description reads. Surfaces MUST project this ref verbatim; minting a parallel help anchor per surface is non-conforming."
+    },
+
+    "shortcut_narration_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["when_bound_narration_ref", "when_unbound_narration_ref"],
+      "properties": {
+        "when_bound_narration_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the narration the keybinding-help / accessibility layer reads when a shortcut is bound to this command (with a parameterised slot for the resolved keystroke sequence)."
+        },
+        "when_unbound_narration_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the narration read when no shortcut is bound. Typically routes the user to 'assign a shortcut' without implying one already exists."
+        },
+        "chord_class_hint": {
+          "type": "string",
+          "enum": [
+            "single_key",
+            "modifier_plus_key",
+            "two_step_chord",
+            "three_step_chord",
+            "palette_only"
+          ],
+          "description": "Optional hint that keybinding-help may use to group commands by chord shape without reading the actual bound sequence."
+        }
+      },
+      "description": "Shortcut-narration hint slot every keybinding-help, accessibility layer, and AI-tool description reads so the spoken / rendered description of the shortcut is not reinvented per surface."
+    },
+
+    "typed_argument_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argument_name", "argument_kind", "is_required"],
+      "properties": {
+        "argument_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable snake_case argument name. Renamed arguments require a new descriptor revision; silent rename is non-conforming."
+        },
+        "argument_kind": { "$ref": "#/$defs/argument_kind" },
+        "is_required": {
+          "type": "boolean",
+          "description": "True when the argument MUST resolve before the command can enable. Required arguments whose provenance cannot be pinned produce required_argument_unresolved."
+        },
+        "default_provenance_when_omitted": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/argument_provenance" }
+          ],
+          "description": "When non-null, the provenance the invocation-session packet records for this argument if the user / caller omits it. null is admissible only when is_required is true."
+        },
+        "enum_value_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to the closed set of admissible values for argument_kind = string_enum. Empty for non-enum kinds."
+        },
+        "minimum_inclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ],
+          "description": "For bounded numeric kinds. Null for non-numeric kinds."
+        },
+        "maximum_inclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ],
+          "description": "For bounded numeric kinds. Null for non-numeric kinds."
+        },
+        "policy_pinned_when_trust_state_is": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["trusted", "restricted"]
+          },
+          "description": "Trust-state values under which this argument is policy-pinned (provenance resolves to policy_pinned_cannot_edit regardless of surface). Typical for managed-workspace / policy-authoring commands."
+        },
+        "narration_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the accessibility narration label for this argument slot."
+        }
+      },
+      "description": "Typed argument slot on a command descriptor. Argument slots are projection-stable: palette / menu / keybinding-args / CLI / AI-tool surfaces all read this exact slot rather than minting parallel per-surface argument schemas."
+    },
+
+    "ui_slot_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ui_slot_class"],
+      "properties": {
+        "ui_slot_class": { "$ref": "#/$defs/ui_slot_class" },
+        "menu_path_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to the menu-path segments (File / Edit / View / ...) the descriptor requests. Raw menu-path strings never appear here."
+        },
+        "primary_or_secondary_toolbar_position_hint": {
+          "type": "string",
+          "enum": ["primary", "secondary", "overflow_only"],
+          "description": "Hint for toolbar surfaces; 'overflow_only' is the floor for non-primary commands. The owning toolbar surface MAY narrow to overflow_only but MAY NOT silently promote to primary."
+        },
+        "weight_hint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Relative surfacing weight within the slot. 0 is 'surface only when explicitly requested'; 1000 is 'always float to the top'. Weights are hints; the owning surface owns final ordering."
+        },
+        "contextual_filter_class_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a contextual-filter class (e.g. 'file_selected', 'rust_buffer', 'pr_review_row'). Null when the slot is unconditional. Raw selector expressions never appear here."
+        }
+      },
+      "description": "UI-slot hint a command descriptor attaches. A descriptor MAY list zero-or-more ui_slot_hint entries; the owning surface resolves them against policy / lifecycle / client-scope."
+    },
+
+    "result_contract_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result_contract_class"],
+      "properties": {
+        "result_contract_class": { "$ref": "#/$defs/result_contract_class" },
+        "artifact_kind_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the artifact-kind the command produces. Null when result_contract_class is no_result_emitted or typed_value_returned."
+        },
+        "typed_value_shape_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the typed-value shape the command returns. Null unless result_contract_class is typed_value_returned."
+        },
+        "evidence_ref_class_required": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_ref_class" },
+          "description": "Closed set of evidence_ref_class values an invocation-session packet MUST carry on success. Empty for inert / read-only scopes."
+        }
+      },
+      "description": "Result-contract slot on a command descriptor. Declares what a successful invocation emits; the invocation-session packet enumerates actual refs under created_artifact_refs / evidence_refs and MUST satisfy every evidence_ref_class_required entry."
+    },
+
+    "command_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "command_descriptor_schema_version",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "primary_label_ref",
+        "accessibility_label_path",
+        "docs_help_anchor_ref",
+        "shortcut_narration_hint",
+        "aliases",
+        "typed_arguments",
+        "capability_scope_class",
+        "preview_class",
+        "approval_posture_class",
+        "ai_tool_surfacing_class",
+        "palette_visibility",
+        "ui_slot_hints",
+        "lifecycle_state",
+        "support_class",
+        "release_channel",
+        "declared_freshness_class",
+        "client_scopes",
+        "result_contract",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "command_descriptor_record" },
+        "command_descriptor_schema_version": {
+          "$ref": "#/$defs/command_descriptor_schema_version"
+        },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable opaque command id the registry uses across revisions. Renamed commands get a new descriptor; silent rename is non-conforming."
+        },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to this descriptor revision. Invocation-session packets cite this ref so a replay can prove the command shape it saw."
+        },
+        "canonical_verb": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "description": "Dotted snake_case canonical verb ('workspace.open_folder', 'git.commit', 'ai.apply_patch'). Used by CLI surfaces, AI-tool surfaces, and automation recipes. Stable across descriptor revisions."
+        },
+        "primary_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the primary user-visible label string. Label text is resolved by the docs / localisation pipeline; raw label strings never cross this boundary."
+        },
+        "accessibility_label_path": { "$ref": "#/$defs/accessibility_label_path" },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/docs_help_anchor_ref" },
+        "shortcut_narration_hint": { "$ref": "#/$defs/shortcut_narration_hint" },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["alias_id", "alias_kind"],
+            "properties": {
+              "alias_id": { "$ref": "#/$defs/opaque_id" },
+              "alias_kind": {
+                "type": "string",
+                "enum": [
+                  "legacy_command_id",
+                  "alternate_palette_phrasing",
+                  "alternate_cli_verb",
+                  "ai_tool_handle",
+                  "keybinding_target"
+                ]
+              }
+            }
+          },
+          "description": "Closed set of alias shapes. alias_kind = legacy_command_id is the migration bridge when a command is renamed; the legacy id resolves to this descriptor for one major cycle."
+        },
+        "typed_arguments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/typed_argument_slot" },
+          "description": "Ordered typed-argument slots. Order is stable across descriptor revisions; removing / reordering a slot is a breaking change."
+        },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "ai_tool_surfacing_class": { "$ref": "#/$defs/ai_tool_surfacing_class" },
+        "palette_visibility": { "$ref": "#/$defs/palette_visibility_class" },
+        "ui_slot_hints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ui_slot_hint" },
+          "description": "Closed set of UI-slot hints. MAY be empty (command is callable from palette / CLI / AI-tool only); MUST NOT silently duplicate a slot_class."
+        },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "release_channel": { "$ref": "#/$defs/release_channel" },
+        "declared_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes this command surfaces on. MUST be non-empty; a descriptor whose client_scopes would be empty is rejected by the registry."
+        },
+        "result_contract": { "$ref": "#/$defs/result_contract_slot" },
+        "default_enablement_repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ],
+          "description": "Default repair hook surfaces render when an enablement decision resolves to disabled_with_reason / hidden_with_reason. Null only when the descriptor's lifecycle_state is stable and client_scopes covers every surface in the deployment; the enablement evaluator still computes a typed reason even without a default hook."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Commands with ai_tool_surfacing_class != not_ai_callable MUST NOT declare capability_scope_class = irreversible_high_blast_mutation.",
+          "if": {
+            "properties": {
+              "ai_tool_surfacing_class": {
+                "enum": [
+                  "ai_callable_read_only",
+                  "ai_callable_reversible_mutation",
+                  "ai_callable_recoverable_durable_mutation",
+                  "ai_callable_externally_visible_mutation_requires_approval"
+                ]
+              }
+            },
+            "required": ["ai_tool_surfacing_class"]
+          },
+          "then": {
+            "properties": {
+              "capability_scope_class": {
+                "enum": [
+                  "inert_metadata_only",
+                  "reversible_local_read",
+                  "reversible_local_mutation",
+                  "recoverable_durable_mutation",
+                  "externally_visible_mutation",
+                  "credential_or_secret_bearing",
+                  "managed_workspace_control",
+                  "policy_authoring_or_waiver"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_callable_externally_visible_mutation_requires_approval MUST be paired with approval_posture_class = second_party_review_required or admin_policy_approval_required.",
+          "if": {
+            "properties": {
+              "ai_tool_surfacing_class": {
+                "const": "ai_callable_externally_visible_mutation_requires_approval"
+              }
+            },
+            "required": ["ai_tool_surfacing_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_posture_class": {
+                "enum": [
+                  "second_party_review_required",
+                  "admin_policy_approval_required",
+                  "managed_only_approval_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Destructive / irreversible / broad-scope / externally-mutating / publish / credential / policy / managed / remote-attach / install / collaboration / browser-handoff / rich-active-content / bidi / confusable preview classes MUST NOT declare execution_intent_class-level apply_direct admission; the command is invocable only through a preview path (enforced on the invocation-session side).",
+          "if": {
+            "properties": {
+              "preview_class": {
+                "enum": [
+                  "destructive_bulk_mutation_preview",
+                  "broad_workspace_scope_preview",
+                  "irreversible_publish_preview",
+                  "externally_mutating_preview",
+                  "credential_or_secret_access_preview",
+                  "policy_authoring_or_waiver_preview",
+                  "managed_workspace_control_preview",
+                  "remote_attach_preview",
+                  "install_or_update_preview",
+                  "collaboration_invite_preview",
+                  "browser_handoff_preview",
+                  "rich_active_content_preview",
+                  "bidi_or_invisible_formatting_reveal_preview",
+                  "confusable_identifier_reveal_preview"
+                ]
+              }
+            },
+            "required": ["preview_class"]
+          },
+          "then": {
+            "properties": {
+              "capability_scope_class": {
+                "enum": [
+                  "reversible_local_mutation",
+                  "recoverable_durable_mutation",
+                  "externally_visible_mutation",
+                  "irreversible_high_blast_mutation",
+                  "credential_or_secret_bearing",
+                  "managed_workspace_control",
+                  "policy_authoring_or_waiver"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical command descriptor every palette, menu, keybinding-help, CLI-help, AI-tool, automation-recipe, and invocation-session surface reads. Adding a new field is additive-minor; repurposing an existing field is breaking and requires a new decision row."
+    },
+
+    "invocation_session_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "command_descriptor_schema_version",
+        "invocation_session_id",
+        "command_id",
+        "command_revision_ref",
+        "issuing_surface",
+        "authority_class",
+        "argument_provenance_map",
+        "context_snapshot",
+        "enablement_decision",
+        "preview_posture",
+        "approval_posture",
+        "execution_intent",
+        "outcome",
+        "created_artifact_refs",
+        "evidence_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "invocation_session_packet_record" },
+        "command_descriptor_schema_version": {
+          "$ref": "#/$defs/command_descriptor_schema_version"
+        },
+        "invocation_session_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable opaque id for this invocation session. Retries / rollbacks / follow-up apply phases ride the same session id."
+        },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "The descriptor revision the invocation saw. A replay against a different revision reopens the preview / approval posture."
+        },
+        "issuing_surface": { "$ref": "#/$defs/issuing_surface" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "argument_provenance_map": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["argument_name", "provenance"],
+            "properties": {
+              "argument_name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "provenance": { "$ref": "#/$defs/argument_provenance" },
+              "resolved_value_ref": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/opaque_id" }
+                ],
+                "description": "Opaque pin to the resolved value the registry held at invoke time. Null only when the argument was unresolved and the enablement decision is disabled_with_reason / required_argument_unresolved."
+              }
+            }
+          },
+          "description": "Per-argument provenance map. Every typed_arguments slot on the descriptor MUST have exactly one entry here (or the enablement decision is disabled_with_reason / required_argument_unresolved)."
+        },
+        "context_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["focused_entity_ref", "workspace_trust_state"],
+          "properties": {
+            "focused_entity_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Opaque pin to the focused entity (buffer / pr-row / bundle-card / setting-row / ...) at invoke time. Null when the invocation has no focused target (palette-only / CLI)."
+            },
+            "selection_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Opaque pin to the selection snapshot at invoke time. Null when no selection."
+            },
+            "workspace_trust_state": {
+              "type": "string",
+              "enum": ["trusted", "restricted"]
+            },
+            "execution_context_id": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            },
+            "scope_filter_class_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Opaque pin to the ADR-0009 scope-filter class at invoke time. Null when not applicable."
+            },
+            "basis_snapshot_ref": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Opaque pin to the basis snapshot (buffer revision / bundle revision / policy epoch tuple) the invocation saw. If the basis drifts before apply, the invocation MUST deny with basis_snapshot_drifted."
+            }
+          },
+          "description": "Context snapshot the invocation captured. Used by replay / audit / parity tooling to reconstruct what the user / AI / recipe saw at invoke time."
+        },
+        "enablement_decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_class"],
+          "properties": {
+            "decision_class": { "$ref": "#/$defs/enablement_decision_class" },
+            "disabled_reason_code": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/disabled_reason_code" }
+              ]
+            },
+            "repair_hook_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/repair_hook_ref" }
+              ]
+            }
+          },
+          "description": "Enablement decision the registry resolved at invoke time. disabled_with_reason / hidden_with_reason MUST carry a disabled_reason_code and a repair_hook_ref."
+        },
+        "preview_posture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preview_class_declared", "preview_shown"],
+          "properties": {
+            "preview_class_declared": { "$ref": "#/$defs/preview_class" },
+            "preview_shown": {
+              "type": "boolean",
+              "description": "True when the preview was rendered to the user / second-party reviewer / AI-apply reviewer before apply. MUST be true for any preview_class other than no_preview_required."
+            },
+            "preview_record_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Opaque pin to the preview / interaction-safety record emitted by the preview path."
+            }
+          },
+          "description": "Preview posture the invocation recorded. If preview_class_declared != no_preview_required and preview_shown = false, the invocation MUST deny with preview_required_not_shown."
+        },
+        "approval_posture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["approval_posture_class_declared", "approval_state"],
+          "properties": {
+            "approval_posture_class_declared": { "$ref": "#/$defs/approval_posture_class" },
+            "approval_state": {
+              "type": "string",
+              "enum": [
+                "not_required",
+                "approval_pending",
+                "approval_granted",
+                "approval_denied",
+                "approval_expired"
+              ],
+              "description": "Approval state at the moment this packet was minted. not_required is admissible only when approval_posture_class_declared = no_approval_required."
+            },
+            "approval_ticket_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Opaque pin to the approval ticket emitted by the approval path. Null only when approval_state = not_required."
+            }
+          },
+          "description": "Approval posture the invocation recorded."
+        },
+        "execution_intent": { "$ref": "#/$defs/execution_intent_class" },
+        "outcome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome_class"],
+          "properties": {
+            "outcome_class": { "$ref": "#/$defs/outcome_class" },
+            "disabled_reason_code": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/disabled_reason_code" }
+              ],
+              "description": "Required (non-null) when outcome_class is denied_by_enablement / denied_by_preview / denied_by_approval; null otherwise."
+            },
+            "warnings_summary_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "description": "Opaque pins to warning summaries when outcome_class = succeeded_with_warnings."
+            },
+            "partially_applied_artifact_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "description": "Opaque pins to artifacts that were applied before the invocation halted. Non-empty only when outcome_class = partially_applied_and_halted."
+            },
+            "unapplied_artifact_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "description": "Opaque pins to artifacts that were planned but not applied when the invocation halted. Non-empty only when outcome_class = partially_applied_and_halted."
+            }
+          }
+        },
+        "created_artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["result_contract_class", "artifact_ref"],
+            "properties": {
+              "result_contract_class": { "$ref": "#/$defs/result_contract_class" },
+              "artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "description": "Ordered list of artifacts the invocation created / modified / deleted. Empty only when the invocation was denied or when the descriptor's result_contract = no_result_emitted."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["evidence_ref_class", "evidence_id"],
+            "properties": {
+              "evidence_ref_class": { "$ref": "#/$defs/evidence_ref_class" },
+              "evidence_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          },
+          "description": "Evidence-ref set the invocation emitted. MUST cover every evidence_ref_class_required entry from the descriptor's result_contract; any gap is non-conforming."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denied_by_enablement outcomes MUST carry a disabled_reason_code.",
+          "if": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["outcome_class"],
+                "properties": {
+                  "outcome_class": { "const": "denied_by_enablement" }
+                }
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["disabled_reason_code"],
+                "properties": {
+                  "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_by_preview outcomes MUST carry preview_required_not_shown / basis_snapshot_drifted / preview_denial_no_safe_preview as the disabled_reason_code.",
+          "if": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["outcome_class"],
+                "properties": {
+                  "outcome_class": { "const": "denied_by_preview" }
+                }
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["disabled_reason_code"],
+                "properties": {
+                  "disabled_reason_code": {
+                    "enum": [
+                      "preview_required_not_shown",
+                      "preview_denial_no_safe_preview",
+                      "basis_snapshot_drifted"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_by_approval outcomes MUST carry approval_denial_no_approval_path as the disabled_reason_code.",
+          "if": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["outcome_class"],
+                "properties": {
+                  "outcome_class": { "const": "denied_by_approval" }
+                }
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["disabled_reason_code"],
+                "properties": {
+                  "disabled_reason_code": { "const": "approval_denial_no_approval_path" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "partially_applied_and_halted outcomes MUST enumerate at least one applied and at least one unapplied artifact ref.",
+          "if": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["outcome_class"],
+                "properties": {
+                  "outcome_class": { "const": "partially_applied_and_halted" }
+                }
+              }
+            },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["partially_applied_artifact_refs", "unapplied_artifact_refs"],
+                "properties": {
+                  "partially_applied_artifact_refs": { "type": "array", "minItems": 1 },
+                  "unapplied_artifact_refs": { "type": "array", "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "enablement_decision_class = disabled_with_reason / hidden_with_reason MUST carry a disabled_reason_code and a repair_hook_ref.",
+          "if": {
+            "properties": {
+              "enablement_decision": {
+                "type": "object",
+                "required": ["decision_class"],
+                "properties": {
+                  "decision_class": {
+                    "enum": ["disabled_with_reason", "hidden_with_reason"]
+                  }
+                }
+              }
+            },
+            "required": ["enablement_decision"]
+          },
+          "then": {
+            "properties": {
+              "enablement_decision": {
+                "type": "object",
+                "required": ["disabled_reason_code", "repair_hook_ref"],
+                "properties": {
+                  "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" },
+                  "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When the enablement decision is enabled and the descriptor's preview_class_declared is not no_preview_required, preview_shown = false MUST pair with outcome_class = denied_by_preview and disabled_reason_code = preview_required_not_shown. A disabled / hidden enablement decision is not required to ship a preview (the command was denied before it reached the preview path).",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "enablement_decision": {
+                    "type": "object",
+                    "required": ["decision_class"],
+                    "properties": {
+                      "decision_class": { "const": "enabled" }
+                    }
+                  }
+                },
+                "required": ["enablement_decision"]
+              },
+              {
+                "properties": {
+                  "preview_posture": {
+                    "type": "object",
+                    "required": ["preview_class_declared", "preview_shown"],
+                    "properties": {
+                      "preview_class_declared": { "not": { "const": "no_preview_required" } },
+                      "preview_shown": { "const": false }
+                    }
+                  }
+                },
+                "required": ["preview_posture"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "object",
+                "required": ["outcome_class", "disabled_reason_code"],
+                "properties": {
+                  "outcome_class": { "const": "denied_by_preview" },
+                  "disabled_reason_code": { "const": "preview_required_not_shown" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Invocation-session packet emitted by every consequence-bearing command invocation. Palette, menu, keybinding, CLI, AI-tool, automation-recipe, and scripted-invocation surfaces mint exactly this shape so replay, audit, parity, and rollback tooling reads one envelope."
+    }
+  }
+}
