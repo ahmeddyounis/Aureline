@@ -1,0 +1,790 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/profile/portable_profile.schema.json",
+  "title": "Aureline portable-profile artifact, configuration/state map, export manifest, and restore-provenance record",
+  "description": "Seed schema for the cross-surface portable-profile and configuration/state map vocabulary. See docs/state/profile_and_state_map.md. Freezes one portable_profile_artifact_record (the text-based, diffable *.aureprofile.json body that carries user-authored durable truth across machines without secrets or trust approvals), one state_map_row_record (one location-vocabulary row in the Appendix-F-style configuration / state map that distinguishes user-authored durable truth, user-owned recovery state, admin / control artifacts, and disposable derived caches), one export_manifest_record (the manifest that a profile export or support export writes alongside the artifact bodies to explain included / excluded / redacted state classes), and one restore_provenance_record (the provenance record a restore / import flow emits to explain source, producer build, schema version, redaction class, and resulting fidelity at exact / compatible / layout_only / manual_review). Vocabulary is re-used unchanged from ADR-0001 (identity mode and trust state), ADR-0006 (filesystem identity and root capability), ADR-0007 (secret class and redaction class), ADR-0008 (scope and setting lifecycle), and the entry-restore object model (restore level and missing-target state). Rust types in the eventual profile / state-map / migration crates are the schema of record; this file is the cross-tool export. Adding a new record kind, portability class, redaction class, fidelity label, state-class id, path-row id, location-root id, exclusion-reason id, or post-restore validator class is additive-minor and bumps profile_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/portable_profile_artifact_record" },
+    { "$ref": "#/$defs/state_map_row_record" },
+    { "$ref": "#/$defs/export_manifest_record" },
+    { "$ref": "#/$defs/restore_provenance_record" }
+  ],
+  "$defs": {
+    "profile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this portable-profile / state-map vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "portable_profile_artifact_record",
+        "state_map_row_record",
+        "export_manifest_record",
+        "restore_provenance_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; the exporter does not require any specific clock source."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "portability_class": {
+      "type": "string",
+      "enum": [
+        "portable",
+        "portable_with_machine_addendum",
+        "local_only",
+        "shared_workspace_only",
+        "admin_owned",
+        "excluded"
+      ],
+      "description": "Frozen portability-class set. portable and portable_with_machine_addendum travel in the profile artifact; local_only and admin_owned never cross a machine or org boundary via a user profile; shared_workspace_only travels inside a workspace export, not a user profile; excluded is documented here so it is not silently reclassified."
+    },
+
+    "state_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ],
+      "description": "Frozen authority class. user_authored_durable_truth is the only class a user edit loses by deleting; user_owned_recovery_state is the only class a crash or restart retains locally on the user's behalf; admin_or_control_artifact is owned by signed-bundle or policy authority; disposable_derived_cache may be cleared or reclaimed at any time. A surface that reclassifies a row ad hoc is non-conforming."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction-class set. Re-exported unchanged; never redefined here."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "ADR-0001 identity-mode trust vocabulary. Re-exported unchanged."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": ["account_free_local", "self_hosted_org", "managed_convenience"],
+      "description": "ADR-0001 identity-mode vocabulary. Re-exported unchanged."
+    },
+
+    "secret_class": {
+      "type": "string",
+      "enum": [
+        "ai_provider_token",
+        "code_host_token",
+        "package_registry_token",
+        "database_credential",
+        "ssh_key_material",
+        "client_certificate",
+        "signing_key_material",
+        "provider_session",
+        "device_secret",
+        "ephemeral_operation_token"
+      ],
+      "description": "ADR-0007 secret-class vocabulary. Re-exported unchanged; raw secret bytes never appear in a portable profile, export manifest, or restore-provenance record."
+    },
+
+    "state_class_id": {
+      "type": "string",
+      "enum": [
+        "user_global_settings",
+        "keybindings",
+        "snippets",
+        "themes_and_design_tokens",
+        "command_aliases",
+        "ui_presets_and_layout_defaults",
+        "extension_selection_inventory",
+        "extension_recommendations",
+        "ai_preset_selection",
+        "terminal_preferences",
+        "workspace_manifest",
+        "workset_manifest",
+        "tasks_and_launch_configs",
+        "machine_specific_settings",
+        "profile_library_index",
+        "sync_metadata",
+        "conflict_journal",
+        "terminal_restore_metadata",
+        "policy_bundle_cache",
+        "execution_context_cache",
+        "extension_lockfile",
+        "ai_memory_metadata",
+        "deferred_intent_outbox",
+        "local_history",
+        "logs_and_traces",
+        "object_store",
+        "index_cache",
+        "dirty_buffer_recovery_journal",
+        "session_restore_state",
+        "auth_session_secrets",
+        "admin_policy_bundle",
+        "trust_approvals",
+        "long_lived_credentials"
+      ],
+      "description": "Frozen state-class id set the state map and export manifest quote verbatim. Auth secrets, trust approvals, long-lived credentials, and admin policy bundles are listed so they can be classified as excluded or admin-owned, not to imply a user profile may carry them."
+    },
+
+    "location_root_id": {
+      "type": "string",
+      "enum": [
+        "AURELINE_CONFIG",
+        "AURELINE_STATE",
+        "AURELINE_POLICY",
+        "os_credential_store",
+        "workspace_tree",
+        "profile_artifact_body",
+        "managed_service",
+        "mirror_cache"
+      ],
+      "description": "Frozen location-root id set. The state map quotes these abstract roots rather than real filesystem paths; the eventual platform-profile crate resolves each to a concrete path per OS."
+    },
+
+    "exclusion_reason_id": {
+      "type": "string",
+      "enum": [
+        "contains_raw_secret_material",
+        "machine_unique_trust_anchor",
+        "workspace_trust_approval",
+        "admin_policy_ownership",
+        "live_authority_only",
+        "disposable_derived",
+        "managed_service_authority",
+        "platform_credential_store_only",
+        "user_declined_export",
+        "policy_excludes_export"
+      ],
+      "description": "Frozen exclusion-reason id set. Every state-class row that is excluded from a portable profile, managed sync, or export manifest MUST name one reason from this set; free-form reasons are non-conforming."
+    },
+
+    "profile_mode_id": {
+      "type": "string",
+      "enum": [
+        "file_portable_plain",
+        "file_portable_encrypted",
+        "managed_sync_opt_in",
+        "customer_managed_key_sync",
+        "self_hosted_sync",
+        "support_recovery_only"
+      ],
+      "description": "Frozen profile-mode id set. A portable artifact declares exactly one mode; machine-local addenda never carry their own mode."
+    },
+
+    "fidelity_label": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compatible",
+        "layout_only",
+        "manual_review"
+      ],
+      "description": "Frozen restore-fidelity label set. exact means every included state-class round-tripped byte-for-byte modulo documented canonicalisation; compatible means every included class was translated through a declared equivalence map; layout_only means only window topology / pane layout / visual tokens restored and no authored settings crossed; manual_review means one or more classes require explicit human review before apply. A producer that labels a restore exact when any class required translation or user acknowledgement is non-conforming."
+    },
+
+    "post_restore_validator_class": {
+      "type": "string",
+      "enum": [
+        "settings_schema_migration",
+        "keybinding_conflict",
+        "extension_capability",
+        "missing_extension_suggestion",
+        "workspace_trust_gate",
+        "admin_policy_narrowing_check",
+        "machine_local_addendum_match",
+        "layout_restore_sanity",
+        "terminal_restore_no_rerun"
+      ],
+      "description": "Frozen post-restore validator-class set. Every restore-provenance record that promises compatible or higher fidelity MUST attach at least one validator-class outcome; layout_only may reference layout_restore_sanity alone."
+    },
+
+    "post_restore_validator_outcome": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_warnings",
+        "failed_recoverable",
+        "failed_blocking",
+        "skipped_not_applicable"
+      ],
+      "description": "Frozen post-restore validator outcome set. Mirrors the entry-restore object model's post_import_validation outcome set so one vocabulary spans migration and restore."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "UI/UX spec controlled-term set. Re-exported from the entry-restore object model without redefinition; the fidelity_label describes the producer's claim about the artifact, while restore_level describes the surface's decision at apply time."
+    },
+
+    "remembered_state_inspector_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stable_pane_id", "state_classes_exposed"],
+      "properties": {
+        "stable_pane_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable pane id reserved for the remembered-state inspector surface. Opaque; pane identity survives layout restore and window topology change."
+        },
+        "state_classes_exposed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/state_class_id" },
+          "description": "State classes the inspector may surface. An inspector that exposes a class absent from this set is non-conforming."
+        },
+        "export_action_available": {
+          "type": "boolean",
+          "description": "Whether an Export action is offered from this inspector view. Reserved so later persistence surfaces do not invent a parallel export affordance."
+        },
+        "clear_action_available": {
+          "type": "boolean",
+          "description": "Whether a Clear / Reset action is offered from this inspector view. Clear actions MUST honour the row's state_authority_class; user_authored_durable_truth requires preview + rollback checkpoint before apply."
+        },
+        "compare_action_available": {
+          "type": "boolean",
+          "description": "Whether a Compare action is offered (diff against a portable profile or restore-provenance record). Reserved for the restore-provenance compare / export affordance."
+        }
+      },
+      "description": "Reserved remembered-state inspector reference. Later persistence surfaces quote this block; a surface that mints its own pane-id or action set is non-conforming."
+    },
+
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer name, e.g. 'aureline'. Opaque free text; never a raw hostname."
+        },
+        "producer_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer version string. Opaque free text; version format is not constrained at the schema boundary."
+        },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null],
+          "description": "Release channel hint the producer was running in when it emitted the artifact."
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null],
+          "description": "Producer platform class hint. Opaque at the schema boundary; the eventual platform-profile crate owns the concrete value."
+        },
+        "producer_instance_handle": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque producer-instance handle. Never a raw hostname, username, or machine id; the platform crate mints a stable pseudonymous handle."
+        }
+      },
+      "description": "Producer build stamp carried by every portable profile, export manifest, and restore-provenance record."
+    },
+
+    "state_class_inclusion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_class", "portability_class", "authority", "redaction_class"],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/state_class_id" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "authority": { "$ref": "#/$defs/state_authority_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exclusion_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/exclusion_reason_id" },
+            { "type": "null" }
+          ],
+          "description": "Required when portability_class is excluded or local_only; null otherwise."
+        },
+        "secret_class_touched": {
+          "anyOf": [
+            { "$ref": "#/$defs/secret_class" },
+            { "type": "null" }
+          ],
+          "description": "Names the ADR-0007 secret class this state class references by handle, if any. Handles only; raw secret bytes never appear."
+        },
+        "carries_machine_local_addendum": {
+          "type": "boolean",
+          "description": "True when the portable side of this class carries a companion machine-local addendum (e.g. portable preference + local path hint). The addendum is itself local_only and MUST NOT be carried by default sync."
+        },
+        "notes": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short human note for reviewers. Redaction-aware."
+        }
+      },
+      "description": "One row describing how a state class is treated by a portable profile or an export manifest."
+    },
+
+    "portable_profile_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "profile_schema_version",
+        "profile_id",
+        "profile_label",
+        "profile_mode",
+        "producer_build",
+        "identity_mode",
+        "included_state_classes",
+        "excluded_state_classes",
+        "declared_contents",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "portable_profile_artifact_record"
+        },
+        "profile_schema_version": { "$ref": "#/$defs/profile_schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short human label (e.g. 'Rust daily driver'). Redaction-aware."
+        },
+        "profile_description": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "profile_mode": { "$ref": "#/$defs/profile_mode_id" },
+        "lineage_profile_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional prior-profile-id this profile descends from; never a raw user id or mailbox."
+        },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "target_identity_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identity_mode" },
+          "description": "Identity modes this artifact is portable into. An artifact that declares managed_convenience only MUST NOT silently install in account_free_local; the restore surface degrades to manual_review."
+        },
+        "included_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_class_inclusion_row" },
+          "description": "Rows for every state class the artifact actually carries. Each row MUST have a non-excluded portability_class."
+        },
+        "excluded_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_class_inclusion_row" },
+          "description": "Rows for every state class the artifact explicitly declines to carry. auth_session_secrets, long_lived_credentials, trust_approvals, admin_policy_bundle, machine_specific_settings (unless carried as an addendum), and dirty_buffer_recovery_journal MUST appear here when the artifact is file_portable_plain or file_portable_encrypted."
+        },
+        "declared_contents": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "settings_count",
+            "keybinding_count",
+            "snippet_count",
+            "theme_token_count",
+            "extension_selection_count",
+            "ai_preset_count",
+            "command_alias_count"
+          ],
+          "properties": {
+            "settings_count": { "type": "integer", "minimum": 0 },
+            "keybinding_count": { "type": "integer", "minimum": 0 },
+            "snippet_count": { "type": "integer", "minimum": 0 },
+            "theme_token_count": { "type": "integer", "minimum": 0 },
+            "extension_selection_count": { "type": "integer", "minimum": 0 },
+            "ai_preset_count": { "type": "integer", "minimum": 0 },
+            "command_alias_count": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Counts-only summary the artifact carries for quick review. Concrete settings, keybindings, snippets, and presets live in the producer's per-class bodies; the schema does not constrain their shape at the boundary."
+        },
+        "machine_local_addendum_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional reference to a companion machine-local addendum. The addendum itself is classified local_only; this reference lets the restore flow ask the user to reattach a machine-specific block."
+        },
+        "signature_state": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "signed_verified",
+                "signed_unverified",
+                "unsigned",
+                "signature_missing",
+                "signature_mismatch"
+              ]
+            },
+            { "type": "null" }
+          ],
+          "description": "Signature state of the artifact. Portable plain artifacts are typically unsigned; encrypted or customer-managed-key artifacts carry signed_verified on import."
+        },
+        "integrity_digest_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque handle to the artifact's integrity digest (e.g. multihash). Never a raw cryptographic secret."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "remembered_state_inspector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remembered_state_inspector_ref" },
+          "description": "Optional reserved slot; an artifact that is paired with a remembered-state inspector view may quote the stable_pane_id here. Empty or absent in a fresh file-portable export."
+        }
+      },
+      "description": "One portable-profile artifact. The text-based, diffable body that moves user-authored durable truth across machines without carrying secrets, trust approvals, machine-unique anchors, or admin-policy bundles."
+    },
+
+    "state_map_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "profile_schema_version",
+        "state_map_row_id",
+        "state_class",
+        "location_root",
+        "location_path_concept",
+        "authority",
+        "portability_class",
+        "redaction_class",
+        "retention_hint",
+        "clear_action_posture",
+        "inspector_action_posture"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "state_map_row_record"
+        },
+        "profile_schema_version": { "$ref": "#/$defs/profile_schema_version" },
+        "state_map_row_id": { "$ref": "#/$defs/opaque_id" },
+        "state_class": { "$ref": "#/$defs/state_class_id" },
+        "location_root": { "$ref": "#/$defs/location_root_id" },
+        "location_path_concept": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Abstract path concept within the root, e.g. 'settings.jsonc', 'sync/conflict_journal/*', 'policy/*.signed'. Never a real absolute path."
+        },
+        "authority": { "$ref": "#/$defs/state_authority_class" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "secret_class_touched": {
+          "anyOf": [
+            { "$ref": "#/$defs/secret_class" },
+            { "type": "null" }
+          ]
+        },
+        "exclusion_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/exclusion_reason_id" },
+            { "type": "null" }
+          ],
+          "description": "Required when portability_class is excluded, admin_owned, or local_only; null when the row is portable or shared_workspace_only."
+        },
+        "retention_hint": {
+          "type": "string",
+          "enum": [
+            "durable_until_user_deletes",
+            "durable_until_user_clears_with_preview",
+            "bounded_by_policy_or_quota",
+            "session_scoped",
+            "reclaimable_at_any_time",
+            "bounded_by_signed_bundle_epoch"
+          ],
+          "description": "Retention hint the row promises. durable_until_user_deletes is reserved for user_authored_durable_truth; reclaimable_at_any_time is reserved for disposable_derived_cache."
+        },
+        "clear_action_posture": {
+          "type": "string",
+          "enum": [
+            "clear_requires_preview_and_rollback",
+            "clear_requires_preview",
+            "clear_allowed",
+            "clear_denied_platform_credential_store_only",
+            "clear_denied_admin_owned",
+            "clear_denied_live_authority"
+          ],
+          "description": "How a Clear / Reset action on this class is treated. auth_session_secrets and long_lived_credentials MUST be clear_denied_platform_credential_store_only; admin_policy_bundle MUST be clear_denied_admin_owned."
+        },
+        "inspector_action_posture": {
+          "type": "string",
+          "enum": [
+            "inspect_allowed_with_redaction",
+            "inspect_allowed_metadata_only",
+            "inspect_denied",
+            "inspect_allowed_policy_decision_trace"
+          ],
+          "description": "How a remembered-state inspector surface may render this class. Raw secret bodies are never inspectable; signed bundles expose decision traces, not payloads."
+        },
+        "support_export_posture": {
+          "type": "string",
+          "enum": [
+            "included_by_default",
+            "included_metadata_only",
+            "opt_in_only",
+            "excluded_by_default",
+            "excluded_always"
+          ],
+          "description": "How the support-bundle exporter treats this row by default. auth_session_secrets and long_lived_credentials are excluded_always; logs_and_traces are included_by_default at metadata-only redaction."
+        },
+        "sync_posture": {
+          "type": "string",
+          "enum": [
+            "synced_by_default",
+            "synced_opt_in",
+            "never_synced",
+            "customer_managed_only",
+            "admin_owned_sync_only"
+          ],
+          "description": "Default managed-sync posture. machine_specific_settings, sync_metadata, conflict_journal, terminal_restore_metadata, policy_bundle_cache, execution_context_cache, ai_memory_metadata, deferred_intent_outbox, local_history, logs_and_traces, object_store, index_cache, dirty_buffer_recovery_journal, session_restore_state, auth_session_secrets, admin_policy_bundle, trust_approvals, and long_lived_credentials MUST be never_synced unless a specific explicit row says otherwise."
+        },
+        "depends_on_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional list of state-map-row ids this row references (for example, extension_lockfile depends on extension_selection_inventory). A depends_on edge never creates portability; portability is declared per-row."
+        },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One row in the Appendix-F-style configuration / state map. Reserves profile library, sync metadata and conflict journals, terminal restore metadata, policy bundle cache, execution-context cache, extension lockfile, AI / outbox metadata, local history, and logs / traces so later artifact-specific tasks inherit a stable location vocabulary."
+    },
+
+    "export_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "profile_schema_version",
+        "export_manifest_id",
+        "producer_build",
+        "profile_mode",
+        "emitted_at",
+        "included_state_classes",
+        "excluded_state_classes",
+        "integrity_digest_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "export_manifest_record"
+        },
+        "profile_schema_version": { "$ref": "#/$defs/profile_schema_version" },
+        "export_manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "profile_mode": { "$ref": "#/$defs/profile_mode_id" },
+        "profile_artifact_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Required when the manifest accompanies a portable_profile_artifact_record; may be null for a support_recovery_only manifest."
+        },
+        "machine_local_addendum_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "included_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_class_inclusion_row" },
+          "description": "Every state class the export actually wrote. Redaction is declared per row."
+        },
+        "excluded_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_class_inclusion_row" },
+          "description": "Every state class the export explicitly declined to write. auth_session_secrets, long_lived_credentials, trust_approvals, and admin_policy_bundle MUST appear here for every non-support_recovery_only manifest."
+        },
+        "redaction_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state_class_count_included",
+            "state_class_count_excluded",
+            "state_class_count_redacted"
+          ],
+          "properties": {
+            "state_class_count_included": { "type": "integer", "minimum": 0 },
+            "state_class_count_excluded": { "type": "integer", "minimum": 0 },
+            "state_class_count_redacted": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Counts-only redaction summary. Raw values never appear."
+        },
+        "integrity_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_state": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "signed_verified",
+                "signed_unverified",
+                "unsigned",
+                "signature_missing",
+                "signature_mismatch"
+              ]
+            },
+            { "type": "null" }
+          ]
+        },
+        "destination_class": {
+          "type": "string",
+          "enum": [
+            "local_file",
+            "local_file_encrypted",
+            "managed_sync_service",
+            "customer_managed_storage",
+            "self_hosted_sync_service",
+            "mirror_drop",
+            "support_bundle_attachment",
+            "air_gapped_transfer"
+          ],
+          "description": "Where the export is written. managed_sync_service and customer_managed_storage MUST NOT be combined with a state-class row whose sync_posture is never_synced."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One export manifest. Written alongside the artifact body (profile, machine-local addendum, support bundle attachment) to explain included / excluded / redacted state classes, producer identity, destination, and integrity handle."
+    },
+
+    "restore_provenance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "profile_schema_version",
+        "restore_provenance_id",
+        "source_class",
+        "producer_build",
+        "source_schema_version",
+        "fidelity_label",
+        "restore_level",
+        "redaction_class",
+        "included_state_classes",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "restore_provenance_record"
+        },
+        "profile_schema_version": { "$ref": "#/$defs/profile_schema_version" },
+        "restore_provenance_id": { "$ref": "#/$defs/opaque_id" },
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "aureline_portable_profile",
+            "aureline_machine_local_addendum",
+            "aureline_managed_sync_snapshot",
+            "aureline_support_bundle_replay",
+            "aureline_local_rollback_checkpoint",
+            "aureline_session_restore_manifest",
+            "imported_competitor_profile",
+            "imported_workflow_bundle_handoff"
+          ],
+          "description": "Source class the restore is reading from. imported_competitor_profile and imported_workflow_bundle_handoff quote the entry-restore object model's import sources; they never promote a restore fidelity above compatible without an equivalence-map row."
+        },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "The source artifact's declared schema version string. Opaque at the schema boundary."
+        },
+        "fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_class_inclusion_row" },
+          "description": "Every state class the restore actually re-hydrated. A row whose portability_class is excluded MUST NOT appear here."
+        },
+        "equivalence_map_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque handle into the entry-restore object model's equivalence-map rows. Required when fidelity_label is compatible or manual_review."
+        },
+        "rollback_checkpoint_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque handle into the ADR-0003 mutation-journal checkpoint created before the restore applied. Required when fidelity_label is compatible or manual_review."
+        },
+        "post_restore_validator_outcomes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["validator_class", "outcome"],
+            "properties": {
+              "validator_class": { "$ref": "#/$defs/post_restore_validator_class" },
+              "outcome": { "$ref": "#/$defs/post_restore_validator_outcome" },
+              "validator_run_ref": {
+                "anyOf": [
+                  { "$ref": "#/$defs/opaque_id" },
+                  { "type": "null" }
+                ]
+              },
+              "note": { "$ref": "#/$defs/redaction_aware_text" }
+            }
+          },
+          "description": "At least one entry is required when fidelity_label is exact or compatible; layout_only may pass a single layout_restore_sanity entry; manual_review MUST list the unresolved validator classes."
+        },
+        "compare_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque handle the 'Compare before apply' affordance resolves against the restore surface. Reserved so later persistence surfaces do not invent a parallel compare handle."
+        },
+        "export_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque handle the 'Export restore provenance' affordance resolves. Reserved for later migration-tooling so support / audit exports share one handle."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One restore-provenance record. Explains the source, producer build, schema version, redaction class, and resulting fidelity at exact / compatible / layout_only / manual_review so later migration tooling can inspect, compare, and export without retrofitting a private provenance dialect."
+    }
+  }
+}

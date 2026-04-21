@@ -147,6 +147,28 @@ code.
   context, background branch-agent dispatch that preserves
   tainted-usage constraints across the handoff) in
   [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
+- [`state/profile_and_state_map.md`](./state/profile_and_state_map.md)
+  — portable-profile artifact and configuration / state map seed
+  every profile export / import, managed-sync lane, support-bundle
+  exporter, restore / migration surface, and remembered-state
+  inspector resolves against. Freezes four record kinds
+  (`portable_profile_artifact_record`, `state_map_row_record`,
+  `export_manifest_record`, `restore_provenance_record`), the four
+  state-authority classes (user-authored durable truth, user-owned
+  recovery state, admin / control artifact, disposable derived
+  cache), the six portability classes, the six profile modes, the
+  four restore-fidelity labels (`exact`, `compatible`, `layout_only`,
+  `manual_review`), the eight location-root ids, and the
+  Appendix-F-style state map that pins authority, portability,
+  retention, sync posture, support-export posture, clear posture,
+  and redaction per state class. Reserves the remembered-state
+  inspector's `stable_pane_id`, `state_classes_exposed`, and
+  export / clear / compare action slots. Boundary schema in
+  [`/schemas/profile/portable_profile.schema.json`](../schemas/profile/portable_profile.schema.json);
+  worked fixtures (plain portable profile, paired export manifest,
+  state-map row for the execution-context cache, and one restore-
+  provenance fixture per fidelity label) in
+  [`/fixtures/profile/restore_provenance_examples/`](../fixtures/profile/restore_provenance_examples/).
 - [`workspace/entry_restore_object_model.md`](./workspace/entry_restore_object_model.md)
   — first-run, open, clone, import, add-root, restore, resume, and
   start-from-snapshot vocabulary covering project-entry action
