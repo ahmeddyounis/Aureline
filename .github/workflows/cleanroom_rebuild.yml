@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# First clean-room rebuild lane.
+#
+# Runs the documented clean-room rebuild script on an ephemeral GitHub
+# Actions runner, isolates Rustup/Cargo homes from any pre-baked runner
+# state, and uploads the emitted manifests plus provenance-capture outputs.
+
+name: cleanroom_rebuild
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cleanroom_rebuild.yml"
+      - ".cargo/config.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "ci/**"
+      - "tools/build/**"
+      - "crates/**"
+      - "docs/build/**"
+      - "docs/governance/provenance_and_compliance_baseline.md"
+      - "artifacts/release/**"
+      - "fixtures/build/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanroom-rebuild-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  cleanroom_rebuild:
+    name: Clean-room rebuild
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_HOME: ${{ runner.temp }}/cleanroom-cargo-home
+      RUSTUP_HOME: ${{ runner.temp }}/cleanroom-rustup-home
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Derive pinned source-date epoch
+        run: |
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "${GITHUB_ENV}"
+
+      - name: Run clean-room rebuild lane
+        run: |
+          ./ci/cleanroom_rebuild.sh --out-dir target/cleanroom-rebuild
+
+      - name: Upload clean-room rebuild artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanroom-rebuild-${{ github.run_id }}
+          path: target/cleanroom-rebuild
+          if-no-files-found: error
+          retention-days: 30

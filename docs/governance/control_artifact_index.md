@@ -101,6 +101,9 @@ governance-packet template. The index only names, routes, and scopes.
   canonical homes for every public-facing document, including the
   known-limits matrix, the support-window statement, and migration
   guides.
+- The clean-room rebuild lane now lives beside the reproducible-build
+  baseline under `route_build_truth`; build truth is no longer only a
+  narrative baseline plus an implicit CI script.
 - The Labs inventory is not free-form copy. Contributor-visible
   prototype or preview inventory must resolve back to
   `labs_register.yaml`, and policy/process guidance must resolve back
@@ -130,8 +133,9 @@ governance-packet template. The index only names, routes, and scopes.
 ### Release
 
 - The `release_evidence`, `compatibility_qualification_seed`,
-  `release_notice_seed`, `frozen_surface_manifests`, and
-  `route_build_truth` rows are the anchor points for release assembly.
+  `release_notice_seed`, `frozen_surface_manifests`,
+  `route_build_truth`, and `cleanroom_rebuild_lane` rows are the
+  anchor points for release assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
 - The release-evidence family is now seeded with a narrative packet
@@ -142,6 +146,14 @@ governance-packet template. The index only names, routes, and scopes.
   [`artifacts/evidence/`](../../artifacts/evidence/). Concrete release
   packets still land under `artifacts/release/` when a real candidate is
   assembled.
+- The clean-room rebuild lane now has a canonical command
+  ([`ci/cleanroom_rebuild.sh`](../../ci/cleanroom_rebuild.sh)), a public
+  contract document
+  ([`docs/build/cleanroom_rebuild_lane.md`](../build/cleanroom_rebuild_lane.md)),
+  and a CI wrapper
+  ([`/.github/workflows/cleanroom_rebuild.yml`](../../.github/workflows/cleanroom_rebuild.yml)).
+  Its current limitations are intentionally named in emitted artifacts
+  rather than being left as tribal CI knowledge.
 - Frozen-surface manifests and stable-surface contract metadata remain
   explicitly out of scope at this milestone.
 

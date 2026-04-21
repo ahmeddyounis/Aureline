@@ -34,6 +34,10 @@ Companion artifacts:
 - [`/docs/build/reproducible_build_baseline.md`](../build/reproducible_build_baseline.md)
   — pinned toolchain, bootstrap command, and build-identity record
   that this baseline composes with.
+- [`/docs/build/cleanroom_rebuild_lane.md`](../build/cleanroom_rebuild_lane.md)
+  — first clean-room rebuild lane that records mirrors, trust
+  assumptions, digest comparisons, and provenance-capture outputs
+  explicitly.
 - [`/ci/sbom_provenance.sh`](../../ci/sbom_provenance.sh) — placeholder
   CI command that the provenance lane will replace incrementally.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
@@ -62,6 +66,10 @@ Companion artifacts:
 5. **CI runs a placeholder provenance/SBOM step today.** The step is
    intentionally lightweight so the lane is wired and observable
    before the real generators are introduced.
+6. **The clean-room lane records its assumptions instead of hiding
+   them.** Mirror inputs, signing gaps, and known reproducibility
+   limitations are emitted as first-class artifacts, not left implicit
+   in CI scripts.
 
 ## DCO sign-off baseline
 

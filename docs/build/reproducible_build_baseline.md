@@ -10,6 +10,13 @@ later benchmark, release, provenance, and clean-room work can consume a
 stable foundation. Full release signing, SBOM emission, and clean-room
 infrastructure are out of scope here.
 
+Companion artifact:
+
+- [`cleanroom_rebuild_lane.md`](./cleanroom_rebuild_lane.md) — first
+  clean-room rebuild lane that composes this baseline build contract with
+  explicit input manifests, artifact digests, and provenance-capture
+  outputs.
+
 ## Goals
 
 1. **One bootstrap command** takes a clean clone to a state where every

@@ -65,6 +65,9 @@ code.
   dependency directions between packages.
 - [`build/reproducible_build_baseline.md`](./build/reproducible_build_baseline.md)
   — pinned toolchain, bootstrap command, and build-identity record.
+- [`build/cleanroom_rebuild_lane.md`](./build/cleanroom_rebuild_lane.md)
+  — first clean-room rebuild lane, emitted input-manifest shape,
+  artifact-digest comparison rules, and named reproducibility gaps.
 
 ## Product boundary
 
