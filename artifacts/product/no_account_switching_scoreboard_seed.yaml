@@ -1,0 +1,567 @@
+# No-account switching scoreboard seed.
+#
+# Companion to docs/product/onboarding_measurement_plan.md §9 and the
+# boundary-manifest strawman at
+# docs/product/boundary_manifest_strawman.md. The scoreboard qualifies
+# three row families:
+#
+#   1. no_account_local_work        — capabilities reachable with no
+#      account, cited against local_core boundary rows.
+#   2. service_opt_in_boundary_outcomes
+#                                   — outcomes at each opt-in prompt
+#      out of the local-only lane (accept, decline, narrow, degrade).
+#   3. intentionally_narrowed_capability
+#                                   — startup / import flows that
+#      intentionally narrow capability; the scoreboard records that
+#      the narrowing was advertised before commit, not discovered
+#      after the fact.
+#
+# This file is a SEED. Threshold values are deliberately left as
+# "to_be_set_by_benchmark_council" at this milestone; the benchmark-
+# council charter §4 ratifies them. Reviewers can still read the
+# row shape and see *how* the account-free local claim, service-
+# opt-in boundary, and intentional-narrowing cases will be qualified
+# later, instead of treating them as narrative-only product truth.
+#
+# Rules (frozen):
+#   1. Every row cites exactly one boundary_manifest_row_id from
+#      docs/product/boundary_manifest_strawman.md. Rows without a
+#      boundary citation are non-conforming.
+#   2. Every row cites exactly one measurement_surface from the
+#      measurement plan §3 set. Rows citing multiple surfaces are
+#      split; cross-surface aggregation happens in the evidence
+#      packet, not here.
+#   3. Every row names a primary_dri_lane resolving to an id in
+#      artifacts/governance/ownership_matrix.yaml
+#      scorecard_lane_index.
+#   4. Every row lists the §3 events that qualify its claim. An
+#      event the row cites MUST exist in the measurement plan; a
+#      row that cites an unknown event is non-conforming.
+#   5. Threshold_state values are drawn from a closed set (see
+#      threshold_state_vocabulary below); free-form thresholds are
+#      non-conforming. Widening a threshold is not done here; it
+#      opens a new decision row in
+#      artifacts/governance/decision_index.yaml.
+#   6. Milestone slugs MUST NOT appear in any id, event name,
+#      threshold, or surface label.
+
+schema_version: 1
+
+plan_source: docs/product/onboarding_measurement_plan.md
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+corpus_source: artifacts/product/task_success_corpus_seed.yaml
+benchmark_council_charter: docs/governance/benchmark_council_charter.md
+
+threshold_state_vocabulary:
+  - must_succeed_on_every_attempt
+  - must_not_require_opt_in_prompt
+  - must_not_degrade_after_decline
+  - must_advertise_narrowing_before_commit
+  - must_offer_continue_local_same_weight
+  - to_be_set_by_benchmark_council
+
+measurement_surface_vocabulary:
+  - surface_first_run
+  - surface_first_open
+  - surface_first_useful_edit
+  - surface_migration_review
+  - surface_restore_success
+  - surface_opt_in_boundary
+
+claim_class_vocabulary:
+  - account_free_local_claim
+  - decline_without_degradation_claim
+  - narrowing_advertised_claim
+
+# -----------------------------------------------------------------------------
+# Family 1: No-account local work.
+#
+# Each row asserts that a capability is reachable with no account
+# on the individual_local deployment profile, cites the boundary-
+# manifest row that underwrites it (local_core only), lists the
+# §3 events that qualify the claim, and declares the threshold
+# state. Row ids are scoreboard_row:<family>.<slug>.
+# -----------------------------------------------------------------------------
+no_account_local_work:
+  rows:
+
+    - row_id: scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: editor_core
+      deployment_profile: individual_local
+      measurement_surface: surface_first_useful_edit
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+        - tsc.plain_open_local_folder_unknown_archetype
+        - tsc.protocol_handler_reentry_single_file
+      qualifying_events:
+        - first_useful_navigation_reached
+        - first_useful_edit_started
+        - first_useful_edit_durable
+      disqualifying_events:
+        - opt_in_prompt_presented
+        - first_run_failure_classified
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - aureline-vfs
+        - product_scope_review
+      notes: >
+        Qualifies "user reached first useful edit without being
+        prompted to accept any service-plane opt-in". Boundary row
+        editor_core is local_core; absence_narrows_to is baseline.
+
+    - row_id: scoreboard_row:no_account_local_work.migration_without_opt_in
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: configuration_profiles
+      deployment_profile: individual_local
+      measurement_surface: surface_migration_review
+      supporting_corpus_scenarios:
+        - tsc.import_vs_code_settings_dry_run_then_apply
+      qualifying_events:
+        - migration_dry_run_produced
+        - migration_parity_scored
+        - migration_outcome_recorded
+        - migration_rollback_checkpoint_written
+        - migration_applied
+      disqualifying_events:
+        - opt_in_prompt_presented
+        - migration_rolled_back
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: compatibility_ecosystem_review
+      co_review_lanes:
+        - docs_public_truth
+        - support_export
+      notes: >
+        Qualifies "a competitor-config import ran dry-run diff,
+        per-item outcome attribution, and an optional rollback
+        path without any service-plane opt-in". Boundary row
+        configuration_profiles is local_core (admin-bundle source
+        is an absence_narrows_to slot, not a sign-in).
+
+    - row_id: scoreboard_row:no_account_local_work.protocol_handler_no_trust_widening
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: workspace_vfs
+      deployment_profile: individual_local
+      measurement_surface: surface_first_open
+      supporting_corpus_scenarios:
+        - tsc.protocol_handler_reentry_single_file
+      qualifying_events:
+        - entry_verb_resolved
+        - target_kind_classified
+        - resulting_mode_committed
+        - admission_decided
+        - first_open_completed
+      disqualifying_events:
+        - admission_denied_trust
+        - admission_denied_needs_repair
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - product_scope_review
+      notes: >
+        A protocol-handler reentry (OS file association, drag-
+        and-drop, deep link, companion-handoff return) MUST NOT
+        widen trust as a side effect; workspace_vfs stays on
+        individual_local without prompting.
+
+    - row_id: scoreboard_row:no_account_local_work.prebuild_minimal_bypass_same_weight
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: command_plane
+      deployment_profile: individual_local
+      measurement_surface: surface_first_open
+      supporting_corpus_scenarios:
+        - tsc.start_from_prebuild_ts_web_app_bypass
+      qualifying_events:
+        - entry_verb_resolved
+        - resulting_mode_committed
+        - admission_decided
+        - first_open_completed
+        - first_useful_navigation_reached
+      disqualifying_events:
+        - opt_in_prompt_presented
+        - resulting_mode_silently_downgraded
+      threshold_state: must_offer_continue_local_same_weight
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - product_scope_review
+        - docs_public_truth
+      notes: >
+        A start_from_snapshot entry MUST offer open_prebuild_minimal
+        same-weight with open_prebuild_with_setup_actions; the user
+        reaches first_useful_navigation without the setup actions.
+        Boundary row command_plane (local_core) underwrites the
+        same-weight bypass.
+
+    - row_id: scoreboard_row:no_account_local_work.local_git_available_offline
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: local_git
+      deployment_profile: individual_local
+      measurement_surface: surface_first_open
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+        - tsc.plain_open_local_folder_unknown_archetype
+      qualifying_events:
+        - first_open_completed
+        - first_useful_edit_durable
+      disqualifying_events:
+        - admission_denied_needs_reconnect
+      threshold_state: must_succeed_on_every_attempt
+      primary_dri_lane: aureline-vfs
+      co_review_lanes:
+        - product_scope_review
+      notes: >
+        Local Git operations (status, stage, commit, branch, blame,
+        diff) remain reachable on individual_local with no account
+        and no network. Boundary row local_git underwrites the claim.
+
+    - row_id: scoreboard_row:no_account_local_work.local_ai_byok_optional_not_required
+      claim_class: account_free_local_claim
+      boundary_manifest_row_id: local_ai_byok
+      deployment_profile: individual_local
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+      qualifying_events:
+        - first_useful_edit_durable
+      disqualifying_events:
+        - opt_in_forced_to_reach_useful_work
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        Local and BYOK AI paths are optional and never block first-
+        useful-edit. If no provider is configured, the scenario
+        still qualifies; local_ai_byok boundary row's
+        absence_narrows_to is "AI workflows unavailable; every
+        non-AI workflow remains available".
+
+# -----------------------------------------------------------------------------
+# Family 2: Service-opt-in boundary outcomes.
+#
+# Each row names a service-plane capability, the boundary row that
+# hosts it, and the decline_without_degradation_claim the row
+# qualifies. Accepting opt-in is not a failure; the scoreboard
+# measures whether declining preserved prior local capability.
+# -----------------------------------------------------------------------------
+service_opt_in_boundary_outcomes:
+  rows:
+
+    - row_id: scoreboard_row:service_opt_in_boundary.clone_without_model_gateway
+      claim_class: decline_without_degradation_claim
+      boundary_manifest_row_id: model_gateway
+      deployment_profile: individual_local
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.clone_then_review_remote_repo
+      qualifying_events:
+        - opt_in_prompt_presented
+        - opt_in_declined
+        - continue_local_selected
+        - narrowed_capability_advertised
+        - local_flow_continued_after_decline
+      disqualifying_events:
+        - local_flow_degraded_after_decline
+        - opt_in_forced_to_reach_useful_work
+        - retroactive_lockout_after_decline
+      absence_narrows_to_reference: >
+        model_gateway absence_narrows_to "AI requests fall back to
+        BYOK or local models; managed quotas and audit are unavailable".
+      threshold_state: must_not_degrade_after_decline
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+
+    - row_id: scoreboard_row:service_opt_in_boundary.resume_managed_reauth_required
+      claim_class: decline_without_degradation_claim
+      boundary_manifest_row_id: workspace_control_plane
+      deployment_profile: managed_cloud
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.resume_managed_cloud_workspace_reauth_required
+      qualifying_events:
+        - opt_in_prompt_presented
+        - opt_in_declined
+        - continue_local_selected
+        - local_flow_continued_after_decline
+      disqualifying_events:
+        - local_flow_degraded_after_decline
+      absence_narrows_to_reference: >
+        workspace_control_plane absence_narrows_to "orchestrated
+        workspace lifecycle becomes unavailable; direct SSH/container
+        attach and local editing continue".
+      threshold_state: must_not_degrade_after_decline
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+
+    - row_id: scoreboard_row:service_opt_in_boundary.telemetry_optional_at_first_run
+      claim_class: decline_without_degradation_claim
+      boundary_manifest_row_id: telemetry_support_pipeline
+      deployment_profile: individual_local
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+      qualifying_events:
+        - opt_in_prompt_presented
+        - opt_in_declined
+        - continue_local_selected
+        - local_flow_continued_after_decline
+      disqualifying_events:
+        - opt_in_forced_to_reach_useful_work
+        - local_flow_degraded_after_decline
+      absence_narrows_to_reference: >
+        telemetry_support_pipeline absence_narrows_to "aggregated
+        dashboards are unavailable; local bundles remain the
+        canonical supportability artefact". Open-source builds
+        MUST default telemetry to opt-in (milestone doc §3.6).
+      threshold_state: must_not_degrade_after_decline
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - support_export
+        - docs_public_truth
+
+    - row_id: scoreboard_row:service_opt_in_boundary.marketplace_browse_declined
+      claim_class: decline_without_degradation_claim
+      boundary_manifest_row_id: hosted_marketplace_ui
+      deployment_profile: individual_local
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+      qualifying_events:
+        - opt_in_prompt_presented
+        - opt_in_declined
+        - continue_local_selected
+        - local_flow_continued_after_decline
+      disqualifying_events:
+        - opt_in_forced_to_reach_useful_work
+      absence_narrows_to_reference: >
+        hosted_marketplace_ui absence_narrows_to "browse UI is
+        unavailable; CLI and mirror installs remain available".
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - docs_public_truth
+
+    - row_id: scoreboard_row:service_opt_in_boundary.sync_optional_for_first_useful_edit
+      claim_class: decline_without_degradation_claim
+      boundary_manifest_row_id: managed_sync_profile
+      deployment_profile: individual_local
+      measurement_surface: surface_opt_in_boundary
+      supporting_corpus_scenarios:
+        - tsc.first_run_start_center_local_folder
+      qualifying_events:
+        - first_useful_edit_durable
+      disqualifying_events:
+        - opt_in_forced_to_reach_useful_work
+      absence_narrows_to_reference: >
+        managed_sync_profile absence_narrows_to "settings do not
+        sync across devices; each device keeps its local
+        configuration".
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+
+# -----------------------------------------------------------------------------
+# Family 3: Intentionally narrowed startup / import capability.
+#
+# Each row names a startup or import flow that intentionally narrows
+# capability and qualifies that the narrowing was advertised before
+# commit. This family exists so reviewers can distinguish "we lost
+# capability" from "we chose to narrow and said so".
+# -----------------------------------------------------------------------------
+intentionally_narrowed_capability:
+  rows:
+
+    - row_id: scoreboard_row:intentionally_narrowed_capability.layout_only_when_extension_host_missing
+      claim_class: narrowing_advertised_claim
+      boundary_manifest_row_id: extension_runtime_local
+      deployment_profile: individual_local
+      measurement_surface: surface_restore_success
+      supporting_corpus_scenarios:
+        - tsc.restore_prompt_after_crash_compatible
+      qualifying_events:
+        - restore_prompt_presented
+        - restore_level_advertised
+        - restore_missing_target_classified
+        - restore_level_delivered
+      disqualifying_events:
+        - restore_level_promised_higher_than_delivered
+        - missing_target_state_silently_dropped
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - shell_command_system
+        - support_export
+      notes: >
+        When the extension host is missing at restore, the prompt
+        MUST advertise layout_only / compatible_restore explicitly
+        before commit; a session-restore that promised
+        exact_restore and silently delivered compatible is non-
+        conforming.
+
+    - row_id: scoreboard_row:intentionally_narrowed_capability.recent_row_missing_target_advertised
+      claim_class: narrowing_advertised_claim
+      boundary_manifest_row_id: workspace_vfs
+      deployment_profile: individual_local
+      measurement_surface: surface_first_open
+      supporting_corpus_scenarios:
+        - tsc.recent_work_reopen_missing_target_locate
+      qualifying_events:
+        - entry_verb_resolved
+        - target_kind_classified
+        - restore_missing_target_classified
+        - restore_recovery_class_selected
+      disqualifying_events:
+        - admission_denied_trust
+        - missing_target_state_silently_dropped
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - support_export
+      notes: >
+        A recent-work row whose target moved on disk MUST advertise
+        target_state != reachable and MUST offer locate_missing_target
+        or remove_from_recents same-weight; silent "Open anyway" is
+        non-conforming.
+
+    - row_id: scoreboard_row:intentionally_narrowed_capability.air_gapped_first_run_no_marketplace_prompt
+      claim_class: narrowing_advertised_claim
+      boundary_manifest_row_id: extension_registry_mirror
+      deployment_profile: air_gapped
+      measurement_surface: surface_first_run
+      supporting_corpus_scenarios: []
+      reserved: true
+      qualifying_events:
+        - first_run_reached
+        - first_run_entry_route_selected
+        - first_run_admitted
+        - narrowed_capability_advertised
+      disqualifying_events:
+        - opt_in_prompt_presented
+        - network_required_for_local_entry
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        Reserved row for the air-gapped first-run case. No scenario
+        seeds it today; the row exists so the scoreboard shape is
+        visible before the air-gapped fixture lands. Air-gapped
+        first run MUST NOT present a marketplace prompt; narrowing
+        to CLI / offline-bundle install is the advertised claim.
+
+    - row_id: scoreboard_row:intentionally_narrowed_capability.migration_blocked_item_advertises_reason
+      claim_class: narrowing_advertised_claim
+      boundary_manifest_row_id: configuration_profiles
+      deployment_profile: individual_local
+      measurement_surface: surface_migration_review
+      supporting_corpus_scenarios:
+        - tsc.import_vs_code_settings_dry_run_then_apply
+      qualifying_events:
+        - migration_dry_run_produced
+        - migration_outcome_recorded
+      disqualifying_events:
+        - blocked_reason_free_form
+        - outcome_aggregated_not_per_item
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: compatibility_ecosystem_review
+      co_review_lanes:
+        - docs_public_truth
+      notes: >
+        Every migration-result item with outcome = blocked MUST
+        carry a typed block_reason from the entry-restore object
+        model §5.1 closed set. The scoreboard row qualifies that
+        the reason is typed (never free-form) before commit.
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+#
+# Cross-check that every measurement surface and every named
+# service-plane boundary row has at least one scoreboard row (or
+# a reserved slot). Tooling can validate this section without
+# re-parsing rows.
+# -----------------------------------------------------------------------------
+coverage:
+  by_measurement_surface:
+    surface_first_run:
+      - scoreboard_row:intentionally_narrowed_capability.air_gapped_first_run_no_marketplace_prompt
+    surface_first_open:
+      - scoreboard_row:no_account_local_work.protocol_handler_no_trust_widening
+      - scoreboard_row:no_account_local_work.prebuild_minimal_bypass_same_weight
+      - scoreboard_row:no_account_local_work.local_git_available_offline
+      - scoreboard_row:intentionally_narrowed_capability.recent_row_missing_target_advertised
+    surface_first_useful_edit:
+      - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+    surface_migration_review:
+      - scoreboard_row:no_account_local_work.migration_without_opt_in
+      - scoreboard_row:intentionally_narrowed_capability.migration_blocked_item_advertises_reason
+    surface_restore_success:
+      - scoreboard_row:intentionally_narrowed_capability.layout_only_when_extension_host_missing
+    surface_opt_in_boundary:
+      - scoreboard_row:service_opt_in_boundary.clone_without_model_gateway
+      - scoreboard_row:service_opt_in_boundary.resume_managed_reauth_required
+      - scoreboard_row:service_opt_in_boundary.telemetry_optional_at_first_run
+      - scoreboard_row:service_opt_in_boundary.marketplace_browse_declined
+      - scoreboard_row:service_opt_in_boundary.sync_optional_for_first_useful_edit
+      - scoreboard_row:no_account_local_work.local_ai_byok_optional_not_required
+
+  by_boundary_manifest_row:
+    editor_core:
+      - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+    workspace_vfs:
+      - scoreboard_row:no_account_local_work.protocol_handler_no_trust_widening
+      - scoreboard_row:intentionally_narrowed_capability.recent_row_missing_target_advertised
+    command_plane:
+      - scoreboard_row:no_account_local_work.prebuild_minimal_bypass_same_weight
+    local_git:
+      - scoreboard_row:no_account_local_work.local_git_available_offline
+    local_ai_byok:
+      - scoreboard_row:no_account_local_work.local_ai_byok_optional_not_required
+    extension_runtime_local:
+      - scoreboard_row:intentionally_narrowed_capability.layout_only_when_extension_host_missing
+    configuration_profiles:
+      - scoreboard_row:no_account_local_work.migration_without_opt_in
+      - scoreboard_row:intentionally_narrowed_capability.migration_blocked_item_advertises_reason
+    model_gateway:
+      - scoreboard_row:service_opt_in_boundary.clone_without_model_gateway
+    workspace_control_plane:
+      - scoreboard_row:service_opt_in_boundary.resume_managed_reauth_required
+    telemetry_support_pipeline:
+      - scoreboard_row:service_opt_in_boundary.telemetry_optional_at_first_run
+    hosted_marketplace_ui:
+      - scoreboard_row:service_opt_in_boundary.marketplace_browse_declined
+    managed_sync_profile:
+      - scoreboard_row:service_opt_in_boundary.sync_optional_for_first_useful_edit
+    extension_registry_mirror:
+      - scoreboard_row:intentionally_narrowed_capability.air_gapped_first_run_no_marketplace_prompt
+
+# -----------------------------------------------------------------------------
+# How this scoreboard is promoted.
+#
+# This file is a seed. Promotion of any threshold_state away from
+# "to_be_set_by_benchmark_council" is reserved to the benchmark-
+# council charter. No threshold is committed at this milestone.
+# -----------------------------------------------------------------------------
+promotion_process:
+  seed_milestone: foundations
+  promotion_forum: benchmark_council
+  promotion_rule: >
+    Moving a row's threshold_state off "to_be_set_by_benchmark_council"
+    requires the benchmark-council charter's §4 promotion path.
+    Widening a claim on an existing row requires a new decision row
+    in artifacts/governance/decision_index.yaml. Narrowing a claim is
+    allowed by the benchmark council without a new decision row, but
+    the narrowing MUST be recorded in the row's notes and signed by
+    the primary_dri_lane.
+  reserved_row_policy: >
+    Reserved rows (reserved: true) are scoreboarded in shape only
+    and are not counted against promotion thresholds until a
+    supporting corpus scenario lands.

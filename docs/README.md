@@ -69,6 +69,21 @@ code.
   row so later claim packets do not retrofit them inconsistently.
   Conforms to
   [`/schemas/product/boundary_manifest.schema.json`](../schemas/product/boundary_manifest.schema.json).
+- [`product/onboarding_measurement_plan.md`](./product/onboarding_measurement_plan.md)
+  — switching-success measurement plan covering first-run, first
+  open, first useful edit, migration review, restore success, and
+  opt-in-versus-continue-local behaviour. Freezes the entry-route
+  taxonomy (`er.start_center`, `er.recent_work_reopen`,
+  `er.restore_prompt`, `er.protocol_handler_reentry`,
+  `er.clone_or_import`, `er.plain_open`, `er.workspace_switch`,
+  `er.warm_start`), the readiness bucket set (`blocking_now`,
+  `recommended_soon`, `optional_later`), the archetype-detection
+  outcome set, and the per-surface success criterion / closed
+  failure-category / event-name / derived-metric / owning-lane
+  map. Seed task-success corpus in
+  [`/artifacts/product/task_success_corpus_seed.yaml`](../artifacts/product/task_success_corpus_seed.yaml);
+  seed no-account switching scoreboard in
+  [`/artifacts/product/no_account_switching_scoreboard_seed.yaml`](../artifacts/product/no_account_switching_scoreboard_seed.yaml).
 
 ## Frozen vocabularies
 

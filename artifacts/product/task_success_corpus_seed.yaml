@@ -1,0 +1,720 @@
+# Task-success corpus seed.
+#
+# Companion to docs/product/onboarding_measurement_plan.md. The corpus
+# seeds the task-success scenarios the benchmark council, compatibility
+# reports, and UX evidence packets read to qualify first-run, first
+# open, first useful edit, migration review, restore success, and
+# opt-in-versus-continue-local behaviour.
+#
+# Every scenario carries:
+#   - a stable scenario_id (snake_case, no milestone slugs);
+#   - an entry_route_id from the §4 closed set in the plan;
+#   - an archetype_detection_outcome from the §6 closed set;
+#   - a first_useful_work_target_surface drawn from the UI/UX spec
+#     entry-source → first-useful-surface routing table;
+#   - a restore_class (from the measurement plan §3.5 restore level
+#     set, or "not_applicable") and — when relevant — a
+#     migration_outcome_mix pointing at the entry-restore
+#     migration_result_record vocabulary;
+#   - a fixture_repo_ref pointing at a concrete fixture today or a
+#     reserved id slot a later milestone will materialise;
+#   - per-task readiness_bucket rows using the frozen bucket set
+#     (blocking_now, recommended_soon, optional_later);
+#   - an expected_events list naming the §3 event names the run MUST
+#     emit against;
+#   - an evidence_consumer list naming the scoreboard rows or
+#     evidence-packet families that read this scenario.
+#
+# Rules (frozen):
+#   1. One scenario, one entry_route_id. A scenario that cannot
+#      resolve one is non-conforming; adding a new route is additive-
+#      minor and lands in the plan + here in the same change.
+#   2. Every setup action on a scenario carries exactly one readiness
+#      bucket. Unclassified actions are non-conforming.
+#   3. A scenario cites concrete fixture_repo_ref ids; id reuse after
+#      deletion is forbidden.
+#   4. Every scenario names at least one evidence_consumer. Corpus
+#      rows that no downstream family reads are non-conforming.
+#   5. Milestone slugs MUST NOT appear in any id field, event name,
+#      or surface label — these strings will ride into product
+#      chrome and support bundles.
+#
+# If this file disagrees with the measurement plan, the plan wins
+# and this file is updated in the same change.
+
+schema_version: 1
+
+plan_source: docs/product/onboarding_measurement_plan.md
+entry_route_vocabulary:
+  - er.start_center
+  - er.recent_work_reopen
+  - er.restore_prompt
+  - er.protocol_handler_reentry
+  - er.clone_or_import
+  - er.plain_open
+  - er.workspace_switch
+  - er.warm_start
+
+readiness_bucket_vocabulary:
+  - blocking_now
+  - recommended_soon
+  - optional_later
+
+archetype_detection_outcome_vocabulary:
+  - certified_archetype_match
+  - supported_archetype_match
+  - community_archetype_match
+  - experimental_archetype_match
+  - probable_archetype_partial
+  - unrecognised_archetype
+  - archetype_detection_unavailable
+
+restore_class_vocabulary:
+  - exact_restore
+  - compatible_restore
+  - layout_only
+  - recovered_drafts
+  - evidence_only
+  - no_restore
+  - not_applicable
+
+first_useful_work_target_surface_vocabulary:
+  - editor_with_root_discovery_cues
+  - tree_plus_readme_or_changed_files
+  - post_clone_handoff
+  - review_or_work_item_anchor
+  - prior_layout_with_placeholders
+  - restore_or_compare_sheet
+  - migration_center_before_commit
+  - prebuild_setup_envelope
+  - locate_missing_target_prompt
+
+# Fixture registry.
+#
+# Every fixture_repo_ref resolves either to a concrete fixture path
+# today, or to a reserved id slot. Reserved ids are for archetype-
+# specific fixture repos that a later milestone will materialise
+# under fixtures/archetypes/. Reserving an id is additive-minor;
+# reusing a released id for a different fixture is breaking.
+fixtures:
+  - id: fixture.entry_open_local_folder
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/open_local_folder.json
+    kind: entry_action_record
+    notes: >
+      Concrete entry-restore fixture: open of a local folder from
+      Start Center. Reused verbatim by the first-run scenario.
+
+  - id: fixture.entry_clone_remote_repo
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/clone_remote_repo.json
+    kind: entry_action_record
+    notes: >
+      Concrete entry-restore fixture: clone of a remote repository
+      with clone_then_review resulting mode.
+
+  - id: fixture.entry_vs_code_settings_import
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/vs_code_settings_import.json
+    kind: entry_action_record
+    notes: >
+      Concrete entry-restore fixture: import from a VS Code install
+      with apply_to_active_workspace resulting mode.
+
+  - id: fixture.migration_vs_code_settings_result
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/vs_code_settings_import_result.json
+    kind: migration_result_record
+    notes: >
+      Concrete companion to fixture.entry_vs_code_settings_import
+      that carries per-item outcomes, parity score refs, and a
+      migration-level rollback checkpoint.
+
+  - id: fixture.entry_restore_last_session
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/restore_last_session.json
+    kind: restore_prompt_record
+    notes: >
+      Concrete entry-restore fixture: post-crash restore prompt
+      advertising compatible_restore with binary/extension version
+      drift and missing extension host.
+
+  - id: fixture.entry_resume_managed_workspace
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/resume_managed_workspace.json
+    kind: entry_action_record
+    notes: >
+      Concrete entry-restore fixture: resume of a managed cloud
+      workspace with authority_reevaluation_required.
+
+  - id: fixture.entry_start_from_prebuild
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/start_from_prebuild.json
+    kind: entry_action_record
+    notes: >
+      Concrete entry-restore fixture: start-from-snapshot on a TS
+      web-app template with a side-effect envelope and a minimal
+      bypass.
+
+  - id: fixture.entry_recent_work_missing_target
+    status: concrete
+    path: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+    kind: recent_work_entry_record
+    notes: >
+      Concrete entry-restore fixture: recent-work row for a
+      repository whose folder moved on disk; target_state =
+      missing_target.
+
+  - id: fixture.archetype_ts_web_app_seed
+    status: reserved
+    path: fixtures/archetypes/ts_web_app/
+    kind: archetype_repo_seed
+    notes: >
+      Reserved slot for a minimal TypeScript web-app archetype
+      fixture: package.json + one route + one test file. Populates
+      on the certified-archetype seeding milestone; archetype match
+      expected = certified_archetype_match.
+
+  - id: fixture.archetype_python_data_app_seed
+    status: reserved
+    path: fixtures/archetypes/python_data_app/
+    kind: archetype_repo_seed
+    notes: >
+      Reserved slot for a minimal Python data-app archetype fixture:
+      pyproject.toml + one FastAPI route + one pytest module. Archetype
+      match expected = certified_archetype_match.
+
+  - id: fixture.archetype_unrecognised_misc_folder
+    status: reserved
+    path: fixtures/archetypes/misc_folder/
+    kind: archetype_repo_seed
+    notes: >
+      Reserved slot for a folder with no archetype evidence
+      (no manifest, no lockfile). Archetype match expected =
+      unrecognised_archetype.
+
+# Scenarios.
+#
+# Every row is one corpus scenario. The scenarios cover the six
+# measurement surfaces named in the plan at least once each; the
+# nine scenarios below intentionally overlap so scoreboard rows
+# can attach to more than one entry route without re-defining the
+# underlying journey.
+scenarios:
+
+  - scenario_id: tsc.first_run_start_center_local_folder
+    measurement_surfaces:
+      - surface_first_run
+      - surface_first_open
+      - surface_first_useful_edit
+    entry_route_id: er.start_center
+    entry_verb: open
+    target_kind: local_folder
+    resulting_mode: folder
+    archetype_detection_outcome: certified_archetype_match
+    archetype_hint: ts_web_app
+    first_useful_work_target_surface: tree_plus_readme_or_changed_files
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.entry_open_local_folder
+      - fixture.archetype_ts_web_app_seed
+    readiness_bucket_task_rows:
+      - task_id: detect_node_toolchain
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: reads_package_manager_state_only
+        expected_outcome: detected_no_install
+      - task_id: workspace_trust_confirmation
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: trust_widening_review_only
+        expected_outcome: admitted_without_widening
+      - task_id: install_recommended_extensions
+        bucket: optional_later
+        execution_boundary: local_machine
+        side_effect_class: extension_install_if_accepted
+        expected_outcome: deferred_to_set_up_later
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 1
+      optional_later_count: 1
+    no_account_path: true
+    expected_events:
+      - first_run_reached
+      - first_run_entry_route_selected
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - first_run_admitted
+      - first_open_completed
+      - first_useful_navigation_reached
+      - first_useful_edit_started
+      - first_useful_edit_durable
+    evidence_consumer:
+      - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+      - benchmark_family:bootstrap_entry_parity
+      - benchmark_family:certified_archetype_workflows
+      - ux_evidence:first_run_audit_packet
+
+  - scenario_id: tsc.plain_open_local_folder_unknown_archetype
+    measurement_surfaces:
+      - surface_first_open
+      - surface_first_useful_edit
+    entry_route_id: er.plain_open
+    entry_verb: open
+    target_kind: local_folder
+    resulting_mode: folder
+    archetype_detection_outcome: unrecognised_archetype
+    first_useful_work_target_surface: tree_plus_readme_or_changed_files
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.archetype_unrecognised_misc_folder
+    readiness_bucket_task_rows:
+      - task_id: workspace_trust_confirmation
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: trust_widening_review_only
+        expected_outcome: admitted_without_widening
+      - task_id: archetype_probe_retry
+        bucket: optional_later
+        execution_boundary: local_machine
+        side_effect_class: reads_workspace_manifest_only
+        expected_outcome: declined_no_archetype_match
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 0
+      optional_later_count: 1
+    no_account_path: true
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - first_open_completed
+      - first_useful_navigation_reached
+      - first_useful_edit_started
+      - first_useful_edit_durable
+    evidence_consumer:
+      - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+      - benchmark_family:bootstrap_entry_parity
+
+  - scenario_id: tsc.protocol_handler_reentry_single_file
+    measurement_surfaces:
+      - surface_first_open
+      - surface_first_useful_edit
+    entry_route_id: er.protocol_handler_reentry
+    entry_verb: open
+    target_kind: local_file
+    resulting_mode: single_file
+    archetype_detection_outcome: archetype_detection_unavailable
+    first_useful_work_target_surface: editor_with_root_discovery_cues
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.archetype_unrecognised_misc_folder
+    readiness_bucket_task_rows:
+      - task_id: root_discovery_cue_render
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_nearby_manifests_only
+        expected_outcome: cue_rendered_standalone_file
+      - task_id: workspace_trust_confirmation
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: trust_widening_review_only
+        expected_outcome: deferred_single_file_restricted_ok
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 1
+      optional_later_count: 0
+    no_account_path: true
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - first_open_completed
+      - first_useful_navigation_reached
+      - first_useful_edit_started
+      - first_useful_edit_durable
+    evidence_consumer:
+      - scoreboard_row:no_account_local_work.protocol_handler_no_trust_widening
+      - benchmark_family:bootstrap_entry_parity
+
+  - scenario_id: tsc.clone_then_review_remote_repo
+    measurement_surfaces:
+      - surface_first_open
+      - surface_opt_in_boundary
+    entry_route_id: er.clone_or_import
+    entry_verb: clone
+    target_kind: remote_repository
+    resulting_mode: clone_then_review
+    archetype_detection_outcome: probable_archetype_partial
+    first_useful_work_target_surface: post_clone_handoff
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.entry_clone_remote_repo
+    readiness_bucket_task_rows:
+      - task_id: remote_authority_review
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_credential_handle_ref_only
+        expected_outcome: authority_reevaluation_completed
+      - task_id: post_clone_trust_review
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: trust_widening_review_only
+        expected_outcome: review_required_not_widened
+      - task_id: dependency_restore
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: package_install_if_accepted
+        expected_outcome: deferred_to_set_up_later
+    setup_posture_summary:
+      blocking_now_count: 2
+      recommended_soon_count: 1
+      optional_later_count: 0
+    no_account_path: true
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - first_open_completed
+      - opt_in_prompt_presented
+      - continue_local_selected
+      - narrowed_capability_advertised
+      - local_flow_continued_after_decline
+    evidence_consumer:
+      - scoreboard_row:service_opt_in_boundary.clone_without_model_gateway
+      - benchmark_family:bootstrap_entry_parity
+
+  - scenario_id: tsc.import_vs_code_settings_dry_run_then_apply
+    measurement_surfaces:
+      - surface_first_open
+      - surface_migration_review
+    entry_route_id: er.clone_or_import
+    entry_verb: import
+    target_kind: competitor_config_root
+    resulting_mode: apply_to_active_workspace
+    archetype_detection_outcome: supported_archetype_match
+    first_useful_work_target_surface: migration_center_before_commit
+    restore_class: not_applicable
+    migration_outcome_mix:
+      exact: 2
+      translated: 3
+      approximated: 1
+      skipped: 1
+      blocked: 0
+      needs_review: 1
+      rollback_available_on_migration: true
+    fixture_repo_refs:
+      - fixture.entry_vs_code_settings_import
+      - fixture.migration_vs_code_settings_result
+    readiness_bucket_task_rows:
+      - task_id: dry_run_diff_review
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_competitor_config_root_only
+        expected_outcome: per_item_outcome_rendered_before_commit
+      - task_id: rollback_checkpoint_write
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: writes_labelled_staging_only
+        expected_outcome: pre_apply_checkpoint_retained
+      - task_id: review_unsupported_items
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: reads_equivalence_map_only
+        expected_outcome: review_completed_or_deferred
+      - task_id: adopt_recommended_bundle
+        bucket: optional_later
+        execution_boundary: local_machine
+        side_effect_class: writes_bundle_adoption_ref_only
+        expected_outcome: deferred_to_set_up_later
+    setup_posture_summary:
+      blocking_now_count: 2
+      recommended_soon_count: 1
+      optional_later_count: 1
+    no_account_path: true
+    expected_events:
+      - migration_dry_run_produced
+      - migration_parity_scored
+      - migration_applied
+      - migration_outcome_recorded
+      - migration_rollback_checkpoint_written
+    evidence_consumer:
+      - scoreboard_row:no_account_local_work.migration_without_opt_in
+      - benchmark_family:migration_keymap_settings_theme_profile
+      - ux_evidence:migration_dry_run_diff_packet
+
+  - scenario_id: tsc.restore_prompt_after_crash_compatible
+    measurement_surfaces:
+      - surface_restore_success
+      - surface_first_useful_edit
+    entry_route_id: er.restore_prompt
+    entry_verb: restore
+    target_kind: recovery_checkpoint
+    resulting_mode: restore_last_session
+    archetype_detection_outcome: certified_archetype_match
+    first_useful_work_target_surface: prior_layout_with_placeholders
+    restore_class: compatible_restore
+    missing_target_states:
+      - binary_or_extension_version_changed
+      - missing_extension_host
+    session_scoped_execution_posture:
+      - transcript_restored_not_rerun
+      - rerun_required
+    recovery_classes:
+      - restore_from_session_checkpoint
+      - restore_from_recovery_journal
+    fixture_repo_refs:
+      - fixture.entry_restore_last_session
+    readiness_bucket_task_rows:
+      - task_id: restore_level_disclosure
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_session_checkpoint_only
+        expected_outcome: level_advertised_before_commit
+      - task_id: missing_extension_host_repair
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: extension_quarantine_review_only
+        expected_outcome: safe_mode_available
+      - task_id: dirty_buffer_compare
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: reads_recovery_journal_only
+        expected_outcome: compare_completed_or_deferred
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 2
+      optional_later_count: 0
+    no_account_path: true
+    expected_events:
+      - restore_prompt_presented
+      - restore_level_advertised
+      - restore_missing_target_classified
+      - restore_recovery_class_selected
+      - restore_level_delivered
+      - restore_completed
+      - first_useful_navigation_reached
+      - first_useful_edit_started
+      - first_useful_edit_durable
+    evidence_consumer:
+      - scoreboard_row:intentionally_narrowed_capability.layout_only_when_extension_host_missing
+      - support_bundle:crash_recovery_summary
+      - benchmark_family:bootstrap_entry_parity
+
+  - scenario_id: tsc.resume_managed_cloud_workspace_reauth_required
+    measurement_surfaces:
+      - surface_first_open
+      - surface_opt_in_boundary
+    entry_route_id: er.protocol_handler_reentry
+    entry_verb: resume
+    target_kind: managed_cloud_workspace
+    resulting_mode: resume_live_session
+    archetype_detection_outcome: supported_archetype_match
+    first_useful_work_target_surface: review_or_work_item_anchor
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.entry_resume_managed_workspace
+    readiness_bucket_task_rows:
+      - task_id: authority_reevaluation
+        bucket: blocking_now
+        execution_boundary: managed_workspace
+        side_effect_class: authority_ticket_re_evaluation_only
+        expected_outcome: reauth_required_prompted
+      - task_id: continue_in_restricted_mode
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: local_only_after_decline
+        expected_outcome: local_flow_continued_after_decline
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 1
+      optional_later_count: 0
+    no_account_path: false
+    notes: >
+      Managed cloud workspace is outside the no-account lane by
+      construction; this scenario qualifies the "declining opt-in
+      does not degrade prior local work" rule.
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - opt_in_prompt_presented
+      - opt_in_declined
+      - continue_local_selected
+      - local_flow_continued_after_decline
+    evidence_consumer:
+      - scoreboard_row:service_opt_in_boundary.resume_managed_reauth_required
+      - support_bundle:managed_workspace_summary
+
+  - scenario_id: tsc.start_from_prebuild_ts_web_app_bypass
+    measurement_surfaces:
+      - surface_first_open
+      - surface_first_useful_edit
+    entry_route_id: er.start_center
+    entry_verb: start_from_snapshot
+    target_kind: template_or_prebuild_snapshot
+    resulting_mode: open_prebuild_with_setup_actions
+    archetype_detection_outcome: certified_archetype_match
+    archetype_hint: ts_web_app
+    first_useful_work_target_surface: prebuild_setup_envelope
+    restore_class: not_applicable
+    fixture_repo_refs:
+      - fixture.entry_start_from_prebuild
+      - fixture.archetype_ts_web_app_seed
+    readiness_bucket_task_rows:
+      - task_id: side_effect_envelope_disclosure
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_template_manifest_only
+        expected_outcome: envelope_advertised_before_commit
+      - task_id: node_toolchain_detect
+        bucket: recommended_soon
+        execution_boundary: local_machine
+        side_effect_class: reads_package_manager_state_only
+        expected_outcome: detected_no_install
+      - task_id: dependency_install
+        bucket: optional_later
+        execution_boundary: local_machine
+        side_effect_class: package_install_if_accepted
+        expected_outcome: bypassed_via_open_prebuild_minimal
+      - task_id: devcontainer_attach
+        bucket: optional_later
+        execution_boundary: container
+        side_effect_class: devcontainer_attach_if_accepted
+        expected_outcome: bypassed_via_open_prebuild_minimal
+    setup_posture_summary:
+      blocking_now_count: 1
+      recommended_soon_count: 1
+      optional_later_count: 2
+    no_account_path: true
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - first_open_completed
+      - first_useful_navigation_reached
+      - first_useful_edit_started
+      - first_useful_edit_durable
+    evidence_consumer:
+      - scoreboard_row:no_account_local_work.prebuild_minimal_bypass_same_weight
+      - benchmark_family:certified_archetype_workflows
+
+  - scenario_id: tsc.recent_work_reopen_missing_target_locate
+    measurement_surfaces:
+      - surface_first_open
+      - surface_restore_success
+    entry_route_id: er.recent_work_reopen
+    entry_verb: open
+    target_kind: local_repo_root
+    resulting_mode: repo_root
+    archetype_detection_outcome: probable_archetype_partial
+    first_useful_work_target_surface: locate_missing_target_prompt
+    restore_class: evidence_only
+    fixture_repo_refs:
+      - fixture.entry_recent_work_missing_target
+    readiness_bucket_task_rows:
+      - task_id: missing_target_classification
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_recent_work_row_only
+        expected_outcome: missing_target_advertised_not_reachable
+      - task_id: locate_missing_target
+        bucket: blocking_now
+        execution_boundary: local_machine
+        side_effect_class: reads_filesystem_identity_only
+        expected_outcome: user_relocates_or_removes_recent
+      - task_id: remove_from_recents
+        bucket: optional_later
+        execution_boundary: local_machine
+        side_effect_class: writes_recent_work_registry_only
+        expected_outcome: removed_if_chosen
+    setup_posture_summary:
+      blocking_now_count: 2
+      recommended_soon_count: 0
+      optional_later_count: 1
+    no_account_path: true
+    expected_events:
+      - entry_verb_resolved
+      - target_kind_classified
+      - resulting_mode_committed
+      - admission_decided
+      - restore_missing_target_classified
+      - restore_recovery_class_selected
+      - restore_completed
+    evidence_consumer:
+      - scoreboard_row:intentionally_narrowed_capability.recent_row_missing_target_advertised
+      - support_bundle:recent_work_summary
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+#
+# Quick-reference coverage across measurement surfaces and entry routes.
+# Tooling can validate that every surface has at least one scenario and
+# every entry route is exercised at least once, without re-parsing
+# scenarios.
+# -----------------------------------------------------------------------------
+coverage:
+  by_measurement_surface:
+    surface_first_run:
+      - tsc.first_run_start_center_local_folder
+    surface_first_open:
+      - tsc.first_run_start_center_local_folder
+      - tsc.plain_open_local_folder_unknown_archetype
+      - tsc.protocol_handler_reentry_single_file
+      - tsc.clone_then_review_remote_repo
+      - tsc.import_vs_code_settings_dry_run_then_apply
+      - tsc.resume_managed_cloud_workspace_reauth_required
+      - tsc.start_from_prebuild_ts_web_app_bypass
+      - tsc.recent_work_reopen_missing_target_locate
+    surface_first_useful_edit:
+      - tsc.first_run_start_center_local_folder
+      - tsc.plain_open_local_folder_unknown_archetype
+      - tsc.protocol_handler_reentry_single_file
+      - tsc.restore_prompt_after_crash_compatible
+      - tsc.start_from_prebuild_ts_web_app_bypass
+    surface_migration_review:
+      - tsc.import_vs_code_settings_dry_run_then_apply
+    surface_restore_success:
+      - tsc.restore_prompt_after_crash_compatible
+      - tsc.recent_work_reopen_missing_target_locate
+    surface_opt_in_boundary:
+      - tsc.clone_then_review_remote_repo
+      - tsc.resume_managed_cloud_workspace_reauth_required
+
+  by_entry_route:
+    er.start_center:
+      - tsc.first_run_start_center_local_folder
+      - tsc.start_from_prebuild_ts_web_app_bypass
+    er.recent_work_reopen:
+      - tsc.recent_work_reopen_missing_target_locate
+    er.restore_prompt:
+      - tsc.restore_prompt_after_crash_compatible
+    er.protocol_handler_reentry:
+      - tsc.protocol_handler_reentry_single_file
+      - tsc.resume_managed_cloud_workspace_reauth_required
+    er.clone_or_import:
+      - tsc.clone_then_review_remote_repo
+      - tsc.import_vs_code_settings_dry_run_then_apply
+    er.plain_open:
+      - tsc.plain_open_local_folder_unknown_archetype
+    er.workspace_switch: []
+    er.warm_start: []
+
+  reserved_entry_routes:
+    - route: er.workspace_switch
+      reason: >
+        Workspace-switcher scenarios land when the command-palette
+        workspace-switcher surface seeds; reserved so the scoreboard
+        row shape exists before the scenario does.
+    - route: er.warm_start
+      reason: >
+        Warm-start continuity (no restore prompt) is observable once
+        the continuity-card surface lands. Reserved so the measurement
+        plan's "warm-start ≠ restore prompt" rule has a slot waiting.

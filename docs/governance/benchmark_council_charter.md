@@ -18,6 +18,17 @@ Companion artifacts:
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — the `benchmark_dispute` and `perf_regression` issue classes
   route to this council.
+- [`/docs/product/onboarding_measurement_plan.md`](../product/onboarding_measurement_plan.md)
+  — measurement plan for first-run, first open, first useful
+  edit, migration review, restore success, and opt-in-versus-
+  continue-local behaviour. The council reads this plan's event
+  families when adjudicating Bootstrap / entry-parity,
+  migration, and certified-archetype scoreboard disputes; the
+  seed corpus
+  ([`/artifacts/product/task_success_corpus_seed.yaml`](../../artifacts/product/task_success_corpus_seed.yaml))
+  and seed scoreboard
+  ([`/artifacts/product/no_account_switching_scoreboard_seed.yaml`](../../artifacts/product/no_account_switching_scoreboard_seed.yaml))
+  are the evidence shape for those scoreboards.
 
 **Seed, not steady state.** The charter below is deliberately thin:
 named roles and a decision scope that prevents ad-hoc metric changes.

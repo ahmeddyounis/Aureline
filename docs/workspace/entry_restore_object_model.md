@@ -939,3 +939,11 @@ or reasons about the records defined in §1 – §5.
   [`schemas/workspace/entry_and_restore_result.schema.json`](../../schemas/workspace/entry_and_restore_result.schema.json).
 - Worked-example fixtures:
   [`fixtures/workspace/entry_restore_examples/`](../../fixtures/workspace/entry_restore_examples/).
+- Onboarding / first-useful-work / migration measurement plan
+  (reads the entry-restore records as the canonical record shape
+  for measurement):
+  [`docs/product/onboarding_measurement_plan.md`](../product/onboarding_measurement_plan.md).
+  Task-success corpus seed:
+  [`artifacts/product/task_success_corpus_seed.yaml`](../../artifacts/product/task_success_corpus_seed.yaml).
+  No-account switching scoreboard seed:
+  [`artifacts/product/no_account_switching_scoreboard_seed.yaml`](../../artifacts/product/no_account_switching_scoreboard_seed.yaml).
