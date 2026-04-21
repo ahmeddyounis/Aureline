@@ -1,0 +1,946 @@
+{
+  "schema_version": 1,
+  "corpus_id": "aureline.largefile_proto_scenarios.v1",
+  "aggregate": {
+    "total_scenarios": 7,
+    "total_large_file_mode_enter": 6,
+    "total_paged_reads": 46,
+    "total_pages_read_from_disk": 41,
+    "total_pages_evicted": 28,
+    "total_bytes_read_from_disk": 8821,
+    "total_edits_denied": 42,
+    "total_edits_downgraded": 12,
+    "total_saves_denied": 6
+  },
+  "scenarios": [
+    {
+      "label": "normal_mode_clean_small_text",
+      "fixture_name": "clean_small_text.txt",
+      "fixture_size": 499,
+      "mode": "normal",
+      "trigger": "none",
+      "reason": "no large-file trigger fired (size 499 <= threshold 104857600, sniff clean)",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 2,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..499",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "accepted",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "accepted: whole-file save participants are allowed in normal mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 0,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 2,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 2,
+        "pages_served_from_cache": 0,
+        "pages_evicted": 0,
+        "bytes_read_from_disk": 499,
+        "bytes_resident_high_water": 499
+      }
+    },
+    {
+      "label": "trigger_size_threshold",
+      "fixture_name": "above_threshold_text.txt",
+      "fixture_size": 1026,
+      "mode": "large_file",
+      "trigger": "size_threshold",
+      "reason": "on-disk size 1026 bytes exceeds policy threshold 256 bytes",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 5,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..1026",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 10,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 10,
+        "pages_served_from_cache": 0,
+        "pages_evicted": 8,
+        "bytes_read_from_disk": 2052,
+        "bytes_resident_high_water": 512
+      }
+    },
+    {
+      "label": "trigger_classification_null_byte",
+      "fixture_name": "null_byte_blob.bin",
+      "fixture_size": 140,
+      "mode": "large_file",
+      "trigger": "classification",
+      "reason": "sniff classified file as binary (null_bytes=true, non_printable_per_mille=57)",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 1,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..140",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 2,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 1,
+        "pages_served_from_cache": 1,
+        "pages_evicted": 0,
+        "bytes_read_from_disk": 140,
+        "bytes_resident_high_water": 140
+      }
+    },
+    {
+      "label": "trigger_classification_minified_long_line",
+      "fixture_name": "minified_long_line.js",
+      "fixture_size": 2118,
+      "mode": "large_file",
+      "trigger": "classification",
+      "reason": "sniff classified file as minified (max_line_length_in_sniff=1956 >= threshold 512)",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 9,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..2118",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 18,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 18,
+        "pages_served_from_cache": 0,
+        "pages_evicted": 16,
+        "bytes_read_from_disk": 4236,
+        "bytes_resident_high_water": 512
+      }
+    },
+    {
+      "label": "trigger_classification_pack_suffix",
+      "fixture_name": "pack_suffix_clean.min.js",
+      "fixture_size": 380,
+      "mode": "large_file",
+      "trigger": "classification",
+      "reason": "path matches a workspace 'large-file pack' suffix",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 2,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..380",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 4,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 2,
+        "pages_served_from_cache": 2,
+        "pages_evicted": 0,
+        "bytes_read_from_disk": 380,
+        "bytes_resident_high_water": 380
+      }
+    },
+    {
+      "label": "trigger_decode_posture",
+      "fixture_name": "decode_recovery_target.txt",
+      "fixture_size": 442,
+      "mode": "large_file",
+      "trigger": "decode_posture",
+      "reason": "decode recovery resolved with 'open in large-file mode' from the user surface",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 2,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..442",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 4,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 2,
+        "pages_served_from_cache": 2,
+        "pages_evicted": 0,
+        "bytes_read_from_disk": 442,
+        "bytes_resident_high_water": 442
+      }
+    },
+    {
+      "label": "trigger_operator_override",
+      "fixture_name": "operator_override_target.txt",
+      "fixture_size": 536,
+      "mode": "large_file",
+      "trigger": "operator_override",
+      "reason": "user opened the file in large-file mode explicitly",
+      "page_size": 256,
+      "max_resident_pages": 2,
+      "page_count": 3,
+      "steps": [
+        {
+          "kind": "read_range",
+          "detail": "0..536",
+          "outcome": "ok",
+          "capability_id": ""
+        },
+        {
+          "kind": "find_first",
+          "detail": "needle",
+          "outcome": "ok: not_found",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportCursorInsert",
+          "outcome": "accepted",
+          "capability_id": "view"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "ViewportMultiCursor",
+          "outcome": "accepted",
+          "capability_id": "multi_cursor_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchViewport",
+          "outcome": "accepted",
+          "capability_id": "search_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "SearchWholeFile",
+          "outcome": "downgraded: offered as streaming search variant only",
+          "capability_id": "search_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "WholeFileMultiCursor",
+          "outcome": "denied: multi-cursor edits across the whole file are denied",
+          "capability_id": "multi_cursor_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileFormatOnSave",
+          "outcome": "denied: save participants that rewrite the whole file are denied",
+          "capability_id": "full_file_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeFormatOnSave",
+          "outcome": "accepted",
+          "capability_id": "range_format_on_save"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "FullFileAiApply",
+          "outcome": "denied: whole-file AI apply is denied in large-file mode",
+          "capability_id": "ai_apply_whole_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RangeAiApply",
+          "outcome": "downgraded: AI apply is offered for ranges only; whole-file apply is denied",
+          "capability_id": "ai_apply_range"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorSingleFile",
+          "outcome": "denied: rich refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_single_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "RichRefactorMultiFile",
+          "outcome": "denied: rich multi-file refactor is denied in large-file mode",
+          "capability_id": "rich_refactor_multi_file"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "Indexing",
+          "outcome": "denied: background indexing is denied for large-file buffers",
+          "capability_id": "indexing"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsViewport",
+          "outcome": "accepted",
+          "capability_id": "diagnostics_viewport"
+        },
+        {
+          "kind": "attempt_edit",
+          "detail": "DiagnosticsWholeFile",
+          "outcome": "denied: full-file diagnostics are denied in large-file mode",
+          "capability_id": "diagnostics_whole_file"
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithWholeFileParticipants",
+          "outcome": "denied: save participants that rewrite the whole file are denied in large-file mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "WithRangeOnlyParticipants",
+          "outcome": "accepted: range-only save participants are allowed in any mode",
+          "capability_id": ""
+        },
+        {
+          "kind": "attempt_save",
+          "detail": "EditedRangeOnly",
+          "outcome": "accepted: edited-range-only save is allowed in any mode",
+          "capability_id": ""
+        }
+      ],
+      "hook_counters": {
+        "buffer_open": 1,
+        "large_file_mode_enter": 1,
+        "large_file_mode_exit": 0,
+        "save_participant_rebase": 0,
+        "journal_inverse_rejected": 0,
+        "paged_read": 6,
+        "classification_recorded": 1
+      },
+      "reader_metrics": {
+        "pages_read_from_disk": 6,
+        "pages_served_from_cache": 0,
+        "pages_evicted": 4,
+        "bytes_read_from_disk": 1072,
+        "bytes_resident_high_water": 512
+      }
+    }
+  ]
+}
