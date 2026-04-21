@@ -328,6 +328,38 @@ code.
   [`/fixtures/benchmarks/corpus_manifest.yaml`](../fixtures/benchmarks/corpus_manifest.yaml);
   reference-workspace seeds live under
   [`/fixtures/workspaces/reference/`](../fixtures/workspaces/reference/).
+- [`benchmarks/journey_trace_taxonomy.md`](./benchmarks/journey_trace_taxonomy.md)
+  — normative companion to the protected user-journey trace record.
+  Freezes the closed vocabularies for `journey_class`
+  (`startup_to_first_useful_chrome`, `startup_to_first_paint`,
+  `shell_open`, `placeholder_open`, `placeholder_edit`,
+  `placeholder_save`, `open_edit_save`, `restore_adjacent`,
+  `recovery_journal_restore_flow`, `boundary_truth_contract_replay`),
+  `checkpoint_class` (`journey_start`, `journey_end`,
+  `protected_path_event`, `degraded_transition`,
+  `fallback_transition`, `provisional_segment_boundary`),
+  `segment_class` (every `protected_journey_class` value plus
+  `provisional_segment`), `degraded_posture_class` (`healthy`,
+  `reduced_chrome_only`, `degraded_renderer_banner_visible`,
+  `responsive_fallback_active`,
+  `missing_target_recovered_to_layout_only`,
+  `missing_target_recovered_to_compatible`), and
+  `fallback_posture_class` (`none`, `glyph_fallback_active`,
+  `atlas_shard_rebind`, `atlas_eviction_observed`,
+  `software_renderer_active`, `recovery_journal_replay_active`).
+  Pins the reserved nullable `hardware_definition_ref`,
+  `environment_ref`, `exact_build_identity_ref`,
+  `linked_spike_trace_refs`, `evidence_refs`, and
+  `requirement_refs` slots so reference-capture, release-evidence,
+  and requirement-linkage lanes attach without a schema version
+  bump. Boundary schema in
+  [`/schemas/traces/journey_trace.schema.json`](../schemas/traces/journey_trace.schema.json);
+  committed seeds for startup-to-first-useful-chrome,
+  open-edit-save, and restore-adjacent journeys in
+  [`/fixtures/journeys/`](../fixtures/journeys/); harness wrapper
+  at [`/tools/journey_harness.sh`](../tools/journey_harness.sh)
+  and stdlib-only emitter at
+  [`/tools/journey_harness/journey_harness.py`](../tools/journey_harness/journey_harness.py).
 
 ## Machine-readable registers
 
@@ -393,3 +425,16 @@ above is paired with a YAML form that is authoritative for automation:
   indexed by driver, principle, journey, waiver authority, and
   SLO family. Normative companion in
   [`/docs/benchmarks/fitness_function_catalog.md`](./benchmarks/fitness_function_catalog.md).
+- [`/schemas/traces/journey_trace.schema.json`](../schemas/traces/journey_trace.schema.json)
+  — boundary schema for one protected user-journey trace record
+  the journey harness (tools/journey_harness) emits for startup,
+  shell open, placeholder file open / edit / save, and
+  restore-adjacent flows. Pins every record to one fixture id, one
+  corpus-manifest revision, one minimum build-identity record, one
+  `degraded_posture`, and one `fallback_posture`, with reserved
+  nullable slots for `hardware_definition_ref`, `environment_ref`,
+  `exact_build_identity_ref`, `linked_spike_trace_refs`,
+  `evidence_refs`, and `requirement_refs`. Seeded traces in
+  [`/fixtures/journeys/`](../fixtures/journeys/). Normative
+  companion in
+  [`/docs/benchmarks/journey_trace_taxonomy.md`](./benchmarks/journey_trace_taxonomy.md).

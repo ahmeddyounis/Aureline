@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/traces/journey_trace.schema.json",
+  "title": "Aureline protected user-journey trace record",
+  "description": "Boundary schema for one protected user-journey trace record the journey harness (tools/journey_harness) emits for startup, shell-open, placeholder file-open / edit / save, and restore-adjacent flows. The record layers over the spike-timing trace (schemas/traces/spike_timing.schema.json): every journey checkpoint carries a protected-path token from the same vocabulary as the spike trace so two surfaces that measure the same bucket cannot rename each other's concepts. The record pins every journey to a single fixture id (from fixtures/benchmarks/corpus_manifest.yaml), a single minimum build-identity record, reserved hardware and environment refs so later lanes wire in without a schema version bump, a degraded and fallback posture per journey, and provisional segment ids that a later trace-taxonomy normalization can promote without renaming fields. Raw log bodies, raw trace bytes, raw file paths outside the repository, and raw signing material never cross this boundary; the record carries opaque ids, typed tokens, integer ticks, and human-readable notes only. Adding a new journey_class, checkpoint_class, segment_class, degraded_posture, or fallback_posture value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/journey_trace_record",
+  "$defs": {
+    "journey_trace_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this journey-trace export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "schema_token": {
+      "type": "string",
+      "const": "aureline.journey_trace.v1",
+      "description": "Frozen schema discriminator. Every journey-trace record carries schema = aureline.journey_trace.v1 so consumers that multiplex several trace families on one parser can route by field."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "journey_trace_record",
+      "description": "Frozen record-kind discriminator. Paired with schema for parsers that route by either field."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id. Used for trace_id, journey_id, fixture_ref, checkpoint_id, segment_id, hardware_definition_ref, environment_ref, evidence_refs, requirement_refs, and linked_spike_trace_refs. No raw URLs, raw file paths outside the repository, raw logs, or raw signing material appear here."
+    },
+    "corpus_manifest_ref_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_id", "manifest_revision"],
+      "properties": {
+        "manifest_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id of the protected benchmark corpus manifest the fixture_ref resolves against. Currently aureline.protected_benchmark_corpus."
+        },
+        "manifest_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Manifest revision the fixture_ref was resolved against. Pinned so later comparability work can tell two runs apart when the manifest rev-bumps."
+        }
+      },
+      "description": "Pins the corpus manifest revision the fixture_ref was read against so later comparability and trend work never guesses which corpus revision a journey was run under."
+    },
+    "build_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crate_name", "crate_version", "rustc_target_triple"],
+      "properties": {
+        "crate_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Cargo crate name of the emitter that produced the journey. In the M0 journey harness this is usually aureline-shell-spike (for journeys sourced from the shell spike) or aureline-journey-harness (for journeys synthesised directly by the harness)."
+        },
+        "crate_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Crate version string embedded at emit time (CARGO_PKG_VERSION for Rust emitters, the harness pinned version for Python emitters)."
+        },
+        "rustc_target_triple": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Compact target triple reported by the emitter (apple-darwin, unknown-linux-gnu, pc-windows-msvc, unknown). The exact-build identity record in schemas/build/exact_build_identity.schema.json is the super-set this field hooks into; the journey harness carries only the minimum it self-reports. The full exact_build_identity_ref rides on exact_build_identity_ref below when a lane has one."
+        }
+      },
+      "description": "Minimum build-identity hook carried on every journey trace so later taxonomy work can upgrade to the full exact-build identity record without renaming fields. See docs/build/exact_build_identity_model.md."
+    },
+    "backend_class": {
+      "type": "string",
+      "enum": [
+        "headless",
+        "native_window",
+        "synthesised"
+      ],
+      "description": "Frozen backend-selection vocabulary. headless / native_window mirror CapabilityManifest.Backend in the shell spike; synthesised is reserved for journeys the harness composes directly from corpus metadata (no shell spike run)."
+    },
+    "host_os_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux",
+        "windows",
+        "unknown"
+      ],
+      "description": "Frozen host-OS vocabulary. unknown covers build hosts that do not match the other three; it is admissible so the schema does not reject developer-local builds on niche hosts."
+    },
+    "protected_journey_class": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "first_useful_chrome",
+        "first_paint",
+        "input_to_paint",
+        "render_submission",
+        "frame_budget",
+        "placeholder_open",
+        "placeholder_edit",
+        "placeholder_save",
+        "fallback_resolution",
+        "observability",
+        "vfs_root_enumeration",
+        "save_pipeline",
+        "recovery_journal_write",
+        "recovery_journal_restore",
+        "boundary_truth_contract"
+      ],
+      "description": "Closed protected-journey vocabulary. Union of docs/benchmarks/spike_metric_names.md §Protected-path vocabulary and the protected_journeys block of fixtures/benchmarks/corpus_manifest.yaml. Two surfaces that share a protected_journey value measure against the same journey budget; a harness MUST NOT invent a synonym."
+    },
+    "journey_class": {
+      "type": "string",
+      "enum": [
+        "startup_to_first_useful_chrome",
+        "startup_to_first_paint",
+        "shell_open",
+        "placeholder_open",
+        "placeholder_edit",
+        "placeholder_save",
+        "open_edit_save",
+        "restore_adjacent",
+        "recovery_journal_restore_flow",
+        "boundary_truth_contract_replay"
+      ],
+      "description": "Frozen journey-class vocabulary. One record describes exactly one journey_class; a multi-journey flow is represented by several records linked through linked_spike_trace_refs or linked_journey_trace_refs. open_edit_save covers the placeholder open / edit / save lifecycle in one record because those checkpoints compose against one fixture. restore_adjacent covers the narrow restore flow the M0 harness can exercise; recovery_journal_restore_flow is reserved for later lanes that drive the full recovery-journal replay."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "journey_start",
+        "journey_end",
+        "protected_path_event",
+        "degraded_transition",
+        "fallback_transition",
+        "provisional_segment_boundary"
+      ],
+      "description": "Closed checkpoint-class vocabulary. journey_start and journey_end bracket every trace. protected_path_event is the default for a checkpoint on the protected-path list (spike hooks or corpus milestones). degraded_transition / fallback_transition mark the explicit entry into the named posture. provisional_segment_boundary is reserved for checkpoints a later taxonomy lane may rename; emitters MAY use it to avoid inventing a new checkpoint class for a single trial segment."
+    },
+    "segment_class": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "first_useful_chrome",
+        "first_paint",
+        "input_to_paint",
+        "render_submission",
+        "frame_budget",
+        "placeholder_open",
+        "placeholder_edit",
+        "placeholder_save",
+        "save_pipeline",
+        "recovery_journal_restore",
+        "boundary_truth_contract",
+        "observability",
+        "provisional_segment"
+      ],
+      "description": "Closed segment-class vocabulary. Every value except provisional_segment is also a protected_journey_class value; provisional_segment is reserved for spans a later taxonomy lane may rename without a schema version bump."
+    },
+    "degraded_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "reduced_chrome_only",
+        "degraded_renderer_banner_visible",
+        "responsive_fallback_active",
+        "missing_target_recovered_to_layout_only",
+        "missing_target_recovered_to_compatible"
+      ],
+      "description": "Closed degraded-posture vocabulary. healthy is the default when the journey ran without a visible degradation; the other values mirror the product-visible degraded states the shell exposes (degraded renderer banner, responsive fallback, layout-only or compatible restore after missing target)."
+    },
+    "fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "glyph_fallback_active",
+        "atlas_shard_rebind",
+        "atlas_eviction_observed",
+        "software_renderer_active",
+        "recovery_journal_replay_active"
+      ],
+      "description": "Closed fallback-posture vocabulary. none is the default; the other values mirror the ADR-0002 fallback / atlas / renderer postures plus the recovery-journal replay path for restore-adjacent journeys."
+    },
+    "tick_value": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative integer tick. In the harness-seeded fixture scene this is a synthetic monotonic tick (0..N) so committed fixtures stay byte-stable; in a wall-clock run this is nanoseconds since the journey started."
+    },
+    "nonneg_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative integer counter."
+    },
+    "checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "checkpoint_class",
+        "protected_journey",
+        "tick"
+      ],
+      "properties": {
+        "checkpoint_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id for the checkpoint inside the trace. Unique per trace; used as from_checkpoint_id / to_checkpoint_id on segments."
+        },
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "protected_journey": { "$ref": "#/$defs/protected_journey_class" },
+        "tick": { "$ref": "#/$defs/tick_value" },
+        "spike_hook_ref": {
+          "type": ["string", "null"],
+          "description": "Optional name of the spike-timing hook (schemas/traces/spike_timing.schema.json#hook_name) that produced this checkpoint. Null when the harness synthesised the checkpoint from corpus metadata rather than reading a spike trace."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Free-form human-readable label carried over from the harness. Not structured."
+        }
+      },
+      "description": "One journey checkpoint. journey_start and journey_end checkpoints MUST be present; intermediate checkpoints are journey-specific."
+    },
+    "segment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "segment_class",
+        "protected_journey",
+        "from_checkpoint_id",
+        "to_checkpoint_id",
+        "duration_ticks"
+      ],
+      "properties": {
+        "segment_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id for the segment inside the trace. Provisional in M0 — the naming convention is `seg.<journey_class>.<segment_class>` so later taxonomy work can promote without renaming."
+        },
+        "segment_class": { "$ref": "#/$defs/segment_class" },
+        "protected_journey": { "$ref": "#/$defs/protected_journey_class" },
+        "from_checkpoint_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "checkpoint_id of the segment's start. MUST resolve to a checkpoint in the same trace's checkpoints[] array."
+        },
+        "to_checkpoint_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "checkpoint_id of the segment's end. MUST resolve to a checkpoint in the same trace's checkpoints[] array whose tick is greater than or equal to the from_checkpoint_id's tick."
+        },
+        "duration_ticks": { "$ref": "#/$defs/tick_value" },
+        "degraded_reason": {
+          "type": ["string", "null"],
+          "description": "Free-form human-readable reason the segment was tagged degraded. Null when the segment ran cleanly. Not structured; the structured posture is on the trace-level degraded_posture and on fallback_posture."
+        },
+        "fallback_reason": {
+          "type": ["string", "null"],
+          "description": "Free-form human-readable reason the segment was tagged fallback. Null when the segment ran cleanly."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Free-form human-readable label. Not structured."
+        }
+      },
+      "description": "One journey segment. A segment is a span between two checkpoints; duration_ticks is the tick delta between them. The harness may emit overlapping segments (input-to-paint over startup, for example); consumers MUST NOT assume segments partition the tick axis."
+    },
+    "counters_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_count",
+        "segment_count",
+        "degraded_segment_count",
+        "fallback_segment_count",
+        "linked_spike_trace_count"
+      ],
+      "properties": {
+        "checkpoint_count": { "$ref": "#/$defs/nonneg_count" },
+        "segment_count": { "$ref": "#/$defs/nonneg_count" },
+        "degraded_segment_count": { "$ref": "#/$defs/nonneg_count" },
+        "fallback_segment_count": { "$ref": "#/$defs/nonneg_count" },
+        "linked_spike_trace_count": { "$ref": "#/$defs/nonneg_count" }
+      },
+      "description": "Aggregate counters for one journey trace. degraded_segment_count counts segments whose degraded_reason is non-null; fallback_segment_count counts segments whose fallback_reason is non-null. linked_spike_trace_count is the length of linked_spike_trace_refs."
+    },
+    "journey_trace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "record_kind",
+        "trace_id",
+        "journey_id",
+        "journey_class",
+        "protected_journeys",
+        "fixture_ref",
+        "corpus_manifest",
+        "build",
+        "backend",
+        "host_os",
+        "hardware_definition_ref",
+        "environment_ref",
+        "exact_build_identity_ref",
+        "degraded_posture",
+        "fallback_posture",
+        "checkpoints",
+        "segments",
+        "counters",
+        "linked_spike_trace_refs",
+        "evidence_refs",
+        "requirement_refs"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schema_token" },
+        "schema_version": { "$ref": "#/$defs/journey_trace_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "journey_id": { "$ref": "#/$defs/opaque_id" },
+        "journey_class": { "$ref": "#/$defs/journey_class" },
+        "protected_journeys": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/protected_journey_class" },
+          "description": "Non-empty ordered list of protected_journey_class values the trace exercises. At least one entry MUST match the fixture_ref's protected_journeys[] block in the corpus manifest; the harness is responsible for the intersection check."
+        },
+        "fixture_ref": { "$ref": "#/$defs/opaque_id" },
+        "corpus_manifest": { "$ref": "#/$defs/corpus_manifest_ref_record" },
+        "build": { "$ref": "#/$defs/build_identity_record" },
+        "backend": { "$ref": "#/$defs/backend_class" },
+        "host_os": { "$ref": "#/$defs/host_os_class" },
+        "hardware_definition_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional hardware-definition ref (see schemas/benchmarks/run_result.schema.json#hardware_definition_record). Null in a self-capture or developer-local run; set when a reference capture resolves against a council-approved baseline."
+        },
+        "environment_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional environment ref. Reserved for later lanes that distinguish power / thermal / display / input environments; null in M0."
+        },
+        "exact_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into the full exact-build identity record (schemas/build/exact_build_identity.schema.json). Null when the lane has not yet wired one; the minimum build-identity record on build is always present."
+        },
+        "degraded_posture": { "$ref": "#/$defs/degraded_posture_class" },
+        "fallback_posture": { "$ref": "#/$defs/fallback_posture_class" },
+        "checkpoints": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/checkpoint_record" },
+          "description": "Ordered checkpoints for the journey. The first checkpoint MUST carry checkpoint_class = journey_start; the last MUST carry journey_end. checkpoint_ids MUST be unique across the array."
+        },
+        "segments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/segment_record" },
+          "description": "Ordered segments for the journey. Every from_checkpoint_id and to_checkpoint_id MUST resolve to a checkpoint in checkpoints. segment_ids MUST be unique across the array."
+        },
+        "counters": { "$ref": "#/$defs/counters_record" },
+        "linked_spike_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into spike-timing trace records that materialise this journey. The harness may cite one aggregate (full_scene) ref or a list of per-label refs; consumers MUST NOT assume one-to-one checkpoint / spike-mark pairing."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into evidence-consumer channels (benchmark_lab.*, support_bundle.*, release_evidence.*, boundary_truth.*). Reserved slot so later release-evidence and support-export lanes can attach evidence without reshaping the record."
+        },
+        "requirement_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into PRD / ADR / TAD requirements this journey covers. Reserved slot so later requirement-linkage work can compose against journey traces without a schema version bump."
+        }
+      },
+      "description": "One journey-trace record. The harness emits one record per journey_class per fixture; a flow that exercises several journeys emits several records keyed on the same fixture_ref with distinct journey_ids."
+    }
+  }
+}

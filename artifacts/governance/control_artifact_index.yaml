@@ -532,6 +532,92 @@ artifacts:
       non-zero after writing the record so the workflow's failure
       signal is authoritative.
 
+  - id: journey_trace_schema
+    title: Protected user-journey trace boundary schema
+    canonical_location: schemas/traces/journey_trace.schema.json
+    overview_page: docs/benchmarks/journey_trace_taxonomy.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    review_cadence: per_milestone
+    visibility_class: internal
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Draft/2020-12 boundary schema for one protected user-journey
+      trace record the journey harness emits for startup, shell open,
+      placeholder file open / edit / save, and restore-adjacent flows.
+      Layers over the spike-timing trace: every checkpoint and segment
+      carries a protected_journey token from the same closed
+      vocabulary as schemas/traces/spike_timing.schema.json and
+      fixtures/benchmarks/corpus_manifest.yaml. Pins each record to
+      one fixture id, one corpus-manifest revision, one minimum
+      build-identity record, one degraded_posture, and one
+      fallback_posture, with reserved nullable slots for
+      hardware_definition_ref, environment_ref,
+      exact_build_identity_ref, linked_spike_trace_refs,
+      evidence_refs, and requirement_refs so reference-capture,
+      release-evidence, and requirement-linkage lanes attach without
+      a schema version bump. Freezes closed vocabularies for
+      journey_class, checkpoint_class, segment_class,
+      degraded_posture_class, fallback_posture_class, and
+      backend_class. Normative companion in
+      docs/benchmarks/journey_trace_taxonomy.md.
+
+  - id: journey_harness_tool
+    title: Protected user-journey trace harness
+    canonical_location: tools/journey_harness.sh
+    overview_page: docs/benchmarks/journey_trace_taxonomy.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    review_cadence: per_milestone
+    visibility_class: internal
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Reproducibility-pinned harness (Bash wrapper plus Python stdlib
+      emitter at tools/journey_harness/journey_harness.py) that emits
+      one journey_trace_record per seeded journey conforming to
+      schemas/traces/journey_trace.schema.json. The wrapper exports
+      SOURCE_DATE_EPOCH, TZ=UTC, and LC_ALL=C so reruns on the same
+      commit produce byte-stable output; the emitter uses synthetic
+      monotonic ticks (0..N) so committed fixtures stay byte-stable
+      across hosts. Resolves fixture_ref against the committed
+      corpus manifest on every emit and fails loudly on an unknown
+      id or an unresolved checkpoint / segment reference. --verify-seed
+      re-emits the seeded set under a tempdir and unified-diffs
+      against fixtures/journeys/ so seed drift fails the check before
+      any later lane admits the record.
+
+  - id: journey_trace_seed
+    title: Protected user-journey trace seeds
+    canonical_location: fixtures/journeys/
+    overview_page: docs/benchmarks/journey_trace_taxonomy.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    review_cadence: per_milestone
+    visibility_class: internal
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Three committed seed journey traces covering
+      journey.startup_to_first_useful_chrome.micro_local_folder
+      (linked to the shell-spike full-scene aggregate trace),
+      journey.open_edit_save.first_useful_edit_rust_self_host
+      (placeholder open / edit / save with save-pipeline and
+      recovery-journal-write segments), and
+      journey.restore_adjacent.restore_last_session_compatible
+      (explicit degraded_transition and fallback_transition
+      checkpoints, with degraded_posture
+      missing_target_recovered_to_compatible and fallback_posture
+      recovery_journal_replay_active). Each fixture_ref resolves
+      against fixtures/benchmarks/corpus_manifest.yaml at the
+      named manifest_revision. The committed seed is stamped with
+      host_os=linux and rustc_target_triple=unknown-linux-gnu so
+      developer-local regeneration on macOS or Windows rewrites
+      only those two fields while the rest stays byte-stable.
+      Emitted journeys are measurement backbone only; they are not
+      themselves admissible as release-evidence input.
+
   - id: no_account_switching_scoreboard_seed
     title: No-account switching scoreboard seed
     canonical_location: artifacts/product/no_account_switching_scoreboard_seed.yaml
