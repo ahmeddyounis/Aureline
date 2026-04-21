@@ -1,0 +1,334 @@
+schema_version: 1
+policy_id: aureline.benchmark_corpus_change_control
+policy_revision: 1
+overview_document: docs/benchmarks/corpus_governance.md
+public_comparison_rules_document: docs/benchmarks/public_comparison_rules.md
+benchmark_council_charter: docs/governance/benchmark_council_charter.md
+corpus_manifest_source: fixtures/benchmarks/corpus_manifest.yaml
+protected_metrics_source: artifacts/bench/protected_metrics.yaml
+fitness_function_catalog_source: artifacts/bench/fitness_function_catalog.yaml
+benchmark_publication_pack_source: docs/benchmarks/benchmark_publication_pack_template.md
+
+governance_assets:
+  - id: microbenchmark_corpus
+    canonical_source: fixtures/benchmarks/corpus_manifest.yaml
+    required_metadata:
+      - scenario_description
+      - hardware_assumptions
+      - hot_path_focus
+      - toolchain_posture
+      - license_status
+      - redaction_status
+    change_authority:
+      - subsystem_lead
+      - performance_owner
+    ci_review_rule: workflow_corpus_still_required_for_protected_claims
+
+  - id: workflow_archetype_corpus
+    canonical_source: fixtures/benchmarks/corpus_manifest.yaml
+    required_metadata:
+      - repo_revision
+      - toolchain_versions
+      - platform_matrix
+      - license_status
+      - redaction_status
+      - protected_journeys
+    change_authority:
+      - performance_owner
+      - architecture_board_for_protected_sets
+    ci_review_rule: protected_path_corpus_review_required
+
+  - id: remote_collaboration_corpus
+    canonical_source: fixtures/benchmarks/corpus_manifest.yaml
+    required_metadata:
+      - network_profile
+      - region_assumptions
+      - remote_image_versions
+      - reconnect_expectations
+    change_authority:
+      - remote_lead
+      - performance_owner
+    ci_review_rule: outage_and_reconnect_scenarios_required
+
+  - id: accessibility_corpus
+    canonical_source: fixtures/benchmarks/corpus_manifest.yaml
+    required_metadata:
+      - assistive_technology_setup
+      - locale
+      - input_method
+      - task_script
+      - task_fidelity_note
+    change_authority:
+      - accessibility_owner
+      - qa_owner
+    ci_review_rule: task_fidelity_must_hold
+
+  - id: protected_metrics_file
+    canonical_source: artifacts/bench/protected_metrics.yaml
+    required_metadata:
+      - threshold_value
+      - rationale
+      - comparability_note
+      - calibration_state
+      - last_calibrated_on
+      - change_authority
+    change_authority:
+      - performance_owner
+      - architecture_board_for_threshold_easing
+    ci_review_rule: protected_metric_diff_check
+
+  - id: public_benchmark_publication_pack
+    canonical_source: docs/benchmarks/benchmark_publication_pack_template.md
+    required_metadata:
+      - exact_command_line
+      - config_refs
+      - version_context
+      - environment_notes
+      - competitor_settings
+      - protected_metrics_revision
+    change_authority:
+      - product_owner
+      - performance_owner
+    ci_review_rule: publication_pack_review
+
+review_rules:
+  workflow_corpus_still_required_for_protected_claims:
+    applies_to:
+      - fixtures/benchmarks/corpus_manifest.yaml
+    blocks_merge_when:
+      - a microbenchmark-only change would become the sole proof for a protected workflow claim
+      - a workflow corpus is removed without an approved trade-off record
+
+  protected_path_corpus_review_required:
+    applies_to:
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - docs/benchmarks/fixture_classes.md
+    blocks_merge_when:
+      - a protected-path corpus changes without recorded approvals
+      - required metadata or lineage fields are missing
+
+  outage_and_reconnect_scenarios_required:
+    applies_to:
+      - fixtures/benchmarks/corpus_manifest.yaml
+    blocks_merge_when:
+      - a remote or collaboration corpus omits outage or reconnect coverage
+
+  task_fidelity_must_hold:
+    applies_to:
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - docs/benchmarks/public_comparison_rules.md
+    blocks_merge_when:
+      - a performance optimization changes assistive-tech task fidelity without review
+
+  protected_metric_diff_check:
+    applies_to:
+      - artifacts/bench/protected_metrics.yaml
+      - artifacts/bench/fitness_function_catalog.yaml
+    blocks_merge_when:
+      - a threshold easing lacks structured rationale
+      - a threshold easing lacks before_after_evidence_refs
+      - a threshold easing lacks release_evidence_ref
+      - a corpus removal on a protected path lacks comparability_note
+
+  publication_pack_review:
+    applies_to:
+      - docs/benchmarks/benchmark_publication_pack_template.md
+      - docs/benchmarks/public_comparison_rules.md
+    blocks_merge_when:
+      - a public comparison change lacks packet-field updates
+      - raw run metadata is not retained by stable ref
+
+  separate_governance_pr_or_explicit_exception:
+    applies_to:
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - artifacts/bench/protected_metrics.yaml
+      - docs/benchmarks/public_comparison_rules.md
+    blocks_merge_when:
+      - a protected benchmark asset change is bundled with a feature change without an explicit exception record
+
+change_classes:
+  - id: corpus_addition
+    example: add a new design-partner repo slice or workflow fixture
+    minimum_approvals:
+      - owner
+      - performance_owner
+      - legal_privacy_if_external
+    release_note_expectation: benchmark_governance_changelog_entry
+    reset_comparability: false
+    required_artifacts:
+      - changelog_entry
+      - updated_corpus_manifest
+      - updated_governance_doc_if_metadata_class_changes
+
+  - id: corpus_removal
+    example: retire a stale protected fixture or reference workspace
+    minimum_approvals:
+      - owner
+      - architecture_board_if_protected
+    release_note_expectation: comparability_impact_note_required
+    reset_comparability: true
+    required_artifacts:
+      - changelog_entry
+      - comparability_note
+      - release_evidence_ref
+
+  - id: threshold_easing
+    example: widen a startup or save latency bar
+    minimum_approvals:
+      - performance_owner
+      - architecture_board
+    release_note_expectation: release_evidence_note_required
+    reset_comparability: false
+    required_artifacts:
+      - protected_metrics_refresh
+      - before_after_evidence_refs
+      - rationale
+      - release_evidence_ref
+
+  - id: threshold_tightening
+    example: harden an existing typing or save bar
+    minimum_approvals:
+      - performance_owner
+    release_note_expectation: calibration_note_required
+    reset_comparability: false
+    required_artifacts:
+      - protected_metrics_refresh
+      - calibration_note
+
+  - id: hardware_image_recalibration
+    example: change the reference laptop SKU or lab OS image
+    minimum_approvals:
+      - performance_owner
+      - release_engineering
+    release_note_expectation: release_family_boundary_note_required
+    reset_comparability: true
+    required_artifacts:
+      - release_boundary_note
+      - updated_publication_pack_fields
+      - updated_hardware_definition_ref
+
+  - id: public_comparison_change
+    example: change competitor version, plugin set, or launch config
+    minimum_approvals:
+      - performance_owner
+      - product_owner
+    release_note_expectation: publication_pack_refresh_required
+    reset_comparability: false
+    required_artifacts:
+      - updated_publication_pack
+      - updated_comparison_rules_ref
+      - updated_competitor_settings_disclosure
+
+workflow_stages:
+  - order: 1
+    id: request_opened
+    must_record:
+      - change_class
+      - affected_assets
+      - affected_corpus_refs_or_metric_ids
+
+  - order: 2
+    id: evidence_captured
+    must_record:
+      - before_after_evidence_refs_when_required
+      - current_corpus_manifest_revision
+      - current_protected_metrics_revision
+
+  - order: 3
+    id: comparability_recorded
+    must_record:
+      - comparability_note
+      - reset_comparability
+
+  - order: 4
+    id: approvals_recorded
+    must_record:
+      - approvals
+      - approval_dates
+
+  - order: 5
+    id: publication_or_release_linked
+    must_record:
+      - release_evidence_ref_when_required
+      - benchmark_publication_pack_ref_when_required
+
+  - order: 6
+    id: merge_gate_checked
+    must_record:
+      - ci_review_rule_results
+
+pr_separation_rule:
+  default: governance_change_must_not_ship_inside_the_feature_pr_it_could_hide
+  exception_requires:
+    - explicit_benchmark_council_approval
+    - changelog_entry_in_same_change
+    - release_evidence_or_publication_pack_link
+  enforced_by_review_rule: separate_governance_pr_or_explicit_exception
+
+external_or_customer_derived_corpus_rules:
+  required_reviews:
+    - licensing
+    - redaction
+    - retention
+    - access_control
+    - legal_privacy
+  ci_admission_requirements:
+    - segregate_private_bytes_from_public_ci
+    - record_retention_class_and_delete_posture
+    - replace_raw_customer_identifiers_with_synthetic_or_redacted_labels
+    - land_corpus_governance_change_separately_from_feature_prs
+  public_packet_rules:
+    - public_packets_may_cite_only_stable_corpus_ids_or_redacted_labels
+    - customer_or_partner_repo_names_must_not_appear_without_written_approval
+    - raw_customer_derived_bytes_must_not_ship_in_public_packets
+
+changelog_template:
+  required_fields:
+    - change_id
+    - change_class
+    - change_summary
+    - affected_assets
+    - affected_corpus_refs_or_metric_ids
+    - rationale
+    - comparability_note
+    - approvals
+    - before_after_evidence_refs
+    - release_evidence_ref
+    - benchmark_publication_pack_ref
+    - effective_revisions
+    - rollback_trigger
+  mandatory_when:
+    threshold_easing:
+      - rationale
+      - comparability_note
+      - approvals
+      - before_after_evidence_refs
+      - release_evidence_ref
+    corpus_removal:
+      - rationale
+      - comparability_note
+      - approvals
+      - release_evidence_ref
+  sample_entry:
+    change_id: benchmark_change.example
+    change_class: threshold_easing
+    change_summary: Replace with the concrete change summary
+    affected_assets:
+      - artifacts/bench/protected_metrics.yaml
+    affected_corpus_refs_or_metric_ids:
+      - ff.example
+    rationale: Explain why the protected path must change
+    comparability_note: Explain what remains comparable and what does not
+    approvals:
+      - performance_owner
+      - architecture_board
+    before_after_evidence_refs:
+      - artifacts/benchmarks/dashboard_seed/raw/example.json
+    release_evidence_ref: artifacts/release/example_packet.yaml
+    benchmark_publication_pack_ref: none
+    effective_revisions:
+      corpus_manifest_before: 1
+      corpus_manifest_after: 1
+      protected_metrics_before: 1
+      protected_metrics_after: 2
+    rollback_trigger: Name the signal that would force reversion

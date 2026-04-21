@@ -10,6 +10,7 @@
 | Release channel                    | `dev_local`                                                           |
 | Workspace version                  | 0.0.0                                                                 |
 | Corpus manifest revision           | 1                                                                     |
+| Protected metrics revision         | 1                                                                     |
 | Fitness-function catalog revision  | 1                                                                     |
 | Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)  |
 | Comparability                      | `not_yet_comparable` (no quarantine reasons)                          |
@@ -41,6 +42,7 @@ Row-count totals: **3 pass**, 0 warn, 0 fail, 0 not_measured, 0 waived,
 
 - Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json`](../raw/benchmark_run.seed.self_capture.json)
 - Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)
+- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)
 - Fitness-function catalog: [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)
 - Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)
 - Trace bundle seed: [`artifacts/traces/examples/full_scene.json`](../../../traces/examples/full_scene.json)

@@ -31,6 +31,9 @@ Companion artifacts:
   — public benchmark/public-proof packet template that composes over
   the raw run-result record when results leave the internal dashboard
   context.
+- [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
+  — revisioned protected-metrics file every run cites alongside the
+  corpus manifest and fitness catalog.
 - [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
   — protected register whose `rows[].id` every run-result row cites.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
@@ -60,9 +63,10 @@ Companion artifacts:
    scoreboards.
 2. Regressions have to be comparable across runs. The schema pins every
    record to a single exact-build identity, a single corpus-manifest
-   revision, a single fitness-catalog revision, and a single hardware
-   definition. If any of those drift, the record's `comparability_class`
-   downgrades before the dashboard compares trends.
+   revision, a single protected-metrics revision, a single
+   fitness-catalog revision, and a single hardware definition. If any
+   of those drift, the record's `comparability_class` downgrades before
+   the dashboard compares trends.
 3. A regression has to be attributable to a named fitness row, a named
    corpus row (where applicable), a named threshold mode, and one
    typed `regression_trigger_ref.kind`. The schema forces a row-level
@@ -85,6 +89,7 @@ Companion artifacts:
   `regression_trigger_ref.kind`.
 - Record envelopes for `hardware_definition_reference`,
   `build_identity_reference`, `corpus_manifest_reference`,
+  `protected_metrics_reference`,
   `fitness_function_catalog_reference`, `toolchain_pin_reference`,
   `comparability_envelope`, `summary_envelope`, and
   `row_measurement_record`.

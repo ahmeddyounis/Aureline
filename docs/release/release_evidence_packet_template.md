@@ -9,6 +9,7 @@ Related control artifacts:
 - artifacts/release/artifact_graph_rules.yaml
 - docs/build/exact_build_identity_model.md
 - docs/benchmarks/benchmark_publication_pack_template.md
+- artifacts/bench/protected_metrics.yaml
 - docs/benchmarks/fitness_function_catalog.md
 - docs/compat/compatibility_row_seed.md
 - docs/deployment/drill_catalog_seed.md
@@ -32,7 +33,7 @@ source_anchor_ref, and waiver packet id. Do not substitute free-text
 - **Owner:** `@handle`
 - **Evidence owner:** `@handle`
 - **Review forums:** `release_council`, `shiproom_executive_scope_review`, `<other forum if required>`
-- **Benchmark-governance revision:** `<catalog-id>@<catalog-revision>`
+- **Benchmark-governance revision:** `<protected-metrics-id>@<metrics-revision>`
 - **Primary exact-build identity set:** list of `exact_build_identity_ref`
 - **Active waiver packet refs:** waiver packet ids or `none`
 
@@ -62,6 +63,7 @@ preview-only, or claim-narrowed.
 
 ## Benchmark and fitness evidence
 
+- **Protected metrics file:** `artifacts/bench/protected_metrics.yaml` (`metrics_file_revision: <n>`)
 - **Catalog:** `artifacts/bench/fitness_function_catalog.yaml` (`catalog_revision: <n>`)
 - **Runs or dashboards cited:** `benchmark_run_id`, `dashboard_id`, or both
 - **Freshness and comparability:** one sentence that says whether the

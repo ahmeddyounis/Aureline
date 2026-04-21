@@ -17,6 +17,11 @@ Companion artifacts:
   — aggregate release-truth packet template.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
   — public benchmark/public-proof packet template.
+- [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
+  — revisioned protected-metrics file cited by claim-bearing benchmark
+  packets.
+- [`/docs/benchmarks/public_comparison_rules.md`](../benchmarks/public_comparison_rules.md)
+  — external publication and head-to-head comparison rules.
 - [`/docs/docs/docs_pack_manifest_contract.md`](../docs/docs_pack_manifest_contract.md)
   — docs/help truth contract used by release docs applicability.
 - [`/docs/security/severity_matrix.md`](../security/severity_matrix.md)
@@ -96,7 +101,7 @@ This document closes that gap.
 | `docs_help_truth` | Docs-pack applicability, Help/About version match, and release-facing docs truth | `docs/docs/docs_pack_manifest_contract.md`, `schemas/docs/docs_pack_manifest.schema.json`, `schemas/docs/help_status_badge.schema.json` | Required whenever the release claims docs/help applicability or ships a docs pack | Raw docs bodies may stay outside the packet; manifest refs and version-match state may not |
 | `schema_contract_export` | Public schemas, manifest contracts, and machine-readable exports that describe the release | `schemas/` plus the matching narrative contract doc under `docs/` | Required whenever a public contract changed or is claimed as shipped | Internal generators and intermediate codegen logs may stay internal |
 | `supply_chain_evidence` | SBOMs, provenance statements, attestations, reproducibility packs, and publication manifests | `docs/governance/provenance_and_compliance_baseline.md`, `docs/build/cleanroom_rebuild_lane.md`, `artifacts/release/provenance_capture_seed.json` | Required for every publishable release-truth bundle | Raw signing material and private signing workflow detail stay internal |
-| `benchmark_public_proof` | Public benchmark claims, benchmark-governance caveats, and methodology disclosures | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml` | Required whenever a release packet or public claim cites performance evidence | Raw traces, restricted fixture bytes, private cohort identifiers, and internal dashboards may stay internal by ref |
+| `benchmark_public_proof` | Public benchmark claims, benchmark-governance caveats, and methodology disclosures | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `docs/benchmarks/public_comparison_rules.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/protected_metrics.yaml`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml` | Required whenever a release packet or public claim cites performance evidence | Raw traces, restricted fixture bytes, private cohort identifiers, and internal dashboards may stay internal by ref |
 | `known_limit_and_disclosure_note` | Known issues, narrowed claims, exclusions, waivers, and caveats required to interpret the bundle honestly | `docs/release/release_evidence_packet_template.md`, `schemas/release/waiver_packet.schema.json`, `docs/` public-truth lane | Required for every publishable release or benchmark packet | Internal discussion can stay internal; the public narrowing note cannot |
 | `advisory_or_revocation_notice` | Active security advisories, revocations, emergency disables, and affected-install scope | `docs/security/severity_matrix.md`, `schemas/security/advisory_record.schema.json`, `schemas/security/incident_workspace_packet.schema.json` | Required whenever an active advisory or revocation touches the claimed scope | Private triage evidence may stay internal if the public advisory carries stable refs and disclosure state |
 | `promotion_evidence` | Rollout-ring, install-topology, rollback-target, continuity-drill, and waiver state for channel movement | `artifacts/release/install_topology_matrix.yaml`, `docs/release/install_topology_plan.md`, `artifacts/support/deployment_drill_catalog_seed.yaml`, `docs/release/release_evidence_packet_template.md` | Required for every preview/beta/stable/LTS promotion claim | Internal operator transcripts may stay internal; ring decision refs and continuity posture may not |
@@ -150,8 +155,8 @@ A publishable benchmark packet MUST contain:
 3. the exact-build identity ref or coordinated identity set;
 4. release-channel and version context;
 5. run-context, comparability, or quarantine posture;
-6. corpus-manifest revision and protected-metrics / fitness-catalog
-   revision;
+6. corpus-manifest revision, protected-metrics revision, and
+   fitness-catalog revision;
 7. the task script or success criterion the reader is meant to trust;
 8. docs/help applicability via the docs-pack revision and
    `version_match_state`;
@@ -176,7 +181,7 @@ The following may remain internal by stable ref:
 |---|---|---|---|
 | Release evidence | `docs/release/release_evidence_packet_template.md`, `artifacts/evidence/evidence_metadata_fields.yaml`, `artifacts/release/artifact_graph_rules.yaml`, `schemas/release/waiver_packet.schema.json` | `release_truth_bundle`, `known_limit_and_disclosure_note`, `promotion_evidence` | Aggregates by stable ref; does not become the canonical source for leaf evidence |
 | Docs/help truth | `docs/docs/docs_pack_manifest_contract.md`, `schemas/docs/docs_pack_manifest.schema.json`, `schemas/docs/help_status_badge.schema.json`, `docs/build/exact_build_identity_model.md` | `docs_help_truth` | Owns docs applicability and version-match truth; release notes and benchmark packets quote it |
-| Benchmark claims | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml` | `benchmark_public_proof` | Owns public benchmark caveats, comparability, and competitor-configuration disclosure |
+| Benchmark claims | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `docs/benchmarks/public_comparison_rules.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/protected_metrics.yaml`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml` | `benchmark_public_proof` | Owns public benchmark caveats, comparability, protected-metrics revisioning, and competitor-configuration disclosure |
 | Support/export packets | `artifacts/support/`, `docs/state/profile_and_state_map.md`, `docs/build/exact_build_identity_model.md`, `docs/security/severity_matrix.md`, `docs/docs/docs_pack_manifest_contract.md` | support-export projections over `build_identity`, `docs_help_truth`, `advisory_or_revocation_notice`, and redaction-bound state/export records | Support/export surfaces quote upstream refs and redaction classes; they do not invent a release-only or benchmark-only dialect |
 | Debug-artifact manifests | `docs/build/exact_build_identity_model.md`, `schemas/build/exact_build_identity.schema.json` | `debug_artifact_manifest` | Owns debug/source-map retention and exact-build linkage; release packets and support exports quote the manifest rather than re-deriving it |
 

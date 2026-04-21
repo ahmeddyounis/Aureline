@@ -64,7 +64,8 @@ Every entry carries:
 
 Per the change policy in
 [`/docs/benchmarks/fixture_classes.md`](../../docs/benchmarks/fixture_classes.md)
-§12:
+§12 and
+[`/docs/benchmarks/corpus_governance.md`](../../docs/benchmarks/corpus_governance.md):
 
 - **Additive-minor** changes land in this directory and in the
   manifest in one change. Cite the motivating scenario or evidence

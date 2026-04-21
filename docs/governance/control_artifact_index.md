@@ -30,7 +30,9 @@ Companion artifacts:
 
 **One home, one owner, one review path.** Every control asset — the
 control-artifact graph, the interface inventory, benchmark governance,
-the benchmark-publication pack, the qualification cadence, the
+the benchmark change-control register, the protected-metrics file, the
+benchmark-publication pack, the public-comparison rules, the
+qualification cadence, the
 compatibility qualification seed, the decision dependency register, the
 build-vs-buy register, the fork-review policy, the supply-chain
 dependency and import registers, the experiment/Labs control registers,
@@ -84,8 +86,9 @@ governance-packet template. The index only names, routes, and scopes.
 
 ### Quality engineering
 
-- The `benchmark_governance`, `benchmark_publication_pack`,
-  `fitness_function_catalog`,
+- The `benchmark_governance`, `benchmark_change_control`,
+  `protected_metrics_file`, `benchmark_publication_pack`,
+  `benchmark_public_comparison_rules`, `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
   `qualification_cadence`, `decision_dependency_register`,
   `build_vs_buy_register`, `critical_dependency_register`,
@@ -99,9 +102,11 @@ governance-packet template. The index only names, routes, and scopes.
 - Public benchmark claims do not ship straight from the raw dashboard
   or a slide deck. They now route through
   [`docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
-  so exact command line, corpus revision, comparability, docs
-  applicability, known limits, and competitor settings are frozen in
-  one packet.
+  and
+  [`docs/benchmarks/public_comparison_rules.md`](../benchmarks/public_comparison_rules.md)
+  so exact command line, corpus revision, protected-metrics revision,
+  comparability, docs applicability, known limits, and competitor
+  settings are frozen in one packet.
 - Disputes about benchmark results route through the benchmark-council
   charter (see `benchmark_governance`); do not open ad-hoc comparison
   threads outside that forum. The `fitness_function_catalog` row is

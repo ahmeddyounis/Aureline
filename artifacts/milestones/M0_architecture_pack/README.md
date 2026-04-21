@@ -18,7 +18,7 @@ Explicit red/yellow/green calls
 | Area | Call | Why |
 |---|---|---|
 | Renderer viability | Yellow | ADR 0002 is accepted and the spike proves hooks and ownership, but the committed shell spike still runs headless and native window binding is deferred. |
-| Benchmark governance | Yellow | The nightly lane, catalog, and dashboard seed exist, but the council-approved hardware baseline and full metric-change policy do not. |
+| Benchmark governance | Yellow | The nightly lane, corpus-governance policy, protected-metrics file, and dashboard seed exist, but the council-approved hardware baseline is not seeded yet. |
 | Ownership | Yellow | Every protected lane has an owner, but all protected backup coverage still rides the `single-maintainer-backup` waiver through 2026-10-19. |
 | Public-truth seeds | Yellow | Docs/help/service-health truth, docs-pack contract, and support-center concept are seeded, but exact-build joins and stale-example enforcement are still open. |
 | Unresolved narrowing decisions | Red | Shell home, keyboard model, accessibility packet home, exact-build identity, and several M1-facing contract families remain narrowed or explicitly deferred. |

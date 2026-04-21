@@ -6,6 +6,9 @@ dashboard or nightly-lab context.
 
 Related control artifacts:
 - docs/benchmarks/benchmark_lab_run_results.md
+- artifacts/bench/protected_metrics.yaml
+- artifacts/bench/corpus_change_control.yaml
+- docs/benchmarks/public_comparison_rules.md
 - artifacts/bench/fitness_function_catalog.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
 - artifacts/evidence/evidence_metadata_fields.yaml
@@ -30,6 +33,7 @@ one packet instead of scattered across dashboards, slides, and memory.
 - **Primary run refs:** list of `run_id`, `dashboard_ref`, or both
 - **Primary exact-build identity refs:** list of `exact_build_identity_ref`
 - **Release channel / workspace version:** `<channel>` / `<version>`
+- **Protected metrics revision:** `<metrics-file-id>@<revision>`
 - **Fitness-function catalog revision:** `<catalog-id>@<revision>`
 - **Corpus manifest revision:** `<manifest-id>@<revision>`
 - **Active waiver packet refs:** waiver packet ids or `none`
@@ -94,6 +98,7 @@ before reading numbers.
 - **Comparable baseline ref:** `<run_id or baseline ref>` or `none`
 - **Comparability note:** one sentence that says what the reader may and
   may not compare this packet against.
+- **Comparison-methodology change ref:** `<change_id from corpus_change_control.yaml>` or `none`
 
 ## Results cited
 
@@ -130,6 +135,7 @@ These items MUST be public in the packet:
 - config refs/digests,
 - exact-build identity refs,
 - channel/version context,
+- protected-metrics revision,
 - run-context and comparability/quarantine posture,
 - corpus revision and task definition,
 - docs/help version-match state,

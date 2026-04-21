@@ -28,6 +28,9 @@ Companion artifacts:
 - [`/docs/governance/benchmark_council_charter.md`](../governance/benchmark_council_charter.md)
   — the council that owns corpus changes, hardware baselines,
   threshold changes, and dispute resolution.
+- [`/docs/benchmarks/corpus_governance.md`](./corpus_governance.md)
+  — change-control policy for protected benchmark corpora and
+  protected-metric changes.
 - [`/artifacts/product/task_success_corpus_seed.yaml`](../../artifacts/product/task_success_corpus_seed.yaml)
   — the task-success corpus seed whose `fixture.archetype_*`
   reservations are materialised by the reference-workspace seeds
@@ -81,9 +84,9 @@ Companion artifacts:
   metric.
 - Telemetry collection, event naming, and wire formats (owned by the
   onboarding measurement plan and ADR-0005).
-- Publication rules for benchmark numbers (owned by the benchmark
-  council charter §N; out of scope until the full metric-change
-  policy lands).
+- Publication rules for benchmark numbers (owned by
+  [`public_comparison_rules.md`](./public_comparison_rules.md); out of
+  scope here).
 
 ## 3. Corpus classes (frozen)
 
@@ -318,9 +321,10 @@ defined home.
   (moving between corpus classes; changing a `protected_journeys`
   list in a way that retargets a fixture across a lane boundary;
   promoting a fixture to `certified_archetype_match`) require a
-  benchmark-council decision per the charter §3. Additive scenario
-  rows that do not cross those lines follow the additive-minor
-  path.
+  benchmark-council decision per the charter §3 and the benchmark
+  change-control policy in
+  [`corpus_governance.md`](./corpus_governance.md). Additive scenario
+  rows that do not cross those lines follow the additive-minor path.
 
 ## 13. What this document is not
 

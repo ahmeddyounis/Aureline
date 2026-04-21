@@ -10,6 +10,7 @@
 | Release channel                    | `dev_local`                                                            |
 | Workspace version                  | 0.0.0                                                                  |
 | Corpus manifest revision           | 1                                                                      |
+| Protected metrics revision         | 1                                                                      |
 | Fitness-function catalog revision  | 1                                                                      |
 | Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)   |
 | Comparability                      | `not_yet_comparable` (no quarantine reasons)                           |
@@ -48,5 +49,6 @@ carries.
 
 - Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.regression_example.json`](../raw/benchmark_run.seed.regression_example.json)
 - Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)
+- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)
 - Fitness-function catalog row: `ff.benchmark_lab_health` in [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)
 - Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)

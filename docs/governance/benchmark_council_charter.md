@@ -2,10 +2,10 @@
 
 This is the **seed** charter for the benchmark council. It names the
 roles, the decision scope, the cadence, a quorum placeholder, and the
-escalation route. It does **not** yet specify the full metric-change
-policy, the public-comparison rules, or stable-surface contract
-metadata — those are explicitly out of scope at the foundations
-milestone and will land as separate artifacts before the first beta.
+escalation route. It does **not** duplicate the detailed benchmark
+change-control policy, the public-comparison rules, or stable-surface
+contract metadata. The first two now live in separate benchmark-lane
+artifacts; stable-surface contract metadata remains deferred.
 
 Companion artifacts:
 
@@ -25,9 +25,14 @@ Companion artifacts:
   — the `benchmark_lab` lane and the `performance_council` decision
   forum referenced below.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
-  — canonical public benchmark packet skeleton. It freezes packet
-  contents and caveat disclosure, but it does not replace the still-
-  deferred public-comparison policy.
+  — canonical public benchmark packet skeleton.
+- [`/docs/benchmarks/corpus_governance.md`](../benchmarks/corpus_governance.md)
+  and
+  [`/artifacts/bench/corpus_change_control.yaml`](../../artifacts/bench/corpus_change_control.yaml)
+  — benchmark corpus governance and protected-metric change-control
+  policy.
+- [`/docs/benchmarks/public_comparison_rules.md`](../benchmarks/public_comparison_rules.md)
+  — public benchmark comparison rules.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — the `benchmark_dispute` and `perf_regression` issue classes
   route to this council.
@@ -45,9 +50,8 @@ Companion artifacts:
 
 **Seed, not steady state.** The charter below is deliberately thin:
 named roles and a decision scope that prevents ad-hoc metric changes.
-Once the project has a second maintainer and the full metric-change
-policy can land, this document is superseded by a complete charter
-and recorded as such.
+Once the project has a second maintainer and the full steady-state
+charter can land, this document is superseded and recorded as such.
 
 ## Purpose
 
@@ -109,8 +113,9 @@ The council decides, within its scope:
 The council does **not** decide:
 
 - Public-comparison framing, competitive-comparison rules, or
-  publication of benchmark numbers as marketing claims. Those land in
-  the full metric-change policy and the claim-manifest process.
+  publication of benchmark numbers as marketing claims. Those live in
+  `docs/benchmarks/public_comparison_rules.md` and the claim-manifest
+  process.
 - Stable-surface contract metadata. That is deferred.
 - Release go / no-go. That is the release council.
 
@@ -164,17 +169,16 @@ not treat the placeholder as final.
 The following are **not** defined here and must not be inferred from
 this charter:
 
-- The full metric-change policy (what metrics exist, how they are
-  named, how they are versioned, how they map to claim-manifest
-  entries).
-- Public-comparison rules (when the project may publish benchmark
-  numbers externally, what framing is required, and which numbers
-  are never published).
+- The detailed benchmark change-control policy (that lives in
+  `docs/benchmarks/corpus_governance.md` and
+  `artifacts/bench/corpus_change_control.yaml`).
+- Public-comparison rules (that live in
+  `docs/benchmarks/public_comparison_rules.md`).
 - Stable-surface contract metadata for benchmarks (what qualifies a
   benchmark as part of the public stability promise).
 
-Each of those lands as a separate artifact before the first beta and
-supersedes the matching placeholder section of this seed.
+Those external artifacts complement this seed charter; stable-surface
+metadata still remains to be defined.
 
 ## Change discipline
 

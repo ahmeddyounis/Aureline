@@ -99,8 +99,11 @@ code.
   — release-truth packet template and waiver-aware shiproom structure.
 - [`benchmarks/benchmark_publication_pack_template.md`](./benchmarks/benchmark_publication_pack_template.md)
   — public benchmark/public-proof packet template with exact command
-  line, comparability, docs applicability, exclusion, and competitor
-  disclosure fields.
+  line, comparability, protected-metrics revision, docs applicability,
+  exclusion, and competitor disclosure fields.
+- [`benchmarks/public_comparison_rules.md`](./benchmarks/public_comparison_rules.md)
+  — methodology-only versus claim-bearing publication rules and
+  head-to-head comparison disclosure requirements.
 
 ## Planning
 
@@ -351,6 +354,15 @@ code.
 
 ## Benchmarks and corpus
 
+- [`benchmarks/corpus_governance.md`](./benchmarks/corpus_governance.md)
+  — benchmark corpus-governance and protected-metric change-control
+  policy. Freezes the governance asset matrix, change classes,
+  approval paths, PR-separation rules, external/customer-derived corpus
+  rules, and the changelog requirements for threshold easing or
+  protected-path corpus removal. Machine-readable companions in
+  [`/artifacts/bench/corpus_change_control.yaml`](../artifacts/bench/corpus_change_control.yaml)
+  and
+  [`/artifacts/bench/protected_metrics.yaml`](../artifacts/bench/protected_metrics.yaml).
 - [`benchmarks/fitness_function_catalog.md`](./benchmarks/fitness_function_catalog.md)
   — normative companion to the protected fitness-function catalog.
   Freezes the closed vocabularies for row status, architecture
@@ -543,14 +555,25 @@ above is paired with a YAML form that is authoritative for automation:
   consumer channels, source lineage, and segregation markers per
   fixture. Normative companion in
   [`/docs/benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md).
+- [`/artifacts/bench/corpus_change_control.yaml`](../artifacts/bench/corpus_change_control.yaml)
+  — machine-readable benchmark-governance change-control register:
+  governance asset matrix, change classes, CI gates, external/customer
+  corpus admission rules, PR-separation rule, and protected-path
+  changelog template.
+- [`/artifacts/bench/protected_metrics.yaml`](../artifacts/bench/protected_metrics.yaml)
+  — revisioned protected-metrics file: threshold snapshot, rationale,
+  comparability note, calibration state/date, change authority, CI
+  review rule, and public-reporting posture for every protected
+  fitness row.
 - [`/schemas/benchmarks/run_result.schema.json`](../schemas/benchmarks/run_result.schema.json)
   — boundary schema for one benchmark-lab run-result record. Pins
   every record to a single exact-build identity, a single corpus-
-  manifest revision, a single fitness-catalog revision, and a single
-  hardware-definition ref; freezes closed vocabularies for run
-  context, comparability, quarantine reason, row result, trend
-  direction, threshold mode, SLI kind, data-source kind, lane /
-  trigger class, and `regression_trigger_ref.kind`. Normative
+  manifest revision, a single protected-metrics revision, a single
+  fitness-catalog revision, and a single hardware-definition ref;
+  freezes closed vocabularies for run context, comparability,
+  quarantine reason, row result, trend direction, threshold mode, SLI
+  kind, data-source kind, lane / trigger class, and
+  `regression_trigger_ref.kind`. Normative
   companion in
   [`/docs/benchmarks/benchmark_lab_run_results.md`](./benchmarks/benchmark_lab_run_results.md);
   seeded dashboard baseline in

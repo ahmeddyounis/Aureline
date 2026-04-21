@@ -101,12 +101,15 @@ Companion artifacts:
 - Numeric threshold values for any row. `to_be_set_by_benchmark_council`
   is the deliberate placeholder at this catalog revision; promotion to
   concrete numbers is reserved to the benchmark council charter §3 and
-  lands with the full metric-change policy.
+  governed by
+  [`corpus_governance.md`](./corpus_governance.md) plus
+  [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml).
 - Benchmark hardware baselines. Baselines are named as a decision slot
   in the benchmark council charter §3; enumerating them is deferred.
 - Public-comparison framing, competitive-comparison rules, or
   publication of benchmark numbers as marketing claims. Those belong
-  to the full metric-change policy and the claim-manifest process.
+  to [`public_comparison_rules.md`](./public_comparison_rules.md) and
+  the claim-manifest process.
 - Complete rows for every TAD §3.4 journey. The seven protected rows
   in this catalog plus three provisional rows are the foundations set;
   later milestones extend the register without reshaping the row
@@ -519,8 +522,7 @@ Slicing rules:
   named as a decision slot in the benchmark-council charter §3;
   enumerating them is deferred.
 - It is **not** a public benchmark-results page. Publication rules
-  are owned by the full metric-change policy the benchmark council
-  charter reserves.
+  are owned by [`public_comparison_rules.md`](./public_comparison_rules.md).
 - It is **not** a substitute for the ownership matrix. The matrix
   defines who owns each lane; this catalog defines which fitness
   functions the lanes gate. Lane ids here always resolve back to

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Emit a benchmark-lab run-result record and human-readable summary.
 
-Reads the committed protected corpus manifest and fitness-function
-catalog, assembles one record per invocation conforming to
+Reads the committed protected corpus manifest, protected-metrics file,
+and fitness-function catalog, assembles one record per invocation conforming to
 ``schemas/benchmarks/run_result.schema.json``, and writes the
 companion Markdown summary.
 
@@ -17,8 +17,9 @@ Seed verification (``--verify-seed``) re-emits the two committed
 seed records plus the dashboard snapshot under a temporary directory
 and diffs them against the files under
 ``artifacts/benchmarks/dashboard_seed/`` so a change to this script,
-to the fitness-function catalog, or to the corpus manifest either
-lands with a matching seed refresh or fails the lane.
+to the protected-metrics file, to the fitness-function catalog, or to
+the corpus manifest either lands with a matching seed refresh or fails
+the lane.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ RECORD_KIND = "benchmark_run_result_record"
 
 FITNESS_CATALOG_REL = "artifacts/bench/fitness_function_catalog.yaml"
 CORPUS_MANIFEST_REL = "fixtures/benchmarks/corpus_manifest.yaml"
+PROTECTED_METRICS_REL = "artifacts/bench/protected_metrics.yaml"
 SCHEMA_REL = "schemas/benchmarks/run_result.schema.json"
 
 SEED_OUT_DIR_REL = "artifacts/benchmarks/dashboard_seed"
@@ -122,6 +124,29 @@ def parse_fitness_catalog(text: str) -> dict[str, Any]:
             f"fitness-function catalog at {FITNESS_CATALOG_REL} missing catalog_id or catalog_revision"
         )
     return {"catalog_id": catalog_id, "catalog_revision": catalog_revision}
+
+
+def parse_protected_metrics(text: str) -> dict[str, Any]:
+    metrics_file_id = None
+    metrics_file_revision = None
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("metrics_file_id:") and metrics_file_id is None:
+            metrics_file_id = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("metrics_file_revision:") and metrics_file_revision is None:
+            value = stripped.split(":", 1)[1].strip()
+            metrics_file_revision = int(value)
+        if metrics_file_id is not None and metrics_file_revision is not None:
+            break
+    if metrics_file_id is None or metrics_file_revision is None:
+        raise SystemExit(
+            "protected-metrics file at "
+            f"{PROTECTED_METRICS_REL} missing metrics_file_id or metrics_file_revision"
+        )
+    return {
+        "metrics_file_id": metrics_file_id,
+        "metrics_file_revision": metrics_file_revision,
+    }
 
 
 def pinned_epoch_timestamp() -> str:
@@ -498,6 +523,7 @@ def build_run_record(
     lane: str,
     trigger: str,
     corpus_manifest: dict[str, Any],
+    protected_metrics: dict[str, Any],
     fitness_catalog: dict[str, Any],
     rows: list[dict[str, Any]],
     evidence_channels: list[str],
@@ -522,6 +548,7 @@ def build_run_record(
         "build_identity": build_identity_for(run_id),
         "toolchain_pin": toolchain_pin_seed(),
         "corpus_manifest": corpus_manifest,
+        "protected_metrics": protected_metrics,
         "fitness_function_catalog": fitness_catalog,
         "hardware_definition": hardware_definition_seed(run_id),
         "comparability": {
@@ -563,6 +590,7 @@ def render_self_capture_markdown(record: dict[str, Any]) -> str:
         "| Release channel                    | `dev_local`                                                           |\n"
         "| Workspace version                  | 0.0.0                                                                 |\n"
         f"| Corpus manifest revision           | {record['corpus_manifest']['manifest_revision']}                                                                     |\n"
+        f"| Protected metrics revision         | {record['protected_metrics']['metrics_file_revision']}                                                                     |\n"
         f"| Fitness-function catalog revision  | {record['fitness_function_catalog']['catalog_revision']}                                                                     |\n"
         "| Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)  |\n"
         "| Comparability                      | `not_yet_comparable` (no quarantine reasons)                          |\n\n"
@@ -588,6 +616,7 @@ def render_self_capture_markdown(record: dict[str, Any]) -> str:
         "## Links\n\n"
         "- Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json`](../raw/benchmark_run.seed.self_capture.json)\n"
         "- Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)\n"
+        "- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)\n"
         "- Fitness-function catalog: [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)\n"
         "- Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)\n"
         "- Trace bundle seed: [`artifacts/traces/examples/full_scene.json`](../../../traces/examples/full_scene.json)\n"
@@ -608,6 +637,7 @@ def render_regression_markdown(record: dict[str, Any]) -> str:
         "| Release channel                    | `dev_local`                                                            |\n"
         "| Workspace version                  | 0.0.0                                                                  |\n"
         f"| Corpus manifest revision           | {record['corpus_manifest']['manifest_revision']}                                                                      |\n"
+        f"| Protected metrics revision         | {record['protected_metrics']['metrics_file_revision']}                                                                      |\n"
         f"| Fitness-function catalog revision  | {record['fitness_function_catalog']['catalog_revision']}                                                                      |\n"
         "| Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)   |\n"
         "| Comparability                      | `not_yet_comparable` (no quarantine reasons)                           |\n\n"
@@ -638,6 +668,7 @@ def render_regression_markdown(record: dict[str, Any]) -> str:
         "## Links\n\n"
         "- Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.regression_example.json`](../raw/benchmark_run.seed.regression_example.json)\n"
         "- Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)\n"
+        "- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)\n"
         "- Fitness-function catalog row: `ff.benchmark_lab_health` in [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)\n"
         "- Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)\n"
     )
@@ -658,6 +689,9 @@ def dashboard_snapshot(records: list[dict[str, Any]]) -> dict[str, Any]:
                     "exact_build_identity_ref"
                 ],
                 "corpus_manifest_revision": rec["corpus_manifest"]["manifest_revision"],
+                "protected_metrics_revision": rec["protected_metrics"][
+                    "metrics_file_revision"
+                ],
                 "fitness_function_catalog_revision": rec["fitness_function_catalog"][
                     "catalog_revision"
                 ],
@@ -740,6 +774,9 @@ def emit_seed_set(repo_root: Path, out_dir: Path) -> tuple[dict[str, Any], dict[
     corpus_manifest = parse_corpus_manifest(
         read_text(repo_root / CORPUS_MANIFEST_REL)
     )
+    protected_metrics = parse_protected_metrics(
+        read_text(repo_root / PROTECTED_METRICS_REL)
+    )
     fitness_catalog = parse_fitness_catalog(
         read_text(repo_root / FITNESS_CATALOG_REL)
     )
@@ -755,6 +792,7 @@ def emit_seed_set(repo_root: Path, out_dir: Path) -> tuple[dict[str, Any], dict[
         lane="developer_local",
         trigger="developer_invocation",
         corpus_manifest=corpus_manifest,
+        protected_metrics=protected_metrics,
         fitness_catalog=fitness_catalog,
         rows=self_capture_rows(),
         evidence_channels=evidence_channels_self_capture(),
@@ -767,6 +805,7 @@ def emit_seed_set(repo_root: Path, out_dir: Path) -> tuple[dict[str, Any], dict[
         lane="developer_local",
         trigger="developer_invocation",
         corpus_manifest=corpus_manifest,
+        protected_metrics=protected_metrics,
         fitness_catalog=fitness_catalog,
         rows=regression_example_rows(),
         evidence_channels=evidence_channels_regression_example(),
@@ -853,6 +892,9 @@ def emit_standard_run(
     corpus_manifest = parse_corpus_manifest(
         read_text(repo_root / CORPUS_MANIFEST_REL)
     )
+    protected_metrics = parse_protected_metrics(
+        read_text(repo_root / PROTECTED_METRICS_REL)
+    )
     fitness_catalog = parse_fitness_catalog(
         read_text(repo_root / FITNESS_CATALOG_REL)
     )
@@ -865,6 +907,7 @@ def emit_standard_run(
         lane=lane,
         trigger=trigger,
         corpus_manifest=corpus_manifest,
+        protected_metrics=protected_metrics,
         fitness_catalog=fitness_catalog,
         rows=self_capture_rows(),
         evidence_channels=evidence_channels_self_capture(),
@@ -891,6 +934,9 @@ def emit_regression_run(
     corpus_manifest = parse_corpus_manifest(
         read_text(repo_root / CORPUS_MANIFEST_REL)
     )
+    protected_metrics = parse_protected_metrics(
+        read_text(repo_root / PROTECTED_METRICS_REL)
+    )
     fitness_catalog = parse_fitness_catalog(
         read_text(repo_root / FITNESS_CATALOG_REL)
     )
@@ -901,6 +947,7 @@ def emit_regression_run(
         lane=lane,
         trigger=trigger,
         corpus_manifest=corpus_manifest,
+        protected_metrics=protected_metrics,
         fitness_catalog=fitness_catalog,
         rows=regression_example_rows(),
         evidence_channels=evidence_channels_regression_example(),
