@@ -11,7 +11,16 @@ Companion artifacts:
 
 - [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
   — index row `benchmark_governance` names this charter as the
-  canonical location.
+  canonical location; index row `fitness_function_catalog` names
+  the protected fitness-function register this council waives,
+  renews, and closes against.
+- [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
+  and
+  [`/docs/benchmarks/fitness_function_catalog.md`](../benchmarks/fitness_function_catalog.md)
+  — the machine-readable register and normative companion for every
+  protected fitness function in scope. Decision-scope items 1, 2,
+  and 4 (protected-fitness waivers, corpus changes, threshold
+  changes) resolve against this catalog by `rows[].id`.
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — the `benchmark_lab` lane and the `performance_council` decision
   forum referenced below.

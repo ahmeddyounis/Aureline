@@ -1,0 +1,1086 @@
+# Protected fitness-function catalog.
+#
+# Single machine-readable register of every protected fitness function the
+# benchmark lab, the journey harness, the release-evidence shiproom packets,
+# and the performance-council waiver log resolve against by stable id.
+#
+# Consumers MUST resolve fitness functions by stable id from this file, not
+# by guessing metric names. A row that no downstream lane reads is
+# non-conforming; a row whose metric is cited by release evidence but does
+# not exist here is a validation failure.
+#
+# The human-readable companion is docs/benchmarks/fitness_function_catalog.md;
+# that document is normative for the architecture-driver, architecture-
+# principle, protected-journey, protected-SLO-family, threshold-mode, data-
+# source-kind, waiver-authority, and review-cadence vocabularies. If the two
+# disagree, the document wins and this file is updated in the same change.
+#
+# Ownership rules.
+#   - Every row MUST name an `owner` (primary DRI) and an `owning_lane` drawn
+#     from artifacts/governance/ownership_matrix.yaml#scorecard_lane_index.
+#   - Every row MUST name at least one `architecture_driver`, at least one
+#     `architecture_principle`, and at least one `protected_journey` so the
+#     catalog can be sliced by driver, principle, and journey without
+#     creating a parallel scoreboard.
+#   - Every row MUST name a `waiver_authority` (the forum that may waive
+#     the fitness function) and a `review_cadence`.
+#   - A `row_status: seeded` row MUST name a concrete `data_source`. A
+#     `row_status: provisional` row is explicitly marked provisional and
+#     MUST name the owner for completion.
+#   - Waiver fields and review cadence are explicit on every row; silent
+#     blanks are validation failures.
+#
+# Planning / milestone slugs MUST NOT appear in any id, metric name, tag, or
+# note on this file. Identities here ride into product-adjacent surfaces
+# (benchmark reports, shiproom packets, claim manifests, support bundles).
+
+schema_version: 1
+catalog_id: aureline.protected_fitness_function_catalog
+catalog_revision: 1
+vocabulary_source: docs/benchmarks/fitness_function_catalog.md
+
+# -----------------------------------------------------------------------------
+# Row-status vocabulary.
+#
+# Mirrors artifacts/governance/control_artifact_index.yaml#status_values so the
+# same closure applies: a `provisional` row is named, owned, and slotted but
+# does not yet gate anything; a `seeded` row has a concrete data source and
+# waiver rule; a `not_yet_seeded` row is a reservation that has not acquired
+# a home.
+# -----------------------------------------------------------------------------
+row_statuses:
+  - seeded
+  - provisional
+  - not_yet_seeded
+
+# -----------------------------------------------------------------------------
+# Architecture-driver vocabulary (closed).
+#
+# The nine quality-attribute drivers from the Technical Architecture Document
+# §3.2 "Quality attribute drivers". Every row MUST cite at least one driver.
+# Adding a driver here requires an architecture-council decision; this set is
+# otherwise closed.
+# -----------------------------------------------------------------------------
+architecture_drivers:
+  - latency
+  - scalability
+  - correctness
+  - recoverability
+  - security
+  - portability
+  - extensibility
+  - supportability
+  - accessibility
+
+# -----------------------------------------------------------------------------
+# Architecture-principle vocabulary (closed).
+#
+# The ten architecture principles from the Technical Architecture Document
+# §4.1 "Architecture principles". Every row MUST cite at least one principle
+# the fitness function defends. Adding a principle is an architecture-council
+# decision.
+# -----------------------------------------------------------------------------
+architecture_principles:
+  - local_first_shell_remote_capable_services
+  - one_command_graph
+  - one_execution_context_model
+  - one_semantic_workspace_graph
+  - heavy_work_out_of_process
+  - every_write_is_reversible
+  - caches_disposable_user_state_durable
+  - open_standards_over_bespoke_lock_in
+  - optional_services_additive
+  - accessibility_and_trust_are_system_qualities
+
+# -----------------------------------------------------------------------------
+# Protected-journey vocabulary (aligned, not invented).
+#
+# Union of the protected-path bucket set frozen by
+# docs/benchmarks/spike_metric_names.md and the corpus-manifest
+# `protected_journeys` set at
+# fixtures/benchmarks/corpus_manifest.yaml#protected_journeys. A row MUST
+# cite at least one journey; the set is shared with the corpus manifest so
+# corpus fixtures and fitness functions cross-reference one vocabulary.
+# -----------------------------------------------------------------------------
+protected_journeys:
+  - startup
+  - first_useful_chrome
+  - first_paint
+  - input_to_paint
+  - render_submission
+  - frame_budget
+  - placeholder_open
+  - placeholder_edit
+  - placeholder_save
+  - fallback_resolution
+  - observability
+  - vfs_root_enumeration
+  - save_pipeline
+  - recovery_journal_write
+  - recovery_journal_restore
+  - boundary_truth_contract
+
+# -----------------------------------------------------------------------------
+# Protected-SLO-family vocabulary (closed).
+#
+# Cross-cutting SLO families from the Technical Architecture Document §3.4
+# "Quality-attribute scenarios and measurable SLOs" plus the operational /
+# harness families the benchmark lab is explicitly responsible for. A row
+# MUST cite exactly one family so release evidence can group rows by family
+# without re-deriving the mapping.
+# -----------------------------------------------------------------------------
+protected_slo_families:
+  - startup_and_first_useful_work      # TAD §3.4 "Open repository to first useful navigation/edit"
+  - input_response                     # TAD §3.4 "Keystroke to screen in active editor"
+  - render_submission                  # protected-path bucket, per-frame submission budget
+  - quick_open_and_command_dispatch    # TAD §3.4 "Quick open file/symbol/command"
+  - save_and_filesystem_correctness    # save pipeline, compare-before-write, conflict handling
+  - recoverability_and_restore         # recovery journal, entry restore fidelity
+  - remote_reconnect                   # TAD §3.4 "Attach/reconnect to remote workspace"
+  - rename_with_preview                # TAD §3.4 "Rename with preview"
+  - ai_first_response                  # TAD §3.4 "AI explain selected failure"
+  - power_and_thermal_posture          # TAD §8.7 power / thermal architecture
+  - command_graph_parity               # "one command graph" principle defended by parity gate
+  - benchmark_lab_operational_health   # harness self-health, not a user journey
+
+# -----------------------------------------------------------------------------
+# Threshold-mode vocabulary (closed).
+#
+# How a row's threshold field is interpreted. Adding a mode requires a
+# benchmark-council decision; the vocabulary is otherwise closed.
+# -----------------------------------------------------------------------------
+threshold_modes:
+  - absolute_p50_and_p95               # latency rows — two numeric targets on a named SLI
+  - absolute_p95_only                  # tail-only rows
+  - ratio_gate                         # pass / fail on a ratio (e.g. match rate, parity rate)
+  - counts_only                        # event counters; zero unless noted
+  - boolean_gate                       # hard must-pass contract assertion
+  - to_be_set_by_benchmark_council     # provisional placeholder; mirrors the scoreboard-seed convention
+
+# -----------------------------------------------------------------------------
+# Data-source-kind vocabulary (closed).
+#
+# How a row's measurement is captured today. `to_be_wired_by_benchmark_council`
+# marks a provisional row whose measurement path is not yet wired.
+# -----------------------------------------------------------------------------
+data_source_kinds:
+  - shell_spike_timing_trace           # schemas/traces/spike_timing.schema.json + artifacts/traces/examples/
+  - benchmark_lab_harness_run          # crates/aureline-bench harness output
+  - corpus_fixture_measurement         # direct fixture-backed measurement against a corpus id
+  - support_bundle_summary             # evidence-consumer channel from corpus_manifest
+  - entry_restore_record               # schemas/workspace/entry_and_restore_result.schema.json
+  - governance_packet_self_audit       # benchmark-report packet family reading itself
+  - to_be_wired_by_benchmark_council   # provisional placeholder
+
+# -----------------------------------------------------------------------------
+# Waiver-authority vocabulary.
+#
+# Forum ids from artifacts/governance/ownership_matrix.yaml#decision_forums.
+# The primary waiver authority for every protected fitness function is
+# `performance_council` per docs/governance/dri_map.md §Authority. The lane
+# DRI is named as `co_waiver_authority` on every row so the lane cannot be
+# bypassed by the forum alone.
+# -----------------------------------------------------------------------------
+waiver_authorities:
+  - performance_council
+  - architecture_council
+  - release_council
+  - shiproom_executive_scope_review
+
+# -----------------------------------------------------------------------------
+# Review-cadence vocabulary.
+#
+# Mirrors artifacts/governance/control_artifact_index.yaml#review_cadences so
+# tooling can validate cadence values against one closed set.
+# -----------------------------------------------------------------------------
+review_cadences:
+  - each_change
+  - per_milestone
+  - each_release
+
+# -----------------------------------------------------------------------------
+# Export shape for shiproom / review packets.
+#
+# Every benchmark-report and shiproom packet that cites a protected fitness
+# function MUST carry a fitness_function_snapshot block with the fields
+# below. The block is defined here so release-evidence and shiproom packets
+# consume one frozen shape, and so a packet cannot claim a fitness-function
+# result without naming the catalog row, the data-source identity, and the
+# waiver / expiry posture.
+# -----------------------------------------------------------------------------
+packet_export_shape:
+  fitness_function_snapshot:
+    required_fields:
+      - row_id                         # must resolve to rows[].id below
+      - catalog_revision               # this file's catalog_revision at packet time
+      - measured_on                    # YYYY-MM-DD
+      - measurement_run_id             # opaque run identifier from the harness
+      - data_source_ref                # path or channel id resolved at run time
+      - corpus_refs                    # list of corpus ids from corpus_manifest.yaml
+      - host_platform_class            # host_independent | host_dependent | host_os_pinned
+      - host_os                        # required when host_platform_class != host_independent
+      - rustc_target_triple            # required when host_platform_class != host_independent
+      - threshold_at_measurement       # copy of rows[].threshold at packet time
+      - result                         # pass | fail | not_measured | waived | provisional
+      - waiver_refs                    # list of waiver ids from ownership_matrix.yaml#waivers
+      - expires_on                     # required when result == waived
+    optional_fields:
+      - notes
+      - evidence_consumer_channels_touched
+
+# =============================================================================
+# Fitness-function rows.
+#
+# Ordered by protected-SLO family (startup → input response → render
+# submission → save & filesystem → recoverability → operational health →
+# provisional placeholders). Every row carries explicit owner, data source,
+# cadence, waiver authority, and expiry / review rules.
+# =============================================================================
+rows:
+  # ---------------------------------------------------------------------------
+  # startup_and_first_useful_work
+  # ---------------------------------------------------------------------------
+  - id: ff.warm_start_to_first_paint
+    title: Warm start to first paint
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - latency
+      - recoverability
+    architecture_principles:
+      - local_first_shell_remote_capable_services
+      - heavy_work_out_of_process
+    protected_journeys:
+      - startup
+      - first_paint
+    protected_slo_family: startup_and_first_useful_work
+    metric:
+      name: warm_start_to_first_paint
+      protected_path_bucket: startup
+      hook_list_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+      description: >
+        Time from the warm-start marker (process already resident, workspace
+        already opened once) to the first non-blank frame rendered by the
+        shell on the claimed hardware matrix. This is the single startup mark
+        the shell spike always emits before any input action.
+    threshold_mode: to_be_set_by_benchmark_council
+    threshold:
+      p50_ms: to_be_set_by_benchmark_council
+      p95_ms: to_be_set_by_benchmark_council
+      release_bar_ms: to_be_set_by_benchmark_council
+      slo_family_bar_source:
+        doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        section: §3.4 Quality-attribute scenarios and measurable SLOs
+        journey: "Open repository to first useful navigation/edit"
+    data_source:
+      kind: shell_spike_timing_trace
+      schema: schemas/traces/spike_timing.schema.json
+      example_artifacts: artifacts/traces/examples/
+      corpus_refs:
+        - corpus.workflow.startup_warm_to_first_paint
+        - corpus.reference.micro_local_folder
+      evidence_consumer_channels:
+        - benchmark_lab.bootstrap_entry_parity
+        - support_bundle.performance_summary
+        - release_evidence.claim_manifest
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: each_release
+      re_baseline_trigger: hardware_baseline_change_or_renderer_ADR_supersession
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-render
+    waiver_rules:
+      default_expiry_window_days: 90
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    linked_adrs:
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    linked_decisions:
+      - D-0001
+    notes: >
+      The threshold pair is deliberately left to_be_set_by_benchmark_council
+      at this revision; the benchmark council charter §3 owns threshold
+      changes and the foundations milestone does not promote numeric bars.
+      The metric name is not provisional — it matches the ADR-0002 hook list
+      and the spike-metric-names mapping, so traces and reports converge on
+      one identity.
+
+  - id: ff.first_paint
+    title: First paint per surface
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - latency
+      - accessibility
+    architecture_principles:
+      - local_first_shell_remote_capable_services
+      - accessibility_and_trust_are_system_qualities
+    protected_journeys:
+      - first_paint
+    protected_slo_family: startup_and_first_useful_work
+    metric:
+      name: first_paint
+      protected_path_bucket: first_paint
+      hook_list_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+      description: >
+        First frame emitted by any surface in a session, including on reopen
+        from a hidden state. Paired with warm_start_to_first_paint at scene
+        entry; measured per surface to catch regressions on hidden-pane
+        reveal.
+    threshold_mode: absolute_p50_and_p95
+    threshold:
+      p50_ms: to_be_set_by_benchmark_council
+      p95_ms: to_be_set_by_benchmark_council
+      release_bar_ms: to_be_set_by_benchmark_council
+      slo_family_bar_source:
+        doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        section: §3.4 Quality-attribute scenarios and measurable SLOs
+        journey: "Open repository to first useful navigation/edit"
+    data_source:
+      kind: shell_spike_timing_trace
+      schema: schemas/traces/spike_timing.schema.json
+      example_artifacts: artifacts/traces/examples/
+      corpus_refs:
+        - corpus.workflow.startup_warm_to_first_paint
+        - corpus.workflow.first_useful_edit_rust_self_host
+        - corpus.reference.micro_local_folder
+      evidence_consumer_channels:
+        - benchmark_lab.bootstrap_entry_parity
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: each_release
+      re_baseline_trigger: renderer_ADR_supersession_or_scene_layer_change
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-render
+    waiver_rules:
+      default_expiry_window_days: 90
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    linked_adrs:
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    linked_decisions:
+      - D-0001
+    notes: >
+      Rides the text_and_decoration scene layer. A waiver on this row
+      additionally requires the accessibility / input review lane liaison
+      to sign because accessibility_tree_update is on the same hot-path
+      list; the council cannot silently demote first-paint posture without
+      also touching the accessibility bridge contract.
+
+  # ---------------------------------------------------------------------------
+  # input_response
+  # ---------------------------------------------------------------------------
+  - id: ff.input_to_paint
+    title: Input to paint
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - latency
+      - accessibility
+      - correctness
+    architecture_principles:
+      - local_first_shell_remote_capable_services
+      - heavy_work_out_of_process
+      - accessibility_and_trust_are_system_qualities
+    protected_journeys:
+      - input_to_paint
+    protected_slo_family: input_response
+    metric:
+      name: input_to_paint
+      protected_path_bucket: input_to_paint
+      hook_list_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+      description: >
+        Time from the input boundary (key event, caret motion, selection
+        change, IME composition update, scroll, multi-monitor scale change,
+        line-range reflow) to the frame that reflects the input. Covers
+        every protected input-to-paint hook in ADR-0002 without fragmenting
+        the SLO across widgets.
+    threshold_mode: absolute_p50_and_p95
+    threshold:
+      p50_ms: to_be_set_by_benchmark_council
+      p95_ms: to_be_set_by_benchmark_council
+      release_bar_ms: to_be_set_by_benchmark_council
+      slo_family_bar_source:
+        doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        section: §3.4 Quality-attribute scenarios and measurable SLOs
+        journey: "Keystroke to screen in active editor"
+    data_source:
+      kind: shell_spike_timing_trace
+      schema: schemas/traces/spike_timing.schema.json
+      example_artifacts: artifacts/traces/examples/
+      corpus_refs:
+        - corpus.micro.interaction_safety_cases
+        - corpus.workflow.startup_warm_to_first_paint
+      evidence_consumer_channels:
+        - benchmark_lab.text_stack
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: each_release
+      re_baseline_trigger: text_shaping_or_scene_layer_ADR_supersession
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-render
+    waiver_rules:
+      default_expiry_window_days: 60
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    linked_adrs:
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    linked_decisions:
+      - D-0001
+    notes: >
+      Input-to-paint is the single SLI for every ADR-0002 hot-path hook that
+      maps to the input_to_paint bucket in spike_metric_names.md. Moving a
+      hook out of this bucket requires updating the hook-to-bucket table,
+      the schema, the code, and this row in one change.
+
+  # ---------------------------------------------------------------------------
+  # save_and_filesystem_correctness (covers buffer operations and VFS save /
+  # conflict handling as two rows that share the family)
+  # ---------------------------------------------------------------------------
+  - id: ff.buffer_operations
+    title: Buffer operations latency and undo-class correctness
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-buffer
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - latency
+      - correctness
+      - recoverability
+    architecture_principles:
+      - every_write_is_reversible
+      - caches_disposable_user_state_durable
+      - one_semantic_workspace_graph
+    protected_journeys:
+      - input_to_paint
+      - placeholder_edit
+      - placeholder_save
+    protected_slo_family: save_and_filesystem_correctness
+    metric:
+      name: buffer_operations
+      protected_path_bucket: input_to_paint
+      hook_list_source: docs/adr/0003-buffer-undo-large-file.md
+      description: >
+        Latency and undo-class correctness for buffer operations: text
+        insert / delete, selection change, transaction-grouped undo / redo,
+        structural edit, refactor, formatter run, save-participant group,
+        imported change, machine-generated change, external reload, and
+        decode recovery. Correctness means each operation lands under its
+        ADR-0003 undo-class with the declared compensatable /
+        only-revertible posture.
+    threshold_mode: absolute_p50_and_p95
+    threshold:
+      p50_ms: to_be_set_by_benchmark_council
+      p95_ms: to_be_set_by_benchmark_council
+      release_bar_ms: to_be_set_by_benchmark_council
+      undo_class_correctness_gate: boolean_must_pass
+      slo_family_bar_source:
+        doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        section: §3.4 Quality-attribute scenarios and measurable SLOs
+        journey: "Keystroke to screen in active editor"
+    data_source:
+      kind: corpus_fixture_measurement
+      harness: crates/aureline-bench
+      corpus_refs:
+        - corpus.micro.interaction_safety_cases
+        - corpus.workflow.first_useful_edit_rust_self_host
+        - corpus.large_file.decode_recovery
+      supporting_artifacts:
+        - artifacts/architecture/undo_class_rows.yaml
+        - fixtures/text/buffer_decision_cases/
+      evidence_consumer_channels:
+        - benchmark_lab.text_stack
+        - benchmark_lab.large_file
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: each_release
+      re_baseline_trigger: buffer_ADR_supersession_or_undo_class_taxonomy_change
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-buffer
+    waiver_rules:
+      default_expiry_window_days: 60
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    linked_adrs:
+      - docs/adr/0003-buffer-undo-large-file.md
+    linked_decisions:
+      - D-0002
+    notes: >
+      The correctness half of this row is a boolean contract gate, not a
+      latency number: undo-class misassignment is release-blocking regardless
+      of how fast the operation was. The latency half uses the same
+      to_be_set_by_benchmark_council placeholder as the renderer rows; the
+      numeric bar lands with the full metric-change policy the
+      benchmark-council charter reserves.
+
+  - id: ff.vfs_save_conflict_handling
+    title: VFS save pipeline and conflict handling
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-vfs
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - correctness
+      - recoverability
+      - portability
+      - latency
+    architecture_principles:
+      - every_write_is_reversible
+      - caches_disposable_user_state_durable
+      - local_first_shell_remote_capable_services
+    protected_journeys:
+      - save_pipeline
+      - vfs_root_enumeration
+      - placeholder_save
+      - boundary_truth_contract
+    protected_slo_family: save_and_filesystem_correctness
+    metric:
+      name: vfs_save_conflict_handling
+      protected_path_bucket: save_pipeline
+      hook_list_source: docs/adr/0006-vfs-save-cache-identity.md
+      description: >
+        Correctness of the ADR-0006 save pipeline under every declared
+        failure reason: external_change_detected, watcher_uncertainty,
+        save_conflict, wrong_target_prevention, save_participant_failed,
+        degraded_guarantee_declared, generated_or_managed_write_blocked,
+        read_only_or_policy_blocked, review_required_before_save,
+        review_required_before_rename. Compare-before-write on the strongest
+        identity token is the correctness floor; atomic-replace is the
+        preferred commit mode with named degraded classes for in-place and
+        conditional-remote writes.
+    threshold_mode: boolean_gate
+    threshold:
+      compare_before_write_floor: must_hold
+      save_mode_downgrade_without_envelope_permission: must_not_occur
+      conflict_outcome_taxonomy_completeness: must_match_ADR_0006_closed_set
+      save_pipeline_p50_ms: to_be_set_by_benchmark_council
+      save_pipeline_p95_ms: to_be_set_by_benchmark_council
+    data_source:
+      kind: corpus_fixture_measurement
+      harness: crates/aureline-bench
+      schema: schemas/runtime/vfs_save_envelope.schema.json
+      corpus_refs:
+        - corpus.boundary.filesystem_identity_cases
+        - corpus.boundary.mutation_lineage_cases
+        - corpus.workflow.first_useful_edit_rust_self_host
+      supporting_artifacts:
+        - artifacts/architecture/vfs_tradeoff_rows.yaml
+        - artifacts/io/root_capability_matrix.yaml
+        - fixtures/runtime/vfs_decision_examples/
+      evidence_consumer_channels:
+        - benchmark_lab.vfs_save_pipeline
+        - boundary_truth.save_target_token
+        - boundary_truth.mutation_journal
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: each_release
+      re_baseline_trigger: vfs_ADR_supersession_or_failure_reason_vocabulary_change
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-vfs
+    waiver_rules:
+      default_expiry_window_days: 45
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - release_council
+        - shiproom_executive_scope_review
+    linked_adrs:
+      - docs/adr/0006-vfs-save-cache-identity.md
+    linked_decisions:
+      - D-0003
+    notes: >
+      This row gates the save contract, not just save latency. A waiver
+      that relaxes compare-before-write or silently demotes an atomic save
+      into in-place or conditional-remote requires release-council co-sign
+      in addition to the performance council; that is why the escalation
+      path names the release council explicitly.
+
+  # ---------------------------------------------------------------------------
+  # benchmark_lab_operational_health
+  # ---------------------------------------------------------------------------
+  - id: ff.benchmark_lab_health
+    title: Benchmark-lab operational health
+    row_status: seeded
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: governance_packets
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - supportability
+      - correctness
+      - portability
+    architecture_principles:
+      - open_standards_over_bespoke_lock_in
+      - caches_disposable_user_state_durable
+    protected_journeys:
+      - observability
+      - boundary_truth_contract
+    protected_slo_family: benchmark_lab_operational_health
+    metric:
+      name: benchmark_lab_health
+      protected_path_bucket: observability
+      description: >
+        Self-health of the benchmark harness itself: every fixture cited by
+        a benchmark report resolves to an id in the corpus manifest; every
+        emitted trace conforms to the protected-path schema; the hardware
+        baseline recorded in the report is one the benchmark council has
+        approved; reports are reproducible on the pinned toolchain; no
+        ad-hoc metric name escapes the spike-metric-names.md vocabulary
+        without an accompanying decision row.
+    threshold_mode: boolean_gate
+    threshold:
+      corpus_id_resolution: must_be_total
+      trace_schema_conformance: must_be_total
+      hardware_baseline_is_approved: must_hold
+      ad_hoc_metric_names: must_not_occur
+      reproducible_build_identity_recorded: must_hold
+    data_source:
+      kind: governance_packet_self_audit
+      schema: schemas/governance/governance_packet.schema.json
+      packet_family: benchmark_report
+      corpus_refs:
+        - corpus.workflow.startup_warm_to_first_paint
+        - corpus.workflow.first_useful_edit_rust_self_host
+        - corpus.workflow.plain_open_unknown_archetype
+      supporting_artifacts:
+        - artifacts/governance/governance_packet_template.yaml
+        - artifacts/governance/control_artifact_index.yaml
+        - fixtures/benchmarks/corpus_manifest.yaml
+        - docs/benchmarks/fixture_classes.md
+        - docs/benchmarks/spike_metric_names.md
+      evidence_consumer_channels:
+        - release_evidence.claim_manifest
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: each_change
+      measurement_cadence: each_release
+      re_baseline_trigger: benchmark_council_charter_supersession
+    waiver_authority: performance_council
+    co_waiver_authority: benchmark_lab
+    waiver_rules:
+      default_expiry_window_days: 30
+      renewal_requires_correction_program: true
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    linked_adrs: []
+    linked_decisions: []
+    notes: >
+      This row exists because a fitness catalog that cannot audit itself is
+      not an evidence source. A failure on this row does not just fail the
+      benchmark report — it fails the release-evidence claim manifest that
+      cites the benchmark report, because the claim manifest's evidence
+      owner cannot sign a report the harness cannot vouch for.
+
+  # ---------------------------------------------------------------------------
+  # Provisional rows. Each one carries an explicit owner for completion,
+  # an explicit row_status: provisional, and a data_source.kind of
+  # to_be_wired_by_benchmark_council so no downstream lane mistakes them
+  # for seeded.
+  # ---------------------------------------------------------------------------
+  - id: ff.power_thermal_posture
+    title: Power and thermal posture (provisional)
+    row_status: provisional
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    completion_owner: "@ahmeddyounis"
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - latency
+      - portability
+      - supportability
+      - scalability
+    architecture_principles:
+      - local_first_shell_remote_capable_services
+      - heavy_work_out_of_process
+      - optional_services_additive
+    protected_journeys:
+      - observability
+      - frame_budget
+    protected_slo_family: power_and_thermal_posture
+    metric:
+      name: power_thermal_posture
+      protected_path_bucket: frame_budget
+      description: >
+        Governed posture from TAD §8.7 "Power, thermal, and battery-
+        efficiency architecture": under ThermalConstrained and ProtectCore
+        states the shell must shed the declared workloads (indexing and
+        embedding parallelism, optional prefetch, non-essential visual
+        effects, extension and AI background budgets, marketplace refresh,
+        prebuild warming, non-critical uploads) before touching the
+        protected hot path. The fitness function is "typing / save /
+        navigation hot path remains inside its absolute budget while
+        ThermalConstrained and ProtectCore are asserted on the reference
+        hardware matrix".
+    threshold_mode: to_be_set_by_benchmark_council
+    threshold:
+      hot_path_budget_preserved_under_thermal_constrained: to_be_set_by_benchmark_council
+      hot_path_budget_preserved_under_protect_core: to_be_set_by_benchmark_council
+      background_workload_shed_order_matches_TAD_8_7: to_be_set_by_benchmark_council
+    data_source:
+      kind: to_be_wired_by_benchmark_council
+      intended_kind: corpus_fixture_measurement
+      intended_harness: crates/aureline-bench
+      intended_corpus_refs:
+        - corpus.workflow.startup_warm_to_first_paint
+        - corpus.workflow.first_useful_edit_rust_self_host
+      intended_supporting_artifacts:
+        - .t2/docs/Aureline_Technical_Architecture_Document.md  # §8.7 and Appendix BB
+      intended_evidence_consumer_channels:
+        - benchmark_lab.bootstrap_entry_parity
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: deferred_until_wired
+      re_baseline_trigger: power_thermal_ADR_landing
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-render
+    waiver_rules:
+      default_expiry_window_days: 180
+      renewal_requires_correction_program: false
+      escalation_path:
+        - performance_council
+        - architecture_council
+    linked_adrs: []
+    linked_decisions: []
+    notes: >
+      Provisional. No ADR has been ratified that freezes the power / thermal
+      posture's hook vocabulary and signal sources. The row reserves the id
+      so later lanes wire against one identity; it does not gate releases
+      until row_status moves to seeded and the completion_owner lands a
+      data source.
+
+  - id: ff.restore_fidelity
+    title: Restore fidelity (provisional)
+    row_status: provisional
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-vfs
+    completion_owner: "@ahmeddyounis"
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - recoverability
+      - correctness
+      - portability
+    architecture_principles:
+      - every_write_is_reversible
+      - caches_disposable_user_state_durable
+      - local_first_shell_remote_capable_services
+    protected_journeys:
+      - recovery_journal_write
+      - recovery_journal_restore
+      - boundary_truth_contract
+    protected_slo_family: recoverability_and_restore
+    metric:
+      name: restore_fidelity_match_rate
+      protected_path_bucket: recovery_journal_restore
+      description: >
+        Delivered-versus-advertised restore fidelity across the four
+        restore-fidelity labels frozen by the portable-profile and entry-
+        restore object models (exact, compatible, layout_only,
+        manual_review). Metric is the ratio of restores that deliver at
+        least the advertised label, across the frozen corpus of recovery /
+        restore scenarios. Matches the derived metric named by the
+        onboarding measurement plan ("restore_fidelity_match_rate").
+    threshold_mode: ratio_gate
+    threshold:
+      min_match_rate: to_be_set_by_benchmark_council
+      floor_label: compatible
+      exact_restore_no_replay_rate: to_be_set_by_benchmark_council
+    data_source:
+      kind: to_be_wired_by_benchmark_council
+      intended_kind: entry_restore_record
+      intended_schema: schemas/workspace/entry_and_restore_result.schema.json
+      intended_supporting_artifacts:
+        - docs/workspace/entry_restore_object_model.md
+        - docs/state/profile_and_state_map.md
+        - schemas/profile/portable_profile.schema.json
+        - fixtures/profile/restore_provenance_examples/
+      intended_corpus_refs:
+        - corpus.recovery.restore_last_session_compatible
+        - corpus.recovery.recent_work_missing_target
+        - corpus.recovery.resume_managed_workspace_reauth
+      intended_evidence_consumer_channels:
+        - benchmark_lab.recovery_ladder
+        - support_bundle.crash_recovery_summary
+        - support_bundle.recent_work_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: deferred_until_wired
+      re_baseline_trigger: entry_restore_or_portable_profile_contract_supersession
+    waiver_authority: performance_council
+    co_waiver_authority: aureline-vfs
+    waiver_rules:
+      default_expiry_window_days: 180
+      renewal_requires_correction_program: false
+      escalation_path:
+        - performance_council
+        - architecture_council
+        - release_council
+    linked_adrs: []
+    linked_decisions: []
+    notes: >
+      Provisional. The contracts are frozen (entry_restore and
+      portable_profile), but the harness that measures delivered-versus-
+      advertised fidelity across the corpus is not yet wired. The row
+      names the onboarding-measurement-plan metric identifier
+      ("restore_fidelity_match_rate") so downstream lanes do not invent a
+      parallel name while the row is provisional.
+
+  - id: ff.command_parity
+    title: Command-graph parity (provisional)
+    row_status: provisional
+    owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: shell_command_system
+    completion_owner: "@ahmeddyounis"
+    backup_waiver: single-maintainer-backup
+    architecture_drivers:
+      - correctness
+      - extensibility
+      - accessibility
+      - supportability
+    architecture_principles:
+      - one_command_graph
+      - one_execution_context_model
+      - accessibility_and_trust_are_system_qualities
+    protected_journeys:
+      - observability
+      - boundary_truth_contract
+    protected_slo_family: command_graph_parity
+    metric:
+      name: command_graph_parity
+      protected_path_bucket: observability
+      description: >
+        Parity gate defending the "one command graph" principle. Every
+        first-party command descriptor resolvable from one surface
+        (palette, application menu, context menu, keybinding layer, CLI,
+        AI-tool surface, automation recipe) MUST be resolvable from every
+        other surface with the same stable command id, same typed argument
+        contract, same accessibility label path, and same lifecycle
+        metadata — or carry a typed disabled_reason from the closed set.
+        Measured across the command-descriptor fixtures and the
+        invocation-session packet fixtures.
+    threshold_mode: boolean_gate
+    threshold:
+      stable_command_id_resolution_across_surfaces: must_be_total
+      typed_argument_contract_divergence: must_not_occur
+      accessibility_label_path_divergence: must_not_occur
+      disabled_reason_outside_closed_set: must_not_occur
+    data_source:
+      kind: to_be_wired_by_benchmark_council
+      intended_kind: corpus_fixture_measurement
+      intended_schema: schemas/commands/command_descriptor.schema.json
+      intended_supporting_artifacts:
+        - docs/commands/command_descriptor_contract.md
+        - fixtures/commands/command_descriptor_examples/
+      intended_corpus_refs: []
+      intended_evidence_consumer_channels:
+        - release_evidence.claim_manifest
+        - support_bundle.performance_summary
+    cadence:
+      review_cadence: per_milestone
+      measurement_cadence: deferred_until_wired
+      re_baseline_trigger: command_graph_ADR_landing
+    waiver_authority: performance_council
+    co_waiver_authority: shell_command_system
+    waiver_rules:
+      default_expiry_window_days: 180
+      renewal_requires_correction_program: false
+      escalation_path:
+        - performance_council
+        - architecture_council
+    linked_adrs: []
+    linked_decisions:
+      - D-0007
+    notes: >
+      Provisional. The command-descriptor contract is frozen; the parity
+      harness that enforces it across every surface is not yet wired.
+      Completion requires a command-graph ADR landing so the fitness
+      function has a stable hook vocabulary to measure against.
+
+# =============================================================================
+# Slice index.
+#
+# Minimal cross-reference index so tooling (and humans) can slice protected
+# rows by driver, principle, journey, or waiver authority without building a
+# parallel scoreboard. Each list is derived from the rows above; regenerate
+# this block in the same change that adds or renames a row.
+# =============================================================================
+slices:
+  by_architecture_driver:
+    latency:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+      - ff.input_to_paint
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.power_thermal_posture
+    scalability:
+      - ff.power_thermal_posture
+    correctness:
+      - ff.input_to_paint
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.benchmark_lab_health
+      - ff.restore_fidelity
+      - ff.command_parity
+    recoverability:
+      - ff.warm_start_to_first_paint
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.restore_fidelity
+    security: []
+    portability:
+      - ff.vfs_save_conflict_handling
+      - ff.benchmark_lab_health
+      - ff.power_thermal_posture
+      - ff.restore_fidelity
+    extensibility:
+      - ff.command_parity
+    supportability:
+      - ff.benchmark_lab_health
+      - ff.power_thermal_posture
+      - ff.command_parity
+    accessibility:
+      - ff.first_paint
+      - ff.input_to_paint
+      - ff.command_parity
+  by_architecture_principle:
+    local_first_shell_remote_capable_services:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+      - ff.input_to_paint
+      - ff.vfs_save_conflict_handling
+      - ff.power_thermal_posture
+      - ff.restore_fidelity
+    one_command_graph:
+      - ff.command_parity
+    one_execution_context_model:
+      - ff.command_parity
+    one_semantic_workspace_graph:
+      - ff.buffer_operations
+    heavy_work_out_of_process:
+      - ff.warm_start_to_first_paint
+      - ff.input_to_paint
+      - ff.power_thermal_posture
+    every_write_is_reversible:
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.restore_fidelity
+    caches_disposable_user_state_durable:
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.benchmark_lab_health
+      - ff.restore_fidelity
+    open_standards_over_bespoke_lock_in:
+      - ff.benchmark_lab_health
+    optional_services_additive:
+      - ff.power_thermal_posture
+    accessibility_and_trust_are_system_qualities:
+      - ff.first_paint
+      - ff.input_to_paint
+      - ff.command_parity
+  by_protected_journey:
+    startup:
+      - ff.warm_start_to_first_paint
+    first_useful_chrome: []
+    first_paint:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+    input_to_paint:
+      - ff.input_to_paint
+      - ff.buffer_operations
+    render_submission: []
+    frame_budget:
+      - ff.power_thermal_posture
+    placeholder_open: []
+    placeholder_edit:
+      - ff.buffer_operations
+    placeholder_save:
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+    fallback_resolution: []
+    observability:
+      - ff.benchmark_lab_health
+      - ff.power_thermal_posture
+      - ff.command_parity
+    vfs_root_enumeration:
+      - ff.vfs_save_conflict_handling
+    save_pipeline:
+      - ff.vfs_save_conflict_handling
+    recovery_journal_write:
+      - ff.restore_fidelity
+    recovery_journal_restore:
+      - ff.restore_fidelity
+    boundary_truth_contract:
+      - ff.vfs_save_conflict_handling
+      - ff.benchmark_lab_health
+      - ff.restore_fidelity
+      - ff.command_parity
+  by_waiver_authority:
+    performance_council:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+      - ff.input_to_paint
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.benchmark_lab_health
+      - ff.power_thermal_posture
+      - ff.restore_fidelity
+      - ff.command_parity
+    architecture_council: []
+    release_council: []
+    shiproom_executive_scope_review: []
+  by_protected_slo_family:
+    startup_and_first_useful_work:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+    input_response:
+      - ff.input_to_paint
+    render_submission: []
+    quick_open_and_command_dispatch: []
+    save_and_filesystem_correctness:
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+    recoverability_and_restore:
+      - ff.restore_fidelity
+    remote_reconnect: []
+    rename_with_preview: []
+    ai_first_response: []
+    power_and_thermal_posture:
+      - ff.power_thermal_posture
+    command_graph_parity:
+      - ff.command_parity
+    benchmark_lab_operational_health:
+      - ff.benchmark_lab_health

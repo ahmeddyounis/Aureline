@@ -63,13 +63,19 @@ governance-packet template. The index only names, routes, and scopes.
 
 ### Quality engineering
 
-- The `benchmark_governance`, `qualification_cadence`, and
+- The `benchmark_governance`, `fitness_function_catalog`,
+  `benchmark_corpus_manifest`, `qualification_cadence`, and
   `dependency_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
-  land under the lanes named by those rows.
+  land under the lanes named by those rows. Protected speed and
+  safety claims MUST cite a row in the fitness-function catalog via
+  the `fitness_function_snapshot` packet shape rather than invent a
+  parallel metric.
 - Disputes about benchmark results route through the benchmark-council
   charter (see `benchmark_governance`); do not open ad-hoc comparison
-  threads outside that forum.
+  threads outside that forum. The `fitness_function_catalog` row is
+  the source of truth for which protected fitness functions exist at
+  a given catalog revision and which waiver authority covers each.
 
 ### Docs
 

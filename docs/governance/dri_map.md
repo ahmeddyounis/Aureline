@@ -155,7 +155,7 @@ expiry.
 | Narrowing a non-protected lane for the current milestone.                 | Lane DRI.                                                 |
 | Narrowing a protected lane for the current milestone.                     | Lane DRI plus architecture council.                       |
 | Opening or renewing a backup-owner waiver on a protected lane.            | Lane DRI plus architecture council.                       |
-| Opening or renewing a waiver on a protected fitness function.             | Lane DRI plus performance council, with named expiry.     |
+| Opening or renewing a waiver on a protected fitness function (rows in [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)). | Lane DRI plus performance council, with named expiry. |
 | Opening or renewing a waiver on a public-truth claim.                     | Docs / public-truth DRI plus the claim's evidence owner.  |
 | Re-baselining milestone scope, dates, or acceptance thresholds.           | Architecture council plus release council.                |
 | Declaring a supportability family ready for end-user promotion.           | Support / export DRI plus release council.                |

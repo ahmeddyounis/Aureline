@@ -268,6 +268,23 @@ code.
 
 ## Benchmarks and corpus
 
+- [`benchmarks/fitness_function_catalog.md`](./benchmarks/fitness_function_catalog.md)
+  — normative companion to the protected fitness-function catalog.
+  Freezes the closed vocabularies for row status, architecture
+  driver (the nine TAD §3.2 quality-attribute drivers), architecture
+  principle (the ten TAD §4.1 principles), protected journey
+  (aligned with spike-metric-names and the corpus manifest),
+  protected SLO family, threshold mode, data-source kind, waiver
+  authority, and review cadence. Names the seven seeded rows (warm
+  start, first paint, input-to-paint, buffer operations, VFS save /
+  conflict handling, benchmark-lab operational health) and three
+  provisional rows (power / thermal posture, restore fidelity,
+  command-graph parity). Pins waiver authority to
+  `performance_council` plus the lane DRI per
+  [`governance/dri_map.md`](./governance/dri_map.md) §Authority, and
+  pins the `fitness_function_snapshot` export shape every shiproom
+  and benchmark-report packet consumes. Machine-readable register in
+  [`/artifacts/bench/fitness_function_catalog.yaml`](../artifacts/bench/fitness_function_catalog.yaml).
 - [`benchmarks/spike_metric_names.md`](./benchmarks/spike_metric_names.md)
   — mapping from the ADR-0002 protected-hot-path hook vocabulary to
   the journey-budget buckets the benchmark lab and journey harness
@@ -326,3 +343,16 @@ above is paired with a YAML form that is authoritative for automation:
   consumer channels, source lineage, and segregation markers per
   fixture. Normative companion in
   [`/docs/benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md).
+- [`/artifacts/bench/fitness_function_catalog.yaml`](../artifacts/bench/fitness_function_catalog.yaml)
+  — protected fitness-function catalog: one register of every
+  protected fitness function the benchmark lab, journey harness,
+  release-evidence shiproom packets, and performance-council
+  waiver log resolve against by stable id. Carries closed
+  vocabularies for architecture driver / principle / protected
+  journey / protected SLO family / threshold mode / data-source
+  kind / waiver authority / review cadence, a
+  `packet_export_shape.fitness_function_snapshot` block consumed
+  by benchmark-report and shiproom packets, and a `slices:` block
+  indexed by driver, principle, journey, waiver authority, and
+  SLO family. Normative companion in
+  [`/docs/benchmarks/fitness_function_catalog.md`](./benchmarks/fitness_function_catalog.md).
