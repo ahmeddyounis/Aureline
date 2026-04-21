@@ -1,0 +1,818 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs_pack_manifest.schema.json",
+  "title": "Aureline docs-pack manifest contract",
+  "description": "Boundary schema for the docs_pack_manifest_record and the docs_pack_example_record frozen in docs/docs/docs_pack_manifest_contract.md. A docs-pack manifest is the governed artifact the docs_pack_registry, generated_reference_index, mirrored_docs_index, curated_knowledge_pack_registry, and support_runbook_registry (the canonical owners named in docs/adr/0013-docs-help-service-health-truth.md) publish so every docs pane, docs browser, Help / About footer, service-health row, support summary, onboarding step, and AI-explanation overlay can resolve a help_status_badge_record field-for-field without inventing badge semantics. Raw docs bytes, raw runbook bodies, raw symbol definitions, and raw URLs never cross this boundary; the manifest carries opaque ids, typed vocabulary, and signing / lineage / locale / example-label metadata only. The eventual docs-help-service-health crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new source class, publisher class, signature-status state, mirror-chain-status value, acquired-via value, locale-coverage class, example-label class, stale-example reason, citation-posture value, backlink-posture value, publishable-blocking reason, version-match state, freshness class, client scope, redaction class, or policy-context field is additive-minor and requires a docs_pack_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/docs_pack_manifest_record" },
+    { "$ref": "#/$defs/docs_pack_example_record" }
+  ],
+  "$defs": {
+    "docs_pack_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this docs-pack manifest export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "docs_pack_manifest_record",
+        "docs_pack_example_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw URLs, raw page bodies, raw runbook bodies, and raw symbol definitions never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag (e.g. en, en-US, pt-BR, zh-Hant-HK). Case is normalized by the registry but preserved here for round-trip compatibility."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "support_runbook"
+      ],
+      "description": "Frozen subset of the ADR-0013 source-class vocabulary that is admissible for a docs-pack manifest. Vendor / provider docs ride the connected-provider record (ADR-0010) and are not shipped as docs packs; derived_explanation rows are session-scoped, not packaged; external_status_feed rows are live feeds, not packs."
+    },
+
+    "publisher_class": {
+      "type": "string",
+      "enum": [
+        "first_party_project",
+        "permitted_publisher",
+        "official_upstream_mirror",
+        "operator_curated",
+        "support_pipeline"
+      ],
+      "description": "Frozen publisher-class vocabulary. first_party_project is the running project itself; permitted_publisher is a third-party publisher the project has allow-listed; official_upstream_mirror is a signed mirror of an upstream canonical source; operator_curated is a pack an operator (admin / ops team) assembled for a deployment; support_pipeline is a support-runbook pack pinned by the support-export pipeline."
+    },
+
+    "signature_status": {
+      "type": "string",
+      "enum": [
+        "signed_and_verified",
+        "signed_but_unverified",
+        "signature_missing",
+        "signature_revoked"
+      ],
+      "description": "Frozen signature-status vocabulary. signed_and_verified is the only state that clears the signature gate; every other state is a publishable blocker and surfaces as the signature_unverified degraded-state cause on the help_status_badge_record."
+    },
+
+    "mirror_chain_status": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "continuous",
+        "predecessor_missing",
+        "signing_chain_broken"
+      ],
+      "description": "Frozen mirror-chain-status vocabulary. not_applicable is used for source classes that do not mirror an upstream (project_docs, generated_reference, support_runbook). continuous means every predecessor digest resolves and the signing chain verifies end-to-end. predecessor_missing and signing_chain_broken surface as the mirror_continuity_broken degraded-state cause and are publishable blockers."
+    },
+
+    "acquired_via": {
+      "type": "string",
+      "enum": [
+        "online_fetch",
+        "signed_bundle_import",
+        "air_gapped_media",
+        "local_build_output",
+        "host_process_internal"
+      ],
+      "description": "How this pack revision reached the running instance. online_fetch is a live fetch from the canonical owner. signed_bundle_import is an out-of-band signed bundle (e.g. enterprise distribution). air_gapped_media is an offline import from physical media. local_build_output is a pack built alongside the binary (typical for project_docs / generated_reference). host_process_internal covers packs that the host process ships internally and never persists to disk."
+    },
+
+    "locale_coverage_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial",
+        "machine_assisted",
+        "stub",
+        "stale_copy"
+      ],
+      "description": "Per-locale coverage class. complete means every authoritative page in the primary locale has a reviewed translation. partial means some pages are missing translations and will fall back to the primary locale with a typed disclosure. machine_assisted means translations exist but were produced by a machine-translation pipeline without human review and MUST render a typed disclosure. stub means only page titles / navigation exist and body text falls back. stale_copy means the translation was reviewed but against a prior revision of the source; surfaces MUST render a stale-translation disclosure on the primary surface."
+    },
+
+    "example_label_class": {
+      "type": "string",
+      "enum": [
+        "stable_example",
+        "stale_example",
+        "needs_review_example",
+        "quarantined_example"
+      ],
+      "description": "Frozen example-label vocabulary. stable_example is the publishable default. stale_example means the example references a symbol, setting, command, or API surface that has moved (deprecated, renamed, removed, or whose behavior diverged); surfaces MUST render the stale disclosure on the primary surface (tooltip-only disclosure is forbidden). needs_review_example flags examples whose target moved but whose renderability has not been re-verified. quarantined_example is hidden from docs panes and flagged to the publisher; it still ships in the manifest so parity audits can count it."
+    },
+
+    "stale_example_reason": {
+      "type": "string",
+      "enum": [
+        "deprecated_target_symbol",
+        "removed_target_symbol",
+        "renamed_target_symbol",
+        "lifecycle_state_moved",
+        "setting_default_changed",
+        "behavior_changed",
+        "version_mismatch",
+        "client_scope_no_longer_supported",
+        "policy_blocked_in_context"
+      ],
+      "description": "Frozen stale-example reason vocabulary. Every stale_example / needs_review_example / quarantined_example label carries exactly one reason so parity audits and support exports can enumerate why a pack degraded without free-form strings. Adding a reason is additive-minor and bumps the schema version."
+    },
+
+    "citation_posture": {
+      "type": "string",
+      "enum": [
+        "citation_required",
+        "citation_recommended",
+        "citation_not_required"
+      ],
+      "description": "Pack-level citation posture consumed by the ADR-0013 derived_explanation rule. citation_required means every authoritative claim drawn from this pack MUST carry at least one citation_anchor_record when it backs a user-visible explanation (derived_explanation and support_runbook packs typically sit here). citation_recommended means anchors SHOULD be attached but are not a publishable blocker. citation_not_required is admissible for generated_reference packs whose anchors are the reference itself."
+    },
+
+    "backlink_posture": {
+      "type": "string",
+      "enum": [
+        "backlink_resolvable",
+        "backlink_deferred",
+        "backlink_not_required"
+      ],
+      "description": "Whether anchor ids inside this pack resolve back to the canonical owner on demand. backlink_resolvable means the canonical owner is online and every anchor round-trips. backlink_deferred means anchors are valid but resolve against an offline / cached owner until the next refresh window; parity audits treat deferred backlinks as valid but lower freshness. backlink_not_required is admissible for self-contained reference packs (generated_reference) whose anchors target the pack itself."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification. Computed against the running build's exact-build identity at render time. When the pack is newer than the running client (pack target build is above the client's compat ceiling), the state is incompatible_drift_detected and the pack MUST render a typed degraded-state cause with a repair hook (upgrade_release_channel or refresh_freshness)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json and schemas/docs/help_status_badge.schema.json without modification (ADR-0011 / ADR-0013). A manifest whose last_refreshed_at is outside the refresh_window MUST NOT declare authoritative_live."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json and schemas/docs/help_status_badge.schema.json without modification. A pack whose client_scopes excludes the rendering surface MUST NOT render as available there; the surface projects the client_scope_excludes_surface degraded-state cause instead."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011 / ADR-0007). Declared per-manifest; the broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "publishable_state": {
+      "type": "string",
+      "enum": [
+        "publishable",
+        "draft",
+        "blocked",
+        "withdrawn",
+        "quarantined"
+      ],
+      "description": "publishable is the only state the registry renders to docs panes / docs browser / Help / About / service-health / support surfaces. draft is admissible during authoring and does not resolve on protected surfaces. blocked means at least one publishable_blocking_reason applies. withdrawn is used when a newer revision has superseded this one; withdrawn manifests still resolve for support bundles and evidence packets. quarantined means the publishing pipeline or admin policy has quarantined the pack; surfaces deny render with a typed pack_quarantined cause."
+    },
+
+    "publishable_blocking_reason": {
+      "type": "string",
+      "enum": [
+        "signature_unverified",
+        "mirror_continuity_broken",
+        "pack_quarantined",
+        "source_class_unresolved",
+        "client_scope_empty",
+        "locale_set_empty",
+        "missing_target_build_identity",
+        "required_citation_anchors_missing",
+        "stale_examples_exceed_threshold",
+        "contract_version_unknown",
+        "backlink_unresolvable",
+        "publisher_not_permitted",
+        "policy_blocked"
+      ],
+      "description": "Frozen publishable-blocking-reason vocabulary. Every reason maps to a degraded-state cause on the help_status_badge_record that surfaces consume. A manifest with publishable_state = blocked MUST name at least one reason; a manifest with publishable_state = publishable MUST have an empty blocking-reasons list."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the manifest was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the manifest was minted inside a live execution. Null when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the manifest was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": { "type": "string" }
+      },
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Used on manifests whose publishable_state is blocked to name the hook the registry surfaces alongside the typed blocking reason."
+    },
+
+    "locale_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale", "coverage_class"],
+      "properties": {
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "coverage_class": { "$ref": "#/$defs/locale_coverage_class" },
+        "reviewed_against_source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the source revision the translation was reviewed against. When set and not equal to the pack's pack_revision_ref, the row is a stale_copy candidate."
+        },
+        "page_count_covered": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of authoritative pages the translation covers in this locale. 0 is admissible for stub coverage."
+        },
+        "page_count_total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of authoritative pages in the primary locale the translation aims to cover."
+        }
+      },
+      "description": "Per-locale coverage row. A manifest MAY carry one locale_row per available_locale so parity audits and docs search can surface coverage honestly on mixed-locale packs."
+    },
+
+    "mirror_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mirror_chain_status"],
+      "properties": {
+        "mirror_of_pack_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque id of the upstream pack this manifest mirrors. Required (non-null) when source_class = mirrored_official_docs; null otherwise."
+        },
+        "upstream_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the upstream revision this mirror corresponds to."
+        },
+        "predecessor_pack_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to this mirror's previous revision. Required (non-null) for mirrors with mirror_chain_status = continuous; null for the initial mirror revision."
+        },
+        "mirror_chain_status": { "$ref": "#/$defs/mirror_chain_status" },
+        "acquired_via": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/acquired_via" }
+          ],
+          "description": "How this revision reached the running instance. Null only when mirror_chain_status = not_applicable."
+        },
+        "acquired_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the revision was acquired by the running instance (last online fetch, last bundle import, last media import). Null only when mirror_chain_status = not_applicable."
+        },
+        "offline_expiration_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic deadline after which an offline / air-gapped acquisition MUST be treated as stale regardless of freshness_class. Null for packs acquired_via online_fetch / local_build_output / host_process_internal."
+        },
+        "air_gapped_origin_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Short operator-supplied label for the physical / out-of-band origin of an air-gapped import (e.g. 'enterprise distribution 2026 Q2'). Never contains raw URLs or raw file paths."
+        }
+      },
+      "description": "Offline / mirrored lineage block. Required on every manifest; packs that do not mirror upstream set mirror_chain_status = not_applicable and leave the other fields null. Mirror_continuity_broken / predecessor_missing / signing_chain_broken values map to the ADR-0013 mirror_continuity_broken degraded-state cause."
+    },
+
+    "signing_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signature_status"],
+      "properties": {
+        "signature_status": { "$ref": "#/$defs/signature_status" },
+        "signing_chain_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque digest identifying the signing chain. Required (non-null) for signature_status = signed_and_verified and signed_but_unverified; null for signature_missing and signature_revoked."
+        },
+        "signing_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the signing authority record the registry used to verify this pack."
+        }
+      },
+      "description": "Signing metadata for the pack. signature_missing and signature_revoked are publishable blockers and surface the signature_unverified degraded-state cause."
+    },
+
+    "stable_example_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["example_id", "label_class"],
+      "properties": {
+        "example_id": { "$ref": "#/$defs/opaque_id" },
+        "label_class": {
+          "type": "string",
+          "const": "stable_example",
+          "description": "Fixed on stable_example_ref entries. stale / needs_review / quarantined entries ride the stale_example_ref shape."
+        },
+        "target_symbol_or_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the symbol / anchor the example targets. Lets later citation / symbol-reference packets cross-check that the example's target still resolves."
+        }
+      },
+      "description": "Lightweight reference to a stable example embedded in this pack."
+    },
+
+    "stale_example_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["example_id", "label_class", "stale_reason"],
+      "properties": {
+        "example_id": { "$ref": "#/$defs/opaque_id" },
+        "label_class": {
+          "type": "string",
+          "enum": [
+            "stale_example",
+            "needs_review_example",
+            "quarantined_example"
+          ],
+          "description": "Non-stable example posture. Surfaces MUST render the typed disclosure on the primary surface; tooltip-only disclosure is forbidden."
+        },
+        "stale_reason": { "$ref": "#/$defs/stale_example_reason" },
+        "target_symbol_or_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the symbol / anchor the example targets. Null when the target has been removed entirely."
+        },
+        "superseding_example_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a replacement example (within this or a later pack revision), when one exists. Used by the typed disclosure to offer migrate_to_replacement on the repair hook."
+        }
+      },
+      "description": "Reference to a non-stable example embedded in this pack."
+    },
+
+    "example_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stable", "stale", "needs_review", "quarantined"],
+      "properties": {
+        "stable": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_example_ref" },
+          "description": "All examples the pack certifies as stable at this revision."
+        },
+        "stale": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_example_ref" },
+          "description": "All examples the pack certifies as stale at this revision. Each entry carries a typed stale_reason and, when available, a superseding_example_id."
+        },
+        "needs_review": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_example_ref" },
+          "description": "Examples whose target moved but whose renderability has not been re-verified. Surfaces render them with a typed disclosure until a reviewer relabels them stable or stale."
+        },
+        "quarantined": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_example_ref" },
+          "description": "Examples the publisher or admin policy has quarantined. Hidden from docs panes; still enumerated here so parity audits can count them."
+        },
+        "stale_examples_exceed_threshold": {
+          "type": "boolean",
+          "description": "True when the ratio of (stale + needs_review + quarantined) to total examples exceeds the publisher-configured threshold. When true, publishable_state MUST NOT be publishable; the pack is either blocked with stale_examples_exceed_threshold or moved to draft / withdrawn."
+        }
+      },
+      "description": "Pack-level example summary. The stable / stale split is the contract surfaces consume so docs panes can render stale-example disclosures on the primary surface and parity audits can compute the pack's effective freshness without parsing prose."
+    },
+
+    "docs_pack_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "docs_pack_manifest_schema_version",
+        "pack_id",
+        "pack_revision_ref",
+        "source_class",
+        "publisher_class",
+        "publisher_id",
+        "display_version",
+        "semver_version",
+        "pre_release",
+        "target_running_build_identity_ref",
+        "signing",
+        "mirror_lineage",
+        "primary_locale",
+        "available_locales",
+        "locale_coverage",
+        "declared_freshness_class",
+        "refresh_window_seconds",
+        "client_scopes",
+        "citation_posture",
+        "backlink_posture",
+        "example_summary",
+        "publishable_state",
+        "publishable_blocking_reasons",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "docs_pack_manifest_record" },
+        "docs_pack_manifest_schema_version": {
+          "$ref": "#/$defs/docs_pack_manifest_schema_version"
+        },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "publisher_class": { "$ref": "#/$defs/publisher_class" },
+        "publisher_id": { "$ref": "#/$defs/opaque_id" },
+        "display_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible version string surfaces render alongside the source / freshness chips (e.g. '2026.04.19-stable', 'mirror 2026-Q2', 'rev-14')."
+        },
+        "semver_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+          "description": "Machine-readable semver version. The compat window (compat_window_semver) is computed against this value."
+        },
+        "pre_release": {
+          "type": "boolean",
+          "description": "True when the pack is a pre-release / nightly pack whose verification has not completed. Pairs with version_match_state = pre_release_unverified on the help_status_badge_record."
+        },
+        "target_running_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the running build identity (D-0011) the pack was published against. Surfaces compute version_match_state against this id at render time."
+        },
+        "compat_window_semver": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min_inclusive", "max_inclusive"],
+              "properties": {
+                "min_inclusive": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+                },
+                "max_inclusive": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+                }
+              }
+            }
+          ],
+          "description": "Declared compat window the pack's content is authoritative for. Null only when source_class = generated_reference and the pack pins exactly to one build identity. A running build outside the window produces version_match_state = incompatible_drift_detected; 'pack is newer than the local client' is a special case of this."
+        },
+        "signing": { "$ref": "#/$defs/signing_block" },
+        "mirror_lineage": { "$ref": "#/$defs/mirror_lineage" },
+        "primary_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "available_locales": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bcp47_locale_tag" },
+          "description": "All BCP-47 locale tags the pack ships content for. MUST include primary_locale as its first element or somewhere in the set."
+        },
+        "locale_coverage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locale_row" },
+          "description": "Per-locale coverage rows. Non-empty for mixed-locale packs; MAY be empty when primary_locale is the only locale and available_locales has one entry."
+        },
+        "declared_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "refresh_window_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Refresh window (seconds) the registry uses to decide whether the pack may continue to declare authoritative_live / warm_cached. 0 means 'refresh every render' (typical for generated_reference and host_process_internal packs)."
+        },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp of the last refresh against the canonical owner. Null for packs acquired_via host_process_internal / local_build_output that do not refresh independently of the binary."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes this pack surfaces on. MUST be non-empty; a pack whose client_scopes would be empty is blocked with client_scope_empty."
+        },
+        "citation_posture": { "$ref": "#/$defs/citation_posture" },
+        "backlink_posture": { "$ref": "#/$defs/backlink_posture" },
+        "required_citation_anchor_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs_page_anchor",
+              "generated_reference_anchor",
+              "symbol_reference_anchor",
+              "code_span_anchor",
+              "runbook_step_anchor",
+              "release_note_anchor",
+              "mirrored_docs_anchor",
+              "curated_pack_anchor"
+            ]
+          },
+          "description": "Anchor-kind vocabulary (subset of ADR-0013) this pack requires surfaces to attach when citation_posture = citation_required. Empty when citation_posture is citation_recommended or citation_not_required."
+        },
+        "example_summary": { "$ref": "#/$defs/example_summary" },
+        "publishable_state": { "$ref": "#/$defs/publishable_state" },
+        "publishable_blocking_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/publishable_blocking_reason" },
+          "description": "Frozen list of blocking reasons. MUST be empty when publishable_state = publishable; MUST be non-empty when publishable_state = blocked; MAY be empty for draft / withdrawn / quarantined (quarantined carries pack_quarantined implicitly)."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ],
+          "description": "Required (non-null) when publishable_state = blocked. Null otherwise. Reuses the ADR-0011 repair-hook vocabulary."
+        },
+        "supersedes_pack_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the prior pack revision this manifest supersedes. Null for the initial revision. Used for supersession / withdrawn rendering."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "publishable_blocking_reasons MUST be empty when publishable_state = publishable.",
+          "if": {
+            "properties": { "publishable_state": { "const": "publishable" } },
+            "required": ["publishable_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable_blocking_reasons": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "publishable_blocking_reasons MUST be non-empty when publishable_state = blocked, and a repair_hook_ref MUST be present.",
+          "if": {
+            "properties": { "publishable_state": { "const": "blocked" } },
+            "required": ["publishable_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable_blocking_reasons": { "type": "array", "minItems": 1 },
+              "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" }
+            },
+            "required": ["publishable_blocking_reasons", "repair_hook_ref"]
+          }
+        },
+        {
+          "description": "Mirror lineage fields are required when source_class = mirrored_official_docs.",
+          "if": {
+            "properties": { "source_class": { "const": "mirrored_official_docs" } },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_lineage": {
+                "type": "object",
+                "required": ["mirror_of_pack_id", "upstream_revision_ref", "mirror_chain_status"],
+                "properties": {
+                  "mirror_of_pack_id": { "$ref": "#/$defs/opaque_id" },
+                  "upstream_revision_ref": { "$ref": "#/$defs/opaque_id" },
+                  "mirror_chain_status": {
+                    "type": "string",
+                    "enum": ["continuous", "predecessor_missing", "signing_chain_broken"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-mirror source classes MUST declare mirror_chain_status = not_applicable.",
+          "if": {
+            "properties": {
+              "source_class": {
+                "enum": [
+                  "project_docs",
+                  "generated_reference",
+                  "curated_knowledge_pack",
+                  "support_runbook"
+                ]
+              }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_lineage": {
+                "type": "object",
+                "required": ["mirror_chain_status"],
+                "properties": {
+                  "mirror_chain_status": { "const": "not_applicable" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Packs with citation_posture = citation_required MUST declare at least one required_citation_anchor_kinds entry.",
+          "if": {
+            "properties": { "citation_posture": { "const": "citation_required" } },
+            "required": ["citation_posture"]
+          },
+          "then": {
+            "properties": {
+              "required_citation_anchor_kinds": { "type": "array", "minItems": 1 }
+            },
+            "required": ["required_citation_anchor_kinds"]
+          }
+        }
+      ],
+      "description": "Docs-pack manifest published by a canonical owner (docs_pack_registry, generated_reference_index, mirrored_docs_index, curated_knowledge_pack_registry, or support_runbook_registry). A surface MUST resolve this manifest before rendering a help_status_badge_record whose source_revision_ref points into the pack."
+    },
+
+    "docs_pack_example_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "docs_pack_manifest_schema_version",
+        "pack_id",
+        "pack_revision_ref",
+        "example_id",
+        "label_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "docs_pack_example_record" },
+        "docs_pack_manifest_schema_version": {
+          "$ref": "#/$defs/docs_pack_manifest_schema_version"
+        },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "example_id": { "$ref": "#/$defs/opaque_id" },
+        "label_class": {
+          "type": "string",
+          "enum": [
+            "stable_example",
+            "stale_example",
+            "needs_review_example",
+            "quarantined_example"
+          ]
+        },
+        "stale_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stale_example_reason" }
+          ],
+          "description": "Required (non-null) when label_class is stale_example / needs_review_example / quarantined_example; null when label_class = stable_example."
+        },
+        "target_symbol_or_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "superseding_example_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "locale": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bcp47_locale_tag" }
+          ],
+          "description": "Locale the example is authored in. Null when the example is locale-neutral (e.g. a code sample with no prose)."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "stale_reason MUST be non-null when label_class is not stable_example.",
+          "if": {
+            "properties": {
+              "label_class": {
+                "enum": ["stale_example", "needs_review_example", "quarantined_example"]
+              }
+            },
+            "required": ["label_class"]
+          },
+          "then": {
+            "properties": {
+              "stale_reason": { "$ref": "#/$defs/stale_example_reason" }
+            },
+            "required": ["stale_reason"]
+          }
+        }
+      ],
+      "description": "Standalone record describing a single example a pack ships. Useful for parity audits and support exports that need to enumerate examples across packs without holding a full manifest."
+    }
+  }
+}

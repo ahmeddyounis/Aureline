@@ -87,6 +87,28 @@ code.
 
 ## Frozen vocabularies
 
+- [`docs/docs_pack_manifest_contract.md`](./docs/docs_pack_manifest_contract.md)
+  — docs-pack manifest contract consumed by every docs pane, docs
+  browser, Help / About footer, service-health row, support summary,
+  onboarding step, and AI-explanation overlay that resolves a
+  `help_status_badge_record.source_revision_ref`. Freezes the closed
+  source-class set admissible on a manifest (`project_docs`,
+  `generated_reference`, `mirrored_official_docs`,
+  `curated_knowledge_pack`, `support_runbook`), publisher classes,
+  signature-status states, mirror-chain continuity rules,
+  acquired-via values (including `air_gapped_media` with an
+  `offline_expiration_at` deadline), per-locale coverage classes
+  (`complete`, `partial`, `machine_assisted`, `stub`, `stale_copy`),
+  example-label vocabulary (`stable_example`, `stale_example`,
+  `needs_review_example`, `quarantined_example`) and stale-example
+  reasons, citation / backlink postures, publishable-state gate,
+  and the closed set of publishable-blocking reasons. Boundary
+  schema in
+  [`/schemas/docs/docs_pack_manifest.schema.json`](../schemas/docs/docs_pack_manifest.schema.json);
+  worked fixtures (fresh, offline / mirrored, partially stale,
+  mixed-locale, newer-than-client, non-publishable, and a standalone
+  stale-example record) in
+  [`/fixtures/docs/docs_pack_examples/`](../fixtures/docs/docs_pack_examples/).
 - [`search/search_readiness_vocabulary.md`](./search/search_readiness_vocabulary.md)
   — copy-guidance companion to the search readiness, ranking-reason,
   hidden-scope, result-truth, and deep-link drift ADR. Frozen sentence
