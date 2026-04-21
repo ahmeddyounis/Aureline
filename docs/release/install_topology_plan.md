@@ -22,6 +22,11 @@ Companion artifacts:
   — machine-readable return-code family seed plus worked
   `unattended_deployment_result_record` fixtures covering install,
   update, rollback, uninstall, and verify-failed outcomes.
+- [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
+  — shared continuity, mirror/offline, and impairment drill catalog
+  seed the install-profile cards, rollout evidence, and support/export
+  lanes cite by stable `drill_id`. Companion narrative in
+  [`/docs/deployment/drill_catalog_seed.md`](../deployment/drill_catalog_seed.md).
 
 Normative sources this plan projects from:
 
@@ -241,6 +246,13 @@ Rollback targets per ring are pinned in the install-topology matrix:
 cut of the same channel, `broad` rolls back to the last `broad` cut,
 `lts` rolls back to the channel's current LTS floor (never across
 the LTS floor without a release-council waiver).
+
+Mirror, air-gap, self-hosted, and managed continuity claims on an
+install-profile card should resolve into named drill rows from the
+deployment drill catalog seed rather than free-text outage notes. The
+install-topology matrix owns *which* profile is claimed; the drill
+catalog owns *what degradation was exercised* and *what local-safe
+fallback remained true*.
 
 Rollout rings are **operational stances**, not install modes. A
 single install-profile card carries exactly one `install_mode_class`

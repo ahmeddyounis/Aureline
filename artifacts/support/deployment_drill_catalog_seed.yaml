@@ -1,0 +1,478 @@
+# Deployment continuity and impairment drill catalog seed.
+#
+# Shared continuity seed consumed by release planning, support/export,
+# and boundary-manifest planning so continuity truth is not trapped in
+# one document or one packet family.
+#
+# Companion narrative:
+#   docs/deployment/drill_catalog_seed.md
+# Concrete scenarios:
+#   fixtures/deployment/impairment_cases/
+#
+# Rules:
+#   - Every row MUST name one service_domain, one impairment_plane, one
+#     trigger_class, one control_plane_status, one
+#     workspace_runtime_status, one restore_class, one owner_dri, and
+#     one freshness_cadence.
+#   - Every row MUST list retained_local_safe_capabilities separately
+#     from blocked_managed_only_capabilities.
+#   - Locality, region, tenant, and key-mode truth are mandatory even
+#     when the value is not_applicable or unchanged.
+#   - Every row MUST point at at least one evidence_output and exactly
+#     one concrete fixture_ref.
+#   - If this file and the narrative plan disagree, the narrative plan
+#     wins and this file updates in the same change.
+#   - Drill ids use snake_case and MUST NOT contain milestone slugs.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/deployment/drill_catalog_seed.md
+supportability_home: artifacts/support/
+release_plan_source: docs/release/install_topology_plan.md
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+control_artifact_index_source: artifacts/governance/control_artifact_index.yaml
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+service_domain_vocabulary:
+  - benchmark_lab
+  - docs_pack_distribution
+  - registry_mirror_import
+  - identity_policy_cache
+  - remote_workspace_attach
+  - future_managed_boundary
+
+impairment_plane_vocabulary:
+  - local_only_baseline
+  - control_plane
+  - data_plane
+  - cross_plane
+
+trigger_class_vocabulary:
+  - local_only_capture
+  - control_plane_unavailable
+  - artifact_delivery_unavailable
+  - policy_or_session_stale
+  - transport_disconnect
+  - failover_boundary_change
+
+control_plane_status_vocabulary:
+  - healthy
+  - stale_cache
+  - unavailable
+  - mirror_only
+
+workspace_runtime_status_vocabulary:
+  - local_only
+  - remote_attached
+  - managed_runtime
+  - disconnected
+
+restore_class_vocabulary:
+  - continue_local_no_restore
+  - replay_cached_snapshot
+  - mirror_snapshot_import
+  - resume_after_reconnect
+  - manual_reconcile_after_boundary_change
+
+locality_scope_vocabulary:
+  - device_local
+  - air_gapped_site
+  - not_applicable
+
+region_scope_vocabulary:
+  - customer_region_pinned
+  - remote_target_region
+  - boundary_recheck_required
+  - not_applicable
+
+tenant_scope_vocabulary:
+  - single_user_local
+  - customer_tenant
+  - shared_multi_tenant
+  - tenant_boundary_recheck_required
+  - not_applicable
+
+key_mode_vocabulary:
+  - os_store
+  - vendor_managed
+  - customer_managed
+  - offline_trust_root
+  - not_applicable
+
+suggested_next_step_vocabulary:
+  - continue_local
+  - retry_policy_sync
+  - switch_mirror
+  - export_packet
+
+freshness_cadence_vocabulary:
+  - weekly
+  - monthly
+  - release_candidate
+  - before_claim_widening
+
+evidence_output_vocabulary:
+  - benchmark_run_result_local_capture
+  - docs_pack_status_export
+  - mirror_import_audit_record
+  - control_plane_cache_epoch_snapshot
+  - remote_session_loss_packet
+  - queued_action_export
+  - boundary_recheck_packet
+  - support_bundle_continuity_note
+  - release_claim_manifest_note
+  - boundary_row_review_note
+  - install_profile_drill_note
+
+consumer_bindings:
+  release_planning:
+    primary_docs:
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+    rule: >
+      Release and rollout claims cite drill_id values from this catalog
+      instead of inventing private outage names.
+  supportability:
+    primary_docs:
+      - docs/governance/control_artifact_index.md
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+    rule: >
+      Support bundles, field handoff, and future Doctor flows reuse the
+      same retained-local-safe and evidence-output vocabulary.
+  boundary_planning:
+    primary_docs:
+      - docs/product/boundary_manifest_strawman.md
+    rule: >
+      Boundary rows map local_core_continuity and absence_narrows_to
+      back to drills here whenever optional services or mirrors are in
+      play.
+
+drill_rows:
+  - drill_id: benchmark_lab_local_only_capture
+    title: Benchmark-lab local capture with no managed control plane
+    status: seeded
+    service_domain: benchmark_lab
+    impairment_plane: local_only_baseline
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - air_gapped
+    trigger:
+      trigger_class: local_only_capture
+      summary: >
+        Benchmark capture runs from local corpora and local exact-build
+        identity data with no hosted compare or ingest plane present.
+    status_strip:
+      control_plane: unavailable
+      workspace_runtime: local_only
+      suggested_next_step: continue_local
+    boundary_truth:
+      locality_scope: device_local
+      region_scope: not_applicable
+      tenant_scope: single_user_local
+      key_mode: os_store
+      restore_class: continue_local_no_restore
+    expected_degraded_behavior: >
+      Local captures proceed and remain exportable, but hosted compare,
+      publish, and cohort refresh behavior is absent by design.
+    retained_local_safe_capabilities:
+      - run local benchmark capture
+      - replay prior fixture corpus locally
+      - inspect exact-build identity on-device
+      - export benchmark evidence and support metadata
+    blocked_managed_only_capabilities:
+      - publish capture to a hosted comparison dashboard
+      - refresh remote cohort baselines
+    evidence_outputs:
+      - benchmark_run_result_local_capture
+      - support_bundle_continuity_note
+      - release_claim_manifest_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: monthly
+    escalation_route:
+      - benchmark_lab
+      - support_export
+      - release_evidence
+    linked_boundary_rows:
+      - local_support_bundle
+      - telemetry_support_pipeline
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+    fixture_ref: fixtures/deployment/impairment_cases/benchmark_lab_local_only_capture.json
+
+  - drill_id: docs_pack_mirror_only_truth
+    title: Docs-pack truth under mirror-only control-plane posture
+    status: seeded
+    service_domain: docs_pack_distribution
+    impairment_plane: control_plane
+    deployment_profiles:
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    trigger:
+      trigger_class: control_plane_unavailable
+      summary: >
+        Upstream docs metadata is unavailable while a signed mirror or
+        imported offline snapshot remains available locally.
+    status_strip:
+      control_plane: mirror_only
+      workspace_runtime: local_only
+      suggested_next_step: switch_mirror
+    boundary_truth:
+      locality_scope: air_gapped_site
+      region_scope: customer_region_pinned
+      tenant_scope: customer_tenant
+      key_mode: offline_trust_root
+      restore_class: replay_cached_snapshot
+    expected_degraded_behavior: >
+      Docs render from the verified mirror snapshot with explicit
+      freshness labels; live upstream backlinks and freshness checks are
+      deferred rather than faked.
+    retained_local_safe_capabilities:
+      - open mirrored docs packs
+      - cite mirrored docs with provenance
+      - inspect version and freshness labels locally
+      - export docs-pack status for support or release review
+    blocked_managed_only_capabilities:
+      - fetch the newest upstream docs revision
+      - verify live upstream backlink reachability
+    evidence_outputs:
+      - docs_pack_status_export
+      - support_bundle_continuity_note
+      - boundary_row_review_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: monthly
+    escalation_route:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    linked_boundary_rows: []
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+    fixture_ref: fixtures/deployment/impairment_cases/docs_pack_mirror_only_truth.json
+
+  - drill_id: mirror_import_offline_bundle_replay
+    title: Mirror import replay when live artifact delivery is unavailable
+    status: seeded
+    service_domain: registry_mirror_import
+    impairment_plane: data_plane
+    deployment_profiles:
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+    trigger:
+      trigger_class: artifact_delivery_unavailable
+      summary: >
+        Live registry or artifact bytes are unreachable, but a signed
+        mirror bundle remains available for offline import.
+    status_strip:
+      control_plane: mirror_only
+      workspace_runtime: local_only
+      suggested_next_step: switch_mirror
+    boundary_truth:
+      locality_scope: air_gapped_site
+      region_scope: customer_region_pinned
+      tenant_scope: customer_tenant
+      key_mode: offline_trust_root
+      restore_class: mirror_snapshot_import
+    expected_degraded_behavior: >
+      Existing installed artifacts keep running and new imports resolve
+      from the signed mirror snapshot instead of the live delivery path.
+    retained_local_safe_capabilities:
+      - keep using already installed artifacts
+      - inspect signed mirror metadata before import
+      - import from offline or mirrored bundle
+      - export import audit details
+    blocked_managed_only_capabilities:
+      - live catalog browse against the vendor endpoint
+      - on-demand revocation refresh from the upstream service
+    evidence_outputs:
+      - mirror_import_audit_record
+      - support_bundle_continuity_note
+      - install_profile_drill_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: release_candidate
+    escalation_route:
+      - release_evidence
+      - support_export
+    linked_boundary_rows:
+      - extension_registry_mirror
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+    fixture_ref: fixtures/deployment/impairment_cases/mirror_import_offline_bundle_replay.json
+
+  - drill_id: stale_policy_session_cached_local_safe
+    title: Stale policy or auth state with cached local-safe behavior
+    status: seeded
+    service_domain: identity_policy_cache
+    impairment_plane: control_plane
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - managed_cloud
+    trigger:
+      trigger_class: policy_or_session_stale
+      summary: >
+        Policy epoch or managed session freshness is stale, but the last
+        known-good signed bundle and cached local session remain present.
+    status_strip:
+      control_plane: stale_cache
+      workspace_runtime: local_only
+      suggested_next_step: retry_policy_sync
+    boundary_truth:
+      locality_scope: device_local
+      region_scope: customer_region_pinned
+      tenant_scope: customer_tenant
+      key_mode: customer_managed
+      restore_class: replay_cached_snapshot
+    expected_degraded_behavior: >
+      Local editing, search, Git, tasks, docs, and export continue from
+      cached authority; new protected actions, admin changes, and fresh
+      entitlement widening pause.
+    retained_local_safe_capabilities:
+      - edit and save local files
+      - run local search, Git, and tasks
+      - inspect cached policy epoch and session state
+      - export diagnostics and continuity metadata
+    blocked_managed_only_capabilities:
+      - apply new admin policy changes
+      - start protected managed actions requiring fresh authorization
+      - widen approvals from stale cached state
+    evidence_outputs:
+      - control_plane_cache_epoch_snapshot
+      - support_bundle_continuity_note
+      - boundary_row_review_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: monthly
+    escalation_route:
+      - support_export
+      - docs_public_truth
+      - release_evidence
+    linked_boundary_rows:
+      - identity_policy_service
+      - local_support_bundle
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+    fixture_ref: fixtures/deployment/impairment_cases/stale_policy_session_cached_local_safe.json
+
+  - drill_id: remote_connector_loss_continue_local
+    title: Remote connector loss with continue-local fallback
+    status: seeded
+    service_domain: remote_workspace_attach
+    impairment_plane: data_plane
+    deployment_profiles:
+      - self_hosted
+      - enterprise_online
+      - managed_cloud
+    trigger:
+      trigger_class: transport_disconnect
+      summary: >
+        Remote attach transport, filesystem stream, or session relay
+        disconnects while the local shell and prior local state remain
+        available.
+    status_strip:
+      control_plane: healthy
+      workspace_runtime: disconnected
+      suggested_next_step: continue_local
+    boundary_truth:
+      locality_scope: remote_target_region
+      region_scope: remote_target_region
+      tenant_scope: customer_tenant
+      key_mode: customer_managed
+      restore_class: resume_after_reconnect
+    expected_degraded_behavior: >
+      Reconnect/backoff remains visible and cancellable, local
+      continuation stays available, and queued remote follow-up is held
+      for explicit replay after reconnect.
+    retained_local_safe_capabilities:
+      - inspect already available buffer state
+      - continue in local-only mode where the workflow allows
+      - export diagnostics and queued intents
+      - review remote identity and reconnect state
+    blocked_managed_only_capabilities:
+      - live remote execution or terminal streaming
+      - remote save to the authoritative target
+      - remote debug or task launch while disconnected
+    evidence_outputs:
+      - remote_session_loss_packet
+      - queued_action_export
+      - support_bundle_continuity_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: weekly
+    escalation_route:
+      - support_export
+      - release_evidence
+    linked_boundary_rows:
+      - workspace_control_plane
+      - local_support_bundle
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+    fixture_ref: fixtures/deployment/impairment_cases/remote_connector_loss_continue_local.json
+
+  - drill_id: failover_boundary_recheck_future_managed_case
+    title: Future managed failover with explicit boundary recheck
+    status: seeded
+    service_domain: future_managed_boundary
+    impairment_plane: cross_plane
+    deployment_profiles:
+      - self_hosted
+      - enterprise_online
+      - managed_cloud
+    trigger:
+      trigger_class: failover_boundary_change
+      summary: >
+        A future managed failover, drain, or tenant migration restores
+        service reachability only by changing region, tenant, key-mode,
+        or approval assumptions.
+    status_strip:
+      control_plane: unavailable
+      workspace_runtime: managed_runtime
+      suggested_next_step: export_packet
+    boundary_truth:
+      locality_scope: boundary_recheck_required
+      region_scope: boundary_recheck_required
+      tenant_scope: tenant_boundary_recheck_required
+      key_mode: customer_managed
+      restore_class: manual_reconcile_after_boundary_change
+    expected_degraded_behavior: >
+      Local work and export remain available, but replay of privileged
+      queued actions stays blocked until the user or admin confirms the
+      new region, tenant, and key-mode posture.
+    retained_local_safe_capabilities:
+      - continue local edits and review cached context
+      - export queued drafts and diagnostics
+      - compare prior versus current boundary metadata
+      - pause or discard privileged replay intentionally
+    blocked_managed_only_capabilities:
+      - replay queued privileged actions under prior approvals
+      - resume collaboration or remote control under stale tenant scope
+      - assume previous region or key-mode claims remain valid
+    evidence_outputs:
+      - boundary_recheck_packet
+      - support_bundle_continuity_note
+      - release_claim_manifest_note
+    owner_dri: "@ahmeddyounis"
+    freshness_cadence: before_claim_widening
+    escalation_route:
+      - release_evidence
+      - support_export
+      - docs_public_truth
+    linked_boundary_rows:
+      - identity_policy_service
+      - collaboration_relay
+      - workspace_control_plane
+    linked_release_inputs:
+      - docs/release/install_topology_plan.md
+      - docs/product/boundary_manifest_strawman.md
+    fixture_ref: fixtures/deployment/impairment_cases/failover_boundary_recheck_future_managed_case.json

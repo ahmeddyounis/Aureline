@@ -116,6 +116,12 @@ governance-packet template. The index only names, routes, and scopes.
   canonical homes for supportability artifacts. Field runbooks, the
   crash-diagnostics corpus, and export-safe packet schemas all live
   there.
+- The deployment continuity drill catalog seed lives under
+  [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
+  with narrative guidance in
+  [`/docs/deployment/drill_catalog_seed.md`](../deployment/drill_catalog_seed.md).
+  Release and boundary lanes cite that catalog rather than minting
+  separate control-plane/data-plane outage vocabulary.
 - Private partner and support cases follow the private routes in
   [`issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml);
   public supportability defects route to the OSS lane. Both cases

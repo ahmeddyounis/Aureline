@@ -92,6 +92,17 @@ code.
   seed no-account switching scoreboard in
   [`/artifacts/product/no_account_switching_scoreboard_seed.yaml`](../artifacts/product/no_account_switching_scoreboard_seed.yaml).
 
+## Deployment continuity
+
+- [`deployment/drill_catalog_seed.md`](./deployment/drill_catalog_seed.md)
+  — shared continuity, disaster-recovery, mirror/offline, and
+  control-plane/data-plane impairment drill catalog seed used by
+  release planning, support/export, and boundary-manifest planning.
+  Machine-readable seed in
+  [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../artifacts/support/deployment_drill_catalog_seed.yaml);
+  concrete impairment fixtures in
+  [`/fixtures/deployment/impairment_cases/`](../fixtures/deployment/impairment_cases/).
+
 ## Frozen vocabularies
 
 - [`docs/docs_pack_manifest_contract.md`](./docs/docs_pack_manifest_contract.md)

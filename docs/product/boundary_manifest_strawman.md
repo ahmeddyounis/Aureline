@@ -46,6 +46,11 @@ deleted; they are superseded.
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — every row's `linked_lanes` entry resolves to an id in
   `scorecard_lane_index` there.
+- [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
+  — shared continuity and impairment drill catalog seed. Boundary rows
+  with optional-service dependencies should map
+  `local_core_continuity` and `absence_narrows_to` back to drill ids
+  there rather than inventing ad hoc outage language.
 
 ## Classifications
 
@@ -126,6 +131,11 @@ retrofit them inconsistently:
   This is how the manifest encodes *narrowing instead of
   reclassifying*: a collaboration session narrows to "local edits
   continue; presence is unavailable" without becoming out-of-scope.
+
+The deployment drill catalog seed consumes these two fields directly.
+Rows that depend on optional services should make the retained
+local-safe baseline specific enough that a drill row can restate it
+without inventing new semantics.
 
 ## Capability rows
 
