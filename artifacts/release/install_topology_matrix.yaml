@@ -1,0 +1,1098 @@
+# Install-topology matrix.
+#
+# Machine-readable companion to docs/release/install_topology_plan.md.
+# One install_profile_card_record per (install_mode_class,
+# channel_class, platform_class, architecture_class) tuple. Tooling
+# reads this file; the normative plan is the narrative companion. If
+# the two disagree, the plan wins and this file must be updated in the
+# same change.
+#
+# Scope. This matrix pins the install-profile card fields that every
+# release, fleet, About / Help, support-bundle, and diagnostics surface
+# reads before describing "the install" to a human or to an enterprise
+# deployment tool. It does NOT implement an installer, updater, or
+# fleet tool; it only records the vocabulary and the row shape.
+#
+# Rules.
+#   - Every row MUST name exactly one install_mode_class, channel_class,
+#     platform_class, architecture_class, updater_owner_class,
+#     binary_root_class, side_by_side_relation_class,
+#     rollout_ring_class, silent_install_support_class,
+#     managed_package_report_class, publication_posture_class,
+#     policy_injection_class, and cli_scriptability_class.
+#   - Every row MUST name one or more durable_state_root_refs resolving
+#     into state_root_map.yaml; zero durable state roots is
+#     non-conforming.
+#   - Every row MUST carry a running_build_identity_ref slot into
+#     schemas/build/exact_build_identity.schema.json. The slot is
+#     reserved (null) at this milestone; the plan pins it for every
+#     row so install diagnostics do not re-invent version semantics.
+#   - A row whose side_by_side_relation_class is any value other than
+#     none MUST collide on zero durable state roots with any other row
+#     of a different channel_class. The state-root map enforces this
+#     by pinning owning_channels on every row.
+#   - Missing fields are validation failures; "version-only fallback"
+#     is forbidden by rule (the card resolves into one exact-build
+#     identity, not a free-text version string).
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version and updating the narrative plan in the same
+#     change. Repurposing an existing value is breaking and opens a
+#     decision row in artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/release/install_topology_plan.md
+state_root_map_source: artifacts/release/state_root_map.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+exact_build_identity_schema: schemas/build/exact_build_identity.schema.json
+portable_profile_state_map_source: docs/state/profile_and_state_map.md
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "Appendix BA platform installation matrix and fleet rollout rings"
+      - "§B.2 stable CLI exit-code family"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 install and update behaviour as product truth"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "§6.12 About, update, and diagnostics surfaces"
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.12 enterprise deployment hooks"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# Adding a value is additive-minor; repurposing a value is breaking. The
+# narrative plan and this file MUST agree on every vocabulary entry.
+# -----------------------------------------------------------------------------
+
+install_mode_class_vocabulary:
+  - per_user_installed
+  - per_machine_installed
+  - portable
+  - offline_bundle
+  - managed_deployed
+  - side_by_side_preview
+
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+platform_class_vocabulary:
+  - windows
+  - macos
+  - linux
+  - air_gap_bundle_target
+
+architecture_class_vocabulary:
+  - x86_64
+  - aarch64
+  - universal_binary
+  - platform_native_any
+
+updater_owner_class_vocabulary:
+  - user
+  - admin
+  - external_package_manager
+  - managed_fleet
+  - none
+
+binary_root_class_vocabulary:
+  - per_user_profile_program_area
+  - per_machine_program_area
+  - portable_directory
+  - offline_bundle_extracted_program_area
+  - admin_pinned_program_area
+  - external_package_manager_owned_area
+
+# Durable-state-root classes are the coarse buckets that resolve into
+# the concrete rows in artifacts/release/state_root_map.yaml. Concrete
+# per-host-OS paths are deliberately deferred; this milestone pins the
+# class set so installers and diagnostics agree on what is in scope.
+durable_state_root_class_vocabulary:
+  - user_authored_workspace_files_outside_install_tree
+  - per_user_configuration_root
+  - per_user_recovery_root
+  - per_user_derived_cache_root
+  - per_user_keychain_or_secret_store
+  - per_machine_admin_policy_root
+  - per_machine_shared_data_root
+  - portable_colocated_root
+  - offline_bundle_mirror_metadata_root
+  - shared_platform_os_root_read_only
+
+side_by_side_relation_class_vocabulary:
+  - none
+  - stable_and_preview
+  - stable_and_beta
+  - stable_and_lts
+  - preview_and_beta
+  - installed_and_portable
+  - three_channel_matrix
+  - managed_and_portable
+
+rollback_target_class_vocabulary:
+  - previous_build_same_channel
+  - last_broad_cut_same_channel
+  - channel_lts_floor
+  - admin_pinned_target
+  - out_of_ring
+  - unsupported
+
+diagnostics_export_class_vocabulary:
+  - install_topology_record_available
+  - exact_build_manifest_available
+  - state_root_audit_available
+  - artifact_graph_pack_available
+  - support_bundle_available
+  - rollback_evidence_available
+
+rollout_ring_class_vocabulary:
+  - canary
+  - pilot
+  - broad
+  - lts
+
+silent_install_support_class_vocabulary:
+  - full
+  - partial
+  - unsupported
+  - managed_only
+
+managed_package_report_class_vocabulary:
+  - available
+  - reserved
+  - not_applicable
+
+publication_posture_class_vocabulary:
+  - online_vendor
+  - offline_signed_bundle
+  - customer_managed_mirror
+  - third_party_package_index
+
+policy_injection_class_vocabulary:
+  - none
+  - gpo
+  - mdm
+  - config_profile
+  - cli_flag
+  - env_var
+
+cli_scriptability_class_vocabulary:
+  - cli_present_in_path
+  - cli_present_in_install_tree
+  - cli_portable_only
+  - cli_not_exposed
+
+repair_verify_support_vocabulary:
+  - repair_install
+  - verify_install_signature
+  - verify_state_root_integrity
+  - rollback_to_previous_build
+  - uninstall_clean_state
+
+# -----------------------------------------------------------------------------
+# Ring promotion evidence.
+#
+# Minimum evidence required before a build may advance from a ring to
+# the next ring. Ring promotion decisions are recorded in
+# artifacts/governance/decision_index.yaml; the ring set here is
+# authoritative for tooling.
+# -----------------------------------------------------------------------------
+ring_promotion_evidence:
+  - ring: canary
+    admissible_channels: [stable, preview, beta]
+    required_evidence:
+      - install_smoke_every_claimed_platform
+      - launch_smoke_every_claimed_platform
+      - uninstall_smoke_every_claimed_platform
+      - rollback_smoke_every_claimed_platform
+      - policy_or_bootstrap_bundle_present_check
+      - exact_build_identity_propagation_check
+    admissible_rollback_targets:
+      - previous_build_same_channel
+      - out_of_ring
+      - unsupported
+  - ring: pilot
+    admissible_channels: [stable, preview, beta]
+    required_evidence:
+      - canary_evidence_present
+      - side_by_side_coexistence_drill
+      - support_bundle_install_diagnostics_probe
+      - deprovision_rollback_drill
+    admissible_rollback_targets:
+      - previous_build_same_channel
+      - last_broad_cut_same_channel
+      - unsupported
+  - ring: broad
+    admissible_channels: [stable, preview]
+    required_evidence:
+      - pilot_evidence_present
+      - green_release_evidence_promotion_per_profile_card
+      - current_install_topology_matrix_attached
+    admissible_rollback_targets:
+      - previous_build_same_channel
+      - last_broad_cut_same_channel
+      - unsupported
+  - ring: lts
+    admissible_channels: [lts]
+    required_evidence:
+      - broad_evidence_present
+      - explicit_rollback_target_declared
+      - migration_notes_published
+      - offline_or_mirror_compatibility_proof_present
+      - policy_bundle_compatibility_proof_present
+    admissible_rollback_targets:
+      - previous_build_same_channel
+      - channel_lts_floor
+      - admin_pinned_target
+      - unsupported
+
+# -----------------------------------------------------------------------------
+# Rules pinned on the matrix.
+# -----------------------------------------------------------------------------
+rules:
+  - id: no_shared_durable_state_across_channels
+    description: >
+      A row whose side_by_side_relation_class is any value other than
+      none MUST collide on zero durable state roots with any row of a
+      different channel_class. Cross-channel state sharing is only
+      admissible on a state_root_map row explicitly flagged
+      shared_across_channels: true with a named reason.
+  - id: portable_no_machine_global_mutation
+    description: >
+      A row whose install_mode_class is portable MUST NOT register any
+      file association, protocol handler, machine-global recent-item
+      list entry, or update marker outside the portable directory.
+  - id: no_last_writer_wins_for_associations
+    description: >
+      A row MUST NOT silently override an existing default file
+      association or default protocol handler on the host. Default
+      handler selection is user-or-admin-selectable and last-writer-
+      wins is forbidden.
+  - id: managed_fleet_requires_package_report
+    description: >
+      A row whose updater_owner_class is managed_fleet MUST carry a
+      managed_package_report_class of available or reserved. A row
+      with not_applicable is non-conforming.
+  - id: external_package_manager_suppresses_in_product_update
+    description: >
+      A row whose updater_owner_class is external_package_manager MUST
+      suppress in-product auto-update and rely on the package manager's
+      update path.
+  - id: diagnostics_minimum
+    description: >
+      Every row MUST expose at least install_topology_record_available
+      and exact_build_manifest_available. Rows that cannot are
+      non-conforming at this milestone.
+  - id: rollback_target_must_match_ring
+    description: >
+      Every row's rollback_target_class MUST be one of the admissible
+      rollback targets for the row's rollout_ring_class in
+      ring_promotion_evidence. Cards with a mismatched rollback target
+      are non-conforming.
+  - id: lts_requires_admin_or_managed_updater
+    description: >
+      A row whose channel_class is lts MUST carry updater_owner_class
+      in {admin, managed_fleet, external_package_manager}. lts on a
+      user-owned updater is non-conforming.
+  - id: exact_build_identity_ref_reserved
+    description: >
+      Every row MUST carry a running_build_identity_ref slot resolvable
+      against schemas/build/exact_build_identity.schema.json. The slot
+      is reserved (null) at this milestone; rows that elide the slot
+      entirely are non-conforming.
+
+# -----------------------------------------------------------------------------
+# Install-profile cards.
+#
+# Each card is a concrete (install_mode_class, channel_class,
+# platform_class, architecture_class) row. Installer family names (for
+# example MSI, PKG, AppImage) are placeholders: the choice of installer
+# per claimed platform is a later lane. Cards are ordered by platform
+# and then by install mode.
+# -----------------------------------------------------------------------------
+install_profile_cards:
+
+  # ---------------------------------------------------------------------------
+  # Windows.
+  # ---------------------------------------------------------------------------
+  - id: card.windows.x86_64.per_user_installed.stable
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: per_user_installed
+    channel_class: stable
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_install_tree
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - msi_per_user
+      - signed_portable_zip_per_user
+    status: proposed
+
+  - id: card.windows.x86_64.per_machine_installed.stable
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: per_machine_installed
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: gpo
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - msi_per_machine
+      - msix_per_machine
+    status: proposed
+
+  - id: card.windows.x86_64.per_machine_installed.lts
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: per_machine_installed
+    channel_class: lts
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_shared_data_root.lts
+      - state.per_machine_admin_policy_root.lts
+    side_by_side_relation_class: stable_and_lts
+    rollback_target_class: channel_lts_floor
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: lts
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: gpo
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - msi_per_machine_lts
+    status: proposed
+
+  - id: card.windows.x86_64.side_by_side_preview.preview
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: side_by_side_preview
+    channel_class: preview
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: pilot
+    silent_install_support_class: full
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_install_tree
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - msi_per_user_preview
+    status: proposed
+
+  - id: card.windows.x86_64.portable.portable_stable
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: portable
+    channel_class: portable_stable
+    updater_owner_class: user
+    binary_root_class: portable_directory
+    durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    side_by_side_relation_class: installed_and_portable
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: partial
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_portable_only
+    repair_verify_support:
+      - verify_install_signature
+      - verify_state_root_integrity
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - signed_portable_zip
+    status: proposed
+
+  - id: card.windows.x86_64.managed_deployed.stable
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: managed_deployed
+    channel_class: stable
+    updater_owner_class: managed_fleet
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: last_broad_cut_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: gpo
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - msi_per_machine_intune
+      - msix_per_machine_intune
+    status: proposed
+
+  - id: card.windows.x86_64.offline_bundle.stable
+    platform_class: windows
+    architecture_class: x86_64
+    install_mode_class: offline_bundle
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: offline_bundle_extracted_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: lts
+    silent_install_support_class: full
+    managed_package_report_class: available
+    publication_posture_class: offline_signed_bundle
+    policy_injection_class: gpo
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - signed_offline_bundle
+    mirror_metadata_integrity_class: reserved
+    offline_expiration_at: null
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # macOS.
+  # ---------------------------------------------------------------------------
+  - id: card.macos.universal_binary.per_user_installed.stable
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: per_user_installed
+    channel_class: stable
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: partial
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_install_tree
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - dmg_universal_per_user
+    status: proposed
+
+  - id: card.macos.universal_binary.per_machine_installed.stable
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: per_machine_installed
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_machine_shared_data_root.stable
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: config_profile
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - pkg_universal_per_machine
+    status: proposed
+
+  - id: card.macos.universal_binary.side_by_side_preview.preview
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: side_by_side_preview
+    channel_class: preview
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_keychain_or_secret_store.preview
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: pilot
+    silent_install_support_class: partial
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_install_tree
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - dmg_universal_preview_per_user
+    status: proposed
+
+  - id: card.macos.universal_binary.portable.portable_stable
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: portable
+    channel_class: portable_stable
+    updater_owner_class: user
+    binary_root_class: portable_directory
+    durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    side_by_side_relation_class: installed_and_portable
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: partial
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_portable_only
+    repair_verify_support:
+      - verify_install_signature
+      - verify_state_root_integrity
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - portable_app_bundle_zip
+    status: proposed
+
+  - id: card.macos.universal_binary.managed_deployed.stable
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: managed_deployed
+    channel_class: stable
+    updater_owner_class: managed_fleet
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: last_broad_cut_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: mdm
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - pkg_universal_managed_mdm
+    status: proposed
+
+  - id: card.macos.universal_binary.external_package_manager.stable
+    platform_class: macos
+    architecture_class: universal_binary
+    install_mode_class: per_user_installed
+    channel_class: stable
+    updater_owner_class: external_package_manager
+    binary_root_class: external_package_manager_owned_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+    side_by_side_relation_class: none
+    rollback_target_class: unsupported
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: managed_only
+    managed_package_report_class: reserved
+    publication_posture_class: third_party_package_index
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - verify_install_signature
+      - verify_state_root_integrity
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - package_manager_formula
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Linux.
+  # ---------------------------------------------------------------------------
+  - id: card.linux.x86_64.per_user_installed.stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: per_user_installed
+    channel_class: stable
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+    side_by_side_relation_class: stable_and_preview
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: env_var
+    cli_scriptability_class: cli_present_in_install_tree
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - appimage_per_user
+      - tarball_per_user
+    status: proposed
+
+  - id: card.linux.x86_64.managed_deployed.stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: managed_deployed
+    channel_class: stable
+    updater_owner_class: managed_fleet
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: last_broad_cut_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: reserved
+    publication_posture_class: online_vendor
+    policy_injection_class: config_profile
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - distro_package_enterprise
+    status: proposed
+
+  - id: card.linux.x86_64.external_package_manager.stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: per_machine_installed
+    channel_class: stable
+    updater_owner_class: external_package_manager
+    binary_root_class: external_package_manager_owned_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: unsupported
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: managed_only
+    managed_package_report_class: reserved
+    publication_posture_class: third_party_package_index
+    policy_injection_class: none
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - verify_install_signature
+      - verify_state_root_integrity
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - distro_package_community
+    status: proposed
+
+  - id: card.linux.x86_64.portable.portable_stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: portable
+    channel_class: portable_stable
+    updater_owner_class: user
+    binary_root_class: portable_directory
+    durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    side_by_side_relation_class: installed_and_portable
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+    rollout_ring_class: broad
+    silent_install_support_class: partial
+    managed_package_report_class: not_applicable
+    publication_posture_class: online_vendor
+    policy_injection_class: none
+    cli_scriptability_class: cli_portable_only
+    repair_verify_support:
+      - verify_install_signature
+      - verify_state_root_integrity
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - appimage_portable
+      - tarball_portable
+    status: proposed
+
+  - id: card.linux.x86_64.offline_bundle.stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: offline_bundle
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: offline_bundle_extracted_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: lts
+    silent_install_support_class: full
+    managed_package_report_class: available
+    publication_posture_class: offline_signed_bundle
+    policy_injection_class: config_profile
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - signed_offline_bundle_tarball
+    mirror_metadata_integrity_class: reserved
+    offline_expiration_at: null
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Air-gap bundle (platform-independent publication row).
+  # ---------------------------------------------------------------------------
+  - id: card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+    platform_class: air_gap_bundle_target
+    architecture_class: platform_native_any
+    install_mode_class: offline_bundle
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: offline_bundle_extracted_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: previous_build_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: lts
+    silent_install_support_class: full
+    managed_package_report_class: available
+    publication_posture_class: offline_signed_bundle
+    policy_injection_class: config_profile
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - signed_offline_bundle_archive_set
+    mirror_metadata_integrity_class: reserved
+    offline_expiration_at: null
+    status: proposed
+
+  - id: card.linux.x86_64.customer_managed_mirror.stable
+    platform_class: linux
+    architecture_class: x86_64
+    install_mode_class: per_machine_installed
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    side_by_side_relation_class: none
+    rollback_target_class: last_broad_cut_same_channel
+    diagnostics_export:
+      - install_topology_record_available
+      - exact_build_manifest_available
+      - state_root_audit_available
+      - support_bundle_available
+      - rollback_evidence_available
+    rollout_ring_class: broad
+    silent_install_support_class: full
+    managed_package_report_class: available
+    publication_posture_class: customer_managed_mirror
+    policy_injection_class: config_profile
+    cli_scriptability_class: cli_present_in_path
+    repair_verify_support:
+      - repair_install
+      - verify_install_signature
+      - verify_state_root_integrity
+      - rollback_to_previous_build
+      - uninstall_clean_state
+    running_build_identity_ref: null
+    installer_family_placeholders:
+      - customer_mirror_distro_package
+    mirror_metadata_integrity_class: reserved
+    offline_expiration_at: null
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Coverage index.
+#
+# Lightweight rollup so reviewers can see which (install_mode_class,
+# channel_class) cells are seeded at this milestone. Cells not listed
+# are reserved; adding a cell is additive-minor.
+# -----------------------------------------------------------------------------
+coverage_by_install_mode_and_channel:
+  per_user_installed:
+    stable:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.external_package_manager.stable
+      - card.linux.x86_64.per_user_installed.stable
+  per_machine_installed:
+    stable:
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.linux.x86_64.external_package_manager.stable
+      - card.linux.x86_64.customer_managed_mirror.stable
+    lts:
+      - card.windows.x86_64.per_machine_installed.lts
+  portable:
+    portable_stable:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+  offline_bundle:
+    stable:
+      - card.windows.x86_64.offline_bundle.stable
+      - card.linux.x86_64.offline_bundle.stable
+      - card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+  managed_deployed:
+    stable:
+      - card.windows.x86_64.managed_deployed.stable
+      - card.macos.universal_binary.managed_deployed.stable
+      - card.linux.x86_64.managed_deployed.stable
+  side_by_side_preview:
+    preview:
+      - card.windows.x86_64.side_by_side_preview.preview
+      - card.macos.universal_binary.side_by_side_preview.preview

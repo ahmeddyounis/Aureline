@@ -361,6 +361,48 @@ code.
   and stdlib-only emitter at
   [`/tools/journey_harness/journey_harness.py`](../tools/journey_harness/journey_harness.py).
 
+## Release engineering
+
+- [`release/install_topology_plan.md`](./release/install_topology_plan.md)
+  — pre-implementation plan for install topology, per-channel
+  separation rules, fleet-ring promotion ladder, and state-root
+  mapping. Freezes the `install_profile_card_record` shape every
+  release, fleet, About / Help, support-bundle, and diagnostics
+  surface reads, plus closed vocabularies for install mode, channel,
+  updater owner, binary root, durable state root, side-by-side
+  relation, rollback target, diagnostics export, rollout ring
+  (`canary`, `pilot`, `broad`, `lts`), silent-install support,
+  managed-package report, publication posture (`online_vendor`,
+  `offline_signed_bundle`, `customer_managed_mirror`,
+  `third_party_package_index`), policy injection, and return-code
+  family. Pins per-channel separation rules so no side-by-side row
+  silently corrupts another row's state markers, and pins the
+  minimum promotion evidence plus admissible rollback target per
+  ring. Companion artifacts:
+  [`/artifacts/release/install_topology_matrix.yaml`](../artifacts/release/install_topology_matrix.yaml)
+  (one install-profile card per
+  `(install_mode_class, channel_class, platform_class,
+  architecture_class)` tuple with rules and ring-promotion
+  evidence),
+  [`/artifacts/release/state_root_map.yaml`](../artifacts/release/state_root_map.yaml)
+  (one state-root row per `(durable_state_root_class,
+  channel_class)` pair with owning_channels, authority class,
+  scriptability, diagnostics visibility, repair / verify, and
+  exact-build install diagnostic classes), and
+  [`/artifacts/release/silent_deployment_seed.yaml`](../artifacts/release/silent_deployment_seed.yaml)
+  (return-code families aligned with the stable CLI exit-code
+  model, the `unattended_deployment_result_record` shape, and ten
+  worked fixtures covering install success, update partial-success
+  with reboot required, managed trust-policy denial, air-gap
+  mirror metadata stale, update rollback_required plus its
+  rollback follow-up, verify-failed, managed uninstall
+  admin_required, portable spill detected, and channel-pin
+  success). No installer, updater, or fleet tooling is implemented
+  at this milestone; the plan is the vocabulary and row-shape
+  layer every later release-engineering, continuity, fleet-
+  rollout, desktop-affordance, and endpoint-posture lane composes
+  over.
+
 ## Machine-readable registers
 
 These live outside `docs/` because tooling reads them; the narrative
@@ -438,3 +480,35 @@ above is paired with a YAML form that is authoritative for automation:
   [`/fixtures/journeys/`](../fixtures/journeys/). Normative
   companion in
   [`/docs/benchmarks/journey_trace_taxonomy.md`](./benchmarks/journey_trace_taxonomy.md).
+- [`/artifacts/release/install_topology_matrix.yaml`](../artifacts/release/install_topology_matrix.yaml)
+  — install-topology matrix with one install-profile card per
+  `(install_mode_class, channel_class, platform_class,
+  architecture_class)` tuple, plus the canary / pilot / broad /
+  lts ring-promotion evidence table and the rules the matrix
+  enforces (no shared durable state across channels, portable
+  no machine-global mutation, no last-writer-wins for
+  associations, managed_fleet requires a managed-package
+  report, and rollback target must match ring). Normative
+  companion in
+  [`/docs/release/install_topology_plan.md`](./release/install_topology_plan.md).
+- [`/artifacts/release/state_root_map.yaml`](../artifacts/release/state_root_map.yaml)
+  — install-topology state-root map with one state-root row per
+  `(durable_state_root_class, channel_class)` pair, plus
+  update-marker, recent-item-registration, file-association, and
+  protocol-handler ownership rows per channel. Pins the
+  `no_shared_durable_state_across_channels` collision policy at
+  the schema level so no side-by-side row silently corrupts
+  another row's state markers. Normative companion in
+  [`/docs/release/install_topology_plan.md`](./release/install_topology_plan.md).
+- [`/artifacts/release/silent_deployment_seed.yaml`](../artifacts/release/silent_deployment_seed.yaml)
+  — silent-deployment return-code family seed. Freezes the ten
+  return-code families (`success`, `partial_success`,
+  `user_config_error`, `trust_policy_denial`, `missing_dependency`,
+  `network_transport`, `internal_failure`, `rollback_required`,
+  `verification_failed`, `admin_required`) aligned with the
+  stable CLI exit-code model, plus the fifteen-value
+  `failure_reason_class` and the nine-value
+  `remediation_pointer_class` vocabularies and the
+  `unattended_deployment_result_record` shape with ten worked
+  fixtures. Normative companion in
+  [`/docs/release/install_topology_plan.md`](./release/install_topology_plan.md).

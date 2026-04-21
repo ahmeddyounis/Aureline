@@ -1,0 +1,669 @@
+# Install-topology state-root map.
+#
+# Machine-readable companion to docs/release/install_topology_plan.md
+# and artifacts/release/install_topology_matrix.yaml. Pins one
+# state_root_record per (durable_state_root_class, channel_class) pair
+# every install-profile card reads, plus per-channel separation rules
+# for state roots, update markers, recent-item registration, file
+# associations, and deep-link / protocol-handler ownership.
+#
+# Tooling reads this file; docs/release/install_topology_plan.md is
+# the narrative companion. If the two disagree, the plan wins and this
+# file must be updated in the same change. Concrete per-host-OS paths
+# are deliberately deferred to the install lane; this milestone pins
+# the class set and the per-channel separation rules so installers,
+# diagnostics, repair, and support surfaces read one truth instead of
+# inventing a parallel dialect.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/release/install_topology_plan.md
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+portable_profile_state_map_source: docs/state/profile_and_state_map.md
+exact_build_identity_schema: schemas/build/exact_build_identity.schema.json
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "Appendix BA platform installation matrix and fleet rollout rings"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 install and update behaviour as product truth"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "§6.12 About, update, and diagnostics surfaces"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# These vocabularies are the cross-reference into the portable-profile
+# state map and the install-topology matrix. Adding a value is
+# additive-minor; repurposing a value is breaking.
+# -----------------------------------------------------------------------------
+
+# Re-exported from install_topology_matrix.yaml so tooling can validate
+# owning-channel values without cross-parsing both files.
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+# Re-exported from install_topology_matrix.yaml.
+durable_state_root_class_vocabulary:
+  - user_authored_workspace_files_outside_install_tree
+  - per_user_configuration_root
+  - per_user_recovery_root
+  - per_user_derived_cache_root
+  - per_user_keychain_or_secret_store
+  - per_machine_admin_policy_root
+  - per_machine_shared_data_root
+  - portable_colocated_root
+  - offline_bundle_mirror_metadata_root
+  - shared_platform_os_root_read_only
+
+# Resolves into the four state-authority classes frozen by
+# docs/state/profile_and_state_map.md.
+authority_class_vocabulary:
+  - user_authored_durable_truth
+  - user_owned_recovery_state
+  - admin_or_control_artifact
+  - disposable_derived_cache
+  - platform_shared_read_only
+
+scriptability_class_vocabulary:
+  - cli_exposed
+  - diagnostics_only
+  - admin_only
+  - not_exposed
+
+diagnostics_visibility_class_vocabulary:
+  - exposed_in_about
+  - exposed_in_support_bundle
+  - exposed_in_admin_console_only
+  - not_exposed
+
+repair_verify_class_vocabulary:
+  - doctor_repairable
+  - reinstall_repairable
+  - admin_rebuild_required
+  - not_repairable
+
+exact_build_install_diagnostic_class_vocabulary:
+  - exact_build_manifest_present
+  - exact_build_manifest_reserved
+  - exact_build_manifest_not_applicable
+
+update_marker_ownership_class_vocabulary:
+  - per_channel_under_binary_root
+  - per_channel_under_user_profile
+  - per_channel_under_portable_root
+  - per_channel_under_admin_policy_root
+  - external_package_manager_owned
+  - none
+
+recent_item_registration_class_vocabulary:
+  - per_channel_under_user_profile
+  - per_channel_under_portable_root
+  - not_registered
+
+file_association_registration_class_vocabulary:
+  - user_or_admin_selectable_candidate_handler
+  - admin_only_default_handler
+  - not_registered
+
+protocol_handler_ownership_class_vocabulary:
+  - per_channel_suffixed_scheme
+  - shared_scheme_with_user_or_admin_default
+  - not_registered
+
+collision_policy_vocabulary:
+  - no_shared_durable_state_across_channels
+  - shared_across_channels_read_only_platform_resource
+
+# -----------------------------------------------------------------------------
+# Per-channel separation rules.
+#
+# Authoritative list. Every install-profile card whose
+# side_by_side_relation_class is any value other than none MUST
+# respect every rule below; cards that cannot are non-conforming.
+# -----------------------------------------------------------------------------
+per_channel_separation_rules:
+  - id: state_roots_per_channel
+    description: >
+      Every durable state root carries exactly one owning_channel unless
+      the row is flagged shared_across_channels: true with a named
+      reason (for example a platform keychain read-only to Aureline).
+      Stable MUST NOT read or write preview durable state roots, and
+      vice versa; portable MUST NOT read or write any installed
+      channel's durable state roots.
+    collision_policy: no_shared_durable_state_across_channels
+  - id: update_markers_per_channel
+    description: >
+      Every channel owns a distinct update-marker file under its own
+      binary root or durable state root. No channel reads or writes
+      another channel's update-marker. Portable's update marker lives
+      under the portable root; it does not touch any machine-global
+      update-marker.
+    collision_policy: no_shared_durable_state_across_channels
+  - id: recent_item_registration_per_channel
+    description: >
+      Each channel registers recent items under its own channel-
+      suffixed namespace. A side-by-side install renders two recent-
+      item lists, not one merged list. Portable mode MUST NOT write
+      recent-item registrations into any machine-global OS recent-
+      items list.
+    collision_policy: no_shared_durable_state_across_channels
+  - id: file_associations_never_last_writer_wins
+    description: >
+      Each channel's installer MAY register as a candidate handler for
+      a given file extension; the default handler is user- or admin-
+      selectable. The installer MUST NOT silently override an existing
+      default handler. Portable mode MUST NOT register any file
+      association on the host.
+    collision_policy: no_shared_durable_state_across_channels
+  - id: protocol_handlers_per_channel_suffixed_scheme
+    description: >
+      Each channel registers its protocol handler under a channel-
+      suffixed URL scheme (for example aureline-stable:// and
+      aureline-preview://). A shared aureline:// scheme resolves to
+      the user-or-admin selected default; installers MUST NOT silently
+      claim the shared scheme. Portable mode MUST NOT register any
+      protocol handler on the host.
+    collision_policy: no_shared_durable_state_across_channels
+  - id: silent_deployment_return_code_families_channel_agnostic
+    description: >
+      Every claimed channel on every claimed install mode resolves
+      unattended install, update, pin, rollback, and uninstall
+      outcomes into one of the return-code families frozen in
+      silent_deployment_seed.yaml. The channel is carried on the
+      install-profile card, not the return code; return-code families
+      are channel-agnostic.
+    collision_policy: no_shared_durable_state_across_channels
+
+# -----------------------------------------------------------------------------
+# State-root rows.
+#
+# One row per (durable_state_root_class, channel_class) pair admitted
+# by the install-topology matrix. Rows are ordered by durable-state-
+# root class and then by channel.
+# -----------------------------------------------------------------------------
+state_roots:
+
+  # ---------------------------------------------------------------------------
+  # User-authored workspace files (outside the install tree).
+  #
+  # These are the user's own source files and workspace repository;
+  # they live wherever the user puts them. Every channel reads this
+  # row because it is the product's hero surface and is not owned by
+  # any install tree. The row is flagged shared_across_channels: true
+  # because the user's workspace is not per-channel state.
+  # ---------------------------------------------------------------------------
+  - id: state.user_authored_workspace_files_outside_install_tree
+    durable_state_root_class: user_authored_workspace_files_outside_install_tree
+    owning_channels: []
+    shared_across_channels: true
+    shared_reason: >
+      The user's workspace repository is not per-channel state; every
+      install reads the user's source files from wherever the user
+      puts them. No install tree owns this row.
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_support_bundle
+    repair_verify_class: not_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_not_applicable
+    path_class_placeholder: user_workspace_repository_root
+    collision_policy: shared_across_channels_read_only_platform_resource
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-user configuration root (one row per channel).
+  # ---------------------------------------------------------------------------
+  - id: state.per_user_configuration_root.stable
+    durable_state_root_class: per_user_configuration_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_configuration_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_configuration_root.preview
+    durable_state_root_class: per_user_configuration_root
+    owning_channels: [preview]
+    shared_across_channels: false
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_configuration_root_preview
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_configuration_root.lts
+    durable_state_root_class: per_user_configuration_root
+    owning_channels: [lts]
+    shared_across_channels: false
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_configuration_root_lts
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-user recovery root (one row per channel).
+  # ---------------------------------------------------------------------------
+  - id: state.per_user_recovery_root.stable
+    durable_state_root_class: per_user_recovery_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: user_owned_recovery_state
+    scriptability_class: diagnostics_only
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_recovery_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_recovery_root.preview
+    durable_state_root_class: per_user_recovery_root
+    owning_channels: [preview]
+    shared_across_channels: false
+    authority_class: user_owned_recovery_state
+    scriptability_class: diagnostics_only
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_recovery_root_preview
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_recovery_root.lts
+    durable_state_root_class: per_user_recovery_root
+    owning_channels: [lts]
+    shared_across_channels: false
+    authority_class: user_owned_recovery_state
+    scriptability_class: diagnostics_only
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_user_recovery_root_lts
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-user derived cache root (one row per channel).
+  # ---------------------------------------------------------------------------
+  - id: state.per_user_derived_cache_root.stable
+    durable_state_root_class: per_user_derived_cache_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: disposable_derived_cache
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_support_bundle
+    repair_verify_class: reinstall_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_reserved
+    path_class_placeholder: per_user_derived_cache_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_derived_cache_root.preview
+    durable_state_root_class: per_user_derived_cache_root
+    owning_channels: [preview]
+    shared_across_channels: false
+    authority_class: disposable_derived_cache
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_support_bundle
+    repair_verify_class: reinstall_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_reserved
+    path_class_placeholder: per_user_derived_cache_root_preview
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_derived_cache_root.lts
+    durable_state_root_class: per_user_derived_cache_root
+    owning_channels: [lts]
+    shared_across_channels: false
+    authority_class: disposable_derived_cache
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_support_bundle
+    repair_verify_class: reinstall_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_reserved
+    path_class_placeholder: per_user_derived_cache_root_lts
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-user keychain / secret store (one row per channel).
+  #
+  # The OS keychain is a platform resource shared across processes,
+  # but Aureline's keychain entries carry a channel-suffixed service
+  # name so stable and preview do not read or write each other's
+  # secrets.
+  # ---------------------------------------------------------------------------
+  - id: state.per_user_keychain_or_secret_store.stable
+    durable_state_root_class: per_user_keychain_or_secret_store
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: user_owned_recovery_state
+    scriptability_class: diagnostics_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_reserved
+    path_class_placeholder: per_user_keychain_or_secret_store_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_user_keychain_or_secret_store.preview
+    durable_state_root_class: per_user_keychain_or_secret_store
+    owning_channels: [preview]
+    shared_across_channels: false
+    authority_class: user_owned_recovery_state
+    scriptability_class: diagnostics_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: doctor_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_reserved
+    path_class_placeholder: per_user_keychain_or_secret_store_preview
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-machine admin / policy root (one row per channel).
+  # ---------------------------------------------------------------------------
+  - id: state.per_machine_admin_policy_root.stable
+    durable_state_root_class: per_machine_admin_policy_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: admin_or_control_artifact
+    scriptability_class: admin_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: admin_rebuild_required
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_machine_admin_policy_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_machine_admin_policy_root.lts
+    durable_state_root_class: per_machine_admin_policy_root
+    owning_channels: [lts]
+    shared_across_channels: false
+    authority_class: admin_or_control_artifact
+    scriptability_class: admin_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: admin_rebuild_required
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_machine_admin_policy_root_lts
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Per-machine shared data root (one row per channel).
+  # ---------------------------------------------------------------------------
+  - id: state.per_machine_shared_data_root.stable
+    durable_state_root_class: per_machine_shared_data_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: admin_or_control_artifact
+    scriptability_class: admin_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: admin_rebuild_required
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_machine_shared_data_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.per_machine_shared_data_root.lts
+    durable_state_root_class: per_machine_shared_data_root
+    owning_channels: [lts]
+    shared_across_channels: false
+    authority_class: admin_or_control_artifact
+    scriptability_class: admin_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: admin_rebuild_required
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: per_machine_shared_data_root_lts
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Portable colocated root (one row per portable channel).
+  # ---------------------------------------------------------------------------
+  - id: state.portable_colocated_root.portable_stable
+    durable_state_root_class: portable_colocated_root
+    owning_channels: [portable_stable]
+    shared_across_channels: false
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: reinstall_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: portable_colocated_root_portable_stable
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  - id: state.portable_colocated_root.portable_preview
+    durable_state_root_class: portable_colocated_root
+    owning_channels: [portable_preview]
+    shared_across_channels: false
+    authority_class: user_authored_durable_truth
+    scriptability_class: cli_exposed
+    diagnostics_visibility_class: exposed_in_about
+    repair_verify_class: reinstall_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: portable_colocated_root_portable_preview
+    collision_policy: no_shared_durable_state_across_channels
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Offline-bundle mirror metadata root (one row per channel admitted by
+  # the offline-bundle / customer-managed-mirror publication postures).
+  # ---------------------------------------------------------------------------
+  - id: state.offline_bundle_mirror_metadata_root.stable
+    durable_state_root_class: offline_bundle_mirror_metadata_root
+    owning_channels: [stable]
+    shared_across_channels: false
+    authority_class: admin_or_control_artifact
+    scriptability_class: admin_only
+    diagnostics_visibility_class: exposed_in_admin_console_only
+    repair_verify_class: admin_rebuild_required
+    exact_build_install_diagnostic_class: exact_build_manifest_present
+    path_class_placeholder: offline_bundle_mirror_metadata_root_stable
+    collision_policy: no_shared_durable_state_across_channels
+    mirror_metadata_integrity_class_placeholder: reserved
+    offline_expiration_at: null
+    status: proposed
+
+  # ---------------------------------------------------------------------------
+  # Shared platform OS root, read-only.
+  #
+  # Platform-provided resources Aureline reads but does not own (for
+  # example a platform keychain service directory on macOS, a shared
+  # Linux XDG runtime directory). This row is the single exception to
+  # the no-shared-durable-state rule; it is read-only from Aureline's
+  # perspective.
+  # ---------------------------------------------------------------------------
+  - id: state.shared_platform_os_root_read_only
+    durable_state_root_class: shared_platform_os_root_read_only
+    owning_channels: []
+    shared_across_channels: true
+    shared_reason: >
+      Platform-provided resource read by Aureline but not owned by any
+      install tree. Read-only from Aureline's perspective; no channel
+      writes this row.
+    authority_class: platform_shared_read_only
+    scriptability_class: not_exposed
+    diagnostics_visibility_class: exposed_in_support_bundle
+    repair_verify_class: not_repairable
+    exact_build_install_diagnostic_class: exact_build_manifest_not_applicable
+    path_class_placeholder: shared_platform_os_root
+    collision_policy: shared_across_channels_read_only_platform_resource
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Per-channel resource ownership rows.
+#
+# Non-durable-state resources that still collide across channels:
+# update markers, recent-item registration, file associations, deep-
+# link / protocol-handler ownership. One row per channel so tooling can
+# validate that side-by-side cards do not silently corrupt each other's
+# markers.
+# -----------------------------------------------------------------------------
+update_markers:
+  - channel_class: stable
+    ownership_class: per_channel_under_binary_root
+    path_class_placeholder: update_marker_stable
+  - channel_class: preview
+    ownership_class: per_channel_under_binary_root
+    path_class_placeholder: update_marker_preview
+  - channel_class: beta
+    ownership_class: per_channel_under_binary_root
+    path_class_placeholder: update_marker_beta
+  - channel_class: lts
+    ownership_class: per_channel_under_admin_policy_root
+    path_class_placeholder: update_marker_lts
+  - channel_class: portable_stable
+    ownership_class: per_channel_under_portable_root
+    path_class_placeholder: update_marker_portable_stable
+  - channel_class: portable_preview
+    ownership_class: per_channel_under_portable_root
+    path_class_placeholder: update_marker_portable_preview
+
+recent_item_registrations:
+  - channel_class: stable
+    registration_class: per_channel_under_user_profile
+    namespace_placeholder: recent_items_stable
+  - channel_class: preview
+    registration_class: per_channel_under_user_profile
+    namespace_placeholder: recent_items_preview
+  - channel_class: beta
+    registration_class: per_channel_under_user_profile
+    namespace_placeholder: recent_items_beta
+  - channel_class: lts
+    registration_class: per_channel_under_user_profile
+    namespace_placeholder: recent_items_lts
+  - channel_class: portable_stable
+    registration_class: per_channel_under_portable_root
+    namespace_placeholder: recent_items_portable_stable
+  - channel_class: portable_preview
+    registration_class: per_channel_under_portable_root
+    namespace_placeholder: recent_items_portable_preview
+
+file_associations:
+  - channel_class: stable
+    registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_selection_rule: user_or_admin_selectable_never_last_writer_wins
+  - channel_class: preview
+    registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_selection_rule: user_or_admin_selectable_never_last_writer_wins
+  - channel_class: beta
+    registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_selection_rule: user_or_admin_selectable_never_last_writer_wins
+  - channel_class: lts
+    registration_class: admin_only_default_handler
+    default_handler_selection_rule: admin_only
+  - channel_class: portable_stable
+    registration_class: not_registered
+    default_handler_selection_rule: not_applicable
+  - channel_class: portable_preview
+    registration_class: not_registered
+    default_handler_selection_rule: not_applicable
+
+protocol_handlers:
+  - channel_class: stable
+    ownership_class: per_channel_suffixed_scheme
+    scheme_placeholder: aureline-stable
+  - channel_class: preview
+    ownership_class: per_channel_suffixed_scheme
+    scheme_placeholder: aureline-preview
+  - channel_class: beta
+    ownership_class: per_channel_suffixed_scheme
+    scheme_placeholder: aureline-beta
+  - channel_class: lts
+    ownership_class: per_channel_suffixed_scheme
+    scheme_placeholder: aureline-lts
+  - channel_class: portable_stable
+    ownership_class: not_registered
+    scheme_placeholder: not_applicable
+  - channel_class: portable_preview
+    ownership_class: not_registered
+    scheme_placeholder: not_applicable
+
+shared_scheme_default_resolution:
+  shared_scheme_placeholder: aureline
+  default_resolution_rule: user_or_admin_selected_default
+  default_resolution_forbidden_rule: no_silent_claim_of_shared_scheme
+  wrong_target_behavior: return_typed_result_code_do_not_redirect
+
+# -----------------------------------------------------------------------------
+# Coverage index.
+#
+# Cross-reference: every durable_state_root_ref on every install-profile
+# card in install_topology_matrix.yaml MUST resolve to a state_root id
+# here. Adding a state-root class is additive-minor; adding a channel
+# admits new rows into this file in the same change.
+# -----------------------------------------------------------------------------
+coverage_by_durable_state_root_class_and_channel:
+  user_authored_workspace_files_outside_install_tree:
+    shared:
+      - state.user_authored_workspace_files_outside_install_tree
+  per_user_configuration_root:
+    stable:
+      - state.per_user_configuration_root.stable
+    preview:
+      - state.per_user_configuration_root.preview
+    lts:
+      - state.per_user_configuration_root.lts
+  per_user_recovery_root:
+    stable:
+      - state.per_user_recovery_root.stable
+    preview:
+      - state.per_user_recovery_root.preview
+    lts:
+      - state.per_user_recovery_root.lts
+  per_user_derived_cache_root:
+    stable:
+      - state.per_user_derived_cache_root.stable
+    preview:
+      - state.per_user_derived_cache_root.preview
+    lts:
+      - state.per_user_derived_cache_root.lts
+  per_user_keychain_or_secret_store:
+    stable:
+      - state.per_user_keychain_or_secret_store.stable
+    preview:
+      - state.per_user_keychain_or_secret_store.preview
+  per_machine_admin_policy_root:
+    stable:
+      - state.per_machine_admin_policy_root.stable
+    lts:
+      - state.per_machine_admin_policy_root.lts
+  per_machine_shared_data_root:
+    stable:
+      - state.per_machine_shared_data_root.stable
+    lts:
+      - state.per_machine_shared_data_root.lts
+  portable_colocated_root:
+    portable_stable:
+      - state.portable_colocated_root.portable_stable
+    portable_preview:
+      - state.portable_colocated_root.portable_preview
+  offline_bundle_mirror_metadata_root:
+    stable:
+      - state.offline_bundle_mirror_metadata_root.stable
+  shared_platform_os_root_read_only:
+    shared:
+      - state.shared_platform_os_root_read_only

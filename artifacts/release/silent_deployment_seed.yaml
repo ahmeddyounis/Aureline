@@ -1,0 +1,479 @@
+# Silent-deployment return-code family seed.
+#
+# Machine-readable companion to docs/release/install_topology_plan.md
+# and artifacts/release/install_topology_matrix.yaml. Freezes the
+# return-code family vocabulary every unattended install, update, pin,
+# rollback, or uninstall resolves into, pins the admissible numeric
+# exit codes per family against the stable CLI exit-code model, and
+# seeds worked unattended_deployment_result_record fixtures covering
+# install, update, rollback, uninstall, and verify-failed outcomes.
+#
+# Rules.
+#   - Every fixture MUST carry exactly one result_kind, one
+#     result_status, one return_code_family, one return_code_numeric
+#     drawn from the family's admissible set, one failure_reason_class
+#     (or null only when result_status is success), and one
+#     remediation_pointer_class. Missing or free-text fields are
+#     validation failures.
+#   - Every fixture MUST resolve install_profile_card_ref to a card id
+#     in artifacts/release/install_topology_matrix.yaml. Free-floating
+#     fixtures are non-conforming.
+#   - A fixture with return_code_family == trust_policy_denial is
+#     non-conforming unless the referenced card carries a
+#     policy_injection_class other than none.
+#   - Fixtures MUST NOT leak secrets. The redaction_class resolves
+#     into the redaction / secret classes frozen by ADR-0007 via
+#     docs/state/profile_and_state_map.md.
+#   - Milestone slugs MUST NOT appear in any id, reason, or pointer.
+#   - Adding a return_code_family, failure_reason_class, or
+#     remediation_pointer_class value is additive-minor; bump
+#     schema_version, extend this seed, and update the plan in the
+#     same change. Repurposing an existing value is breaking and opens
+#     a decision row in artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/release/install_topology_plan.md
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+stable_cli_exit_code_source: .t2/docs/Aureline_Technical_Architecture_Document.md#b-2-stable-cli-exit-codes
+adr_redaction_source: docs/state/profile_and_state_map.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "§B.2 stable CLI exit-code family"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 silent / managed deployment with documented return codes"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+result_kind_vocabulary:
+  - install
+  - update
+  - pin
+  - rollback
+  - uninstall
+  - verify
+
+result_status_vocabulary:
+  - success
+  - partial_success
+  - failed
+  - rolled_back
+  - verify_failed
+  - reboot_required
+
+# Return-code families align with the TAD §B.2 stable CLI exit-code
+# model. Families are channel-agnostic; the channel is carried on the
+# install-profile card, not the return code.
+return_code_family_vocabulary:
+  - success
+  - partial_success
+  - user_config_error
+  - trust_policy_denial
+  - missing_dependency
+  - network_transport
+  - internal_failure
+  - rollback_required
+  - verification_failed
+  - admin_required
+
+failure_reason_class_vocabulary:
+  - signature_invalid
+  - signing_material_revoked
+  - mirror_metadata_stale
+  - policy_denied
+  - disk_space_exhausted
+  - path_permission_denied
+  - state_root_collision
+  - side_by_side_marker_corruption
+  - portable_spill_detected
+  - network_unreachable_offline_required
+  - missing_bootstrap_bundle
+  - toolchain_missing
+  - unsupported_platform
+  - internal_bug
+  - user_cancelled
+
+remediation_pointer_class_vocabulary:
+  - run_project_doctor
+  - inspect_support_bundle
+  - refresh_mirror_metadata
+  - contact_admin
+  - reissue_policy_bundle
+  - retry_from_offline_bundle
+  - reinstall_from_clean_state
+  - open_release_notes
+  - none
+
+redaction_class_vocabulary:
+  - no_secrets_present
+  - secrets_redacted_before_emit
+  - support_bundle_only
+
+# -----------------------------------------------------------------------------
+# Return-code families: admissible numeric codes and semantics.
+#
+# Numeric codes align with TAD §B.2. Adding a family is additive-minor;
+# the numeric code for a family is stable and MUST NOT be repurposed.
+# -----------------------------------------------------------------------------
+return_code_families:
+  - id: success
+    numeric_codes: [0]
+    semantics: >
+      Operation completed; no warnings or degraded state to report.
+      Expected caller action: continue.
+    admissible_result_statuses: [success]
+    admissible_result_kinds: [install, update, pin, rollback, uninstall, verify]
+  - id: partial_success
+    numeric_codes: [2]
+    semantics: >
+      Operation completed but with warnings or degraded state. The
+      result record MUST carry a failure_reason_class naming the
+      degraded surface.
+      Expected caller action: inspect warnings.
+    admissible_result_statuses: [partial_success, reboot_required]
+    admissible_result_kinds: [install, update, rollback, uninstall, verify]
+  - id: user_config_error
+    numeric_codes: [3]
+    semantics: >
+      User or invocation configuration error: invalid arguments,
+      workspace file, or settings file.
+      Expected caller action: fix invocation, settings, or workspace
+      file.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, uninstall, verify]
+  - id: trust_policy_denial
+    numeric_codes: [4]
+    semantics: >
+      Operation blocked by workspace-trust or admin policy. The result
+      record MUST reference an install-profile card carrying a
+      policy_injection_class other than none.
+      Expected caller action: review workspace trust or admin policy.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, uninstall]
+  - id: missing_dependency
+    numeric_codes: [5]
+    semantics: >
+      A required dependency, bootstrap bundle, or toolchain is missing
+      from the host.
+      Expected caller action: run Project Doctor or repair the
+      toolchain / bundle.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, verify]
+  - id: network_transport
+    numeric_codes: [6]
+    semantics: >
+      Network / transport policy denial or outage prevented the
+      operation (for example a mirror fetch failure or a proxy
+      denial).
+      Expected caller action: inspect proxy, trust, mirror, or
+      connectivity state.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, verify]
+  - id: internal_failure
+    numeric_codes: [7]
+    semantics: >
+      Internal failure or bug. The result record MUST carry a
+      support-bundle reference if a bundle was captured.
+      Expected caller action: capture support bundle and retry only
+      if safe.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, uninstall, verify]
+  - id: rollback_required
+    numeric_codes: [8]
+    semantics: >
+      Operation left the host in a state that MUST be rolled back to
+      the card's rollback_target_class before the install is usable
+      again. Admissible only when the caller-run rollback is recorded
+      in a follow-up result_record with result_kind == rollback.
+      Expected caller action: invoke the rollback path for this
+      install-profile card.
+    admissible_result_statuses: [failed, rolled_back]
+    admissible_result_kinds: [install, update]
+  - id: verification_failed
+    numeric_codes: [9]
+    semantics: >
+      Install-signature, state-root-integrity, or exact-build-manifest
+      verification failed.
+      Expected caller action: inspect support bundle and refresh
+      mirror metadata or reissue the offline bundle.
+    admissible_result_statuses: [verify_failed]
+    admissible_result_kinds: [verify]
+  - id: admin_required
+    numeric_codes: [10]
+    semantics: >
+      Operation requires admin or managed-fleet authority that the
+      invoking caller does not hold.
+      Expected caller action: contact admin or retry under the
+      managed-fleet lane.
+    admissible_result_statuses: [failed]
+    admissible_result_kinds: [install, update, pin, rollback, uninstall]
+
+# -----------------------------------------------------------------------------
+# Result record shape (authoritative).
+#
+# Every unattended_deployment_result_record MUST carry every field
+# listed in required_fields; reserved_fields are slots later lanes
+# will fill without a schema-version bump.
+# -----------------------------------------------------------------------------
+unattended_deployment_result_record_shape:
+  record_kind: unattended_deployment_result_record
+  required_fields:
+    - result_id
+    - result_kind
+    - result_status
+    - return_code_family
+    - return_code_numeric
+    - install_profile_card_ref
+    - redaction_class
+    - remediation_pointer_class
+  conditional_fields:
+    - name: failure_reason_class
+      required_when: "result_status != success"
+    - name: support_bundle_ref
+      required_when: "return_code_family in {internal_failure, verification_failed}"
+  reserved_fields:
+    - running_build_identity_ref
+    - policy_injection_context_ref
+    - rollback_evidence_ref
+    - fleet_ring_context_ref
+    - offline_bundle_signature_ref
+
+# -----------------------------------------------------------------------------
+# Worked fixtures.
+#
+# Every fixture is a concrete unattended_deployment_result_record the
+# seed uses to document the happy path and the failure paths end to
+# end. Fixtures are referenced by install_profile_card_ref; callers
+# MUST NOT mutate the card ids here without updating
+# install_topology_matrix.yaml in the same change.
+# -----------------------------------------------------------------------------
+fixtures:
+
+  - result_id: fixture.install.windows.x86_64.per_machine_installed.stable.success
+    result_kind: install
+    result_status: success
+    return_code_family: success
+    return_code_numeric: 0
+    install_profile_card_ref: card.windows.x86_64.per_machine_installed.stable
+    failure_reason_class: null
+    remediation_pointer_class: none
+    redaction_class: no_secrets_present
+    support_bundle_ref: null
+    running_build_identity_ref: null
+    notes: >
+      Reference success fixture: a silent per-machine install on a
+      Windows x86_64 host completed without warnings. Demonstrates the
+      minimum field set on the success path.
+
+  - result_id: fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
+    result_kind: update
+    result_status: reboot_required
+    return_code_family: partial_success
+    return_code_numeric: 2
+    install_profile_card_ref: card.macos.universal_binary.per_machine_installed.stable
+    failure_reason_class: state_root_collision
+    remediation_pointer_class: inspect_support_bundle
+    redaction_class: secrets_redacted_before_emit
+    support_bundle_ref: reserved
+    running_build_identity_ref: null
+    notes: >
+      Update completed but a reboot is required before the new binary
+      is active. Demonstrates the partial_success family and the
+      reboot_required status coexisting on one record.
+
+  - result_id: fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
+    result_kind: install
+    result_status: failed
+    return_code_family: trust_policy_denial
+    return_code_numeric: 4
+    install_profile_card_ref: card.linux.x86_64.managed_deployed.stable
+    failure_reason_class: policy_denied
+    remediation_pointer_class: reissue_policy_bundle
+    redaction_class: secrets_redacted_before_emit
+    support_bundle_ref: null
+    running_build_identity_ref: null
+    notes: >
+      Managed-fleet install denied by admin policy. Demonstrates that
+      trust_policy_denial is only admissible on a card whose
+      policy_injection_class is other than none.
+
+  - result_id: fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
+    result_kind: install
+    result_status: failed
+    return_code_family: network_transport
+    return_code_numeric: 6
+    install_profile_card_ref: card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+    failure_reason_class: mirror_metadata_stale
+    remediation_pointer_class: refresh_mirror_metadata
+    redaction_class: no_secrets_present
+    support_bundle_ref: null
+    running_build_identity_ref: null
+    notes: >
+      Offline bundle install failed because the mirror metadata is
+      past its offline_expiration_at deadline. Demonstrates the
+      network_transport family on an air-gap-target row.
+
+  - result_id: fixture.update.windows.x86_64.per_machine_installed.stable.rollback_required
+    result_kind: update
+    result_status: failed
+    return_code_family: rollback_required
+    return_code_numeric: 8
+    install_profile_card_ref: card.windows.x86_64.per_machine_installed.stable
+    failure_reason_class: side_by_side_marker_corruption
+    remediation_pointer_class: inspect_support_bundle
+    redaction_class: secrets_redacted_before_emit
+    support_bundle_ref: reserved
+    running_build_identity_ref: null
+    notes: >
+      Update left the host in a state that must be rolled back to the
+      card's rollback_target_class (previous_build_same_channel).
+      Callers are expected to follow up with a result_kind == rollback
+      record resolving the outcome.
+
+  - result_id: fixture.rollback.windows.x86_64.per_machine_installed.stable.success_after_rollback_required
+    result_kind: rollback
+    result_status: rolled_back
+    return_code_family: rollback_required
+    return_code_numeric: 8
+    install_profile_card_ref: card.windows.x86_64.per_machine_installed.stable
+    failure_reason_class: side_by_side_marker_corruption
+    remediation_pointer_class: inspect_support_bundle
+    redaction_class: secrets_redacted_before_emit
+    support_bundle_ref: reserved
+    running_build_identity_ref: null
+    notes: >
+      Follow-up record for the rollback_required case. Demonstrates
+      that the rollback_required family remains on the record even
+      after the rollback has been performed; result_status transitions
+      to rolled_back, and the family stays so the fleet console can
+      correlate the two records.
+
+  - result_id: fixture.verify.windows.x86_64.per_machine_installed.stable.verification_failed
+    result_kind: verify
+    result_status: verify_failed
+    return_code_family: verification_failed
+    return_code_numeric: 9
+    install_profile_card_ref: card.windows.x86_64.per_machine_installed.stable
+    failure_reason_class: signature_invalid
+    remediation_pointer_class: retry_from_offline_bundle
+    redaction_class: no_secrets_present
+    support_bundle_ref: reserved
+    running_build_identity_ref: null
+    notes: >
+      Install-signature verification failed. Demonstrates the
+      verification_failed family and the verify result_kind. Install
+      remains on the host but is flagged as unverified until the
+      caller refreshes the offline bundle or the mirror metadata.
+
+  - result_id: fixture.uninstall.linux.x86_64.managed_deployed.stable.admin_required
+    result_kind: uninstall
+    result_status: failed
+    return_code_family: admin_required
+    return_code_numeric: 10
+    install_profile_card_ref: card.linux.x86_64.managed_deployed.stable
+    failure_reason_class: path_permission_denied
+    remediation_pointer_class: contact_admin
+    redaction_class: no_secrets_present
+    support_bundle_ref: null
+    running_build_identity_ref: null
+    notes: >
+      Uninstall failed because the invoking caller does not hold
+      admin / managed-fleet authority on the host. Demonstrates the
+      admin_required family and the contact_admin remediation
+      pointer.
+
+  - result_id: fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
+    result_kind: install
+    result_status: failed
+    return_code_family: internal_failure
+    return_code_numeric: 7
+    install_profile_card_ref: card.windows.x86_64.portable.portable_stable
+    failure_reason_class: portable_spill_detected
+    remediation_pointer_class: reinstall_from_clean_state
+    redaction_class: secrets_redacted_before_emit
+    support_bundle_ref: reserved
+    running_build_identity_ref: null
+    notes: >
+      Portable install detected a spill into a user-profile state
+      root (for example a machine-global update-marker write). The
+      portable row MUST fail closed when this is detected rather than
+      silently spilling into an installed channel's durable state.
+
+  - result_id: fixture.pin.linux.x86_64.managed_deployed.stable.success
+    result_kind: pin
+    result_status: success
+    return_code_family: success
+    return_code_numeric: 0
+    install_profile_card_ref: card.linux.x86_64.managed_deployed.stable
+    failure_reason_class: null
+    remediation_pointer_class: none
+    redaction_class: no_secrets_present
+    support_bundle_ref: null
+    running_build_identity_ref: null
+    notes: >
+      Channel-pin succeeded on a managed Linux install. Demonstrates
+      that result_kind == pin is a legitimate unattended operation
+      emitting a result record in the same family tree as install /
+      update / rollback / uninstall / verify.
+
+# -----------------------------------------------------------------------------
+# Family coverage rollup.
+#
+# Which return-code families and failure-reason classes have at least
+# one worked fixture at this milestone. Families without a fixture are
+# reserved; adding a fixture is additive-minor.
+# -----------------------------------------------------------------------------
+coverage_by_return_code_family:
+  success:
+    - fixture.install.windows.x86_64.per_machine_installed.stable.success
+    - fixture.pin.linux.x86_64.managed_deployed.stable.success
+  partial_success:
+    - fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
+  user_config_error: []
+  trust_policy_denial:
+    - fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
+  missing_dependency: []
+  network_transport:
+    - fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
+  internal_failure:
+    - fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
+  rollback_required:
+    - fixture.update.windows.x86_64.per_machine_installed.stable.rollback_required
+    - fixture.rollback.windows.x86_64.per_machine_installed.stable.success_after_rollback_required
+  verification_failed:
+    - fixture.verify.windows.x86_64.per_machine_installed.stable.verification_failed
+  admin_required:
+    - fixture.uninstall.linux.x86_64.managed_deployed.stable.admin_required
+
+coverage_by_failure_reason_class:
+  signature_invalid:
+    - fixture.verify.windows.x86_64.per_machine_installed.stable.verification_failed
+  signing_material_revoked: []
+  mirror_metadata_stale:
+    - fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
+  policy_denied:
+    - fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
+  disk_space_exhausted: []
+  path_permission_denied:
+    - fixture.uninstall.linux.x86_64.managed_deployed.stable.admin_required
+  state_root_collision:
+    - fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
+  side_by_side_marker_corruption:
+    - fixture.update.windows.x86_64.per_machine_installed.stable.rollback_required
+    - fixture.rollback.windows.x86_64.per_machine_installed.stable.success_after_rollback_required
+  portable_spill_detected:
+    - fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
+  network_unreachable_offline_required: []
+  missing_bootstrap_bundle: []
+  toolchain_missing: []
+  unsupported_platform: []
+  internal_bug: []
+  user_cancelled: []
