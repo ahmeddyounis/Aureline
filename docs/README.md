@@ -88,6 +88,14 @@ code.
   line, comparability, docs applicability, exclusion, and competitor
   disclosure fields.
 
+## Planning
+
+- [`planning/m1_m2_dependency_backlog.md`](./planning/m1_m2_dependency_backlog.md)
+  — dependency-aware and commitment-classed M1/M2 backlog grounded in
+  the current M0 ADRs, prototypes, corpora, and decision gates. The
+  machine-readable companions live in
+  [`/artifacts/planning/`](../artifacts/planning/).
+
 ## Product boundary
 
 - [`product/boundary_manifest_strawman.md`](./product/boundary_manifest_strawman.md)
