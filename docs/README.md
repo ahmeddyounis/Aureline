@@ -165,6 +165,34 @@ code.
   [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
   example compatibility-label and activation-budget-summary
   packet shapes are embedded in the taxonomy doc.
+- [`design/design_token_component_state_vocabulary.md`](./design/design_token_component_state_vocabulary.md)
+  — design-token, component-state, theme-support, accessibility-
+  posture, and layer / scrim vocabulary every shell, docs / help,
+  trust, onboarding, and durable-attention surface consumes from
+  M0 onward. Freezes the token-family set (color_brand,
+  color_functional_accent, color_neutral, color_state,
+  color_semantic_theme, color_syntax, color_diff, color_chart,
+  typography_role, typography_scale, text_rule, spacing, sizing,
+  radius, border_stroke, elevation, opacity_scrim,
+  layer_portal_order, motion_duration, motion_easing,
+  motion_restriction, density, icon_treatment, semantic_status,
+  trust_visual_state), the component-state set (idle, hover,
+  focus, focus_visible, pressed, selected, disabled, loading,
+  pending, degraded, stale, restricted, policy_blocked, warning,
+  destructive, reconnecting, completed, restored,
+  quiet_hours_held), the theme set (dark_reference, light_parity,
+  high_contrast_dark, high_contrast_light), the accessibility
+  posture set (motion_standard, motion_reduced, motion_low_motion,
+  motion_power_saver, motion_critical_hot_path), the layer /
+  portal order set (z_base, z_sticky, z_floating, z_menu,
+  z_dialog, z_toast, z_critical), and the scrim / overlay set
+  (scrim_none, scrim_weak, scrim_strong,
+  overlay_dim_presentation). Boundary schema in
+  [`/schemas/design/token_export_manifest.schema.json`](../schemas/design/token_export_manifest.schema.json);
+  theme and accessibility-posture rows in
+  [`/artifacts/design/theme_support_rows.yaml`](../artifacts/design/theme_support_rows.yaml);
+  layer and scrim tokens in
+  [`/artifacts/design/layer_and_scrim_tokens.yaml`](../artifacts/design/layer_and_scrim_tokens.yaml).
 
 ## Machine-readable registers
 

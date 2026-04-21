@@ -1,0 +1,820 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/token_export_manifest.schema.json",
+  "title": "Aureline design-token, component-state, theme-support, accessibility-posture, and layer / scrim vocabulary export",
+  "description": "Boundary schema for the design_token_export_manifest_record, the token_family_record, the component_state_record, the theme_support_row_record, the accessibility_posture_record, the layer_order_record, the scrim_token_record, and the token_export_audit_event_record frozen in docs/design/design_token_component_state_vocabulary.md. Every shell, docs / help, trust, onboarding, and durable-attention surface that mints tokens, component states, themes, accessibility postures, overlay layers, or scrim / opacity values reads one record per entity from this export. Raw bytes, raw asset payloads, raw rendered screenshots, and raw user content never cross this boundary; this schema carries ids, typed vocabulary, and small value packets only. The eventual design-system crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new token family, component state, theme, accessibility posture, layer order, scrim token, icon treatment, semantic status, trust visual state, density, audit-event id, or denial reason is additive-minor and requires a design_token_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/design_token_export_manifest_record" },
+    { "$ref": "#/$defs/token_family_record" },
+    { "$ref": "#/$defs/component_state_record" },
+    { "$ref": "#/$defs/theme_support_row_record" },
+    { "$ref": "#/$defs/accessibility_posture_record" },
+    { "$ref": "#/$defs/layer_order_record" },
+    { "$ref": "#/$defs/scrim_token_record" },
+    { "$ref": "#/$defs/token_export_audit_event_record" }
+  ],
+  "$defs": {
+    "design_token_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this design-token / component-state / theme-support / layer-scrim vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "design_token_export_manifest_record",
+        "token_family_record",
+        "component_state_record",
+        "theme_support_row_record",
+        "accessibility_posture_record",
+        "layer_order_record",
+        "scrim_token_record",
+        "token_export_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / conformance reports / support bundles. Raw asset bytes, raw screenshots, raw rendered imagery, and raw user content never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "token_family_class": {
+      "type": "string",
+      "enum": [
+        "color_brand",
+        "color_functional_accent",
+        "color_neutral",
+        "color_state",
+        "color_semantic_theme",
+        "color_syntax",
+        "color_diff",
+        "color_chart",
+        "typography_role",
+        "typography_scale",
+        "text_rule",
+        "spacing",
+        "sizing",
+        "radius",
+        "border_stroke",
+        "elevation",
+        "opacity_scrim",
+        "layer_portal_order",
+        "motion_duration",
+        "motion_easing",
+        "motion_restriction",
+        "density",
+        "icon_treatment",
+        "semantic_status",
+        "trust_visual_state"
+      ],
+      "description": "Frozen token-family vocabulary. Every design token belongs to exactly one family. Surfaces MUST NOT mint parallel families (e.g. no 'brand-v2-color' or 'shell-shadow-family'); new families arrive as an additive-minor schema bump."
+    },
+
+    "component_state_class": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "hover",
+        "focus",
+        "focus_visible",
+        "pressed",
+        "selected",
+        "disabled",
+        "loading",
+        "pending",
+        "degraded",
+        "stale",
+        "restricted",
+        "policy_blocked",
+        "warning",
+        "destructive",
+        "reconnecting",
+        "completed",
+        "restored",
+        "quiet_hours_held"
+      ],
+      "description": "Frozen component-state vocabulary. Every styled interactive surface maps exactly one of these states per addressable slot; a surface MAY combine them (e.g. focus + selected) but MUST NOT invent private state names (no 'busy', 'active-2', 'just-saved'). quiet_hours_held is the held / suppressed posture for durable-attention surfaces whose owner has declined a notification while preserving the row for later attention. restricted and policy_blocked remain separate axes: restricted names workspace-trust narrowing, policy_blocked names admin-policy narrowing; a surface that collapses them into one state is non-conforming."
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Frozen theme vocabulary. dark_reference is the reference theme; light_parity MUST be parity-quality and is never a legacy mode; high_contrast_dark and high_contrast_light are first-party modes. Admin policy MAY narrow the set a surface offers; it MAY NOT introduce a fifth theme without a schema bump."
+    },
+
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Frozen accessibility / runtime motion posture vocabulary. motion_standard is the default. motion_reduced is the OS-level reduced-motion preference. motion_low_motion is the in-product low-motion mode layered on top of motion_reduced for users who want motion muted further than the OS floor. motion_power_saver is a runtime posture engaged when the device enters battery saver, thermal pressure, or an explicit low-power mode. motion_critical_hot_path is the engine-internal posture used when a frame budget is already committed; transient motion is suppressed regardless of the user's chosen motion posture. A surface MAY escalate from motion_standard to a more restrictive posture; it MAY NOT silently downgrade to a less restrictive posture once a more restrictive posture has engaged."
+    },
+
+    "layer_order_class": {
+      "type": "string",
+      "enum": [
+        "z_base",
+        "z_sticky",
+        "z_floating",
+        "z_menu",
+        "z_dialog",
+        "z_toast",
+        "z_critical"
+      ],
+      "description": "Frozen layer / portal order vocabulary. Extensions and local features consume these tokens; hard-coded z-index values are non-conforming. Dialogs and security-critical sheets always render above menus and transient hovers; toasts never obscure the primary action area of an active blocking dialog; z_critical is reserved for trust, auth, or security-critical overlays that outrank every other layer."
+    },
+
+    "scrim_class": {
+      "type": "string",
+      "enum": [
+        "scrim_none",
+        "scrim_weak",
+        "scrim_strong",
+        "overlay_dim_presentation"
+      ],
+      "description": "Frozen scrim / overlay vocabulary. scrim_weak covers drawers and transient overlays; scrim_strong isolates blocking dialogs; overlay_dim_presentation dims the workspace beneath a presentation or follow-mode overlay without obscuring the focused interactive control (UI/UX Spec §19.2). Reduced opacity is NEVER the only indicator of disabled or blocked state; scrim tokens communicate depth and focus, not state."
+    },
+
+    "density_class": {
+      "type": "string",
+      "enum": [
+        "compact",
+        "standard",
+        "comfortable"
+      ],
+      "description": "Frozen density vocabulary. Density affects row heights, padding, tab density, sidebar spacing, and panel chrome. Density does NOT affect contrast, command semantics, focus visibility, or information architecture."
+    },
+
+    "icon_treatment_class": {
+      "type": "string",
+      "enum": [
+        "shell_stroke_standard",
+        "shell_filled_emphasis",
+        "status_semantic",
+        "file_type_rich",
+        "illustration_abstract",
+        "illustration_line_and_fill"
+      ],
+      "description": "Frozen icon / illustration treatment vocabulary. shell_stroke_standard is the default crisp shell icon; shell_filled_emphasis is reserved for emphasis states; status_semantic icons pair with a semantic_status value; file_type_rich icons MAY carry more color and detail but never impersonate shell chrome; illustration_* treatments are reserved for onboarding, empty states, and documentation."
+    },
+
+    "semantic_status_class": {
+      "type": "string",
+      "enum": [
+        "success",
+        "warning",
+        "danger",
+        "info",
+        "insight"
+      ],
+      "description": "Frozen semantic-status vocabulary for product-wide status messaging. Maps to the five state palettes in the style guide: success / warning / danger / info / insight. A surface that introduces a sixth palette without a schema bump is non-conforming; status conveyed by color alone is also non-conforming."
+    },
+
+    "trust_visual_state_class": {
+      "type": "string",
+      "enum": [
+        "trusted_full",
+        "restricted_workspace",
+        "remote_target_active",
+        "collaboration_active",
+        "ai_draft_pending",
+        "ai_applied",
+        "index_warming",
+        "debugging_active",
+        "quiet_hours_active",
+        "policy_locked"
+      ],
+      "description": "Frozen trust / durable-attention visual-state vocabulary. Every trust- or attention-bearing surface maps exactly one of these states per addressable slot. Brand gold is NEVER used to communicate restricted or policy-locked state. quiet_hours_active is the held-notification posture; policy_locked is the admin-policy narrowing posture."
+    },
+
+    "source_of_truth_class": {
+      "type": "string",
+      "enum": [
+        "design_system_manifest",
+        "theme_support_manifest",
+        "layer_scrim_manifest",
+        "component_state_manifest",
+        "accessibility_posture_manifest",
+        "icon_registry",
+        "semantic_status_registry",
+        "trust_visual_state_registry"
+      ],
+      "description": "Frozen source-of-truth class for a design-token / component-state / theme-support row. Every manifest names exactly one canonical source; copy-only shadow registries are non-conforming."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "design_token_manifest_emitted",
+        "design_token_manifest_refused",
+        "token_family_added",
+        "token_family_repurposed_refused",
+        "component_state_added",
+        "component_state_repurposed_refused",
+        "theme_support_row_added",
+        "theme_support_row_repurposed_refused",
+        "accessibility_posture_engaged",
+        "accessibility_posture_downgrade_refused",
+        "layer_order_token_added",
+        "layer_order_hard_coded_refused",
+        "scrim_token_added",
+        "scrim_as_sole_state_indicator_refused",
+        "icon_treatment_parallel_metaphor_refused",
+        "brand_gold_on_restricted_refused",
+        "density_affected_semantics_refused",
+        "design_token_schema_version_bumped",
+        "design_token_conformance_diff_emitted",
+        "design_token_conformance_diff_refused"
+      ],
+      "description": "Audit-event ids on the design_token_vocabulary audit stream. Events MUST NOT carry raw asset bytes, raw screenshots, or raw rendered imagery."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "token_family_class_unresolved",
+        "token_family_repurposed_without_decision_row",
+        "component_state_class_unresolved",
+        "component_state_repurposed_without_decision_row",
+        "theme_class_unresolved",
+        "accessibility_posture_silent_downgrade",
+        "layer_order_hard_coded",
+        "scrim_used_as_sole_state_indicator",
+        "brand_gold_on_restricted_state",
+        "brand_gold_on_policy_locked_state",
+        "density_changed_information_architecture",
+        "density_changed_focus_visibility",
+        "color_alone_conveyed_required_meaning",
+        "icon_without_label_or_tooltip",
+        "parallel_icon_metaphor",
+        "source_of_truth_unresolved",
+        "shadow_registry_detected",
+        "design_token_schema_version_lagging"
+      ],
+      "description": "Denial-reason vocabulary on the design_token_vocabulary audit stream. Denials fail closed; silent downgrade to a generic 'styling issue' is forbidden."
+    },
+
+    "hex_color_literal": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{3,8}$",
+      "description": "Hex color literal: 3, 4, 6, or 8 hex digits (with or without alpha). Surfaces consume tokens; hex literals are carried here for seed fidelity only."
+    },
+
+    "rgba_color_literal": {
+      "type": "string",
+      "pattern": "^rgba\\(\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*(0|1|0?\\.\\d+)\\s*\\)$",
+      "description": "CSS rgba() color literal. Surfaces consume tokens; rgba literals are carried here for seed fidelity only."
+    },
+
+    "color_literal": {
+      "oneOf": [
+        { "$ref": "#/$defs/hex_color_literal" },
+        { "$ref": "#/$defs/rgba_color_literal" }
+      ],
+      "description": "Any frozen color literal accepted by the export: a hex or an rgba() string. The style guide is the source of truth for human-facing presentation; this schema preserves the raw value so later conformance can diff exact bytes."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch the row was minted against. Re-exported from ADR-0008 without modification."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "policy_locked"],
+          "description": "Workspace / runtime trust state the row was minted against. restricted and policy_locked MUST map to restricted_workspace / policy_locked trust_visual_state values; they MUST NOT be conveyed by color alone."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional execution-context id. Re-exported from ADR-0009 without modification."
+        }
+      },
+      "description": "Re-exported policy-context packet (ADR-0008 / ADR-0009 / ADR-0001). Present on every record so later conformance audits can attribute a row to a specific policy epoch / trust / execution context."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "internal_support_restricted",
+        "policy_blocked_metadata_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json (ADR-0011). The token-export stream never carries raw asset bytes or raw screenshots; metadata_safe_default is the usual value."
+    },
+
+    "source_of_truth_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_of_truth_class", "source_doc_ref"],
+      "properties": {
+        "source_of_truth_class": { "$ref": "#/$defs/source_of_truth_class" },
+        "source_doc_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to the canonical doc or registry for this row (e.g. 'docs/design/design_token_component_state_vocabulary.md' or '.t2/docs/Aureline_UX_Design_System_Style_Guide.md#7.2')."
+        },
+        "source_revision_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional opaque revision id so conformance can pin the source state."
+        }
+      },
+      "description": "Pointer to the canonical source-of-truth for this row. Surfaces quote this ref; they MUST NOT re-mint the row's value locally."
+    },
+
+    "design_token_export_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "manifest_id",
+        "source_of_truth_ref",
+        "token_family_ids",
+        "component_state_ids",
+        "theme_support_row_ids",
+        "accessibility_posture_ids",
+        "layer_order_ids",
+        "scrim_token_ids",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "design_token_export_manifest_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "token_family_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every token_family_record published in this manifest. One id per frozen token_family_class."
+        },
+        "component_state_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every component_state_record published in this manifest. One id per frozen component_state_class."
+        },
+        "theme_support_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every theme_support_row_record. The M0 seed publishes one row per frozen theme_class."
+        },
+        "accessibility_posture_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every accessibility_posture_record. The M0 seed publishes one row per frozen accessibility_posture_class."
+        },
+        "layer_order_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every layer_order_record. The M0 seed publishes one row per frozen layer_order_class."
+        },
+        "scrim_token_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Stable ids of every scrim_token_record. The M0 seed publishes one row per frozen scrim_class."
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque ref to the running build identity the manifest was minted against (ADR-0013 exact-build identity re-exported without modification)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Envelope for a single design-token vocabulary export. Every consumer (shell, docs / help, trust, onboarding, durable-attention, conformance tooling) reads the manifest and then resolves the per-entity records by id."
+    },
+
+    "token_family_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "family_id",
+        "token_family_class",
+        "source_of_truth_ref",
+        "token_namespace",
+        "token_count",
+        "example_token_names",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "token_family_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "family_id": { "$ref": "#/$defs/opaque_id" },
+        "token_family_class": { "$ref": "#/$defs/token_family_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "token_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The dotted / hyphenated namespace the family lives under (e.g. 'al.color.bg', 'space', 'type', 'z', 'motion'). Every token in the family MUST begin with this namespace; bare tokens without the namespace are non-conforming."
+        },
+        "token_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Count of tokens in the family at mint time. Later conformance diffs count against the implementation."
+        },
+        "example_token_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "A small, illustrative list of concrete token names in this family. Seed value; not the authoritative full list."
+        },
+        "short_description": {
+          "type": "string",
+          "description": "One-sentence description of the family's intent."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen token_family_class. Surfaces reference tokens by name within the namespace; the manifest seeds the canonical set so later conformance gates can diff implementation against this list."
+    },
+
+    "component_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "state_id",
+        "component_state_class",
+        "source_of_truth_ref",
+        "applies_to_surfaces",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "component_state_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "component_state_class": { "$ref": "#/$defs/component_state_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "applies_to_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "shell_chrome",
+              "editor_canvas",
+              "terminal_canvas",
+              "review_and_diff_canvas",
+              "palette_and_search_canvas",
+              "install_update_attach_canvas",
+              "ai_apply_canvas",
+              "collaboration_canvas",
+              "provider_bearing_canvas",
+              "docs_help_service_health_canvas",
+              "support_export_canvas",
+              "onboarding_surface",
+              "notification_surface",
+              "inspector_surface"
+            ]
+          },
+          "minItems": 1,
+          "description": "Surfaces on which this state is expected to render at M0. The enum re-exports the shell_interaction_safety_contract surface_class and adds onboarding / notification / inspector surfaces that are addressed by this vocabulary but not by the interaction-safety contract."
+        },
+        "paired_with_semantic_status": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semantic_status_class" },
+          "description": "Optional semantic_status values the state is usually paired with (e.g. disabled often pairs with warning copy; degraded pairs with warning or info). Surfaces MUST NOT convey the state by color alone regardless of this pairing."
+        },
+        "not_color_alone": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: every state MUST be conveyed by more than color (shape, border, icon, text). Included explicitly so later conformance gates can diff against a simple rule."
+        },
+        "short_description": {
+          "type": "string",
+          "description": "One-sentence description of when this state applies."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen component_state_class. Every styled interactive surface maps its local states back to this set; combining states (e.g. focus + selected) is permitted, minting new names is non-conforming."
+    },
+
+    "theme_support_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "theme_row_id",
+        "theme_class",
+        "source_of_truth_ref",
+        "is_reference_theme",
+        "is_first_party",
+        "is_color_alone_prohibited",
+        "token_overrides_namespace",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "theme_support_row_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "theme_row_id": { "$ref": "#/$defs/opaque_id" },
+        "theme_class": { "$ref": "#/$defs/theme_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "is_reference_theme": {
+          "type": "boolean",
+          "description": "True only for dark_reference at M0; light_parity and the two high-contrast rows MUST be parity-quality, not lesser modes."
+        },
+        "is_first_party": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: all four theme rows are first-party. High contrast is NEVER a third-party afterthought."
+        },
+        "is_color_alone_prohibited": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: no theme may rely on hue alone for state / status meaning. Later conformance diffs assert this rule against every theme row."
+        },
+        "token_overrides_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Namespace under which this theme ships its semantic-theme token overrides (e.g. 'al.color' for the four core themes). The style guide is the source of truth for concrete values; this row reserves the namespace."
+        },
+        "minimum_text_contrast_target": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Minimum normal-text contrast target (e.g. 4.5 for AA, 7 for high-contrast reference). Seed value; exact per-token contrast lives in the style guide."
+        },
+        "minimum_ui_contrast_target": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Minimum UI / icon / boundary contrast target (e.g. 3 for AA, 4.5 for high-contrast reference)."
+        },
+        "focus_ring_contrast_target": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Minimum focus-ring contrast target (e.g. 3 for AA)."
+        },
+        "focus_ring_stroke_px": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Minimum focus-ring stroke width in logical pixels. Seed value; style guide pins 2 px."
+        },
+        "forced_colors_friendly": {
+          "type": "boolean",
+          "description": "Whether the theme is expected to defer to OS 'forced colors' / system high-contrast overrides when the platform reports them. Frozen true for high_contrast_* rows; recommended true for others."
+        },
+        "overlay_scrim_default": { "$ref": "#/$defs/scrim_class" },
+        "example_semantic_tokens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["token_name"],
+            "properties": {
+              "token_name": { "type": "string", "minLength": 1 },
+              "value_literal": { "$ref": "#/$defs/color_literal" },
+              "use_hint": { "type": "string" }
+            }
+          },
+          "description": "A small, illustrative set of semantic token values for this theme. Seed fidelity; exhaustive per-token table lives in the style guide."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen theme_class. Shell, docs / help, trust, onboarding, and durable-attention surfaces resolve the active theme row before rendering; admin policy MAY narrow the exposed set, it MAY NOT introduce a fifth theme without a schema bump."
+    },
+
+    "accessibility_posture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "posture_id",
+        "accessibility_posture_class",
+        "source_of_truth_ref",
+        "suppresses_motion_families",
+        "preserves_focus_visibility",
+        "preserves_state_conveyance",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "accessibility_posture_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "posture_id": { "$ref": "#/$defs/opaque_id" },
+        "accessibility_posture_class": { "$ref": "#/$defs/accessibility_posture_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "suppresses_motion_families": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "hover_press_transition",
+              "popover_control_feedback",
+              "panel_sidebar_change",
+              "dialog_entry",
+              "cursor_blink",
+              "terminal_idle_animation",
+              "ai_working_indicator",
+              "progress_indicator_loop",
+              "layout_shift_during_typing",
+              "dense_pane_state_change"
+            ]
+          },
+          "description": "Motion families suppressed or strongly reduced in this posture. Re-exported from UI / UX Spec §10.4 Motion restrictions and the style guide's motion-restriction row."
+        },
+        "preserves_focus_visibility": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: every accessibility posture MUST preserve focus visibility. An implementation that hides focus rings in a low-power or reduced-motion posture is non-conforming."
+        },
+        "preserves_state_conveyance": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: every accessibility posture MUST preserve state conveyance (shape, border, icon, text). A posture that strips all state chrome and leaves only color is non-conforming."
+        },
+        "engagement_cue": {
+          "type": "string",
+          "description": "How the posture becomes visible to the user when engaged (e.g. status-item pill for motion_power_saver, settings-surface label for motion_low_motion). Seed value; exact copy lives in the style guide."
+        },
+        "allowed_duration_tokens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "motion.instant",
+              "motion.fast",
+              "motion.ui",
+              "motion.panel",
+              "motion.dialog"
+            ]
+          },
+          "description": "Subset of frozen motion duration tokens permitted in this posture. motion_reduced / motion_low_motion / motion_power_saver typically collapse to motion.instant for non-essential motion; motion_critical_hot_path forces motion.instant regardless of user preference."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen accessibility_posture_class. A surface MAY escalate to a more restrictive posture (e.g. motion_standard -> motion_power_saver when the device enters thermal pressure); it MAY NOT silently downgrade."
+    },
+
+    "layer_order_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "layer_id",
+        "layer_order_class",
+        "source_of_truth_ref",
+        "ordinal",
+        "is_extension_consumable",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "layer_order_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "layer_id": { "$ref": "#/$defs/opaque_id" },
+        "layer_order_class": { "$ref": "#/$defs/layer_order_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6,
+          "description": "Relative layer ordinal. z_base is 0; z_critical is 6. Extensions and local features consume the layer token, never the ordinal."
+        },
+        "is_extension_consumable": {
+          "type": "boolean",
+          "description": "Whether extensions and local features may stack content at this layer. Frozen false for z_critical (reserved for trust / auth / security-critical overlays)."
+        },
+        "dialog_and_critical_outrank": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: dialogs and security-critical sheets always render above menus and transient hovers."
+        },
+        "toast_never_blocks_dialog": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: toasts never obscure the primary action area of an active blocking dialog."
+        },
+        "short_description": {
+          "type": "string"
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen layer_order_class. Surfaces consume the token; hard-coded z-index values are non-conforming."
+    },
+
+    "scrim_token_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "scrim_id",
+        "scrim_class",
+        "source_of_truth_ref",
+        "alpha",
+        "never_sole_state_indicator",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "scrim_token_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "scrim_id": { "$ref": "#/$defs/opaque_id" },
+        "scrim_class": { "$ref": "#/$defs/scrim_class" },
+        "source_of_truth_ref": { "$ref": "#/$defs/source_of_truth_ref" },
+        "alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Alpha (opacity) value for this scrim token. 0 for scrim_none; 0.4 for scrim_weak; 0.56 for scrim_strong; overlay_dim_presentation carries a smaller alpha so keyboard focus and active-region cues remain visible."
+        },
+        "never_sole_state_indicator": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: reduced opacity is NEVER the only indicator of a state (disabled, blocked, loading, held). Later conformance asserts this against every scrim token."
+        },
+        "preserves_focus_visibility": {
+          "type": "boolean",
+          "const": true,
+          "description": "Frozen at true: every scrim preserves focus rings on the underlying surface; decorative dimming MUST NOT obscure the focused interactive control."
+        },
+        "paired_with_layer": { "$ref": "#/$defs/layer_order_class" },
+        "short_description": {
+          "type": "string"
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One record per frozen scrim_class. Scrims communicate depth and focus, not state."
+    },
+
+    "token_export_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "design_token_schema_version",
+        "event_id",
+        "audit_event_id",
+        "subject_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "token_export_audit_event_record" },
+        "design_token_schema_version": { "$ref": "#/$defs/design_token_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "subject_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque ref to the subject of the event (a manifest id, family id, state id, theme row id, posture id, layer id, scrim id, or conformance-diff id). Raw asset bytes, raw screenshots, and raw rendered imagery never appear here."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One event per emission, refusal, addition, posture engagement, schema-version bump, or conformance-diff on the design_token_vocabulary audit stream."
+    }
+  }
+}
