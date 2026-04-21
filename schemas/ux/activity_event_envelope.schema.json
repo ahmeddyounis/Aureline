@@ -1,0 +1,1175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/activity_event_envelope.schema.json",
+  "title": "Aureline attention-routing, durable job-row, activity-center, quiet-hours, and reopen-semantics envelope",
+  "description": "Boundary schema for the activity_event_envelope_record, the durable_job_record, the attention_item_record, the badge_record, the grouped_burst_record, the reopen_target_record, the quiet_hours_policy_row_record, and the activity_event_audit_event_record frozen in docs/ux/attention_activity_taxonomy.md. Every consequence-bearing or attention-bearing event that crosses a delivery surface (toast, contextual banner, status item, durable job row, attention item, activity-center digest card, OS notification, OS badge, lock-screen summary, companion push) emits exactly one activity_event_envelope_record backed by one canonical event id and one canonical object target. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never cross the RPC boundary; this schema carries ids, typed vocabulary, and short privacy-safe summary labels only. The eventual shell / attention-routing crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new delivery-surface class, attention class, badge class, interruptibility tier, quiet-hours mode, suppression reason, privacy payload class, dedupe-key scheme, reopen-target kind, durable-job lifecycle state, dismissal verb, audit-event id, or denial reason is additive-minor and requires an activity_event_envelope_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/activity_event_envelope_record" },
+    { "$ref": "#/$defs/durable_job_record" },
+    { "$ref": "#/$defs/attention_item_record" },
+    { "$ref": "#/$defs/badge_record" },
+    { "$ref": "#/$defs/grouped_burst_record" },
+    { "$ref": "#/$defs/reopen_target_record" },
+    { "$ref": "#/$defs/quiet_hours_policy_row_record" },
+    { "$ref": "#/$defs/activity_event_audit_event_record" }
+  ],
+  "$defs": {
+    "activity_event_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this attention-routing / durable-job / activity-center / quiet-hours / reopen vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "activity_event_envelope_record",
+        "durable_job_record",
+        "attention_item_record",
+        "badge_record",
+        "grouped_burst_record",
+        "reopen_target_record",
+        "quiet_hours_policy_row_record",
+        "activity_event_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / OS notification payloads / lock-screen summaries. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Short, privacy-safe label text intended for delivery on a notification surface. MUST NOT embed raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw AI prompt / completion text."
+    },
+
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Frozen source-subsystem vocabulary naming which owning subsystem minted the event. A surface whose subsystem is not listed MUST NOT mint a local synonym; new subsystems arrive as additive-minor schema bumps."
+    },
+
+    "delivery_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "contextual_banner",
+        "status_item",
+        "durable_job_row",
+        "attention_item",
+        "activity_center_digest_card",
+        "os_notification",
+        "os_badge_app_icon",
+        "lock_screen_summary",
+        "companion_push",
+        "digest_group_row",
+        "not_delivered_held"
+      ],
+      "description": "Frozen delivery-surface vocabulary. Every event that reaches a user surface names exactly one delivery-surface class. A surface that renders the same event under multiple delivery-surface classes emits one activity_event_envelope_record per surface, all sharing the same canonical_event_id and grouped_burst_id where applicable. not_delivered_held names the held-for-suppression delivery; a held event still emits an envelope so durable chronology is preserved."
+    },
+
+    "attention_class": {
+      "type": "string",
+      "enum": [
+        "acknowledgement",
+        "follow_up_needed",
+        "digest_only",
+        "muted_or_snoozed",
+        "durable_running",
+        "suppressed_policy",
+        "held_quiet_hours"
+      ],
+      "description": "Frozen attention-class vocabulary re-exported from UI/UX Spec §9.15. Acknowledgement removes the badge, not the underlying state; follow_up_needed resolves only when the underlying object changes or the user explicitly marks the follow-up done; digest_only dismissal does not rewrite source events; muted_or_snoozed returns automatically when the timer or condition expires; durable_running tracks live long-running work; suppressed_policy preserves audit trail under admin suppression; held_quiet_hours preserves durable history under user quiet-hours / focus / presentation modes. A surface that cannot resolve its attention class MUST deny with attention_class_unresolved rather than defaulting to acknowledgement."
+    },
+
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "needs_review",
+        "failed_runs",
+        "mentions",
+        "security_notices",
+        "session_requests",
+        "offline_publish_pending",
+        "durable_running_count",
+        "held_or_suppressed_count",
+        "completion_unread"
+      ],
+      "description": "Frozen badge-class vocabulary re-exported from UI/UX Spec §9.14 / §10.5 / §10.7. Badge counts are per-class; a single badge count that mixes classes is non-conforming. Zero means no current items for that class; a badge MUST NOT persist after the underlying state is gone."
+    },
+
+    "interruptibility_tier": {
+      "type": "string",
+      "enum": [
+        "tier_ambient",
+        "tier_transient",
+        "tier_durable",
+        "tier_actionable",
+        "tier_blocking_trust",
+        "tier_critical_safety"
+      ],
+      "description": "Frozen interruptibility tiers. tier_ambient renders only on passive chrome (status item, badge); tier_transient may render as toast; tier_durable MUST hit a durable surface (durable_job_row or attention_item); tier_actionable requires a named next action and cannot be toast-only; tier_blocking_trust routes through a review sheet or modal when the active workflow cannot continue safely; tier_critical_safety cannot be suppressed by quiet-hours or power-saver policy. Escalation requires a typed trigger (severity change, duration threshold crossed, required authority change); decorative escalation is non-conforming."
+    },
+
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ],
+      "description": "Frozen quiet-hours / attention-holding mode vocabulary. mode_none is the default unheld posture; every other value names a hold that MAY suppress interruption but MUST preserve durable chronology per the quiet_hours_policy_row_record matrix. mode_admin_suppression is policy-managed; it is reviewable but not silently editable by the end user."
+    },
+
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ],
+      "description": "Frozen suppression-reason vocabulary. A surface that suppresses delivery MUST name one reason; silent drop is non-conforming. Suppression MAY delay delivery; it MUST NOT discard the durable activity-center row, attention item, history-lane entry, or audit event."
+    },
+
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ],
+      "description": "Frozen privacy-payload vocabulary for the envelope's summary label. lock_screen_safe_generic renders a generic category-only summary (e.g. 'New review item'); lock_screen_safe_scoped renders the bounded category plus workspace / session label (no object identity); in_product_only may render full title and scope only when the event surfaces inside the running product; redacted_metadata_only withholds title entirely and renders only typed metadata; policy_forbidden_on_lock_screen denies OS-surface delivery entirely and preserves only the in-product durable row."
+    },
+
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ],
+      "description": "Frozen dedupe-key scheme vocabulary. Repeated deliveries of the same event MUST collapse to one lineage under one scheme. Ten retries against one pipeline become one evolving item under subsystem_plus_object_plus_phase or grouped_burst_id, not ten independent notifications. cross_client_canonical_event_id collapses the same event across desktop, browser companion, and mobile into one canonical item with per-client delivery history."
+    },
+
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object_target_exact",
+        "review_sheet",
+        "diff_view",
+        "evidence_packet_row",
+        "activity_center_item",
+        "history_lane_row",
+        "attention_item_exact",
+        "durable_job_row_exact",
+        "placeholder_announced",
+        "reopen_denied_requires_revalidation"
+      ],
+      "description": "Frozen reopen-target vocabulary. Invoking a notification MUST land on the narrowest truthful destination: the canonical object, review sheet, diff, evidence panel, activity-center row, or attention-item row — not a generic home screen. placeholder_announced renders a typed placeholder whose announcement explains why reopen could not return to the exact target; reopen_denied_requires_revalidation denies reopen entirely when the originating target requires fresh user intent (wake-from-sleep, display reconnect, policy-epoch change) rather than silently replaying a mutating action."
+    },
+
+    "dismissal_verb": {
+      "type": "string",
+      "enum": [
+        "acknowledge",
+        "resolve",
+        "dismiss",
+        "snooze",
+        "mute",
+        "suppress"
+      ],
+      "description": "Frozen dismissal-verb vocabulary re-exported from UI/UX Spec §9.15. acknowledge removes the badge, not the underlying state; resolve requires the underlying object to change (or an explicit mark-done) and MUST NOT silently mutate the source object; dismiss removes the transient delivery and leaves the durable row intact; snooze defers with a named resume condition; mute silences future deliveries of the class; suppress is the system-side policy hold (admin / quiet-hours / presentation). These verbs are different states and MUST never be used as interchangeable labels."
+    },
+
+    "durable_job_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "needs_approval",
+        "attention_required",
+        "completed",
+        "partially_completed",
+        "failed",
+        "quiet_hours_held",
+        "policy_suppressed",
+        "cancelled",
+        "restored_evidence_only"
+      ],
+      "description": "Frozen durable-job lifecycle-state vocabulary re-exported from UI/UX Spec §10.5. Labels for long-running or cross-surface work that cannot exist only as ephemeral chrome. restored_evidence_only covers restored terminals, debug sessions, notebooks, API requests, and remote shells where the canonical recovery claim is evidence_only_no_rerun (see schemas/ux/interaction_safety.schema.json#revert_class)."
+    },
+
+    "durable_job_subject_class": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test",
+        "debug_session",
+        "task_run",
+        "indexer_pass",
+        "save_or_sync",
+        "update_install",
+        "restore_or_recovery",
+        "download_or_upload",
+        "notebook_execution",
+        "ai_apply_execution",
+        "review_apply_execution",
+        "provider_handoff",
+        "remote_attach",
+        "collaboration_session",
+        "admin_policy_refresh"
+      ],
+      "description": "Frozen durable-job subject-class vocabulary. Taskbar / dock / app-icon progress indicators reflect these classes only (UI/UX Spec §6.7 / §10.5); every transient background poll is NOT a durable job."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "activity_event_delivered",
+        "activity_event_deduped",
+        "activity_event_grouped",
+        "activity_event_suppressed",
+        "activity_event_released_from_hold",
+        "activity_event_reopened",
+        "activity_event_reopen_target_lost",
+        "activity_event_acknowledged",
+        "activity_event_resolved",
+        "activity_event_dismissed",
+        "activity_event_snoozed",
+        "activity_event_muted",
+        "durable_job_created",
+        "durable_job_phase_changed",
+        "durable_job_completed",
+        "durable_job_attention_required",
+        "durable_job_cancelled",
+        "attention_item_created",
+        "attention_item_updated",
+        "attention_item_cleared",
+        "badge_updated",
+        "badge_cleared",
+        "quiet_hours_mode_engaged",
+        "quiet_hours_mode_released",
+        "digest_released",
+        "grouped_burst_opened",
+        "grouped_burst_closed",
+        "os_notification_redaction_applied",
+        "companion_delivery_collapsed_to_canonical",
+        "activity_event_denial_emitted",
+        "activity_event_envelope_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the activity_event_envelope audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "attention_class_unresolved",
+        "delivery_surface_unresolved",
+        "interruptibility_tier_unresolved",
+        "canonical_event_id_missing",
+        "canonical_object_target_missing",
+        "toast_only_forbidden_for_durable_work",
+        "durable_job_row_missing_for_long_running_work",
+        "badge_class_unlabelled",
+        "badge_count_inflation_mixed_classes",
+        "badge_persisted_after_state_cleared",
+        "reopen_target_lost",
+        "reopen_to_generic_home_forbidden",
+        "reopen_requires_revalidation",
+        "raw_body_forbidden_on_os_notification",
+        "raw_prompt_text_forbidden_on_os_notification",
+        "raw_secret_forbidden_on_any_surface",
+        "privacy_payload_class_missing_on_lock_screen",
+        "focus_steal_on_protected_path",
+        "quiet_hours_hold_discarded_durable_history",
+        "quiet_hours_hold_discarded_critical_safety_tier",
+        "interruption_tier_escalated_without_trigger",
+        "dedupe_violated_stacked_toasts",
+        "grouped_burst_split_without_new_lineage",
+        "dismissal_verb_used_as_alias",
+        "resolve_silently_mutated_source_object",
+        "snooze_without_resume_condition",
+        "companion_cross_client_divergence",
+        "held_event_missing_audit_trail",
+        "admin_suppression_blocked_critical_safety",
+        "policy_blocked",
+        "activity_event_envelope_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary on the activity_event_envelope audit stream. Denials fail closed; silent downgrade to toast-only or best-effort delivery is forbidden."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). A delivery whose client_scope excludes the rendering surface MUST NOT render as available there."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink, including OS notification payloads and lock-screen summaries."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every render."
+    },
+
+    "activity_event_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "envelope_id",
+        "canonical_event_id",
+        "source_subsystem",
+        "actor_identity_ref",
+        "canonical_object_target_ref",
+        "attention_class",
+        "interruptibility_tier",
+        "delivery_surface_class",
+        "privacy_payload_class",
+        "quiet_hours_mode_at_mint",
+        "suppression_reasons",
+        "dedupe_key_scheme",
+        "grouped_burst_id_ref",
+        "summary_label",
+        "client_scopes",
+        "freshness_class",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "activity_event_envelope_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "One canonical event id backs every repeated delivery across surfaces and across clients. Toast, banner, status item, attention row, OS notification, companion push, and exported history all refer to this id so lineage is one rather than multiplied. Required."
+        },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the actor of record. Raw identity bodies never cross the boundary."
+        },
+        "canonical_object_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the canonical object target (review item, build, branch, session, artifact, provider grant, etc.). Raw paths, raw URLs, raw handles, raw prompt text never cross the boundary."
+        },
+        "attention_class": { "$ref": "#/$defs/attention_class" },
+        "interruptibility_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "quiet_hours_mode_at_mint": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" },
+          "description": "Every quiet-hours / focus / presentation / screen-share / privacy / admin-suppression / reduced-attention / power-saver mode active when the envelope was minted. Contains mode_none when the user is in the default unheld posture; contains one or more active modes otherwise."
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" },
+          "description": "Zero-or-more suppression reasons that applied to this envelope. Non-empty when delivery_surface_class = not_delivered_held or when a held event is later released from hold; MAY be empty when delivery was unsuppressed."
+        },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a grouped_burst_record when this envelope is part of a grouped burst; null otherwise."
+        },
+        "reopen_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a reopen_target_record naming the narrowest truthful reopen destination. Null only when interruptibility_tier = tier_ambient and no reopen is meaningful; non-null otherwise."
+        },
+        "durable_job_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a durable_job_record when this envelope reports progress or completion of long-running work."
+        },
+        "attention_item_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to an attention_item_record when this envelope surfaces an item that needs human follow-up."
+        },
+        "badge_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a badge_record when this envelope updates a badge count."
+        },
+        "interaction_safety_packet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to an interaction_safety_packet_record (schemas/ux/interaction_safety.schema.json) when this envelope reports a consequence-bearing interaction. The interaction-safety contract remains the authority for authority / consequence / revert / representation vocabulary; this envelope adds routing, durability, and quiet-hours posture without re-minting those axes."
+        },
+        "summary_label": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Short privacy-safe summary label intended for the delivery surface. MUST obey the privacy_payload_class rules; MUST NOT embed raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw AI prompt / completion text. On lock_screen_safe_generic the label is category-only."
+        },
+        "next_action_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label for the primary next action (e.g. 'Open review'). Required (non-null) when interruptibility_tier is tier_actionable, tier_blocking_trust, or tier_critical_safety. A tier_actionable envelope without a named next action is non-conforming."
+        },
+        "dismissal_verbs_available": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dismissal_verb" },
+          "description": "Subset of dismissal verbs exposed on this delivery. acknowledge, resolve, dismiss, snooze, mute, suppress are distinct states and MUST never be used as interchangeable labels."
+        },
+        "cross_client_lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to sibling envelopes that share the same canonical_event_id across desktop, companion, remote-agent, and managed-admin surfaces. Cross-client duplicate deliveries MUST collapse into this shared lineage instead of renewing per-client events."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "next_action_label MUST be non-null when interruptibility_tier is tier_actionable, tier_blocking_trust, or tier_critical_safety.",
+          "if": {
+            "properties": {
+              "interruptibility_tier": {
+                "enum": ["tier_actionable", "tier_blocking_trust", "tier_critical_safety"]
+              }
+            },
+            "required": ["interruptibility_tier"]
+          },
+          "then": {
+            "properties": { "next_action_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["next_action_label"]
+          }
+        },
+        {
+          "description": "delivery_surface_class = toast is forbidden when interruptibility_tier = tier_durable, tier_actionable, tier_blocking_trust, or tier_critical_safety unless a durable_job_id_ref or attention_item_id_ref is non-null (the toast is a mirror of a durable row).",
+          "if": {
+            "properties": {
+              "delivery_surface_class": { "const": "toast" },
+              "interruptibility_tier": {
+                "enum": ["tier_durable", "tier_actionable", "tier_blocking_trust", "tier_critical_safety"]
+              }
+            },
+            "required": ["delivery_surface_class", "interruptibility_tier"]
+          },
+          "then": {
+            "anyOf": [
+              { "properties": { "durable_job_id_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["durable_job_id_ref"] },
+              { "properties": { "attention_item_id_ref": { "$ref": "#/$defs/opaque_id" } }, "required": ["attention_item_id_ref"] }
+            ]
+          }
+        },
+        {
+          "description": "delivery_surface_class = not_delivered_held requires suppression_reasons to be non-empty so audit is preserved.",
+          "if": {
+            "properties": { "delivery_surface_class": { "const": "not_delivered_held" } },
+            "required": ["delivery_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "suppression_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/suppression_reason" }
+              }
+            },
+            "required": ["suppression_reasons"]
+          }
+        },
+        {
+          "description": "Lock-screen-bound deliveries MUST NOT carry in_product_only privacy payloads.",
+          "if": {
+            "properties": { "delivery_surface_class": { "const": "lock_screen_summary" } },
+            "required": ["delivery_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "privacy_payload_class": {
+                "enum": [
+                  "lock_screen_safe_generic",
+                  "lock_screen_safe_scoped",
+                  "redacted_metadata_only",
+                  "policy_forbidden_on_lock_screen"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-event delivery envelope. Names the canonical event id, the source subsystem, the actor, the canonical object target, the attention class, the interruptibility tier, the delivery surface, the privacy payload class, the quiet-hours modes active at mint, suppression reasons, dedupe-key scheme, grouped-burst lineage, reopen target, and optional references back to the owning durable job, attention item, badge, and interaction-safety packet. One envelope per (canonical_event_id, delivery_surface_class, client_scope) triple."
+    },
+
+    "durable_job_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "durable_job_id",
+        "canonical_event_id",
+        "source_subsystem",
+        "subject_class",
+        "lifecycle_state",
+        "scope_label",
+        "target_identity_ref",
+        "actor_identity_ref",
+        "freshness_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "durable_job_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "durable_job_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "subject_class": { "$ref": "#/$defs/durable_job_subject_class" },
+        "lifecycle_state": { "$ref": "#/$defs/durable_job_lifecycle_state" },
+        "scope_label": { "$ref": "#/$defs/short_label_text" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "phase_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short phase label (e.g. 'building', 'running tests', 'uploading'). Required (non-null) when lifecycle_state = running or needs_approval."
+        },
+        "progress_numerator": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Progress numerator when progress is measurable. Null for truly indeterminate work."
+        },
+        "progress_denominator": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Progress denominator when progress is measurable."
+        },
+        "cancellable": {
+          "type": "boolean",
+          "description": "True when the job can be cancelled from the durable job row. A non-cancellable long-running job MUST say so via this field; a vanishing spinner is non-conforming."
+        },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Non-null when lifecycle_state is completed, partially_completed, failed, cancelled, or restored_evidence_only."
+        },
+        "evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to an evidence packet, mutation-journal entry, or history-lane row. Preserves outcome attribution after the activity center is cleared from immediate view."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "phase_label MUST be non-null when lifecycle_state is running or needs_approval.",
+          "if": {
+            "properties": { "lifecycle_state": { "enum": ["running", "needs_approval"] } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": { "phase_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["phase_label"]
+          }
+        },
+        {
+          "description": "finished_at MUST be non-null when lifecycle_state is completed, partially_completed, failed, cancelled, or restored_evidence_only.",
+          "if": {
+            "properties": {
+              "lifecycle_state": {
+                "enum": ["completed", "partially_completed", "failed", "cancelled", "restored_evidence_only"]
+              }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": { "finished_at": { "$ref": "#/$defs/monotonic_timestamp" } },
+            "required": ["finished_at"]
+          }
+        }
+      ],
+      "description": "Durable-job record for long-running or historical work. Named so that dock / taskbar / app-icon progress indicators and activity-center rows can share a canonical lifecycle instead of inventing per-subsystem labels. A surface that renders long-running work only as a toast is non-conforming."
+    },
+
+    "attention_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "attention_item_id",
+        "canonical_event_id",
+        "source_subsystem",
+        "attention_class",
+        "interruptibility_tier",
+        "canonical_object_target_ref",
+        "actor_identity_ref",
+        "summary_label",
+        "freshness_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "attention_item_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "attention_item_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "attention_class": { "$ref": "#/$defs/attention_class" },
+        "interruptibility_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "why_it_matters_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when attention_class = follow_up_needed. Short, privacy-safe explanation of why this item surfaces to this user (blocker, expiry, owner change, policy epoch)."
+        },
+        "primary_next_action_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when attention_class = follow_up_needed."
+        },
+        "snooze_resume_condition_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when attention_class = muted_or_snoozed. Names exactly when or under what condition the item will return (timer expiry, underlying object change, next unsuppressed surface)."
+        },
+        "resolution_requires_object_mutation": {
+          "type": "boolean",
+          "description": "True when attention_class = follow_up_needed and only a change in the source object (or an explicit mark-done) can resolve the item. A surface that treats acknowledge as resolve when this is true is non-conforming."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "follow_up_needed items MUST carry why_it_matters_label and primary_next_action_label.",
+          "if": {
+            "properties": { "attention_class": { "const": "follow_up_needed" } },
+            "required": ["attention_class"]
+          },
+          "then": {
+            "properties": {
+              "why_it_matters_label": { "$ref": "#/$defs/short_label_text" },
+              "primary_next_action_label": { "$ref": "#/$defs/short_label_text" }
+            },
+            "required": ["why_it_matters_label", "primary_next_action_label"]
+          }
+        },
+        {
+          "description": "muted_or_snoozed items MUST carry snooze_resume_condition_label.",
+          "if": {
+            "properties": { "attention_class": { "const": "muted_or_snoozed" } },
+            "required": ["attention_class"]
+          },
+          "then": {
+            "properties": {
+              "snooze_resume_condition_label": { "$ref": "#/$defs/short_label_text" }
+            },
+            "required": ["snooze_resume_condition_label"]
+          }
+        }
+      ],
+      "description": "Attention-item record for triage inboxes. Preserves the Acknowledge / Resolve / Dismiss / Snooze / Mute / Suppress distinction: a surface that conflates these verbs is non-conforming."
+    },
+
+    "badge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "badge_id",
+        "badge_class",
+        "count",
+        "source_subsystem",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "badge_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "badge_id": { "$ref": "#/$defs/opaque_id" },
+        "badge_class": { "$ref": "#/$defs/badge_class" },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current count for this badge class. Zero means no current items for the class and MUST clear the badge rendering; a badge that persists at zero is non-conforming."
+        },
+        "held_or_suppressed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of items held by quiet-hours, focus-mode, presentation, screen-share, privacy-mode, admin-suppression, reduced-attention, or power-saver hold. Rendered alongside count in compact-shell overflow so suppression is never silent."
+        },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Per-class badge record. One record per badge class per source subsystem. Combining multiple classes into one count is non-conforming."
+    },
+
+    "grouped_burst_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "grouped_burst_id",
+        "source_subsystem",
+        "dedupe_key_scheme",
+        "member_count",
+        "first_event_id_ref",
+        "latest_event_id_ref",
+        "opened_at",
+        "policy_context"
+      ],
+      "properties": {
+        "record_kind": { "const": "grouped_burst_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "grouped_burst_id": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "member_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Count of envelopes collapsed into this burst."
+        },
+        "first_event_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "latest_event_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "grouping_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label naming the grouping reason (e.g. 'retries on one pipeline', 'low-severity advisory burst')."
+        },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Non-null once the burst is considered closed and surfaced as one digest item."
+        },
+        "digest_released_after_hold": {
+          "type": "boolean",
+          "description": "True when this burst was held across a quiet-hours / focus / presentation / screen-share / privacy / admin-suppression mode and the digest was released on mode exit. The digest MUST group by source and severity so the user can triage intentionally rather than replay a toast backlog one item at a time."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      },
+      "description": "Grouped-burst lineage record. Preserves the 'one evolving item rather than N independent notifications' contract; splitting a lineage into two bursts is non-conforming unless a new dedupe_key_scheme applies."
+    },
+
+    "reopen_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "reopen_target_id",
+        "reopen_target_kind",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "reopen_target_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "reopen_target_id": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "exact_target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the narrowest truthful reopen destination. Null only when reopen_target_kind is placeholder_announced or reopen_denied_requires_revalidation."
+        },
+        "placeholder_announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when reopen_target_kind is placeholder_announced. Explains why reopen could not return to the exact target (moved, missing extension, policy-blocked, stale remote, display topology changed)."
+        },
+        "revalidation_required_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when reopen_target_kind is reopen_denied_requires_revalidation. Names the revalidation trigger (wake-from-sleep, display reconnect, policy-epoch change, provider grant narrowed)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "placeholder_announced reopen targets MUST carry placeholder_announcement_label.",
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "placeholder_announced" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": { "placeholder_announcement_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["placeholder_announcement_label"]
+          }
+        },
+        {
+          "description": "reopen_denied_requires_revalidation reopen targets MUST carry revalidation_required_reason_label.",
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "reopen_denied_requires_revalidation" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": { "revalidation_required_reason_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["revalidation_required_reason_label"]
+          }
+        }
+      ],
+      "description": "Reopen-target record naming the narrowest truthful destination an invoked notification should land on. Reopening to a generic home screen is non-conforming."
+    },
+
+    "quiet_hours_policy_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "policy_row_id",
+        "quiet_hours_mode",
+        "suppressed_delivery_surfaces",
+        "preserved_delivery_surfaces",
+        "preserves_durable_history",
+        "preserves_critical_safety_tier",
+        "release_on_mode_exit_digest",
+        "admin_overridable",
+        "user_overridable",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "quiet_hours_policy_row_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "policy_row_id": { "$ref": "#/$defs/opaque_id" },
+        "quiet_hours_mode": { "$ref": "#/$defs/quiet_hours_mode" },
+        "suppressed_delivery_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/delivery_surface_class" },
+          "description": "Delivery surfaces this mode suppresses. Suppressed events still emit an envelope with delivery_surface_class = not_delivered_held and at least one suppression reason."
+        },
+        "preserved_delivery_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/delivery_surface_class" },
+          "description": "Delivery surfaces this mode preserves unconditionally (typically durable_job_row, attention_item, activity_center_digest_card, digest_group_row)."
+        },
+        "suppressed_interruptibility_tiers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/interruptibility_tier" },
+          "description": "Interruptibility tiers this mode suppresses on transient surfaces. MUST NOT include tier_critical_safety."
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "description": "Always true. A mode that silently discards durable history on hold is non-conforming."
+        },
+        "preserves_critical_safety_tier": {
+          "type": "boolean",
+          "description": "Always true. Quiet-hours, focus mode, presentation mode, screen sharing, and admin suppression may delay interruption but MUST NOT silently discard trust-, policy-, or recovery-critical items. Critical safety always renders."
+        },
+        "release_on_mode_exit_digest": {
+          "type": "boolean",
+          "description": "True when suppressed events surface as one grouped digest when the mode exits, grouped by source and severity."
+        },
+        "admin_overridable": {
+          "type": "boolean",
+          "description": "True when an admin-policy row may widen or narrow the suppression set for this mode. Policy MAY narrow; policy MAY NOT silently widen beyond the frozen exclusion rules (ADR-0008)."
+        },
+        "user_overridable": {
+          "type": "boolean",
+          "description": "True when the end user may adjust the suppression set for this mode. mode_admin_suppression is NOT user-overridable."
+        },
+        "notes_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe note describing the canonical use (e.g. 'Dims in-product toasts and sounds; preserves every durable row')."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One row per frozen quiet_hours_mode. Declares which delivery surfaces are suppressed, which are preserved, whether the mode still preserves durable history (always true), whether critical-safety tier always renders (always true), and whether an exit digest is emitted."
+    },
+
+    "activity_event_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "activity_event_envelope_schema_version",
+        "audit_event_id",
+        "envelope_id_ref",
+        "source_subsystem",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "activity_event_audit_event_record" },
+        "activity_event_envelope_schema_version": { "$ref": "#/$defs/activity_event_envelope_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "envelope_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the envelope this event concerns. Null only for lifecycle events that do not concern a single envelope (quiet_hours_mode_engaged, quiet_hours_mode_released, grouped_burst_opened, grouped_burst_closed, activity_event_envelope_schema_version_bumped)."
+        },
+        "canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "durable_job_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "attention_item_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "badge_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "reopen_target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delivery_surface_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/delivery_surface_class" }
+          ]
+        },
+        "attention_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/attention_class" }
+          ]
+        },
+        "interruptibility_tier": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/interruptibility_tier" }
+          ]
+        },
+        "quiet_hours_mode": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/quiet_hours_mode" }
+          ]
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "dismissal_verb": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dismissal_verb" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) for activity_event_denial_emitted."
+        },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for activity_event_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "activity_event_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the activity_event_envelope audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    }
+  }
+}

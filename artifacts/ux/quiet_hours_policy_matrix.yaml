@@ -1,0 +1,499 @@
+# Quiet-hours policy matrix seed.
+#
+# Companion to docs/ux/attention_activity_taxonomy.md and the
+# boundary schema at
+# schemas/ux/activity_event_envelope.schema.json. This file seeds
+# one quiet_hours_policy_row_record per frozen quiet_hours_mode so
+# shell, docs / help, trust, onboarding, and durable-attention
+# surfaces share one answer to the questions "what is suppressed
+# under this mode, what is preserved, and does durable history
+# still live?" from M0 onward.
+#
+# Rules:
+#   - Every record fragment conforms to
+#     schemas/ux/activity_event_envelope.schema.json.
+#   - If this file and the taxonomy doc disagree, the taxonomy
+#     doc wins and this file MUST be updated in the same change.
+#   - Every row asserts preserves_durable_history = true and
+#     preserves_critical_safety_tier = true. A mode that silently
+#     discards durable history or silently blocks
+#     tier_critical_safety is non-conforming.
+#   - Adding a worked example is additive-minor; adding a
+#     quiet_hours_mode requires a schema bump and a decision-row
+#     update.
+#   - Surfaces quote these rows by id (policy_row_id); they MUST
+#     NOT re-mint per-mode values locally. Copy-only shadow
+#     registries are non-conforming.
+
+activity_event_envelope_schema_version: 1
+
+source_doc_ref: docs/ux/attention_activity_taxonomy.md
+boundary_schema: schemas/ux/activity_event_envelope.schema.json
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.7
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.3
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.14
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.15
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#10.5
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the schema. Tooling reads these blocks;
+# surfaces MUST NOT hold events under modes outside the enumeration below.
+# ---------------------------------------------------------------------------
+
+quiet_hours_modes:
+  - mode_none
+  - mode_quiet_hours_user
+  - mode_do_not_disturb_user
+  - mode_focus_mode_user
+  - mode_presentation
+  - mode_screen_share
+  - mode_privacy_mode
+  - mode_reduced_attention_policy
+  - mode_power_saver_runtime
+  - mode_admin_suppression
+
+delivery_surface_classes:
+  - toast
+  - contextual_banner
+  - status_item
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - digest_group_row
+  - os_notification
+  - os_badge_app_icon
+  - lock_screen_summary
+  - companion_push
+  - not_delivered_held
+
+interruptibility_tiers:
+  - tier_ambient
+  - tier_transient
+  - tier_durable
+  - tier_actionable
+  - tier_blocking_trust
+  - tier_critical_safety
+
+# ---------------------------------------------------------------------------
+# Policy rows. One row per frozen quiet_hours_mode.
+# ---------------------------------------------------------------------------
+policy_rows:
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_none
+    quiet_hours_mode: mode_none
+    suppressed_delivery_surfaces: []
+    preserved_delivery_surfaces:
+      - toast
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - os_notification
+      - os_badge_app_icon
+      - lock_screen_summary
+      - companion_push
+    suppressed_interruptibility_tiers: []
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: false
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Default unheld posture. Every delivery-surface class is
+      available subject to per-event tier rules.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_quiet_hours_user
+    quiet_hours_mode: mode_quiet_hours_user
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Scheduled user quiet hours. Dims transient toasts / OS
+      notifications / companion push / lock-screen summaries;
+      preserves every durable row, attention item, digest card,
+      and status item. Held bursts release as one grouped digest
+      on mode exit grouped by source and severity.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_do_not_disturb_user
+    quiet_hours_mode: mode_do_not_disturb_user
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      User-engaged do-not-disturb. Narrower than quiet hours:
+      also holds tier_actionable unless the event is
+      tier_blocking_trust or tier_critical_safety. Held bursts
+      release as one grouped digest on mode exit.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_focus_mode_user
+    quiet_hours_mode: mode_focus_mode_user
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - companion_push
+      - lock_screen_summary
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - os_badge_app_icon
+    suppressed_interruptibility_tiers:
+      - tier_transient
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      User focus mode. Allows app-icon badges and status items to
+      remain truthful while suppressing toasts, OS notifications,
+      companion push, and lock-screen summaries.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_presentation
+    quiet_hours_mode: mode_presentation
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+      - activity_center_digest_card
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Presentation mode. Suppresses every transient and
+      audience-visible surface (including app-icon badges and
+      digest cards). Preserves durable rows and the status item
+      so the presenter can still see critical state changes when
+      they glance. Held deliveries release as a grouped digest on
+      mode exit.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_screen_share
+    quiet_hours_mode: mode_screen_share
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+      - activity_center_digest_card
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Active screen share. Matches presentation mode; default
+      privacy posture routes collaboration pings to the session
+      digest and prevents audience exposure on shared pixels.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_privacy_mode
+    quiet_hours_mode: mode_privacy_mode
+    suppressed_delivery_surfaces:
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+    preserved_delivery_surfaces:
+      - toast
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Privacy mode. Keeps in-product surfaces available but
+      suppresses every OS-level and companion surface and every
+      lock-screen summary. lock_screen_summary deliveries are
+      denied with policy_forbidden_on_lock_screen while this
+      mode is active.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_reduced_attention_policy
+    quiet_hours_mode: mode_reduced_attention_policy
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - companion_push
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - os_badge_app_icon
+      - lock_screen_summary
+    suppressed_interruptibility_tiers:
+      - tier_transient
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: true
+    notes_label: >
+      Reduced-attention accessibility posture. Suppresses noisy
+      transient deliveries while preserving app-icon badges and
+      lock-screen summaries so the user can still see critical
+      state at a glance.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_power_saver_runtime
+    quiet_hours_mode: mode_power_saver_runtime
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - companion_push
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - os_badge_app_icon
+      - lock_screen_summary
+    suppressed_interruptibility_tiers:
+      - tier_transient
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: false
+    notes_label: >
+      Runtime power-saver hold. Pauses transient and networked
+      deliveries to preserve battery / thermal budget; durable
+      rows continue to update, and the critical-safety tier
+      always renders. Not user-overridable while the runtime
+      power manager holds the mode.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+  - record_kind: quiet_hours_policy_row_record
+    activity_event_envelope_schema_version: 1
+    policy_row_id: ux:quiet-hours:mode_admin_suppression
+    quiet_hours_mode: mode_admin_suppression
+    suppressed_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+    preserved_delivery_surfaces:
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+    suppressed_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    preserves_durable_history: true
+    preserves_critical_safety_tier: true
+    release_on_mode_exit_digest: true
+    admin_overridable: true
+    user_overridable: false
+    notes_label: >
+      Admin-policy suppression (ADR-0008). Managed policy MAY
+      narrow delivery further; policy MAY NOT silently widen
+      beyond the frozen exclusion rules and MAY NOT silently
+      block tier_critical_safety. Blocked high-importance
+      events retain a durable audit trail where policy requires
+      it.
+    policy_context:
+      policy_epoch: "pe:2026-04-19:01"
+      trust_state: trusted
+    minted_at: "2026-04-21T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: durable_history_always_preserved
+    description: >
+      Every quiet_hours_policy_row_record asserts
+      preserves_durable_history = true. A mode whose row reports
+      false is non-conforming and denies with
+      quiet_hours_hold_discarded_durable_history.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_durable_history
+
+  - id: critical_safety_always_renders
+    description: >
+      Every quiet_hours_policy_row_record asserts
+      preserves_critical_safety_tier = true. A mode whose row
+      reports false is non-conforming and denies with
+      quiet_hours_hold_discarded_critical_safety_tier.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_critical_safety_tier
+
+  - id: held_event_emits_audit_envelope
+    description: >
+      A held event emits an activity_event_envelope_record with
+      delivery_surface_class = not_delivered_held and at least
+      one suppression_reason so durable chronology is preserved.
+      Silent drop is non-conforming.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: held_event_missing_audit_trail
+
+  - id: admin_suppression_never_blocks_critical_safety
+    description: >
+      mode_admin_suppression MAY NOT block tier_critical_safety
+      deliveries. A managed policy that silently blocks a
+      critical-safety delivery is non-conforming.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: admin_suppression_blocked_critical_safety
+
+  - id: exit_digest_grouped_by_source_and_severity
+    description: >
+      When a mode with release_on_mode_exit_digest = true exits,
+      held deliveries release as one grouped digest grouped by
+      source and severity so the user can triage intentionally
+      rather than replay a toast backlog one item at a time
+      (§9.14).
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: dedupe_violated_stacked_toasts
+
+  - id: lock_screen_forbidden_under_privacy_mode
+    description: >
+      Under mode_privacy_mode, lock_screen_summary deliveries
+      are denied with policy_forbidden_on_lock_screen and
+      preserved only as in-product durable rows.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: privacy_payload_class_missing_on_lock_screen
+
+  - id: schema_version_alignment
+    description: >
+      All emitted quiet_hours_policy_row_record instances share
+      activity_event_envelope_schema_version with the registry;
+      surfaces lagging behind a schema bump are denied.
+    failure_event: activity_event_envelope_schema_version_bumped
+    failure_denial_reason: activity_event_envelope_schema_version_lagging

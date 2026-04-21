@@ -1,0 +1,539 @@
+# Interruptibility-tier escalation seed.
+#
+# Companion to docs/ux/attention_activity_taxonomy.md and the
+# boundary schema at
+# schemas/ux/activity_event_envelope.schema.json. This file seeds
+# per-tier escalation rules, required triggers, default delivery
+# surfaces, and protected-path rules for the six frozen
+# interruptibility tiers.
+#
+# Rules:
+#   - The vocabulary below mirrors the schema; surfaces MUST NOT
+#     mint private tier names or private escalation triggers.
+#   - If this file and the taxonomy doc disagree, the taxonomy
+#     doc wins and this file MUST be updated in the same change.
+#   - Escalation requires a typed trigger. Decorative escalation
+#     (e.g. "the progress bar updated") is non-conforming.
+#   - tier_critical_safety cannot be suppressed by quiet-hours,
+#     focus mode, presentation mode, screen share, privacy mode,
+#     power-saver, or reduced-attention policy. Admin suppression
+#     MAY narrow but MAY NOT silently block.
+#   - Long-running work (build / test / debug / indexer / save /
+#     sync / update / restore / download / upload / notebook /
+#     ai-apply / review-apply / provider-handoff / remote-attach /
+#     collaboration-session / admin-policy-refresh) MUST live on
+#     a durable surface. Toast-only rendering is non-conforming.
+
+activity_event_envelope_schema_version: 1
+
+source_doc_ref: docs/ux/attention_activity_taxonomy.md
+boundary_schema: schemas/ux/activity_event_envelope.schema.json
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.7
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.3
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.4
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.14
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.15
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#10.5
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#AppendixW
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the schema. Tooling reads these blocks;
+# surfaces MUST NOT escalate events outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+interruptibility_tiers:
+  - tier_ambient
+  - tier_transient
+  - tier_durable
+  - tier_actionable
+  - tier_blocking_trust
+  - tier_critical_safety
+
+escalation_triggers:
+  - severity_increased
+  - duration_threshold_crossed
+  - required_authority_changed
+  - consequence_class_escalated
+  - basis_snapshot_drifted
+  - policy_epoch_changed
+  - trust_state_changed
+  - provider_grant_narrowed
+  - recovery_class_downgraded_to_no_recovery
+  - repeated_dedupe_threshold_crossed
+
+protected_paths:
+  - save
+  - recovery
+  - trust_review
+  - debugging
+  - ai_apply
+  - patch_approval
+  - restore_from_crash
+
+# ---------------------------------------------------------------------------
+# Tier rows. One row per frozen interruptibility tier.
+# ---------------------------------------------------------------------------
+tier_rows:
+
+  - tier_id: ux:tier:tier_ambient
+    interruptibility_tier: tier_ambient
+    short_description: >
+      Passive ambient state. Lives on a status item or badge; no
+      toast, no OS notification, no focus change.
+    default_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+    permitted_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - contextual_banner
+    forbidden_delivery_surfaces:
+      - toast
+      - os_notification
+      - lock_screen_summary
+      - companion_push
+    reopen_target_required: false
+    next_action_required: false
+    may_be_toast_only: false
+    suppressed_under_modes:
+      - mode_none  # renders everywhere; listed to keep the row
+                   # self-describing across the quiet-hours matrix
+    blocked_on_protected_paths: []
+    escalates_to:
+      - tier_transient
+      - tier_durable
+    escalation_required_triggers:
+      - severity_increased
+      - duration_threshold_crossed
+      - repeated_dedupe_threshold_crossed
+    example_events:
+      - indexer warming silently
+      - status-item showing "connected"
+      - app-icon badge for completion-unread count
+
+  - tier_id: ux:tier:tier_transient
+    interruptibility_tier: tier_transient
+    short_description: >
+      One-shot success, non-critical failure, or lightweight
+      acknowledgement. Toast allowed; MUST link to a durable
+      surface when the event has logs, evidence, or recovery
+      actions worth revisiting (§9.14 / Appendix W).
+    default_delivery_surfaces:
+      - toast
+    permitted_delivery_surfaces:
+      - toast
+      - contextual_banner
+      - status_item
+      - os_notification
+    forbidden_delivery_surfaces:
+      - lock_screen_summary        # unless lock_screen_safe_generic
+      - os_badge_app_icon          # toasts do not inflate badges
+    reopen_target_required: true
+    next_action_required: false
+    may_be_toast_only: true
+    suppressed_under_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_focus_mode_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_privacy_mode
+      - mode_reduced_attention_policy
+      - mode_power_saver_runtime
+      - mode_admin_suppression
+    blocked_on_protected_paths:
+      - save
+      - recovery
+      - trust_review
+      - debugging
+      - ai_apply
+      - patch_approval
+      - restore_from_crash
+    escalates_to:
+      - tier_durable
+      - tier_actionable
+    escalation_required_triggers:
+      - severity_increased
+      - duration_threshold_crossed
+      - required_authority_changed
+      - repeated_dedupe_threshold_crossed
+    example_events:
+      - "Saved" toast
+      - "Copied raw Markdown" toast
+      - "Preview restarted" toast with durable path
+
+  - tier_id: ux:tier:tier_durable
+    interruptibility_tier: tier_durable
+    short_description: >
+      Long-running work or durable operational state. MUST hit
+      a durable surface (durable_job_row or attention_item). A
+      toast MAY mirror the durable row but MUST NOT replace it.
+      Applies to build, test, debug-session, task_run, indexer,
+      save_or_sync, update_install, restore_or_recovery,
+      download_or_upload, notebook_execution, ai_apply_execution,
+      review_apply_execution, provider_handoff, remote_attach,
+      collaboration_session, and admin_policy_refresh.
+    default_delivery_surfaces:
+      - durable_job_row
+    permitted_delivery_surfaces:
+      - durable_job_row
+      - attention_item
+      - status_item
+      - contextual_banner
+      - os_badge_app_icon
+      - toast                   # mirror only; MUST reference a durable row
+    forbidden_delivery_surfaces:
+      - lock_screen_summary     # durable state lives in product
+    reopen_target_required: true
+    next_action_required: false
+    may_be_toast_only: false
+    suppressed_under_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_admin_suppression
+    blocked_on_protected_paths:
+      - save
+      - recovery
+      - trust_review
+      - debugging
+      - ai_apply
+      - patch_approval
+      - restore_from_crash
+    escalates_to:
+      - tier_actionable
+      - tier_blocking_trust
+    escalation_required_triggers:
+      - severity_increased
+      - duration_threshold_crossed
+      - required_authority_changed
+      - consequence_class_escalated
+      - basis_snapshot_drifted
+      - provider_grant_narrowed
+    example_events:
+      - background build running
+      - reconnecting remote session
+      - package publish in flight
+      - indexer warming across a large workspace
+      - admin policy refresh in progress
+
+  - tier_id: ux:tier:tier_actionable
+    interruptibility_tier: tier_actionable
+    short_description: >
+      Item that needs a named human action. MUST carry a
+      next_action_label and MUST live on an attention_item or
+      equivalent durable surface. Acknowledge removes the badge,
+      not the underlying state; resolve requires the underlying
+      object to change.
+    default_delivery_surfaces:
+      - attention_item
+    permitted_delivery_surfaces:
+      - attention_item
+      - contextual_banner
+      - durable_job_row       # when the action is cancel / retry
+      - toast                 # mirror only; MUST reference a durable row
+      - os_notification       # when the user is away from the product
+      - companion_push
+    forbidden_delivery_surfaces:
+      - lock_screen_summary   # unless lock_screen_safe_scoped
+    reopen_target_required: true
+    next_action_required: true
+    may_be_toast_only: false
+    suppressed_under_modes:
+      - mode_do_not_disturb_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_admin_suppression
+    blocked_on_protected_paths:
+      - save
+      - recovery
+      - trust_review
+      - debugging
+      - ai_apply
+      - patch_approval
+      - restore_from_crash
+    escalates_to:
+      - tier_blocking_trust
+      - tier_critical_safety
+    escalation_required_triggers:
+      - severity_increased
+      - duration_threshold_crossed
+      - required_authority_changed
+      - consequence_class_escalated
+      - policy_epoch_changed
+      - trust_state_changed
+      - provider_grant_narrowed
+      - recovery_class_downgraded_to_no_recovery
+    example_events:
+      - failed publish awaiting retry decision
+      - review item awaiting human approval
+      - credential expiry with reauth path
+      - session request from a collaborator
+
+  - tier_id: ux:tier:tier_blocking_trust
+    interruptibility_tier: tier_blocking_trust
+    short_description: >
+      Trust, policy, auth, or entitlement boundary change that
+      blocks the active workflow. Routes through the
+      interaction-safety review sheet or modal path (see
+      docs/ux/shell_interaction_safety_contract.md). OS
+      notifications carry privacy-safe summaries only; the
+      authoritative surface is in-product.
+    default_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+    permitted_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+      - durable_job_row
+      - os_notification            # lock_screen_safe_generic summary only
+      - companion_push              # lock_screen_safe_generic summary only
+    forbidden_delivery_surfaces:
+      - toast                       # blocking state is never toast-only
+      - lock_screen_summary         # lock_screen_safe_generic only
+    reopen_target_required: true
+    next_action_required: true
+    may_be_toast_only: false
+    suppressed_under_modes: []      # renders regardless of mode; admin
+                                    # suppression MAY narrow OS surfaces
+    blocked_on_protected_paths: []  # allowed to interrupt protected paths
+                                    # via the interaction-safety review sheet
+    escalates_to:
+      - tier_critical_safety
+    escalation_required_triggers:
+      - severity_increased
+      - consequence_class_escalated
+      - policy_epoch_changed
+      - trust_state_changed
+      - recovery_class_downgraded_to_no_recovery
+    example_events:
+      - workspace trust downgraded mid-session
+      - managed-policy bundle narrowed
+      - provider grant revoked before commit
+      - admin-policy bundle refresh failed
+
+  - tier_id: ux:tier:tier_critical_safety
+    interruptibility_tier: tier_critical_safety
+    short_description: >
+      High-blast-radius or recovery-critical event. Always
+      renders. Cannot be suppressed by quiet-hours, focus mode,
+      presentation mode, screen share, privacy mode, power-saver,
+      or reduced-attention policy. Admin suppression MAY narrow
+      but MAY NOT silently block.
+    default_delivery_surfaces:
+      - attention_item
+      - contextual_banner
+    permitted_delivery_surfaces:
+      - attention_item
+      - contextual_banner
+      - durable_job_row
+      - os_notification
+      - companion_push
+      - lock_screen_summary         # privacy_payload_class lock_screen_safe_generic or lock_screen_safe_scoped
+    forbidden_delivery_surfaces:
+      - toast                       # safety is never toast-only
+    reopen_target_required: true
+    next_action_required: true
+    may_be_toast_only: false
+    suppressed_under_modes: []      # never suppressed
+    blocked_on_protected_paths: []  # may interrupt every protected path
+    escalates_to: []
+    escalation_required_triggers: []
+    example_events:
+      - irreversible_high_blast consequence class requires confirmation
+      - recovery-critical state change during restore
+      - kill-switch tripped on a live capability
+      - secret broker detected credential compromise
+
+# ---------------------------------------------------------------------------
+# Protected-path rules. A delivery on these paths may not escalate a
+# transient / durable / actionable tier into a focus-stealing interruption.
+# tier_blocking_trust and tier_critical_safety are the only tiers that may
+# interrupt — and only through the interaction-safety review sheet.
+# ---------------------------------------------------------------------------
+protected_path_rules:
+
+  - path: save
+    allowed_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    rationale: >
+      Save is a protected path (§9.14 Appendix W.6). Non-critical
+      notices may not compete with completion; durable rows
+      update silently until the save finishes.
+
+  - path: recovery
+    allowed_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_transient
+      - tier_actionable
+    rationale: >
+      Restore-from-crash paths preserve the user's first visible
+      surface as the recovery review itself; nothing decorative
+      interposes between crash and recovery (§6.7).
+
+  - path: trust_review
+    allowed_tiers:
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    rationale: >
+      Trust review focuses the user on an authority decision;
+      ambient / transient / durable / actionable deliveries
+      collapse into the activity center until the decision is
+      resolved.
+
+  - path: debugging
+    allowed_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_transient
+      - tier_actionable
+    rationale: >
+      Debug sessions preserve step / watch / breakpoint focus;
+      transient toasts and attention-item escalations route to
+      the activity center until the session pauses.
+
+  - path: ai_apply
+    allowed_tiers:
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_actionable
+    rationale: >
+      AI apply is itself tier_durable (it's long-running and
+      carries evidence); other tiers compete for focus with the
+      approval decision and MUST NOT interrupt.
+
+  - path: patch_approval
+    allowed_tiers:
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    rationale: >
+      Patch approval is a consequence-bearing decision; unrelated
+      notices may not compete with approve / deny (Appendix W.6).
+
+  - path: restore_from_crash
+    allowed_tiers:
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_actionable
+    rationale: >
+      The first surface after a crash is recovery; ambient /
+      transient / actionable chrome MUST NOT interpose before
+      the user sees the recovery review.
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: durable_work_forbidden_as_toast_only
+    description: >
+      tier_durable deliveries MUST live on durable_job_row or
+      attention_item. A durable_job_subject_class event rendered
+      only as a toast denies with
+      toast_only_forbidden_for_durable_work.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: toast_only_forbidden_for_durable_work
+
+  - id: actionable_requires_next_action_label
+    description: >
+      tier_actionable, tier_blocking_trust, and tier_critical_safety
+      envelopes MUST carry a next_action_label. A missing label
+      is non-conforming.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: interruptibility_tier_unresolved
+
+  - id: critical_safety_cannot_be_suppressed
+    description: >
+      tier_critical_safety renders regardless of quiet_hours_mode.
+      A mode that silently blocks tier_critical_safety denies
+      with quiet_hours_hold_discarded_critical_safety_tier; an
+      admin suppression that blocks it denies with
+      admin_suppression_blocked_critical_safety.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_critical_safety_tier
+
+  - id: protected_path_focus_steal_denied
+    description: >
+      A delivery whose tier is on the forbidden list for the
+      current protected path denies with
+      focus_steal_on_protected_path and routes to the activity
+      center rather than interrupting.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: focus_steal_on_protected_path
+
+  - id: escalation_requires_typed_trigger
+    description: >
+      Escalating between tiers requires naming an
+      escalation_required_triggers value. Decorative escalation
+      (e.g. progress bar updated) is non-conforming.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: interruption_tier_escalated_without_trigger
+
+  - id: reopen_target_required_on_non_ambient
+    description: >
+      Every envelope whose interruptibility_tier is not
+      tier_ambient MUST carry a non-null reopen_target_ref. A
+      missing reopen target denies with reopen_target_lost.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: reopen_target_lost
+
+  - id: dismissal_verbs_are_not_aliases
+    description: >
+      acknowledge / resolve / dismiss / snooze / mute / suppress
+      are distinct states and MUST never be used as
+      interchangeable labels. A surface that aliases one to
+      another denies with dismissal_verb_used_as_alias.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: dismissal_verb_used_as_alias
+
+  - id: cross_client_canonical_event_id_collapses_clients
+    description: >
+      The same event across desktop, companion, remote agent,
+      and managed admin surfaces collapses to one
+      canonical_event_id; divergent cross-client lineage denies
+      with companion_cross_client_divergence.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: companion_cross_client_divergence
+
+  - id: schema_version_alignment
+    description: >
+      All emitted envelopes, durable_job_record, attention_item_record,
+      badge_record, grouped_burst_record, and reopen_target_record
+      instances share activity_event_envelope_schema_version
+      with the registry; surfaces lagging behind a schema bump
+      deny with activity_event_envelope_schema_version_lagging.
+    failure_event: activity_event_envelope_schema_version_bumped
+    failure_denial_reason: activity_event_envelope_schema_version_lagging
