@@ -1,0 +1,1129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/workspace_graph_seed.schema.json",
+  "title": "Aureline semantic-workspace-graph seed object model",
+  "description": "Boundary schema for the shared semantic-workspace-graph record family. Every workspace-graph node and edge the search-planner, graph overlay, topology map, impact explorer, cited-explainer overlay, AI context assembler, review pack, support bundle, or public query-family surface renders resolves to exactly one node or edge defined here. The goal is one governed identity layer: later search, docs, AI, and public-graph work cite this seed instead of minting private node or edge classes, private identity tokens, or private freshness / confidence vocabularies. Raw source bodies, raw symbol definitions, raw document bodies, and raw URLs never cross this boundary; nodes and edges carry ids, typed classes, and typed provenance / freshness / confidence slots only. Filesystem identity reuses the ADR-0006 five-layer record (schemas/filesystem/save_target_token.schema.json#filesystem_identity_record); generated-artifact lineage reuses schemas/workspace/generated_artifact_lineage.schema.json; workset / scope vocabulary reuses schemas/runtime/execution_context.schema.json. The eventual workspace-graph crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new node class, a new edge class, a new source class, a new freshness token, a new confidence level, a new provenance class, a new evidence state, a new query-family tag, a new shard-affinity tag, a new invalidation-producer tag, or a new audit-event id is additive-minor and bumps workspace_graph_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_graph_record" },
+    { "$ref": "#/$defs/graph_node_record" },
+    { "$ref": "#/$defs/graph_edge_record" },
+    { "$ref": "#/$defs/graph_audit_event_record" }
+  ],
+  "$defs": {
+    "workspace_graph_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this workspace-graph vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_graph_record",
+        "graph_node_record",
+        "graph_edge_record",
+        "graph_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string. Prototype fixtures emit 'mono:...' tokens; production readers treat the value as opaque."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Never carries raw source bodies or raw URLs."
+    },
+
+    "node_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable graph-node id. Mandatory on every node record. Surfaces that render, link, or cite a node quote this id verbatim; human-friendly labels MAY be shown alongside but never substituted. Ids are never reused after a node is retired; a retired id surfaces through a graph_audit_event_record."
+    },
+
+    "edge_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable graph-edge id. Mandatory on every edge record. Topology maps, impact explorers, and cited-explainer overlays reuse this id rather than inventing a private edge handle."
+    },
+
+    "workspace_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable workspace identifier. Authoritative at the workspace authority; projected elsewhere."
+    },
+
+    "filesystem_identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "alias_set",
+        "save_target_token"
+      ],
+      "properties": {
+        "presentation_path": {
+          "type": "string",
+          "description": "The path the user sees. Presentation only; never authoritative for identity."
+        },
+        "logical_workspace_identity": {
+          "type": "string",
+          "description": "Workspace-scoped logical identity (ADR-0006 layer 2)."
+        },
+        "canonical_filesystem_object": {
+          "type": "string",
+          "description": "Canonical filesystem object after alias convergence (ADR-0006 layer 3)."
+        },
+        "alias_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered alias set converging on canonical_filesystem_object (ADR-0006 layer 4)."
+        },
+        "save_target_token": {
+          "type": "string",
+          "description": "Opaque save-target token (ADR-0006 layer 5). Present for workspace-resident objects; empty for virtual or external anchors."
+        }
+      },
+      "description": "Reference-shape copy of the ADR-0006 five-layer filesystem-identity record. This schema does not re-invent filesystem identity; it references the same shape so workspace-graph file, directory, and generated-artifact nodes route through one identity layer."
+    },
+
+    "node_class": {
+      "type": "string",
+      "enum": [
+        "file_node",
+        "directory_node",
+        "symbol_node",
+        "doc_node",
+        "ownership_node",
+        "topology_node",
+        "provider_resource_node",
+        "generated_artifact_node",
+        "imported_root_node",
+        "workset_scope_node",
+        "policy_view_node",
+        "missing_anchor_node"
+      ],
+      "description": "Frozen node-class vocabulary. Every graph node carries exactly one class. file_node and directory_node anchor workspace-resident objects via filesystem-identity. symbol_node anchors language symbols (function, type, module) declared inside a file. doc_node anchors a docs-pack entry or in-workspace documentation node. ownership_node anchors a person or team identity used by CODEOWNERS, review routing, and impact explainers. topology_node anchors a deployment unit, service endpoint, or pack / dependency target. provider_resource_node anchors a connected-provider object (issue, PR, CI run, database, cloud resource) that is NOT workspace-resident. generated_artifact_node anchors a build output, codegen sibling, lockfile, notebook output, preview snapshot, or mirrored pack artifact and pairs with a generated_artifact_lineage_record. imported_root_node anchors a workspace root imported from an external source (vendor drop, replay capture, migration import). workset_scope_node anchors a named workset or slice so scope narrowing is first-class in the graph. policy_view_node anchors a policy-limited projection; the underlying node ids are never exposed through this projection. missing_anchor_node anchors a referenced-but-unresolved target (deleted file, unreachable provider object, dropped symbol) so downstream surfaces can render a typed missing-anchor badge rather than silently hiding the reference."
+    },
+
+    "edge_class": {
+      "type": "string",
+      "enum": [
+        "contains",
+        "defines_symbol",
+        "references_symbol",
+        "imports_module",
+        "depends_on",
+        "owned_by",
+        "documented_by",
+        "cites",
+        "generated_from",
+        "mirrors_upstream",
+        "deployed_to",
+        "runs_in",
+        "hosted_by",
+        "produces_artifact",
+        "consumes_artifact",
+        "impacts",
+        "explains",
+        "scoped_by",
+        "aliases",
+        "missing_anchor_for"
+      ],
+      "description": "Frozen edge-class vocabulary. Every graph edge carries exactly one class. contains: directory -> file, file -> symbol, file -> generated_artifact_node. defines_symbol: file -> symbol. references_symbol: symbol -> symbol (call, type use, trait impl). imports_module: file -> file or file -> symbol_node representing a module surface. depends_on: topology -> topology or pack -> pack. owned_by: any node -> ownership_node. documented_by: any node -> doc_node. cites: doc_node -> any node; explainer overlays reuse this edge rather than minting an overlay-private edge. generated_from: generated_artifact_node -> file_node or schema / template source; pairs with generated_artifact_lineage_record.canonical_source_refs. mirrors_upstream: generated_artifact_node -> provider_resource_node for mirrored_pack_artifact. deployed_to: topology_node -> topology_node naming a deploy target. runs_in: topology_node -> target (runtime / execution host). hosted_by: provider_resource_node -> provider (registry, code-host, CI host). produces_artifact: topology_node -> generated_artifact_node (build target produces build output). consumes_artifact: topology_node -> generated_artifact_node. impacts: any node -> any node; impact explorers reuse this edge rather than inventing a private impact graph. explains: cited-explainer node -> target node; AI explainers cite one node per citation through this edge. scoped_by: any node -> workset_scope_node or policy_view_node; scope narrowing is a first-class edge, not a side-channel. aliases: file_node -> file_node (case-only, Unicode-normalization, or symlink aliases identified by the ADR-0006 alias set). missing_anchor_for: missing_anchor_node -> any node the reference targeted; surfaces render the missing-anchor badge instead of silently dropping the edge."
+    },
+
+    "edge_evidence_state": {
+      "type": "string",
+      "enum": [
+        "direct_evidence",
+        "imported_evidence",
+        "inferred_relation",
+        "stale_relation",
+        "missing_anchor"
+      ],
+      "description": "Frozen evidence-state vocabulary. Every edge carries exactly one value so later graph UX can distinguish what the edge is actually claiming. direct_evidence: the producer observed the relation first-hand (symbol resolver, parser, CODEOWNERS resolver, build-toolchain output). imported_evidence: the relation was imported from an external signed or replayed source (vendor drop, upstream docs pack, replay capture, migration import). inferred_relation: the relation was derived by a heuristic, cross-reference, or inference pass and carries lower default confidence. stale_relation: the relation was observed earlier and has not been refreshed against current inputs; surfaces render a staleness badge and carry a stale_reason. missing_anchor: one endpoint is a missing_anchor_node (deleted file, unreachable provider object, dropped symbol); surfaces render the missing-anchor badge instead of silently hiding the edge."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_filesystem",
+        "buffer_editor",
+        "symbol_resolver",
+        "docs_pack",
+        "codeowners_resolver",
+        "build_toolchain",
+        "codegen_tool",
+        "package_resolver",
+        "notebook_kernel",
+        "preview_runtime",
+        "connected_provider",
+        "remote_agent",
+        "ai_inference",
+        "imported_bundle",
+        "replay_capture",
+        "policy_projection",
+        "manual_annotation"
+      ],
+      "description": "Frozen source-class vocabulary naming which producer family emitted the node or edge. Support bundles, AI evidence packets, and replay captures cite this value verbatim so the same row never reads three different provenance stories across surfaces."
+    },
+
+    "provenance_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_producer",
+        "projected_from_producer",
+        "imported_external",
+        "replayed_capture",
+        "inferred_by_heuristic",
+        "policy_projected",
+        "manually_annotated"
+      ],
+      "description": "Provenance-class vocabulary. Complements source_class by naming how the current record came to carry this data. authoritative_producer: the canonical owner produced the record directly. projected_from_producer: a downstream surface is rendering a projection of another producer's truth; the canonical owner is named on the provenance stamp. imported_external: the record was hydrated from an imported bundle or signed upstream source. replayed_capture: the record was rehydrated from a replay capture. inferred_by_heuristic: the record was derived by a heuristic pass. policy_projected: the record is a policy-limited projection of a broader node set. manually_annotated: a human annotation (triage tag, override note) contributed to the record; manual annotations carry redaction-aware bodies only."
+    },
+
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Freshness vocabulary. Re-exported from ADR-0005 so search-planner and graph UX agree on the same label set. authoritative: the canonical owner is live and the value is current. warming: the producer is coming up; partial data may render with a warming chip. cached: the value was served from cache. stale: the value is older than the last-known authoritative update. replayed: the value is rehydrated from a replay capture. imported: the value was hydrated from an imported bundle. Frames with non-authoritative freshness carry a stale_reason."
+    },
+
+    "stale_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost",
+        "reindex_failed",
+        "generator_changed",
+        "provider_unreachable",
+        null
+      ],
+      "description": "Typed reason a record is non-authoritative; null only when freshness == authoritative. Re-exports ADR-0005 / ADR-0014 reasons and adds graph-specific reasons."
+    },
+
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Confidence level assigned by the emitting producer. Consumers surface the label verbatim; a cited-explainer overlay MUST NOT silently upgrade a low-confidence relation."
+    },
+
+    "confidence_rollup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rolled_up_level", "source_confidences"],
+      "properties": {
+        "rolled_up_level": { "$ref": "#/$defs/confidence_level" },
+        "source_confidences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/confidence_level" },
+          "description": "Per-contributor confidence list the rollup summarises. Rollup policy: any low contributor pulls the rollup to at least low; any unknown contributor pulls to at least low; otherwise rollup is the minimum of contributors."
+        },
+        "rollup_note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short note the rollup surface renders verbatim. Never embeds raw source bodies."
+        }
+      },
+      "description": "Graph-level confidence-rollup slot. A multi-source node or edge carries one rollup so graph UX, AI explainers, and support bundles agree on one confidence label rather than cherry-picking contributors."
+    },
+
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_kind", "anchor_ref"],
+      "properties": {
+        "anchor_kind": {
+          "type": "string",
+          "enum": [
+            "filesystem_identity",
+            "symbol_definition_site",
+            "docs_pack_entry",
+            "mutation_journal_entry",
+            "generated_artifact_lineage",
+            "provider_resource_handle",
+            "imported_bundle_entry",
+            "replay_capture_entry",
+            "codeowners_rule",
+            "annotation_note"
+          ]
+        },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "line_range": {
+          "type": ["string", "null"],
+          "description": "Optional line-range hint ('line_start:line_end'). Opaque to this schema; cited-explainer overlays render it alongside the node. Raw source bytes are never carried here."
+        }
+      },
+      "description": "One source-anchor slot. Every node and edge MAY list any number of source anchors so cited-explainer overlays can point users at the exact place a relation was asserted without renaming the node or inventing a private pointer."
+    },
+
+    "provenance_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "provenance_class", "recorded_at"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "producer_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque producer ref (crate id, tool id, provider id). Support bundles cite this verbatim."
+        },
+        "producer_version": {
+          "type": ["string", "null"],
+          "description": "Optional producer version. A version change contributes to a later invalidation frame."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "imported_bundle_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the imported bundle entry, when provenance_class is imported_external."
+        },
+        "replay_capture_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the replay capture entry, when provenance_class is replayed_capture."
+        },
+        "support_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque support-bundle anchor carrying the full forensic packet for this record."
+        }
+      },
+      "description": "Graph-level provenance stamp. Every node and edge carries exactly one so later graph UX can render 'why this is here, who said so, and when' without inventing a private provenance field."
+    },
+
+    "freshness_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness", "recorded_at"],
+      "properties": {
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "cache_key_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque cache-key ref when freshness == cached."
+        },
+        "warming_progress_hint": {
+          "type": ["string", "null"],
+          "enum": [
+            "first_pass",
+            "hot_set_ready",
+            "partial_index",
+            "full_index",
+            null
+          ],
+          "description": "Optional warming-progress hint when freshness == warming; aligns with ADR-0014 readiness states."
+        }
+      },
+      "description": "Per-record freshness frame. Separate from freshness on the node / edge so a single logical record can carry both its current freshness and a short rationale without growing the record shape."
+    },
+
+    "query_family_tag": {
+      "type": "string",
+      "enum": [
+        "lexical_text_search",
+        "symbol_jump",
+        "semantic_code_search",
+        "docs_search",
+        "ownership_lookup",
+        "topology_walk",
+        "impact_explorer",
+        "dependency_walk",
+        "generated_artifact_lineage_walk",
+        "provider_resource_lookup",
+        "cited_explainer_walk",
+        "ai_context_assembly",
+        "public_graph_query",
+        "review_impact_walk",
+        "support_export_walk"
+      ],
+      "description": "Provisional query-family tag. Nodes and edges list one or more families they are intended to serve so the search-planner and public-graph work do not fork identity rules later. Adding a family is additive-minor and bumps the schema version."
+    },
+
+    "shard_affinity_tag": {
+      "type": "string",
+      "enum": [
+        "workspace_root_local",
+        "per_root_index",
+        "symbol_cache_shard",
+        "docs_pack_shard",
+        "graph_overlay_shard",
+        "provider_overlay_shard",
+        "ai_context_shard",
+        "policy_projected_shard",
+        "ephemeral_session_shard",
+        "imported_bundle_shard"
+      ],
+      "description": "Provisional shard-affinity tag. Nodes and edges name the shard family they belong to so later materialization work can partition without renaming identity. Adding a shard family is additive-minor."
+    },
+
+    "invalidation_producer_tag": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs_writer",
+        "buffer_editor_commit",
+        "symbol_resolver_rebuild",
+        "docs_pack_refresh",
+        "codeowners_rule_change",
+        "build_toolchain_run",
+        "codegen_run",
+        "package_resolver_refresh",
+        "notebook_kernel_execute",
+        "preview_runtime_refresh",
+        "connected_provider_event",
+        "remote_agent_event",
+        "ai_inference_refresh",
+        "imported_bundle_update",
+        "replay_capture_reload",
+        "policy_epoch_roll"
+      ],
+      "description": "Provisional invalidation-producer tag. Nodes and edges name which producer family invalidates them so the subscription fabric can route invalidation frames without inventing producer synonyms. Adding a tag is additive-minor."
+    },
+
+    "workset_scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_id"],
+      "properties": {
+        "scope_class": {
+          "type": "string",
+          "enum": [
+            "current_root",
+            "named_workset",
+            "sparse_slice",
+            "full_workspace",
+            "policy_limited_view",
+            "review_workspace",
+            "companion_surface"
+          ],
+          "description": "Re-export of the ADR (execution-context and scope) workset / scope vocabulary. This schema does not mint new scope classes."
+        },
+        "scope_id": { "$ref": "#/$defs/opaque_id" },
+        "visibility": {
+          "type": "string",
+          "enum": ["fully_visible", "partial_visible", "policy_hidden", "missing_in_scope"],
+          "description": "Per-node / per-edge workset visibility. partial_visible and policy_hidden are rendered as honesty badges; missing_in_scope renders the missing-anchor badge."
+        }
+      },
+      "description": "Scope / workset reference. Every node and edge lists one or more scopes it appears in; visibility distinguishes fully visible, partial, policy-hidden, and missing-in-scope cases so scope narrowing is honest."
+    },
+
+    "impact_reason_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class"],
+      "properties": {
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "direct_edit",
+            "symbol_rename",
+            "signature_change",
+            "dependency_bump",
+            "generated_artifact_regeneration",
+            "policy_change",
+            "ownership_change",
+            "provider_resource_update",
+            "imported_bundle_rollover",
+            "workset_scope_narrowed",
+            "workset_scope_widened",
+            "inferred_transitive_impact"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short rationale (≤ 240 graphemes). Impact explorers render this verbatim."
+        },
+        "mutation_journal_ref": {
+          "type": ["string", "null"],
+          "description": "Optional mutation-journal entry or group id that produced this impact reason."
+        },
+        "review_ref": {
+          "type": ["string", "null"],
+          "description": "Optional review-pack or approval ref attached to the impact."
+        }
+      },
+      "description": "One impact-reason slot. Impact explorers, review packs, and AI explainers reuse this shape rather than minting a private impact-reason record."
+    },
+
+    "explainer_citation_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["citation_class", "citation_ref"],
+      "properties": {
+        "citation_class": {
+          "type": "string",
+          "enum": [
+            "symbol_definition",
+            "file_range",
+            "doc_entry",
+            "generated_artifact_lineage",
+            "codeowners_rule",
+            "topology_edge",
+            "provider_resource",
+            "mutation_journal_entry",
+            "imported_bundle_entry",
+            "replay_capture_entry"
+          ]
+        },
+        "citation_ref": { "$ref": "#/$defs/opaque_id" },
+        "line_range": {
+          "type": ["string", "null"],
+          "description": "Optional line-range hint ('line_start:line_end'). Raw source bytes never appear here."
+        },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" }
+      },
+      "description": "One explainer-citation slot. Cited-explainer overlays, AI context assemblers, and support bundles reuse this shape so a citation uses the same id family the graph node exposes rather than minting a private citation pointer."
+    },
+
+    "topology_edge_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topology_kind"],
+      "properties": {
+        "topology_kind": {
+          "type": "string",
+          "enum": [
+            "package_depends_on_package",
+            "service_calls_service",
+            "build_target_produces_artifact",
+            "runtime_hosts_package",
+            "deploy_target_runs_service",
+            "provider_hosts_resource",
+            "pack_mirrors_upstream",
+            "notebook_kernel_executes_cell",
+            "preview_runtime_renders_snapshot"
+          ]
+        },
+        "environment_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "local_host",
+            "ssh_remote",
+            "container_local",
+            "devcontainer",
+            "remote_workspace_vm",
+            "prebuild_runtime",
+            "managed_workspace",
+            "notebook_kernel_local",
+            "notebook_kernel_remote",
+            "ai_sandbox",
+            null
+          ],
+          "description": "Optional environment-class hint re-exporting the execution-context target-class vocabulary. This schema does not mint new target classes."
+        },
+        "deployment_tag": {
+          "type": ["string", "null"],
+          "description": "Optional deployment tag (region, cluster, environment name). Opaque to this schema."
+        }
+      },
+      "description": "One topology-edge slot. Topology maps and impact explorers reuse this shape so a package-depends-on-package or service-calls-service relation is named with one vocabulary rather than a surface-local synonym."
+    },
+
+    "node_body_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesystem_identity"],
+      "properties": {
+        "filesystem_identity": { "$ref": "#/$defs/filesystem_identity_ref" },
+        "media_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "text_source",
+            "structured_configuration",
+            "binary_asset",
+            "notebook",
+            "documentation_authored",
+            "test_source",
+            "vendor_imported",
+            null
+          ]
+        },
+        "language_id": {
+          "type": ["string", "null"],
+          "description": "Optional language id (rust, typescript, python, markdown). Opaque to this schema."
+        },
+        "large_file_mode": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the file routes through the large-file prototype path; downstream surfaces render the limited-mode capability table."
+        }
+      }
+    },
+
+    "node_body_directory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesystem_identity"],
+      "properties": {
+        "filesystem_identity": { "$ref": "#/$defs/filesystem_identity_ref" },
+        "role": {
+          "type": ["string", "null"],
+          "enum": [
+            "workspace_root",
+            "source_tree",
+            "test_tree",
+            "docs_tree",
+            "fixtures_tree",
+            "generated_tree",
+            "vendor_tree",
+            "build_output_tree",
+            null
+          ]
+        }
+      }
+    },
+
+    "node_body_symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbol_kind", "declared_in_file_node_id"],
+      "properties": {
+        "symbol_kind": {
+          "type": "string",
+          "enum": [
+            "module",
+            "function",
+            "method",
+            "type",
+            "trait",
+            "enum_variant",
+            "constant",
+            "macro",
+            "package",
+            "crate",
+            "schema_node"
+          ]
+        },
+        "declared_in_file_node_id": { "$ref": "#/$defs/node_id" },
+        "qualified_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable qualified path inside the workspace symbol graph (for example, 'crate::module::Type::method'). Opaque to this schema."
+        },
+        "visibility": {
+          "type": ["string", "null"],
+          "enum": ["public_api", "workspace_internal", "crate_local", "module_private", null]
+        }
+      }
+    },
+
+    "node_body_doc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_kind", "doc_ref"],
+      "properties": {
+        "doc_kind": {
+          "type": "string",
+          "enum": [
+            "workspace_doc_file",
+            "docs_pack_entry",
+            "adr",
+            "rfc",
+            "readme",
+            "inline_docstring",
+            "changelog",
+            "migration_note"
+          ]
+        },
+        "doc_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_filesystem_identity": {
+          "oneOf": [
+            { "$ref": "#/$defs/filesystem_identity_ref" },
+            { "type": "null" }
+          ],
+          "description": "Filesystem-identity record when the doc is workspace-resident; null for docs-pack entries sourced from an imported bundle."
+        }
+      }
+    },
+
+    "node_body_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownership_kind", "ownership_ref"],
+      "properties": {
+        "ownership_kind": {
+          "type": "string",
+          "enum": ["person", "team", "service_account", "rotation_role"]
+        },
+        "ownership_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "type": ["string", "null"],
+          "description": "Redaction-aware display label. Raw email addresses, handles, or real names never cross this boundary."
+        },
+        "codeowners_rule_ref": {
+          "type": ["string", "null"],
+          "description": "Optional CODEOWNERS rule ref that resolved to this ownership."
+        }
+      }
+    },
+
+    "node_body_topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topology_kind", "topology_ref"],
+      "properties": {
+        "topology_kind": {
+          "type": "string",
+          "enum": [
+            "package",
+            "crate",
+            "service",
+            "deployment_target",
+            "runtime_host",
+            "build_target",
+            "test_target",
+            "pack"
+          ]
+        },
+        "topology_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "local_host",
+            "ssh_remote",
+            "container_local",
+            "devcontainer",
+            "remote_workspace_vm",
+            "prebuild_runtime",
+            "managed_workspace",
+            "notebook_kernel_local",
+            "notebook_kernel_remote",
+            "ai_sandbox",
+            null
+          ]
+        }
+      }
+    },
+
+    "node_body_provider_resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_kind", "provider_ref", "resource_handle"],
+      "properties": {
+        "provider_kind": {
+          "type": "string",
+          "enum": [
+            "code_host",
+            "ci_host",
+            "package_registry",
+            "container_registry",
+            "issue_tracker",
+            "docs_host",
+            "cloud_resource",
+            "database_service",
+            "telemetry_service",
+            "ai_provider"
+          ]
+        },
+        "provider_ref": { "$ref": "#/$defs/opaque_id" },
+        "resource_handle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque resource handle (repo id, run id, package coordinate, issue id). Never a raw URL; never raw credentials."
+        },
+        "reachability_state": {
+          "type": ["string", "null"],
+          "enum": ["reachable", "warming", "degraded", "unreachable", "policy_blocked", null],
+          "description": "Optional reachability hint re-exporting the execution-context vocabulary."
+        }
+      }
+    },
+
+    "node_body_generated_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineage_record_ref"],
+      "properties": {
+        "lineage_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref into a generated_artifact_lineage_record (schemas/workspace/generated_artifact_lineage.schema.json). A generated_artifact_node without a lineage ref is a contract violation; surfaces render a degraded / unknown-lineage badge instead of hiding the artifact."
+        },
+        "filesystem_identity": { "$ref": "#/$defs/filesystem_identity_ref" },
+        "generation_class": {
+          "type": "string",
+          "enum": [
+            "build_output",
+            "codegen_source_sibling",
+            "structured_lockfile",
+            "notebook_output",
+            "preview_render_snapshot",
+            "mirrored_pack_artifact"
+          ],
+          "description": "Re-export of the generated-artifact-lineage generation_class vocabulary."
+        },
+        "drift_state": {
+          "type": "string",
+          "enum": [
+            "in_sync",
+            "stale_inputs",
+            "generator_changed",
+            "manually_diverged",
+            "unknown_lineage"
+          ],
+          "description": "Re-export of the generated-artifact-lineage drift_state vocabulary. The graph surface renders the same chip the lineage record carries."
+        }
+      }
+    },
+
+    "node_body_imported_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["import_kind", "import_ref"],
+      "properties": {
+        "import_kind": {
+          "type": "string",
+          "enum": [
+            "vendor_drop",
+            "migration_import",
+            "replay_capture",
+            "signed_upstream_bundle",
+            "docs_pack_import",
+            "template_expansion"
+          ]
+        },
+        "import_ref": { "$ref": "#/$defs/opaque_id" },
+        "filesystem_identity": {
+          "oneOf": [
+            { "$ref": "#/$defs/filesystem_identity_ref" },
+            { "type": "null" }
+          ],
+          "description": "Filesystem-identity record when the imported root is workspace-resident; null for virtual imports."
+        },
+        "trust_state": {
+          "type": ["string", "null"],
+          "enum": ["restricted", "trusted", null],
+          "description": "Optional trust-state hint. Re-exports ADR-0001."
+        }
+      }
+    },
+
+    "node_body_workset_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_ref"],
+      "properties": {
+        "scope_ref": { "$ref": "#/$defs/workset_scope_ref" },
+        "display_label": {
+          "type": ["string", "null"],
+          "description": "Redaction-aware display label; surfaces render this verbatim."
+        }
+      }
+    },
+
+    "node_body_policy_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["underlying_scope_id", "policy_ref"],
+      "properties": {
+        "underlying_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "hidden_member_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exact hidden list is never exposed outside the policy-admin surface; only the count projects."
+        }
+      }
+    },
+
+    "node_body_missing_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_node_class", "missing_reason"],
+      "properties": {
+        "expected_node_class": { "$ref": "#/$defs/node_class" },
+        "missing_reason": {
+          "type": "string",
+          "enum": [
+            "deleted_filesystem_object",
+            "renamed_without_forwarding",
+            "unresolved_symbol",
+            "provider_resource_unreachable",
+            "imported_bundle_missing_entry",
+            "replay_capture_missing_entry",
+            "policy_hidden",
+            "scope_removed"
+          ]
+        },
+        "last_known_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque ref to the last-known identity of the missing target."
+        }
+      }
+    },
+
+    "node_body": {
+      "oneOf": [
+        { "$ref": "#/$defs/node_body_file" },
+        { "$ref": "#/$defs/node_body_directory" },
+        { "$ref": "#/$defs/node_body_symbol" },
+        { "$ref": "#/$defs/node_body_doc" },
+        { "$ref": "#/$defs/node_body_ownership" },
+        { "$ref": "#/$defs/node_body_topology" },
+        { "$ref": "#/$defs/node_body_provider_resource" },
+        { "$ref": "#/$defs/node_body_generated_artifact" },
+        { "$ref": "#/$defs/node_body_imported_root" },
+        { "$ref": "#/$defs/node_body_workset_scope" },
+        { "$ref": "#/$defs/node_body_policy_view" },
+        { "$ref": "#/$defs/node_body_missing_anchor" }
+      ],
+      "description": "Class-specific body payload. The node record's node_class MUST match exactly one of these shapes."
+    },
+
+    "graph_node_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_graph_schema_version",
+        "node_id",
+        "node_class",
+        "workspace_id",
+        "node_body",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "query_family_tags",
+        "shard_affinity_tags",
+        "invalidation_producer_tags",
+        "scope_refs",
+        "source_anchors"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_node_record" },
+        "workspace_graph_schema_version": { "$ref": "#/$defs/workspace_graph_schema_version" },
+        "node_id": { "$ref": "#/$defs/node_id" },
+        "node_class": { "$ref": "#/$defs/node_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "node_body": { "$ref": "#/$defs/node_body" },
+        "display_label": {
+          "type": ["string", "null"],
+          "description": "Redaction-aware display label surfaces render alongside the node id. Never substituted for node_id on links or citations."
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "confidence_rollup": { "$ref": "#/$defs/confidence_rollup" },
+        "query_family_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_family_tag" },
+          "description": "One or more query families this node is intended to serve."
+        },
+        "shard_affinity_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shard_affinity_tag" }
+        },
+        "invalidation_producer_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_producer_tag" }
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" },
+          "description": "One or more workset / scope refs the node appears in. A node invisible in the current scope carries visibility = missing_in_scope so downstream surfaces render an honesty badge rather than hiding the node."
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" },
+          "description": "Source anchors for cited-explainer overlays. Empty only for synthetic nodes (missing-anchor, policy-view)."
+        },
+        "impact_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_reason_slot" },
+          "description": "Optional impact-reason slots for impact explorers."
+        },
+        "explainer_citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/explainer_citation_slot" },
+          "description": "Optional explainer-citation slots for cited-explainer overlays and AI context."
+        }
+      },
+      "description": "One graph node record. Every node carries stable identity, one class, a class-specific body, exactly one provenance stamp, one freshness frame, one confidence level, and at least one query-family / shard-affinity / invalidation-producer tag. Consumers MUST NOT mint private identity fields or private freshness / confidence vocabularies."
+    },
+
+    "graph_edge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_graph_schema_version",
+        "edge_id",
+        "edge_class",
+        "workspace_id",
+        "from_node_id",
+        "to_node_id",
+        "evidence_state",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "query_family_tags",
+        "shard_affinity_tags",
+        "invalidation_producer_tags",
+        "scope_refs",
+        "source_anchors"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_edge_record" },
+        "workspace_graph_schema_version": { "$ref": "#/$defs/workspace_graph_schema_version" },
+        "edge_id": { "$ref": "#/$defs/edge_id" },
+        "edge_class": { "$ref": "#/$defs/edge_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "from_node_id": { "$ref": "#/$defs/node_id" },
+        "to_node_id": { "$ref": "#/$defs/node_id" },
+        "evidence_state": { "$ref": "#/$defs/edge_evidence_state" },
+        "topology_edge_slot": { "$ref": "#/$defs/topology_edge_slot" },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "confidence_rollup": { "$ref": "#/$defs/confidence_rollup" },
+        "query_family_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_family_tag" }
+        },
+        "shard_affinity_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shard_affinity_tag" }
+        },
+        "invalidation_producer_tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_producer_tag" }
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "impact_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_reason_slot" }
+        },
+        "explainer_citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/explainer_citation_slot" }
+        }
+      },
+      "description": "One graph edge record. Every edge names its class, its two endpoint node ids, its evidence state, exactly one provenance stamp, one freshness frame, one confidence level, and at least one query-family / shard-affinity / invalidation-producer tag. Topology edges carry a topology_edge_slot so topology maps reuse the same edge record rather than a private topology record."
+    },
+
+    "workspace_graph_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_graph_schema_version",
+        "workspace_graph_id",
+        "workspace_id",
+        "recorded_at",
+        "nodes",
+        "edges"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workspace_graph_record" },
+        "workspace_graph_schema_version": { "$ref": "#/$defs/workspace_graph_schema_version" },
+        "workspace_graph_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque producer ref (graph authority, support bundle exporter, replay capture)."
+        },
+        "producer_version": {
+          "type": ["string", "null"]
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" },
+          "description": "Scope refs this graph snapshot covers. Multi-root workspaces list one entry per root."
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/graph_node_record" },
+          "description": "Graph node records. Node ids MUST be unique across the array."
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/graph_edge_record" },
+          "description": "Graph edge records. Edge ids MUST be unique across the array. from_node_id and to_node_id MUST resolve to a node id present in the nodes array OR to a missing_anchor_node (which, in turn, names the expected class and reason)."
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 480 },
+          "description": "Optional redaction-aware reviewer notes. Never embeds raw source bodies, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One workspace-graph snapshot. Fixtures under /fixtures/graph/example_workspace_graphs/ carry one of these per scenario. The workspace-graph crate's Rust types are the schema of record; the snapshot is the cross-tool boundary."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "workspace_graph_snapshot_emitted",
+        "graph_node_added",
+        "graph_node_updated",
+        "graph_node_retired",
+        "graph_edge_added",
+        "graph_edge_updated",
+        "graph_edge_retired",
+        "graph_freshness_downgraded",
+        "graph_confidence_downgraded",
+        "graph_missing_anchor_recorded",
+        "graph_workset_scope_narrowed",
+        "graph_workset_scope_widened",
+        "graph_policy_view_projected",
+        "workspace_graph_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary for workspace-graph changes. Support bundles, replay captures, and AI evidence packets cite these verbatim."
+    },
+
+    "graph_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_graph_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "workspace_id"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_audit_event_record" },
+        "workspace_graph_schema_version": { "$ref": "#/$defs/workspace_graph_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "subject_node_id": { "$ref": "#/$defs/node_id" },
+        "subject_edge_id": { "$ref": "#/$defs/edge_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "notes_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into structured notes. MUST NOT embed raw source bodies, raw provider URLs, or raw credentials."
+        }
+      }
+    }
+  }
+}
