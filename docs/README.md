@@ -110,6 +110,30 @@ code.
   context, background branch-agent dispatch that preserves
   tainted-usage constraints across the handoff) in
   [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
+- [`workspace/entry_restore_object_model.md`](./workspace/entry_restore_object_model.md)
+  — first-run, open, clone, import, add-root, restore, resume, and
+  start-from-snapshot vocabulary covering project-entry action
+  records, recent-work rows, restore prompts, and
+  migration-result records. Freezes the seven-entry-verb set,
+  the target-kind set, the resulting-mode set, restore-level
+  controlled terms (`exact_restore`, `compatible_restore`,
+  `layout_only`, `recovered_drafts`, `evidence_only`,
+  `no_restore`), the missing-target-state set, the
+  session-scoped execution-posture set, the checkpoint-linked
+  recovery-class set, and the migration-item outcome set
+  (`exact`, `translated`, `approximated`, `skipped`, `blocked`,
+  `needs_review`, `rollback_available`). Reserves typed slots
+  for category-specific parity scores, equivalence-map rows,
+  post-import validation refs, and the four migration-handoff
+  next-step decisions (`roll_back_import`, `keep_imported_state`,
+  `adopt_recommended_bundle`, `review_unsupported_items`).
+  Boundary schema in
+  [`/schemas/workspace/entry_and_restore_result.schema.json`](../schemas/workspace/entry_and_restore_result.schema.json);
+  worked fixtures (open local folder, clone remote repo, VS Code
+  settings import + migration result, restore last session,
+  resume managed workspace, start from prebuild, recent-work row
+  with missing target) in
+  [`/fixtures/workspace/entry_restore_examples/`](../fixtures/workspace/entry_restore_examples/).
 - [`runtime/target_discovery_and_install_review_taxonomy.md`](./runtime/target_discovery_and_install_review_taxonomy.md)
   — target-discovery confidence, host-boundary cue, managed-
   workspace lifecycle, notebook-trust ladder, structured round-

@@ -1,0 +1,915 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/entry_and_restore_result.schema.json",
+  "title": "Aureline first-run, entry, restore, and migration-result object model",
+  "description": "Seed schema for the cross-surface object model every first-run, Start Center, project-entry, template / prebuild, workspace-switch, session-restore, crash-recovery, and migration-handoff surface reads. Freezes one project_entry_action_record (entry verbs Open / Clone / Import / Add root / Restore / Resume / StartFromSnapshot), one recent_work_entry_record, one restore_prompt_record, and one migration_result_record. The migration-result taxonomy covers exact / translated / approximated / skipped / blocked / needs_review / rollback_available outcomes and reserves typed slots for category-specific parity scores, equivalence-map rows, post-import validation outcome references, and next-step decision hooks (roll_back_import, keep_imported_state, adopt_recommended_bundle, review_unsupported_items). Vocabulary is re-used unchanged from ADR-0001 (trust state), ADR-0003 (checkpoint / recovery-journal), ADR-0006 (filesystem identity), and ADR-0010 (connected-provider / browser-handoff tickets). Rust types in the eventual workspace-entry / migration-center crates are the schema of record; this file is the cross-tool export. Adding a new entry_verb, target_kind, resulting_mode, restore_level, missing_target_state, checkpoint_linked_recovery_class, migration outcome, skip_reason, block_reason, post_import_validator_class, or next_step_decision_hook is additive-minor and bumps entry_and_restore_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/project_entry_action_record" },
+    { "$ref": "#/$defs/recent_work_entry_record" },
+    { "$ref": "#/$defs/restore_prompt_record" },
+    { "$ref": "#/$defs/migration_result_record" }
+  ],
+  "$defs": {
+    "entry_and_restore_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this entry / restore / migration-result vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "project_entry_action_record",
+        "recent_work_entry_record",
+        "restore_prompt_record",
+        "migration_result_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs, and raw competitor-config bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; the exporter does not require any specific clock source."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "entry_verb": {
+      "type": "string",
+      "enum": [
+        "open",
+        "clone",
+        "import",
+        "add_root",
+        "restore",
+        "resume",
+        "start_from_snapshot"
+      ],
+      "description": "Frozen entry-verb set. Surfaces MUST render these verbs distinctly; collapsing any two into a generic get-started label is non-conforming. See entry_restore_object_model.md §1.1."
+    },
+
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ],
+      "description": "What is being acquired or opened. A surface that cannot resolve target_kind denies with target_kind_unresolved rather than silently classify. See §1.2."
+    },
+
+    "resulting_mode": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "folder",
+        "repo_root",
+        "workspace_candidate",
+        "workspace_with_roots",
+        "workset_slice",
+        "inspect_only",
+        "clone_then_review",
+        "clone_then_open",
+        "clone_then_add",
+        "clone_only",
+        "extract_then_review",
+        "compare_before_restore",
+        "apply_to_active_workspace",
+        "open_prebuild_with_setup_actions",
+        "open_prebuild_minimal",
+        "resume_live_session",
+        "restore_last_session",
+        "restore_from_checkpoint"
+      ],
+      "description": "What Aureline will actually materialize on commit of the entry action. See §1.3."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "ADR-0001 identity-mode trust vocabulary. Re-exported unchanged; never redefined."
+    },
+
+    "admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "trust_review_required",
+        "policy_blocked",
+        "needs_repair",
+        "needs_reconnect",
+        "needs_reauth"
+      ],
+      "description": "How the entry admission resolved. Every non-admitted value routes to at least one typed next_step_decision_hook."
+    },
+
+    "source_surface": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "command_palette",
+        "quick_open",
+        "os_file_association",
+        "drag_and_drop",
+        "deep_link",
+        "cli",
+        "headless_automation",
+        "workspace_switcher",
+        "recent_work_activation",
+        "template_or_prebuild_card",
+        "migration_center",
+        "crash_recovery_screen",
+        "companion_handoff_return"
+      ],
+      "description": "Which entry surface originated the action. Preserves intent across migration between surfaces so recents / palette / Start Center stay consistent."
+    },
+
+    "destination_disposition": {
+      "type": "string",
+      "enum": [
+        "no_write",
+        "write_to_labelled_staging",
+        "write_to_user_destination",
+        "write_to_durable_workspace",
+        "write_to_admin_owned_root"
+      ],
+      "description": "What bytes the entry may write, and where. A surface that silently promotes write_to_labelled_staging to write_to_durable_workspace is non-conforming."
+    },
+
+    "collision_class": {
+      "type": "string",
+      "enum": [
+        "no_collision",
+        "reuse_existing",
+        "add_existing",
+        "clone_elsewhere",
+        "reveal_only",
+        "destination_blocked"
+      ],
+      "description": "Destination collision class. Every non-no_collision value MUST appear in a destination-collision sheet before commit."
+    },
+
+    "remote_target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_label", "protocol", "auth_mode"],
+      "properties": {
+        "host_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "protocol": {
+          "type": "string",
+          "enum": ["https", "ssh", "git", "sftp", "aureline_remote", "managed_cloud", "devcontainer_runtime", "container_runtime", "other"]
+        },
+        "auth_mode": {
+          "type": "string",
+          "enum": ["ssh_agent", "pat_handle", "oauth_handle", "device_code_handle", "managed_session_ticket", "none", "other"]
+        },
+        "credential_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque handle into ADR-0007 credential-store. Raw secrets never cross this boundary."
+        },
+        "branch_or_ref": { "$ref": "#/$defs/redaction_aware_text" },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ADR-0010 connected-provider / browser-handoff approval-ticket reference."
+        },
+        "mirror_or_proxy_class": {
+          "type": "string",
+          "enum": ["direct", "mirror", "proxy", "air_gapped", "unknown"]
+        }
+      },
+      "description": "Typed descriptor for a remote target. Never carries raw credentials or raw URLs with embedded credentials."
+    },
+
+    "artifact_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class"],
+      "properties": {
+        "artifact_class": {
+          "type": "string",
+          "enum": [
+            "portable_state_package",
+            "handoff_packet",
+            "competitor_config_root",
+            "workflow_bundle_handoff",
+            "template_or_prebuild_snapshot",
+            "recovery_checkpoint",
+            "support_bundle_replay"
+          ]
+        },
+        "artifact_schema_version": { "type": "string" },
+        "producer_identity": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_build": { "$ref": "#/$defs/redaction_aware_text" },
+        "signature_state": {
+          "type": "string",
+          "enum": ["signed_verified", "signed_unverified", "unsigned", "signature_missing", "signature_mismatch"]
+        },
+        "machine_local_exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" },
+          "description": "Typed list of machine-local exclusion classes already scrubbed (live auth tokens removed, machine-unique trust anchors dropped, etc.). The list is semantic, not raw."
+        }
+      },
+      "description": "Typed artifact descriptor for a transferred / portable / template / handoff target. Raw bytes never appear; the import flow references the descriptor by id."
+    },
+
+    "deep_link_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "link_class"],
+      "properties": {
+        "origin": { "$ref": "#/$defs/redaction_aware_text" },
+        "link_class": {
+          "type": "string",
+          "enum": [
+            "review_deep_link",
+            "work_item_deep_link",
+            "incident_deep_link",
+            "notification_reopen",
+            "auth_callback_reopen",
+            "other"
+          ]
+        },
+        "referenced_object_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed descriptor for review / work-item / notification / auth-callback deep links. Deep links never elevate trust."
+    },
+
+    "filesystem_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque reference to a filesystem_identity_record (see schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record). Required when target_kind is a local kind; the referenced record carries the ADR-0006 four-layer identity."
+    },
+
+    "side_effect_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setup_actions_class", "time_class", "connectivity_class", "cleanup_class", "bypass_path"],
+      "properties": {
+        "setup_actions_class": {
+          "type": "string",
+          "enum": [
+            "no_setup_actions",
+            "toolchain_detect_only",
+            "dependency_install",
+            "containerized_bootstrap",
+            "devcontainer_bootstrap",
+            "remote_attach",
+            "browser_auth_handshake",
+            "secret_handle_request",
+            "mixed_setup"
+          ]
+        },
+        "time_class": {
+          "type": "string",
+          "enum": ["instant", "fast", "moderate", "long_running", "network_dependent"]
+        },
+        "connectivity_class": {
+          "type": "string",
+          "enum": ["local_only", "local_with_registry", "remote_required", "mirror_or_air_gapped", "unknown"]
+        },
+        "cleanup_class": {
+          "type": "string",
+          "enum": ["no_cleanup_required", "cleanup_on_failure", "rollback_checkpoint_retained", "manual_cleanup_required"]
+        },
+        "bypass_path": {
+          "type": "string",
+          "enum": ["open_prebuild_minimal", "open_plain_folder", "set_up_later", "no_bypass_available"]
+        }
+      },
+      "description": "Required on entry actions whose resulting_mode exposes setup actions. Never collapses into 'prepare environment' when concrete actions are known."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Closed set of typed decision hooks the shell may offer after an entry / restore / migration action. Free-form action labels are non-conforming."
+    },
+
+    "project_entry_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_and_restore_schema_version",
+        "entry_action_id",
+        "entry_verb",
+        "target_kind",
+        "resulting_mode",
+        "source_surface",
+        "trust_state",
+        "admission_class",
+        "authority_reevaluation_required",
+        "destination_disposition",
+        "collision_class",
+        "opened_at",
+        "next_step_decision_hooks"
+      ],
+      "properties": {
+        "record_kind": { "const": "project_entry_action_record" },
+        "entry_and_restore_schema_version": { "$ref": "#/$defs/entry_and_restore_schema_version" },
+        "entry_action_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_verb": { "$ref": "#/$defs/entry_verb" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "resulting_mode": { "$ref": "#/$defs/resulting_mode" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "admission_class": { "$ref": "#/$defs/admission_class" },
+        "authority_reevaluation_required": { "type": "boolean" },
+        "destination_disposition": { "$ref": "#/$defs/destination_disposition" },
+        "collision_class": { "$ref": "#/$defs/collision_class" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/filesystem_identity_ref" },
+        "remote_target_descriptor": { "$ref": "#/$defs/remote_target_descriptor" },
+        "artifact_descriptor": { "$ref": "#/$defs/artifact_descriptor" },
+        "deep_link_descriptor": { "$ref": "#/$defs/deep_link_descriptor" },
+        "side_effect_envelope": { "$ref": "#/$defs/side_effect_envelope" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "restore_prompt_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to a companion restore_prompt_record; required when entry_verb is restore or resume."
+        },
+        "migration_result_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to a companion migration_result_record; required when entry_verb is import and the import wrote items."
+        },
+        "recent_work_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to the recent_work_entry_record the action resolved from when source_surface is recent_work_activation, workspace_switcher, or start_center."
+        },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" }
+        }
+      },
+      "description": "One project-entry action. Emitted on every user intent to enter, acquire, or rehydrate work across Start Center, command palette, OS file association, drag-and-drop, deep link, CLI, headless, and template / prebuild surfaces."
+    },
+
+    "recent_work_target_state": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "stale_metadata",
+        "missing_target",
+        "moved_target_detected",
+        "remote_unreachable",
+        "authority_expired",
+        "locked_by_other_instance",
+        "policy_blocked",
+        "quarantined",
+        "mode_downgraded",
+        "unknown"
+      ],
+      "description": "Closed state set a recent-work row renders in its state chip."
+    },
+
+    "portability_class": {
+      "type": "string",
+      "enum": ["local_only", "synced", "imported", "provider_linked", "stale"],
+      "description": "Closed portability-class set; Start Center chips read this verbatim."
+    },
+
+    "restore_availability": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "evidence_only", "none"],
+      "description": "How much of a prior session a recent-work row can restore. A row that promises a higher level than the companion restore_prompt_record is non-conforming."
+    },
+
+    "safe_recovery_action": {
+      "type": "string",
+      "enum": [
+        "open",
+        "open_in_new_window",
+        "open_restricted",
+        "locate_missing_target",
+        "reconnect",
+        "reauth",
+        "compare_before_restore",
+        "open_without_restore",
+        "unpin",
+        "pin",
+        "remove_from_recents",
+        "reveal_in_explorer"
+      ],
+      "description": "Closed safe-recovery action set. Free-form action labels on recent-work rows are non-conforming."
+    },
+
+    "parity_score_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "score", "confidence_class"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "keymap",
+            "theme_and_visuals",
+            "settings",
+            "tasks_and_run_configs",
+            "launch_debug",
+            "extensions_and_providers",
+            "snippets_and_templates",
+            "other"
+          ]
+        },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "confidence_class": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "insufficient_evidence"]
+        },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One category-specific parity score row. Aggregate-only scores that hide weak categories are non-conforming."
+    },
+
+    "equivalence_map_row_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "target_id", "mapping_basis"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/opaque_id" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "mapping_basis": {
+          "type": "string",
+          "enum": [
+            "exact_identity",
+            "semantic_equivalent",
+            "capability_based",
+            "name_heuristic",
+            "user_override"
+          ]
+        },
+        "caveat": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One equivalence-map row. name_heuristic is allowed only when no stronger basis exists and the row is flagged for review."
+    },
+
+    "post_import_validation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validator_class", "outcome_class"],
+      "properties": {
+        "validator_class": {
+          "type": "string",
+          "enum": [
+            "keybinding_conflict",
+            "missing_extension_suggestion",
+            "launch_config_sanity",
+            "cli_headless_smoke",
+            "workflow_smoke",
+            "settings_schema_migration",
+            "bundle_readiness"
+          ]
+        },
+        "outcome_class": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "passed_with_warnings",
+            "failed_recoverable",
+            "failed_blocking",
+            "skipped_not_applicable"
+          ]
+        },
+        "validator_run_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One post-import validation outcome ref."
+    },
+
+    "recent_work_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_and_restore_schema_version",
+        "recent_work_id",
+        "presentation_label",
+        "target_kind",
+        "target_state",
+        "portability_class",
+        "trust_state",
+        "restore_availability",
+        "safe_recovery_actions",
+        "pinned",
+        "last_opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recent_work_entry_record" },
+        "entry_and_restore_schema_version": { "$ref": "#/$defs/entry_and_restore_schema_version" },
+        "recent_work_id": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_state": { "$ref": "#/$defs/recent_work_target_state" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "pinned": { "type": "boolean" },
+        "last_opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/filesystem_identity_ref" },
+        "remote_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "safe_recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_recovery_action" }
+        },
+        "parity_score_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parity_score_ref" },
+          "description": "Reserved slot for per-category parity scores when the recent entry arrived through a migration import."
+        },
+        "equivalence_map_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/equivalence_map_row_ref" },
+          "description": "Reserved slot for per-item equivalence-map rows from the source migration."
+        },
+        "post_import_validation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_import_validation_ref" },
+          "description": "Reserved slot for post-import validation outcome refs."
+        },
+        "bundle_adoption_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to an adopted workflow bundle."
+        },
+        "recovery_checkpoint_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["recovery_class", "checkpoint_ref"],
+            "properties": {
+              "recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      },
+      "description": "One recent-work row. Read by Start Center, workspace switcher, palette-recents, OS jump lists, and CLI-recents surfaces."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "UI/UX spec §6.10 controlled terms. Diagnostics, crash screens, support bundles, and docs reuse these verbatim."
+    },
+
+    "missing_target_state": {
+      "type": "string",
+      "enum": [
+        "fully_present",
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore"
+      ],
+      "description": "Closed missing-target state set. fully_present is the only value that may appear alone."
+    },
+
+    "session_execution_posture": {
+      "type": "string",
+      "enum": [
+        "transcript_restored_not_rerun",
+        "session_ended",
+        "reconnect_available",
+        "rerun_required",
+        "context_unavailable",
+        "live_session_continued"
+      ],
+      "description": "Closed session-scoped execution posture set for terminals, tasks, debug sessions, notebook kernels, preview servers, and remote tunnels."
+    },
+
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required"
+      ],
+      "description": "Closed recovery-class set. Orthogonal to restore_level. The class determines the user-visible verb: Undo only for exact_rollback_from_checkpoint; Revert with compensation for compensating_rollback; Regenerate for regenerate_from_canonical_source; Restore for the checkpoint/journal/snapshot/backup classes; Manual recovery for manual_recovery_required."
+    },
+
+    "restore_prompt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_and_restore_schema_version",
+        "restore_prompt_id",
+        "restore_level",
+        "missing_target_states",
+        "session_execution_postures",
+        "emitted_at",
+        "next_step_decision_hooks"
+      ],
+      "properties": {
+        "record_kind": { "const": "restore_prompt_record" },
+        "entry_and_restore_schema_version": { "$ref": "#/$defs/entry_and_restore_schema_version" },
+        "restore_prompt_id": { "$ref": "#/$defs/opaque_id" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "missing_target_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/missing_target_state" }
+        },
+        "session_execution_postures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["surface_class", "posture"],
+            "properties": {
+              "surface_class": {
+                "type": "string",
+                "enum": [
+                  "terminal_pane",
+                  "task_runner",
+                  "debug_session",
+                  "notebook_kernel",
+                  "preview_server",
+                  "remote_tunnel",
+                  "ai_tool_session",
+                  "shared_control_session"
+                ]
+              },
+              "posture": { "$ref": "#/$defs/session_execution_posture" }
+            }
+          },
+          "description": "Per-surface execution posture entries. live_session_continued is reachable only when the runtime actually survived."
+        },
+        "dirty_buffer_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dirty_buffer_count": { "type": "integer", "minimum": 0 },
+            "recovery_journal_ref": { "$ref": "#/$defs/opaque_id" },
+            "compare_action_available": { "type": "boolean" },
+            "discard_action_available": { "type": "boolean" },
+            "open_journal_action_available": { "type": "boolean" }
+          },
+          "description": "Required when restore_level = recovered_drafts. Drives the 'compare / discard / open journal' action set."
+        },
+        "recovery_class_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["recovery_class"],
+            "properties": {
+              "recovery_class": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+              "checkpoint_ref": {
+                "$ref": "#/$defs/opaque_id",
+                "description": "Required for every non-manual_recovery_required recovery class."
+              },
+              "verb_label_class": {
+                "type": "string",
+                "enum": ["undo", "revert_with_compensation", "regenerate", "restore", "manual_recovery"],
+                "description": "The user-visible verb class resolved from recovery_class. Surfaces render the controlled label verbatim."
+              }
+            }
+          }
+        },
+        "restore_provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to a restore-provenance record (source, producer build, schema version, redaction class, resulting fidelity)."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" }
+        }
+      },
+      "description": "One restore prompt. Read by session-restore, crash-recovery, topology-adjust, and continuity surfaces."
+    },
+
+    "migration_item_outcome": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "translated",
+        "approximated",
+        "skipped",
+        "blocked",
+        "needs_review",
+        "rollback_available"
+      ],
+      "description": "Closed per-item migration outcome set. rollback_available is an orthogonal companion axis: an item may additionally carry rollback_available when a pre-apply checkpoint is retained."
+    },
+
+    "migration_skip_reason": {
+      "type": "string",
+      "enum": [
+        "user_deselected",
+        "policy_excludes",
+        "unsupported_by_target",
+        "redundant_with_existing",
+        "source_missing",
+        "lossy_mapping_refused"
+      ],
+      "description": "Closed skip-reason set. Required on every skipped item."
+    },
+
+    "migration_block_reason": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_excludes",
+        "admin_policy_excludes",
+        "extension_effective_permission_excludes",
+        "connected_provider_policy_excludes",
+        "signature_mismatch",
+        "schema_version_unsupported"
+      ],
+      "description": "Closed block-reason set. Required on every blocked item."
+    },
+
+    "migration_review_hook": {
+      "type": "string",
+      "enum": [
+        "keybinding_conflict",
+        "extension_capability_uncertain",
+        "launch_config_semantics_differ",
+        "settings_migration_lossy",
+        "theme_token_unmapped",
+        "tasks_translation_incomplete"
+      ],
+      "description": "Closed review-hook set. Required on every needs_review item."
+    },
+
+    "migration_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "outcomes"],
+      "properties": {
+        "source_id": { "$ref": "#/$defs/opaque_id" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/migration_item_outcome" },
+          "description": "One item MAY carry at most one primary outcome from {exact, translated, approximated, skipped, blocked, needs_review} plus optionally rollback_available as a companion axis."
+        },
+        "skip_reason": { "$ref": "#/$defs/migration_skip_reason" },
+        "block_reason": { "$ref": "#/$defs/migration_block_reason" },
+        "review_hook": { "$ref": "#/$defs/migration_review_hook" },
+        "rollback_checkpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when outcomes[] contains rollback_available."
+        },
+        "mapping_basis": {
+          "type": "string",
+          "enum": ["exact_identity", "semantic_equivalent", "capability_based", "name_heuristic", "user_override"]
+        },
+        "caveat": { "$ref": "#/$defs/redaction_aware_text" },
+        "post_import_validation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_import_validation_ref" }
+        }
+      },
+      "description": "One imported item's outcome row. skip_reason is required when outcomes contains skipped; block_reason when it contains blocked; review_hook when it contains needs_review; rollback_checkpoint_ref when it contains rollback_available."
+    },
+
+    "migration_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_and_restore_schema_version",
+        "migration_result_id",
+        "source_class",
+        "items",
+        "parity_score_refs",
+        "next_step_decision_hooks",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "migration_result_record" },
+        "entry_and_restore_schema_version": { "$ref": "#/$defs/entry_and_restore_schema_version" },
+        "migration_result_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_action_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the project_entry_action_record that produced this migration result."
+        },
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "vs_code",
+            "jetbrains_family",
+            "vim_or_neovim",
+            "workflow_bundle_handoff",
+            "portable_state_package",
+            "aureline_profile_export",
+            "other_competitor",
+            "support_bundle_replay"
+          ],
+          "description": "Import source class. Controls the default supported-import scope per UI/UX spec §21.19."
+        },
+        "artifact_descriptor": { "$ref": "#/$defs/artifact_descriptor" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/migration_item_record" }
+        },
+        "parity_score_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parity_score_ref" },
+          "description": "Per-category parity scores. Category-specific parity is mandatory; a single aggregate score is non-conforming."
+        },
+        "equivalence_map_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/equivalence_map_row_ref" }
+        },
+        "post_import_validation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_import_validation_ref" }
+        },
+        "migration_checkpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Migration-level rollback checkpoint ref; required when any item carries rollback_available at migration scope."
+        },
+        "bundle_recommendation_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to a recommended workflow bundle; drives adopt_recommended_bundle."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "description": "At minimum, the four migration-handoff hooks — roll_back_import, keep_imported_state, adopt_recommended_bundle, review_unsupported_items — are reserved on every migration result that admits them."
+        }
+      },
+      "description": "One migration-import result. Read by the migration center, post-import validation card, support bundle, and every 'Adopt recommended bundle' / 'Roll back import' surface."
+    }
+  }
+}
