@@ -17,6 +17,10 @@ code.
 - [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)
   — seed charter for the benchmark council (roles, scope, cadence,
   quorum placeholder, escalation).
+- [`governance/feature_flag_policy.md`](./governance/feature_flag_policy.md)
+  — normative policy for experiments, feature flags, Labs inventory,
+  rollout rows, policy disables, and kill switches before a runtime
+  control plane exists.
 - [`governance/decision_backlog.md`](./governance/decision_backlog.md)
   — seeded architecture decisions with freeze dates and default
   narrowing postures.
@@ -433,6 +437,16 @@ above is paired with a YAML form that is authoritative for automation:
 - [`/artifacts/governance/issue_routing.yaml`](../artifacts/governance/issue_routing.yaml)
   — public / private routing, privacy class, disclosure class,
   public-summary expectation, and owning forum per issue class.
+- [`/artifacts/governance/experiments_register.yaml`](../artifacts/governance/experiments_register.yaml)
+  — canonical control register for experiments, feature flags,
+  benchmark modes, hidden developer toggles, rollout rows, and
+  reserved control-stack bindings. Every row carries owner,
+  lifecycle, review or expiry, provider-chain disclosure, offline
+  posture, kill switch, rollback path, and artifact dependencies.
+- [`/artifacts/governance/labs_register.yaml`](../artifacts/governance/labs_register.yaml)
+  — contributor-visible Labs / prototype / preview inventory
+  projected from `experiments_register.yaml`, intentionally
+  excluding hidden developer toggles.
 - [`/artifacts/governance/decision_index.yaml`](../artifacts/governance/decision_index.yaml)
   — decision rows with freeze dates and default-if-unresolved postures.
 - [`/artifacts/governance/package_inventory.yaml`](../artifacts/governance/package_inventory.yaml)

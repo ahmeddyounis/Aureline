@@ -13,6 +13,15 @@ Companion artifacts:
   below describes the same rows.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
   — seed routing table for public and private issue classes.
+- [`./feature_flag_policy.md`](./feature_flag_policy.md)
+  — normative policy for experiments, feature flags, Labs inventory,
+  rollouts, policy disables, and kill switches.
+- [`/artifacts/governance/experiments_register.yaml`](../../artifacts/governance/experiments_register.yaml)
+  — canonical register for every control row, including hidden
+  developer toggles and reserved control-stack bindings.
+- [`/artifacts/governance/labs_register.yaml`](../../artifacts/governance/labs_register.yaml)
+  — contributor-visible Labs / prototype / preview inventory
+  projected from the canonical register.
 - [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
   — charter seed for the benchmark council (roles, scope, cadence).
 - [`./interface_inventory.md`](./interface_inventory.md) — outline of
@@ -23,12 +32,13 @@ Companion artifacts:
 artifact graph, the interface inventory, benchmark governance, the
 qualification cadence, the compatibility qualification seed, the
 decision dependency register, the supply-chain dependency and import
-registers, the release-notice seed, release evidence, docs and help
-truth, route and build-truth artifacts, accessibility review packets,
-surface-traceability artifacts, and frozen-surface manifests — appears
-as exactly one row in the index file. If two documents describe the
-same asset, the index names only the canonical one and the other is
-either merged in or retired.
+registers, the experiment/Labs control registers, the release-notice
+seed, release evidence, docs and help truth, route and build-truth
+artifacts, accessibility review packets, surface-traceability
+artifacts, and frozen-surface manifests — appears as exactly one row
+in the index file. If two documents describe the same asset, the index
+names only the canonical one and the other is either merged in or
+retired.
 
 The index does not restate the content of the assets it points at. The
 detailed governance workflow lives in
@@ -44,6 +54,10 @@ governance-packet template. The index only names, routes, and scopes.
   review packet, or machine-readable surface definition — look for an
   existing row in the index. If the asset already has a canonical
   home, extend that home; do not mint a parallel document.
+- Experiments, feature flags, rollout rows, and Labs inventory updates
+  now route through `feature_flag_policy`, `experiments_register`, and
+  `labs_register`. Do not hide a new prototype mode or developer
+  toggle in script help text alone.
 - When a pull request changes anything under a canonical-location path
   named in the index, update the corresponding row's `status` or
   `notes` if the change moves the artifact between `outline_only`,
@@ -67,9 +81,9 @@ governance-packet template. The index only names, routes, and scopes.
 
 - The `benchmark_governance`, `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
-  `qualification_cadence`, `decision_dependency_register`, and
-  `critical_dependency_register` rows are the anchor points for quality
-  work.
+  `qualification_cadence`, `decision_dependency_register`,
+  `critical_dependency_register`, `feature_flag_policy`, and
+  `experiments_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
   land under the lanes named by those rows. Protected speed and
   safety claims MUST cite a row in the fitness-function catalog via
@@ -87,6 +101,10 @@ governance-packet template. The index only names, routes, and scopes.
   canonical homes for every public-facing document, including the
   known-limits matrix, the support-window statement, and migration
   guides.
+- The Labs inventory is not free-form copy. Contributor-visible
+  prototype or preview inventory must resolve back to
+  `labs_register.yaml`, and policy/process guidance must resolve back
+  to `feature_flag_policy.md`.
 - Any claim made in docs that a downstream consumer might rely on must
   cite an evidence owner via the claim-manifest packet family
   (governance-packet template). The index does not duplicate the

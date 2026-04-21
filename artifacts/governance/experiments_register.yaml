@@ -1,0 +1,810 @@
+# Experiment, feature-flag, and rollout register.
+#
+# Canonical machine-readable register of every non-stable control row
+# already seeded in this repository: contributor-visible prototype/Labs
+# modes, optional benchmark-lab modes, hidden developer toggles, and
+# reserved control-stack bindings that future runtime flagging will read
+# rather than re-describe.
+#
+# Scope.
+#   - This file is authoritative for experiment / flag / rollout rows
+#     until a runtime control plane exists.
+#   - The policy narrative lives in docs/governance/feature_flag_policy.md.
+#   - The contributor-visible Labs inventory is projected into
+#     artifacts/governance/labs_register.yaml so hidden developer toggles do
+#     not masquerade as public preview items.
+#   - If this file and the policy doc disagree, the policy doc wins and this
+#     file is updated in the same change.
+#
+# Rules.
+#   - Every row MUST name owner_dri, lifecycle_state, support_note, and
+#     either review_by or expires_on.
+#   - Every row MUST disclose provider_chain, embedded_default_behavior,
+#     local_resolution_requirement, offline_resolution_posture, and whether
+#     remote_fetch_failure_may_block_startup.
+#   - editing_critical_path rows default
+#     remote_fetch_failure_may_block_startup = false. Changing one to true
+#     requires a new decision row because it changes protected-path startup
+#     posture.
+#   - Saved artifacts, schemas, fixtures, workflow seeds, or docs depending
+#     on a row MUST cite that dependency here rather than relying on prose
+#     alone.
+#   - Hidden developer toggles stay in this register but MUST NOT appear in
+#     labs_register.yaml unless they become contributor-visible on purpose.
+
+schema_version: 1
+
+policy_doc: docs/governance/feature_flag_policy.md
+companion_registers:
+  labs_register: artifacts/governance/labs_register.yaml
+  control_artifact_index: artifacts/governance/control_artifact_index.yaml
+  capability_lifecycle_examples: artifacts/governance/dependency_marker_examples.yaml
+
+vocabulary_sources:
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - .t2/docs/Aureline_Technical_Design_Document.md#appendix-ch-experiments-feature-flags-labs-and-capability-lifecycle-matrix
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#18.25-feature-flags-experiment-kill-switches-and-schema-governance-ux
+
+# -----------------------------------------------------------------------------
+# Register contract.
+#
+# This is the frozen row schema for the current milestone. The later runtime
+# flag service MAY add delivery mechanics, but it must not remove or repurpose
+# these fields without a new decision row.
+# -----------------------------------------------------------------------------
+register_contract:
+  common_required_fields:
+    - id
+    - public_label
+    - row_kind
+    - audience_class
+    - owner_dri
+    - lifecycle_state
+    - cohort_or_ring
+    - default_posture
+    - support_note
+    - provider_chain
+    - embedded_default_behavior
+    - local_resolution_requirement
+    - offline_resolution_posture
+    - remote_fetch_failure_may_block_startup
+    - policy_override_posture
+    - editing_critical_path
+    - default_shift_change_log_posture
+    - kill_switch
+    - rollback_path
+    - artifact_dependencies
+    - source_refs
+  review_fields:
+    one_of:
+      - review_by
+      - expires_on
+  row_kind_specific_fields:
+    feature_flag:
+      required:
+        - kill_switch
+        - rollback_path
+    experiment:
+      required:
+        - artifact_dependencies
+    benchmark_mode:
+      required:
+        - default_shift_change_log_posture
+    rollout:
+      required:
+        - rollout_guardrails
+
+row_kinds:
+  - experiment
+  - feature_flag
+  - benchmark_mode
+  - rollout
+
+audience_classes:
+  - contributor_visible_labs
+  - hidden_developer_toggle
+  - control_stack_reserved
+  - ci_rollout_only
+
+lifecycle_states:
+  - labs
+  - preview
+  - beta
+  - stable
+  - deprecated
+  - disabled_by_policy
+  - retired
+
+provider_chain_steps:
+  - embedded_default
+  - local_cli_argument
+  - ci_workflow_input
+  - signed_local_admin_bundle
+  - optional_managed_override
+
+default_postures:
+  - off_by_default
+  - opt_in_only
+  - enabled_when_named_on_cli
+  - default_for_developer_local
+  - scheduled_ci_only
+  - manual_failure_drill_only
+  - reserved_until_runtime_control_stack_lands
+
+embedded_default_behaviors:
+  - inactive_until_invoked
+  - defaults_to_smoke_subset
+  - inactive_except_on_reference_capture
+  - inactive_until_manual_failure_drill_invoked
+  - preserve_last_known_local_value
+
+local_resolution_requirements:
+  - required
+  - preferred
+  - not_required
+
+offline_resolution_postures:
+  - authoritative_local
+  - last_known_good_signed
+  - cache_only
+  - unavailable_offline
+
+policy_override_postures:
+  - not_allowed
+  - disable_only
+  - narrowing_allowed
+
+default_shift_change_log_postures:
+  - not_required
+  - docs_update_required
+  - release_note_required
+
+kill_switch_source_kinds:
+  - embedded_default_off
+  - local_cli_argument
+  - ci_workflow_input
+  - signed_local_admin_bundle
+  - optional_managed_override
+
+rollback_classes:
+  - rerun_without_mode
+  - revert_to_seeded_artifact
+  - keep_last_known_valid_state
+  - fall_back_to_local_inspection
+  - follow_stable_path
+
+artifact_dependency_classes:
+  - saved_artifact
+  - docs_projection
+  - fixture_seed
+  - workflow_seed
+  - schema_contract
+
+rows:
+  - id: exp.buffer.prototype_harness
+    public_label: Buffer prototype harness
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: aureline-buffer
+      secondary:
+        - benchmark_lab
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Counts-only contract prototype for buffer behavior, undo examples,
+      and harness output. Not a production buffer runtime promise.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/bench_buffer.sh
+      visible_disclosure: prototypes/buffer/README.md
+      fallback_behavior: >
+        Do not regenerate prototype metrics or undo examples; the ADR,
+        committed seed, and README remain the canonical truth.
+    rollback_path:
+      rollback_class: revert_to_seeded_artifact
+      rollback_ref: artifacts/buffer/
+      operator_note: Regenerate only through the documented wrapper.
+    artifact_dependencies:
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/buffer/buffer_metrics_seed.json
+        marker_expected: true
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/buffer/undo_examples/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/buffer/README.md
+        marker_expected: true
+    source_refs:
+      - tools/bench_buffer.sh
+      - crates/aureline-bench/src/bin/bench_buffer.rs
+      - prototypes/buffer/README.md
+
+  - id: exp.vfs.save_prototype
+    public_label: VFS / save prototype harness
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: aureline-vfs
+      secondary:
+        - benchmark_lab
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Counts-only synthetic-root harness for save-plan and watcher-posture
+      truth. Not a production filesystem adapter or watcher service.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/vfs_proto.sh
+      visible_disclosure: prototypes/vfs/README.md
+      fallback_behavior: >
+        Keep the committed save-plan examples and ADR narrative as the
+        canonical review surface; do not treat the prototype as a runtime
+        dependency.
+    rollback_path:
+      rollback_class: revert_to_seeded_artifact
+      rollback_ref: artifacts/fs/save_plan_examples/
+      operator_note: Re-run through the wrapper or fall back to the
+        committed examples.
+    artifact_dependencies:
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/fs/save_plan_examples/
+        marker_expected: true
+      - dependency_class: fixture_seed
+        artifact_ref: fixtures/fs/save_truth_cases/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/vfs/README.md
+        marker_expected: true
+    source_refs:
+      - tools/vfs_proto.sh
+      - crates/aureline-vfs/src/bin/vfs_proto.rs
+      - prototypes/vfs/README.md
+
+  - id: exp.large_file.prototype_harness
+    public_label: Large-file path prototype harness
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+      secondary:
+        - aureline-buffer
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Prototype-only classifier and capability-table harness for large-file
+      posture. Not a production editor-large-file mode.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/largefile_proto.sh
+      visible_disclosure: prototypes/large_file/README.md
+      fallback_behavior: >
+        Default editor behavior remains unchanged; contributors inspect the
+        committed metrics seed and README instead of invoking the harness.
+    rollback_path:
+      rollback_class: revert_to_seeded_artifact
+      rollback_ref: artifacts/bench/large_file_proto_metrics.json
+      operator_note: Prototype metrics are refreshed only through the wrapper.
+    artifact_dependencies:
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/bench/large_file_proto_metrics.json
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/large_file/README.md
+        marker_expected: true
+      - dependency_class: fixture_seed
+        artifact_ref: fixtures/benchmarks/corpus_manifest.yaml
+        marker_expected: true
+    source_refs:
+      - tools/largefile_proto.sh
+      - crates/aureline-largefile-proto/src/bin/largefile_proto.rs
+      - prototypes/large_file/README.md
+
+  - id: exp.graph.prototype_harness
+    public_label: Semantic-workspace-graph prototype harness
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+      secondary:
+        - governance_packets
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Contract-first prototype for graph vocabulary and validation. Not a
+      production graph engine, persistence layer, or search planner.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/graph_proto.sh
+      visible_disclosure: prototypes/graph/README.md
+      fallback_behavior: >
+        Keep the frozen schema, fixtures, and README as the review surface;
+        no runtime graph dependency is introduced by default.
+    rollback_path:
+      rollback_class: fall_back_to_local_inspection
+      rollback_ref: fixtures/graph/example_workspace_graphs/
+      operator_note: Inspect committed fixtures when the harness is not run.
+    artifact_dependencies:
+      - dependency_class: fixture_seed
+        artifact_ref: fixtures/graph/example_workspace_graphs/
+        marker_expected: true
+      - dependency_class: schema_contract
+        artifact_ref: schemas/graph/workspace_graph_seed.schema.json
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/graph/README.md
+        marker_expected: true
+    source_refs:
+      - tools/graph_proto.sh
+      - crates/aureline-graph-proto/src/bin/graph_proto.rs
+      - prototypes/graph/README.md
+
+  - id: exp.reactive_state.prototype_harness
+    public_label: Reactive-state prototype harness
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+      secondary:
+        - aureline-rpc
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Deterministic subscription-envelope prototype for invalidation trace
+      review. Not a production transport, fan-out service, or cache layer.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/reactive_proto.sh
+      visible_disclosure: prototypes/reactive_state/README.md
+      fallback_behavior: >
+        Keep the committed invalidation-trace examples and ADR narrative as
+        canonical review truth.
+    rollback_path:
+      rollback_class: revert_to_seeded_artifact
+      rollback_ref: artifacts/state/invalidation_trace_examples/
+      operator_note: Prototype traces are regenerated only through the wrapper.
+    artifact_dependencies:
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/state/invalidation_trace_examples/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/reactive_state/README.md
+        marker_expected: true
+      - dependency_class: schema_contract
+        artifact_ref: schemas/runtime/subscription_envelope.schema.json
+        marker_expected: true
+    source_refs:
+      - tools/reactive_proto.sh
+      - crates/aureline-reactive-state/src/bin/reactive_proto.rs
+      - prototypes/reactive_state/README.md
+
+  - id: exp.text_stack.smoke_mode
+    public_label: Text-stack smoke mode
+    row_kind: experiment
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: aureline-text
+      secondary:
+        - benchmark_lab
+        - aureline-shell-spike
+    lifecycle_state: labs
+    cohort_or_ring: maintainer_and_contributor_local
+    default_posture: opt_in_only
+    support_note: >
+      Prototype text shaping/fallback smoke path exposed through the bench
+      wrapper and the shell-spike side-channel. Not a production renderer
+      capability claim.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: embedded_default_off
+      source_ref: tools/bench_text_stack.sh
+      visible_disclosure: prototypes/text_stack/README.md
+      fallback_behavior: >
+        The shell-spike fixture scene and committed metrics seed remain the
+        canonical review surface when the smoke path is not invoked.
+    rollback_path:
+      rollback_class: revert_to_seeded_artifact
+      rollback_ref: artifacts/bench/text_stack_metrics_seed.json
+      operator_note: Re-run through the documented wrapper or shell-spike mode.
+    artifact_dependencies:
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/bench/text_stack_metrics_seed.json
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: prototypes/text_stack/README.md
+        marker_expected: true
+      - dependency_class: fixture_seed
+        artifact_ref: fixtures/text/shaping_smoke_cases.txt
+        marker_expected: true
+    source_refs:
+      - tools/bench_text_stack.sh
+      - crates/aureline-bench/src/bin/bench_text_stack.rs
+      - crates/aureline-shell-spike/src/bin/shell_spike.rs
+      - prototypes/text_stack/README.md
+
+  - id: mode.benchmark_lab.smoke_subset
+    public_label: Benchmark-lab smoke subset
+    row_kind: benchmark_mode
+    audience_class: contributor_visible_labs
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+    lifecycle_state: preview
+    cohort_or_ring: developer_local_and_ci_preview
+    default_posture: default_for_developer_local
+    support_note: >
+      Fast lab path for harness-health and contributor inspection. Never
+      admissible as release-evidence input.
+    review_by: "2026-06-30"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+      - ci_workflow_input
+    embedded_default_behavior: defaults_to_smoke_subset
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+      visible_disclosure: docs/benchmarks/benchmark_lab_run_results.md
+      fallback_behavior: >
+        Full-corpus capture remains available and is required for any future
+        benchmark-council-approved reference baseline.
+    rollback_path:
+      rollback_class: rerun_without_mode
+      rollback_ref: tools/benchmark_lab.sh --corpus-subset full
+      operator_note: Full-corpus runs replace smoke-only inspection when
+        stronger evidence is needed.
+    artifact_dependencies:
+      - dependency_class: workflow_seed
+        artifact_ref: artifacts/benchmarks/dashboard_seed/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: docs/benchmarks/benchmark_lab_run_results.md
+        marker_expected: true
+    source_refs:
+      - tools/benchmark_lab.sh
+      - tools/benchmark_lab_emit.py
+      - .github/workflows/nightly_benchmark.yml
+      - docs/benchmarks/benchmark_lab_run_results.md
+
+  - id: rollout.benchmark_lab.reference_capture
+    public_label: Benchmark-lab reference-capture rollout
+    row_kind: rollout
+    audience_class: ci_rollout_only
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+      secondary:
+        - release_evidence
+    lifecycle_state: preview
+    cohort_or_ring: ci_nightly_reference_hardware
+    default_posture: scheduled_ci_only
+    support_note: >
+      Only reference_capture outputs are admissible as future release-evidence
+      inputs. Fallback to self_capture or smoke_subset stays explicit.
+    review_by: "2026-07-31"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - ci_workflow_input
+    embedded_default_behavior: inactive_except_on_reference_capture
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: ci_workflow_input
+      source_ref: .github/workflows/nightly_benchmark.yml
+      visible_disclosure: docs/benchmarks/benchmark_lab_run_results.md
+      fallback_behavior: >
+        Demote the run to self_capture or smoke_subset; local inspection
+        continues but release-evidence eligibility is withheld.
+    rollback_path:
+      rollback_class: fall_back_to_local_inspection
+      rollback_ref: artifacts/benchmarks/dashboard_seed/
+      operator_note: Non-reference runs remain valid only for local or
+        provisional inspection.
+    rollout_guardrails:
+      - reference_capture is the only run_context admissible as future
+        release-evidence input
+      - non-reference runs must remain visibly non-comparable or provisional
+      - remote fetch failure may not block local harness startup
+    artifact_dependencies:
+      - dependency_class: workflow_seed
+        artifact_ref: .github/workflows/nightly_benchmark.yml
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: docs/benchmarks/benchmark_lab_run_results.md
+        marker_expected: true
+    source_refs:
+      - .github/workflows/nightly_benchmark.yml
+      - tools/benchmark_lab.sh
+      - docs/benchmarks/benchmark_lab_run_results.md
+
+  - id: flag.benchmark_lab.regression_demo
+    public_label: Benchmark-lab regression demonstration
+    row_kind: feature_flag
+    audience_class: hidden_developer_toggle
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+    lifecycle_state: labs
+    cohort_or_ring: workflow_dispatch_only
+    default_posture: off_by_default
+    support_note: >
+      Intentional failure drill for benchmark_lab_health. Must never become
+      the default benchmark lane or release-evidence path.
+    review_by: "2026-06-15"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - ci_workflow_input
+    embedded_default_behavior: inactive_until_manual_failure_drill_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: ci_workflow_input
+      source_ref: .github/workflows/nightly_benchmark.yml
+      visible_disclosure: docs/benchmarks/benchmark_lab_run_results.md
+      fallback_behavior: >
+        Re-run without the toggle; the clean benchmark path remains the
+        default and required posture.
+    rollback_path:
+      rollback_class: rerun_without_mode
+      rollback_ref: tools/benchmark_lab.sh
+      operator_note: The toggle is for manual failure drills only.
+    artifact_dependencies:
+      - dependency_class: workflow_seed
+        artifact_ref: artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.regression_example.json
+        marker_expected: true
+      - dependency_class: saved_artifact
+        artifact_ref: artifacts/benchmarks/dashboard_seed/report/benchmark_run.seed.regression_example.md
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: docs/benchmarks/benchmark_lab_run_results.md
+        marker_expected: true
+    source_refs:
+      - tools/benchmark_lab.sh
+      - tools/benchmark_lab_emit.py
+      - .github/workflows/nightly_benchmark.yml
+
+  - id: flag.benchmark_lab.skip_build
+    public_label: Benchmark-lab skip-build toggle
+    row_kind: feature_flag
+    audience_class: hidden_developer_toggle
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+    lifecycle_state: labs
+    cohort_or_ring: developer_local_only
+    default_posture: off_by_default
+    support_note: >
+      Developer-only shortcut. May reuse stale binaries, so it is forbidden
+      as the default evidence path.
+    review_by: "2026-05-31"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+      visible_disclosure: tools/benchmark_lab.sh
+      fallback_behavior: >
+        The full build path remains the documented and default path for every
+        reviewable run.
+    rollback_path:
+      rollback_class: rerun_without_mode
+      rollback_ref: tools/benchmark_lab.sh
+      operator_note: Re-run with the default build path before trusting output.
+    artifact_dependencies: []
+    source_refs:
+      - tools/benchmark_lab.sh
+
+  - id: flag.benchmark_lab.verify_seed_only
+    public_label: Benchmark-lab verify-seed-only toggle
+    row_kind: feature_flag
+    audience_class: hidden_developer_toggle
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: benchmark_lab
+    lifecycle_state: labs
+    cohort_or_ring: developer_local_and_ci_seed_guard
+    default_posture: off_by_default
+    support_note: >
+      Seed-integrity guard that diffs committed dashboard artifacts. It is a
+      lane-safety check, not a substitute for a benchmark run.
+    review_by: "2026-07-31"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - local_cli_argument
+      - ci_workflow_input
+    embedded_default_behavior: inactive_until_invoked
+    local_resolution_requirement: required
+    offline_resolution_posture: authoritative_local
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: not_allowed
+    editing_critical_path: false
+    default_shift_change_log_posture: docs_update_required
+    kill_switch:
+      source_kind: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+      visible_disclosure: docs/benchmarks/benchmark_lab_run_results.md
+      fallback_behavior: >
+        Default benchmark capture remains available; verify-seed only guards
+        the committed seed before any benchmark work runs.
+    rollback_path:
+      rollback_class: rerun_without_mode
+      rollback_ref: tools/benchmark_lab.sh
+      operator_note: Use the default path to emit a real run record.
+    artifact_dependencies:
+      - dependency_class: workflow_seed
+        artifact_ref: artifacts/benchmarks/dashboard_seed/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: docs/benchmarks/benchmark_lab_run_results.md
+        marker_expected: true
+    source_refs:
+      - tools/benchmark_lab.sh
+      - tools/benchmark_lab_emit.py
+      - .github/workflows/nightly_benchmark.yml
+
+  - id: flag.settings.experiment_rollout_layer
+    public_label: Settings experiment-rollout layer
+    row_kind: feature_flag
+    audience_class: control_stack_reserved
+    owner_dri: "@ahmeddyounis"
+    owning_scope:
+      primary: governance_packets
+      secondary:
+        - docs_public_truth
+    lifecycle_state: preview
+    cohort_or_ring: reserved_for_future_settings_rollout
+    default_posture: reserved_until_runtime_control_stack_lands
+    support_note: >
+      Reserved ADR-0008 control-stack binding. No runtime flag service ships
+      yet, but settings schemas and fixtures already depend on the vocabulary,
+      so the control row must exist before a runtime provider does.
+    review_by: "2026-07-31"
+    expires_on: null
+    provider_chain:
+      - embedded_default
+      - signed_local_admin_bundle
+      - optional_managed_override
+    embedded_default_behavior: preserve_last_known_local_value
+    local_resolution_requirement: required
+    offline_resolution_posture: last_known_good_signed
+    remote_fetch_failure_may_block_startup: false
+    policy_override_posture: narrowing_allowed
+    editing_critical_path: true
+    default_shift_change_log_posture: release_note_required
+    kill_switch:
+      source_kind: signed_local_admin_bundle
+      source_ref: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+      visible_disclosure: schemas/settings/effective_setting.schema.json
+      fallback_behavior: >
+        Preserve the last-known-valid local value, render the lock or
+        narrowing reason explicitly, and never block core editing startup on
+        remote fetch failure.
+    rollback_path:
+      rollback_class: keep_last_known_valid_state
+      rollback_ref: fixtures/settings/setting_examples/
+      operator_note: Restore the last-known-valid setting or drop the
+        experiment-rollout binding entirely.
+    artifact_dependencies:
+      - dependency_class: schema_contract
+        artifact_ref: schemas/settings/effective_setting.schema.json
+        marker_expected: true
+      - dependency_class: fixture_seed
+        artifact_ref: fixtures/settings/setting_examples/
+        marker_expected: true
+      - dependency_class: docs_projection
+        artifact_ref: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+        marker_expected: true
+    source_refs:
+      - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+      - schemas/settings/effective_setting.schema.json
+      - fixtures/settings/setting_examples/README.md
