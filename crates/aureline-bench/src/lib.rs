@@ -6,4 +6,5 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-bench/0.0.0")]
 
+pub mod buffer;
 pub mod text_stack;
