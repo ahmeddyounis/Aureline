@@ -1,0 +1,1309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/embedded_surface_boundary.schema.json",
+  "title": "Aureline embedded-surface boundary, owner/origin chrome, and auth-handoff vocabulary",
+  "description": "Boundary schema for the embedded-surface boundary contract frozen in docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md. The host shell, not the embedded body, owns the boundary truth for embedded docs/help panes, marketplace/account pages, service dashboards, auth confirmation surfaces, and extension-hosted web-like surfaces. Three record kinds are exported: embedded_surface_boundary_record, embedded_auth_exception_record, and embedded_surface_boundary_audit_event_record. The eventual host-side embedded-surface crate's Rust types are the schema of record; this file is the cross-tool boundary later docs/help, marketplace, dashboard, auth, support-export, and release-evidence lanes read. Adding a new surface family, boundary state, auth flow class, capability limitation, native-reserved surface, audit event id, or denial reason is additive-minor and requires an embedded_surface_boundary_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/embedded_surface_boundary_record" },
+    { "$ref": "#/$defs/embedded_auth_exception_record" },
+    { "$ref": "#/$defs/embedded_surface_boundary_audit_event_record" }
+  ],
+  "$defs": {
+    "embedded_surface_boundary_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this embedded-surface boundary vocabulary export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "embedded_surface_boundary_record",
+        "embedded_auth_exception_record",
+        "embedded_surface_boundary_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "embedded_docs_help",
+        "embedded_marketplace_or_account",
+        "embedded_service_dashboard",
+        "embedded_auth_confirmation",
+        "extension_hosted_surface"
+      ],
+      "description": "Closed embedded-surface family vocabulary."
+    },
+
+    "container_surface_class": {
+      "type": "string",
+      "enum": [
+        "docs_help_pane",
+        "marketplace_or_account_panel",
+        "service_dashboard_panel",
+        "auth_handoff_sheet",
+        "extension_tool_tab",
+        "activity_or_support_row"
+      ],
+      "description": "Closed vocabulary naming the host-side container the boundary record is rendered on."
+    },
+
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "RawText",
+        "SanitizedRich",
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Safe-preview trust class re-exported from docs/security/safe_preview_trust_classes.md."
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "host_product",
+        "first_party_project",
+        "extension_bundle",
+        "connected_provider",
+        "enterprise_admin",
+        "customer_service_owner",
+        "unknown_owner"
+      ],
+      "description": "Human owner of the embedded surface as rendered by the host shell."
+    },
+
+    "publisher_or_service_class": {
+      "type": "string",
+      "enum": [
+        "first_party_project",
+        "marketplace_service",
+        "connected_provider_service",
+        "customer_service",
+        "extension_publisher",
+        "identity_provider",
+        "unknown_publisher_or_service"
+      ],
+      "description": "Publisher, provider, or service identity distinct from the host product."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_pack_or_artifact",
+        "first_party_hosted_web",
+        "connected_provider_hosted_web",
+        "customer_or_enterprise_hosted_web",
+        "extension_publisher_hosted_web",
+        "cross_origin_subframe",
+        "system_browser_return",
+        "unknown_origin_class"
+      ],
+      "description": "Closed origin-class vocabulary for embedded or handoff-adjacent surfaces."
+    },
+
+    "origin_verification_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified",
+        "certificate_failed",
+        "policy_blocked",
+        "cross_origin_limited",
+        "offline_cached"
+      ],
+      "description": "Closed origin-verification-state vocabulary."
+    },
+
+    "data_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_product_boundary",
+        "first_party_hosted_service_boundary",
+        "connected_provider_boundary",
+        "customer_control_plane_boundary",
+        "extension_publisher_boundary",
+        "cross_origin_limited_boundary"
+      ],
+      "description": "Closed data-boundary vocabulary naming where bytes, session state, and authority live."
+    },
+
+    "boundary_state": {
+      "type": "string",
+      "enum": [
+        "live_verified",
+        "stale_snapshot",
+        "policy_blocked",
+        "certificate_failed",
+        "cross_origin_limited",
+        "offline_snapshot",
+        "external_open_only"
+      ],
+      "description": "Closed embedded-surface boundary-state vocabulary."
+    },
+
+    "required_chrome_field": {
+      "type": "string",
+      "enum": [
+        "owner_label",
+        "origin_label",
+        "publisher_or_service_label",
+        "data_boundary_label",
+        "boundary_state_label",
+        "primary_actions",
+        "source_version_freshness",
+        "provider_scope_and_actor",
+        "flow_type_and_return_target",
+        "fallback_state",
+        "capability_limitations"
+      ],
+      "description": "Closed owner/origin chrome field vocabulary. Compact layouts may rearrange but may not hide the required fields for the surface family."
+    },
+
+    "boundary_action_id": {
+      "type": "string",
+      "enum": [
+        "reload_embedded_surface",
+        "open_in_system_browser",
+        "switch_to_device_code",
+        "copy_device_code",
+        "retry_auth_handoff",
+        "inspect_certificate_details",
+        "inspect_policy_reason",
+        "continue_local_without_surface",
+        "open_support_evidence",
+        "view_auth_exception_record"
+      ],
+      "description": "Closed host-owned boundary action vocabulary."
+    },
+
+    "capability_limitation": {
+      "type": "string",
+      "enum": [
+        "cannot_issue_native_approval",
+        "cannot_verify_updates_or_signatures",
+        "cannot_raise_workspace_trust",
+        "cannot_perform_rollback_or_restore",
+        "cannot_apply_ai_changes",
+        "cookies_or_storage_outside_product_boundary",
+        "cross_origin_dom_or_storage_hidden",
+        "live_network_mutation_disabled_when_offline",
+        "provider_scope_may_be_narrower_than_page_claims",
+        "embedded_auth_lower_trust"
+      ],
+      "description": "Closed capability-limitation vocabulary rendered on the boundary card or audit surfaces."
+    },
+
+    "native_reserved_surface": {
+      "type": "string",
+      "enum": [
+        "product_security_messaging",
+        "update_verification",
+        "workspace_trust_elevation",
+        "rollback_or_restore_confirmation",
+        "ai_apply_review",
+        "high_risk_approval_sheet"
+      ],
+      "description": "Product-owned/native surfaces that embedded content may never imitate or host."
+    },
+
+    "high_risk_action_posture": {
+      "type": "string",
+      "enum": [
+        "host_native_only",
+        "not_applicable"
+      ],
+      "description": "Whether high-risk actions visible near the embedded surface must be rerouted into host-native review/approval chrome."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Docs/help source-of-truth class re-exported from ADR-0013."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Docs/help version-match-state re-exported from ADR-0013."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness class re-exported from the lifecycle/docs-help contracts."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Connected-provider class re-exported from ADR-0010."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Connected-provider actor class re-exported from ADR-0010."
+    },
+
+    "provider_health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "revoked",
+        "suspended",
+        "expired"
+      ],
+      "description": "Connected-provider health-state vocabulary re-exported from ADR-0010."
+    },
+
+    "auth_flow_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "system_browser",
+        "device_code",
+        "platform_authenticator_native",
+        "embedded_session_refresh",
+        "embedded_password_exception"
+      ],
+      "description": "Closed embedded/auth handoff flow-class vocabulary."
+    },
+
+    "auth_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "handoff_ready",
+        "handoff_in_progress",
+        "device_code_ready",
+        "device_code_active",
+        "native_step_up_required",
+        "embedded_exception_active",
+        "completed",
+        "expired",
+        "blocked"
+      ],
+      "description": "Closed auth-state vocabulary for boundary cards and audit rows."
+    },
+
+    "credential_collection_mode": {
+      "type": "string",
+      "enum": [
+        "no_embedded_collection",
+        "device_code_copy_only",
+        "session_refresh_without_password",
+        "password_entry_exception"
+      ],
+      "description": "Closed credential-collection-mode vocabulary."
+    },
+
+    "auth_exception_reason": {
+      "type": "string",
+      "enum": [
+        "legacy_provider_requires_embedded_password",
+        "managed_kiosk_or_browser_policy_blocks_launch",
+        "loopback_or_deep_link_return_unavailable",
+        "device_code_not_supported",
+        "session_refresh_without_password_only",
+        "temporary_enterprise_override"
+      ],
+      "description": "Closed embedded-auth exception reason vocabulary."
+    },
+
+    "exception_scope_class": {
+      "type": "string",
+      "enum": [
+        "session_refresh_only",
+        "limited_account_link",
+        "no_high_risk_actions"
+      ],
+      "description": "Closed scope-class vocabulary for embedded-auth exceptions."
+    },
+
+    "lower_trust_cue": {
+      "type": "string",
+      "enum": [
+        "lower_trust_badge",
+        "system_browser_preferred_note",
+        "device_code_alternative_note",
+        "credential_entry_not_saved_note",
+        "host_native_approval_still_required",
+        "exception_id_visible",
+        "exportable_exception_record"
+      ],
+      "description": "Visible lower-trust cues required on auth exceptions or lower-trust embedded auth paths."
+    },
+
+    "exception_review_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "expiring",
+        "expired",
+        "revoked"
+      ],
+      "description": "Closed review-state vocabulary for exception-register rows."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "embedded_surface_boundary_rendered",
+        "embedded_surface_boundary_downgraded",
+        "embedded_surface_opened_in_browser",
+        "embedded_auth_handoff_started",
+        "embedded_auth_device_code_offered",
+        "embedded_auth_exception_rendered",
+        "embedded_native_surface_request_denied",
+        "embedded_surface_schema_version_bumped"
+      ],
+      "description": "Closed audit-event id vocabulary for the embedded-surface boundary lane."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "owner_origin_chrome_missing",
+        "publisher_identity_missing",
+        "data_boundary_missing",
+        "certificate_failed",
+        "policy_blocked",
+        "cross_origin_limited",
+        "offline_without_snapshot",
+        "native_impersonation_attempted",
+        "embedded_password_collection_forbidden",
+        "high_risk_native_approval_required",
+        "browser_launch_blocked",
+        "device_code_unavailable",
+        "schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary for embedded-surface boundary denials and audit events."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle/docs/help/provider contracts."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy, identity-mode, and trust context the boundary record or audit event was minted under."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "open_in_system_browser",
+            "switch_to_device_code",
+            "refresh_embedded_surface",
+            "inspect_certificate_or_policy",
+            "request_admin_policy_change",
+            "continue_local_without_surface",
+            "view_auth_exception_record",
+            "open_support_evidence"
+          ]
+        },
+        "hook_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Typed repair or exit path for blocked, degraded, or exceptional embedded surfaces."
+    },
+
+    "owner_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "class"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "class": {
+          "$ref": "#/$defs/owner_class"
+        }
+      },
+      "description": "Human-readable owner identity plus its closed owner-class token."
+    },
+
+    "publisher_or_service_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "class"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "class": {
+          "$ref": "#/$defs/publisher_or_service_class"
+        }
+      },
+      "description": "Human-readable publisher/service identity plus its closed class token."
+    },
+
+    "origin_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_class",
+        "origin_label",
+        "verification_state",
+        "host_or_domain_label"
+      ],
+      "properties": {
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "origin_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification_state": {
+          "$ref": "#/$defs/origin_verification_state"
+        },
+        "host_or_domain_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Host-owned origin identity disclosure."
+    },
+
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "provider_label",
+        "provider_scope_label",
+        "provider_actor_class",
+        "health_state"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "provider_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_scope_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_actor_class": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "health_state": {
+          "$ref": "#/$defs/provider_health_state"
+        },
+        "connected_provider_record_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "health_summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Provider/service identity chrome for marketplace/account and dashboard surfaces."
+    },
+
+    "source_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "version_match_state",
+        "freshness_class",
+        "running_build_identity_ref"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "version_match_state": {
+          "$ref": "#/$defs/version_match_state"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "running_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "help_status_badge_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Quoted docs/help source-version-freshness truth from ADR-0013."
+    },
+
+    "boundary_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_label",
+        "origin_label",
+        "publisher_or_service_label",
+        "data_boundary_label",
+        "state_label",
+        "plain_language_summary",
+        "primary_action_ids"
+      ],
+      "properties": {
+        "owner_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publisher_or_service_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_boundary_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plain_language_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primary_action_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_action_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "source_version_freshness_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_scope_and_actor_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flow_type_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "return_target_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback_state_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability_limitations_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Host-rendered boundary card fields visible near the embedded surface."
+    },
+
+    "auth_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_class",
+        "auth_state",
+        "provider_domain_label",
+        "credential_collection_mode",
+        "reason_label",
+        "return_target_label",
+        "local_continuity_note",
+        "fallback_flow_classes",
+        "lower_trust_cues"
+      ],
+      "properties": {
+        "flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "auth_state": { "$ref": "#/$defs/auth_state" },
+        "provider_domain_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "credential_collection_mode": {
+          "$ref": "#/$defs/credential_collection_mode"
+        },
+        "reason_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "return_target_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "local_continuity_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallback_flow_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/auth_flow_class" },
+          "uniqueItems": true
+        },
+        "lower_trust_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lower_trust_cue" },
+          "uniqueItems": true
+        },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "device_code_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "code_expiry_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exception_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "Browser/device-code/native/exception auth cue family for embedded or adjacent auth surfaces."
+    },
+
+    "external_open_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "allowed_by_policy",
+        "preserves_object_identity",
+        "fallback_summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/boundary_action_id" },
+        "allowed_by_policy": { "type": "boolean" },
+        "preserves_object_identity": { "type": "boolean" },
+        "fallback_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "description": "External-open or adjacent fallback for embedded surfaces whose in-product lane ended or narrowed."
+    },
+
+    "embedded_surface_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_surface_boundary_schema_version",
+        "surface_id",
+        "surface_family",
+        "container_surface_class",
+        "trust_class",
+        "owner_identity",
+        "publisher_or_service_identity",
+        "origin_identity",
+        "data_boundary_class",
+        "boundary_state",
+        "boundary_card",
+        "required_chrome_fields",
+        "capability_limitations",
+        "native_reserved_surfaces_host_owned",
+        "high_risk_action_posture",
+        "external_open_fallback",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "const": "embedded_surface_boundary_record"
+        },
+        "embedded_surface_boundary_schema_version": {
+          "$ref": "#/$defs/embedded_surface_boundary_schema_version"
+        },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "container_surface_class": {
+          "$ref": "#/$defs/container_surface_class"
+        },
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "owner_identity": {
+          "$ref": "#/$defs/owner_identity_record"
+        },
+        "publisher_or_service_identity": {
+          "$ref": "#/$defs/publisher_or_service_identity_record"
+        },
+        "origin_identity": { "$ref": "#/$defs/origin_identity" },
+        "data_boundary_class": {
+          "$ref": "#/$defs/data_boundary_class"
+        },
+        "boundary_state": { "$ref": "#/$defs/boundary_state" },
+        "boundary_card": { "$ref": "#/$defs/boundary_card" },
+        "required_chrome_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_chrome_field" },
+          "minItems": 5,
+          "uniqueItems": true
+        },
+        "capability_limitations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_limitation" },
+          "uniqueItems": true
+        },
+        "native_reserved_surfaces_host_owned": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/native_reserved_surface" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "high_risk_action_posture": {
+          "$ref": "#/$defs/high_risk_action_posture"
+        },
+        "source_truth": { "$ref": "#/$defs/source_truth" },
+        "provider_identity": {
+          "$ref": "#/$defs/provider_identity"
+        },
+        "auth_handoff": { "$ref": "#/$defs/auth_handoff" },
+        "external_open_fallback": {
+          "$ref": "#/$defs/external_open_fallback"
+        },
+        "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "surface_family": { "const": "embedded_docs_help" }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["source_truth"],
+            "properties": {
+              "required_chrome_fields": {
+                "contains": { "const": "source_version_freshness" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_family": {
+                "enum": [
+                  "embedded_marketplace_or_account",
+                  "embedded_service_dashboard"
+                ]
+              }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["provider_identity"],
+            "properties": {
+              "required_chrome_fields": {
+                "contains": { "const": "provider_scope_and_actor" }
+              },
+              "high_risk_action_posture": { "const": "host_native_only" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "surface_family": { "const": "embedded_auth_confirmation" }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "required": ["auth_handoff"],
+            "properties": {
+              "required_chrome_fields": {
+                "contains": {
+                  "const": "flow_type_and_return_target"
+                }
+              },
+              "high_risk_action_posture": { "const": "host_native_only" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "boundary_state": {
+                "enum": [
+                  "stale_snapshot",
+                  "policy_blocked",
+                  "certificate_failed",
+                  "cross_origin_limited",
+                  "offline_snapshot",
+                  "external_open_only"
+                ]
+              }
+            },
+            "required": ["boundary_state"]
+          },
+          "then": {
+            "required": ["repair_hook_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "flow_class": {
+                    "const": "system_browser"
+                  }
+                },
+                "required": ["flow_class"]
+              }
+            },
+            "required": ["auth_handoff"]
+          },
+          "then": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "credential_collection_mode": {
+                    "const": "no_embedded_collection"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "flow_class": {
+                    "const": "device_code"
+                  }
+                },
+                "required": ["flow_class"]
+              }
+            },
+            "required": ["auth_handoff"]
+          },
+          "then": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "credential_collection_mode": {
+                    "const": "device_code_copy_only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "flow_class": {
+                    "const": "embedded_session_refresh"
+                  }
+                },
+                "required": ["flow_class"]
+              }
+            },
+            "required": ["auth_handoff"]
+          },
+          "then": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "credential_collection_mode": {
+                    "const": "session_refresh_without_password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "auth_handoff": {
+                "properties": {
+                  "flow_class": {
+                    "const": "embedded_password_exception"
+                  }
+                },
+                "required": ["flow_class"]
+              }
+            },
+            "required": ["auth_handoff"]
+          },
+          "then": {
+            "properties": {
+              "auth_handoff": {
+                "required": ["exception_ref"],
+                "properties": {
+                  "credential_collection_mode": {
+                    "const": "password_entry_exception"
+                  },
+                  "lower_trust_cues": {
+                    "contains": { "const": "lower_trust_badge" },
+                    "allOf": [
+                      {
+                        "contains": {
+                          "const": "host_native_approval_still_required"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "high_risk_action_posture": {
+                "const": "host_native_only"
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "embedded_auth_exception_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_surface_boundary_schema_version",
+        "exception_id",
+        "applies_to_surface_family",
+        "provider_domain_label",
+        "approved_embedded_flow_class",
+        "exception_reason",
+        "exception_scope_class",
+        "preferred_flow_order",
+        "required_lower_trust_cues",
+        "review_owner",
+        "review_state",
+        "review_by",
+        "host_native_approval_required",
+        "repair_hook_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "const": "embedded_auth_exception_record"
+        },
+        "embedded_surface_boundary_schema_version": {
+          "$ref": "#/$defs/embedded_surface_boundary_schema_version"
+        },
+        "exception_id": { "$ref": "#/$defs/opaque_id" },
+        "applies_to_surface_family": {
+          "$ref": "#/$defs/surface_family"
+        },
+        "provider_domain_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_embedded_flow_class": {
+          "type": "string",
+          "enum": [
+            "embedded_session_refresh",
+            "embedded_password_exception"
+          ]
+        },
+        "exception_reason": {
+          "$ref": "#/$defs/auth_exception_reason"
+        },
+        "exception_scope_class": {
+          "$ref": "#/$defs/exception_scope_class"
+        },
+        "preferred_flow_order": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/auth_flow_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "required_lower_trust_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lower_trust_cue" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "review_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_state": {
+          "$ref": "#/$defs/exception_review_state"
+        },
+        "review_by": { "$ref": "#/$defs/monotonic_timestamp" },
+        "host_native_approval_required": { "type": "boolean" },
+        "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "approved_embedded_flow_class": {
+                "const": "embedded_password_exception"
+              }
+            },
+            "required": ["approved_embedded_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "required_lower_trust_cues": {
+                "contains": { "const": "lower_trust_badge" },
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "host_native_approval_still_required"
+                    }
+                  }
+                ]
+              },
+              "host_native_approval_required": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+
+    "embedded_surface_boundary_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_surface_boundary_schema_version",
+        "audit_event_id",
+        "surface_id_ref",
+        "surface_family",
+        "boundary_state",
+        "high_risk_action_posture",
+        "auth_flow_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "const": "embedded_surface_boundary_audit_event_record"
+        },
+        "embedded_surface_boundary_schema_version": {
+          "$ref": "#/$defs/embedded_surface_boundary_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "surface_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "boundary_state": { "$ref": "#/$defs/boundary_state" },
+        "high_risk_action_posture": {
+          "$ref": "#/$defs/high_risk_action_posture"
+        },
+        "auth_flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "exception_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "const": "embedded_auth_exception_rendered"
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["exception_id_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "const": "embedded_native_surface_request_denied"
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["denial_reason"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "embedded_surface_opened_in_browser",
+                  "embedded_auth_handoff_started"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["browser_handoff_packet_ref"]
+          }
+        }
+      ]
+    }
+  }
+}
