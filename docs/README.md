@@ -289,6 +289,31 @@ code.
   — mapping from the ADR-0002 protected-hot-path hook vocabulary to
   the journey-budget buckets the benchmark lab and journey harness
   measure against.
+- [`benchmarks/benchmark_lab_run_results.md`](./benchmarks/benchmark_lab_run_results.md)
+  — normative companion to the benchmark-lab run-result schema and
+  the seeded dashboard baseline. Freezes the run-context vocabulary
+  (`reference_capture`, `provisional_capture`, `self_capture`,
+  `smoke_subset`), the comparability vocabulary
+  (`comparable_to_baseline`,
+  `comparable_to_prior_run_same_host`, `not_yet_comparable`,
+  `quarantined`), the quarantine-reason set, the row-result /
+  trend-direction / threshold-mode / SLI-kind / data-source-kind /
+  lane-class / trigger-kind sets, and the nine
+  `regression_trigger_ref.kind` values every fail or warn row
+  resolves against (`threshold_exceeded`, `boolean_gate_failed`,
+  `ratio_below_floor`, `corpus_row_missing`,
+  `trace_schema_nonconforming`, `ad_hoc_metric_name_observed`,
+  `toolchain_pin_drift`, `hardware_definition_mismatch`,
+  `fitness_catalog_row_status_provisional`). Pins the
+  reproducibility posture (`SOURCE_DATE_EPOCH`, `TZ=UTC`,
+  `LC_ALL=C`) and the verify-seed gate that the nightly lane runs
+  before the lab does any benchmark work. Boundary schema in
+  [`/schemas/benchmarks/run_result.schema.json`](../schemas/benchmarks/run_result.schema.json);
+  seeded dashboard baseline (two reference run records plus the
+  rolled-up dashboard.json) in
+  [`/artifacts/benchmarks/dashboard_seed/`](../artifacts/benchmarks/dashboard_seed/);
+  nightly CI lane in
+  [`/.github/workflows/nightly_benchmark.yml`](../.github/workflows/nightly_benchmark.yml).
 - [`benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md)
   — normative vocabulary for the protected benchmark corpus:
   corpus classes (`microbenchmark_scenario`, `workflow_scenario`,
@@ -343,6 +368,18 @@ above is paired with a YAML form that is authoritative for automation:
   consumer channels, source lineage, and segregation markers per
   fixture. Normative companion in
   [`/docs/benchmarks/fixture_classes.md`](./benchmarks/fixture_classes.md).
+- [`/schemas/benchmarks/run_result.schema.json`](../schemas/benchmarks/run_result.schema.json)
+  — boundary schema for one benchmark-lab run-result record. Pins
+  every record to a single exact-build identity, a single corpus-
+  manifest revision, a single fitness-catalog revision, and a single
+  hardware-definition ref; freezes closed vocabularies for run
+  context, comparability, quarantine reason, row result, trend
+  direction, threshold mode, SLI kind, data-source kind, lane /
+  trigger class, and `regression_trigger_ref.kind`. Normative
+  companion in
+  [`/docs/benchmarks/benchmark_lab_run_results.md`](./benchmarks/benchmark_lab_run_results.md);
+  seeded dashboard baseline in
+  [`/artifacts/benchmarks/dashboard_seed/`](../artifacts/benchmarks/dashboard_seed/).
 - [`/artifacts/bench/fitness_function_catalog.yaml`](../artifacts/bench/fitness_function_catalog.yaml)
   — protected fitness-function catalog: one register of every
   protected fitness function the benchmark lab, journey harness,

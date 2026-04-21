@@ -1,0 +1,162 @@
+# Nightly benchmark-lab CI lane.
+#
+# Drives tools/benchmark_lab.sh on a scheduled cadence and on manual
+# dispatch, uploads the run record and human-readable summary as
+# workflow artifacts, and gates on committed-seed drift so the
+# dashboard seed at artifacts/benchmarks/dashboard_seed/ stays honest.
+#
+# The seeded run records under artifacts/benchmarks/dashboard_seed/
+# are the reference shape. They are self_capture — admissible for
+# harness self-health, NOT admissible as release-evidence input.
+# Reference captures (run_context = reference_capture) require a
+# benchmark-council-approved hardware baseline; this workflow emits
+# them on the scheduled lane so the lane shape is exercised end to
+# end even while the hardware definition is still "reserved".
+#
+# See:
+#   - schemas/benchmarks/run_result.schema.json
+#   - docs/benchmarks/benchmark_lab_run_results.md
+#   - artifacts/bench/fitness_function_catalog.yaml
+#   - fixtures/benchmarks/corpus_manifest.yaml
+name: nightly_benchmark
+
+on:
+  schedule:
+    # 07:17 UTC every day. Offset from the top of the hour so the
+    # scheduler does not batch this lane with other on-the-hour jobs.
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+    inputs:
+      corpus_subset:
+        description: "Corpus subset to run"
+        required: true
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - full
+      run_context:
+        description: "Run context class"
+        required: true
+        default: "reference_capture"
+        type: choice
+        options:
+          - reference_capture
+          - provisional_capture
+          - self_capture
+          - smoke_subset
+      lane:
+        description: "Lane class"
+        required: true
+        default: "ci_nightly"
+        type: choice
+        options:
+          - ci_nightly
+          - ci_merge_queue
+          - ci_preview
+          - developer_local
+      trigger:
+        description: "Trigger kind"
+        required: true
+        default: "manual_dispatch"
+        type: choice
+        options:
+          - scheduled_nightly
+          - manual_dispatch
+          - commit_gated
+          - developer_invocation
+      regression_demo:
+        description: "Run the regression demonstration path (expected to fail)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly_benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify_seed:
+    name: Verify committed benchmark seed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify dashboard seed matches emitter output
+        run: |
+          python3 tools/benchmark_lab_emit.py \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --verify-seed
+
+  benchmark_lab:
+    name: Run benchmark lab (${{ inputs.run_context || 'reference_capture' }}, ${{ inputs.corpus_subset || 'smoke' }})
+    needs: verify_seed
+    runs-on: ubuntu-latest
+    env:
+      # Mirrors tools/build/build.sh: pinned timestamp-affecting inputs
+      # so reruns on the same commit produce byte-stable run records.
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-nightly-benchmark-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-nightly-benchmark-
+
+      - name: Derive pinned source-date epoch
+        run: |
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "${GITHUB_ENV}"
+
+      - name: Run benchmark lab
+        id: run_lab
+        run: |
+          set -euo pipefail
+          args=(
+            --corpus-subset "${{ inputs.corpus_subset || 'smoke' }}"
+            --run-context   "${{ inputs.run_context   || 'reference_capture' }}"
+            --lane          "${{ inputs.lane          || 'ci_nightly' }}"
+            --trigger       "${{ inputs.trigger       || 'scheduled_nightly' }}"
+            --out-dir       "artifacts/benchmarks/dashboard_seed"
+          )
+          if [[ "${{ inputs.regression_demo || 'false' }}" == "true" ]]; then
+            args+=(--regression-demo)
+          fi
+          ./tools/benchmark_lab.sh "${args[@]}"
+
+      - name: Upload raw run record and human-readable summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-benchmark-${{ github.run_id }}
+          path: |
+            artifacts/benchmarks/dashboard_seed/raw/
+            artifacts/benchmarks/dashboard_seed/report/
+            artifacts/benchmarks/dashboard_seed/dashboard.json
+          if-no-files-found: error
+          retention-days: 30

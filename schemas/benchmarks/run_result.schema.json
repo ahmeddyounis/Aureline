@@ -1,0 +1,728 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/benchmarks/run_result.schema.json",
+  "title": "Aureline benchmark-lab run-result record",
+  "description": "Boundary schema for one benchmark-lab run-result record. The record pins every result to a single exact-build identity (schemas/build/exact_build_identity.schema.json), a single protected corpus-manifest revision (fixtures/benchmarks/corpus_manifest.yaml), a single fitness-function catalog revision (artifacts/bench/fitness_function_catalog.yaml), and a single hardware-definition ref so later methodology, comparability, and waiver lanes consume one schema family rather than diverging per-lane dialects. Raw trace bodies, raw fixture bytes, raw log bodies, and raw signing material never cross this boundary; the record carries opaque refs, typed vocabulary, integer counters, numeric SLI values, and timestamps only. Adding a new comparability class, quarantine-reason class, measurement-status class, data-source class, row-result class, or trend-direction class is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row. The record is the single source of truth for nightly raw artifacts (artifacts/benchmarks/dashboard_seed/raw/*.json) and for the machine-readable half of the benchmark-report governance packet family (schemas/governance/governance_packet.schema.json packet_family=benchmark_report).",
+  "$ref": "#/$defs/benchmark_run_result_record",
+  "$defs": {
+    "run_result_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the benchmark run-result export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "benchmark_run_result_record",
+      "description": "Frozen discriminator. Every run-result record carries record_kind = benchmark_run_result_record so consumers that multiplex several packet families on one parser can route by field."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id. Used for run_id, raw_artifact_ref, trace_bundle_ref, hardware_definition_ref, dashboard_ref, evidence-consumer channels, and waiver ids. No raw URLs, raw file paths outside the repo, raw logs, or raw signing material appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "measured_date": {
+      "type": "string",
+      "format": "date",
+      "description": "YYYY-MM-DD date the run was captured. Mirrors fitness_function_catalog.yaml#packet_export_shape.measured_on so the fitness_function_snapshot block composes against this record without re-deriving the field."
+    },
+    "run_context_class": {
+      "type": "string",
+      "enum": [
+        "reference_capture",
+        "provisional_capture",
+        "self_capture",
+        "smoke_subset"
+      ],
+      "description": "Frozen run-context vocabulary. reference_capture is a full nightly lane on the approved hardware baseline — the only class admissible as protected-evidence input to a shiproom packet. provisional_capture marks a row captured before the benchmark council has ratified a threshold or data source; the record is admissible for trend inspection but MUST NOT fail release gates. self_capture is a developer-local or contributor-machine capture; reports MUST mark it distinct from reference_capture in every surface. smoke_subset is the fast subset the nightly lane runs before the full corpus; it is admissible for keeping the lane green but MUST NOT be confused with a reference capture."
+    },
+    "comparability_class": {
+      "type": "string",
+      "enum": [
+        "comparable_to_baseline",
+        "comparable_to_prior_run_same_host",
+        "not_yet_comparable",
+        "quarantined"
+      ],
+      "description": "Frozen comparability vocabulary. comparable_to_baseline means the run matches the benchmark-council-approved hardware definition and the same exact-build-identity axes as the baseline; comparable_to_prior_run_same_host means comparability is only guaranteed to the immediately prior nightly on the same host; not_yet_comparable is the default when a new corpus revision or threshold has just landed; quarantined means the run is excluded from trend comparisons for a named reason."
+    },
+    "quarantine_reason_class": {
+      "type": "string",
+      "enum": [
+        "hardware_drift_observed",
+        "toolchain_pin_drift_observed",
+        "corpus_revision_mismatch",
+        "fitness_catalog_revision_mismatch",
+        "trace_schema_nonconformance",
+        "missing_corpus_id_resolution",
+        "missing_build_identity_record",
+        "manual_benchmark_council_hold"
+      ],
+      "description": "Frozen vocabulary for why a run is quarantined. Every quarantined run MUST cite at least one reason; every comparable run MUST cite none."
+    },
+    "measurement_status_class": {
+      "type": "string",
+      "enum": [
+        "captured",
+        "not_measured",
+        "skipped_by_gate",
+        "errored"
+      ],
+      "description": "Frozen measurement-status vocabulary. captured is the normal path. not_measured covers rows the run deliberately did not exercise (e.g. a corpus row outside the smoke subset). skipped_by_gate covers rows the lane skipped because a precondition failed (toolchain missing, hardware mismatch, corpus fixture unresolved). errored covers rows whose measurement itself failed; a row with status errored MUST carry a non-empty error_reason."
+    },
+    "row_result_class": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "warn",
+        "fail",
+        "not_measured",
+        "waived",
+        "provisional"
+      ],
+      "description": "Frozen row-result vocabulary. Aligned with fitness_function_catalog.yaml#packet_export_shape.fitness_function_snapshot.result. warn is distinct from fail: a warn keeps the lane green but surfaces the regression condition on the dashboard. waived MUST carry at least one waiver_ref. provisional MUST appear only on rows whose fitness-catalog row_status is provisional."
+    },
+    "trend_direction_class": {
+      "type": "string",
+      "enum": [
+        "improving",
+        "unchanged",
+        "regressing",
+        "unknown_insufficient_history",
+        "unknown_not_comparable"
+      ],
+      "description": "Frozen trend-direction vocabulary. improving / regressing are set by the dashboard generator against the comparable-prior-run window declared on the run. unchanged is explicit; unknown_insufficient_history is the default until the trend window is populated; unknown_not_comparable is set when comparability_class forbids direct comparison."
+    },
+    "threshold_mode_class": {
+      "type": "string",
+      "enum": [
+        "absolute_p50_and_p95",
+        "absolute_p95_only",
+        "ratio_gate",
+        "counts_only",
+        "boolean_gate",
+        "to_be_set_by_benchmark_council"
+      ],
+      "description": "Frozen threshold-mode vocabulary. MUST match the threshold_modes set in artifacts/bench/fitness_function_catalog.yaml. Rows that carry a threshold_mode of to_be_set_by_benchmark_council MUST NOT fail the run; they may only warn."
+    },
+    "sli_kind_class": {
+      "type": "string",
+      "enum": [
+        "latency_p50_ms",
+        "latency_p95_ms",
+        "latency_p99_ms",
+        "ratio_unit_interval",
+        "count_non_negative",
+        "boolean_pass_fail",
+        "structural_digest"
+      ],
+      "description": "Frozen SLI-kind vocabulary. latency_*_ms values are milliseconds as non-negative numbers. ratio_unit_interval values MUST be in [0, 1]. count_non_negative values are integers >= 0. boolean_pass_fail values resolve to 1.0 for pass and 0.0 for fail on the numeric axis; the corresponding row_result carries the typed verdict. structural_digest rows carry a digest_ref and no numeric value."
+    },
+    "data_source_kind_class": {
+      "type": "string",
+      "enum": [
+        "shell_spike_timing_trace",
+        "benchmark_lab_harness_run",
+        "corpus_fixture_measurement",
+        "support_bundle_summary",
+        "entry_restore_record",
+        "governance_packet_self_audit",
+        "to_be_wired_by_benchmark_council"
+      ],
+      "description": "Frozen data-source-kind vocabulary. MUST match the data_source_kinds set in artifacts/bench/fitness_function_catalog.yaml."
+    },
+    "lane_class": {
+      "type": "string",
+      "enum": [
+        "ci_nightly",
+        "ci_merge_queue",
+        "ci_preview",
+        "developer_local"
+      ],
+      "description": "Producer lane that captured the run. ci_nightly is the protected nightly lane. Reference captures MUST appear only on ci_nightly."
+    },
+    "trigger_kind_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_nightly",
+        "manual_dispatch",
+        "commit_gated",
+        "developer_invocation"
+      ],
+      "description": "Frozen trigger-kind vocabulary. scheduled_nightly is the cron-driven nightly. manual_dispatch covers operator-driven replays. commit_gated is reserved for future per-commit lanes; not yet wired. developer_invocation pairs with lane_class = developer_local."
+    },
+    "host_platform_class_token": {
+      "type": "string",
+      "enum": [
+        "host_independent",
+        "host_dependent",
+        "host_os_pinned"
+      ],
+      "description": "Host-platform class carried on the row. Mirrors fixtures/benchmarks/corpus_manifest.yaml#host_platform_classes. When not host_independent the run MUST carry host_os and rustc_target_triple."
+    },
+    "host_os_class_token": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux",
+        "windows",
+        "unknown"
+      ],
+      "description": "Host-OS vocabulary. Mirrors schemas/traces/spike_timing.schema.json#host_os_class."
+    },
+    "hardware_definition_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition_id",
+        "definition_revision",
+        "is_council_approved_baseline"
+      ],
+      "properties": {
+        "definition_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the hardware-definition row the run matched. The hardware-definition catalog is not yet seeded; this field reserves the identity so later definitions land without renaming."
+        },
+        "definition_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision of the hardware-definition row the run matched."
+        },
+        "is_council_approved_baseline": {
+          "type": "boolean",
+          "description": "True when the definition is on the benchmark-council-approved baseline list. Runs with this flag false MUST NOT claim comparability_class = comparable_to_baseline."
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a human-readable hardware note (free-form text lives outside this boundary)."
+        }
+      },
+      "description": "Hardware-definition reference. The exact hardware taxonomy (CPU model classes, DRAM tiers, storage classes, thermal envelopes) will land with a later benchmark-council decision; this record reserves the identity shape."
+    },
+    "build_identity_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "release_channel_class",
+        "producer_lane_class",
+        "workspace_version"
+      ],
+      "properties": {
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to schemas/build/exact_build_identity.schema.json#exact_build_identity_ref. Every non-dev run MUST resolve this ref back to the exact-build-identity record captured alongside the binary the run measured."
+        },
+        "release_channel_class": {
+          "type": "string",
+          "enum": [
+            "dev_local",
+            "nightly",
+            "preview",
+            "beta",
+            "stable",
+            "lts",
+            "hotfix"
+          ],
+          "description": "Release channel. Mirrors schemas/build/exact_build_identity.schema.json#release_channel_class."
+        },
+        "producer_lane_class": {
+          "type": "string",
+          "enum": [
+            "developer_local",
+            "ci_preview",
+            "ci_merge_queue",
+            "ci_nightly",
+            "ci_beta",
+            "ci_release",
+            "ci_hotfix",
+            "reproduced_clean_room",
+            "offline_mirror_rebuild"
+          ],
+          "description": "Producer lane. Mirrors schemas/build/exact_build_identity.schema.json#producer_lane_class. Reference captures MUST carry ci_nightly / ci_beta / ci_release / ci_hotfix only."
+        },
+        "workspace_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Rendered workspace.package version string copied from the exact-build identity."
+        },
+        "commit_short_hash": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 12,
+          "description": "Twelve-character lower-case hex prefix of the commit hash, convenience field for dashboard rendering. Diffing uses exact_build_identity_ref, not this field."
+        }
+      },
+      "description": "Build-identity reference. The record keys trend comparability off exact_build_identity_ref, not off free-text version labels."
+    },
+    "corpus_manifest_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_id",
+        "manifest_revision"
+      ],
+      "properties": {
+        "manifest_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Manifest id, e.g. aureline.protected_benchmark_corpus. Mirrors fixtures/benchmarks/corpus_manifest.yaml#manifest_id."
+        },
+        "manifest_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Manifest revision the run exercised. Mirrors fixtures/benchmarks/corpus_manifest.yaml#manifest_revision."
+        }
+      },
+      "description": "Corpus-manifest reference. Every run is keyed by the exact manifest revision it exercised; a fitness-function row cited against a different manifest revision is a validation failure."
+    },
+    "fitness_function_catalog_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog_id",
+        "catalog_revision"
+      ],
+      "properties": {
+        "catalog_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Catalog id, e.g. aureline.protected_fitness_function_catalog. Mirrors artifacts/bench/fitness_function_catalog.yaml#catalog_id."
+        },
+        "catalog_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Catalog revision the run was scored against. Mirrors artifacts/bench/fitness_function_catalog.yaml#catalog_revision."
+        }
+      },
+      "description": "Fitness-function catalog reference. Every row-result's fitness_row_id resolves to a catalog row at this revision."
+    },
+    "toolchain_pin_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "rustc_version",
+        "toolchain_pin_digest",
+        "lockfile_digest"
+      ],
+      "properties": {
+        "channel": {
+          "type": "string",
+          "minLength": 1,
+          "description": "rust-toolchain.toml [toolchain].channel, e.g. '1.84.0'."
+        },
+        "rustc_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Full 'rustc --version' string."
+        },
+        "toolchain_pin_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content digest of rust-toolchain.toml. Used to detect a drifted pin between otherwise-identical runs."
+        },
+        "lockfile_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Content digest of Cargo.lock. Used to detect a dependency-graph drift between otherwise-identical runs."
+        }
+      },
+      "description": "Toolchain-pin reference. Carried on the run so the dashboard can surface a toolchain drift as a named regression condition."
+    },
+    "waiver_reference_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Ordered list of waiver ids from artifacts/governance/ownership_matrix.yaml#waivers active at run time. Every row_result = waived MUST cite at least one id from this list."
+    },
+    "evidence_consumer_channel_list": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Ordered list of evidence-consumer channels this run feeds. Mirrors fixtures/benchmarks/corpus_manifest.yaml#evidence_consumer_channel_classes and the per-fitness-row evidence_consumer_channels lists."
+    },
+    "row_measurement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fitness_row_id",
+        "corpus_refs",
+        "sli_kind",
+        "threshold_mode",
+        "measurement_status",
+        "result",
+        "trend_direction",
+        "host_platform_class",
+        "data_source_kind"
+      ],
+      "properties": {
+        "fitness_row_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fitness-function row id from artifacts/bench/fitness_function_catalog.yaml#rows[].id. MUST resolve to a row at fitness_function_catalog.catalog_revision."
+        },
+        "corpus_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Ordered list of corpus ids from fixtures/benchmarks/corpus_manifest.yaml#fixtures[].id that this row exercised. Every id MUST resolve against corpus_manifest.manifest_revision; an unresolved id is a validation failure."
+        },
+        "sli_kind": { "$ref": "#/$defs/sli_kind_class" },
+        "threshold_mode": { "$ref": "#/$defs/threshold_mode_class" },
+        "threshold_at_measurement": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "p50_ms": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "type": "string", "const": "to_be_set_by_benchmark_council" },
+                    { "type": "number", "minimum": 0 }
+                  ]
+                },
+                "p95_ms": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "type": "string", "const": "to_be_set_by_benchmark_council" },
+                    { "type": "number", "minimum": 0 }
+                  ]
+                },
+                "p99_ms": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "type": "string", "const": "to_be_set_by_benchmark_council" },
+                    { "type": "number", "minimum": 0 }
+                  ]
+                },
+                "min_match_rate": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "type": "string", "const": "to_be_set_by_benchmark_council" },
+                    { "type": "number", "minimum": 0, "maximum": 1 }
+                  ]
+                },
+                "boolean_must_pass": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "type": "boolean" }
+                  ]
+                },
+                "counts_only_notes_ref": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "$ref": "#/$defs/opaque_id" }
+                  ]
+                }
+              }
+            }
+          ],
+          "description": "Copy of the fitness-catalog threshold at measurement time. Null when the row is counts_only or structural_digest. String literal 'to_be_set_by_benchmark_council' mirrors the provisional placeholder used in artifacts/bench/fitness_function_catalog.yaml."
+        },
+        "measured_value": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "p50_ms": { "type": "number", "minimum": 0 },
+                "p95_ms": { "type": "number", "minimum": 0 },
+                "p99_ms": { "type": "number", "minimum": 0 },
+                "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+                "count": { "type": "integer", "minimum": 0 },
+                "boolean_outcome": { "type": "boolean" },
+                "digest_ref": { "$ref": "#/$defs/opaque_id" },
+                "sample_size": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of samples the SLI was computed over. Rows with sample_size = 0 MUST carry measurement_status = not_measured or skipped_by_gate."
+                }
+              }
+            }
+          ],
+          "description": "Typed measured value. Null when measurement_status != captured."
+        },
+        "measurement_status": { "$ref": "#/$defs/measurement_status_class" },
+        "result": { "$ref": "#/$defs/row_result_class" },
+        "trend_direction": { "$ref": "#/$defs/trend_direction_class" },
+        "host_platform_class": { "$ref": "#/$defs/host_platform_class_token" },
+        "host_os": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/host_os_class_token" }
+          ],
+          "description": "Host OS for host-dependent rows. Null admissible only when host_platform_class = host_independent."
+        },
+        "rustc_target_triple": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "rustc target triple for host-dependent rows. Null admissible only when host_platform_class = host_independent."
+        },
+        "data_source_kind": { "$ref": "#/$defs/data_source_kind_class" },
+        "data_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Repo-relative path or opaque channel id for the evidence body. Null admissible when data_source_kind = to_be_wired_by_benchmark_council."
+        },
+        "trace_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref back to a trace bundle (schemas/traces/spike_timing.schema.json record or bundle). Present when the row was captured from a trace."
+        },
+        "waiver_refs": { "$ref": "#/$defs/waiver_reference_list" },
+        "expires_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/measured_date" }
+          ],
+          "description": "Waiver expiry date. Required when result = waived; null otherwise."
+        },
+        "regression_trigger_ref": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "summary_ref"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "threshold_exceeded",
+                    "boolean_gate_failed",
+                    "ratio_below_floor",
+                    "corpus_row_missing",
+                    "trace_schema_nonconforming",
+                    "ad_hoc_metric_name_observed",
+                    "toolchain_pin_drift",
+                    "hardware_definition_mismatch",
+                    "fitness_catalog_row_status_provisional"
+                  ],
+                  "description": "Frozen vocabulary for why the row triggered a regression or warn. A row with result = fail or warn MUST carry exactly one regression_trigger_ref."
+                },
+                "summary_ref": {
+                  "$ref": "#/$defs/opaque_id",
+                  "description": "Opaque ref to a human-readable summary line on the dashboard. The summary_ref MUST resolve against a row in the companion human-readable summary."
+                }
+              }
+            }
+          ],
+          "description": "Regression / warn trigger envelope. Required when result is fail or warn; null otherwise."
+        },
+        "error_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Short string describing why the measurement errored. Required when measurement_status = errored; null otherwise."
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to supplementary notes on this row (free-form text lives outside this boundary)."
+        }
+      },
+      "description": "One per-fitness-row measurement. A run-result record carries zero or more row records; a run with zero rows MUST also carry a quarantine reason."
+    },
+    "comparability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparability_class",
+        "quarantine_reasons"
+      ],
+      "properties": {
+        "comparability_class": { "$ref": "#/$defs/comparability_class" },
+        "quarantine_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quarantine_reason_class" },
+          "description": "Ordered list of quarantine reasons. MUST be empty when comparability_class != quarantined; MUST be non-empty when comparability_class = quarantined."
+        },
+        "trend_window": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["prior_run_refs", "window_span_days"],
+              "properties": {
+                "prior_run_refs": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/opaque_id" },
+                  "description": "Ordered list of prior run_ids the dashboard used to compute trend_direction for rows in this run. MUST be empty when comparability_class = not_yet_comparable or quarantined."
+                },
+                "window_span_days": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of days the trend window covers."
+                }
+              }
+            }
+          ],
+          "description": "Trend-window envelope. Null when comparability_class = not_yet_comparable or quarantined."
+        }
+      },
+      "description": "Comparability envelope. Pins the run's comparability class, quarantine reasons, and trend window so the dashboard does not re-derive them from free-text notes."
+    },
+    "summary_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count_by_result",
+        "regression_trigger_count_by_kind",
+        "human_readable_summary_ref",
+        "raw_artifact_ref"
+      ],
+      "properties": {
+        "row_count_by_result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pass",
+            "warn",
+            "fail",
+            "not_measured",
+            "waived",
+            "provisional"
+          ],
+          "properties": {
+            "pass": { "type": "integer", "minimum": 0 },
+            "warn": { "type": "integer", "minimum": 0 },
+            "fail": { "type": "integer", "minimum": 0 },
+            "not_measured": { "type": "integer", "minimum": 0 },
+            "waived": { "type": "integer", "minimum": 0 },
+            "provisional": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Bucketed row-result counts. The sum of buckets MUST equal the length of rows[]."
+        },
+        "regression_trigger_count_by_kind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "threshold_exceeded",
+            "boolean_gate_failed",
+            "ratio_below_floor",
+            "corpus_row_missing",
+            "trace_schema_nonconforming",
+            "ad_hoc_metric_name_observed",
+            "toolchain_pin_drift",
+            "hardware_definition_mismatch",
+            "fitness_catalog_row_status_provisional"
+          ],
+          "properties": {
+            "threshold_exceeded": { "type": "integer", "minimum": 0 },
+            "boolean_gate_failed": { "type": "integer", "minimum": 0 },
+            "ratio_below_floor": { "type": "integer", "minimum": 0 },
+            "corpus_row_missing": { "type": "integer", "minimum": 0 },
+            "trace_schema_nonconforming": { "type": "integer", "minimum": 0 },
+            "ad_hoc_metric_name_observed": { "type": "integer", "minimum": 0 },
+            "toolchain_pin_drift": { "type": "integer", "minimum": 0 },
+            "hardware_definition_mismatch": { "type": "integer", "minimum": 0 },
+            "fitness_catalog_row_status_provisional": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Bucketed regression-trigger counts. Every regression_trigger_ref.kind increments exactly one bucket."
+        },
+        "human_readable_summary_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to the human-readable summary this run produced (e.g. artifacts/benchmarks/dashboard_seed/report/<run_id>.md). The run is non-conforming if this file does not exist in the same artifact set."
+        },
+        "raw_artifact_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to the raw run-result JSON this record was serialised into (typically artifacts/benchmarks/dashboard_seed/raw/<run_id>.json)."
+        },
+        "dashboard_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Repo-relative path to the rolled-up dashboard snapshot (e.g. artifacts/benchmarks/dashboard_seed/dashboard.json). Null when the dashboard snapshot is not yet seeded."
+        }
+      },
+      "description": "Summary envelope. The machine-readable half of the benchmark-report governance packet reads row_count_by_result and regression_trigger_count_by_kind directly; the human-readable half reads human_readable_summary_ref."
+    },
+    "benchmark_run_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_result_schema_version",
+        "record_kind",
+        "run_id",
+        "run_context",
+        "lane_class",
+        "trigger_kind",
+        "started_at",
+        "finished_at",
+        "measured_on",
+        "build_identity",
+        "toolchain_pin",
+        "corpus_manifest",
+        "fitness_function_catalog",
+        "hardware_definition",
+        "comparability",
+        "rows",
+        "summary",
+        "evidence_consumer_channels"
+      ],
+      "properties": {
+        "run_result_schema_version": { "$ref": "#/$defs/run_result_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "run_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Globally-unique opaque id for this run. Convention: 'benchmark_run.<YYYYMMDD>.<lane>.<short_hash>'. The dashboard rolls up runs by run_id; two runs with the same run_id are a validation failure."
+        },
+        "run_context": { "$ref": "#/$defs/run_context_class" },
+        "lane_class": { "$ref": "#/$defs/lane_class" },
+        "trigger_kind": { "$ref": "#/$defs/trigger_kind_class" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "measured_on": { "$ref": "#/$defs/measured_date" },
+        "build_identity": { "$ref": "#/$defs/build_identity_reference" },
+        "toolchain_pin": { "$ref": "#/$defs/toolchain_pin_reference" },
+        "corpus_manifest": { "$ref": "#/$defs/corpus_manifest_reference" },
+        "fitness_function_catalog": { "$ref": "#/$defs/fitness_function_catalog_reference" },
+        "hardware_definition": { "$ref": "#/$defs/hardware_definition_reference" },
+        "comparability": { "$ref": "#/$defs/comparability_envelope" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_measurement_record" },
+          "description": "Ordered list of per-fitness-row measurements in fitness_function_catalog order. A row may appear at most once per run_id."
+        },
+        "summary": { "$ref": "#/$defs/summary_envelope" },
+        "evidence_consumer_channels": { "$ref": "#/$defs/evidence_consumer_channel_list" },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to run-level notes (free-form text lives outside this boundary)."
+        }
+      },
+      "description": "One benchmark-lab run-result record. The nightly lane writes exactly one record per run; the dashboard generator reads a directory of records keyed by run_id to produce a rolled-up dashboard snapshot. The record is the single source of truth for evidence lineage: every protected speed / safety claim that cites a benchmark number resolves through (exact_build_identity_ref, corpus_manifest.manifest_revision, fitness_function_catalog.catalog_revision, hardware_definition.definition_id) on one of these records rather than a free-text label."
+    }
+  }
+}
