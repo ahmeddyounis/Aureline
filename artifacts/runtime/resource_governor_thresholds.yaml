@@ -1,0 +1,728 @@
+# Shared resource-governor thresholds, admission control, visible
+# health-state projection rules, example policy fixtures, and
+# overload scenarios.
+#
+# Companion to docs/runtime/resource_governor_contract.md.
+# The runtime may implement these values through different internal
+# schedulers or counters, but every surface, QA fixture, and support
+# export MUST project back to the same vocabulary and action order.
+
+resource_governor_schema_version: 1
+
+contract_source: docs/runtime/resource_governor_contract.md
+related_docs:
+  - docs/ux/attention_activity_taxonomy.md
+  - docs/benchmarks/spike_metric_names.md
+  - docs/runtime/execution_context_vocabulary.md
+  - docs/adr/0013-docs-help-service-health-truth.md
+
+governor_health_state_vocabulary:
+  - nominal
+  - constrained
+  - degraded
+  - protect_core
+  - recovery
+
+visible_health_state_vocabulary:
+  - ready
+  - warming
+  - partial
+  - degraded
+  - offline
+  - unsupported
+  - overloaded
+
+work_class_vocabulary:
+  - core_interaction
+  - core_navigation
+  - short_foreground_task
+  - background_knowledge_work
+  - optional_assistance
+  - upload_and_replication
+
+queue_lane_vocabulary:
+  - foreground
+  - interactive_background
+  - maintenance
+  - provider_overlay
+  - upload_replication
+
+threshold_windows:
+  short_window_seconds: 5
+  medium_window_seconds: 30
+  long_window_seconds: 120
+
+pressure_thresholds:
+  hot_path:
+    - metric_id: key_to_paint_p95_ms
+      source_ref: docs/benchmarks/spike_metric_names.md
+      constrained_at: 35
+      degraded_at: 60
+      protect_core_at: 90
+      window_seconds: 5
+      rationale: >
+        Typing and undo visibly degrade once the median interactive
+        path stops feeling immediate; protect-core must trigger
+        before the editor feels stuck.
+    - metric_id: frame_budget_miss_rate_percent
+      source_ref: docs/benchmarks/spike_metric_names.md
+      constrained_at: 5
+      degraded_at: 10
+      protect_core_at: 20
+      window_seconds: 10
+      rationale: >
+        Sustained frame misses are an early signal that the shell is
+        spending too much budget outside the protected path.
+
+  cpu:
+    - metric_id: hidden_background_cpu_logical_cores
+      constrained_at: 0.75
+      degraded_at: 1.0
+      protect_core_gate:
+        value_at_least: 1.0
+        duration_seconds: 30
+        requires_hot_path_breach: true
+      visible_status_required_after_seconds: 10
+      rationale: >
+        No hidden background task may monopolize a full logical core
+        for an extended interval while the hot path is missing.
+    - metric_id: runnable_background_worker_share_percent
+      constrained_at: 50
+      degraded_at: 70
+      protect_core_at: 85
+      window_seconds: 10
+      rationale: >
+        Background runnable pressure should shrink well before the
+        shell is competing for nearly all available worker slots.
+
+  io:
+    - metric_id: save_flush_p95_ms
+      constrained_at: 150
+      degraded_at: 350
+      protect_core_at: 750
+      window_seconds: 30
+      rationale: >
+        Save remains a protected action; background I/O should yield
+        before save-path latency reaches the degraded tiers.
+    - metric_id: background_io_queue_oldest_age_seconds
+      constrained_at: 15
+      degraded_at: 45
+      protect_core_at: 120
+      window_seconds: 30
+      rationale: >
+        Old background I/O is expected to collapse, checkpoint, or
+        pause before it can starve new visible work.
+
+  memory:
+    - metric_id: service_class_soft_cap_percent
+      constrained_at: 85
+      degraded_at: 100
+      window_seconds: 30
+      rationale: >
+        Soft-cap breach starts cache trimming and idle-state recycle
+        before correctness or dirty-state loss becomes possible.
+    - metric_id: service_class_hard_cap_percent
+      protect_core_at: 100
+      window_seconds: 5
+      rationale: >
+        Hard-cap breach is immediate protect-core territory for the
+        affected class; disposable state trims before shell truth.
+
+  disk:
+    derived_data_default_cap:
+      strategy: lesser_of
+      absolute_gib: 20
+      free_disk_percent: 10
+    low_disk_floors:
+      constrained:
+        free_disk_gib: 10
+        free_disk_percent: 10
+      degraded:
+        free_disk_gib: 5
+        free_disk_percent: 5
+      protect_core:
+        free_disk_gib: 1
+        free_disk_percent: 2
+    eviction_order:
+      - stop_prefetch
+      - pause_mirror_and_replication_pulls
+      - trim_disposable_hot_caches
+      - evict_rebuildable_derived_caches
+      - expire_recovery_state_only_under_declared_retention
+    protected_state:
+      - dirty_buffers
+      - local_history_checkpoints
+      - support_or_incident_evidence_in_policy_window
+      - last_known_good_policy_bundles
+
+  queues:
+    - lane: foreground
+      constrained_depth: 4
+      degraded_depth: 8
+      protect_core_depth: 12
+      constrained_oldest_age_ms: 150
+      degraded_oldest_age_ms: 500
+      protect_core_oldest_age_ms: 1000
+    - lane: interactive_background
+      constrained_depth: 8
+      degraded_depth: 24
+      protect_core_depth: 48
+      constrained_oldest_age_seconds: 5
+      degraded_oldest_age_seconds: 30
+      protect_core_oldest_age_seconds: 120
+    - lane: maintenance
+      constrained_depth: 12
+      degraded_depth: 36
+      protect_core_depth: 72
+      constrained_oldest_age_seconds: 30
+      degraded_oldest_age_seconds: 120
+      protect_core_oldest_age_seconds: 600
+    - lane: provider_overlay
+      constrained_depth: 4
+      degraded_depth: 10
+      protect_core_depth: 20
+      constrained_oldest_age_seconds: 5
+      degraded_oldest_age_seconds: 15
+      protect_core_oldest_age_seconds: 60
+    - lane: upload_replication
+      constrained_depth: 8
+      degraded_depth: 32
+      protect_core_depth: 128
+      constrained_oldest_age_seconds: 30
+      degraded_oldest_age_seconds: 300
+      protect_core_oldest_age_seconds: 1800
+
+  remote_impairment:
+    - metric_id: remote_rtt_p95_ms
+      constrained_at: 400
+      degraded_at: 800
+      offline_at: 1500
+      window_seconds: 30
+    - metric_id: remote_error_rate_percent
+      constrained_at: 10
+      degraded_at: 25
+      offline_at: 50
+      window_seconds: 30
+    - metric_id: disconnect_duration_seconds
+      degraded_at: 5
+      offline_at: 15
+      window_seconds: 15
+
+  optional_service_impairment:
+    - metric_id: optional_service_latency_p95_ms
+      constrained_at: 1500
+      degraded_at: 3000
+      window_seconds: 60
+    - metric_id: optional_service_error_rate_percent
+      constrained_at: 20
+      degraded_at: 40
+      window_seconds: 60
+    - metric_id: circuit_breaker_failures_per_60_seconds
+      degraded_at: 5
+      offline_at: 8
+      breaker_open_seconds: 60
+
+governor_health_states:
+  - state: nominal
+    enter_rule: no_sustained_threshold_breach
+    required_actions:
+      - normal_scheduling
+      - normal_cache_policy
+    exit_rule:
+      - any_threshold_reaches_constrained
+
+  - state: constrained
+    enter_rule:
+      - any_threshold_reaches_constrained
+    required_actions:
+      - collapse_duplicates
+      - trim_speculative_work
+      - expose_status_if_sustained
+    exit_rule:
+      - all_thresholds_below_constrained_for_short_window
+      - any_threshold_reaches_degraded
+
+  - state: degraded
+    enter_rule:
+      - any_threshold_reaches_degraded
+      - retry_or_queue_growth_persists_through_medium_window
+    required_actions:
+      - pause_optional_assistance
+      - throttle_maintenance
+      - reduce_to_hot_local_or_visible_scope
+      - mark_affected_surfaces_partial_or_degraded
+    exit_rule:
+      - all_thresholds_below_degraded_and_resume_boundaries_are_healthy
+      - any_threshold_reaches_protect_core
+
+  - state: protect_core
+    enter_rule:
+      - any_threshold_reaches_protect_core
+      - hidden_background_cpu_protect_core_gate_is_satisfied
+      - low_disk_floor_reaches_protect_core
+    required_actions:
+      - preserve_typing_save_undo_navigation_and_visible_task_control_only
+      - deny_or_pause_non_core_background_and_provider_overlay_work
+      - project_overloaded_on_affected_capabilities
+    exit_rule:
+      - protected_metrics_hold_below_degraded_for_medium_window
+
+  - state: recovery
+    enter_rule:
+      - protect_core_or_degraded_clears_and_resume_boundaries_exist
+    required_actions:
+      - staged_reenable
+      - bounded_ramp_up
+      - checkpoint_first_resume
+    exit_rule:
+      - all_thresholds_return_to_nominal
+      - any_threshold_reenters_constrained_or_higher
+
+visible_health_projection:
+  precedence:
+    - unsupported
+    - offline
+    - overloaded
+    - degraded
+    - partial
+    - warming
+    - ready
+  state_rules:
+    - state: ready
+      enter_when:
+        - no_active_narrowing_on_claimed_scope
+        - no_governor_action_affecting_this_capability
+      required_copy: []
+      allowed_next_states:
+        - warming
+        - partial
+        - degraded
+        - offline
+        - unsupported
+        - overloaded
+    - state: warming
+      enter_when:
+        - active_progress_checkpoint_exists
+        - capability_is_expected_to_reach_ready_without_semantic_change
+      required_copy:
+        - current_phase_or_checkpoint
+        - already_usable_scope
+        - next_milestone
+      allowed_next_states:
+        - ready
+        - partial
+        - degraded
+        - offline
+        - unsupported
+        - overloaded
+    - state: partial
+      enter_when:
+        - missing_scope_or_behavior_is_named
+        - remaining_scope_is_truthful
+      required_copy:
+        - omitted_scope_or_behavior
+        - confidence_or_freshness_cue
+        - expansion_or_rebuild_path
+      allowed_next_states:
+        - ready
+        - warming
+        - degraded
+        - offline
+        - unsupported
+    - state: degraded
+      enter_when:
+        - truthful_fallback_exists
+        - impairment_is_not_only_missing_scope
+      required_copy:
+        - what_still_works
+        - affected_surface_or_lane
+        - last_failure_reason
+        - repair_or_retry_path
+      allowed_next_states:
+        - ready
+        - warming
+        - partial
+        - offline
+        - unsupported
+        - overloaded
+    - state: offline
+      enter_when:
+        - remote_or_managed_dependency_crosses_offline_threshold
+        - local_safe_or_cached_path_still_exists
+      required_copy:
+        - missing_dependency_plane
+        - local_safe_alternative
+        - deferred_or_queued_work_summary
+      allowed_next_states:
+        - warming
+        - degraded
+        - ready
+        - unsupported
+    - state: unsupported
+      enter_when:
+        - no_truthful_safe_mapping_exists
+      required_copy:
+        - unsupported_class
+        - reason_safe_fallback_absent
+        - handoff_or_export_path
+      allowed_next_states:
+        - ready
+        - warming
+    - state: overloaded
+      enter_when:
+        - governor_is_actively_shedding_or_denying_this_capability
+      required_copy:
+        - protected_path_being_preserved
+        - shed_or_denied_work
+        - automatic_or_manual_recovery_condition
+      allowed_next_states:
+        - warming
+        - partial
+        - degraded
+        - ready
+
+admission_matrix:
+  - work_class: core_interaction
+    queue_lane: foreground
+    state_policy:
+      nominal:
+        admission: admit
+      constrained:
+        admission: admit
+      degraded:
+        admission: admit
+      protect_core:
+        admission: admit
+      recovery:
+        admission: admit
+    invariants:
+      - never_queued_behind_background_work
+      - deny_only_on_direct_local_impossibility
+
+  - work_class: core_navigation
+    queue_lane: foreground
+    state_policy:
+      nominal:
+        admission: admit
+      constrained:
+        admission: admit
+        modifiers:
+          - serve_hot_local_first
+      degraded:
+        admission: admit
+        modifiers:
+          - serve_hot_local_first
+          - refine_asynchronously
+      protect_core:
+        admission: admit
+        modifiers:
+          - serve_hot_local_only
+          - defer_non_local_refinement
+      recovery:
+        admission: admit
+        modifiers:
+          - resume_refinement_gradually
+
+  - work_class: short_foreground_task
+    queue_lane: foreground
+    state_policy:
+      nominal:
+        admission: admit
+      constrained:
+        admission: admit
+        modifiers:
+          - bounded_queue
+          - collapse_stale_duplicates
+      degraded:
+        admission: admit_current_visible_work_first
+        modifiers:
+          - defer_non_visible_or_heavy_wideners
+      protect_core:
+        admission: allow_current_task_control_and_narrow_local_safe_actions_only
+        modifiers:
+          - deny_new_heavy_or_remote_expanding_work
+      recovery:
+        admission: admit
+        modifiers:
+          - age_and_cost_ordered_readmit
+
+  - work_class: background_knowledge_work
+    queue_lane: interactive_background
+    state_policy:
+      nominal:
+        admission: admit
+        modifiers:
+          - budgeted_concurrency
+      constrained:
+        admission: admit
+        modifiers:
+          - collapse_by_workspace_scope_and_phase
+          - throttle
+      degraded:
+        admission: admit_hot_set_only
+        modifiers:
+          - checkpoint_then_pause_non_hot_set
+          - mark_affected_surfaces_warming_or_partial
+      protect_core:
+        admission: pause
+        modifiers:
+          - preserve_checkpoint
+      recovery:
+        admission: admit
+        modifiers:
+          - resume_from_checkpoint
+          - bounded_ramp_up
+
+  - work_class: optional_assistance
+    queue_lane: maintenance
+    state_policy:
+      nominal:
+        admission: admit
+        modifiers:
+          - low_reserved_budget
+      constrained:
+        admission: admit
+        modifiers:
+          - throttle_hard
+      degraded:
+        admission: defer
+        modifiers:
+          - cancel_stale_work
+      protect_core:
+        admission: deny_new_and_pause_active
+      recovery:
+        admission: defer_until_hot_path_stable
+
+  - work_class: upload_and_replication
+    queue_lane: upload_replication
+    state_policy:
+      nominal:
+        admission: batch
+      constrained:
+        admission: defer
+      degraded:
+        admission: pause
+      protect_core:
+        admission: deny_new_background_transfer
+        modifiers:
+          - preserve_queued_state
+          - allow_explicit_foreground_export_only
+      recovery:
+        admission: batch
+        modifiers:
+          - staged_resume_with_backoff
+
+example_policies:
+  - policy_name: editor_shell
+    primary_work_class: core_interaction
+    queue_lanes:
+      - foreground
+    protected_operations:
+      - typing
+      - selection
+      - cursor_motion
+      - undo_redo
+      - save
+      - visible_paint
+    governor_projection:
+      when_background_pressure_only:
+        primary_visible_state: ready
+        secondary_runtime_status: overloaded
+      when_save_path_faults:
+        primary_visible_state: degraded
+        required_copy:
+          - exact_failure_reason
+          - preserved_recovery_path
+    deny_conditions:
+      - disk_full
+      - permission_denied
+      - target_identity_unresolved
+
+  - policy_name: indexing
+    primary_work_class: background_knowledge_work
+    queue_lanes:
+      - interactive_background
+      - maintenance
+    protected_subset:
+      - open_file_freshness
+      - hot_set_symbols
+      - hot_set_search
+    state_projection:
+      initial_or_rebuild: warming
+      hot_set_only_or_paused_full_scope: partial
+      governor_paused_to_protect_hot_path: overloaded
+    constrained_behavior:
+      - collapse_by_workspace_scope_and_phase
+      - hot_set_first
+    degraded_behavior:
+      - checkpoint_then_pause_full_repo_scan
+      - mark_search_and_graph_partial
+    protect_core_behavior:
+      - pause_non_hot_set_work
+      - retain_last_checkpoint
+
+  - policy_name: extensions
+    primary_work_class: background_knowledge_work
+    queue_lanes:
+      - foreground
+      - maintenance
+    split_rules:
+      user_triggered_language_actions:
+        work_class: short_foreground_task
+        visible_state: ready_or_degraded
+      timers_polling_and_speculative_warmup:
+        work_class: optional_assistance
+        visible_state: degraded_or_overloaded
+    escalation_rules:
+      repeated_budget_breach: degraded
+      repeated_crash_loop_or_contract_gap: unsupported
+    constrained_behavior:
+      - throttle_background_timers
+      - pause_polling_that_lacks_visible_owner
+
+  - policy_name: remote_attach
+    primary_work_class: short_foreground_task
+    queue_lanes:
+      - foreground
+      - provider_overlay
+    phase_mapping:
+      auth_and_probe:
+        work_class: short_foreground_task
+        visible_state: warming
+      sync_warm:
+        work_class: background_knowledge_work
+        visible_state: warming_or_partial
+    impairment_projection:
+      transient_latency_or_retry_budget_pressure: degraded
+      disconnect_past_offline_threshold: offline
+      local_protect_core_pause: overloaded
+    preserved_local_core:
+      - local_editing
+      - cached_file_reads
+      - retry_and_continue_local_actions
+
+  - policy_name: sync
+    primary_work_class: upload_and_replication
+    queue_lanes:
+      - provider_overlay
+      - upload_replication
+    state_projection:
+      transient_remote_backoff: degraded
+      remote_unreachable_past_budget: offline
+      local_protect_core_pause: overloaded
+    invariants:
+      - idempotent_actions_may_queue
+      - destructive_replay_never_runs_silently_after_recovery
+
+  - policy_name: preview
+    primary_work_class: short_foreground_task
+    queue_lanes:
+      - foreground
+      - maintenance
+    split_rules:
+      visible_preview_refresh:
+        work_class: short_foreground_task
+        visible_state: warming_or_degraded
+      hidden_preview_warmers:
+        work_class: optional_assistance
+        visible_state: overloaded_when_shed
+    fallback_rules:
+      truthful_cached_or_source_only_view_exists: degraded
+      no_truthful_round_trip_or_render_path: unsupported
+
+  - policy_name: ai_and_auxiliary
+    primary_work_class: optional_assistance
+    queue_lanes:
+      - maintenance
+      - provider_overlay
+    covered_work:
+      - ai_context_expansion
+      - embeddings
+      - model_warmup
+      - marketplace_refresh
+      - docs_model_refresh
+    state_projection:
+      provider_or_policy_impairment: degraded_or_offline
+      local_shed_to_protect_hot_path: overloaded
+    invariants:
+      - never_reserve_hot_path_budget
+      - surface_denial_or_pause_before_spinning_indefinitely
+
+overload_scenarios:
+  - scenario_id: large_workspace_open_on_battery_saver
+    summary: >
+      Large workspace open collides with indexing, graph refresh,
+      extension scan, AI warmup, and marketplace refresh while the
+      user starts typing on battery saver.
+    initial_conditions:
+      - battery_saver_is_on
+      - indexing_graph_refresh_extension_scan_ai_warmup_start_together
+      - user_types_in_already_open_editor
+    steps:
+      - step: 1
+        trigger:
+          key_to_paint_p95_ms: 35
+          frame_budget_miss_rate_percent: 5
+        governor_state: constrained
+        actions:
+          - collapse_duplicate_index_jobs
+          - pause_marketplace_refresh
+          - batch_uploads
+        visible_projection:
+          runtime_status: degraded
+          indexing: warming
+          ai_and_auxiliary: degraded
+      - step: 2
+        trigger:
+          thermal_pressure: constrained
+          key_to_paint_p95_ms: 60
+        governor_state: degraded
+        actions:
+          - pause_embeddings_and_docs_model_refresh
+          - throttle_extension_background_timers
+          - reduce_indexing_to_open_file_and_hot_set_scope
+        visible_projection:
+          runtime_status: overloaded
+          search: partial
+          graph: partial
+          extensions: degraded
+      - step: 3
+        trigger:
+          key_to_paint_p95_ms: 90
+          hidden_background_cpu_logical_cores: 1.0
+          hidden_background_cpu_duration_seconds: 30
+        governor_state: protect_core
+        actions:
+          - deny_new_preview_warmers
+          - deny_new_ai_context_expansion
+          - pause_noncritical_sync
+          - keep_typing_save_undo_navigation_and_current_task_visibility_admitted
+        visible_projection:
+          runtime_status: overloaded
+          editor_shell: ready
+          indexing: overloaded
+          sync: degraded
+      - step: 4
+        trigger:
+          key_to_paint_p95_ms: 35
+          queue_ages_back_below_constrained: true
+          thermal_pressure: nominal
+        governor_state: recovery
+        actions:
+          - resume_indexing_from_checkpoint
+          - reopen_sync_backlog_at_low_rate
+          - keep_ai_assistance_deferred_until_hot_path_is_stable
+        visible_projection:
+          runtime_status: warming
+          indexing: warming
+          search: partial
+      - step: 5
+        trigger:
+          hot_set_and_full_scope_queues_below_nominal: true
+        governor_state: nominal
+        actions:
+          - return_to_normal_budgets
+        visible_projection:
+          runtime_status: ready
+          indexing: ready
+          search: ready

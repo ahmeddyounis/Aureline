@@ -314,6 +314,14 @@ code.
   [`/artifacts/runtime/managed_workspace_lifecycle.yaml`](../artifacts/runtime/managed_workspace_lifecycle.yaml);
   example compatibility-label and activation-budget-summary
   packet shapes are embedded in the taxonomy doc.
+- [`runtime/resource_governor_contract.md`](./runtime/resource_governor_contract.md)
+  — shared runtime resource-governor contract covering protected
+  work classes, threshold families, queue and shed order,
+  admission-control rules, and visible health-state semantics for
+  `ready`, `warming`, `partial`, `degraded`, `offline`,
+  `unsupported`, and `overloaded`. Machine-readable thresholds,
+  policy fixtures, and overload scenarios live in
+  [`/artifacts/runtime/resource_governor_thresholds.yaml`](../artifacts/runtime/resource_governor_thresholds.yaml).
 - [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
   — command-descriptor contract every palette, application /
   context menu, keybinding / shortcut-help layer, CLI help, AI-
