@@ -42,6 +42,12 @@ Related upstream contracts:
   — exact-build identity model claim-bearing publication cannot bypass.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
   — public-proof packet template benchmark-facing claim rows route into.
+- [`/docs/docs/reviewed_pack_and_late_copy_policy.md`](../docs/reviewed_pack_and_late_copy_policy.md)
+  and
+  [`/schemas/docs/late_copy_change_packet.schema.json`](../../schemas/docs/late_copy_change_packet.schema.json)
+  — reviewed-pack binding and late-copy packet family used when
+  post-string-freeze claim-bearing copy must narrow or correct a
+  protected publication surface.
 
 ## Purpose
 
@@ -99,6 +105,10 @@ the same row, not as a new source of truth. That means:
 - Service-health rows, release-note caveats, and CLI/help summaries must
   preserve the same downgrade reason the release packet or docs surface
   would report.
+- If a channel must change claim-bearing copy after string freeze, it
+  does so through a `late_copy_change_packet` bound to the current
+  reviewed-pack version; silent channel-local rewrites are
+  non-conforming.
 
 ## Downgrade rules
 

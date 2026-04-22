@@ -365,6 +365,19 @@ code.
   mixed-locale, newer-than-client, non-publishable, and a standalone
   stale-example record) in
   [`/fixtures/docs/docs_pack_examples/`](../fixtures/docs/docs_pack_examples/).
+- [`docs/reviewed_pack_and_late_copy_policy.md`](./docs/reviewed_pack_and_late_copy_policy.md)
+  — reviewed-pack and controlled late-copy contract for release-bearing
+  trust, legal, policy, recovery, support, and compatibility copy.
+  Freezes one reviewed-pack version model, the binding-state labels
+  (`reviewed_current`, `stale_reviewed_source`,
+  `late_copy_override_active`, `late_copy_override_reversed`,
+  `blocked_unreviewed`), the late-copy reason classes, required
+  reviewer sets, and rollback/reversal notes that docs/help,
+  migration, support-export, release-note, CLI/help, evaluation, and
+  public-proof lanes reuse after string freeze. Boundary schema in
+  [`/schemas/docs/late_copy_change_packet.schema.json`](../schemas/docs/late_copy_change_packet.schema.json);
+  worked fixtures in
+  [`/fixtures/docs/late_copy_examples/`](../fixtures/docs/late_copy_examples/).
 - [`search/search_readiness_vocabulary.md`](./search/search_readiness_vocabulary.md)
   — copy-guidance companion to the search readiness, ranking-reason,
   hidden-scope, result-truth, and deep-link drift ADR. Frozen sentence

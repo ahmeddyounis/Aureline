@@ -1,0 +1,882 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/late_copy_change_packet.schema.json",
+  "title": "Aureline reviewed-pack and late-copy change-control contract",
+  "description": "Boundary schema for the reviewed_pack_version_record and the late_copy_change_packet frozen in docs/docs/reviewed_pack_and_late_copy_policy.md. Release-bearing trust, legal, policy, recovery, support, and compatibility copy binds to an immutable reviewed pack version. Any post-string-freeze delta that overrides or narrows that reviewed source must ship as an explicit late-copy packet rather than as a silent edit to Help/About, service-health, migration, support-export, release-note, CLI/help, evaluation, or public-proof copy.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/reviewed_pack_version_record" },
+    { "$ref": "#/$defs/late_copy_change_packet" }
+  ],
+  "$defs": {
+    "late_copy_change_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the reviewed-pack and late-copy packet family. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "reviewed_pack_version_record",
+        "late_copy_change_packet"
+      ]
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewed_pack_version_ref": {
+      "type": "string",
+      "pattern": "^reviewed_pack:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable reviewed-pack version id. A release-bearing surface binds to this id when it quotes reviewed source or an explicit late-copy override."
+    },
+
+    "late_copy_packet_id": {
+      "type": "string",
+      "pattern": "^late_copy:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable late-copy packet id safe to quote in docs/help, support exports, release packets, and shiproom review."
+    },
+
+    "exact_build_identity_ref": {
+      "type": "string",
+      "pattern": "^build-id:[A-Za-z0-9:+._-]+$",
+      "description": "Opaque exact-build identity ref that the reviewed pack applies to."
+    },
+
+    "claim_row_ref": {
+      "type": "string",
+      "pattern": "^claim_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+
+    "claim_row_ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim_row_ref"
+      }
+    },
+
+    "compatibility_row_ref": {
+      "type": "string",
+      "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+
+    "compatibility_row_ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/compatibility_row_ref"
+      }
+    },
+
+    "surface_id": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "migration_notes",
+        "support_export",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "public_proof_packet"
+      ],
+      "description": "Protected publication surfaces that may carry reviewed or late-copy-controlled text."
+    },
+
+    "surface_id_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/surface_id"
+      }
+    },
+
+    "reviewed_source_kind": {
+      "type": "string",
+      "enum": [
+        "docs_pack_manifest",
+        "claim_manifest_row",
+        "compatibility_row",
+        "destination_descriptor",
+        "migration_notice_pack",
+        "support_runbook_pack"
+      ],
+      "description": "Artifact kinds that count as reviewed source for release-bearing copy."
+    },
+
+    "text_source_kind": {
+      "type": "string",
+      "enum": [
+        "docs_pack_manifest",
+        "claim_manifest_row",
+        "compatibility_row",
+        "destination_descriptor",
+        "migration_notice_pack",
+        "support_runbook_pack",
+        "late_copy_change_packet"
+      ],
+      "description": "Artifact kinds a prior or new text reference may point into. New text may temporarily live in a late_copy_change_packet until a successor reviewed pack lands."
+    },
+
+    "binding_state": {
+      "type": "string",
+      "enum": [
+        "reviewed_current",
+        "stale_reviewed_source",
+        "late_copy_override_active",
+        "late_copy_override_reversed",
+        "blocked_unreviewed"
+      ],
+      "description": "Binding-state label for copy on a protected surface. These labels complement the existing source/version/freshness/service axes rather than replacing them."
+    },
+
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "review_refresh_overdue",
+        "source_superseded",
+        "active_override_packet",
+        "source_withdrawn",
+        "claim_or_compatibility_drift"
+      ]
+    },
+
+    "change_reason_class": {
+      "type": "string",
+      "enum": [
+        "legal_obligation_correction",
+        "policy_requirement_correction",
+        "trust_boundary_disclosure_correction",
+        "service_health_state_correction",
+        "recovery_instruction_correction",
+        "support_path_correction",
+        "compatibility_scope_correction",
+        "claim_evidence_alignment"
+      ]
+    },
+
+    "review_role": {
+      "type": "string",
+      "enum": [
+        "docs_public_truth_owner",
+        "release_owner",
+        "support_owner",
+        "security_trust_owner",
+        "legal_policy_owner",
+        "compatibility_owner",
+        "recovery_owner",
+        "domain_owner"
+      ]
+    },
+
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "required",
+        "approved",
+        "acknowledged",
+        "not_applicable"
+      ]
+    },
+
+    "packet_status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved",
+        "applied",
+        "reversed",
+        "superseded",
+        "rejected"
+      ]
+    },
+
+    "change_timing_class": {
+      "type": "string",
+      "enum": [
+        "after_string_freeze_before_release",
+        "post_release_hotfix",
+        "out_of_band_service_notice"
+      ]
+    },
+
+    "reversal_class": {
+      "type": "string",
+      "enum": [
+        "restore_prior_text",
+        "supersede_with_reviewed_pack",
+        "withdraw_claim_and_route_to_known_limit",
+        "rebind_surface_to_reviewed_source",
+        "no_reversal_needed"
+      ]
+    },
+
+    "verification_note_class": {
+      "type": "string",
+      "enum": [
+        "claim_row_checked",
+        "compatibility_row_checked",
+        "docs_pack_projection_checked",
+        "destination_descriptor_checked",
+        "migration_note_checked",
+        "support_export_preview_checked",
+        "service_health_projection_checked",
+        "legal_signoff_checked",
+        "string_freeze_exception_logged"
+      ]
+    },
+
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$",
+      "description": "Digest of the exact reviewed or replacement text slice so review/export tooling can detect silent edits."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture-only metadata used by worked examples. Production records may omit this object."
+    },
+
+    "reviewer_assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "reviewer", "status"],
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/review_role"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "status": {
+          "$ref": "#/$defs/review_status"
+        },
+        "reviewed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+
+    "text_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_artifact_kind",
+        "source_ref",
+        "text_locator",
+        "text_digest"
+      ],
+      "properties": {
+        "source_artifact_kind": {
+          "$ref": "#/$defs/text_source_kind"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "text_locator": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "text_digest": {
+          "$ref": "#/$defs/sha256_digest"
+        },
+        "text_preview": {
+          "type": "string",
+          "description": "Short review-safe excerpt of the affected text. This is informative only; source_ref + text_locator + text_digest remain authoritative."
+        },
+        "linked_anchor_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+
+    "source_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "source_artifact_kind",
+        "source_ref",
+        "applies_to_surfaces",
+        "binding_state"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_artifact_kind": {
+          "$ref": "#/$defs/reviewed_source_kind"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "applies_to_surfaces": {
+          "$ref": "#/$defs/surface_id_array"
+        },
+        "binding_state": {
+          "$ref": "#/$defs/binding_state"
+        },
+        "stale_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stale_reason_class" }
+          ]
+        },
+        "active_override_packet_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/late_copy_packet_id"
+          }
+        },
+        "linked_claim_row_refs": {
+          "$ref": "#/$defs/claim_row_ref_array"
+        },
+        "linked_compatibility_row_refs": {
+          "$ref": "#/$defs/compatibility_row_ref_array"
+        }
+      }
+    },
+
+    "surface_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_ref",
+        "binding_state_before",
+        "binding_state_after",
+        "prior_text_ref",
+        "new_text_ref"
+      ],
+      "properties": {
+        "surface_id": {
+          "$ref": "#/$defs/surface_id"
+        },
+        "surface_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "binding_state_before": {
+          "$ref": "#/$defs/binding_state"
+        },
+        "binding_state_after": {
+          "$ref": "#/$defs/binding_state"
+        },
+        "prior_text_ref": {
+          "$ref": "#/$defs/text_reference"
+        },
+        "new_text_ref": {
+          "$ref": "#/$defs/text_reference"
+        },
+        "linked_claim_row_refs": {
+          "$ref": "#/$defs/claim_row_ref_array"
+        },
+        "linked_compatibility_row_refs": {
+          "$ref": "#/$defs/compatibility_row_ref_array"
+        },
+        "disclosure_note": {
+          "type": "string"
+        }
+      }
+    },
+
+    "verification_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_class", "summary"],
+      "properties": {
+        "note_class": {
+          "$ref": "#/$defs/verification_note_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "reviewer": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "recorded_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        }
+      }
+    },
+
+    "rollback_or_reversal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reversal_class", "notes"],
+      "properties": {
+        "reversal_class": {
+          "$ref": "#/$defs/reversal_class"
+        },
+        "target_reviewed_pack_version_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewed_pack_version_ref" }
+          ]
+        },
+        "due_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+
+    "reviewed_pack_version_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "late_copy_change_schema_version",
+        "record_kind",
+        "pack_version_id",
+        "pack_version_label",
+        "running_build_identity_ref",
+        "reviewed_source_bindings",
+        "reviewed_on",
+        "reviewers"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "__fixture__": {
+          "$ref": "#/$defs/fixture_metadata"
+        },
+        "late_copy_change_schema_version": {
+          "$ref": "#/$defs/late_copy_change_schema_version"
+        },
+        "record_kind": {
+          "const": "reviewed_pack_version_record"
+        },
+        "pack_version_id": {
+          "$ref": "#/$defs/reviewed_pack_version_ref"
+        },
+        "pack_version_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "running_build_identity_ref": {
+          "$ref": "#/$defs/exact_build_identity_ref"
+        },
+        "reviewed_source_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/source_binding"
+          }
+        },
+        "reviewed_on": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewer_assignment"
+          }
+        },
+        "supersedes_pack_version_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewed_pack_version_ref" }
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+
+    "late_copy_change_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "late_copy_change_schema_version",
+        "record_kind",
+        "packet_id",
+        "status",
+        "opened_at",
+        "change_timing_class",
+        "reviewed_pack_version_ref",
+        "summary",
+        "change_reason_class",
+        "string_freeze_baseline_ref",
+        "owner",
+        "required_reviewers",
+        "affected_surfaces",
+        "verification_notes",
+        "linked_claim_row_refs",
+        "linked_compatibility_row_refs",
+        "rollback_or_reversal"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "__fixture__": {
+          "$ref": "#/$defs/fixture_metadata"
+        },
+        "late_copy_change_schema_version": {
+          "$ref": "#/$defs/late_copy_change_schema_version"
+        },
+        "record_kind": {
+          "const": "late_copy_change_packet"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/late_copy_packet_id"
+        },
+        "status": {
+          "$ref": "#/$defs/packet_status"
+        },
+        "opened_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "applied_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "change_timing_class": {
+          "$ref": "#/$defs/change_timing_class"
+        },
+        "reviewed_pack_version_ref": {
+          "$ref": "#/$defs/reviewed_pack_version_ref"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "change_reason_class": {
+          "$ref": "#/$defs/change_reason_class"
+        },
+        "string_freeze_baseline_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "owner": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "required_reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewer_assignment"
+          }
+        },
+        "affected_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/surface_delta"
+          }
+        },
+        "verification_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verification_note"
+          }
+        },
+        "linked_claim_row_refs": {
+          "$ref": "#/$defs/claim_row_ref_array"
+        },
+        "linked_compatibility_row_refs": {
+          "$ref": "#/$defs/compatibility_row_ref_array"
+        },
+        "rollback_or_reversal": {
+          "$ref": "#/$defs/rollback_or_reversal"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record_kind": { "const": "late_copy_change_packet" }
+        },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "docs_public_truth_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "record_kind": { "const": "late_copy_change_packet" }
+        },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "release_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "legal_obligation_correction" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "legal_policy_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "policy_requirement_correction" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "legal_policy_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "enum": ["trust_boundary_disclosure_correction", "service_health_state_correction"] }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "security_trust_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "recovery_instruction_correction" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "role": { "const": "recovery_owner" }
+                  },
+                  "required": ["role"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "role": { "const": "support_owner" }
+                  },
+                  "required": ["role"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "support_path_correction" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "support_owner" }
+              },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "compatibility_scope_correction" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "role": { "const": "compatibility_owner" }
+              },
+              "required": ["role"]
+            }
+          },
+          "linked_compatibility_row_refs": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "change_reason_class": { "const": "claim_evidence_alignment" }
+        },
+        "required": ["change_reason_class"]
+      },
+      "then": {
+        "properties": {
+          "linked_claim_row_refs": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "affected_surfaces": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "binding_state_after": {
+                  "const": "late_copy_override_active"
+                }
+              },
+              "required": ["binding_state_after"]
+            }
+          }
+        },
+        "required": ["affected_surfaces"]
+      },
+      "then": {
+        "properties": {
+          "rollback_or_reversal": {
+            "type": "object",
+            "properties": {
+              "reversal_class": {
+                "not": {
+                  "const": "no_reversal_needed"
+                }
+              }
+            },
+            "required": ["reversal_class"]
+          }
+        }
+      }
+    }
+  ]
+}
