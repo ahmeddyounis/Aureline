@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/evidence_packet_header.schema.json",
+  "title": "Aureline shared evidence-packet header",
+  "description": "Shared header block for verification packets, benchmark-publication packs, release-evidence packets, support drills, migration packets, known-limit notes, and future public-proof artifacts. Packet families may extend the body, but they SHOULD NOT redefine packet identity, ownership, freshness, visibility, or stable artifact-link fields outside this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "header_kind",
+    "packet_family",
+    "packet_id",
+    "evidence_id",
+    "title",
+    "ownership",
+    "coverage",
+    "result_status",
+    "visibility_class",
+    "freshness",
+    "environment",
+    "artifact_links"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the shared evidence-packet header itself. Current value is 1."
+    },
+    "header_kind": {
+      "type": "string",
+      "const": "evidence_packet_header",
+      "description": "Discriminator for the shared header block."
+    },
+    "packet_family": {
+      "$ref": "#/$defs/stable_dot_id",
+      "description": "Stable packet-family id such as verification_packet, benchmark_publication_pack, or release_evidence_packet. Open by design so new packet families can reuse the header without a schema change."
+    },
+    "packet_id": {
+      "$ref": "#/$defs/stable_dot_id",
+      "description": "Stable packet id. Packet ids stay stable across freshness refreshes and reviewer-state changes."
+    },
+    "evidence_id": {
+      "$ref": "#/$defs/evidence_id",
+      "description": "Stable evidence id for the packet record itself."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short packet title suitable for reviewer tables and signoff surfaces."
+    },
+    "ownership": {
+      "$ref": "#/$defs/ownership"
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "result_status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "mixed",
+        "waived",
+        "seed_only",
+        "needs_review",
+        "blocked",
+        "not_applicable"
+      ],
+      "description": "Packet-level result posture."
+    },
+    "visibility_class": {
+      "type": "string",
+      "enum": ["public", "internal", "mixed"],
+      "description": "Whether the packet is public, internal-only, or mixes public and internal evidence."
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "artifact_links": {
+      "$ref": "#/$defs/artifact_links"
+    }
+  },
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Stable lowercase token used inside dot-separated ids."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase dot-separated id."
+    },
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^evidence\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)+$",
+      "description": "Stable evidence id frozen by artifacts/governance/evidence_id_conventions.md."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "stable_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stable_dot_id"
+      }
+    },
+    "evidence_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_id"
+      }
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable handle or team alias, for example '@release-dri' or 'release-evidence@team'."
+    },
+    "duration_or_null": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO 8601 duration or another stable duration token defined by the embedding packet family."
+        }
+      ]
+    },
+    "channel_context": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "mixed",
+        "not_applicable"
+      ],
+      "description": "Release-channel or packet-channel scope under which the packet was captured."
+    },
+    "deployment_context": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "mixed",
+        "not_applicable"
+      ],
+      "description": "Deployment-profile scope under which the packet is truthful."
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_dri",
+        "evidence_owner",
+        "backup_owner",
+        "backup_waiver"
+      ],
+      "properties": {
+        "owner_dri": {
+          "$ref": "#/$defs/owner_ref",
+          "description": "Primary packet owner."
+        },
+        "evidence_owner": {
+          "$ref": "#/$defs/owner_ref",
+          "description": "Owner accountable for the proof carried by the packet."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/owner_ref" }
+          ],
+          "description": "Backup owner when one exists."
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Waiver id used when backup_owner is null."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "backup_owner": { "type": "null" } },
+            "required": ["backup_owner"]
+          },
+          "then": {
+            "properties": {
+              "backup_waiver": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["backup_waiver"]
+          }
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_ids",
+        "claim_row_refs",
+        "covered_lanes"
+      ],
+      "properties": {
+        "requirement_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]+-[A-Z0-9]+-[0-9]{3}$"
+          },
+          "description": "Canonical requirement ids this packet substantiates, narrows, or waives."
+        },
+        "claim_row_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Stable claim-row or matrix-row refs this packet speaks for."
+        },
+        "covered_lanes": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Lane ids or subsystem scopes this packet covers. May be a singleton for narrow packets."
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "stale_after",
+        "freshness_class",
+        "source_revision",
+        "trigger_revision"
+      ],
+      "properties": {
+        "captured_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 UTC timestamp for when the packet was captured or assembled."
+        },
+        "stale_after": {
+          "$ref": "#/$defs/duration_or_null",
+          "description": "Time window after which the packet should be treated as stale unless a stricter trigger fires first."
+        },
+        "freshness_class": {
+          "$ref": "capability_lifecycle.schema.json#/$defs/freshness_class"
+        },
+        "source_revision": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Revision of the source that produced the packet: commit, schema revision, run id, document revision, or similar."
+        },
+        "trigger_revision": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Revision or row ref that should force re-baseline or reapproval when it changes."
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_context",
+        "deployment_context",
+        "environment_summary"
+      ],
+      "properties": {
+        "channel_context": {
+          "$ref": "#/$defs/channel_context"
+        },
+        "deployment_context": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_context"
+          }
+        },
+        "environment_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plain-language summary of the environment or review envelope."
+        }
+      }
+    },
+    "artifact_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supporting_evidence_ids",
+        "exact_build_identity_refs",
+        "fixture_refs",
+        "archetype_refs",
+        "source_anchor_refs",
+        "waiver_refs",
+        "known_limit_refs",
+        "migration_packet_refs"
+      ],
+      "properties": {
+        "supporting_evidence_ids": {
+          "$ref": "#/$defs/evidence_id_array",
+          "description": "Stable evidence ids for any design captures, benchmark runs, verification corpora, support drills, or other packet records this header depends on."
+        },
+        "exact_build_identity_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Exact-build identity refs when the packet is tied to a specific build or build set."
+        },
+        "fixture_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Fixture-set, corpus, scenario, or test-case refs exercised by the packet."
+        },
+        "archetype_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Reference-workspace, compatibility-row, or archetype refs the packet claims against."
+        },
+        "source_anchor_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Source-document, ADR, or contract anchors that govern the packet."
+        },
+        "waiver_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Waiver ids that narrow or condition the packet."
+        },
+        "known_limit_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Known-limit note refs carried with or alongside the packet."
+        },
+        "migration_packet_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Migration or downgrade packet refs that must travel with the same claim."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 1,
+      "header_kind": "evidence_packet_header",
+      "packet_family": "design_capture",
+      "packet_id": "design.renderer.primary_spike_capture",
+      "evidence_id": "evidence.m0.renderer.spike.manifest",
+      "title": "Renderer spike capability capture",
+      "ownership": {
+        "owner_dri": "@ahmeddyounis",
+        "evidence_owner": "@ahmeddyounis",
+        "backup_owner": null,
+        "backup_waiver": "single-maintainer-backup"
+      },
+      "coverage": {
+        "requirement_ids": ["ARCH-INV-001"],
+        "claim_row_refs": ["claim_row:renderer.primary_spike_capture"],
+        "covered_lanes": ["aureline-render", "governance_packets"]
+      },
+      "result_status": "seed_only",
+      "visibility_class": "internal",
+      "freshness": {
+        "captured_at": "2026-04-21T22:00:00Z",
+        "stale_after": "P30D",
+        "freshness_class": "warm_cached",
+        "source_revision": "docs/design/shell_spike_composition_notes.md@1",
+        "trigger_revision": "docs/adr/0002-renderer-text-stack-and-shaping-fallback.md"
+      },
+      "environment": {
+        "channel_context": "not_applicable",
+        "deployment_context": ["not_applicable"],
+        "environment_summary": "Headless renderer-spike design capture over the current architecture packet."
+      },
+      "artifact_links": {
+        "supporting_evidence_ids": ["evidence.m0.renderer.tradeoffs"],
+        "exact_build_identity_refs": [],
+        "fixture_refs": ["fixtures/text/renderer_decision_examples/"],
+        "archetype_refs": [],
+        "source_anchor_refs": [
+          "docs/adr/0002-renderer-text-stack-and-shaping-fallback.md",
+          "docs/design/shell_spike_composition_notes.md"
+        ],
+        "waiver_refs": [],
+        "known_limit_refs": [],
+        "migration_packet_refs": []
+      }
+    },
+    {
+      "schema_version": 1,
+      "header_kind": "evidence_packet_header",
+      "packet_family": "benchmark_publication_pack",
+      "packet_id": "benchmark.editor_latency.reference_capture",
+      "evidence_id": "evidence.seed.benchmark.self_capture",
+      "title": "Editor-latency reference benchmark packet",
+      "ownership": {
+        "owner_dri": "@ahmeddyounis",
+        "evidence_owner": "@ahmeddyounis",
+        "backup_owner": null,
+        "backup_waiver": "single-maintainer-backup"
+      },
+      "coverage": {
+        "requirement_ids": ["PERF-EDITOR-002"],
+        "claim_row_refs": ["claim_row:benchmark.editor_latency_reference"],
+        "covered_lanes": ["benchmark_lab", "release_evidence"]
+      },
+      "result_status": "seed_only",
+      "visibility_class": "public",
+      "freshness": {
+        "captured_at": "1970-01-01T00:00:00Z",
+        "stale_after": "P0D",
+        "freshness_class": "unverified",
+        "source_revision": "benchmark_run.seed.self_capture",
+        "trigger_revision": "aureline.protected_fitness_function_catalog@1"
+      },
+      "environment": {
+        "channel_context": "dev_local",
+        "deployment_context": ["individual_local", "self_hosted", "air_gapped"],
+        "environment_summary": "Seed-only local benchmark capture for packet assembly and proof-path review."
+      },
+      "artifact_links": {
+        "supporting_evidence_ids": ["evidence.m0.renderer.trace.bundle"],
+        "exact_build_identity_refs": ["exact_build_identity.seed.self_capture"],
+        "fixture_refs": ["fixtures/benchmarks/corpus_manifest.yaml"],
+        "archetype_refs": ["compat_row:desktop_benchmark_lab.exact_build_identity"],
+        "source_anchor_refs": [
+          "docs/benchmarks/fitness_function_catalog.md#10-export-format-for-shiproom-review-packets"
+        ],
+        "waiver_refs": [],
+        "known_limit_refs": [],
+        "migration_packet_refs": []
+      }
+    },
+    {
+      "schema_version": 1,
+      "header_kind": "evidence_packet_header",
+      "packet_family": "verification_packet",
+      "packet_id": "verification.renderer_viability.review",
+      "evidence_id": "evidence.verification.renderer_viability.packet",
+      "title": "Renderer viability verification packet",
+      "ownership": {
+        "owner_dri": "@ahmeddyounis",
+        "evidence_owner": "@ahmeddyounis",
+        "backup_owner": null,
+        "backup_waiver": "single-maintainer-backup"
+      },
+      "coverage": {
+        "requirement_ids": ["ARCH-INV-001", "PERF-SHELL-001"],
+        "claim_row_refs": [
+          "claim_row:renderer.viability",
+          "claim_row:benchmark.renderer_hot_path"
+        ],
+        "covered_lanes": ["aureline-render", "benchmark_lab", "governance_packets"]
+      },
+      "result_status": "mixed",
+      "visibility_class": "internal",
+      "freshness": {
+        "captured_at": "2026-04-21T23:45:00Z",
+        "stale_after": "P14D",
+        "freshness_class": "warm_cached",
+        "source_revision": "artifacts/milestones/M0_architecture_pack/packet_index.yaml@1",
+        "trigger_revision": "artifacts/governance/requirement_register_seed.yaml@1"
+      },
+      "environment": {
+        "channel_context": "not_applicable",
+        "deployment_context": ["not_applicable"],
+        "environment_summary": "Architecture and benchmark review packet over current design and benchmark seed evidence."
+      },
+      "artifact_links": {
+        "supporting_evidence_ids": [
+          "evidence.m0.renderer.tradeoffs",
+          "evidence.m0.renderer.spike.manifest",
+          "evidence.seed.benchmark.self_capture"
+        ],
+        "exact_build_identity_refs": [],
+        "fixture_refs": [
+          "fixtures/text/renderer_decision_examples/",
+          "fixtures/benchmarks/corpus_manifest.yaml"
+        ],
+        "archetype_refs": ["compat_row:reference_workspaces.small_rust_self_host"],
+        "source_anchor_refs": [
+          "docs/adr/0002-renderer-text-stack-and-shaping-fallback.md",
+          "docs/governance/verification_packet_template.md"
+        ],
+        "waiver_refs": [],
+        "known_limit_refs": [],
+        "migration_packet_refs": []
+      }
+    }
+  ]
+}

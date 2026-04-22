@@ -51,6 +51,10 @@ packet instead of reconstructing scope from handoffs and scattered docs.
 - Added a canonical requirement register and alias crosswalk so the
   architecture packet, scorecard, waivers, and later release evidence
   can cite one requirement-id system instead of packet-local labels.
+- Added a shared verification-packet template, evidence-id conventions,
+  and packet-header schema so design evidence, benchmark packets,
+  verification packets, and signoff flows can join one proof set by
+  stable ids.
 - Added explicit signoff-only contract families for deployment-profile truth,
   canonical decision routing, notification/chronology primitives,
   local-history truth, security intake, CLI/headless posture, and
@@ -71,6 +75,9 @@ packet instead of reconstructing scope from handoffs and scattered docs.
 - Control-artifact index: `artifacts/governance/control_artifact_index.yaml`
 - Requirement register: `artifacts/governance/requirement_register_seed.yaml`
 - Decision register: `artifacts/governance/decision_index.yaml`
+- Verification template: `docs/governance/verification_packet_template.md`
+- Evidence-id conventions: `artifacts/governance/evidence_id_conventions.md`
+- Shared packet-header schema: `schemas/governance/evidence_packet_header.schema.json`
 - Compatibility inventory: `artifacts/compat/qualification_matrix_seed.yaml`
 - Continuity drill seed: `artifacts/support/deployment_drill_catalog_seed.yaml`
 - Security intake baseline: `docs/security/severity_matrix.md`

@@ -40,6 +40,15 @@ Companion artifacts:
 - [`./contract_packet_template.md`](./contract_packet_template.md) —
   surface-contract packet template backed by
   `schemas/governance/contract_packet.schema.json`.
+- [`./verification_packet_template.md`](./verification_packet_template.md)
+  — canonical verification-packet template for shared claim-row,
+  evidence-id, freshness, and signoff structure.
+- [`/artifacts/governance/evidence_id_conventions.md`](../../artifacts/governance/evidence_id_conventions.md)
+  — stable evidence-id grammar plus artifact-linking rules across
+  design, benchmark, verification, support, and signoff packets.
+- [`/schemas/governance/evidence_packet_header.schema.json`](../../schemas/governance/evidence_packet_header.schema.json)
+  — shared header contract for packet identity, ownership, freshness,
+  visibility, and artifact-link fields.
 
 **One home, one owner, one review path.** Every control asset — the
 control-artifact graph, the interface inventory, benchmark governance,
@@ -62,7 +71,10 @@ The index does not restate the content of the assets it points at. The
 detailed governance workflow lives in
 [`decision_workflow.md`](./decision_workflow.md); contract schemas live
 in [`/schemas/`](../../schemas/); claim-manifest rules live in the
-governance-packet template. The index only names, routes, and scopes.
+governance-packet template; and shared verification/evidence-link rules
+live in the verification-packet template, the evidence-id conventions,
+and the shared evidence-packet header. The index only names, routes,
+and scopes.
 
 ## How each role uses the index
 
@@ -80,6 +92,12 @@ governance-packet template. The index only names, routes, and scopes.
   and alias crosswalk. Do not let scorecard calls, packet labels,
   fitness rows, or spec-local ids become de facto requirement ids in a
   new change.
+- Verification packets and any other packet family that needs stable
+  proof joins now route through `verification_packet_template.md`,
+  `evidence_id_conventions.md`, and
+  `evidence_packet_header.schema.json`. Do not mint packet-local
+  ownership, freshness, or evidence-id fields when the shared header
+  already covers them.
 - Experiments, feature flags, rollout rows, and Labs inventory updates
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer
@@ -135,6 +153,10 @@ governance-packet template. The index only names, routes, and scopes.
   so exact command line, corpus revision, protected-metrics revision,
   comparability, docs applicability, known limits, and competitor
   settings are frozen in one packet.
+- Benchmark-publication packs now share the same packet-header and
+  evidence-id join rules as verification and signoff packets. Reuse the
+  same `evidence_id` when a benchmark run also appears in a design,
+  verification, or release packet.
 - Disputes about benchmark results route through the benchmark-council
   charter (see `benchmark_governance`); do not open ad-hoc comparison
   threads outside that forum. The `fitness_function_catalog` row is
@@ -161,6 +183,10 @@ governance-packet template. The index only names, routes, and scopes.
   cite an evidence owner via the claim-manifest packet family
   (governance-packet template). The index does not duplicate the
   manifest itself — it only names where the manifest lives.
+- Known-limit notes, migration guidance, and public-proof docs should
+  preserve the same `evidence_id` and packet refs that the upstream
+  verification packet used; docs are not allowed to invent a second
+  proof namespace.
 
 ### Support
 
@@ -221,6 +247,10 @@ governance-packet template. The index only names, routes, and scopes.
   [`artifacts/evidence/`](../../artifacts/evidence/). Concrete release
   packets still land under `artifacts/release/` when a real candidate is
   assembled.
+- Release, benchmark, verification, support, and signoff packets now
+  share one header contract and one evidence-id grammar, so release
+  assembly can join upstream proof artifacts mechanically instead of by
+  free-text packet prose.
 - Maintainer coverage and emergency approval are no longer implicit
   release lore. Release packets now cite
   [`docs/governance/maintainer_coverage_policy.md`](./maintainer_coverage_policy.md)

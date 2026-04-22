@@ -10,6 +10,8 @@ Related control artifacts:
 - artifacts/release/artifact_graph_rules.yaml
 - artifacts/governance/signing_quorum.yaml
 - artifacts/governance/upstream_health_scorecard.yaml
+- artifacts/governance/evidence_id_conventions.md
+- schemas/governance/evidence_packet_header.schema.json
 - docs/build/exact_build_identity_model.md
 - docs/benchmarks/benchmark_publication_pack_template.md
 - artifacts/bench/protected_metrics.yaml
@@ -24,6 +26,14 @@ exact_build_identity_ref, evidence_id, compat_row id, drill_id,
 source_anchor_ref, and waiver packet id. Do not substitute free-text
 "same build as..." naming where a stable ref exists.
 -->
+
+## Shared packet header
+
+Every release-evidence packet SHOULD embed a header that conforms to
+`schemas/governance/evidence_packet_header.schema.json` and SHOULD
+follow `artifacts/governance/evidence_id_conventions.md` when it joins
+benchmark packets, verification packets, support drills, known-limit
+notes, or migration packets.
 
 - **Packet id:** `<release-evidence-packet-id>`
 - **Packet state:** `draft` | `in_review` | `accepted` | `blocked` | `superseded`

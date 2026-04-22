@@ -32,7 +32,7 @@ This checklist is the reviewer-facing companion to the shared packet at
 | Locality/continuity and transport seeds present | Boundary, continuity, and route/transport artifacts are all linked from the shared packet | `docs/product/boundary_manifest_strawman.md`, `artifacts/support/deployment_drill_catalog_seed.yaml`, `docs/runtime/origin_target_route_taxonomy.md` |
 | CLI/headless contract posture declared | Command contract, stable exit/return-code family seed, and architecture-pack note exist | `docs/commands/command_descriptor_contract.md`, `artifacts/release/silent_deployment_seed.yaml`, `artifacts/milestones/M0_architecture_pack/packet_index.yaml` |
 | Docs-control policy current | Docs/help truth ADR and docs-pack contract are still the cited authority | `docs/adr/0013-docs-help-service-health-truth.md`, `docs/docs/docs_pack_manifest_contract.md` |
-| Evidence freshness current enough for review | Shared packet evidence rows all carry `captured_at` plus `stale_after`, and stale claim-bearing rows fail the review | `artifacts/milestones/M0_signoff_packet.json`, `artifacts/evidence/evidence_metadata_fields.yaml` |
+| Evidence freshness and packet-join rules current enough for review | Shared packet evidence rows all carry `captured_at` plus `stale_after`, claim-bearing packets expose stable evidence ids, and stale claim-bearing rows fail the review | `artifacts/milestones/M0_signoff_packet.json`, `artifacts/evidence/evidence_metadata_fields.yaml`, `artifacts/governance/evidence_id_conventions.md`, `schemas/governance/evidence_packet_header.schema.json`, `docs/governance/verification_packet_template.md` |
 
 ## Mandatory signed-packet sections
 

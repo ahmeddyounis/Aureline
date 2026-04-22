@@ -12,6 +12,8 @@ Related control artifacts:
 - artifacts/bench/fitness_function_catalog.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
 - artifacts/evidence/evidence_metadata_fields.yaml
+- artifacts/governance/evidence_id_conventions.md
+- schemas/governance/evidence_packet_header.schema.json
 - docs/build/exact_build_identity_model.md
 - docs/docs/docs_pack_manifest_contract.md
 - docs/release/release_artifact_graph.md
@@ -20,6 +22,14 @@ This template freezes what a public benchmark packet must carry so
 methodology, caveats, docs applicability, and exclusions are recorded in
 one packet instead of scattered across dashboards, slides, and memory.
 -->
+
+## Shared packet header
+
+Every benchmark-publication pack SHOULD embed a header that conforms to
+`schemas/governance/evidence_packet_header.schema.json` and SHOULD
+follow `artifacts/governance/evidence_id_conventions.md` when it links
+design captures, benchmark runs, verification packets, support drills,
+known-limit notes, or migration packets.
 
 - **Packet id:** `<benchmark-publication-pack-id>`
 - **Packet state:** `draft` | `in_review` | `publishable` | `quarantined` | `superseded` | `withdrawn`

@@ -39,8 +39,15 @@ code.
   — dogfood intake taxonomy covering category, severity, evidence-link,
   exact-build, route-truth, and hidden-dependency fields for issue
   templates and intake automation.
-- [`governance/templates/`](./governance/templates/) — waiver,
-  verification packet, and freeze-exception templates.
+- [`governance/verification_packet_template.md`](./governance/verification_packet_template.md)
+  — canonical verification-packet template with shared claim-row,
+  evidence-id, freshness, and signoff structure.
+- [`../artifacts/governance/evidence_id_conventions.md`](../artifacts/governance/evidence_id_conventions.md)
+  — stable evidence-id grammar and artifact-linking rules across
+  design, benchmark, verification, support, and signoff packets.
+- [`governance/templates/`](./governance/templates/) — waiver and
+  freeze-exception template stubs plus compatibility links for older
+  references.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).
