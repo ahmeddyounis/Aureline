@@ -25,14 +25,21 @@ Companion artifacts:
 - [`/artifacts/governance/requirement_register_seed.yaml`](../../artifacts/governance/requirement_register_seed.yaml)
   — machine-readable canonical requirement register consumed by
   scorecards, packets, waivers, and release evidence.
+- [`/artifacts/governance/stable_surface_inventory.yaml`](../../artifacts/governance/stable_surface_inventory.yaml)
+  — machine-readable stable-surface and future stable-surface
+  inventory. Compatibility, docs, migration, and deprecation work cite
+  row refs here.
 - [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
   — charter seed for the benchmark council (roles, scope, cadence).
 - [`./requirement_alias_crosswalk.md`](./requirement_alias_crosswalk.md)
   — human-readable crosswalk for the canonical requirement register and
   the local labels that must resolve back to it.
-- [`./interface_inventory.md`](./interface_inventory.md) — outline of
-  the interface-inventory categories that the machine-readable form
-  will eventually cover.
+- [`./interface_inventory.md`](./interface_inventory.md) — narrative
+  companion to the stable-surface inventory and category outline for
+  surfaces that have not yet earned a row.
+- [`./contract_packet_template.md`](./contract_packet_template.md) —
+  surface-contract packet template backed by
+  `schemas/governance/contract_packet.schema.json`.
 
 **One home, one owner, one review path.** Every control asset — the
 control-artifact graph, the interface inventory, benchmark governance,
@@ -65,6 +72,10 @@ governance-packet template. The index only names, routes, and scopes.
   review packet, or machine-readable surface definition — look for an
   existing row in the index. If the asset already has a canonical
   home, extend that home; do not mint a parallel document.
+- Stable-facing or future stable-facing interfaces now route through
+  `stable_surface_inventory.yaml` and the surface-contract packet
+  template. Do not keep owner, versioning, support-window, or
+  downgrade posture only in ADR prose.
 - Requirement ids now route through the canonical requirement register
   and alias crosswalk. Do not let scorecard calls, packet labels,
   fitness rows, or spec-local ids become de facto requirement ids in a
@@ -225,18 +236,19 @@ governance-packet template. The index only names, routes, and scopes.
   ([`/.github/workflows/cleanroom_rebuild.yml`](../../.github/workflows/cleanroom_rebuild.yml)).
   Its current limitations are intentionally named in emitted artifacts
   rather than being left as tribal CI knowledge.
-- Frozen-surface manifests and stable-surface contract metadata remain
-  explicitly out of scope at this milestone.
+- Frozen-surface manifests remain out of scope at this milestone.
+  Shared stable-surface contract metadata now lives in the surface
+  inventory and surface-contract packet template.
 
 ## Review cadence semantics
 
 - **`each_change`** — the artifact is consulted on every pull request
   that could affect it. Decision-register rows, public-truth copy,
-  and build-truth artifacts use this cadence.
+  build-truth artifacts, and the stable-surface inventory use this
+  cadence.
 - **`per_milestone`** — the artifact is reviewed at milestone
-  boundaries, alongside the scorecard. Governance packets,
-  benchmark-council outputs, and surface-traceability artifacts use
-  this cadence.
+  boundaries, alongside the scorecard. Governance packets and
+  benchmark-council outputs use this cadence.
 - **`each_release`** — the artifact is consulted during release-
   evidence assembly. Release packets and frozen-surface manifests
   use this cadence.

@@ -1,0 +1,881 @@
+# Stable-surface inventory seed.
+#
+# Each row below is a concrete surface-contract packet using the shape in
+# schemas/governance/contract_packet.schema.json. Cite a row as
+# artifacts/governance/stable_surface_inventory.yaml#<surface_id>; that
+# row ref is the canonical id compatibility, docs, migration,
+# deprecation, release, and support work should share.
+#
+# Stable-facing rules:
+#   - Rows in maturity_lane stable or beta must name owner, versioning,
+#     reader/writer semantics, downgrade behavior, support-window
+#     posture, publication artifacts, and a compatibility-window source
+#     row before broad implementation proceeds.
+#   - Experimental and internal rows still use the same packet shape so
+#     WIT worlds, task-event envelopes, and service APIs do not wait for
+#     bespoke side documents.
+
+schema_version: 1
+status: seeded
+overview_page: docs/governance/interface_inventory.md
+contract_packet_template_ref: docs/governance/contract_packet_template.md
+contract_packet_schema_ref: schemas/governance/contract_packet.schema.json
+row_reference_format: artifacts/governance/stable_surface_inventory.yaml#<surface_id>
+
+rows:
+  # ---------------------------------------------------------------------------
+  # Stable-facing seed rows
+  # ---------------------------------------------------------------------------
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: command_plane.command_descriptor_and_invocation_session
+    surface_title: Command descriptors and invocation-session packets
+    summary: >
+      Governed command contract consumed by palette, menu, CLI, AI-tool,
+      automation, and replay or audit surfaces.
+    maturity_lane: beta
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: shell_command_system
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/commands/command_descriptor_contract.md
+        - schemas/commands/command_descriptor.schema.json
+        - fixtures/commands/command_descriptor_examples/README.md
+      schema_or_interface_directory_refs:
+        - docs/commands/
+        - schemas/commands/
+    versioning:
+      rule_summary: >
+        One command-descriptor schema epoch plus stable `command_id` and
+        `command_revision_ref`; additive fields remain in-epoch, while
+        removed or meaning-changing fields require a schema-version bump
+        and parity review.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+    reader_writer_semantics:
+      canonical_writers:
+        - command_registry_projection
+        - invocation_session_emitters
+      canonical_readers:
+        - palette_menu_cli_ai_and_invocation_session_consumers
+      reader_semantics:
+        - Readers project command ids, help anchors, preview classes, approval posture, and disabled reasons verbatim.
+        - Readers preserve unknown additive fields within the declared schema epoch instead of reminting per-surface copies.
+      writer_semantics:
+        - Writers emit explicit schema version, stable command ids, and typed enablement, preview, and approval fields on every descriptor and invocation packet.
+        - Writers keep invocation-session packets pinned to the descriptor revision they quote.
+      downgrade_behavior: >
+        Fail closed on required-field drift; surface declared aliases,
+        typed disabled reasons, and migration notes instead of silently
+        widening or guessing.
+    compatibility:
+      compatibility_window_summary: >
+        Descriptor and invocation-session producers and consumers stay
+        inside one schema epoch and preserve unknown additive fields.
+      support_window_posture: >
+        Beta today. Once promoted to stable, command ids and machine
+        surfaces target two minor releases of alias or migration
+        support.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+        - docs/commands/command_parity_diff.md
+      migration_guidance_refs:
+        - docs/commands/command_parity_diff.md
+        - artifacts/governance/stable_surface_inventory.yaml#command_plane.command_descriptor_and_invocation_session
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Removal requires a replacement command id or alias, a parity
+        diff, docs/help updates, and a typed migration note before the
+        legacy id stops being honored.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/commands/command_descriptor_contract.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: settings.setting_ids_and_effective_values
+    surface_title: Setting ids and effective-value records
+    summary: >
+      Stable setting identity and effective-value contract shared by
+      settings UI, CLI, policy explainers, profile import/export, and
+      support surfaces.
+    maturity_lane: beta
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/settings/settings_vocabulary.md
+        - schemas/settings/setting_definition.schema.json
+        - schemas/settings/effective_setting.schema.json
+        - artifacts/settings/scope_precedence_rows.yaml
+      schema_or_interface_directory_refs:
+        - docs/settings/
+        - schemas/settings/
+        - artifacts/settings/
+    versioning:
+      rule_summary: >
+        Stable `setting_id` values, explicit schema-version fields, and
+        alias or migration tables govern evolution; additive fields and
+        unknown-user content are preserved where the contract allows.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+    reader_writer_semantics:
+      canonical_writers:
+        - setting_definition_registry
+        - effective_setting_resolver
+      canonical_readers:
+        - settings_ui_cli_policy_explainer_profile_and_support_consumers
+      reader_semantics:
+        - Readers project `setting_id`, `resolved_scope`, `shadow_chain`, and typed denial or restart posture verbatim.
+        - Readers preserve unknown additive fields and do not silently discard unknown user-authored settings while round-tripping editable files.
+      writer_semantics:
+        - Writers emit explicit definition and envelope schema versions, stable setting ids, and typed preview or rollback posture.
+        - Writers use alias and migration tables instead of repurposing an existing setting id.
+      downgrade_behavior: >
+        Fail closed or degrade with typed migration or alias guidance;
+        never silently widen trust, policy scope, or machine-portable
+        state.
+    compatibility:
+      compatibility_window_summary: >
+        One additive schema epoch plus alias-backed migration of renamed
+        settings; unknown fields remain preserved during round trip.
+      support_window_posture: >
+        Beta today. Stable setting ids and effective-value records target
+        twelve months or two minor releases of compatibility once the
+        surface is claimed stable.
+      compatibility_report_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+      migration_guidance_refs:
+        - docs/settings/settings_vocabulary.md
+        - docs/state/migration_and_restore_playbook.md
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Deprecated settings require a replacement id or alias path, an
+        explain-why route, and migration notes before the old id is
+        ignored or removed.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/settings/settings_vocabulary.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: state.portable_profile_and_layout_restore
+    surface_title: Portable-profile and layout-restore schemas
+    summary: >
+      Profile export/import, state-map, restore-provenance, and window
+      layout contracts that define portable versus local-only state and
+      honest restore downgrade labels.
+    maturity_lane: beta
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/state/profile_and_state_map.md
+        - docs/workspace/layout_serialization_contract.md
+        - schemas/profile/portable_profile.schema.json
+        - schemas/workspace/pane_tree.schema.json
+      schema_or_interface_directory_refs:
+        - docs/state/
+        - docs/workspace/
+        - schemas/profile/
+        - schemas/workspace/
+    versioning:
+      rule_summary: >
+        Profile, state-map, export-manifest, restore-provenance, and
+        pane-tree records evolve by schema epoch with explicit fidelity
+        classes (`exact`, `compatible`, `layout_only`, `manual_review`)
+        instead of silent loss.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+    reader_writer_semantics:
+      canonical_writers:
+        - profile_export_and_restore_producer
+        - layout_restore_producer
+      canonical_readers:
+        - state_map_restore_layout_and_support_consumers
+      reader_semantics:
+        - Readers preserve portable versus local-only distinctions and surface restore fidelity labels verbatim.
+        - Readers treat missing or downgraded layout state as explicit `compatible`, `layout_only`, or `manual_review` outcomes rather than silent best-effort success.
+      writer_semantics:
+        - Writers emit explicit schema versions, stable pane ids, portability classes, and restore-provenance labels.
+        - Writers do not serialize live authority or replay unsafe execution state as if it were portable layout truth.
+      downgrade_behavior: >
+        Downgrade truthfully to `compatible`, `layout_only`, or
+        `manual_review`; refuse mutation when fidelity would be
+        misrepresented.
+    compatibility:
+      compatibility_window_summary: >
+        Profile and layout readers stay within one schema epoch and
+        preserve additive fields while downgrade labels carry the
+        out-of-window honesty path.
+      support_window_posture: >
+        Beta today. Stable profile and layout families target twelve
+        months or two minor releases of backward readability once
+        promoted.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+      migration_guidance_refs:
+        - docs/state/migration_and_restore_playbook.md
+        - docs/state/profile_and_state_map.md
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Deprecation requires a replacement schema path or an explicit
+        restore downgrade story, plus docs/help visibility on what is no
+        longer portable or restorable.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/state/profile_and_state_map.md
+        - docs/workspace/layout_serialization_contract.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: docs.docs_pack_manifest
+    surface_title: Docs-pack manifest records
+    summary: >
+      Manifest contract for docs packs, generated reference, mirrored
+      docs, and support runbooks consumed by docs/help, service-health,
+      and support surfaces.
+    maturity_lane: beta
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/docs/docs_pack_manifest_contract.md
+        - schemas/docs/docs_pack_manifest.schema.json
+        - fixtures/docs/docs_pack_examples/README.md
+      schema_or_interface_directory_refs:
+        - docs/docs/
+        - schemas/docs/
+    versioning:
+      rule_summary: >
+        The manifest uses an explicit schema version plus
+        `semver_version` and `compat_window_semver`; publishable state,
+        citation posture, and mirror lineage are part of the contract and
+        may not drift in prose only.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#docs.docs_pack_manifest
+    reader_writer_semantics:
+      canonical_writers:
+        - docs_pack_registry
+        - generated_reference_index
+        - mirrored_docs_index
+      canonical_readers:
+        - docs_pane_help_about_service_health_and_support_consumers
+      reader_semantics:
+        - Readers preserve version-match, freshness, citation, backlink, and publishable-blocker fields verbatim.
+        - Readers do not render a stale, blocked, quarantined, or newer-than-client pack as authoritative.
+      writer_semantics:
+        - Writers emit explicit compatibility windows, signing and mirror lineage, locale coverage, and citation posture.
+        - Writers use supersession or withdrawal fields instead of silently overwriting the last published pack revision.
+      downgrade_behavior: >
+        Degrade to typed stale, blocked, quarantined, or incompatible
+        render states; never silently fall back to an authoritative
+        render when the pack is out of window.
+    compatibility:
+      compatibility_window_summary: >
+        The manifest itself is additive within a schema epoch, while
+        each pack declares its own `compat_window_semver` against the
+        running build identity.
+      support_window_posture: >
+        Beta today. Stable docs-pack publication targets the same
+        twelve-month or two-minor window as the build identities the
+        packs describe.
+      compatibility_report_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#docs.docs_pack_manifest
+      migration_guidance_refs:
+        - docs/docs/docs_pack_manifest_contract.md
+        - artifacts/governance/stable_surface_inventory.yaml#docs.docs_pack_manifest
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Deprecation or withdrawal requires a superseding pack revision or
+        a clearly published withdrawal state, plus docs/help visibility
+        for the replacement or loss of authority.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/docs/docs_pack_manifest_contract.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: governance.record_class_registry_rows
+    surface_title: Record-class registry rows
+    summary: >
+      Record-class contract for retention, export, delete, hold, and
+      offboarding posture used by support, export, and governance
+      surfaces.
+    maturity_lane: beta
+    contract_form: record_registry
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+        - docs/governance/record_class_governance.md
+        - schemas/governance/record_class.schema.json
+      schema_or_interface_directory_refs:
+        - artifacts/governance/
+        - docs/governance/
+        - schemas/governance/
+    versioning:
+      rule_summary: >
+        Stable `record_class_id` values and `record_class_schema_version`
+        govern row evolution; additive vocabulary expansion is allowed,
+        while repurposing an existing posture or id is breaking.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+    reader_writer_semantics:
+      canonical_writers:
+        - record_class_registry_maintainers
+      canonical_readers:
+        - support_export_governance_docs_and_schema_registry_consumers
+      reader_semantics:
+        - Readers quote record-class ids and posture fields verbatim instead of inventing private retention or export labels.
+        - Readers treat a missing or incompatible row as a contract failure, not an invitation to improvise a default policy.
+      writer_semantics:
+        - Writers keep delete, export, hold, offboarding, and retention posture in separate fields on every row.
+        - Writers land new managed-copy or export packet classes in the registry in the same change that introduces them.
+      downgrade_behavior: >
+        Refuse export, delete, or support claims when the row is missing
+        or the schema epoch is incompatible; no private fallback
+        vocabulary is allowed.
+    compatibility:
+      compatibility_window_summary: >
+        One schema epoch plus additive row and vocabulary growth; later
+        support/export packets cite stable `record_class_id` values.
+      support_window_posture: >
+        Beta today. Any stable support or export surface that quotes a
+        record-class id must remain inside the declared schema epoch
+        until a broader support window is published.
+      compatibility_report_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+      migration_guidance_refs:
+        - docs/governance/record_class_governance.md
+        - artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Replacing a record class requires a successor row, explicit
+        policy notes, and downstream packet updates before the old id is
+        retired.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/governance/record_class_governance.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: build.exact_build_identity_fields
+    surface_title: Exact-build identity fields and propagation
+    summary: >
+      Cross-artifact build identity contract used by release, docs/help,
+      benchmark, support, and advisory surfaces.
+    maturity_lane: beta
+    contract_form: field_set
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/build/exact_build_identity_model.md
+        - schemas/build/exact_build_identity.schema.json
+        - fixtures/build/exact_build_examples/README.md
+      schema_or_interface_directory_refs:
+        - docs/build/
+        - schemas/build/
+    versioning:
+      rule_summary: >
+        `exact_build_identity_schema_version` governs the field set, and
+        no downstream surface may fall back to version-only rendering
+        once an `exact_build_identity_ref` exists.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    reader_writer_semantics:
+      canonical_writers:
+        - build_producer_lane_and_artifact_family_publishers
+      canonical_readers:
+        - about_help_support_bundle_release_and_benchmark_consumers
+      reader_semantics:
+        - Readers resolve one exact build identity ref instead of minting parallel version strings.
+        - Readers fail closed when artifact-family, provenance, or release-channel linkage no longer matches the declared identity.
+      writer_semantics:
+        - Writers emit one identity per artifact-family record and keep provenance, toolchain, target, and release-channel fields explicit.
+        - Writers keep binaries, symbols, docs/help truth, SBOMs, and release evidence linked through the same identity instead of per-surface dialects.
+      downgrade_behavior: >
+        Fail closed on version-only fallback or mismatched artifact-family
+        linkage; downgrade by coordinated rollback or rebuild, not by
+        silently accepting ambiguous build truth.
+    compatibility:
+      compatibility_window_summary: >
+        Claim-bearing consumers stay on one exact coordinated artifact
+        set or on an explicit rebuild chain back to that set.
+      support_window_posture: >
+        Beta today. Release-bearing surfaces inherit the declared
+        channel support window, but identity linkage itself is exact
+        match only.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+      migration_guidance_refs:
+        - docs/build/exact_build_identity_model.md
+        - artifacts/governance/stable_surface_inventory.yaml#build.exact_build_identity_fields
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Field removals require a new schema version, updated release
+        evidence, and migration notes for every downstream surface that
+        resolves the identity ref.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/build/exact_build_identity_model.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: runtime.subscription_envelope
+    surface_title: Shared reactive subscription envelope
+    summary: >
+      Mixed-version subscription envelope that carries freshness,
+      completeness, invalidation, and authoritative-versus-derived truth
+      across reactive consumers.
+    maturity_lane: beta
+    contract_form: event_envelope_schema
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+        - schemas/runtime/subscription_envelope.schema.json
+      schema_or_interface_directory_refs:
+        - docs/adr/
+        - schemas/runtime/
+    versioning:
+      rule_summary: >
+        `subscription_schema_version` governs the envelope, while
+        query-family payloads evolve independently under their own
+        contracts; additive envelope fields stay in-epoch.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#runtime.subscription_envelope
+    reader_writer_semantics:
+      canonical_writers:
+        - reactive_state_producers
+      canonical_readers:
+        - shell_cli_support_timeline_and_companion_consumers
+      reader_semantics:
+        - Readers preserve freshness, completeness, authority, and stale-reason fields verbatim instead of collapsing them into local cache labels.
+        - Readers gap-detect on `delta_seq` and require resync when causal continuity is lost.
+      writer_semantics:
+        - Writers emit explicit schema version, lifecycle frame class, and invalidation reasons on every frame.
+        - Writers do not silently switch backpressure mode or authority class without a typed resync boundary.
+      downgrade_behavior: >
+        Resync or fail closed when the envelope epoch drifts; do not
+        continue consuming deltas against an incompatible snapshot.
+    compatibility:
+      compatibility_window_summary: >
+        One additive envelope schema epoch, with query-family payloads
+        expected to preserve unknown additive fields inside that epoch.
+      support_window_posture: >
+        Beta today. Once a distributed boundary claims stability, the
+        envelope stays additive within the published skew window for that
+        boundary.
+      compatibility_report_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#runtime.subscription_envelope
+      migration_guidance_refs:
+        - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+        - artifacts/governance/stable_surface_inventory.yaml#runtime.subscription_envelope
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Removing a frame class, freshness label, or stale reason
+        requires a new schema epoch plus resync and replay migration
+        notes for every consumer surface.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: runtime.execution_context_records
+    surface_title: Execution-context and scope records
+    summary: >
+      Mixed-version execution-context contract for launch-capable or
+      scope-narrowing surfaces, including provenance and degraded-field
+      honesty rules.
+    maturity_lane: beta
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/runtime/execution_context_vocabulary.md
+        - schemas/runtime/execution_context.schema.json
+        - fixtures/runtime/execution_context_examples/
+      schema_or_interface_directory_refs:
+        - docs/runtime/
+        - schemas/runtime/
+    versioning:
+      rule_summary: >
+        `execution_context_schema_version` governs execution-context,
+        provenance, scope-descriptor, and audit-event records; additive
+        vocabulary growth stays in-epoch, while repurposed ids or fields
+        are breaking.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+    reader_writer_semantics:
+      canonical_writers:
+        - execution_context_resolver
+      canonical_readers:
+        - terminal_task_debug_notebook_ai_and_support_consumers
+      reader_semantics:
+        - Readers preserve scope, authority-envelope, degraded-field, and provenance references verbatim.
+        - Readers do not silently widen scope or present degraded fields as authoritative.
+      writer_semantics:
+        - Writers emit explicit schema version, stable execution-context ids, one scope descriptor per execution, and typed degraded-field reasons.
+        - Writers keep raw environment bodies, command lines, and secrets out of the contract unless an explicit broadened-capture path is recorded.
+      downgrade_behavior: >
+        Fail closed or surface typed degraded fields and limited view;
+        never silently widen scope or fabricate a compatible execution
+        context.
+    compatibility:
+      compatibility_window_summary: >
+        One additive schema epoch, with stable ids and explicit degraded
+        fields carrying the out-of-window honesty path.
+      support_window_posture: >
+        Beta today. Stable distributed or support-bearing consumers stay
+        within the declared schema epoch until a wider support window is
+        published.
+      compatibility_report_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+      migration_guidance_refs:
+        - docs/runtime/execution_context_vocabulary.md
+        - artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+    lifecycle:
+      dependency_markers: []
+      deprecation_posture: >
+        Deprecation requires replacement ids or typed degraded-field
+        mapping plus docs/help visibility before a scope or provenance
+        field disappears.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/runtime/execution_context_vocabulary.md
+
+  # ---------------------------------------------------------------------------
+  # Experimental or planned rows
+  # ---------------------------------------------------------------------------
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: product.boundary_manifest_rows
+    surface_title: Boundary-manifest capability rows
+    summary: >
+      Open-core versus managed-boundary rows that release, support, and
+      deployment-profile artifacts cite when claiming continuity or
+      optional-service narrowing.
+    maturity_lane: experimental
+    contract_form: json_schema_backed_contract_doc
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/product/boundary_manifest_strawman.md
+        - schemas/product/boundary_manifest.schema.json
+        - artifacts/support/deployment_drill_catalog_seed.yaml
+      schema_or_interface_directory_refs:
+        - docs/product/
+        - schemas/product/
+        - artifacts/support/
+    versioning:
+      rule_summary: >
+        Boundary rows evolve by manifest schema version plus stable
+        capability ids and deployment-profile ids; supersession replaces a
+        row, deletion does not.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:deployment_profiles.boundary_manifest_truth
+    reader_writer_semantics:
+      canonical_writers:
+        - boundary_manifest_maintainers
+      canonical_readers:
+        - release_support_docs_and_deployment_profile_consumers
+      reader_semantics:
+        - Readers preserve deployment-profile ids, local-core continuity, and absence-narrows-to statements verbatim.
+        - Readers treat a proposed or superseded row as explicitly non-ratified rather than silently stable.
+      writer_semantics:
+        - Writers emit explicit classification, continuity, portability, and data-boundary fields on every row.
+        - Writers keep new managed-copy or support/export implications aligned with the record-class registry instead of burying them in prose.
+      downgrade_behavior: >
+        Narrow claims to the stated local-core continuity or refuse the
+        claim; do not silently widen the managed boundary or invent a
+        fallback classification.
+    compatibility:
+      compatibility_window_summary: >
+        One deployment-profile vocabulary and one continuity story stay
+        aligned across boundary rows, drills, and claim-bearing packets.
+      support_window_posture: >
+        Experimental until ratified; claim-bearing packets already cite
+        the same row ids and profile ids instead of prose-only scope.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:deployment_profiles.boundary_manifest_truth
+      migration_guidance_refs:
+        - docs/product/boundary_manifest_strawman.md
+        - artifacts/governance/stable_surface_inventory.yaml#product.boundary_manifest_rows
+    lifecycle:
+      dependency_markers:
+        - proposed_not_yet_ratified
+      deprecation_posture: >
+        Superseded rows remain inspectable; replacing a row requires a
+        successor row and claim-manifest update before the old one stops
+        carrying truth.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/product/boundary_manifest_strawman.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: extensions.wit_host_worlds
+    surface_title: WIT host-world packages
+    summary: >
+      Future WIT world packages and generated bindings for extension host
+      contracts, kept on the same governance path as other stable-facing
+      interfaces.
+    maturity_lane: experimental
+    contract_form: wit_world_package
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      rule_summary: >
+        WIT package semver plus explicit `host_contract_identity_ref`,
+        `permission_vocabulary_version`, and generated-binding revision
+        govern compatibility.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    reader_writer_semantics:
+      canonical_writers:
+        - extension_host_contract_publishers
+        - generated_binding_publishers
+      canonical_readers:
+        - extension_manifests_host_runtimes_and_sdk_consumers
+      reader_semantics:
+        - Readers negotiate explicit world sets, ABI version, and permission vocabulary instead of assuming ambient host compatibility.
+        - Readers refuse or quarantine incompatible extensions rather than partially loading an ambiguous contract.
+      writer_semantics:
+        - Writers publish WIT world ids, compatibility notes, and generated bindings from the same revision they document.
+        - Writers keep manifest-declared host contract identity separable from transport or host-family details.
+      downgrade_behavior: >
+        Disable or quarantine the extension, or refuse negotiation; do
+        not partially load a host/guest pair on an ambiguous ABI.
+    compatibility:
+      compatibility_window_summary: >
+        Extensions stay within the published SDK support window, WIT ABI
+        version, and permission vocabulary version for the host/runtime
+        pair.
+      support_window_posture: >
+        Experimental until a published SDK support window and
+        conformance kit land; same-family negotiation only.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+      migration_guidance_refs:
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        - artifacts/governance/stable_surface_inventory.yaml#extensions.wit_host_worlds
+    lifecycle:
+      dependency_markers:
+        - depends_on.permission_vocabulary_version
+        - depends_on.extension_sdk_support_window
+      deprecation_posture: >
+        Deprecation requires a successor world or bridge notes, manifest
+        compatibility guidance, and migration docs before a prior world
+        stops being honored.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: tooling.task_event_envelope
+    surface_title: Canonical task-event envelope
+    summary: >
+      Shared task, test, debug, notebook, and support-export event
+      envelope reserved now so the eventual canonical schema lands on a
+      governed row instead of on prose only.
+    maturity_lane: experimental
+    contract_form: event_envelope_schema
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+        - artifacts/product/task_success_corpus_seed.yaml
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      rule_summary: >
+        One task-event schema epoch governs canonical fields, event
+        kinds, provenance, and confidence semantics; additive kinds are
+        allowed, while required-kind drift is breaking.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    reader_writer_semantics:
+      canonical_writers:
+        - task_test_debug_and_notebook_event_producers
+      canonical_readers:
+        - support_export_replay_benchmark_and_release_consumers
+      reader_semantics:
+        - Readers preserve canonical event fields and provenance instead of renaming them per feature lane.
+        - Readers fail closed on required-kind drift and may preserve unknown additive fields inside the same epoch.
+      writer_semantics:
+        - Writers emit explicit schema epoch, event kind, provenance, and confidence fields on every envelope.
+        - Writers keep raw payload retention and normalized envelope linkage explicit rather than flattening them into logs.
+      downgrade_behavior: >
+        Fail closed on required-kind drift; out-of-window readers may
+        retain raw payload by reference but do not treat the normalized
+        envelope as trustworthy.
+    compatibility:
+      compatibility_window_summary: >
+        Producers and consumers preserve canonical task-event fields,
+        payload kinds, provenance, and confidence semantics within one
+        stable epoch.
+      support_window_posture: >
+        Experimental until the canonical schema and replay fixtures land;
+        no broad mixed-version claim exists before then.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+      migration_guidance_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+        - .t2/docs/Aureline_Technical_Architecture_Document.md
+    lifecycle:
+      dependency_markers:
+        - contract_not_yet_seeded
+      deprecation_posture: >
+        Deprecation requires a successor event kind or envelope revision
+        plus replay and support-export migration notes before old events
+        are treated as retired.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - .t2/docs/Aureline_Technical_Architecture_Document.md
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+
+  - schema_version: 1
+    packet_kind: surface_contract_packet
+    surface_id: provider.service_api_family
+    surface_title: Optional service API family
+    summary: >
+      Optional managed or self-hosted service APIs, with the current
+      browser-handoff packet family acting as the concrete typed seed
+      until full OpenAPI publication lands.
+    maturity_lane: experimental
+    contract_form: openapi_family
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - schemas/integration/browser_handoff_packet.schema.json
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - schemas/integration/
+        - not_yet_seeded
+    versioning:
+      rule_summary: >
+        Published service API versioning will use OpenAPI-family
+        publication; until then the browser-handoff packet schema and
+        declared current-plus-previous-minor or LTS window carry the
+        typed contract.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:provider.service_api_and_browser_handoff
+    reader_writer_semantics:
+      canonical_writers:
+        - service_api_publishers
+        - browser_handoff_packet_publishers
+      canonical_readers:
+        - desktop_cli_browser_and_control_plane_consumers
+      reader_semantics:
+        - Readers preserve declared capability negotiation and downgrade to safe read-only or browser-handoff paths when the service family is out of window.
+        - Readers do not treat cached or external status metadata as authority for privileged writes.
+      writer_semantics:
+        - Writers publish explicit API-family version, capability negotiation data, and fallback posture instead of prose-only service expectations.
+        - Writers keep browser-handoff packets typed and link them to the same service family rather than creating a side contract.
+      downgrade_behavior: >
+        Narrow to read-only safe operations or hand off to the desktop;
+        block privileged writes when the service family or browser
+        handoff is outside the declared window.
+    compatibility:
+      compatibility_window_summary: >
+        Clients stay inside the current published family plus the
+        declared previous minor or LTS window; out-of-window operation
+        narrows to cached read-only safety.
+      support_window_posture: >
+        Experimental until OpenAPI publication and service qualification
+        artifacts land; the current typed support surface is browser
+        handoff plus explicit read-only degradation.
+      compatibility_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:provider.service_api_and_browser_handoff
+      migration_guidance_refs:
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - artifacts/governance/stable_surface_inventory.yaml#provider.service_api_family
+    lifecycle:
+      dependency_markers:
+        - depends_on.browser_handoff_packet
+        - depends_on.service_capability_negotiation
+      deprecation_posture: >
+        Deprecation requires a successor API family or browser-handoff
+        path, explicit read-only or local continuity guidance, and
+        release-note visibility before a family is retired.
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:provider.service_api_and_browser_handoff

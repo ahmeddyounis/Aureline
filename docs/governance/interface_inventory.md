@@ -1,17 +1,27 @@
-# Interface inventory (outline)
+# Interface inventory and stable-surface seed
 
-This document is an **outline only** of the interface-inventory
-categories that Aureline will track. A machine-readable inventory of
-each surface — with per-surface owner, stability promise, and change
-control — is deferred to the first-beta milestone. Until then, this
-outline exists so that no new interface surface is exposed without a
-named owning lane and review path.
+This document is the human-readable companion to the machine-readable
+interface inventory in
+[`/artifacts/governance/stable_surface_inventory.yaml`](../../artifacts/governance/stable_surface_inventory.yaml).
+The YAML rows are the canonical stable-surface refs; this document
+keeps the category outline so new surfaces still have an obvious home
+before they earn their own row.
 
 Companion artifacts:
 
+- [`/artifacts/governance/stable_surface_inventory.yaml`](../../artifacts/governance/stable_surface_inventory.yaml)
+  — machine-readable stable-surface and future stable-surface
+  inventory. Compatibility, docs, migration, and deprecation work cite
+  row refs here.
+- [`./contract_packet_template.md`](./contract_packet_template.md)
+  and
+  [`/schemas/governance/contract_packet.schema.json`](../../schemas/governance/contract_packet.schema.json)
+  — shared packet template and machine-readable shape each inventory row
+  uses.
 - [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
-  — index row `interface_inventory` names this document as the
-  canonical location for the outline.
+  — index row `interface_inventory` names the YAML inventory as the
+  canonical machine-readable home and this document as the overview
+  page.
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — lane ids referenced below.
 
@@ -22,7 +32,7 @@ category, extend the outline here in the same change that introduces
 the surface; do not hide an unclassified surface inside an unrelated
 category.
 
-## Scope of this outline
+## Scope of this inventory
 
 The inventory only covers surfaces that are meaningful to an external
 consumer — something an extension author, CLI user, downstream tool,
@@ -30,6 +40,34 @@ or partner depends on. Internal crate-to-crate APIs are governed by
 the dependency rules in
 [`/docs/repo/dependency_rules.md`](../repo/dependency_rules.md) and
 are not re-listed here.
+
+Stable-facing rows in the YAML (`maturity_lane: stable` or `beta`)
+carry named owner, contract form, versioning rule, reader/writer
+semantics, downgrade posture, support-window posture, publication
+artifact refs, and a compatibility-window source row before broad
+implementation proceeds. Experimental and internal rows use the same
+packet shape so WIT worlds, task-event envelopes, and service APIs do
+not wait for bespoke side documents.
+
+## Seeded rows
+
+### Beta / stable-facing rows
+
+- `command_plane.command_descriptor_and_invocation_session`
+- `settings.setting_ids_and_effective_values`
+- `state.portable_profile_and_layout_restore`
+- `docs.docs_pack_manifest`
+- `governance.record_class_registry_rows`
+- `build.exact_build_identity_fields`
+- `runtime.subscription_envelope`
+- `runtime.execution_context_records`
+
+### Experimental rows
+
+- `product.boundary_manifest_rows`
+- `extensions.wit_host_worlds`
+- `tooling.task_event_envelope`
+- `provider.service_api_family`
 
 ## Categories
 
@@ -130,22 +168,26 @@ Owning lanes: `design_system_seeds`, `accessibility_input_review`.
 Change control: per_milestone refresh, each_change for individual
 tokens.
 
-## What moves from outline to inventory
+## How categories become rows
 
-When the machine-readable inventory lands (first-beta milestone), each
-category above produces zero or more surface entries. A surface entry
-will carry: a stable identifier, an owning lane, a stability promise,
-a review cadence, and a link back to the decision row that set its
-stability promise. The outline rows do not need to list surfaces
-individually at this milestone — that is the work the deferred
-machine form does.
+Every category above may produce zero or more surface rows in
+`stable_surface_inventory.yaml`. The row ref
+`artifacts/governance/stable_surface_inventory.yaml#<surface_id>` is
+the canonical id compatibility reports, docs/help surfaces, migration
+notes, and deprecation packets cite.
 
-## What this outline is not
+Surfaces that are still category-only stay here until they need shared
+tracking across compatibility, docs, migration, deprecation, support,
+or release review. When a new beta or stable-facing surface appears,
+land its row in the YAML inventory in the same change; do not wait for
+later cleanup.
 
-- It is **not** the stable-surface contract. Contract metadata for
-  frozen surfaces is deferred.
-- It is **not** a schema. The machine-readable form will live under
-  `/schemas/` or `/artifacts/` when it lands.
+## What this document is not
+
+- It is **not** the per-surface packet template. That lives in
+  [`/docs/governance/contract_packet_template.md`](./contract_packet_template.md)
+  with the machine-readable schema in
+  [`/schemas/governance/contract_packet.schema.json`](../../schemas/governance/contract_packet.schema.json).
 - It is **not** a substitute for the dependency rules. Internal
   crate-to-crate dependencies are governed by
   [`/docs/repo/dependency_rules.md`](../repo/dependency_rules.md).

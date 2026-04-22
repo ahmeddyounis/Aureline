@@ -5,7 +5,8 @@ roles, the decision scope, the cadence, a quorum placeholder, and the
 escalation route. It does **not** duplicate the detailed benchmark
 change-control policy, the public-comparison rules, or stable-surface
 contract metadata. The first two now live in separate benchmark-lane
-artifacts; stable-surface contract metadata remains deferred.
+artifacts; shared stable-surface contract metadata lives in the
+surface inventory and contract-packet template.
 
 Companion artifacts:
 
