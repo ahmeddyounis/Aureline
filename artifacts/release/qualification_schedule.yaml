@@ -1,0 +1,380 @@
+schema_version: 1
+schedule_id: aureline.release_qualification_schedule
+status: seeded
+
+policy_doc_ref: docs/release/qualification_cadence.md
+ownership_map_ref: artifacts/release/evidence_ownership_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+shiproom_runbook_ref: docs/release/shiproom_runbook.md
+compatibility_seed_ref: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_ref: artifacts/compat/version_skew_register.yaml
+deployment_drill_catalog_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+evidence_rerun_triggers_ref: artifacts/governance/evidence_rerun_triggers.yaml
+
+cadence_class_vocabulary:
+  - per_pr
+  - nightly
+  - weekly
+  - beta_or_rc
+  - stable_or_lts
+
+default_failure_response_vocabulary:
+  - merge_block
+  - open_regression_triage
+  - hold_for_refresh
+  - go_with_narrowing
+  - no_go
+  - narrow_live_claim_and_update_public_truth
+
+rehearsal_id_vocabulary:
+  - rehearsal.operational_readiness_review
+  - rehearsal.release_center_publish_and_rollback
+  - rehearsal.rollback_and_mixed_version
+  - rehearsal.advisory_and_revocation
+  - rehearsal.support_handoff
+  - rehearsal.explicit_go_no_go_forum
+
+cadence_rows:
+  - cadence_id: qualification.per_pr
+    cadence_class: per_pr
+    owner_lane_refs:
+      - "lane:governance_packets"
+      - "lane:benchmark_lab"
+      - "lane:release_evidence"
+    forum_refs:
+      - architecture_council
+      - performance_council
+    scope_summary: >
+      Fast protected smoke subset, schema or contract drift checks, and
+      claim-affecting path detection for every merge candidate.
+    minimum_output_refs:
+      - output.pr_protected_smoke_and_contract_result
+    artifact_freshness_rule: >
+      PR outputs are merge-candidate scoped only. They never refresh
+      release-grade evidence on their own, but they may invalidate it by
+      changing a protected surface or source-of-truth revision.
+    rehearsal_freshness_rule: not_applicable
+    live_claim_freshness_rule: >
+      A protected merge may not land if it would leave a live claim
+      family without a named rerun owner, current source-of-truth ref, or
+      explicit blocked status.
+    default_failure_response: merge_block
+    escalation_forum_refs:
+      - architecture_council
+      - release_council
+
+  - cadence_id: qualification.nightly
+    cadence_class: nightly
+    owner_lane_refs:
+      - "lane:benchmark_lab"
+      - "lane:release_evidence"
+      - "lane:support_export"
+    forum_refs:
+      - performance_council
+      - compatibility_ecosystem_review
+      - release_council
+    scope_summary: >
+      Full benchmark corpora, certified-archetype workflows,
+      mixed-version boundaries, and supportability automation on claimed
+      paths.
+    minimum_output_refs:
+      - output.nightly_benchmark_dashboard
+      - output.nightly_archetype_and_skew_refresh
+      - output.mixed_version_and_rollback_rehearsal_packet
+    artifact_freshness_rule: >
+      Nightly outputs refresh the claim-bearing state for benchmark,
+      compatibility, and supportability evidence only when the output
+      carries current exact-build, corpus, and claim-row joins.
+    rehearsal_freshness_rule: >
+      The nightly row keeps the rollback and mixed-version rehearsal
+      current on claimed boundaries; other candidate-stage rehearsals are
+      evaluated separately.
+    live_claim_freshness_rule: >
+      Failing or missing nightly output freezes claim widening
+      immediately and downgrades the affected rows to aging or stale once
+      the proof-class SLO is crossed.
+    default_failure_response: open_regression_triage
+    escalation_forum_refs:
+      - performance_council
+      - compatibility_ecosystem_review
+      - release_council
+
+  - cadence_id: qualification.weekly
+    cadence_class: weekly
+    owner_lane_refs:
+      - "lane:docs_public_truth"
+      - "lane:release_evidence"
+      - "lane:support_export"
+    forum_refs:
+      - compatibility_ecosystem_review
+      - product_scope_review
+      - release_council
+    scope_summary: >
+      Human-reviewed design-partner breakage, migration cohorts, support
+      posture, and active-train readiness deltas.
+    minimum_output_refs:
+      - output.weekly_breakage_and_migration_review
+      - output.operational_readiness_packet
+    artifact_freshness_rule: >
+      Weekly review does not replace nightly telemetry. It converts
+      repeated or user-facing failures into explicit cut, hold, or narrow
+      decisions with current packet refs.
+    rehearsal_freshness_rule: >
+      The ORR packet is required weekly whenever an RC window is active,
+      even if the broader monthly ORR cadence has not elapsed.
+    live_claim_freshness_rule: >
+      Public or partner-facing claims may not outrun the latest weekly
+      review on an active train; unresolved weekly breakage stays visible
+      as a cut, hold, or narrow recommendation.
+    default_failure_response: hold_for_refresh
+    escalation_forum_refs:
+      - compatibility_ecosystem_review
+      - product_scope_review
+      - release_council
+
+  - cadence_id: qualification.beta_or_rc
+    cadence_class: beta_or_rc
+    owner_lane_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+      - "lane:docs_public_truth"
+    forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    scope_summary: >
+      Candidate-stage qualification across compatibility, certified
+      archetypes, migration, security checks, supportability, docs
+      parity, and current operational drills.
+    minimum_output_refs:
+      - output.compatibility_report
+      - output.certified_archetype_report
+      - output.release_evidence_packet
+      - output.operational_readiness_packet
+      - output.mixed_version_and_rollback_rehearsal_packet
+      - output.support_handoff_packet
+      - output.advisory_revocation_drill_packet
+      - output.shiproom_decision_log
+    artifact_freshness_rule: >
+      All required packets must be current under their proof-class SLOs.
+      The candidate inherits the worst freshness state among the cited
+      outputs.
+    rehearsal_freshness_rule: >
+      ORR, mixed-version or rollback rehearsal, support handoff, and the
+      explicit candidate-stage forum must all be current for the active
+      candidate window.
+    live_claim_freshness_rule: >
+      Beta candidates may narrow within the release waiver policy. RC
+      candidates may not widen on stale or missing required proof.
+    default_failure_response: hold_for_refresh
+    candidate_stage_response:
+      beta_candidate: hold_for_refresh
+      rc_or_stable_candidate: no_go
+    escalation_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - cadence_id: qualification.stable_or_lts
+    cadence_class: stable_or_lts
+    owner_lane_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+      - security_trust_review
+    scope_summary: >
+      Publishable stable or LTS qualification, including signed release
+      evidence, known-issues and support-window truth, and current
+      publish, rollback, advisory, and support drills.
+    minimum_output_refs:
+      - output.compatibility_report
+      - output.certified_archetype_report
+      - output.claim_manifest_and_known_issues_pack
+      - output.release_evidence_packet
+      - output.operational_readiness_packet
+      - output.release_center_publish_and_rollback_packet
+      - output.advisory_revocation_drill_packet
+      - output.support_handoff_packet
+      - output.shiproom_decision_log
+    artifact_freshness_rule: >
+      Required packets must be current. Stable or LTS promotion does not
+      proceed on aging, stale, or missing proof.
+    rehearsal_freshness_rule: >
+      ORR, publish and rollback rehearsal, advisory and revocation drill,
+      support handoff drill, and the explicit go/no-go forum must all be
+      current for the candidate.
+    live_claim_freshness_rule: >
+      Stable and LTS wording stays live only while the required artifacts
+      and rehearsals are current. Post-publication drift forces immediate
+      claim narrowing and public-truth refresh.
+    default_failure_response: no_go
+    escalation_forum_refs:
+      - shiproom_executive_scope_review
+      - security_trust_review
+      - product_scope_review
+
+rehearsal_rows:
+  - rehearsal_id: rehearsal.operational_readiness_review
+    title: Operational-readiness review
+    owner_lane_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    forum_refs:
+      - release_council
+    cadence: monthly_from_external_alpha_and_weekly_in_active_rc_windows
+    freshness_window:
+      default: P30D
+      active_rc_window: P7D
+    required_candidate_stages:
+      - beta_candidate
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.operational_readiness_packet
+    packet_expectations:
+      - readiness scorecard state
+      - open blockers and waiver aging
+      - launch-control asset status
+      - narrowed-claim or hold proposal when needed
+    default_failure_response: hold_for_refresh
+
+  - rehearsal_id: rehearsal.release_center_publish_and_rollback
+    title: Release-center publish and rollback rehearsal
+    owner_lane_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    cadence: every_stable_or_lts_candidate_and_after_material_artifact_graph_change
+    freshness_window:
+      stable_candidate: P0D
+      lts_candidate: P0D
+    required_candidate_stages:
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.release_center_publish_and_rollback_packet
+    packet_expectations:
+      - publish-target log
+      - one-build-identity check
+      - rollback target and last-known-good mapping
+      - mirror or offline publication result
+    default_failure_response: no_go
+
+  - rehearsal_id: rehearsal.rollback_and_mixed_version
+    title: Rollback and mixed-version rehearsal
+    owner_lane_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    forum_refs:
+      - compatibility_ecosystem_review
+      - release_council
+    cadence: nightly_on_claimed_boundaries_plus_every_candidate_that_widens_upgrade_or_downgrade_claims
+    freshness_window:
+      nightly_boundary: P1D
+      candidate_gate: P0D
+    required_candidate_stages:
+      - beta_candidate
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.mixed_version_and_rollback_rehearsal_packet
+    packet_expectations:
+      - compatibility matrix run
+      - upgrade and downgrade result
+      - rollback target check
+      - stale-cache or reconnect note
+    default_failure_response: hold_for_refresh
+    candidate_stage_response:
+      beta_candidate: hold_for_refresh
+      rc_or_stable_candidate: no_go
+      lts_candidate: no_go
+      hotfix_candidate: no_go
+
+  - rehearsal_id: rehearsal.advisory_and_revocation
+    title: Advisory and revocation drill
+    owner_lane_refs:
+      - "lane:release_evidence"
+    forum_refs:
+      - security_trust_review
+      - release_council
+    cadence: every_stable_or_lts_candidate_and_quarterly_on_active_stable_lines
+    freshness_window:
+      stable_line: P90D
+      candidate_gate: P0D
+    required_candidate_stages:
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.advisory_revocation_drill_packet
+    packet_expectations:
+      - advisory output or no-active-advisory statement
+      - revocation-path proof
+      - mirror propagation timing
+      - break-glass attribution log
+    default_failure_response: no_go
+
+  - rehearsal_id: rehearsal.support_handoff
+    title: Support handoff drill
+    owner_lane_refs:
+      - "lane:support_export"
+    forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    cadence: weekly_in_active_rc_windows_and_after_support_packet_or_redaction_contract_change
+    freshness_window:
+      active_rc_window: P7D
+      schema_change_gate: P0D
+    required_candidate_stages:
+      - beta_candidate
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.support_handoff_packet
+    packet_expectations:
+      - incident packet
+      - redaction review
+      - join path and escalation route
+      - public or private routing proof
+      - field-readiness checklist
+    default_failure_response: hold_for_refresh
+    candidate_stage_response:
+      beta_candidate: hold_for_refresh
+      rc_or_stable_candidate: no_go
+      lts_candidate: no_go
+      hotfix_candidate: no_go
+
+  - rehearsal_id: rehearsal.explicit_go_no_go_forum
+    title: Explicit go or no-go forum
+    owner_lane_refs:
+      - "lane:release_evidence"
+    forum_refs:
+      - shiproom_executive_scope_review
+    cadence: every_rc_or_stable_lts_gate
+    freshness_window:
+      candidate_gate: P0D
+    required_candidate_stages:
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    minimum_output_refs:
+      - output.shiproom_decision_log
+    packet_expectations:
+      - shiproom dashboard snapshot
+      - candidate packet ref
+      - blocker and waiver list
+      - receiving-owner handoff
+      - public disclosure or narrowing plan
+    default_failure_response: no_go

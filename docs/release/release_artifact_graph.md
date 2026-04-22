@@ -26,6 +26,15 @@ Companion artifacts:
   through.
 - [`/docs/release/release_evidence_packet_template.md`](./release_evidence_packet_template.md)
   — aggregate release-truth packet template.
+- [`/docs/release/qualification_cadence.md`](./qualification_cadence.md)
+  — qualification plan that names cadence rows, rehearsal windows, and
+  default failure responses for release-bearing evidence.
+- [`/artifacts/release/qualification_schedule.yaml`](../../artifacts/release/qualification_schedule.yaml)
+  — machine-readable cadence and rehearsal calendar consumed by release
+  review, ORR, and shiproom workflows.
+- [`/artifacts/release/evidence_ownership_map.yaml`](../../artifacts/release/evidence_ownership_map.yaml)
+  — machine-readable map from required qualification outputs to proof
+  lane, review forum, freshness rules, and source-of-truth refs.
 - [`/docs/release/compatibility_report_template.md`](./compatibility_report_template.md)
   — compatibility report template that extends seeded compatibility rows
   into release-facing packets.

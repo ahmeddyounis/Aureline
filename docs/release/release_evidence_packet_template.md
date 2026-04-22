@@ -7,9 +7,12 @@ pre-release seed packet.
 Related control artifacts:
 - docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
 - docs/release/release_artifact_graph.md
+- docs/release/qualification_cadence.md
 - docs/governance/maintainer_coverage_policy.md
 - artifacts/release/artifact_graph_rules.yaml
 - artifacts/release/artifact_family_map.yaml
+- artifacts/release/qualification_schedule.yaml
+- artifacts/release/evidence_ownership_map.yaml
 - artifacts/release/promotion_gate_map.yaml
 - artifacts/governance/signing_quorum.yaml
 - artifacts/governance/upstream_health_scorecard.yaml

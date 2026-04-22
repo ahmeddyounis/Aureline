@@ -113,9 +113,11 @@ closing the backup waiver.
 - **Benchmark lab** — `crates/aureline-bench`, `/fixtures/`, and the
   benchmark-council charter, corpora, and protected fitness references.
 - **Release evidence** — `/artifacts/release/` plus
+  `docs/release/qualification_cadence.md` and
   `docs/release/shiproom_runbook.md` (provenance, SBOMs,
-  compatibility reports, claim manifests, rollback/shiproom packets,
-  shiproom dashboard seeds, and reviewer operating order).
+  compatibility reports, claim manifests, qualification cadence and
+  ownership maps, rollback/shiproom packets, shiproom dashboard seeds,
+  and reviewer operating order).
 - **Docs / public truth** — `/docs/`, `/README.md`, `/AGENTS.md`,
   `/CLAUDE.md`, external-facing copy, known-limits matrix,
   support-window statements, migration guides.

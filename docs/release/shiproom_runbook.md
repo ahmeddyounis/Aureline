@@ -7,6 +7,9 @@ instead of scattered meeting notes.
 
 Companion artifacts:
 
+- `docs/release/qualification_cadence.md`
+- `artifacts/release/qualification_schedule.yaml`
+- `artifacts/release/evidence_ownership_map.yaml`
 - `artifacts/release/shiproom_dashboard_seed.yaml`
 - `docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`
 - `artifacts/release/artifact_family_map.yaml`
@@ -37,7 +40,10 @@ Resolve candidate stage and gate ids from
 Resolve artifact-family posture, rollback-atom membership, retention
 floor, and support packet family from
 `artifacts/release/artifact_family_map.yaml`, not from remembered
-release lore.
+release lore. Resolve due cadence rows, drill freshness, and proof-lane
+ownership from `artifacts/release/qualification_schedule.yaml` and
+`artifacts/release/evidence_ownership_map.yaml`, not from whoever
+happened to run the last rehearsal.
 
 ## Evidence review order
 

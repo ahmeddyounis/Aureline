@@ -159,6 +159,11 @@ code.
   contract-surface index.
 - [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
   — release-truth packet template and waiver-aware shiproom structure.
+- [`release/qualification_cadence.md`](./release/qualification_cadence.md)
+  — shared release-qualification plan covering cadence rows,
+  rehearsal windows, proof-lane ownership, and default failure
+  responses for benchmark, compatibility, support, docs, and release
+  evidence.
 - [`release/shiproom_runbook.md`](./release/shiproom_runbook.md)
   — canonical shiproom review order, go/no-go vocabulary, exception
   logging, and release/support/docs/security/architecture handoffs.

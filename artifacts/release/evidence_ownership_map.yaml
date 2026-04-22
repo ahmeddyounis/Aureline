@@ -1,0 +1,486 @@
+schema_version: 1
+map_id: aureline.release_qualification_evidence_ownership
+status: seeded
+
+policy_doc_ref: docs/release/qualification_cadence.md
+qualification_schedule_ref: artifacts/release/qualification_schedule.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+release_artifact_graph_ref: docs/release/release_artifact_graph.md
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+shiproom_runbook_ref: docs/release/shiproom_runbook.md
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+evidence_rerun_triggers_ref: artifacts/governance/evidence_rerun_triggers.yaml
+claim_manifest_ref: artifacts/governance/claim_manifest_seed.yaml
+compatibility_seed_ref: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_ref: artifacts/compat/version_skew_register.yaml
+support_packet_index_ref: schemas/support/support_packet_index.schema.json
+deployment_drill_catalog_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+
+owner_ref_rules:
+  lane_ref_format: lane:<governance_lane_id>
+  package_ref_format: package:<package_name>
+  resolution_source: artifacts/governance/ownership_matrix.yaml
+
+claim_family_vocabulary:
+  - release_control
+  - benchmark_and_protected_journeys
+  - compatibility_and_certified_archetypes
+  - migration_and_design_partner_breakage
+  - docs_claim_manifest_and_known_issues
+  - release_identity_and_artifact_graph
+  - mixed_version_and_upgrade_rollback
+  - security_response_and_revocation
+  - supportability_and_escalation_quality
+
+required_outputs:
+  - output_id: output.pr_protected_smoke_and_contract_result
+    claim_family_id: release_control
+    summary: Protected PR smoke subset and contract-drift result for merge candidates.
+    owner_ref: "lane:governance_packets"
+    supporting_owner_refs:
+      - "lane:benchmark_lab"
+      - "lane:release_evidence"
+    review_forum_refs:
+      - architecture_council
+      - performance_council
+    packet_family_refs:
+      - verification_packet
+    source_of_truth_refs:
+      - docs/governance/verification_packet_template.md
+      - docs/ci/control_artifact_validation.md
+      - docs/release/qualification_cadence.md
+    artifact_freshness_rule: >
+      Valid only for the merge candidate under review. It is not a
+      release-grade packet and does not refresh live claims by itself.
+    rehearsal_freshness_rule: not_applicable
+    live_claim_freshness_rule: >
+      A merge may not land if it would invalidate a live claim family
+      without opening the matching rerun owner or packet refresh.
+    failure_response_by_cadence:
+      per_pr: merge_block
+
+  - output_id: output.nightly_benchmark_dashboard
+    claim_family_id: benchmark_and_protected_journeys
+    summary: Nightly benchmark dashboard, run-result lineage, and regression queue.
+    owner_ref: "lane:benchmark_lab"
+    supporting_owner_refs:
+      - "lane:release_evidence"
+    review_forum_refs:
+      - performance_council
+      - release_council
+    packet_family_refs:
+      - benchmark_report
+      - benchmark_publication_pack
+    proof_class_refs:
+      - benchmark_publication_proof
+    source_of_truth_refs:
+      - docs/benchmarks/benchmark_lab_run_results.md
+      - artifacts/benchmarks/dashboard_seed/dashboard.json
+      - docs/benchmarks/benchmark_publication_pack_template.md
+    artifact_freshness_rule: >
+      Follows benchmark_publication_proof. Current benchmark proof
+      requires current exact-build, corpus, protected-metrics, and
+      claim-row joins.
+    rehearsal_freshness_rule: >
+      Becomes claim-bearing for beta, RC, stable, or LTS only when the
+      latest ORR and explicit go or no-go review cite the current
+      dashboard or publication packet.
+    live_claim_freshness_rule: >
+      Public performance claims narrow to retest pending or evidence
+      stale once the benchmark packet ages out or leaves the current
+      release forum window.
+    failure_response_by_cadence:
+      nightly: open_regression_triage
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.nightly_archetype_and_skew_refresh
+    claim_family_id: compatibility_and_certified_archetypes
+    summary: Nightly refresh of certified-archetype and version-skew status on claimed rows.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:benchmark_lab"
+      - "lane:docs_public_truth"
+    review_forum_refs:
+      - compatibility_ecosystem_review
+      - release_council
+    packet_family_refs:
+      - compatibility_report
+      - certified_archetype_report
+    proof_class_refs:
+      - compatibility_report_proof
+    source_of_truth_refs:
+      - docs/release/compatibility_report_template.md
+      - docs/release/certified_archetype_report_template.md
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/compat/version_skew_register.yaml
+    artifact_freshness_rule: >
+      Follows compatibility_report_proof. Any skew-window, exact-build,
+      or claim-row change invalidates the prior nightly refresh.
+    rehearsal_freshness_rule: >
+      Mixed-version and rollback rehearsal must remain current before a
+      nightly refresh can back an RC, stable, or LTS claim.
+    live_claim_freshness_rule: >
+      Supported or certified wording may remain live only while the
+      current compatibility and archetype rows are fresh and cited by the
+      active release-control packet.
+    failure_response_by_cadence:
+      nightly: open_regression_triage
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.weekly_breakage_and_migration_review
+    claim_family_id: migration_and_design_partner_breakage
+    summary: Weekly human-reviewed design-partner breakage and migration cohort report.
+    owner_ref: "lane:docs_public_truth"
+    supporting_owner_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    review_forum_refs:
+      - compatibility_ecosystem_review
+      - product_scope_review
+      - release_council
+    packet_family_refs:
+      - migration_report
+      - verification_packet
+    proof_class_refs:
+      - migration_parity_proof
+    source_of_truth_refs:
+      - docs/product/onboarding_measurement_plan.md
+      - docs/release/compatibility_report_template.md
+      - docs/workspace/entry_restore_object_model.md
+    artifact_freshness_rule: >
+      Follows migration_parity_proof. Weekly review remains current only
+      while the cohort, importer, and claim-row revisions it cites stay
+      current.
+    rehearsal_freshness_rule: >
+      Active release trains require the latest weekly review to feed the
+      ORR packet rather than remaining a side report.
+    live_claim_freshness_rule: >
+      Migration promises, source-tool claims, and partner-facing release
+      guidance narrow when the weekly review reports unresolved breakage
+      without an accepted cut, hold, or narrow decision.
+    failure_response_by_cadence:
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: narrow_live_claim_and_update_public_truth
+
+  - output_id: output.compatibility_report
+    claim_family_id: compatibility_and_certified_archetypes
+    summary: Release-facing compatibility report for seeded qualification rows.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:docs_public_truth"
+    review_forum_refs:
+      - compatibility_ecosystem_review
+      - release_council
+    packet_family_refs:
+      - compatibility_report
+    proof_class_refs:
+      - compatibility_report_proof
+    source_of_truth_refs:
+      - docs/release/compatibility_report_template.md
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/compat/version_skew_register.yaml
+    artifact_freshness_rule: >
+      Follows compatibility_report_proof and expires on claim, skew,
+      exact-build, or support-window drift.
+    rehearsal_freshness_rule: >
+      RC, stable, and LTS use requires a current mixed-version and
+      rollback rehearsal plus an ORR packet in the active window.
+    live_claim_freshness_rule: >
+      Supported, degraded, untested, and unsupported wording on docs,
+      release, support, evaluation, and marketplace surfaces must track
+      the current compatibility report state exactly.
+    failure_response_by_cadence:
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.certified_archetype_report
+    claim_family_id: compatibility_and_certified_archetypes
+    summary: Certified-archetype report binding hardware, workflow, workspace, and platform-profile rows.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:benchmark_lab"
+      - "lane:docs_public_truth"
+    review_forum_refs:
+      - compatibility_ecosystem_review
+      - release_council
+    packet_family_refs:
+      - certified_archetype_report
+    proof_class_refs:
+      - compatibility_report_proof
+    source_of_truth_refs:
+      - docs/release/certified_archetype_report_template.md
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - fixtures/workspaces/reference/
+    artifact_freshness_rule: >
+      Shares the compatibility_report_proof class and expires on
+      hardware, workflow, profile, exact-build, or claim-row drift.
+    rehearsal_freshness_rule: >
+      Candidate-stage use requires a current mixed-version or rollback
+      rehearsal when the archetype claim includes distributed, upgrade,
+      or rollback-sensitive behavior.
+    live_claim_freshness_rule: >
+      Certified wording narrows first to supported or best_effort, then
+      to retest pending or evidence stale, before any stable-facing
+      surface may keep the claim live.
+    failure_response_by_cadence:
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.claim_manifest_and_known_issues_pack
+    claim_family_id: docs_claim_manifest_and_known_issues
+    summary: Claim-manifest, known-issues, support-window, and release-note parity pack.
+    owner_ref: "lane:docs_public_truth"
+    supporting_owner_refs:
+      - "lane:release_evidence"
+    review_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    packet_family_refs:
+      - claim_manifest
+      - release_notice_pack
+    proof_class_refs:
+      - docs_claim_truth_proof
+    source_of_truth_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - docs/release/qualification_cadence.md
+    artifact_freshness_rule: >
+      Follows docs_claim_truth_proof and expires immediately when public
+      copy or support-window truth diverges from the reviewed packet.
+    rehearsal_freshness_rule: >
+      Stable-facing use requires the latest ORR and shiproom review to
+      reference the same claim rows and known-limit refs.
+    live_claim_freshness_rule: >
+      This output owns the live wording. If it is stale, the user-visible
+      claim must narrow even when the underlying code path still works.
+    failure_response_by_cadence:
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: narrow_live_claim_and_update_public_truth
+
+  - output_id: output.release_evidence_packet
+    claim_family_id: release_identity_and_artifact_graph
+    summary: Coordinated release-truth packet tying exact-build ids, provenance, rollback, waivers, and promotion gates together.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    review_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    packet_family_refs:
+      - release_evidence_packet
+      - release_readiness_packet
+    source_of_truth_refs:
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/release_artifact_graph.md
+      - artifacts/release/promotion_gate_map.yaml
+      - docs/build/exact_build_identity_model.md
+    artifact_freshness_rule: >
+      The packet is current only while its exact-build chain, artifact
+      graph, cited proof packets, and claim rows remain current. The
+      packet inherits the worst freshness state among its cited outputs.
+    rehearsal_freshness_rule: >
+      ORR, publish and rollback rehearsal, and the explicit go or no-go
+      forum must all be current for beta, RC, stable, LTS, and hotfix
+      promotion use.
+    live_claim_freshness_rule: >
+      Release claims, supportability claims, and channel posture may not
+      stay live above the packet's current readiness state.
+    failure_response_by_cadence:
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.operational_readiness_packet
+    claim_family_id: release_control
+    summary: Operational-readiness review packet for active trains and candidate windows.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:support_export"
+    review_forum_refs:
+      - release_council
+    packet_family_refs:
+      - release_readiness_packet
+    source_of_truth_refs:
+      - docs/release/qualification_cadence.md
+      - docs/release/shiproom_runbook.md
+      - artifacts/release/shiproom_dashboard_seed.yaml
+    artifact_freshness_rule: >
+      Current only for the train window it names. Weekly RC-window ORRs
+      do not roll forward automatically into the next candidate.
+    rehearsal_freshness_rule: >
+      This packet is itself a rehearsal output and must be rerun on the
+      schedule declared in qualification_schedule.yaml.
+    live_claim_freshness_rule: >
+      Candidate-stage claims may not widen if the latest ORR has aged out
+      or still carries unresolved blockers without an accepted narrowing.
+    failure_response_by_cadence:
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.release_center_publish_and_rollback_packet
+    claim_family_id: release_identity_and_artifact_graph
+    summary: Release-center dry run covering publish-target, rollback, and mirror or offline parity.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:support_export"
+    review_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    packet_family_refs:
+      - release_readiness_packet
+      - release_evidence_packet
+    source_of_truth_refs:
+      - docs/release/release_artifact_graph.md
+      - artifacts/release/promotion_gate_map.yaml
+      - docs/release/install_topology_plan.md
+    artifact_freshness_rule: >
+      Candidate-scoped only. Any publish-target, artifact-graph,
+      rollback-target, or mirror-path change invalidates the rehearsal.
+    rehearsal_freshness_rule: >
+      Must be rerun for every stable, LTS, or hotfix candidate and after
+      any material publish-path change.
+    live_claim_freshness_rule: >
+      Stable-facing publish, rollback, and mirror/offline claims do not
+      remain live on stale rehearsal output.
+    failure_response_by_cadence:
+      stable_or_lts: no_go
+
+  - output_id: output.mixed_version_and_rollback_rehearsal_packet
+    claim_family_id: mixed_version_and_upgrade_rollback
+    summary: Upgrade, downgrade, mixed-version, and rollback rehearsal packet for claimed skew windows.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:support_export"
+    review_forum_refs:
+      - compatibility_ecosystem_review
+      - release_council
+    packet_family_refs:
+      - compatibility_report
+      - verification_packet
+    proof_class_refs:
+      - compatibility_report_proof
+    source_of_truth_refs:
+      - artifacts/compat/version_skew_register.yaml
+      - docs/release/compatibility_report_template.md
+      - docs/release/qualification_cadence.md
+    artifact_freshness_rule: >
+      Current only for the exact skew window, rollback target, and claim
+      rows it validates.
+    rehearsal_freshness_rule: >
+      This packet is itself a rehearsal output and follows the nightly
+      plus candidate-gate schedule declared in qualification_schedule.yaml.
+    live_claim_freshness_rule: >
+      Upgrade, downgrade, distributed, and rollback claims narrow or
+      block when the rehearsal ages out or fails.
+    failure_response_by_cadence:
+      nightly: open_regression_triage
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.advisory_revocation_drill_packet
+    claim_family_id: security_response_and_revocation
+    summary: Advisory, revocation, and mirror or offline continuity drill packet.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:docs_public_truth"
+    review_forum_refs:
+      - security_trust_review
+      - release_council
+    packet_family_refs:
+      - security_trust_packet
+      - security_advisory_record
+      - security_incident_workspace_packet
+    proof_class_refs:
+      - security_response_proof
+    source_of_truth_refs:
+      - docs/security/severity_matrix.md
+      - schemas/security/advisory_record.schema.json
+      - schemas/security/incident_workspace_packet.schema.json
+      - docs/release/qualification_cadence.md
+    artifact_freshness_rule: >
+      Follows security_response_proof and expires on install-scope,
+      severity, exact-build, or publication-path drift.
+    rehearsal_freshness_rule: >
+      This packet is itself a rehearsal output and must be current for
+      every stable, LTS, or hotfix candidate and for active stable-line
+      quarterly review.
+    live_claim_freshness_rule: >
+      Security, mitigation, revocation, and continuity wording may not
+      remain live when the drill is stale or missing.
+    failure_response_by_cadence:
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.support_handoff_packet
+    claim_family_id: supportability_and_escalation_quality
+    summary: Support handoff packet covering redaction, joinability, routing, and field readiness.
+    owner_ref: "lane:support_export"
+    supporting_owner_refs:
+      - "lane:release_evidence"
+    review_forum_refs:
+      - release_council
+      - shiproom_executive_scope_review
+    packet_family_refs:
+      - support_bundle_record
+      - support_packet_index
+      - security_incident_workspace_packet
+    proof_class_refs:
+      - support_scenario_quality_proof
+      - continuity_drill_proof
+    source_of_truth_refs:
+      - docs/support/support_bundle_contract.md
+      - schemas/support/support_packet_index.schema.json
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+    artifact_freshness_rule: >
+      Support handoff remains current only while the linked support,
+      continuity, redaction, and exact-build joins remain current.
+    rehearsal_freshness_rule: >
+      This packet is itself a rehearsal output and must be rerun weekly
+      in active RC windows and after support-packet or redaction-contract
+      changes.
+    live_claim_freshness_rule: >
+      Supportability, escalation, and recovery claims do not remain live
+      when support handoff proof is stale.
+    failure_response_by_cadence:
+      weekly: hold_for_refresh
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
+
+  - output_id: output.shiproom_decision_log
+    claim_family_id: release_control
+    summary: Explicit go or no-go forum output carrying blockers, owners, and disclosure actions.
+    owner_ref: "lane:release_evidence"
+    supporting_owner_refs:
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    review_forum_refs:
+      - shiproom_executive_scope_review
+    packet_family_refs:
+      - shiproom_dashboard
+      - release_readiness_packet
+    source_of_truth_refs:
+      - docs/release/shiproom_runbook.md
+      - artifacts/release/shiproom_dashboard_seed.yaml
+      - docs/release/qualification_cadence.md
+    artifact_freshness_rule: >
+      Candidate-scoped only. A shiproom decision log is current for one
+      gate and one cited exact-build identity set.
+    rehearsal_freshness_rule: >
+      This output is the explicit go or no-go rehearsal result and must
+      exist for every RC, stable, LTS, or hotfix gate.
+    live_claim_freshness_rule: >
+      No promotion claim remains live above the most recent shiproom
+      decision. If the forum has not accepted the current packet set, the
+      claim stays held or blocked.
+    failure_response_by_cadence:
+      beta_or_rc: hold_for_refresh
+      stable_or_lts: no_go
