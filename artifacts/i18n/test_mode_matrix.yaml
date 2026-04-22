@@ -1,0 +1,519 @@
+# Locale and input-method readiness matrix seed.
+#
+# Machine-readable source of truth for the M0/M1 locale, layout, and
+# input-method baseline. This file complements
+# artifacts/accessibility/platform_input_matrix.yaml:
+#   - platform_input_matrix.yaml freezes platform-specific AT, locale,
+#     and input-path rows.
+#   - this matrix freezes cross-surface readiness rows, phase posture,
+#     design-rule ids, and harness joins for pseudoloc, RTL/bidi, CJK,
+#     IME, dead keys, AltGr, compose, emoji, and fallback continuity.
+#
+# Rules.
+#   - Every readiness row MUST name an M0 and M1 state using the closed
+#     readiness-state vocabulary below.
+#   - support_class expresses scope breadth and may not be used as a
+#     substitute for the explicit phase state.
+#   - blocked and unclaimed rows stay explicit so shell, docs, support,
+#     and release packets do not infer support by omission.
+#   - Dense-surface coverage is required for pseudoloc, RTL, CJK, and
+#     IME rows; simple-form-only coverage is non-conforming.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/i18n/locale_input_readiness.md
+harness_manifest_source: fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml
+platform_input_matrix_source: artifacts/accessibility/platform_input_matrix.yaml
+a11y_packet_template_source: docs/accessibility/a11y_ime_packet_template.md
+shell_boundary_source: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+shell_failure_modes_source: docs/architecture/input_adapter_failure_modes.md
+design_token_source: docs/design/design_token_component_state_vocabulary.md
+theme_support_source: artifacts/design/theme_support_rows.yaml
+
+related_requirement_ids:
+  - A11Y-CORE-002
+  - A11Y-TEXT-004
+  - A11Y-I18N-007
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "11.7 International input, localization, and text correctness"
+      - "Input fidelity"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "23.3.1 Localization, locale-pack, and translation-governance architecture"
+      - "27.23 Verification lanes for localization, locale packs, RTL/IME correctness, and translated-surface parity"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "8.10 Localization, internationalization, and content governance"
+      - "Input fidelity"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "19.7 International text and input"
+      - "19.10 Localization operations, locale packs, and pseudolocalization gates"
+      - "20.11 Translation-safe placeholder, truncation, and fallback rules"
+      - "23.41 International text/input, IME, bidi, and locale-pack drills"
+      - "Y.4 Bidi / RTL review sheet"
+  - path: .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+    anchors:
+      - "Accessibility, IME, and degraded states"
+      - "28.10 Localization, RTL, CJK, and community language-pack guidance"
+
+support_class_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+readiness_state_vocabulary:
+  - claimed
+  - degraded
+  - blocked
+  - unclaimed
+
+readiness_state_meanings:
+  - state: claimed
+    meaning: >
+      The row is inside the defended shell scope for that phase and the
+      named harness modes must run before the surface widens.
+  - state: degraded
+    meaning: >
+      A narrow, visible fallback is allowed, but parity is not claimed
+      and packets must name the downgrade.
+  - state: blocked
+    meaning: >
+      The product may not imply support. If the row appears in the UI,
+      the blocker and safe next route must be explicit.
+  - state: unclaimed
+    meaning: >
+      Outside the defended M0/M1 shell scope. Docs, support, and release
+      packets may not imply support.
+
+test_mode_vocabulary:
+  - source_language_baseline
+  - pseudoloc_expansion
+  - rtl_shell_chrome
+  - mixed_direction_technical_content
+  - cjk_font_fallback
+  - ime_preedit_and_commit
+  - dead_key_text
+  - altgr_text
+  - compose_sequence
+  - emoji_input
+  - locale_fallback_review
+  - translated_surface_parity
+
+failure_class_vocabulary:
+  - text_clipped_or_overlap
+  - truncation_hides_scope_or_action
+  - placeholder_order_drift
+  - mirrored_icon_or_drawer_order_error
+  - ltr_technical_string_mirrored
+  - missing_glyph_or_wrong_font_fallback
+  - candidate_window_occluded
+  - locale_fallback_hidden
+  - source_language_escape_hatch_missing
+  - translated_state_label_drift
+  - ime_preedit_loss
+  - dead_key_as_shortcut
+  - altgr_as_shortcut
+  - compose_sequence_dropped
+  - emoji_commit_loss
+  - bidi_copy_drift
+  - focus_order_regression
+
+owner_rows:
+  - owner_id: owner.shell_spike
+    owner_dri: "@ahmeddyounis"
+    implementation_anchor: crates/aureline-shell-spike
+  - owner_id: owner.render_text_input
+    owner_dri: "@ahmeddyounis"
+    implementation_anchor: crates/aureline-render
+  - owner_id: owner.accessibility_review
+    owner_dri: "@ahmeddyounis"
+    implementation_anchor: docs/accessibility
+  - owner_id: owner.docs_help
+    owner_dri: "@ahmeddyounis"
+    implementation_anchor: docs/docs
+
+design_rules:
+  - rule_id: expansion.chrome_primary_and_state_labels_135
+    summary: >
+      Launch-critical single-line actions, tabs, section headers, and
+      state labels tolerate at least 1.35x source-language width before
+      ellipsis or overlap.
+  - rule_id: expansion.multiline_reviews_and_banners_160
+    summary: >
+      Multi-line banners, review summaries, permission sheets, and
+      guided steps tolerate at least 1.60x source-language length before
+      truncation is considered.
+  - rule_id: placeholders.raw_technical_tokens_preserved
+    summary: >
+      Paths, command ids, flags, hosts, tenants, and counts remain raw
+      technical placeholders even when localized prose reorders around
+      them.
+  - rule_id: rtl.directional_chrome_mirrors_not_literal_tokens
+    summary: >
+      Directional chrome mirrors, but code spans, terminals, paths,
+      hostnames, diffs, and command ids do not.
+  - rule_id: rtl.focus_order_tracks_visual_order
+    summary: >
+      Keyboard and screen-reader traversal still track the visual order
+      after mirroring.
+  - rule_id: truncation.high_importance_full_text_route
+    summary: >
+      Approvals, trust prompts, policy blocks, and recovery banners keep
+      a full-text route in the same review flow.
+  - rule_id: state_labels.scope_severity_action_preserved
+    summary: >
+      State labels preserve scope, severity, and next-action meaning
+      across localization instead of softening into generic status copy.
+  - rule_id: font.system_fallback_chain_visible
+    summary: >
+      Missing glyphs, CJK punctuation, full-width characters, and emoji
+      use a visible system fallback chain rather than tofu or silent
+      substitution.
+  - rule_id: input.composition_keeps_caret_visible
+    summary: >
+      Candidate windows, inline composition, and the active caret remain
+      visible during filtering, overlay changes, and window moves.
+  - rule_id: input.multi_cursor_narrows_or_blocks
+    summary: >
+      Multi-cursor composition narrows to one visible target or blocks
+      explicitly when coherent apply is not possible.
+
+readiness_rows:
+  - readiness_row_id: readiness.shell.source_language_and_pseudoloc_chrome
+    owner_ref: owner.shell_spike
+    support_class: claimed
+    test_modes:
+      - source_language_baseline
+      - pseudoloc_expansion
+      - locale_fallback_review
+    locale_tags:
+      - en-US
+      - qps-ploc
+    surface_groups:
+      - shell_workspace_launcher
+      - palette_search
+      - docs_reader
+      - guided_tour_and_onboarding
+      - task_run_and_output
+      - diff_review
+      - sign_in_and_trust_prompt
+      - terminal_output
+      - dense_collection_batch_review
+      - settings_dialogs
+    related_accessibility_locale_row_refs:
+      - locale.shared.source_and_pseudoloc_shell
+    design_rule_refs:
+      - expansion.chrome_primary_and_state_labels_135
+      - expansion.multiline_reviews_and_banners_160
+      - placeholders.raw_technical_tokens_preserved
+      - truncation.high_importance_full_text_route
+      - state_labels.scope_severity_action_preserved
+    m0_state: claimed
+    m0_scope_summary: >
+      Launch-critical shell, docs/help, review, and trust surfaces must
+      render source-language and qps-ploc strings without clipping
+      primary actions or hiding fallback state.
+    m1_state: claimed
+    m1_scope_summary: >
+      Editor-adjacent shell chrome, task review, and settings flows stay
+      inside the same pseudoloc and fallback baseline; no local override
+      vocabulary is allowed.
+    expected_failure_class_refs:
+      - text_clipped_or_overlap
+      - truncation_hides_scope_or_action
+      - placeholder_order_drift
+      - locale_fallback_hidden
+      - translated_state_label_drift
+    harness_row_refs:
+      - mode.pseudoloc.shell_chrome
+      - mode.locale_fallback.row_and_badges
+
+  - readiness_row_id: readiness.shell.rtl_chrome_and_mixed_direction_technical_content
+    owner_ref: owner.shell_spike
+    support_class: claimed_narrow
+    test_modes:
+      - rtl_shell_chrome
+      - mixed_direction_technical_content
+    locale_tags:
+      - ar-IQ
+      - he-IL
+    surface_groups:
+      - shell_workspace_launcher
+      - palette_search
+      - docs_reader
+      - diff_review
+      - terminal_output
+      - sign_in_and_trust_prompt
+      - dense_collection_batch_review
+    related_accessibility_locale_row_refs:
+      - locale.shared.rtl_mixed_direction_technical_content
+    design_rule_refs:
+      - rtl.directional_chrome_mirrors_not_literal_tokens
+      - rtl.focus_order_tracks_visual_order
+      - truncation.high_importance_full_text_route
+      - state_labels.scope_severity_action_preserved
+    m0_state: degraded
+    m0_scope_summary: >
+      Directional chrome must mirror correctly and mixed-direction
+      technical content must remain copy-safe, but a fully localized RTL
+      shell is not yet a defended M0 claim.
+    m1_state: claimed
+    m1_scope_summary: >
+      Launch-critical chrome, docs/help, diff, terminal, and palette
+      flows must pass the RTL and mixed-direction suite before broader
+      localized-shell claims can widen.
+    expected_failure_class_refs:
+      - mirrored_icon_or_drawer_order_error
+      - ltr_technical_string_mirrored
+      - bidi_copy_drift
+      - focus_order_regression
+      - source_language_escape_hatch_missing
+    harness_row_refs:
+      - mode.rtl.shell_chrome
+      - mode.rtl.mixed_direction_review
+
+  - readiness_row_id: readiness.text.cjk_font_fallback_and_full_width_layout
+    owner_ref: owner.render_text_input
+    support_class: claimed_narrow
+    test_modes:
+      - cjk_font_fallback
+    locale_tags:
+      - ja-JP
+      - zh-CN
+      - ko-KR
+    surface_groups:
+      - editor
+      - palette_search
+      - terminal_output
+      - settings_dialogs
+      - dense_collection_batch_review
+    related_accessibility_locale_row_refs:
+      - locale.shared.cjk_and_emoji_input
+    design_rule_refs:
+      - expansion.chrome_primary_and_state_labels_135
+      - font.system_fallback_chain_visible
+      - truncation.high_importance_full_text_route
+    m0_state: claimed
+    m0_scope_summary: >
+      CJK punctuation, full-width glyphs, and fallback chains remain
+      legible on launch-critical text and dense-row surfaces.
+    m1_state: claimed
+    m1_scope_summary: >
+      The same fallback chain and full-width behavior extend to broader
+      review and auxiliary text surfaces without forking the rule set.
+    expected_failure_class_refs:
+      - missing_glyph_or_wrong_font_fallback
+      - text_clipped_or_overlap
+      - truncation_hides_scope_or_action
+    harness_row_refs:
+      - mode.cjk.font_fallback_and_full_width
+
+  - readiness_row_id: readiness.input.ime_preedit_and_commit
+    owner_ref: owner.render_text_input
+    support_class: claimed
+    test_modes:
+      - ime_preedit_and_commit
+    locale_tags:
+      - ja-JP
+      - zh-CN
+      - ar-IQ
+    surface_groups:
+      - editor
+      - palette_search
+      - settings_dialogs
+      - terminal_output
+      - sign_in_and_trust_prompt
+    related_accessibility_input_row_refs:
+      - input.macos.text_input_services
+      - input.windows.tsf_primary
+      - input.linux.ibus_gnome
+    design_rule_refs:
+      - input.composition_keeps_caret_visible
+      - input.multi_cursor_narrows_or_blocks
+    m0_state: claimed
+    m0_scope_summary: >
+      IME preedit and commit remain correct across launch-critical
+      text-entry surfaces and trust prompts.
+    m1_state: claimed
+    m1_scope_summary: >
+      M1 broadening may add auxiliary host-owned text-entry surfaces,
+      but it must keep the same composition and visible-degrade rules.
+    expected_failure_class_refs:
+      - ime_preedit_loss
+      - candidate_window_occluded
+      - focus_order_regression
+    harness_row_refs:
+      - mode.ime.composition_across_surfaces
+
+  - readiness_row_id: readiness.input.dead_key_and_compose_sequences
+    owner_ref: owner.render_text_input
+    support_class: claimed_narrow
+    test_modes:
+      - dead_key_text
+      - compose_sequence
+    locale_tags:
+      - fr-FR
+      - de-DE
+    surface_groups:
+      - editor
+      - palette_search
+      - settings_dialogs
+      - terminal_output
+    related_accessibility_input_row_refs:
+      - input.macos.text_input_services
+      - input.windows.tsf_primary
+      - input.linux.ibus_gnome
+    design_rule_refs:
+      - input.composition_keeps_caret_visible
+    m0_state: claimed
+    m0_scope_summary: >
+      Dead keys and compose sequences remain text production rather than
+      shortcut dispatch on launch-critical text-entry surfaces.
+    m1_state: claimed
+    m1_scope_summary: >
+      The same rule applies when new host-owned text fields land; no
+      surface may special-case dead keys or compose as commands.
+    expected_failure_class_refs:
+      - dead_key_as_shortcut
+      - compose_sequence_dropped
+    harness_row_refs:
+      - mode.dead_key_compose_text_production
+
+  - readiness_row_id: readiness.input.altgr_text
+    owner_ref: owner.render_text_input
+    support_class: claimed_narrow
+    test_modes:
+      - altgr_text
+    locale_tags:
+      - pl-PL
+      - de-DE
+    platform_scope_refs:
+      - windows_claimed_desktop
+    surface_groups:
+      - editor
+      - palette_search
+      - settings_dialogs
+      - terminal_output
+    related_accessibility_input_row_refs:
+      - input.windows.tsf_primary
+    design_rule_refs:
+      - input.composition_keeps_caret_visible
+    m0_state: claimed
+    m0_scope_summary: >
+      Windows AltGr input remains text production on the named
+      launch-critical text-entry surfaces.
+    m1_state: claimed
+    m1_scope_summary: >
+      Any M1 shell broadening on Windows must continue to prove AltGr is
+      not reclassified as command dispatch.
+    expected_failure_class_refs:
+      - altgr_as_shortcut
+    harness_row_refs:
+      - mode.altgr.windows_text_production
+
+  - readiness_row_id: readiness.input.emoji_commit_and_picker_visibility
+    owner_ref: owner.render_text_input
+    support_class: claimed_narrow
+    test_modes:
+      - emoji_input
+    locale_tags:
+      - en-US
+      - ja-JP
+    surface_groups:
+      - editor
+      - palette_search
+      - settings_dialogs
+      - terminal_output
+    related_accessibility_input_row_refs:
+      - input.macos.text_input_services
+      - input.windows.tsf_primary
+      - input.linux.ibus_gnome
+    design_rule_refs:
+      - font.system_fallback_chain_visible
+      - input.composition_keeps_caret_visible
+    m0_state: claimed
+    m0_scope_summary: >
+      Emoji entry survives insertion, fallback, and adjacent-text
+      preservation on launch-critical text-entry surfaces.
+    m1_state: claimed
+    m1_scope_summary: >
+      The same emoji behavior extends to broader host-owned text-entry
+      surfaces without changing fallback semantics.
+    expected_failure_class_refs:
+      - emoji_commit_loss
+      - missing_glyph_or_wrong_font_fallback
+    harness_row_refs:
+      - mode.emoji.commit
+
+  - readiness_row_id: readiness.locale.fallback_chain_and_locale_pack_contract
+    owner_ref: owner.docs_help
+    support_class: best_effort
+    test_modes:
+      - locale_fallback_review
+    locale_tags:
+      - pt-BR
+      - en-US
+    surface_groups:
+      - docs_reader
+      - guided_tour_and_onboarding
+      - settings_dialogs
+      - sign_in_and_trust_prompt
+    design_rule_refs:
+      - placeholders.raw_technical_tokens_preserved
+      - truncation.high_importance_full_text_route
+      - state_labels.scope_severity_action_preserved
+    m0_state: blocked
+    m0_scope_summary: >
+      Inspectable fallback and source-language escape hatches are
+      required if any localized copy appears, but signed locale-pack
+      loading and compatibility enforcement are not yet a defended M0
+      claim.
+    m1_state: degraded
+    m1_scope_summary: >
+      Narrow M1 experiments may expose fallback-chain UI and stale or
+      partial disclosures, but locale-pack signing, compatibility, and
+      support promises remain non-claim-bearing.
+    expected_failure_class_refs:
+      - locale_fallback_hidden
+      - source_language_escape_hatch_missing
+      - translated_state_label_drift
+    harness_row_refs:
+      - mode.locale_fallback.row_and_badges
+
+  - readiness_row_id: readiness.locale.translated_surface_and_locale_pack_marketing_parity
+    owner_ref: owner.docs_help
+    support_class: unclaimed
+    test_modes:
+      - translated_surface_parity
+    locale_tags:
+      - pt-BR
+      - ja-JP
+      - ar-IQ
+    surface_groups:
+      - docs_reader
+      - guided_tour_and_onboarding
+      - sign_in_and_trust_prompt
+    design_rule_refs:
+      - placeholders.raw_technical_tokens_preserved
+      - truncation.high_importance_full_text_route
+      - state_labels.scope_severity_action_preserved
+    m0_state: unclaimed
+    m0_scope_summary: >
+      Marketed translated shell/docs/auth parity and community locale
+      pack promotion remain outside the defended M0 shell scope.
+    m1_state: unclaimed
+    m1_scope_summary: >
+      M1 may seed future fixture rows, but translated-surface marketing
+      parity is still not a defended shell claim.
+    expected_failure_class_refs:
+      - source_language_escape_hatch_missing
+      - translated_state_label_drift
+      - placeholder_order_drift
+    harness_row_refs:
+      - mode.translated_surface_parity_future

@@ -25,6 +25,13 @@ Companion artifacts:
   Linux accessibility coverage rows.
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — canonical AT, input-method, and locale row registry.
+- [`/docs/i18n/locale_input_readiness.md`](../i18n/locale_input_readiness.md),
+  [`/artifacts/i18n/test_mode_matrix.yaml`](../../artifacts/i18n/test_mode_matrix.yaml),
+  and
+  [`/fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml`](../../fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml)
+  — canonical locale/input readiness baseline, cross-surface
+  pseudoloc/RTL/CJK/IME test-mode rows, and the seed harness plan that
+  accessibility packets compose over.
 - [`/artifacts/accessibility/shell_conformance_checklist.yaml`](../../artifacts/accessibility/shell_conformance_checklist.yaml)
   and
   [`/artifacts/accessibility/accessibility_tree_coverage_rows.yaml`](../../artifacts/accessibility/accessibility_tree_coverage_rows.yaml)

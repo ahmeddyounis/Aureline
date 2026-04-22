@@ -14,6 +14,13 @@ Companion artifacts:
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — machine-readable platform, assistive-technology, locale, and
   input-path matrix with the shared result-state vocabulary.
+- [`/docs/i18n/locale_input_readiness.md`](../i18n/locale_input_readiness.md),
+  [`/artifacts/i18n/test_mode_matrix.yaml`](../../artifacts/i18n/test_mode_matrix.yaml),
+  and
+  [`/fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml`](../../fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml)
+  — canonical locale/input readiness baseline, cross-surface
+  pseudoloc/RTL/CJK/IME test-mode rows, and the narrow M0 harness plan
+  this packet family composes over.
 - [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
   — review-planning matrix tying each claimed desktop platform scope to
   screen-reader, keyboard-only, zoom, high-contrast, reduced-motion,
@@ -54,9 +61,10 @@ Normative sources projected here:
 ## Shared result states
 
 This packet reuses the result-state vocabulary from
-`artifacts/accessibility/platform_input_matrix.yaml` and the stable task
-and platform-review ids from `task_corpus_manifest.yaml` and
-`assistive_tech_matrix.yaml`.
+`artifacts/accessibility/platform_input_matrix.yaml`, the locale/input
+readiness rows from `artifacts/i18n/test_mode_matrix.yaml`, and the
+stable task and platform-review ids from `task_corpus_manifest.yaml`
+and `assistive_tech_matrix.yaml`.
 
 | State | Meaning | Required packet behavior |
 |---|---|---|

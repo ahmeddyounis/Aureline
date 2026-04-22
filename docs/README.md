@@ -213,6 +213,12 @@ code.
   [`/artifacts/accessibility/`](../artifacts/accessibility/); concrete
   IME and text cases in
   [`/fixtures/accessibility/ime_and_text_cases/`](../fixtures/accessibility/ime_and_text_cases/).
+- [`i18n/locale_input_readiness.md`](./i18n/locale_input_readiness.md)
+  — canonical locale/input readiness baseline for pseudoloc, RTL/bidi,
+  CJK fallback, IME, dead keys, AltGr, emoji, fallback-chain, and
+  translation-safe layout rules. Machine-readable companions in
+  [`/artifacts/i18n/`](../artifacts/i18n/) and
+  [`/fixtures/i18n/`](../fixtures/i18n/).
 - [`accessibility/review_charter.md`](./accessibility/review_charter.md)
   — seed charter for the accessibility review lane covering owner,
   cadence, acceptance-pack families, waiver rules, and public
