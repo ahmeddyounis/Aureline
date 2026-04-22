@@ -14,6 +14,7 @@ narrative must be updated in the same change.
 - **Opened on:** YYYY-MM-DD
 - **Expires on:** YYYY-MM-DD
 - **Closed on:** YYYY-MM-DD or `n/a`
+- **Requirement ids:** canonical ids from `artifacts/governance/requirement_register_seed.yaml`
 - **Covered lanes / decisions:** list of lane ids and / or decision ids
 - **Accepted by:** `@handle`
 - **Forum:** architecture_council | performance_council | security_trust_review | compatibility_ecosystem_review | product_scope_review | release_council | shiproom_executive_scope_review

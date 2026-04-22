@@ -15,6 +15,9 @@ code.
 - [`governance/control_artifact_index.md`](./governance/control_artifact_index.md)
   — overview of the control-artifact index: one home, one owner,
   and one review path for every control asset.
+- [`governance/requirement_alias_crosswalk.md`](./governance/requirement_alias_crosswalk.md)
+  — canonical requirement-id crosswalk for milestone packets, CI,
+  waivers, scorecards, docs, and release evidence.
 - [`governance/interface_inventory.md`](./governance/interface_inventory.md)
   — outline of interface-inventory categories and owning lanes.
 - [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)

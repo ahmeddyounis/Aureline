@@ -22,8 +22,14 @@ Companion artifacts:
 - [`/artifacts/governance/labs_register.yaml`](../../artifacts/governance/labs_register.yaml)
   — contributor-visible Labs / prototype / preview inventory
   projected from the canonical register.
+- [`/artifacts/governance/requirement_register_seed.yaml`](../../artifacts/governance/requirement_register_seed.yaml)
+  — machine-readable canonical requirement register consumed by
+  scorecards, packets, waivers, and release evidence.
 - [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
   — charter seed for the benchmark council (roles, scope, cadence).
+- [`./requirement_alias_crosswalk.md`](./requirement_alias_crosswalk.md)
+  — human-readable crosswalk for the canonical requirement register and
+  the local labels that must resolve back to it.
 - [`./interface_inventory.md`](./interface_inventory.md) — outline of
   the interface-inventory categories that the machine-readable form
   will eventually cover.
@@ -33,8 +39,8 @@ control-artifact graph, the interface inventory, benchmark governance,
 the benchmark change-control register, the protected-metrics file, the
 benchmark-publication pack, the public-comparison rules, the
 qualification cadence, the
-compatibility qualification seed, the decision dependency register, the
-build-vs-buy register, the fork-review policy, the supply-chain
+compatibility qualification seed, the canonical requirement register,
+the decision dependency register, the build-vs-buy register, the fork-review policy, the supply-chain
 dependency and import registers, the critical-upstream health
 scorecard, the maintainer-coverage policy, the signing-quorum matrix,
 the experiment/Labs control registers, the release-notice seed, the
@@ -59,6 +65,10 @@ governance-packet template. The index only names, routes, and scopes.
   review packet, or machine-readable surface definition — look for an
   existing row in the index. If the asset already has a canonical
   home, extend that home; do not mint a parallel document.
+- Requirement ids now route through the canonical requirement register
+  and alias crosswalk. Do not let scorecard calls, packet labels,
+  fitness rows, or spec-local ids become de facto requirement ids in a
+  new change.
 - Experiments, feature flags, rollout rows, and Labs inventory updates
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer
@@ -95,7 +105,8 @@ governance-packet template. The index only names, routes, and scopes.
   `protected_metrics_file`, `benchmark_publication_pack`,
   `benchmark_public_comparison_rules`, `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
-  `qualification_cadence`, `decision_dependency_register`,
+  `qualification_cadence`, `canonical_requirement_register`,
+  `decision_dependency_register`,
   `build_vs_buy_register`, `critical_dependency_register`,
   `critical_upstream_health_scorecard`, `maintainer_coverage_policy`,
   `fork_review_policy`, `feature_flag_policy`, and
@@ -125,6 +136,9 @@ governance-packet template. The index only names, routes, and scopes.
   canonical homes for every public-facing document, including the
   known-limits matrix, the support-window statement, and migration
   guides.
+- When docs, scorecards, or packets need to name a governed obligation,
+  resolve it through the canonical requirement register rather than by
+  copying a local label out of a packet or a spec appendix.
 - The clean-room rebuild lane now lives beside the reproducible-build
   baseline under `route_build_truth`; build truth is no longer only a
   narrative baseline plus an implicit CI script.

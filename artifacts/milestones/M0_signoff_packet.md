@@ -48,6 +48,9 @@ packet instead of reconstructing scope from handoffs and scattered docs.
 - Added a shared exit-review packet, checklist, and validator so milestone
   exit can fail on missing packet sections, stale evidence, or missing
   contract-family coverage instead of relying on verbal signoff.
+- Added a canonical requirement register and alias crosswalk so the
+  architecture packet, scorecard, waivers, and later release evidence
+  can cite one requirement-id system instead of packet-local labels.
 - Added explicit signoff-only contract families for deployment-profile truth,
   canonical decision routing, notification/chronology primitives,
   local-history truth, security intake, CLI/headless posture, and
@@ -66,6 +69,7 @@ packet instead of reconstructing scope from handoffs and scattered docs.
 - Scorecard: `artifacts/milestones/M0_scorecard.yaml`
 - Risk register: `artifacts/milestones/M0_risk_register.yaml`
 - Control-artifact index: `artifacts/governance/control_artifact_index.yaml`
+- Requirement register: `artifacts/governance/requirement_register_seed.yaml`
 - Decision register: `artifacts/governance/decision_index.yaml`
 - Compatibility inventory: `artifacts/compat/qualification_matrix_seed.yaml`
 - Continuity drill seed: `artifacts/support/deployment_drill_catalog_seed.yaml`
@@ -150,7 +154,7 @@ as implied.
 |---|---|---|---|---|
 | `evidence.m0.exit.architecture_pack` | `2026-04-21T22:00:00Z` | `P14D` | current | review tree snapshot |
 | `evidence.m0.exit.scorecard` | `2026-04-21T22:00:00Z` | `P7D` | current | lane posture current at packet assembly time |
-| `evidence.m0.exit.benchmark_dashboard_seed` | `1970-01-01T00:00:00Z` | `P0D` | stale | seed-only dashboard blocks claim-bearing freshness |
+| `evidence.m0.exit.benchmark_dashboard_seed` | `2026-04-21T22:10:00Z` | `P30D` | current | seed dashboard reviewed for milestone-close posture; underlying run data remains seed-only and non-claim-bearing |
 | `evidence.m0.exit.deployment_continuity_seed` | `2026-04-21T22:10:00Z` | `P30D` | current | continuity truth is recent enough for review |
 | `evidence.m0.exit.chronology_packet_seed` | `2026-04-21T22:10:00Z` | `P30D` | current | chronology packet is fresh enough for review |
 | `evidence.m0.exit.security_intake_seed` | `2026-04-21T22:10:00Z` | `P30D` | current | baseline exists; monitored `SECURITY.md` path itself is still reserved |

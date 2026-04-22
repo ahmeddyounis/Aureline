@@ -20,6 +20,7 @@ for tooling and the narrative must be updated in the same change.
 - **Backup owner:** `@handle` or `null` with a cited waiver id
 - **Evidence owner:** `@handle`
 - **Covered lanes:** lane ids from `ownership_matrix.scorecard_lane_index`
+- **Requirement ids:** canonical ids from `artifacts/governance/requirement_register_seed.yaml`
 
 ## Summary
 
@@ -64,4 +65,5 @@ acceptance but must survive into the next milestone.
 
 - Machine-readable packet: `artifacts/governance/packets/<packet-id>.yaml`
 - Scorecard: `artifacts/governance/scorecards/<milestone-slug>.yaml`
+- Requirement register: `artifacts/governance/requirement_register_seed.yaml`
 - ADRs / RFCs referenced: `docs/adr/NNNN-slug.md`, `docs/rfc/NNNN-slug.md`

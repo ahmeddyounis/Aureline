@@ -52,6 +52,8 @@ COMMAND_SCHEMA_REL = "schemas/commands/command_descriptor.schema.json"
 SILENT_DEPLOYMENT_REL = "artifacts/release/silent_deployment_seed.yaml"
 DOCS_TRUTH_ADR_REL = "docs/adr/0013-docs-help-service-health-truth.md"
 DOCS_PACK_REL = "docs/docs/docs_pack_manifest_contract.md"
+REQUIREMENT_REGISTER_REL = "artifacts/governance/requirement_register_seed.yaml"
+REQUIREMENT_CROSSWALK_REL = "docs/governance/requirement_alias_crosswalk.md"
 
 REQUIRED_MD_HEADINGS = [
     "## Decision requested",
@@ -289,11 +291,23 @@ def check_ownership(root: Path) -> Result:
 
 
 def check_requirement_register(root: Path) -> Result:
-    if not exists(root, ARCH_PACK_PACKET_REL):
-        return make_result(False, "requirement_register", f"missing ref: {ARCH_PACK_PACKET_REL}", True)
-    if not contains_all(root, ARCH_PACK_PACKET_REL, ["requirement_register_slice:", "source_ref: .t2/docs/Aureline_PRD.md"]):
-        return make_result(False, "requirement_register", "architecture packet does not expose the requirement-register slice")
-    return make_result(True, "requirement_register", "architecture packet still exposes the requirement-register slice and canonical source")
+    refs = [ARCH_PACK_PACKET_REL, REQUIREMENT_REGISTER_REL, REQUIREMENT_CROSSWALK_REL]
+    missing = missing_paths(root, refs)
+    if missing:
+        return make_result(False, "requirement_register", f"missing refs: {', '.join(missing)}", True)
+    if not contains_all(
+        root,
+        ARCH_PACK_PACKET_REL,
+        [
+            "requirement_register_slice:",
+            f"source_ref: {REQUIREMENT_REGISTER_REL}",
+            f"alias_crosswalk_ref: {REQUIREMENT_CROSSWALK_REL}",
+        ],
+    ):
+        return make_result(False, "requirement_register", "architecture packet does not expose the governed requirement-register slice")
+    if not contains_all(root, REQUIREMENT_REGISTER_REL, ["requirement_rows:", "crosswalk_rows:"]):
+        return make_result(False, "requirement_register", "requirement register seed is missing canonical rows or crosswalk rows")
+    return make_result(True, "requirement_register", "architecture packet, governed requirement register, and alias crosswalk are aligned")
 
 
 def check_anchor_and_canonical_coverage(root: Path) -> Result:
@@ -323,9 +337,9 @@ def check_dependency_ledger(root: Path) -> Result:
 def check_control_artifact_status(root: Path) -> Result:
     if not exists(root, CONTROL_ARTIFACT_INDEX_REL):
         return make_result(False, "control_artifact_status", f"missing ref: {CONTROL_ARTIFACT_INDEX_REL}", True)
-    if "id: milestone_review_packet" not in read_text(rel_path(root, CONTROL_ARTIFACT_INDEX_REL)):
-        return make_result(False, "control_artifact_status", "control-artifact index is missing the milestone review packet row")
-    return make_result(True, "control_artifact_status", "control-artifact index includes the milestone review packet row")
+    if not contains_all(root, CONTROL_ARTIFACT_INDEX_REL, ["id: milestone_review_packet", "id: canonical_requirement_register"]):
+        return make_result(False, "control_artifact_status", "control-artifact index is missing the milestone review packet or canonical requirement-register row")
+    return make_result(True, "control_artifact_status", "control-artifact index includes the milestone review packet and canonical requirement-register rows")
 
 
 def check_decision_forums(root: Path) -> Result:
