@@ -29,6 +29,10 @@ Companion artifacts:
   — machine-readable stable-surface and future stable-surface
   inventory. Compatibility, docs, migration, and deprecation work cite
   row refs here.
+- [`/artifacts/governance/package_inventory.yaml`](../../artifacts/governance/package_inventory.yaml)
+  — machine-readable workspace package inventory with protected/off-cone
+  posture and allowed internal dependency edges. Pairs with
+  [`/docs/repo/dependency_rules.md`](../repo/dependency_rules.md).
 - [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
   — charter seed for the benchmark council (roles, scope, cadence).
 - [`./requirement_alias_crosswalk.md`](./requirement_alias_crosswalk.md)
@@ -63,6 +67,9 @@ Companion artifacts:
 - [`/schemas/governance/evidence_packet_header.schema.json`](../../schemas/governance/evidence_packet_header.schema.json)
   — shared header contract for packet identity, ownership, freshness,
   visibility, and artifact-link fields.
+- [`/docs/ci/control_artifact_validation.md`](../ci/control_artifact_validation.md)
+  — local and CI invocation guide for the shared contract-artifact
+  validation lane.
 
 **One home, one owner, one review path.** Every control asset — the
 control-artifact graph, the interface inventory, benchmark governance,
@@ -102,6 +109,10 @@ and scopes.
   `stable_surface_inventory.yaml` and the surface-contract packet
   template. Do not keep owner, versioning, support-window, or
   downgrade posture only in ADR prose.
+- Workspace crate membership, off-cone prototype posture, and allowed
+  internal dependency edges now route through `package_inventory.yaml`
+  and `docs/repo/dependency_rules.md`. Do not add or promote a crate,
+  or widen an internal edge, in `Cargo.toml` alone.
 - Implementation-broadening contract reuse now routes through
   `interface_freeze_matrix.yaml` and the downstream citation guide. Do
   not restate renderer, buffer, command, settings, restore, token,
@@ -128,6 +139,10 @@ and scopes.
   `evidence_packet_header.schema.json`. Do not mint packet-local
   ownership, freshness, or evidence-id fields when the shared header
   already covers them.
+- Package, boundary, claim, source-anchor, and decision-reference drift
+  now route through the shared contract-artifact validation lane. Do not
+  broaden a governed artifact family without keeping that lane passing or
+  updating the expected checks in the same change.
 - Experiments, feature flags, rollout rows, and Labs inventory updates
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer

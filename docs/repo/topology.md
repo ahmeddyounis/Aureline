@@ -52,6 +52,9 @@ support); they extend this map rather than relocating it.
 | `aureline-rpc`            | `crates/aureline-rpc/`                | Cross-process RPC transport.                                          |
 | `aureline-telemetry`      | `crates/aureline-telemetry/`          | Hot-path instrumentation, tracing, metrics.                           |
 | `aureline-bench`          | `crates/aureline-bench/`              | Benchmark harness and trace-fixture host.                             |
+| `aureline-largefile-proto`| `crates/aureline-largefile-proto/`    | Off-cone prototype for large-file capability posture and limited mode. |
+| `aureline-reactive-state` | `crates/aureline-reactive-state/`     | Off-cone prototype for reactive state and subscription-envelope lanes. |
+| `aureline-graph-proto`    | `crates/aureline-graph-proto/`        | Off-cone prototype for semantic workspace graph and query vocabularies. |
 
 ## Layering at a glance
 
@@ -69,12 +72,16 @@ support); they extend this map rather than relocating it.
                                                   |
                                             aureline-telemetry
 
- aureline-bench may depend on any of the above; nothing depends on it.
+ aureline-bench, aureline-largefile-proto, aureline-reactive-state,
+ and aureline-graph-proto are layer LX off-cone crates; nothing in the
+ production cone depends on them.
 ```
 
 `aureline-text` and `aureline-telemetry` are leaf foundations. `aureline-rpc`
 depends only on `aureline-telemetry`. The spike crate is allowed to reach
-across layers because it is explicitly disposable.
+across layers because it is explicitly disposable. The prototype crates are
+also disposable/off-cone: they validate frozen vocabularies and artifact
+shapes without widening the protected dependency cone.
 
 The seeded crates do not yet declare internal dependencies; they will be added
 incrementally and validated against the rules in `dependency_rules.md`.

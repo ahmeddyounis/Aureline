@@ -16,7 +16,7 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | L1    | `aureline-rpc`                                          |
 | L2    | `aureline-render`, `aureline-buffer`, `aureline-vfs`    |
 | L3    | `aureline-shell-spike`                                  |
-| LX    | `aureline-bench` (may depend on any layer; off the cone)|
+| LX    | `aureline-bench`, `aureline-largefile-proto`, `aureline-reactive-state`, `aureline-graph-proto` (off the cone; explicit allowances listed below) |
 
 ## Allowed edges
 
@@ -30,6 +30,9 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | `aureline-vfs`          | `aureline-text`, `aureline-telemetry`                       |
 | `aureline-shell-spike`  | any seeded crate                                            |
 | `aureline-bench`        | any seeded crate                                            |
+| `aureline-largefile-proto` | (no internal deps today; experimental/off-cone)         |
+| `aureline-reactive-state` | (no internal deps today; experimental/off-cone)          |
+| `aureline-graph-proto`  | (no internal deps today; experimental/off-cone)             |
 
 ## Forbidden edges (non-exhaustive)
 
@@ -40,7 +43,9 @@ The following edges are explicitly disallowed and should fail review:
   `aureline-vfs`, `aureline-text`, or `aureline-shell-spike`.
 - `aureline-render`, `aureline-buffer`, or `aureline-vfs` depending on each
   other (siblings on the same layer must not cross-couple).
-- Any production crate depending on `aureline-shell-spike` or `aureline-bench`.
+- Any production crate depending on `aureline-shell-spike`,
+  `aureline-bench`, `aureline-largefile-proto`,
+  `aureline-reactive-state`, or `aureline-graph-proto`.
 - Cycles of any length.
 
 ## Process rules
@@ -53,6 +58,10 @@ The following edges are explicitly disallowed and should fail review:
   `dependency_rules.md`, and `package_inventory.yaml` atomically.
 - Spike crates (`*-spike`) are time-boxed. Each spike must carry a documented
   removal trigger and must not accumulate downstream consumers.
+- Off-cone prototype crates (`aureline-largefile-proto`,
+  `aureline-reactive-state`, `aureline-graph-proto`) stay non-production
+  until their promotion lands with updated package inventory, ownership, and
+  dependency policy in the same change.
 
 ## Out of scope for the seed
 

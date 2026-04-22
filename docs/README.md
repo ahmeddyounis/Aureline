@@ -123,6 +123,9 @@ code.
 - [`repo/topology.md`](./repo/topology.md) — package topology.
 - [`repo/dependency_rules.md`](./repo/dependency_rules.md) — allowed
   dependency directions between packages.
+- [`ci/control_artifact_validation.md`](./ci/control_artifact_validation.md)
+  — local and CI contract-artifact validation lane for package,
+  boundary, claim, control-index, and decision/source-anchor drift.
 - [`build/exact_build_identity_model.md`](./build/exact_build_identity_model.md)
   — exact-build identity model and per-surface propagation rules for
   release, docs/help, benchmark, and support/export truth.

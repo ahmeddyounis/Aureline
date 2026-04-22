@@ -1,0 +1,51 @@
+# Shared contract-artifact validation lane.
+#
+# Runs the machine-readable/public-truth validator on pull requests and
+# uploads the JSON report plus the captured human-readable summary.
+
+name: contract_validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract_validation:
+    name: Contract-artifact validation
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run contract-artifact validation
+        run: |
+          ./ci/contract_validation.sh --out-dir target/contract-validation
+
+      - name: Upload contract-validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-validation-${{ github.run_id }}
+          path: target/contract-validation
+          if-no-files-found: error
+          retention-days: 30
