@@ -1,0 +1,763 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/exception_packet.schema.json",
+  "title": "Protected change-budget exception packet",
+  "description": "Boundary schema for a protected change-budget exception packet. A packet records the only permitted path for landing a protected-path change after a freeze fires or for taking a change that exceeds the current phase budget. The packet captures the protected budget row, exception class, review threshold, affected requirements and lanes, blast radius, compensating evidence, debt snapshot, expiry, escalation path, and the required response when the same path or subsystem accumulates repeated exceptions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_kind",
+    "packet_id",
+    "title",
+    "milestone_id",
+    "opened_on",
+    "status",
+    "protected_budget_ref",
+    "exception_class",
+    "review_threshold_ref",
+    "freeze_crossed",
+    "owner",
+    "backup_owner",
+    "backup_waiver",
+    "evidence_owner",
+    "affected_lanes",
+    "protected_path_keys",
+    "affected_requirement_ids",
+    "phase_budget_assessment",
+    "rationale",
+    "scope",
+    "blast_radius",
+    "compensating_evidence",
+    "budget_debt_snapshot",
+    "risk_if_accepted",
+    "risk_if_rejected",
+    "rollback_plan",
+    "expiry",
+    "escalation_path",
+    "repeat_exception_handling",
+    "linked_artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "packet_kind": {
+      "type": "string",
+      "enum": ["exception_packet", "freeze_exception_packet"]
+    },
+    "packet_id": {
+      "type": "string",
+      "pattern": "^(EX|FE)-[0-9]{3,4}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "milestone_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opened_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "approved", "rejected", "applied", "closed", "superseded"]
+    },
+    "protected_budget_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative ref into artifacts/governance/protected_change_budget.yaml."
+    },
+    "exception_class": {
+      "type": "string",
+      "enum": [
+        "within_contract_narrowing",
+        "instrumentation_or_evidence_refresh",
+        "dependency_hygiene_under_frozen_contract",
+        "schema_or_contract_shape_change",
+        "hardware_or_corpus_recalibration",
+        "topology_or_ownership_change",
+        "threshold_easing_or_budget_relief",
+        "subsystem_broadening",
+        "public_claim_or_support_widening"
+      ]
+    },
+    "review_threshold_ref": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Threshold id from protected_change_budget.review_thresholds."
+    },
+    "freeze_crossed": {
+      "$ref": "#/$defs/freeze_crossed"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "backup_owner": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "backup_waiver": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Waiver id from ownership_matrix.waivers, required when backup_owner is null."
+    },
+    "evidence_owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "affected_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Lane ids from ownership_matrix.scorecard_lane_index."
+    },
+    "protected_path_keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Stable keys used to detect repeated exceptions or waivers on the same protected path."
+    },
+    "affected_requirement_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9]+-[A-Z0-9]+-[0-9]{3}$"
+      },
+      "description": "Canonical requirement ids the exception narrows, protects, or temporarily bypasses."
+    },
+    "phase_budget_assessment": {
+      "$ref": "#/$defs/phase_budget_assessment"
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "$ref": "#/$defs/scope"
+    },
+    "blast_radius": {
+      "$ref": "#/$defs/blast_radius"
+    },
+    "compensating_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_ref"
+      }
+    },
+    "budget_debt_snapshot": {
+      "$ref": "#/$defs/budget_debt_snapshot"
+    },
+    "risk_if_accepted": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risk_if_rejected": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rollback_plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expiry": {
+      "$ref": "#/$defs/expiry"
+    },
+    "escalation_path": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "repeat_exception_handling": {
+      "$ref": "#/$defs/repeat_exception_handling"
+    },
+    "linked_artifacts": {
+      "$ref": "#/$defs/linked_artifacts"
+    },
+    "decision": {
+      "$ref": "#/$defs/decision"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Every packet must name a backup owner or cite an active waiver.",
+      "if": {
+        "properties": {
+          "backup_owner": { "type": "null" }
+        },
+        "required": ["backup_owner"]
+      },
+      "then": {
+        "properties": {
+          "backup_waiver": { "type": "string", "minLength": 1 }
+        },
+        "required": ["backup_waiver"]
+      }
+    },
+    {
+      "description": "If the requested change exceeds the current phase budget, the packet must name at least one escalation forum.",
+      "if": {
+        "properties": {
+          "phase_budget_assessment": {
+            "properties": {
+              "budget_alignment": {
+                "const": "exceeds_phase_budget_requires_escalation"
+              }
+            },
+            "required": ["budget_alignment"]
+          }
+        },
+        "required": ["phase_budget_assessment"]
+      },
+      "then": {
+        "properties": {
+          "phase_budget_assessment": {
+            "properties": {
+              "escalation_forum_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["escalation_forum_refs"]
+          }
+        }
+      }
+    },
+    {
+      "description": "The second same-path exception or waiver must not be treated as a first-hit exception.",
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "repeat_exception_handling": {
+                "properties": {
+                  "same_path_prior_exception_count": {
+                    "minimum": 1
+                  }
+                },
+                "required": ["same_path_prior_exception_count"]
+              }
+            },
+            "required": ["repeat_exception_handling"]
+          },
+          {
+            "properties": {
+              "budget_debt_snapshot": {
+                "properties": {
+                  "repeated_subsystem_exception_count": {
+                    "minimum": 1
+                  }
+                },
+                "required": ["repeated_subsystem_exception_count"]
+              }
+            },
+            "required": ["budget_debt_snapshot"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "repeat_exception_handling": {
+            "properties": {
+              "required_action": {
+                "enum": ["claim_narrowing", "rebaseline", "explicit_correction_work"]
+              }
+            },
+            "required": ["required_action"]
+          }
+        }
+      }
+    },
+    {
+      "description": "A third same-path hit or an aging repeated subsystem must convert into explicit correction work.",
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "repeat_exception_handling": {
+                "properties": {
+                  "same_path_prior_exception_count": {
+                    "minimum": 2
+                  }
+                },
+                "required": ["same_path_prior_exception_count"]
+              }
+            },
+            "required": ["repeat_exception_handling"]
+          },
+          {
+            "properties": {
+              "budget_debt_snapshot": {
+                "properties": {
+                  "repeated_subsystem_exception_count": {
+                    "minimum": 2
+                  }
+                },
+                "required": ["repeated_subsystem_exception_count"]
+              }
+            },
+            "required": ["budget_debt_snapshot"]
+          },
+          {
+            "properties": {
+              "budget_debt_snapshot": {
+                "properties": {
+                  "oldest_open_exception_age_days": {
+                    "minimum": 14
+                  }
+                },
+                "required": ["oldest_open_exception_age_days"]
+              }
+            },
+            "required": ["budget_debt_snapshot"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "repeat_exception_handling": {
+            "properties": {
+              "required_action": {
+                "const": "explicit_correction_work"
+              }
+            },
+            "required": ["required_action"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Explicit correction work must name a concrete correction artifact and due date.",
+      "if": {
+        "properties": {
+          "repeat_exception_handling": {
+            "properties": {
+              "required_action": {
+                "const": "explicit_correction_work"
+              }
+            },
+            "required": ["required_action"]
+          }
+        },
+        "required": ["repeat_exception_handling"]
+      },
+      "then": {
+        "properties": {
+          "repeat_exception_handling": {
+            "properties": {
+              "correction_work_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action_due_on": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "required": ["correction_work_ref", "action_due_on"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "forum_ref": {
+      "type": "string",
+      "enum": [
+        "architecture_council",
+        "performance_council",
+        "security_trust_review",
+        "compatibility_ecosystem_review",
+        "product_scope_review",
+        "release_council",
+        "shiproom_executive_scope_review"
+      ]
+    },
+    "freeze_crossed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freeze_kind", "freeze_ref", "freeze_date"],
+      "properties": {
+        "freeze_kind": {
+          "type": "string",
+          "enum": ["decision_register", "protected_lane", "release_candidate", "phase_budget"]
+        },
+        "freeze_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "freeze_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "phase_budget_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_milestone_phase",
+        "default_decision_forum_ref",
+        "default_decision_forum_label",
+        "requested_decision_forum_refs",
+        "budget_alignment",
+        "change_summary",
+        "budget_justification"
+      ],
+      "properties": {
+        "current_milestone_phase": {
+          "type": "string",
+          "enum": [
+            "M0-M1 truth-establishment",
+            "M2 alpha wedge",
+            "M3 beta hardening",
+            "M4 RC/stable"
+          ]
+        },
+        "default_decision_forum_ref": {
+          "$ref": "#/$defs/forum_ref"
+        },
+        "default_decision_forum_label": {
+          "type": "string",
+          "enum": [
+            "architecture council",
+            "milestone scope review",
+            "release council",
+            "shiproom"
+          ]
+        },
+        "requested_decision_forum_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/forum_ref"
+          }
+        },
+        "budget_alignment": {
+          "type": "string",
+          "enum": [
+            "fits_phase_budget",
+            "exceeds_phase_budget_requires_escalation"
+          ]
+        },
+        "change_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budget_justification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "escalation_forum_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forum_ref"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in_scope", "out_of_scope"],
+      "properties": {
+        "in_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "out_of_scope": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "blast_radius": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "affected_artifacts", "affected_claim_surfaces", "affected_user_journeys"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "affected_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "affected_claim_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "affected_user_journeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "freshness_note": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "budget_debt_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "train_scope_ref",
+        "protected_subsystem_id",
+        "budget_burn_count",
+        "repeated_subsystem_exception_count",
+        "oldest_open_exception_age_days",
+        "claim_narrowing_triggered",
+        "rebaseline_triggered",
+        "explicit_correction_work_triggered"
+      ],
+      "properties": {
+        "train_scope_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protected_subsystem_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budget_burn_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repeated_subsystem_exception_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "oldest_open_exception_age_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claim_narrowing_triggered": {
+          "type": "boolean"
+        },
+        "rebaseline_triggered": {
+          "type": "boolean"
+        },
+        "explicit_correction_work_triggered": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expires_on", "planned_exit_milestone", "exit_criteria"],
+      "properties": {
+        "expires_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "planned_exit_milestone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit_criteria": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "repeat_exception_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "same_path_prior_exception_count",
+        "same_subsystem_prior_exception_count",
+        "prior_exception_refs",
+        "prior_waiver_refs",
+        "required_action",
+        "trigger_rule_ref",
+        "action_owner"
+      ],
+      "properties": {
+        "same_path_prior_exception_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "same_subsystem_prior_exception_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "prior_exception_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prior_waiver_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_action": {
+          "type": "string",
+          "enum": ["none_first_exception", "claim_narrowing", "rebaseline", "explicit_correction_work"]
+        },
+        "trigger_rule_ref": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "action_owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_due_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "correction_work_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "linked_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_decision_ids",
+        "affected_adr_paths",
+        "affected_rfc_paths",
+        "scorecard_refs",
+        "evidence_refs"
+      ],
+      "properties": {
+        "affected_decision_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^D-[0-9]{4}$"
+          }
+        },
+        "affected_adr_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "affected_rfc_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "scorecard_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decided_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "decided_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approving_forum_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forum_ref"
+          }
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["approved", "rejected"]
+        },
+        "conditions": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

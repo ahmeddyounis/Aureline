@@ -48,6 +48,10 @@ Companion artifacts:
 - [`./verification_packet_template.md`](./verification_packet_template.md)
   — canonical verification-packet template for shared claim-row,
   evidence-id, freshness, and signoff structure.
+- [`./change_budget_workflow.md`](./change_budget_workflow.md)
+  — protected change-budget matrix, review thresholds, exception-packet
+  routing, and debt-dashboard field definitions for freeze-era
+  decisions.
 - [`/artifacts/governance/evidence_id_conventions.md`](../../artifacts/governance/evidence_id_conventions.md)
   — stable evidence-id grammar plus artifact-linking rules across
   design, benchmark, verification, support, and signoff packets.
@@ -103,6 +107,10 @@ and scopes.
   and alias crosswalk. Do not let scorecard calls, packet labels,
   fitness rows, or spec-local ids become de facto requirement ids in a
   new change.
+- Freeze-era protected-path changes now route through
+  `protected_change_budget.yaml`, `change_budget_workflow.md`, and the
+  canonical exception-packet schema. Do not bury a repeated exception in
+  PR narrative, milestone comments, or review-thread folklore.
 - Verification packets and any other packet family that needs stable
   proof joins now route through `verification_packet_template.md`,
   `evidence_id_conventions.md`, and

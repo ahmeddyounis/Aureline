@@ -8,8 +8,10 @@ must become explicit program decisions rather than quiet carry-forward.
 Companion artifacts:
 
 - [`/artifacts/governance/commitment_classes.yaml`](../../artifacts/governance/commitment_classes.yaml)
+- [`/artifacts/governance/protected_change_budget.yaml`](../../artifacts/governance/protected_change_budget.yaml)
+- [`/schemas/governance/exception_packet.schema.json`](../../schemas/governance/exception_packet.schema.json)
+- [`/docs/governance/templates/exception_packet_template.md`](./templates/exception_packet_template.md)
 - [`/schemas/governance/freeze_exception_packet.schema.json`](../../schemas/governance/freeze_exception_packet.schema.json)
-- [`/docs/governance/templates/freeze_exception_template.md`](./templates/freeze_exception_template.md)
 
 ## Commitment classes
 
@@ -50,7 +52,7 @@ dates`. Silent carry-forward is not a valid outcome.
 | Benchmark, compatibility, certification, or supportability evidence automation is stale, failing, or still manual at the planned checkpoint | Quality truth turns into ad hoc batch work instead of continuous proof | Redirect capacity to the evidence system before adding breadth |
 | Launch rows widen beyond the currently staffed language, framework, or deployment wedge | The launch claim has expanded without the quality depth to defend it | Downgrade widened rows to Target/Stretch or re-baseline staff and dates |
 | Optional service-plane or later-differentiation work lands on the same protected-path team as the desktop core | Core quality starts paying for later breadth | Ring-fence the work or defer it |
-| The same protected path needs repeated waivers or freeze exceptions | The exception has become hidden product policy | Require claim narrowing or a recorded rebaseline |
+| The same protected path needs repeated waivers or freeze exceptions | The exception has become hidden product policy | Require claim narrowing, a recorded rebaseline, or explicit correction work |
 | Certified-archetype, migration, docs, or compatibility publication remains manual and fragile past the planned checkpoint | Stable publication can no longer be treated as one current truth | Open a correction program before widening claims |
 
 ## Phase budgets and default forums
@@ -58,6 +60,10 @@ dates`. Silent carry-forward is not a valid outcome.
 Freeze exceptions are judged against the current phase budget first and
 the packet must say whether the requested change fits that budget or
 exceeds it.
+
+The canonical phase rows, protected-path matrix, review thresholds, and
+dashboard-feed fields now live in
+[`/artifacts/governance/protected_change_budget.yaml`](../../artifacts/governance/protected_change_budget.yaml).
 
 | Current phase | Budget allows by default | Explicit exception for | Default decision forum |
 |---|---|---|---|
@@ -74,14 +80,17 @@ id for that phase:
 - `release_council`
 - `shiproom_executive_scope_review`
 
-## Freeze-exception packet requirements
+## Exception-packet requirements
 
-A freeze-exception packet is required whenever work lands after a freeze
-fires or when a change exceeds the current phase budget even if the
-calendar freeze has not passed yet.
+An exception packet is required whenever work lands after a freeze fires
+or when a change exceeds the current phase budget even if the calendar
+freeze has not passed yet. Legacy references may still call this a
+freeze-exception packet.
 
 Every packet MUST carry:
 
+- the protected budget row, exception class, and review threshold being
+  invoked;
 - the exact change and the freeze being crossed;
 - affected lane ids, protected-path keys, and requirement ids;
 - the current milestone phase and default decision forum for that phase;
@@ -89,6 +98,7 @@ Every packet MUST carry:
   exceeds it, plus why;
 - blast radius across lanes, claims, artifacts, or user journeys;
 - compensating evidence and the named evidence owner;
+- a budget-debt snapshot for dashboard and scorecard rollups;
 - rollback path, expiry, and escalation path;
 - repeat-exception handling showing whether the same protected path has
   already been excepted or waived.
@@ -98,16 +108,20 @@ escalation forum set explicitly rather than relying on narrative urgency.
 
 ## Repeated exception rule
 
-The second exception or waiver on the same protected path, whether inside
-one milestone or across consecutive milestones, is a policy trigger. The
-packet MUST choose one of these responses and record it in-line:
+The protected change budget makes exception debt visible in three steps:
 
-- `claim_narrowing`
-- `rebaseline`
+- First hit on a protected path: use the phase-default forum and record
+  the debt snapshot.
+- Second same-path exception or waiver, whether inside one milestone or
+  across consecutive milestones: the packet MUST choose
+  `claim_narrowing` or `rebaseline`.
+- Third same-path exception, repeated subsystem burn, or an aging open
+  exception: the packet MUST choose `explicit_correction_work`.
 
 `silent carry-forward` is not an allowed response.
 
 When claim narrowing is chosen, the affected scorecard, claim packet, or
 decision row must be updated in the same change. When rebaseline is
 chosen, the milestone scorecard moves to `rebaselined` until the new
-cutline is approved.
+cutline is approved. When explicit correction work is chosen, the packet
+must name the correction-work artifact and due date in-line.

@@ -41,7 +41,11 @@ code.
   — how decisions open, close, supersede, and narrow.
 - [`governance/commitment_and_rebaseline_policy.md`](./governance/commitment_and_rebaseline_policy.md)
   — commitment classes, assumption-invalidating events, phase-level
-  change budgets, and freeze-exception rules.
+  change budgets, and exception-packet rules.
+- [`governance/change_budget_workflow.md`](./governance/change_budget_workflow.md)
+  — protected-path change-budget matrix, exception-packet workflow,
+  repeated-exception thresholds, and dashboard-feed fields for
+  freeze-era decisions.
 - [`governance/dogfood_issue_taxonomy.md`](./governance/dogfood_issue_taxonomy.md)
   — dogfood intake taxonomy covering category, severity, evidence-link,
   exact-build, route-truth, and hidden-dependency fields for issue
@@ -53,8 +57,8 @@ code.
   — stable evidence-id grammar and artifact-linking rules across
   design, benchmark, verification, support, and signoff packets.
 - [`governance/templates/`](./governance/templates/) — waiver and
-  freeze-exception template stubs plus compatibility links for older
-  references.
+  exception-packet templates plus legacy freeze-exception compatibility
+  aliases.
 - [`governance/provenance_and_compliance_baseline.md`](./governance/provenance_and_compliance_baseline.md)
   — IP, provenance, and supply-chain baseline that pairs with
   [`/CONTRIBUTING.md`](../CONTRIBUTING.md).

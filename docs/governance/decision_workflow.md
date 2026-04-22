@@ -122,13 +122,16 @@ it; the row is in `narrowed_by_default` with a `narrow` entry in
 
 A freeze exception is the only way to land a change after a freeze has
 fired. Open one by copying
-[`/docs/governance/templates/freeze_exception_template.md`](./templates/freeze_exception_template.md).
-Exceptions must be narrow, list a rollback plan, record the current
-milestone phase and default forum for that phase, say whether the
-requested change fits or exceeds the phase budget, and be approved by
-the forum named in the narrowing authority table in
-[`dri_map.md`](./dri_map.md). The packet shape is frozen in
-[`/schemas/governance/freeze_exception_packet.schema.json`](../../schemas/governance/freeze_exception_packet.schema.json).
+[`/docs/governance/templates/exception_packet_template.md`](./templates/exception_packet_template.md).
+`freeze_exception_template.md` remains a compatibility alias for older
+FE packets. Exceptions must be narrow, list a rollback plan, record the
+current milestone phase and default forum for that phase, cite the
+protected budget row and review threshold being invoked, say whether the
+requested change fits or exceeds the phase budget, carry the dashboard
+debt snapshot, and be approved by the forum named in the narrowing
+authority table in [`dri_map.md`](./dri_map.md). The canonical packet
+shape is frozen in
+[`/schemas/governance/exception_packet.schema.json`](../../schemas/governance/exception_packet.schema.json).
 
 ## Linkage rules (the contract tooling relies on)
 
@@ -146,9 +149,9 @@ them is a tooling failure, not a style preference.
 7. `decision_history` is append-only. Editing past entries is a
    governance error even when the edit is cosmetic.
 8. Adding a new metadata field anywhere in the register, an ADR, an
-   RFC, a waiver, a verification packet, or a freeze-exception packet
+   RFC, a waiver, a verification packet, or an exception packet
    requires a schema change in
    [`/schemas/governance/decision_index.schema.json`](../../schemas/governance/decision_index.schema.json)
    or
-   [`/schemas/governance/freeze_exception_packet.schema.json`](../../schemas/governance/freeze_exception_packet.schema.json)
+   [`/schemas/governance/exception_packet.schema.json`](../../schemas/governance/exception_packet.schema.json)
    (or the relevant packet schema). No ad-hoc fields.
