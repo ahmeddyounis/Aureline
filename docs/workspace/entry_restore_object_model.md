@@ -28,6 +28,10 @@ The companion workspace-layout contract lives at:
 
 - [`/docs/workspace/layout_serialization_contract.md`](./layout_serialization_contract.md)
 
+The shared migration and restore playbook lives at:
+
+- [`/docs/state/migration_and_restore_playbook.md`](../state/migration_and_restore_playbook.md)
+
 This contract is normative. Where it disagrees with the PRD, TAD,
 TDD, or UI/UX spec quotations cited in §10, those documents win and
 this document MUST be updated in the same change. Where this

@@ -1,0 +1,604 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/restore_provenance.schema.json",
+  "title": "Aureline shared state restore-provenance record",
+  "description": "Shared schema for the cross-artifact state migration and restore playbook. Captures source, producer build, source schema version, redaction class, resulting fidelity, state-plane separation, typed downgrade reasons, typed failure states, and preserved prior-artifact refs so profile restore, layout restore, sync apply, support export, and repair flows can explain the same outcome without inventing parallel labels. See docs/state/migration_and_restore_playbook.md.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/state_restore_provenance_record" }
+  ],
+  "$defs": {
+    "restore_provenance_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the shared restore-provenance vocabulary. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, manifests, support exports, and compare handles. Raw paths, credentials, and live authority tokens never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before crossing this boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "state_restore_provenance_record",
+      "description": "Discriminator for the shared restore-provenance payload."
+    },
+
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer name, e.g. 'aureline'. Never a raw hostname."
+        },
+        "producer_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Producer version string. Opaque at the schema boundary."
+        },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null],
+          "description": "Release channel hint for the producer that emitted the source artifact."
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null],
+          "description": "Platform-class hint for the producer that emitted the source artifact."
+        },
+        "producer_instance_handle": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pseudonymous producer-instance handle."
+        }
+      },
+      "description": "Producer build stamp carried by every shared restore-provenance record."
+    },
+
+    "artifact_family": {
+      "type": "string",
+      "enum": [
+        "portable_profile",
+        "profile_sync_snapshot",
+        "layout_snapshot",
+        "session_restore_manifest",
+        "workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "import_bridge_bundle"
+      ],
+      "description": "High-level artifact family the provenance record describes."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "aureline_portable_profile",
+        "aureline_profile_sync_snapshot",
+        "aureline_layout_snapshot",
+        "aureline_session_restore_manifest",
+        "aureline_workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "imported_competitor_profile",
+        "imported_competitor_layout_bundle",
+        "mixed_state_export_bundle"
+      ],
+      "description": "Concrete source-class label for the artifact the restore consumed."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "Shared redaction-class set reused by support export and state portability surfaces."
+    },
+
+    "fidelity_label": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compatible",
+        "layout_only",
+        "manual_review"
+      ],
+      "description": "Closed fidelity-label set for state migration and restore. Display copy may render Exact, Compatible, LayoutOnly, and ManualReview."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-export of the shared entry/restore surface restore-level vocabulary."
+    },
+
+    "state_plane": {
+      "type": "string",
+      "enum": [
+        "portable_settings",
+        "local_context",
+        "workspace_shared_manifest",
+        "non_portable_live_authority"
+      ],
+      "description": "The four shared state planes the playbook freezes."
+    },
+
+    "artifact_component_class": {
+      "type": "string",
+      "enum": [
+        "settings_bundle",
+        "keybindings_bundle",
+        "snippets_bundle",
+        "theme_and_visual_tokens",
+        "extension_inventory",
+        "extension_dependency_markers",
+        "layout_topology_snapshot",
+        "display_affinity_hints",
+        "workspace_manifest",
+        "workset_manifest",
+        "tasks_and_launch_configs",
+        "terminal_context_snapshot",
+        "remote_session_binding",
+        "debug_session_binding",
+        "notebook_kernel_binding",
+        "secret_reference_inventory",
+        "live_handle_inventory",
+        "policy_and_trust_markers"
+      ],
+      "description": "Seed component taxonomy used by the shared restore-provenance record."
+    },
+
+    "segment_source_posture": {
+      "type": "string",
+      "enum": [
+        "included",
+        "redacted",
+        "excluded",
+        "missing",
+        "derived_locally",
+        "not_requested"
+      ],
+      "description": "How the source artifact represented the component."
+    },
+
+    "segment_restore_posture": {
+      "type": "string",
+      "enum": [
+        "applied_exact",
+        "applied_compatible",
+        "layout_preserved_only",
+        "placeholder_only",
+        "evidence_only",
+        "skipped_intentionally",
+        "blocked_pending_review"
+      ],
+      "description": "How the restore treated the component on the target side."
+    },
+
+    "intentional_exclusion_reason": {
+      "type": "string",
+      "enum": [
+        "not_portable_across_machines",
+        "contains_secret_material",
+        "contains_live_handle",
+        "workspace_authority_owned_elsewhere",
+        "display_hint_best_effort_only",
+        "policy_excluded",
+        "user_declined",
+        "redacted_for_support_export"
+      ],
+      "description": "Why a component stayed intentionally excluded or was reduced to metadata/evidence."
+    },
+
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "schema_translation_required",
+        "schema_meaning_changed",
+        "missing_extension_dependency",
+        "missing_remote_session",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "policy_narrowing",
+        "manual_repair_required"
+      ],
+      "description": "Typed reason the resulting fidelity narrowed."
+    },
+
+    "failure_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocking"],
+      "description": "Severity of the follow-up state. Informational exclusions may appear without downgrading fidelity."
+    },
+
+    "failure_state_class": {
+      "type": "string",
+      "enum": [
+        "schema_meaning_changed",
+        "missing_extension",
+        "missing_remote_session",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "manual_repair_required",
+        "policy_narrowing"
+      ],
+      "description": "Typed user/support follow-up state produced by the restore."
+    },
+
+    "recovery_action": {
+      "type": "string",
+      "enum": [
+        "install_missing_extension",
+        "open_without_extension",
+        "reconnect_remote_session",
+        "reauthenticate_remote_session",
+        "reflow_to_safe_bounds",
+        "review_intentional_exclusions",
+        "compare_with_preserved_artifact",
+        "export_preserved_artifact",
+        "open_workspace_manifest_diff",
+        "rerun_explicitly_after_restore",
+        "rebind_existing_session",
+        "open_repair_instructions",
+        "escalate_to_manual_repair"
+      ],
+      "description": "Seed recovery-action vocabulary shared by review, restore, and support flows."
+    },
+
+    "preservation_reason": {
+      "type": "string",
+      "enum": [
+        "schema_meaning_changed",
+        "downgraded_for_compare",
+        "support_export",
+        "manual_repair_escalation"
+      ],
+      "description": "Why the prior artifact was preserved by reference."
+    },
+
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ],
+      "description": "Opaque handle or null when the handle is intentionally absent."
+    },
+
+    "state_segment_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_id",
+        "state_plane",
+        "component_class",
+        "source_posture",
+        "restore_posture",
+        "intentional_exclusion_reason",
+        "preserved_prior_artifact_ref",
+        "evidence_retained"
+      ],
+      "properties": {
+        "segment_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable row id for the component result."
+        },
+        "state_plane": { "$ref": "#/$defs/state_plane" },
+        "component_class": { "$ref": "#/$defs/artifact_component_class" },
+        "source_posture": { "$ref": "#/$defs/segment_source_posture" },
+        "restore_posture": { "$ref": "#/$defs/segment_restore_posture" },
+        "intentional_exclusion_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/intentional_exclusion_reason" },
+            { "type": "null" }
+          ],
+          "description": "Reason the component stayed intentionally excluded or reduced to metadata/evidence. Null when not applicable."
+        },
+        "preserved_prior_artifact_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Ref to a preserved prior artifact relevant to this component, if any."
+        },
+        "evidence_retained": {
+          "type": "boolean",
+          "description": "Whether evidence such as a transcript, snapshot, or metadata-only summary remained available after restore."
+        },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note."
+        }
+      },
+      "description": "One component-level result row inside the shared restore-provenance record."
+    },
+
+    "downgrade_reason_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "affected_segment_ids", "minimum_fidelity_label"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "affected_segment_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Component rows this downgrade reason applies to."
+        },
+        "minimum_fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short note explaining the downgrade."
+        }
+      },
+      "description": "Typed reason that narrowed the resulting fidelity."
+    },
+
+    "failure_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failure_state_class", "severity", "affected_segment_ids", "recovery_actions"],
+      "properties": {
+        "failure_state_class": { "$ref": "#/$defs/failure_state_class" },
+        "severity": { "$ref": "#/$defs/failure_severity" },
+        "affected_segment_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Component rows affected by this follow-up state."
+        },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action" },
+          "uniqueItems": true,
+          "description": "Suggested next actions for the user or support engineer."
+        },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short note explaining the follow-up state."
+        }
+      },
+      "description": "Typed follow-up state emitted by the restore."
+    },
+
+    "preserved_prior_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "artifact_family", "preservation_reason", "redaction_class"],
+      "properties": {
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref for the preserved prior artifact."
+        },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "preservation_reason": { "$ref": "#/$defs/preservation_reason" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "compare_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Compare handle for the preserved artifact, if available."
+        },
+        "export_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Export handle for the preserved artifact, if available."
+        },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note."
+        }
+      },
+      "description": "Ref and metadata for a prior artifact preserved before mutation."
+    },
+
+    "state_restore_provenance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_provenance_schema_version",
+        "restore_provenance_id",
+        "artifact_family",
+        "source_class",
+        "source_artifact_ref",
+        "producer_build",
+        "source_schema_version",
+        "fidelity_label",
+        "restore_level",
+        "redaction_class",
+        "state_segments",
+        "downgrade_reasons",
+        "failure_states",
+        "preserved_prior_artifacts",
+        "rollback_checkpoint_ref",
+        "equivalence_map_ref",
+        "compare_ref",
+        "export_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema hint carried on worked fixtures."
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_provenance_schema_version": {
+          "$ref": "#/$defs/restore_provenance_schema_version"
+        },
+        "restore_provenance_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable restore-provenance record id."
+        },
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref for the source artifact the restore consumed."
+        },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Source schema version string from the producer artifact."
+        },
+        "fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "state_segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/state_segment_result" },
+          "description": "Component-level separation of the restore result across the shared state planes."
+        },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_record" },
+          "description": "Typed downgrade reasons. Empty when fidelity stayed exact."
+        },
+        "failure_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/failure_state_record" },
+          "description": "Typed follow-up states, including informational exclusions."
+        },
+        "preserved_prior_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preserved_prior_artifact_record" },
+          "description": "Prior artifacts preserved for compare/export before mutation."
+        },
+        "rollback_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Rollback checkpoint handle. Required for compatible and manual-review restores."
+        },
+        "equivalence_map_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Equivalence-map handle that explains the compatibility path, if any."
+        },
+        "compare_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level compare handle for the resulting restore."
+        },
+        "export_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level export handle for the resulting restore."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fidelity_label": { "const": "exact" }
+            }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "exact_restore" },
+              "rollback_checkpoint_ref": { "type": "null" },
+              "equivalence_map_ref": { "type": "null" },
+              "downgrade_reasons": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fidelity_label": { "const": "compatible" }
+            }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "compatible_restore" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fidelity_label": { "const": "layout_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "layout_only" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fidelity_label": { "const": "manual_review" }
+            }
+          },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "compatible_restore" },
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifacts": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "Shared state restore-provenance record used by migration, restore, support export, and repair surfaces."
+    }
+  }
+}

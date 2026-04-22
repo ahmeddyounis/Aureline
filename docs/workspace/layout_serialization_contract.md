@@ -27,6 +27,7 @@ Adjacent contracts this document composes with:
 
 - [`/docs/workspace/entry_restore_object_model.md`](./entry_restore_object_model.md)
 - [`/docs/state/profile_and_state_map.md`](../state/profile_and_state_map.md)
+- [`/docs/state/migration_and_restore_playbook.md`](../state/migration_and_restore_playbook.md)
 
 This contract is normative. Where it disagrees with the PRD, TAD, TDD,
 or UI/UX spec sections cited in §9, those documents win and this

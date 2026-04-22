@@ -262,6 +262,19 @@ code.
   context, background branch-agent dispatch that preserves
   tainted-usage constraints across the handoff) in
   [`/fixtures/ai/context_assembly_cases/`](../fixtures/ai/context_assembly_cases/).
+- [`state/migration_and_restore_playbook.md`](./state/migration_and_restore_playbook.md)
+  — shared migration, downgrade, and restore-provenance playbook for
+  profile, layout, sync, checkpoint, support-export, and repair
+  surfaces. Freezes the four state planes (`portable_settings`,
+  `local_context`, `workspace_shared_manifest`,
+  `non_portable_live_authority`), the shared fidelity-label set
+  (`exact`, `compatible`, `layout_only`, `manual_review`), typed
+  downgrade and failure-state rows, and the rule that prior artifacts
+  stay preserved for compare/export when schema meaning changed or a
+  restore stopped short of faithful apply. Boundary schema in
+  [`/schemas/state/restore_provenance.schema.json`](../schemas/state/restore_provenance.schema.json);
+  worked fixtures covering all four fidelity labels in
+  [`/fixtures/state/migration_cases/`](../fixtures/state/migration_cases/).
 - [`state/profile_and_state_map.md`](./state/profile_and_state_map.md)
   — portable-profile artifact and configuration / state map seed
   every profile export / import, managed-sync lane, support-bundle
