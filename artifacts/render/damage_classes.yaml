@@ -1,0 +1,443 @@
+# Viewport invalidation and damage-class vocabulary.
+#
+# This file is the machine-readable companion to
+# docs/architecture/viewport_invalidation_and_composition_packet.md.
+# It freezes one closed set of damage classes, one damage-unit
+# vocabulary, one repaint-semantics vocabulary, and one allowed
+# fallback-state vocabulary for renderer and shell composition work.
+#
+# Rules:
+#   - If this file and the packet doc disagree, this file wins for
+#     tooling and the packet doc must update in the same change.
+#   - Reusing a damage_class_id for a meaningfully different repaint
+#     scope is breaking.
+#   - Adding a class is additive only when the packet doc, this file,
+#     and any required fixture rows land together.
+#   - Whole-window repaint is forbidden unless the damage class says it
+#     is allowed and the trace carries a matching fallback or lifecycle
+#     reason.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/architecture/viewport_invalidation_and_composition_packet.md
+composition_layer_source: artifacts/render/composition_layer_map.yaml
+design_layer_source: artifacts/design/layer_and_scrim_tokens.yaml
+spike_composition_source: docs/design/shell_spike_composition_notes.md
+spike_capability_source: artifacts/render/spike_capabilities.json
+spike_trace_source_dir: artifacts/render/spike_trace_samples
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - dirty-region rendering
+      - IME correctness
+      - rendering and layout golden tests
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - protected hot path rule
+      - rendering architecture
+      - viewport and dirty-region computation
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - appearance, theme packages, token overlays, and live-appearance-change architecture
+      - theme package, token overlay, and appearance-session contract
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - window/topology, search-ranking, write-preview, and exit-parity drills
+      - accessibility, assistive-technology, and microcopy consistency drills
+  - path: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    anchors:
+      - dirty-rect compositor
+      - overlay separation
+      - protected-hot-path hook list
+  - path: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+    anchors:
+      - canonical ownership split
+      - text input normalization
+
+damage_unit_vocabulary:
+  - damage_unit_id: overlay_rect
+    summary: Small overlay-only rectangle inside one surface.
+  - damage_unit_id: line_range
+    summary: Contiguous text rows whose layout changed.
+  - damage_unit_id: viewport_rect
+    summary: Visible viewport region or exposed strip inside one text surface.
+  - damage_unit_id: surface_rect
+    summary: Region for one non-text or portal surface.
+  - damage_unit_id: window_exposed_region_set
+    summary: One or more exposed rectangles for one target window.
+  - damage_unit_id: full_surface
+    summary: Entire surface or layer pair rebuild inside one window.
+  - damage_unit_id: full_window
+    summary: Every visible surface in one window.
+
+repaint_semantics_vocabulary:
+  - repaint_semantics_id: partial_rect_only
+    summary: Repaint only the named damage rects or exposed-region set.
+  - repaint_semantics_id: partial_translate_plus_strip
+    summary: Translate existing pixels and repaint only the new strip or correction rects.
+  - repaint_semantics_id: localized_reflow
+    summary: Recompute and repaint only the affected line range.
+  - repaint_semantics_id: full_surface_rebuild
+    summary: Rebuild one surface fully but keep the rest of the window intact.
+  - repaint_semantics_id: full_window_rebuild
+    summary: Rebuild every visible surface in one target window.
+
+fallback_state_vocabulary:
+  - fallback_state_id: blink_suppressed_under_reduced_motion
+    summary: Blink animation may stop while reduced-motion or stricter posture is active.
+  - fallback_state_id: hidden_surface_animation_suppressed
+    summary: Hidden or occluded surfaces may suppress blink and animation until visible.
+  - fallback_state_id: platform_owned_candidate_window
+    summary: IME candidate UI may remain platform-owned instead of Aureline-painted.
+  - fallback_state_id: full_surface_rebuild_for_scale_transition
+    summary: Resize or scale-bucket change may rebuild the affected surface fully.
+  - fallback_state_id: full_window_rebuild_for_appearance_flip
+    summary: Appearance or token-session flip may rebuild the full target window.
+  - fallback_state_id: software_renderer_full_window_repaint
+    summary: Software-render fallback may repaint the full target window.
+  - fallback_state_id: deferred_until_window_exposed
+    summary: Hidden windows may defer repaint until they become exposed again.
+
+damage_classes:
+  - damage_class_id: render_damage.startup_first_paint
+    summary: >
+      Initial non-blank frame for a newly shown window or surface.
+      This is a lifecycle class, not a steady-state interaction class.
+    current_spike_hook_refs:
+      - warm_start_to_first_paint
+      - first_paint
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/warm_start_first_paint.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs: []
+    default_damage_units:
+      - full_window
+    repaint_semantics: full_window_rebuild
+    composition_layer_refs:
+      - render_layer.window_chrome_base
+      - render_layer.text_and_decoration
+    primary_zone_scope:
+      - title_bar
+      - sidebar
+      - editor_viewport
+      - status_bar
+    should_invalidate:
+      - every visible surface in the target window for its first non-blank frame
+    must_not_invalidate:
+      - unrelated windows
+      - hidden windows
+    whole_window_repaint_allowed: true
+    allowed_fallback_state_refs:
+      - software_renderer_full_window_repaint
+
+  - damage_class_id: render_damage.text_reflow_local
+    summary: >
+      Local text insertion, deletion, or wrap change that reflows a
+      bounded line range inside the active text surface.
+    current_spike_hook_refs:
+      - reflow_line_range
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/text_burst_cjk.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs:
+      - fallback_glyph_resolution
+    default_damage_units:
+      - line_range
+      - viewport_rect
+    repaint_semantics: localized_reflow
+    composition_layer_refs:
+      - render_layer.text_and_decoration
+    primary_zone_scope:
+      - editor_viewport
+    should_invalidate:
+      - affected line range and the visible rects derived from that range
+    must_not_invalidate:
+      - full_window
+      - render_layer.window_chrome_base
+      - render_layer.floating_surface
+      - unrelated windows
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs: []
+
+  - damage_class_id: render_damage.caret_overlay_only
+    summary: >
+      Caret move or blink that changes only caret visibility or
+      position within the focused text surface.
+    current_spike_hook_refs:
+      - caret_move
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/caret_left.json
+      - artifacts/render/spike_trace_samples/caret_right.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs: []
+    default_damage_units:
+      - overlay_rect
+    repaint_semantics: partial_rect_only
+    composition_layer_refs:
+      - render_layer.overlay_ephemera
+    primary_zone_scope:
+      - editor_viewport
+    should_invalidate:
+      - caret overlay rectangle only
+    must_not_invalidate:
+      - glyph_raster_cache
+      - text_layout_cache
+      - render_layer.text_and_decoration
+      - render_layer.window_chrome_base
+      - unrelated_windows
+      - full_window
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs:
+      - blink_suppressed_under_reduced_motion
+      - hidden_surface_animation_suppressed
+
+  - damage_class_id: render_damage.selection_overlay_only
+    summary: >
+      Selection-anchor or range change that repaints selection fill and
+      handles without changing glyph layout.
+    current_spike_hook_refs:
+      - selection_change
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/selection_click.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs: []
+    default_damage_units:
+      - overlay_rect
+    repaint_semantics: partial_rect_only
+    composition_layer_refs:
+      - render_layer.overlay_ephemera
+    primary_zone_scope:
+      - editor_viewport
+    should_invalidate:
+      - selection fill rects and selection affordance rects
+    must_not_invalidate:
+      - glyph_raster_cache
+      - text_layout_cache
+      - render_layer.text_and_decoration
+      - render_layer.window_chrome_base
+      - unrelated_windows
+      - full_window
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs: []
+
+  - damage_class_id: render_damage.ime_marked_text_overlay
+    summary: >
+      Marked-text, composition underline, or caret-inside-preedit
+      change that stays on the overlay layer while text commit authority
+      remains platform-owned.
+    current_spike_hook_refs:
+      - ime_composition_update
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/ime_compose.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs: []
+    default_damage_units:
+      - overlay_rect
+    repaint_semantics: partial_rect_only
+    composition_layer_refs:
+      - render_layer.overlay_ephemera
+    primary_zone_scope:
+      - editor_viewport
+    should_invalidate:
+      - composition underline segments and marked-text caret rect only
+    must_not_invalidate:
+      - glyph_raster_cache
+      - text_layout_cache
+      - render_layer.text_and_decoration
+      - full_window
+      - unrelated_windows
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs:
+      - platform_owned_candidate_window
+
+  - damage_class_id: render_damage.viewport_scroll_translate
+    summary: >
+      Scroll within a viewport where existing pixels translate and only
+      the newly exposed strip or correction rects repaint.
+    current_spike_hook_refs:
+      - scroll_frame
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/scroll_down.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs: []
+    default_damage_units:
+      - viewport_rect
+    repaint_semantics: partial_translate_plus_strip
+    composition_layer_refs:
+      - render_layer.text_and_decoration
+    primary_zone_scope:
+      - editor_viewport
+    should_invalidate:
+      - newly exposed strip and any small correction rects inside the viewport
+    must_not_invalidate:
+      - full_window
+      - render_layer.window_chrome_base
+      - unrelated_windows
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs: []
+
+  - damage_class_id: render_damage.viewport_resize_or_scale_change
+    summary: >
+      Window resize, monitor move, or scale-bucket transition that may
+      rebuild every affected surface in one target window but should not
+      widen beyond that window.
+    current_spike_hook_refs:
+      - multi_monitor_scale_change
+    current_spike_sample_refs:
+      - artifacts/render/spike_trace_samples/scale_change.json
+      - artifacts/render/spike_trace_samples/full_scene.json
+    observability_hook_refs:
+      - atlas_shard_rebind
+    default_damage_units:
+      - full_surface
+      - surface_rect
+    repaint_semantics: full_surface_rebuild
+    composition_layer_refs:
+      - render_layer.window_chrome_base
+      - render_layer.text_and_decoration
+      - render_layer.overlay_ephemera
+      - render_layer.floating_surface
+      - render_layer.menu_surface
+      - render_layer.dialog_surface
+    primary_zone_scope:
+      - title_bar
+      - sidebar
+      - editor_viewport
+      - status_bar
+    should_invalidate:
+      - every affected surface in the target window whose geometry or scale bucket changed
+    must_not_invalidate:
+      - unrelated_windows
+      - hidden windows
+      - unexplained full_window fallback
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs:
+      - full_surface_rebuild_for_scale_transition
+
+  - damage_class_id: render_damage.floating_surface_toggle
+    summary: >
+      Popup, menu, or dialog open/close, move, or resize that should
+      stay confined to the portal surface and its immediate anchor
+      overlap.
+    current_spike_hook_refs: []
+    current_spike_sample_refs: []
+    observability_hook_refs: []
+    default_damage_units:
+      - surface_rect
+    repaint_semantics: partial_rect_only
+    composition_layer_refs:
+      - render_layer.floating_surface
+      - render_layer.menu_surface
+      - render_layer.dialog_surface
+    primary_zone_scope:
+      - popup_surface
+      - menu_surface
+      - dialog_surface
+    should_invalidate:
+      - popup surface bounds and any small anchor overlap beneath it
+    must_not_invalidate:
+      - full_window
+      - unrelated_windows
+      - entire editor viewport without explanation
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs:
+      - platform_owned_candidate_window
+
+  - damage_class_id: render_damage.appearance_session_flip
+    summary: >
+      Theme package, token overlay, contrast mode, or follow-system
+      appearance change that may rebuild every visible surface in one
+      target window.
+    current_spike_hook_refs: []
+    current_spike_sample_refs: []
+    observability_hook_refs:
+      - accessibility_tree_update
+    default_damage_units:
+      - full_window
+    repaint_semantics: full_window_rebuild
+    composition_layer_refs:
+      - render_layer.window_chrome_base
+      - render_layer.text_and_decoration
+      - render_layer.overlay_ephemera
+      - render_layer.floating_surface
+      - render_layer.menu_surface
+      - render_layer.dialog_surface
+      - render_layer.toast_surface
+      - render_layer.critical_surface
+    primary_zone_scope:
+      - every visible surface in the target window
+    should_invalidate:
+      - all visible layers for the target window in one coherent appearance session
+    must_not_invalidate:
+      - hidden windows immediately
+      - mixed old and new theme tokens inside one target window
+      - unexplained new composition layers
+    whole_window_repaint_allowed: true
+    allowed_fallback_state_refs:
+      - full_window_rebuild_for_appearance_flip
+      - deferred_until_window_exposed
+
+  - damage_class_id: render_damage.window_exposed_region_refresh
+    summary: >
+      Newly exposed regions in a target window after uncover, move,
+      resize, or topology change.
+    current_spike_hook_refs: []
+    current_spike_sample_refs: []
+    observability_hook_refs: []
+    default_damage_units:
+      - window_exposed_region_set
+      - surface_rect
+    repaint_semantics: partial_rect_only
+    composition_layer_refs:
+      - render_layer.window_chrome_base
+      - render_layer.text_and_decoration
+      - render_layer.overlay_ephemera
+      - render_layer.floating_surface
+      - render_layer.menu_surface
+      - render_layer.dialog_surface
+    primary_zone_scope:
+      - affected regions in the target window only
+    should_invalidate:
+      - newly exposed rects in the uncovered or moved window
+    must_not_invalidate:
+      - unrelated_windows
+      - fully occluded windows
+      - full_window
+    whole_window_repaint_allowed: false
+    allowed_fallback_state_refs:
+      - deferred_until_window_exposed
+
+  - damage_class_id: render_damage.degraded_full_window_fallback
+    summary: >
+      Explicit degraded-mode class for software-render, adapter-loss, or
+      similar last-resort posture where the renderer cannot preserve
+      fine-grained damage.
+    current_spike_hook_refs:
+      - degraded_renderer_banner
+    current_spike_sample_refs: []
+    observability_hook_refs:
+      - degraded_renderer_banner
+    default_damage_units:
+      - full_window
+    repaint_semantics: full_window_rebuild
+    composition_layer_refs:
+      - render_layer.window_chrome_base
+      - render_layer.text_and_decoration
+      - render_layer.overlay_ephemera
+      - render_layer.floating_surface
+      - render_layer.menu_surface
+      - render_layer.dialog_surface
+      - render_layer.toast_surface
+      - render_layer.critical_surface
+    primary_zone_scope:
+      - every visible surface in the degraded target window
+    should_invalidate:
+      - the full target window only after degraded mode is explicit
+    must_not_invalidate:
+      - unrelated_windows
+      - undeclared degraded states
+    whole_window_repaint_allowed: true
+    allowed_fallback_state_refs:
+      - software_renderer_full_window_repaint

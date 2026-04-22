@@ -1,0 +1,44 @@
+fixture_id: render_viewport.appearance_session_flip
+title: Theme or token flips label any whole-window rebuild explicitly
+scenario: >
+  Theme-package changes, token-overlay edits, contrast changes, and
+  follow-system appearance flips may rebuild each visible target window,
+  but the rebuild must be explicit and coherent.
+platform_profile_scope: all_claimed_desktop_profiles
+damage_class_refs:
+  - render_damage.appearance_session_flip
+composition_layer_refs:
+  - render_layer.window_chrome_base
+  - render_layer.text_and_decoration
+  - render_layer.overlay_ephemera
+  - render_layer.floating_surface
+  - render_layer.menu_surface
+  - render_layer.dialog_surface
+  - render_layer.toast_surface
+  - render_layer.critical_surface
+current_spike_trace_refs: []
+trigger:
+  source: appearance session change from theme package, token overlay, contrast mode, or OS follow-system signal
+expected_invalidation:
+  should_invalidate:
+    windows:
+      - every_visible_target_window
+    zones:
+      - every_visible_surface
+    damage_units:
+      - full_window
+    repaint_semantics: full_window_rebuild
+  must_not_invalidate:
+    - hidden_windows_immediately
+    - mixed_old_and_new_theme_tokens_in_one_window
+    - unexplained_new_composition_layers
+allowed_fallback_state_refs:
+  - full_window_rebuild_for_appearance_flip
+  - deferred_until_window_exposed
+trace_expectations:
+  current_spike_hooks: []
+  adjunct_observability_hooks:
+    - accessibility_tree_update
+  required_damage_explanation: appearance session changed coherently
+notes:
+  - A whole-window rebuild is acceptable for this class only when the trace labels it as an appearance-session flip.

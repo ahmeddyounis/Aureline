@@ -1,0 +1,208 @@
+# Composition-layer ownership and design-layer bridge.
+#
+# This file is the machine-readable companion to
+# docs/architecture/viewport_invalidation_and_composition_packet.md.
+# It freezes the composition-layer ids future renderer, shell, and
+# portal surfaces must cite when they claim viewport or composition
+# conformance.
+#
+# Rules:
+#   - Adding a new composition layer requires an update to this file,
+#     the packet doc, and any affected fixture rows.
+#   - Portal surfaces consume design-layer token refs from
+#     artifacts/design/layer_and_scrim_tokens.yaml rather than minting
+#     ad hoc z-order.
+#   - overlay_ephemera is surface-local, not a general-purpose portal.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/architecture/viewport_invalidation_and_composition_packet.md
+damage_class_source: artifacts/render/damage_classes.yaml
+design_layer_source: artifacts/design/layer_and_scrim_tokens.yaml
+spike_composition_source: docs/design/shell_spike_composition_notes.md
+shell_boundary_source: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+renderer_boundary_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+
+scope_class_vocabulary:
+  - scope_class_id: window_local
+    summary: Layer spans the window client area or a stable zone inside it.
+  - scope_class_id: surface_local
+    summary: Layer is local to one text or chrome surface and ordered inside that surface.
+  - scope_class_id: portal
+    summary: Layer is a shell-managed portal surface positioned above the base scene.
+
+layers:
+  - composition_layer_id: render_layer.window_chrome_base
+    summary: >
+      Window-local title/context chrome, sidebar, status bar, and other
+      stable shell surfaces below popup portals.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: none
+    scope_class: window_local
+    intra_scope_order: 0
+    design_layer_token_ref: design:layer:z_base
+    paired_scrim_ref: design:scrim:scrim_none
+    current_spike_coverage:
+      zone_refs:
+        - title_bar
+        - sidebar
+        - status_bar
+      layer_name: stable_placeholder_surfaces
+    allowed_damage_class_refs:
+      - render_damage.startup_first_paint
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.text_and_decoration
+    summary: >
+      Text, backgrounds, gutters, diagnostics, minimap, and other
+      text-heavy decorations inside the main viewport or equivalent text
+      surface.
+    lifecycle_owner: renderer
+    paint_owner: renderer
+    platform_override_posture: none
+    scope_class: surface_local
+    intra_scope_order: 0
+    design_layer_token_ref: design:layer:z_base
+    paired_scrim_ref: design:scrim:scrim_none
+    current_spike_coverage:
+      zone_refs:
+        - editor_viewport
+      layer_name: text_and_decoration
+    allowed_damage_class_refs:
+      - render_damage.startup_first_paint
+      - render_damage.text_reflow_local
+      - render_damage.viewport_scroll_translate
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.overlay_ephemera
+    summary: >
+      Surface-local overlay for carets, selection fill, drag ghosts, and
+      marked-text adornments that must repaint without glyph re-raster.
+    lifecycle_owner: renderer
+    paint_owner: renderer
+    platform_override_posture: platform_input_candidate_window_allowed_for_related_popup_only
+    scope_class: surface_local
+    intra_scope_order: 1
+    design_layer_token_ref: null
+    paired_scrim_ref: null
+    current_spike_coverage:
+      zone_refs:
+        - editor_viewport
+      layer_name: overlay
+    allowed_damage_class_refs:
+      - render_damage.caret_overlay_only
+      - render_damage.selection_overlay_only
+      - render_damage.ime_marked_text_overlay
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.floating_surface
+    summary: >
+      Lightweight popup portals such as completion lists, hover cards,
+      and transient popovers.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: platform_owned_candidate_window_allowed
+    scope_class: portal
+    intra_scope_order: 0
+    design_layer_token_ref: design:layer:z_floating
+    paired_scrim_ref: design:scrim:scrim_weak
+    current_spike_coverage:
+      zone_refs: []
+      layer_name: not_yet_in_spike
+    allowed_damage_class_refs:
+      - render_damage.floating_surface_toggle
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.menu_surface
+    summary: Context menus and command-derived menus.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: none
+    scope_class: portal
+    intra_scope_order: 1
+    design_layer_token_ref: design:layer:z_menu
+    paired_scrim_ref: design:scrim:scrim_none
+    current_spike_coverage:
+      zone_refs: []
+      layer_name: not_yet_in_spike
+    allowed_damage_class_refs:
+      - render_damage.floating_surface_toggle
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.dialog_surface
+    summary: Dialogs, review sheets, trust prompts, and import/export sheets.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: platform_modal_ownership_must_stay_window_local
+    scope_class: portal
+    intra_scope_order: 2
+    design_layer_token_ref: design:layer:z_dialog
+    paired_scrim_ref: design:scrim:scrim_strong
+    current_spike_coverage:
+      zone_refs: []
+      layer_name: not_yet_in_spike
+    allowed_damage_class_refs:
+      - render_damage.floating_surface_toggle
+      - render_damage.viewport_resize_or_scale_change
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.toast_surface
+    summary: Transient toasts and ephemeral notification chrome.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: none
+    scope_class: portal
+    intra_scope_order: 3
+    design_layer_token_ref: design:layer:z_toast
+    paired_scrim_ref: design:scrim:scrim_none
+    current_spike_coverage:
+      zone_refs: []
+      layer_name: not_yet_in_spike
+    allowed_damage_class_refs:
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true
+
+  - composition_layer_id: render_layer.critical_surface
+    summary: Trust-, auth-, or security-critical overlays reserved above every other portal.
+    lifecycle_owner: shell_ui
+    paint_owner: renderer
+    platform_override_posture: platform_security_or_auth_handoff_may_attach_but_not_reorder
+    scope_class: portal
+    intra_scope_order: 4
+    design_layer_token_ref: design:layer:z_critical
+    paired_scrim_ref: design:scrim:scrim_strong
+    current_spike_coverage:
+      zone_refs: []
+      layer_name: not_yet_in_spike
+    allowed_damage_class_refs:
+      - render_damage.appearance_session_flip
+      - render_damage.window_exposed_region_refresh
+      - render_damage.degraded_full_window_fallback
+    additions_require_packet_update: true

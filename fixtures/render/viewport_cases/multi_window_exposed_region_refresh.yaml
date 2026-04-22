@@ -1,0 +1,38 @@
+fixture_id: render_viewport.multi_window_exposed_region_refresh
+title: Multi-window exposed regions repaint only where windows become visible
+scenario: >
+  When one window is uncovered, moved, or redocked, the renderer
+  refreshes only the newly exposed regions in the affected window rather
+  than repainting every open window.
+platform_profile_scope: all_claimed_desktop_profiles
+damage_class_refs:
+  - render_damage.window_exposed_region_refresh
+composition_layer_refs:
+  - render_layer.window_chrome_base
+  - render_layer.text_and_decoration
+  - render_layer.overlay_ephemera
+  - render_layer.floating_surface
+current_spike_trace_refs: []
+trigger:
+  source: de-occlusion, multi-window move, display detach or redock, or other exposed-region update
+expected_invalidation:
+  should_invalidate:
+    windows:
+      - newly_exposed_window
+    zones:
+      - affected_regions_only
+    damage_units:
+      - window_exposed_region_set
+      - surface_rect
+    repaint_semantics: partial_rect_only
+  must_not_invalidate:
+    - unrelated_windows
+    - fully_occluded_windows
+    - full_window
+allowed_fallback_state_refs:
+  - deferred_until_window_exposed
+trace_expectations:
+  current_spike_hooks: []
+  required_damage_explanation: exposed region changed for one target window
+notes:
+  - This fixture aligns with the mixed-DPI and multi-window focus corpus in fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml.

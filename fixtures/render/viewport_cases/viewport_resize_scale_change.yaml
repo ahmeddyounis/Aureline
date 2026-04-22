@@ -1,0 +1,45 @@
+fixture_id: render_viewport.viewport_resize_scale_change
+title: Resize or mixed-DPI move stays scoped to the target window
+scenario: >
+  Window resize or scale-bucket change may rebuild every affected
+  surface in the target window, but it must not invalidate unrelated
+  windows or invent a new composition layer.
+platform_profile_scope: all_claimed_desktop_profiles
+damage_class_refs:
+  - render_damage.viewport_resize_or_scale_change
+composition_layer_refs:
+  - render_layer.window_chrome_base
+  - render_layer.text_and_decoration
+  - render_layer.overlay_ephemera
+  - render_layer.floating_surface
+current_spike_trace_refs:
+  - artifacts/render/spike_trace_samples/scale_change.json
+trigger:
+  source: window resize, monitor move, or scale-bucket change
+expected_invalidation:
+  should_invalidate:
+    windows:
+      - target_window
+    zones:
+      - title_bar
+      - sidebar
+      - editor_viewport
+      - status_bar
+    damage_units:
+      - full_surface
+      - surface_rect
+    repaint_semantics: full_surface_rebuild
+  must_not_invalidate:
+    - unrelated_windows
+    - hidden_windows
+    - unexplained_full_window_rebuild
+allowed_fallback_state_refs:
+  - full_surface_rebuild_for_scale_transition
+trace_expectations:
+  current_spike_hooks:
+    - multi_monitor_scale_change
+  adjunct_observability_hooks:
+    - atlas_shard_rebind
+  required_damage_explanation: target window geometry or scale bucket changed
+notes:
+  - Atlas-shard rebind is explanatory evidence, not a license to widen repaint beyond the target window.

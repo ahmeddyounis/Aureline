@@ -1,0 +1,37 @@
+fixture_id: render_viewport.selection_overlay_only
+title: Selection change stays on the overlay layer
+scenario: >
+  Selection-anchor or range changes repaint selection visuals without
+  invalidating glyph layout, chrome, or unrelated surfaces.
+platform_profile_scope: all_claimed_desktop_profiles
+damage_class_refs:
+  - render_damage.selection_overlay_only
+composition_layer_refs:
+  - render_layer.overlay_ephemera
+current_spike_trace_refs:
+  - artifacts/render/spike_trace_samples/selection_click.json
+trigger:
+  source: mouse or keyboard selection change in the focused text surface
+expected_invalidation:
+  should_invalidate:
+    windows:
+      - active_window
+    zones:
+      - editor_viewport
+    damage_units:
+      - overlay_rect
+    repaint_semantics: partial_rect_only
+  must_not_invalidate:
+    - glyph_raster_cache
+    - text_layout_cache
+    - render_layer.text_and_decoration
+    - render_layer.window_chrome_base
+    - unrelated_windows
+    - full_window
+allowed_fallback_state_refs: []
+trace_expectations:
+  current_spike_hooks:
+    - selection_change
+  required_damage_explanation: selection range or anchor changed
+notes:
+  - Multi-range selections remain one damage class, but each visible range must still explain its overlay rects.
