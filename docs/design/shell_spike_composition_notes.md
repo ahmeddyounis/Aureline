@@ -47,15 +47,16 @@ contradict the table; doing so reopens ADR 0002.
 
 ## Placeholder surface ownership
 
-Each shell zone owns one surface. The spike declares the following
-ownership posture:
+These are spike render zones, not the canonical product shell zones from
+ADR 0016. The spike declares the following ownership posture for its
+trace and damage buckets:
 
-| Zone               | `SurfaceOwnership` | Reason                                                                 |
-|--------------------|---------------------|------------------------------------------------------------------------|
-| `title_bar`        | `stable`            | Static decoration; never re-shapes glyphs at runtime.                  |
-| `sidebar`          | `stable`            | Placeholder until the panel system lands; treated as static chrome.    |
-| `editor_viewport`  | `text_pipeline`     | Hosts the text-and-decoration layer; the only zone that re-shapes.    |
-| `status_bar`       | `stable`            | Static decoration; updates are infrequent and treated as full repaints.|
+| Spike zone         | `SurfaceOwnership` | Reason                                                                 |
+|--------------------|--------------------|------------------------------------------------------------------------|
+| `title_bar`        | `stable`           | Static decoration; never re-shapes glyphs at runtime.                  |
+| `sidebar`          | `stable`           | Placeholder until the panel system lands; treated as static chrome.    |
+| `editor_viewport`  | `text_pipeline`    | Hosts the text-and-decoration layer; the only zone that re-shapes.     |
+| `status_bar`       | `stable`           | Static decoration; updates are infrequent and treated as full repaints.|
 
 `SurfaceOwnership::for_zone(zone)` is the seam consumers call. Adding a
 zone requires bumping `CapabilityManifest::SCHEMA_VERSION` and

@@ -1,0 +1,526 @@
+# Desktop shell boundary matrix.
+#
+# Companion to ADR 0016
+# (docs/adr/0016-shell-windowing-input-accessibility-boundary.md).
+#
+# This file freezes the machine-readable split between shared shell
+# behavior, renderer responsibilities, per-OS platform adapters, and the
+# later conformance suites that prove the claimed desktop rows.
+#
+# Rules:
+#   - If this file and ADR 0016 disagree, ADR 0016 wins and this file
+#     MUST be updated in the same change.
+#   - Zone ids mirror the canonical shell-zone model, not the narrower
+#     renderer-spike trace-zone vocabulary.
+#   - Adding a new zone, adaptive class, entry point, or native
+#     affordance requires a decision-row and ADR update.
+#   - Native integration rows may narrow by claimed profile, but they
+#     may not widen authority or bypass preview / approval / trust
+#     review.
+
+schema_version: 1
+
+adr_source: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+decision_id: D-0022
+decision_register: artifacts/governance/decision_index.yaml
+companion_docs:
+  failure_modes: docs/architecture/input_adapter_failure_modes.md
+  interaction_safety: docs/ux/shell_interaction_safety_contract.md
+  platform_conformance: docs/platform/desktop_platform_conformance_matrix.md
+  multi_window_verification: docs/qa/multi_window_verification.md
+  layout_restore: docs/workspace/layout_serialization_contract.md
+
+axes:
+  shell_zone:
+    values:
+      - title_context_bar
+      - activity_rail
+      - left_sidebar
+      - main_workspace
+      - right_inspector
+      - bottom_panel
+      - status_bar
+      - transient_overlay
+
+  adaptive_class:
+    values:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+
+  command_entry_point:
+    values:
+      - keybinding
+      - application_menu
+      - toolbar_or_status_action
+      - command_palette
+      - context_menu
+      - deep_link_or_protocol_handler
+      - notification_reopen
+      - embedded_surface_handoff
+
+  text_input_surface:
+    values:
+      - editor
+      - terminal
+      - palette_search
+      - settings_dialogs
+      - notebook_or_aux_text_entry
+
+  native_affordance:
+    values:
+      - native_window_and_chrome
+      - menus_and_accelerators
+      - file_dialogs_and_system_reveal
+      - clipboard_drag_drop
+      - browser_handoff_and_protocol_handler
+      - notifications_and_badges
+      - keychain_secret_store_and_trust_store
+      - accessibility_api_bridge
+      - display_topology_sleep_and_removable_volume
+
+  lifecycle_event:
+    values:
+      - restart_or_reopen
+      - wake_from_sleep
+      - display_reconnect
+      - removable_volume_return
+
+zone_rows:
+  - shell_zone: title_context_bar
+    primary_role: identity_and_global_state
+    slot_family: title_context_bar
+    restorable: true
+    focus_policy: deterministic_tab_stop_then_delegate
+    compact_desktop_behavior: preserve_identity_and_route_state
+    notes: >
+      Never becomes a dumping ground for transient workflow-local actions
+      or a hidden-only location for trust or recovery state.
+
+  - shell_zone: activity_rail
+    primary_role: durable_mode_switching
+    slot_family: activity_rail
+    restorable: true
+    focus_policy: route_entry_not_hover_driven
+    compact_desktop_behavior: overflow_entries_allowed_but_keyboard_reachable
+    notes: >
+      Mirrors canonical routes; it does not invent a rail-only command
+      path.
+
+  - shell_zone: left_sidebar
+    primary_role: structural_navigation
+    slot_family: sidebar
+    restorable: true
+    focus_policy: active_structural_view_owns_focus
+    compact_desktop_behavior: one_major_side_surface_at_a_time
+    notes: >
+      Critical actions may appear here, but no critical action may exist
+      only here.
+
+  - shell_zone: main_workspace
+    primary_role: dominant_task_surface
+    slot_family: editor_chrome
+    restorable: true
+    focus_policy: default_return_target
+    compact_desktop_behavior: preserve_minimum_useful_width_before_other_zones
+    notes: >
+      The main workspace stays dominant across edit, review, debug,
+      notebook, remote, and AI flows.
+
+  - shell_zone: right_inspector
+    primary_role: contextual_detail
+    slot_family: inspector
+    restorable: true
+    focus_policy: optional_context_focus
+    compact_desktop_behavior: move_to_sheet_before_starving_workspace
+    notes: >
+      May collapse or sheet, but it may not become the only route to
+      finish a core task.
+
+  - shell_zone: bottom_panel
+    primary_role: execution_output_and_longitudinal_state
+    slot_family: bottom_panel
+    restorable: true
+    focus_policy: active_panel_tab_owns_focus
+    compact_desktop_behavior: secondary_tabs_overflow_before_workspace_shrinks
+    notes: >
+      Durable state stays reachable even when secondary tabs collapse.
+
+  - shell_zone: status_bar
+    primary_role: persistent_low_urgency_state
+    slot_family: status_bar
+    restorable: true
+    focus_policy: narrate_state_then_route_to_owner
+    compact_desktop_behavior: compact_shell_menu_may_summarize_but_not_hide_critical_state
+    notes: >
+      Reserved for persistent state and quick toggles, not repeated
+      transient alerts.
+
+  - shell_zone: transient_overlay
+    primary_role: scoped_interruption_or_quick_access
+    slot_family: command_palette
+    restorable: false
+    focus_policy: record_focus_return_target_first
+    compact_desktop_behavior: window_local_only
+    notes: >
+      Dialogs, sheets, palette, context menus, and quick pickers live
+      here and remain window-local.
+
+adaptive_rows:
+  - adaptive_class: compact_desktop
+    width_band: 1024_1279_px
+    collapse_order:
+      - right_inspector_to_sheet
+      - secondary_bottom_panel_tabs_to_overflow
+      - low_frequency_side_tools_to_drawer
+    preserve:
+      - title_context_bar_identity
+      - main_workspace_dominance
+      - trust_and_recovery_state
+      - visible_focus
+    forbid:
+      - hidden_only_critical_actions
+      - invisible_focus_jump
+      - silent_loss_of_preview_or_approval_state
+
+  - adaptive_class: standard_desktop
+    width_band: 1280_1599_px
+    collapse_order:
+      - right_inspector_on_demand
+    preserve:
+      - left_sidebar
+      - optional_bottom_panel
+      - active_task_dominance
+      - no_hidden_only_commands
+    forbid:
+      - unstable_zone_rearrangement_on_content_warmup
+
+  - adaptive_class: expanded_desktop
+    width_band: 1600_plus_px
+    collapse_order:
+      - no_forced_collapse_if_readability_holds
+    preserve:
+      - main_workspace_dominance
+      - optional_dual_side_surfaces
+    forbid:
+      - duplicated_truth_surfaces
+      - oversized_empty_chrome
+
+responsibility_rows:
+  - subject: zone_layout_and_restore
+    shared_shell: >
+      Canonical zone ids, adaptive classes, open-close-reset behavior,
+      placeholder semantics, and remembered open-zone state.
+    renderer: >
+      Per-window scene roots and render-trace zone mapping only.
+    platform_adapter: >
+      Native client-area facts and titlebar-system-menu constraints.
+    conformance_suite: >
+      Compact/standard/expanded layout behavior and restore fidelity on
+      claimed rows.
+
+  - subject: window_event_loop_and_modal_ownership
+    shared_shell: >
+      Per-window Aureline lifecycle, event ordering, modal ownership,
+      focus-chain state, and restore-vs-rebind boundary.
+    renderer: >
+      Surface root activation and post-state visual updates.
+    platform_adapter: >
+      Native window activation, fullscreen/snap/Spaces integration, and
+      display topology events.
+    conformance_suite: >
+      Multi-window, dialog ownership, wake/display-reconnect, and
+      off-screen recovery drills.
+
+  - subject: command_dispatch_gate
+    shared_shell: >
+      Normalize every entry point to the command descriptor and
+      interaction-safety contracts.
+    renderer: >
+      Display disabled, focused, preview, and degraded state only after
+      shell decisions exist.
+    platform_adapter: >
+      Deliver menu, deep-link, notification, and browser callback events
+      without bypassing command routing.
+    conformance_suite: >
+      Command parity, wrong-target recovery, and no-bypass drills.
+
+  - subject: text_input_normalization
+    shared_shell: >
+      Composition lifecycle, text-vs-command arbitration, multi-cursor
+      degradation, and no-silent-commit or cancel rules.
+    renderer: >
+      Composition overlay and grapheme/bidi-aware paint.
+    platform_adapter: >
+      IME, dead keys, compose sequences, AltGr, emoji and dictation raw
+      event delivery.
+    conformance_suite: >
+      IME, bidi, dead-key, AltGr, locale, and mixed-script verification.
+
+  - subject: accessibility_tree_and_bridge
+    shared_shell: >
+      Tree lifecycle, host semantic ownership, and host-owned boundary
+      chrome for embedded content.
+    renderer: >
+      Accessibility node generation from host surface truth.
+    platform_adapter: >
+      UIA, NSAccessibility, and AT-SPI bridge transport.
+    conformance_suite: >
+      Accessibility regression on claimed surfaces and degraded bridge
+      disclosure.
+
+  - subject: lifecycle_rebind_and_placeholders
+    shared_shell: >
+      Automatic restore allowed for shell structure and evidence;
+      explicit revalidation required for live authority, routes,
+      credentials, and privileged activity.
+    renderer: >
+      Safe-bounds redraw and visible degraded-state publication.
+    platform_adapter: >
+      Sleep, wake, display reconnect, removable-volume, and trust-store
+      facts.
+    conformance_suite: >
+      Restart/reopen, wake, display-reconnect, and missing-root drills.
+
+command_entry_rows:
+  - command_entry_point: keybinding
+    route: command_descriptor_and_invocation_session
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: text_production_wins_while_composition_is_active
+
+  - command_entry_point: application_menu
+    route: command_descriptor_and_invocation_session
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: no_claim_bearing_command_exists_only_in_os_menu
+
+  - command_entry_point: toolbar_or_status_action
+    route: command_descriptor_and_invocation_session
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: location_does_not_change_consequence_class
+
+  - command_entry_point: command_palette
+    route: canonical_direct_route
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: palette_has_no_bypass_authority
+
+  - command_entry_point: context_menu
+    route: scoped_command_descriptor_and_invocation_session
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: focused_context_may_narrow_but_not_hide_blast_radius
+
+  - command_entry_point: deep_link_or_protocol_handler
+    route: deep_link_resolver_then_command_route
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: origin_action_scope_and_trust_revalidate_before_dispatch
+
+  - command_entry_point: notification_reopen
+    route: durable_object_reopen_then_optional_command_route
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: reopen_may_restore_context_but_not_skip_review
+
+  - command_entry_point: embedded_surface_handoff
+    route: host_native_command_route_only
+    must_use_preview_approval_gate: true
+    must_have_non_os_route: true
+    special_rule: embedded_content_may_request_but_may_not_invoke_protected_actions
+
+text_input_rows:
+  - text_input_surface: editor
+    shared_shell_policy: >
+      Full composition, grapheme-aware editing, bidi-preserving committed
+      text, and explicit narrowing when multi-cursor composition is not
+      coherent.
+    adapter_dependency: ime_dead_key_altgr_emoji_and_layout_switch_facts
+    degraded_posture: single_visible_composition_target_or_explicit_block
+    never_do:
+      - silent_commit_on_focus_change
+      - silent_cancel_on_preview_open
+      - text_corruption
+
+  - text_input_surface: terminal
+    shared_shell_policy: >
+      Composition-aware text entry, paste review, and no hidden control
+      replay on restore or join.
+    adapter_dependency: ime_dead_key_altgr_clipboard_and_pty_key_facts
+    degraded_posture: view_and_copy_remain_but_unsafe_input_paths_block
+    never_do:
+      - replay_prior_input
+      - latent_control_on_join
+      - altgr_as_command_modifier_when_textual
+
+  - text_input_surface: palette_search
+    shared_shell_policy: >
+      Filtering and ranking update around active composition without
+      silently committing or canceling it.
+    adapter_dependency: ime_and_dead_key_preedit_facts
+    degraded_posture: pause_filtering_or_keep_preedit_target_visible
+    never_do:
+      - drop_preedit_on_result_churn
+      - reinterpret_composition_as_shortcut
+
+  - text_input_surface: settings_dialogs
+    shared_shell_policy: >
+      Same text-input contract as editor text fields plus explicit
+      focus-return targets for close, submit, and cancel flows.
+    adapter_dependency: ime_dead_key_altgr_emoji_facts
+    degraded_posture: block_submit_or_close_that_would_discard_composition
+    never_do:
+      - close_dialog_with_unannounced_composition_loss
+
+  - text_input_surface: notebook_or_aux_text_entry
+    shared_shell_policy: >
+      Same normalization contract as the editor for any text entry
+      surface that is still host-owned.
+    adapter_dependency: ime_dead_key_altgr_emoji_facts
+    degraded_posture: single_visible_target_or_explicit_unsupported_state
+    never_do:
+      - silent_target_switch
+
+native_affordance_rows:
+  - native_affordance: native_window_and_chrome
+    shared_shell_route: zone_model_focus_ownership_and_restore_posture
+    adapter_scope:
+      macos: titlebar_controls_fullscreen_spaces_window_activation
+      windows: titlebar_system_menu_snap_docking_activation
+      linux: client_side_decoration_window_activation_wayland_x11_facts
+    must_have_non_os_route: true
+    non_os_route: title_context_bar_plus_command_routes
+
+  - native_affordance: menus_and_accelerators
+    shared_shell_route: command_descriptor_disabled_reason_preview_gate
+    adapter_scope:
+      macos: menu_bar_and_standard_shortcut_projection
+      windows: app_menu_system_menu_and_accelerator_notation
+      linux: claimed_gnome_menu_and_accelerator_projection
+    must_have_non_os_route: true
+    non_os_route: command_palette_keybinding_help_and_host_surface_actions
+
+  - native_affordance: file_dialogs_and_system_reveal
+    shared_shell_route: object_identity_and_safe_reopen_or_repair_route
+    adapter_scope:
+      macos: nsopenpanel_nssavepanel_finder_reveal
+      windows: common_item_dialog_shell_reveal
+      linux: portal_or_claimed_gnome_chooser_and_reveal
+    must_have_non_os_route: true
+    non_os_route: workspace_commands_and_status_routes
+
+  - native_affordance: clipboard_drag_drop
+    shared_shell_route: preview_or_copy_representation_rules_and_target_identity
+    adapter_scope:
+      macos: pasteboard_and_drag_sessions
+      windows: clipboard_ole_drag_drop
+      linux: clipboard_selection_and_portal_or_session_drag_drop
+    must_have_non_os_route: true
+    non_os_route: copy_export_and_import_commands
+
+  - native_affordance: browser_handoff_and_protocol_handler
+    shared_shell_route: browser_handoff_packet_and_deep_link_validation
+    adapter_scope:
+      macos: launch_services_default_browser_and_callback_registration
+      windows: registered_protocol_handler_and_default_browser_launch
+      linux: xdg_open_portal_and_desktop_file_handler
+    must_have_non_os_route: true
+    non_os_route: host_handoff_sheet_and_deep_link_review
+
+  - native_affordance: notifications_and_badges
+    shared_shell_route: durable_object_reopen_target_and_no_bypass_rule
+    adapter_scope:
+      macos: notification_center_and_dock_badge
+      windows: toast_notifications_and_taskbar_badge
+      linux: claimed_gnome_notifications_and_shell_badge
+    must_have_non_os_route: true
+    non_os_route: durable_job_rows_attention_items_and_status_routes
+
+  - native_affordance: keychain_secret_store_and_trust_store
+    shared_shell_route: degraded_copy_disablement_and_inspect_only_or_session_only_fallback
+    adapter_scope:
+      macos: keychain_and_system_trust_store
+      windows: credential_manager_dpapi_and_windows_certificate_stores
+      linux: secret_service_or_named_claimed_store_and_distro_trust_bundle
+    must_have_non_os_route: true
+    non_os_route: host_degraded_state_and_repair_routes
+
+  - native_affordance: accessibility_api_bridge
+    shared_shell_route: host_semantic_tree_and_keyboard_complete_fallback
+    adapter_scope:
+      macos: nsaccessibility_bridge
+      windows: uia_bridge
+      linux: at_spi_bridge
+    must_have_non_os_route: true
+    non_os_route: host_owned_tree_and_textual_fallback_surfaces
+
+  - native_affordance: display_topology_sleep_and_removable_volume
+    shared_shell_route: restore_vs_rebind_policy_safe_bounds_and_placeholder_rules
+    adapter_scope:
+      macos: spaces_display_sleep_wake_and_volume_notifications
+      windows: docking_undocking_display_wake_and_volume_notifications
+      linux: claimed_gnome_topology_sleep_wake_and_mount_facts
+    must_have_non_os_route: true
+    non_os_route: host_restore_placeholders_and_repair_routes
+
+lifecycle_rows:
+  - lifecycle_event: restart_or_reopen
+    auto_restore:
+      - window_shells
+      - zone_open_state
+      - pane_topology
+      - titles_and_cwd_hints
+      - transcripts_and_outputs
+      - focus_chain
+      - inspector_state
+    explicit_revalidation:
+      - routes
+      - credentials
+      - trust_and_policy_state
+      - remote_debug_terminal_notebook_authority
+    must_never_silently:
+      - rerun_commands
+      - replay_text_input
+      - rejoin_privileged_activity
+
+  - lifecycle_event: wake_from_sleep
+    auto_restore:
+      - local_safe_structure
+      - durable_evidence
+      - visible_placeholders
+    explicit_revalidation:
+      - callbacks
+      - remote_routes
+      - browser_handoff_state
+      - collaboration_control
+      - privileged_execution
+    must_never_silently:
+      - publish
+      - terminal_input
+      - debug_continue
+      - approval_ticket_reuse
+
+  - lifecycle_event: display_reconnect
+    auto_restore:
+      - safe_bounds_remap
+      - scale_bucket_update
+      - visible_owner_dialogs
+    explicit_revalidation:
+      - none_beyond_display_facts_unless_authority_changed
+    must_never_silently:
+      - strand_windows_offscreen
+      - strand_owner_dialogs_offscreen
+      - lose_visible_focus
+
+  - lifecycle_event: removable_volume_return
+    auto_restore:
+      - layout_around_placeholder
+      - locate_retry_close_actions
+    explicit_revalidation:
+      - root_identity
+      - privileged_write_paths
+    must_never_silently:
+      - remap_to_different_target
+      - present_data_loss_as_local_deletion

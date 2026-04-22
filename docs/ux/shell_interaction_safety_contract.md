@@ -58,6 +58,10 @@ vocabularies already frozen in:
   — `search_result_packet_record` / `search_deep_link_record`
   drift state is re-exported as the drift axis on recovery
   surfaces; this contract does not re-mint it.
+- `docs/adr/0016-shell-windowing-input-accessibility-boundary.md`
+  — shell zones, focus ownership, command-entry routing, and
+  text-input normalization stay shared across shortcuts, menus,
+  deep links, notifications, and embedded-surface handoffs.
 
 ## Who reads this document
 

@@ -33,6 +33,9 @@ Normative sources projected here:
   workspace-window architecture sections.
 - `.t2/docs/Aureline_UI_UX_Spec_Document.md` restore-provenance,
   topology-chaos, and crash/restore drill sections.
+- [`/docs/adr/0016-shell-windowing-input-accessibility-boundary.md`](../adr/0016-shell-windowing-input-accessibility-boundary.md)
+  focus-chain ownership, adaptive-collapse order, and restore-vs-rebind
+  rules.
 - [`/docs/platform/desktop_platform_conformance_matrix.md`](../platform/desktop_platform_conformance_matrix.md)
   windowing/DPI and wake/display-reconnect rows.
 

@@ -85,7 +85,7 @@ when the spike's M0 wiring always records zero.
 | `total_marks`                      | yes                 | Marks in the trace.                                                                                    |
 | `hot_path_marks`                   | yes                 | Marks whose hook is on ADR-0002's protected hot-path list.                                             |
 | `damage_records`                   | yes                 | Damage records emitted by the render path during the trace.                                            |
-| `paint_count_by_zone.*`            | yes                 | Damage records bucketed by shell zone (`editor_viewport`, `sidebar`, `title_bar`, `status_bar`).       |
+| `paint_count_by_zone.*`            | yes                 | Damage records bucketed by spike render zone (`editor_viewport`, `sidebar`, `title_bar`, `status_bar`). |
 | `paint_count_by_layer.*`           | yes                 | Damage records bucketed by ADR-0002 scene layer (`text_and_decoration`, `overlay`).                    |
 | `invalidation_class_counts.*`      | yes                 | Marks bucketed by `protected_path`. Provisional buckets that are never fired remain at zero.           |
 | `visible_pane_work`                | yes                 | Damage records against visible panes. In the M0 spike every pane is visible; equals `damage_records`.  |

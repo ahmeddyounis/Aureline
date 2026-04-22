@@ -43,6 +43,9 @@ Normative sources projected here:
   — browser handoff, provider actor, and approval vocabulary.
 - [`/docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md`](../adr/0015-embedded-surface-boundary-and-auth-handoff.md)
   — system-browser-first auth and embedded-auth prohibition.
+- [`/docs/adr/0016-shell-windowing-input-accessibility-boundary.md`](../adr/0016-shell-windowing-input-accessibility-boundary.md)
+  — shell-zone ownership, command-entry boundaries, input normalization,
+  accessibility-tree ownership, and restore-vs-rebind rules.
 
 The topology suite plus suspend/resume or display-reconnect drills named
 by the conformance rows resolve to the scenario ids and drill ids in the

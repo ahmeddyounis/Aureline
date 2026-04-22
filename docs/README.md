@@ -143,6 +143,14 @@ code.
 
 ## Platform conformance
 
+- [`adr/0016-shell-windowing-input-accessibility-boundary.md`](./adr/0016-shell-windowing-input-accessibility-boundary.md)
+  — desktop shell boundary ADR covering canonical shell zones,
+  adaptive classes, command-entry routes, text-input normalization,
+  accessibility-tree ownership, and restore-vs-rebind rules.
+  Machine-readable companion in
+  [`/artifacts/ux/desktop_shell_boundary_matrix.yaml`](../artifacts/ux/desktop_shell_boundary_matrix.yaml);
+  degraded-state companion in
+  [`/docs/architecture/input_adapter_failure_modes.md`](./architecture/input_adapter_failure_modes.md).
 - [`platform/desktop_platform_conformance_matrix.md`](./platform/desktop_platform_conformance_matrix.md)
   — claimed macOS, Windows, and Linux desktop profile roster plus the
   per-surface owner, validation method, release bar, deployment-path
