@@ -27,6 +27,12 @@ code.
   [`/schemas/governance/deprecation_metadata.schema.json`](../schemas/governance/deprecation_metadata.schema.json);
   worked rows in
   [`/fixtures/governance/deprecation_examples/`](../fixtures/governance/deprecation_examples/).
+- [`governance/interface_freeze_matrix.md`](./governance/interface_freeze_matrix.md)
+  — implementation-broadening freeze matrix covering which contracts
+  are frozen, provisional, or blocked before scope widens.
+- [`governance/interface_freeze_guide.md`](./governance/interface_freeze_guide.md)
+  — short citation guide for downstream tasks that should reference
+  frozen rows instead of repeating contract prose.
 - [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)
   — seed charter for the benchmark council (roles, scope, cadence,
   quorum placeholder, escalation).

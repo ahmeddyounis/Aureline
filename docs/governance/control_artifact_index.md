@@ -42,6 +42,11 @@ Companion artifacts:
   aliases, schema families, replacement chains, support windows, and
   notice-surface requirements once an interface leaves experimental
   state.
+- [`./interface_freeze_matrix.md`](./interface_freeze_matrix.md) and
+  [`./interface_freeze_guide.md`](./interface_freeze_guide.md) —
+  canonical implementation-broadening freeze matrix and the short
+  downstream citation guide that points task specs, ADRs, and packet
+  updates at stable row ids instead of repeating contract prose.
 - [`./contract_packet_template.md`](./contract_packet_template.md) —
   surface-contract packet template backed by
   `schemas/governance/contract_packet.schema.json`.
@@ -97,6 +102,12 @@ and scopes.
   `stable_surface_inventory.yaml` and the surface-contract packet
   template. Do not keep owner, versioning, support-window, or
   downgrade posture only in ADR prose.
+- Implementation-broadening contract reuse now routes through
+  `interface_freeze_matrix.yaml` and the downstream citation guide. Do
+  not restate renderer, buffer, command, settings, restore, token,
+  attention, embedded-boundary, AI/provider, collaboration, review, or
+  companion contract prose in per-task handoffs once a freeze row
+  already exists.
 - Stable ids, alias ids, schema families, and record-class ids that
   leave experimental state now route through
   `interface_lifecycle_policy.md` and
