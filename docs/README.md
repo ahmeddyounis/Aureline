@@ -323,6 +323,17 @@ code.
   evidence success, approval-required pending, and disabled-with-
   reason trust denial) in
   [`/fixtures/commands/command_descriptor_examples/`](../fixtures/commands/command_descriptor_examples/).
+- [`commands/command_graph_and_ui_slots_seed.md`](./commands/command_graph_and_ui_slots_seed.md)
+  — slot-taxonomy seed translating the command-descriptor
+  contract's coarse `ui_slot_hints` into stable shell/help/
+  onboarding/companion slot families and slot keys, plus one
+  slot-token publication strategy that maps slot families to the
+  design-token export's family and state vocabularies without
+  changing either upstream schema. Boundary schema in
+  [`/schemas/commands/ui_slot_taxonomy.schema.json`](../schemas/commands/ui_slot_taxonomy.schema.json);
+  worked fixtures (one taxonomy seed record and one cross-surface
+  command projection example) in
+  [`/fixtures/commands/ui_slot_taxonomy_examples/`](../fixtures/commands/ui_slot_taxonomy_examples/).
 - [`design/design_token_component_state_vocabulary.md`](./design/design_token_component_state_vocabulary.md)
   — design-token, component-state, theme-support, accessibility-
   posture, and layer / scrim vocabulary every shell, docs / help,

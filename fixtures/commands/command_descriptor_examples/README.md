@@ -170,3 +170,9 @@ In summary:
   `permission_prompt_ref`, and `interaction_safety_packet_ref`.
 - [`/schemas/docs/docs_pack_manifest.schema.json`](../../../schemas/docs/docs_pack_manifest.schema.json)
   — docs-pack manifest the `docs_help_anchor_ref` resolves into.
+- [`/schemas/commands/ui_slot_taxonomy.schema.json`](../../../schemas/commands/ui_slot_taxonomy.schema.json)
+  plus
+  [`/fixtures/commands/ui_slot_taxonomy_examples/`](../ui_slot_taxonomy_examples/)
+  — stable slot families, concrete slot keys, direct-projection
+  rules, and one cross-surface command projection example that
+  reuses the command-descriptor fixtures here.

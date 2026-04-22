@@ -416,6 +416,11 @@ surfaces, screenshot-diff tooling) resolve the manifest and then
 resolve per-entity records by id. A consumer that re-derives any
 of these values locally is non-conforming.
 
+Slot-taxonomy consumers resolve these same records by
+`slot_family_class` and `manifest_id`; they do not publish a
+parallel slot-local token bundle with renamed families or state
+axes.
+
 ## Audit, redaction, and boundary posture
 
 Process-boundary constraints (frozen):
@@ -466,8 +471,9 @@ Out of scope until a superseding decision row opens:
 - The full component library implementation. This vocabulary
   reserves state names and layer / scrim tokens; the shell
   spike is the first consumer at M0.
-- Exact UI-slot mapping (e.g. "which control in which surface
-  renders this state"). That belongs to per-feature specs.
+- Per-feature control placement inside a published slot key
+  remains out of scope. Slot-family mapping itself is governed by
+  [`/docs/commands/command_graph_and_ui_slots_seed.md`](../commands/command_graph_and_ui_slots_seed.md).
 - A final token-conformance runner. The export manifest reserves
   a shape concrete enough for a future runner to diff canonical
   vocabulary against implementation or fixtures; the runner

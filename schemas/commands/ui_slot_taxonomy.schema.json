@@ -1,0 +1,481 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/ui_slot_taxonomy.schema.json",
+  "title": "Aureline command-graph UI-slot taxonomy and slot-token publication export",
+  "description": "Boundary schema for the ui_slot_taxonomy_record, the command_surface_projection_example_record, and the ui_slot_taxonomy_audit_event_record frozen in docs/commands/command_graph_and_ui_slots_seed.md. Every launch-bearing shell surface, docs/help renderer, onboarding surface, and companion handoff surface reads one governed slot taxonomy before surfacing a command, minting a button or menu row, or projecting token/state semantics into shell chrome. The command descriptor remains the canonical command object and the design-token export remains the canonical token source; this schema is the translation layer between them. Raw labels, raw docs bodies, raw token values, raw colors, raw URLs, raw prompt text, and raw user content never cross this boundary; this schema carries ids, stable slot names, and typed publication rules only. Adding a new slot family, slot key, launch posture, token publication strategy, or audit-event id is additive-minor and requires a ui_slot_taxonomy_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ui_slot_taxonomy_record" },
+    { "$ref": "#/$defs/command_surface_projection_example_record" },
+    { "$ref": "#/$defs/ui_slot_taxonomy_audit_event_record" }
+  ],
+  "$defs": {
+    "ui_slot_taxonomy_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the UI-slot taxonomy and projection-policy export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ui_slot_taxonomy_record",
+        "command_surface_projection_example_record",
+        "ui_slot_taxonomy_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and conformance reports."
+    },
+
+    "slot_key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable dot-delimited slot key published by the slot taxonomy. A consumer MUST resolve one of the published slot keys rather than inventing a local alias such as 'top_nav_button' or 'sidebar_cta'."
+    },
+
+    "command_descriptor_schema_version_supported": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/command_descriptor_schema_version"
+    },
+
+    "design_token_schema_version_supported": {
+      "$ref": "https://aureline.dev/schemas/design/token_export_manifest.schema.json#/$defs/design_token_schema_version"
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "descriptor_ui_slot_class": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/ui_slot_class"
+    },
+
+    "issuing_surface": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/issuing_surface"
+    },
+
+    "docs_help_anchor_ref": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/docs_help_anchor_ref"
+    },
+
+    "policy_context": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/policy_context"
+    },
+
+    "redaction_class": {
+      "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/redaction_class"
+    },
+
+    "token_family_class": {
+      "$ref": "https://aureline.dev/schemas/design/token_export_manifest.schema.json#/$defs/token_family_class"
+    },
+
+    "layer_order_class": {
+      "$ref": "https://aureline.dev/schemas/design/token_export_manifest.schema.json#/$defs/layer_order_class"
+    },
+
+    "scrim_class": {
+      "$ref": "https://aureline.dev/schemas/design/token_export_manifest.schema.json#/$defs/scrim_class"
+    },
+
+    "slot_family_class": {
+      "type": "string",
+      "enum": [
+        "title_context_bar",
+        "activity_rail",
+        "sidebar",
+        "editor_chrome",
+        "bottom_panel",
+        "inspector",
+        "status_bar",
+        "global_menu",
+        "context_menu",
+        "command_palette",
+        "keybinding_help",
+        "cli_help",
+        "onboarding_affordance",
+        "companion_surface",
+        "ai_tool_surface"
+      ],
+      "description": "Frozen slot-family vocabulary spanning shell chrome, menu/palette/help surfaces, onboarding affordances, companion handoff surfaces, and the already-frozen AI-tool projection family. A slot family MAY be direct-launch, mirror/handoff, narration-only, or documentation-only, but it MUST be published here before a surface uses it."
+    },
+
+    "launch_posture_class": {
+      "type": "string",
+      "enum": [
+        "launch_bearing",
+        "launch_bearing_contextual",
+        "narrates_existing_route",
+        "documents_existing_route",
+        "handoff_bearing"
+      ],
+      "description": "Frozen projection-posture vocabulary. launch_bearing and launch_bearing_contextual mint direct invocations through an existing issuing_surface. narrates_existing_route and documents_existing_route quote discoverability only and do not mint an invocation themselves. handoff_bearing quotes the same command metadata but transfers control to a canonical direct surface because no dedicated issuing-surface value exists yet."
+    },
+
+    "token_publication_strategy_class": {
+      "type": "string",
+      "enum": [
+        "semantic_only",
+        "semantic_plus_component_optional",
+        "semantic_plus_embedded_domain_optional",
+        "semantic_mirror_subset"
+      ],
+      "description": "Frozen slot-token publication strategy. semantic_only means the family consumes semantic/status/trust families only. semantic_plus_component_optional allows component-token indirection on top of the semantic families. semantic_plus_embedded_domain_optional means nested content hosted inside the family MAY additionally consume a published domain family such as diff or syntax, while the slot chrome remains semantic/component driven. semantic_mirror_subset is the narrowed companion-surface posture: the companion may reduce richness or motion, but it may not rename token families or state meanings."
+    },
+
+    "state_family_class": {
+      "type": "string",
+      "enum": [
+        "component_state",
+        "semantic_status",
+        "trust_visual_state",
+        "accessibility_posture"
+      ],
+      "description": "Frozen state-family vocabulary a slot family may project. component_state, semantic_status, trust_visual_state, and accessibility_posture are the only admissible families at this boundary."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ui_slot_taxonomy_emitted",
+        "descriptor_slot_widening_refused",
+        "unknown_slot_key_refused",
+        "mirror_surface_direct_launch_refused",
+        "slot_token_publication_violation_refused"
+      ],
+      "description": "Frozen audit-event vocabulary for slot-taxonomy publication and enforcement."
+    },
+
+    "slot_family_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_family_class",
+        "stable_slot_keys",
+        "launch_posture_class",
+        "admissible_source_descriptor_ui_slot_classes",
+        "token_publication_strategy_class",
+        "allowed_token_family_classes",
+        "allowed_state_family_classes",
+        "required_layer_order_classes",
+        "required_scrim_classes",
+        "notes"
+      ],
+      "properties": {
+        "slot_family_class": { "$ref": "#/$defs/slot_family_class" },
+        "stable_slot_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slot_key" },
+          "description": "Closed set of stable slot keys the family owns at this schema version."
+        },
+        "launch_posture_class": { "$ref": "#/$defs/launch_posture_class" },
+        "admissible_source_descriptor_ui_slot_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/descriptor_ui_slot_class" },
+          "description": "Descriptor ui_slot_class values this family may consume as direct projections or mirror/handoff sources. A family may list classes it mirrors even when the direct projection remains disallowed."
+        },
+        "token_publication_strategy_class": {
+          "$ref": "#/$defs/token_publication_strategy_class"
+        },
+        "allowed_token_family_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/token_family_class" },
+          "description": "Design-token families admissible for this slot family's chrome. Nested content may narrow further; it may not widen beyond a published family without a schema bump."
+        },
+        "allowed_state_family_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/state_family_class" },
+          "description": "State families this slot family may project."
+        },
+        "required_layer_order_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/layer_order_class" },
+          "description": "Layer-order classes the family is expected to consume where it renders visually. Empty only for non-graphical documentation families."
+        },
+        "required_scrim_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scrim_class" },
+          "description": "Scrim classes the family may use. Empty means the family does not own a scrim at this boundary."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation of ownership and guardrails for the family."
+        }
+      },
+      "description": "One published slot-family row."
+    },
+
+    "descriptor_slot_mapping_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descriptor_ui_slot_class",
+        "allowed_slot_family_classes",
+        "allowed_slot_keys",
+        "allowed_issuing_surfaces",
+        "launch_posture_class",
+        "requires_contextual_filter",
+        "requires_menu_path",
+        "projection_notes"
+      ],
+      "properties": {
+        "descriptor_ui_slot_class": {
+          "$ref": "#/$defs/descriptor_ui_slot_class"
+        },
+        "allowed_slot_family_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slot_family_class" },
+          "description": "Slot families this descriptor ui_slot_class may project into directly."
+        },
+        "allowed_slot_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slot_key" },
+          "description": "Concrete slot keys this descriptor ui_slot_class may project into directly."
+        },
+        "allowed_issuing_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/issuing_surface" },
+          "description": "Existing invocation issuing-surface values the direct projection may mint. Empty means the projection is discoverability-only and does not mint its own invocation-session packet."
+        },
+        "launch_posture_class": { "$ref": "#/$defs/launch_posture_class" },
+        "requires_contextual_filter": {
+          "type": "boolean",
+          "description": "Whether a contextual filter is required for conforming projection of this ui_slot_class."
+        },
+        "requires_menu_path": {
+          "type": "boolean",
+          "description": "Whether menu_path_refs are required for conforming projection of this ui_slot_class."
+        },
+        "projection_notes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable rule explaining how the direct projection behaves."
+        }
+      },
+      "description": "Authoritative direct-projection mapping from the command-descriptor ui_slot_class vocabulary into the stable slot-family/slot-key taxonomy."
+    },
+
+    "ui_slot_taxonomy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ui_slot_taxonomy_schema_version",
+        "taxonomy_id",
+        "command_descriptor_schema_version_supported",
+        "design_token_schema_version_supported",
+        "slot_families",
+        "descriptor_slot_mappings",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "ui_slot_taxonomy_record"
+        },
+        "ui_slot_taxonomy_schema_version": {
+          "$ref": "#/$defs/ui_slot_taxonomy_schema_version"
+        },
+        "taxonomy_id": { "$ref": "#/$defs/opaque_id" },
+        "command_descriptor_schema_version_supported": {
+          "$ref": "#/$defs/command_descriptor_schema_version_supported"
+        },
+        "design_token_schema_version_supported": {
+          "$ref": "#/$defs/design_token_schema_version_supported"
+        },
+        "slot_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/slot_family_record" },
+          "description": "Published slot families and their token/state publication posture."
+        },
+        "descriptor_slot_mappings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/descriptor_slot_mapping_record" },
+          "description": "Direct-projection mapping rows from descriptor ui_slot_class values into stable slot families and slot keys."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Canonical UI-slot taxonomy record tying the command-descriptor contract to the design-token export contract."
+    },
+
+    "surface_projection_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_family_class",
+        "slot_key",
+        "descriptor_ui_slot_class",
+        "launch_posture_class",
+        "issuing_surface",
+        "projected_primary_label_ref",
+        "projected_docs_help_anchor_ref",
+        "projected_keyboard_shortcut_narration_ref",
+        "projected_canonical_verb",
+        "projected_menu_path_refs"
+      ],
+      "properties": {
+        "slot_family_class": { "$ref": "#/$defs/slot_family_class" },
+        "slot_key": { "$ref": "#/$defs/slot_key" },
+        "descriptor_ui_slot_class": {
+          "$ref": "#/$defs/descriptor_ui_slot_class"
+        },
+        "launch_posture_class": { "$ref": "#/$defs/launch_posture_class" },
+        "issuing_surface": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/issuing_surface" }
+          ],
+          "description": "Issuing-surface value the projection would mint when it is launch-bearing. Null for narration-only or documentation-only rows."
+        },
+        "projected_primary_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "projected_docs_help_anchor_ref": {
+          "$ref": "#/$defs/docs_help_anchor_ref"
+        },
+        "projected_keyboard_shortcut_narration_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Narration ref quoted by the projection when keyboard narration is part of the surface."
+        },
+        "projected_canonical_verb": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "description": "Canonical verb quoted when the surface exposes a CLI or tool route. Null when not applicable."
+        },
+        "projected_menu_path_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Menu-path refs quoted by the projection. Empty when the surface is not menu-backed."
+        }
+      },
+      "description": "One projected surface row for a single command. The row is expected to quote the same command id, label ref, and docs/help anchor the source descriptor carries."
+    },
+
+    "command_surface_projection_example_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ui_slot_taxonomy_schema_version",
+        "projection_example_id",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "primary_label_ref",
+        "docs_help_anchor_ref",
+        "projection_rows",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "command_surface_projection_example_record"
+        },
+        "ui_slot_taxonomy_schema_version": {
+          "$ref": "#/$defs/ui_slot_taxonomy_schema_version"
+        },
+        "projection_example_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primary_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "docs_help_anchor_ref": {
+          "$ref": "#/$defs/docs_help_anchor_ref"
+        },
+        "projection_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_projection_row_record" },
+          "description": "Cross-surface representation rows for one command."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Worked example showing one command projected consistently into multiple discoverability surfaces."
+    },
+
+    "ui_slot_taxonomy_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ui_slot_taxonomy_schema_version",
+        "audit_event_id",
+        "taxonomy_id",
+        "slot_family_class",
+        "descriptor_ui_slot_class",
+        "command_id",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "ui_slot_taxonomy_audit_event_record"
+        },
+        "ui_slot_taxonomy_schema_version": {
+          "$ref": "#/$defs/ui_slot_taxonomy_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "taxonomy_id": { "$ref": "#/$defs/opaque_id" },
+        "slot_family_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/slot_family_class" }
+          ]
+        },
+        "descriptor_ui_slot_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/descriptor_ui_slot_class" }
+          ]
+        },
+        "command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted when the slot taxonomy is published or enforced."
+    }
+  }
+}

@@ -188,10 +188,15 @@ The notable fields are:
 - **UI slot hints.** `ui_slot_hints` is a closed set of
   `ui_slot_class` entries (palette, global application menu,
   context menus, toolbars, status bar, keybinding help, CLI
-  help, AI-tool surface). A descriptor requests surfacing; the
-  owning surface MAY narrow (policy / lifecycle / client-scope)
-  but MAY NOT silently widen to a slot the descriptor did not
-  declare.
+  help, AI-tool surface). This is the coarse discoverability
+  vocabulary, not the final shell slot catalog. Exact slot-family
+  and slot-key ownership is translated by
+  [`/docs/commands/command_graph_and_ui_slots_seed.md`](./command_graph_and_ui_slots_seed.md)
+  and
+  [`/schemas/commands/ui_slot_taxonomy.schema.json`](../../schemas/commands/ui_slot_taxonomy.schema.json).
+  A descriptor requests surfacing; the owning surface MAY narrow
+  (policy / lifecycle / client-scope) but MAY NOT silently widen
+  to a slot the descriptor did not declare.
 - **Lifecycle metadata.** `lifecycle_state`, `support_class`,
   `release_channel`, `declared_freshness_class`, and
   `client_scopes` are re-exported from
@@ -479,6 +484,15 @@ argument schema). A parity audit between two surfaces' emitted
 rows for the same `command_id` / `command_revision_ref` MUST
 match field-for-field on these fields. Silent divergence is
 non-conforming.
+
+Concrete shell slot-key ownership for title/context bar, rail,
+sidebar, editor chrome, bottom panel, inspector, status bar,
+onboarding affordances, and companion handoff surfaces is frozen
+separately in
+[`/docs/commands/command_graph_and_ui_slots_seed.md`](./command_graph_and_ui_slots_seed.md).
+This contract keeps `ui_slot_hints` deliberately coarse so the
+command object remains stable while the shell slot taxonomy grows
+without field churn.
 
 ## Linkage to neighbouring contracts
 
