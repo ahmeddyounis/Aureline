@@ -39,6 +39,12 @@ from frozen_surface_validation import (
     FROZEN_SURFACE_TOOL_REL,
     validate_frozen_surface_manifest,
 )
+from protected_dependency_validation import (
+    OVERVIEW_DOC_REL as PROTECTED_DEPENDENCY_OVERVIEW_REL,
+    PROCESS_MAP_REL as PROTECTED_DEPENDENCY_PROCESS_MAP_REL,
+    RULES_REL as PROTECTED_DEPENDENCY_RULES_REL,
+    validate_protected_dependency_rules,
+)
 
 CONTROL_ARTIFACT_INDEX_REL = "artifacts/governance/control_artifact_index.yaml"
 PACKAGE_INVENTORY_REL = "artifacts/governance/package_inventory.yaml"
@@ -60,6 +66,8 @@ CONTRACT_VALIDATION_WRAPPER_REL = "ci/contract_validation.sh"
 CONTRACT_VALIDATION_WORKFLOW_REL = ".github/workflows/contract_validation.yml"
 CONTRACT_VALIDATION_DOC_REL = "docs/ci/control_artifact_validation.md"
 CONTRACT_VALIDATION_SCENARIO_REL = "fixtures/ci/contract_validation/missing_deployment_profile.json"
+PROTECTED_DEPENDENCY_TOOL_REL = "tools/check_protected_dependencies.py"
+PROTECTED_DEPENDENCY_SCENARIO_REL = "fixtures/ci/contract_validation/protected_dependency_violation.json"
 
 SENTINEL_REFS = {"not_yet_seeded", "outline_only", "contract_not_yet_seeded"}
 LAYER_ORDER = {"L0": 0, "L1": 1, "L2": 2, "L3": 3, "LX": 99}
@@ -68,6 +76,9 @@ REQUIRED_CONTROL_ROWS = {
     "public_surface_truth_map": SOURCE_OF_TRUTH_MAP_REL,
     "boundary_manifest_strawman": BOUNDARY_MANIFEST_REL,
     "repository_package_inventory": PACKAGE_INVENTORY_REL,
+    "service_topology_process_placement_policy": PROTECTED_DEPENDENCY_OVERVIEW_REL,
+    "protected_path_dependency_rules": PROTECTED_DEPENDENCY_RULES_REL,
+    "process_placement_map": PROTECTED_DEPENDENCY_PROCESS_MAP_REL,
     "contract_artifact_validation_lane": CONTRACT_VALIDATION_WORKFLOW_REL,
     "frozen_surface_manifests": FROZEN_SURFACE_MANIFEST_REL,
 }
@@ -1862,6 +1873,18 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
             f"frozen-surface scenario fixture is missing: {FROZEN_SURFACE_SCENARIO_REL}",
             "Keep a checked-in failing frozen-surface scenario so missing diff metadata stays demonstrable.",
         ),
+        (
+            PROTECTED_DEPENDENCY_TOOL_REL,
+            "contract_validation_lane.protected_dependency_tool_exists",
+            f"protected-dependency validator is missing: {PROTECTED_DEPENDENCY_TOOL_REL}",
+            "Keep tools/check_protected_dependencies.py present so contributors can run the protected-path boundary gate directly.",
+        ),
+        (
+            PROTECTED_DEPENDENCY_SCENARIO_REL,
+            "contract_validation_lane.protected_dependency_scenario_exists",
+            f"protected-dependency scenario fixture is missing: {PROTECTED_DEPENDENCY_SCENARIO_REL}",
+            "Keep a checked-in failing protected-dependency scenario so package-direction and hot-path sentinel checks stay demonstrable.",
+        ),
     ]
     for path, check_id, message, remediation in required_paths:
         if not repo.exists(path):
@@ -1936,6 +1959,18 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
                 "contract_validation_lane.doc_mentions_frozen_surface_scenario",
                 "contract-validation doc no longer mentions the frozen-surface failing scenario fixture",
                 "Document the checked-in frozen-surface failing example so reviewers can prove the same-train gate still trips.",
+            ),
+            (
+                PROTECTED_DEPENDENCY_TOOL_REL,
+                "contract_validation_lane.doc_mentions_protected_dependency_tool",
+                "contract-validation doc no longer mentions tools/check_protected_dependencies.py",
+                "Document the direct protected-dependency validator so reviewers can debug package-direction and hot-path sentinel failures locally.",
+            ),
+            (
+                PROTECTED_DEPENDENCY_SCENARIO_REL,
+                "contract_validation_lane.doc_mentions_protected_dependency_scenario",
+                "contract-validation doc no longer mentions the protected-dependency failing scenario fixture",
+                "Document the checked-in protected-dependency failing example so reviewers can prove the service-boundary gate still trips.",
             ),
         ):
             if needle not in doc_text:
@@ -2013,6 +2048,40 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
                     )
                 )
 
+    if repo.exists(PROTECTED_DEPENDENCY_SCENARIO_REL):
+        try:
+            protected_findings, _ = validate_protected_dependency_rules(
+                repo.root,
+                repo.rel(PROTECTED_DEPENDENCY_SCENARIO_REL),
+            )
+        except SystemExit as exc:
+            findings.append(
+                make_finding(
+                    "error",
+                    "contract_validation_lane.protected_dependency_scenario_loads",
+                    PROTECTED_DEPENDENCY_SCENARIO_REL,
+                    lane_ref,
+                    f"protected-dependency scenario fixture could not be applied: {exc}",
+                    "Keep the checked-in protected-dependency scenario JSON structurally valid and pointed at real monitored packages and module paths.",
+                )
+            )
+        else:
+            expected_ids = {
+                "protected_dependency_rules.package_forbidden_dependency_class",
+                "protected_dependency_rules.module_forbidden_sentinel",
+            }
+            if not expected_ids.issubset({finding.check_id for finding in protected_findings}):
+                findings.append(
+                    make_finding(
+                        "error",
+                        "contract_validation_lane.protected_dependency_scenario_fails",
+                        PROTECTED_DEPENDENCY_SCENARIO_REL,
+                        lane_ref,
+                        "protected-dependency scenario fixture no longer triggers both the package-direction and hot-path sentinel checks",
+                        "Keep one checked-in scenario that deterministically fails on both a forbidden dependency direction and a blocking-I/O sentinel on the protected path.",
+                    )
+                )
+
     return findings
 
 
@@ -2056,6 +2125,7 @@ def build_report(
     check_ids: list[str],
     command_parity_analysis: dict[str, Any] | None,
     frozen_surface_analysis: dict[str, Any] | None,
+    protected_dependency_analysis: dict[str, Any] | None,
 ) -> dict[str, Any]:
     grouped = group_findings(findings)
     return {
@@ -2094,6 +2164,9 @@ def build_report(
             "error_count": frozen_surface_analysis["summary"]["error_count"],
             "warning_count": frozen_surface_analysis["summary"]["warning_count"],
         },
+        "protected_dependency_summary": None
+        if protected_dependency_analysis is None
+        else protected_dependency_analysis.get("summary"),
     }
 
 
@@ -2125,6 +2198,16 @@ def main() -> int:
             [Finding(**finding.as_report()) for finding in frozen_surface_findings],
         )
     )
+    protected_dependency_findings, protected_dependency_analysis = validate_protected_dependency_rules(
+        repo.root,
+        repo.scenario,
+    )
+    checks.append(
+        (
+            "protected_dependencies",
+            [Finding(**finding.as_report()) for finding in protected_dependency_findings],
+        )
+    )
     command_findings, command_parity_analysis = validate_command_parity(repo)
     checks.append(("command_parity", command_findings))
     checks.append(("contract_validation_lane", validate_contract_validation_lane(repo)))
@@ -2145,6 +2228,7 @@ def main() -> int:
                     check_ids,
                     command_parity_analysis,
                     frozen_surface_analysis,
+                    protected_dependency_analysis,
                 ),
                 indent=2,
                 sort_keys=True,

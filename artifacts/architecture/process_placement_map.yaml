@@ -1,0 +1,245 @@
+schema_version: 1
+map_id: aureline.process_placement_map
+overview_document: docs/architecture/service_topology_and_process_placement.md
+dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+
+scheduling_classes:
+  - scheduling_class: ui_input
+    priority: highest
+    policy: protected from blocking I/O and long synchronous work
+  - scheduling_class: render_submission
+    priority: high
+    policy: bounded frame submission and presentation work
+  - scheduling_class: foreground_intent
+    priority: high
+    policy: visible search, file switch, command dispatch, save handoff
+  - scheduling_class: knowledge_maintenance
+    priority: medium
+    policy: yieldable watcher, index, graph, and cache maintenance
+  - scheduling_class: helper_control
+    priority: medium_high
+    policy: task, PTY, Git, debug, remote, and updater control paths
+  - scheduling_class: background_capped
+    priority: low
+    policy: throttled extensions, AI background jobs, support export, and refresh work
+
+process_roles:
+  - process_role_id: desktop_shell_process
+    runtime_kind: local_process
+    scheduling_class: ui_input
+    failure_policy: critical; never auto-restart behind the user
+  - process_role_id: local_supervisor
+    runtime_kind: local_process
+    scheduling_class: foreground_intent
+    failure_policy: may restart child workers independently
+  - process_role_id: knowledge_worker_group
+    runtime_kind: worker_group
+    scheduling_class: knowledge_maintenance
+    failure_policy: restartable with bounded backoff and explicit stale state
+  - process_role_id: execution_helper_group
+    runtime_kind: helper_process_group
+    scheduling_class: helper_control
+    failure_policy: isolate per task, debug, PTY, or Git session
+  - process_role_id: remote_connector
+    runtime_kind: helper_process_or_remote_bridge
+    scheduling_class: helper_control
+    failure_policy: disconnect degrades remote features, not local shell stability
+  - process_role_id: ai_runtime
+    runtime_kind: helper_process_or_managed_boundary
+    scheduling_class: background_capped
+    failure_policy: failure never blocks core editing
+  - process_role_id: updater_installer
+    runtime_kind: helper_process
+    scheduling_class: helper_control
+    failure_policy: installer or update helper is isolated from the shell
+  - process_role_id: support_collector
+    runtime_kind: worker_or_helper
+    scheduling_class: background_capped
+    failure_policy: bounded retention and non-blocking export
+
+service_planes:
+  - plane_id: shell_ui
+    title: Shell / UI
+    seeded_packages:
+      - aureline-shell-spike
+    monitored_modules:
+      - crates/aureline-shell-spike/src/input_path.rs
+    primary_process_role: desktop_shell_process
+    scheduling_class: ui_input
+    protected_paths:
+      - path.shell.first_useful_chrome
+      - path.command_palette.open
+      - path.editor.first_useful_edit
+    inline_work_policy:
+      allowed:
+        - input_event_resolution
+        - command_dispatch_entry
+        - local_view_state_updates
+        - stale_request_cancellation
+        - bounded_telemetry_emission
+      forbidden:
+        - filesystem_io
+        - network_io
+        - process_launch
+        - workspace_scan
+        - update_install
+        - support_bundle_generation
+
+  - plane_id: renderer
+    title: Renderer
+    seeded_packages:
+      - aureline-render
+    monitored_modules:
+      - crates/aureline-shell-spike/src/render_path.rs
+    primary_process_role: desktop_shell_process
+    scheduling_class: render_submission
+    protected_paths:
+      - path.shell.first_useful_chrome
+      - path.editor.first_useful_edit
+    inline_work_policy:
+      allowed:
+        - damage_classification
+        - visible_text_layout
+        - frame_submit
+      forbidden:
+        - filesystem_io
+        - network_io
+        - process_launch
+        - blocking_wait
+
+  - plane_id: text_buffer
+    title: Text / buffer
+    seeded_packages:
+      - aureline-text
+      - aureline-buffer
+    monitored_modules: []
+    primary_process_role: desktop_shell_process
+    scheduling_class: foreground_intent
+    protected_paths:
+      - path.editor.first_useful_edit
+      - path.editor.save
+    inline_work_policy:
+      allowed:
+        - visible_buffer_mutation
+        - selection_and_undo_updates
+        - visible_range_layout_inputs
+      forbidden:
+        - workspace_scan
+        - network_io
+        - process_launch
+        - long_running_analysis
+
+  - plane_id: vfs_watchers
+    title: VFS / watchers
+    seeded_packages:
+      - aureline-vfs
+    monitored_modules: []
+    primary_process_role: knowledge_worker_group
+    scheduling_class: knowledge_maintenance
+    protected_paths:
+      - path.editor.save
+    inline_work_policy:
+      allowed:
+        - save_handoff
+        - watcher_state_badges
+      forbidden:
+        - shell_inline_file_mutation
+        - shell_inline_watch_bootstrap
+        - shell_inline_merge_resolution
+
+  - plane_id: index_search
+    title: Index / search
+    seeded_packages: []
+    monitored_modules: []
+    primary_process_role: knowledge_worker_group
+    scheduling_class: knowledge_maintenance
+    protected_paths:
+      - path.command_palette.open
+    inline_work_policy:
+      allowed:
+        - none
+      forbidden:
+        - shell_inline_index_build
+        - shell_inline_graph_ingest
+
+  - plane_id: task_execution
+    title: Task / execution
+    seeded_packages: []
+    monitored_modules: []
+    primary_process_role: execution_helper_group
+    scheduling_class: helper_control
+    protected_paths: []
+    inline_work_policy:
+      allowed:
+        - task_intent_capture
+      forbidden:
+        - shell_inline_process_launch
+        - shell_inline_terminal_bootstrap
+        - shell_inline_git_execution
+
+  - plane_id: remote_helper
+    title: Remote / helper
+    seeded_packages:
+      - aureline-rpc
+    monitored_modules: []
+    primary_process_role: remote_connector
+    scheduling_class: helper_control
+    protected_paths: []
+    inline_work_policy:
+      allowed:
+        - capability_negotiation_handoff
+        - typed_rpc_dispatch
+      forbidden:
+        - shell_inline_socket_handshake
+        - alternate_transport_bypass
+
+  - plane_id: ai_control_plane
+    title: AI / control plane
+    seeded_packages: []
+    monitored_modules: []
+    primary_process_role: ai_runtime
+    scheduling_class: background_capped
+    protected_paths: []
+    inline_work_policy:
+      allowed:
+        - intent_capture_only
+      forbidden:
+        - shell_inline_provider_call
+        - shell_inline_policy_fetch
+        - shell_inline_context_crawl
+
+  - plane_id: updater_release
+    title: Updater / release
+    seeded_packages: []
+    monitored_modules: []
+    primary_process_role: updater_installer
+    scheduling_class: helper_control
+    protected_paths: []
+    inline_work_policy:
+      allowed:
+        - status_badge_updates
+      forbidden:
+        - shell_inline_update_download
+        - shell_inline_install
+
+  - plane_id: support_diagnostics
+    title: Support / diagnostics
+    seeded_packages:
+      - aureline-telemetry
+      - aureline-bench
+    monitored_modules: []
+    primary_process_role: support_collector
+    scheduling_class: background_capped
+    protected_paths:
+      - path.shell.first_useful_chrome
+      - path.editor.first_useful_edit
+      - path.editor.save
+    inline_work_policy:
+      allowed:
+        - bounded_trace_mark_emission
+        - counter_updates
+      forbidden:
+        - blocking_log_flush
+        - support_bundle_archive_creation
+        - symbolication

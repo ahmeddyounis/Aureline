@@ -5,6 +5,18 @@ depend on which other seeded crates. Future validation tooling reads this file
 (or the structured form in `artifacts/governance/package_inventory.yaml`) to
 gate pull requests.
 
+Protected service-plane direction and hot-path module sentinels are now
+tracked separately in:
+
+- `docs/architecture/service_topology_and_process_placement.md`
+- `artifacts/architecture/protected_path_dependency_rules.yaml`
+- `artifacts/architecture/process_placement_map.yaml`
+
+This file stays focused on exact crate edges and layering. The architecture
+artifacts answer the adjacent protected-path questions: which plane owns a
+crate or module, where that work may run, and which hot-path imports must
+fail CI immediately.
+
 ## Layering
 
 Crates are organized into ascending layers. A crate may depend only on crates

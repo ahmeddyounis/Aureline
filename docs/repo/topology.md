@@ -17,13 +17,14 @@ to change, update this map in the same change.
 | `fixtures/`    | Reusable test inputs and golden artifacts. Subtrees grow per protected-path corpus.                  |
 | `tools/`       | Repository-local tooling (lint helpers, codegen scripts, governance checkers).                       |
 | `ci/`          | CI configuration shared across pipelines (job definitions, gate scripts).                            |
-| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `governance/`, `compat/`, `evidence/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`.  |
+| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `architecture/`, `governance/`, `compat/`, `evidence/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`.  |
 
 ## Reserved subtrees inside `artifacts/`
 
 | Path                   | Purpose                                                                              |
 |------------------------|--------------------------------------------------------------------------------------|
 | `artifacts/governance/`| Package inventory, ownership matrix, requirement/waiver registers, scorecard/packet templates, and public-truth claim/parity seeds. |
+| `artifacts/architecture/` | Service-topology maps, protected-path dependency rules, process-placement seeds, and tradeoff registers. |
 | `artifacts/compat/`    | Compatibility qualification matrix, version-skew register, and boundary-row seeds.   |
 | `artifacts/evidence/`  | Shared evidence metadata catalogs and freshness field vocabularies used by release-facing packets. |
 | `artifacts/release/`   | Release-artifact graph rules, provenance, SBOMs, compatibility reports, claim manifests, rollback packets. |

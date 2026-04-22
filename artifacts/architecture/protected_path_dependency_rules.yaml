@@ -1,0 +1,289 @@
+schema_version: 1
+artifact_id: aureline.protected_path_dependency_rules
+overview_document: docs/architecture/service_topology_and_process_placement.md
+process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+package_inventory_ref: artifacts/governance/package_inventory.yaml
+
+dependency_class_vocabulary:
+  shell_ui:
+    plane: shell_ui
+    description: Shell, command-routing, layout, accessibility-entry, and hot-path integration code.
+  renderer:
+    plane: renderer
+    description: Scene composition, damage, and frame-submit seams.
+  text_buffer:
+    plane: text_buffer
+    description: Text primitives, visible-edit state, and buffer logic.
+  vfs_watchers:
+    plane: vfs_watchers
+    description: Canonical paths, save pipeline, and watch-state truth.
+  index_search:
+    plane: index_search
+    description: Workspace graph, index shards, search ranking, and result truth.
+  task_execution:
+    plane: task_execution
+    description: Task, test, debug, PTY, and Git execution helpers.
+  remote_helper:
+    plane: remote_helper
+    description: RPC fabric, helper bridges, and remote session transport.
+  ai_control_plane:
+    plane: ai_control_plane
+    description: AI routing, policy, entitlements, and managed metadata.
+  updater_release:
+    plane: updater_release
+    description: Update checks, install flows, release metadata, and package operations.
+  support_diagnostics:
+    plane: support_diagnostics
+    description: Telemetry, bounded tracing, support export, and benchmark diagnostics.
+  off_cone:
+    plane: support_diagnostics
+    description: Disposable spike, benchmark, or prototype code that protected packages must not depend on.
+
+sentinel_class_vocabulary:
+  blocking_fs_io:
+    description: Direct filesystem access on a protected input or render module.
+    patterns:
+      - "\\bstd::fs\\b"
+      - "\\bFile::open\\b"
+      - "\\bread_to_string\\b"
+      - "\\bmetadata\\s*\\("
+  blocking_network_io:
+    description: Direct socket or HTTP client access on a protected input or render module.
+    patterns:
+      - "\\bstd::net\\b"
+      - "\\bTcpStream\\b"
+      - "\\bTcpListener\\b"
+      - "\\bUdpSocket\\b"
+      - "\\breqwest\\b"
+      - "\\bureq\\b"
+      - "\\bhyper\\b"
+  blocking_process_launch:
+    description: Direct subprocess creation on a protected input or render module.
+    patterns:
+      - "\\bstd::process\\b"
+      - "\\bCommand::new\\b"
+      - "\\bCommand::spawn\\b"
+  blocking_wait:
+    description: Explicit blocking waits or sleeps on a protected input or render module.
+    patterns:
+      - "\\bstd::thread::sleep\\b"
+      - "\\bstd::thread::park\\b"
+      - "\\bjoin\\s*\\("
+      - "\\brecv\\s*\\("
+  spawn_blocking:
+    description: Work intentionally pushed into a blocking pool from the hot path.
+    patterns:
+      - "\\bspawn_blocking\\b"
+
+packages:
+  - package: aureline-shell-spike
+    dependency_class: shell_ui
+    protected_package: false
+    allowed_dependency_classes:
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - remote_helper
+      - support_diagnostics
+    forbidden_dependency_classes:
+      - index_search
+      - task_execution
+      - ai_control_plane
+      - updater_release
+      - off_cone
+
+  - package: aureline-render
+    dependency_class: renderer
+    protected_package: true
+    allowed_dependency_classes:
+      - text_buffer
+      - support_diagnostics
+    forbidden_dependency_classes:
+      - shell_ui
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - off_cone
+
+  - package: aureline-text
+    dependency_class: text_buffer
+    protected_package: true
+    allowed_dependency_classes: []
+    forbidden_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+
+  - package: aureline-buffer
+    dependency_class: text_buffer
+    protected_package: true
+    allowed_dependency_classes:
+      - text_buffer
+      - support_diagnostics
+    forbidden_dependency_classes:
+      - shell_ui
+      - renderer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - off_cone
+
+  - package: aureline-vfs
+    dependency_class: vfs_watchers
+    protected_package: true
+    allowed_dependency_classes:
+      - text_buffer
+      - support_diagnostics
+    forbidden_dependency_classes:
+      - shell_ui
+      - renderer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - off_cone
+
+  - package: aureline-rpc
+    dependency_class: remote_helper
+    protected_package: true
+    allowed_dependency_classes:
+      - support_diagnostics
+    forbidden_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - off_cone
+
+  - package: aureline-telemetry
+    dependency_class: support_diagnostics
+    protected_package: true
+    allowed_dependency_classes: []
+    forbidden_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+
+  - package: aureline-bench
+    dependency_class: off_cone
+    protected_package: false
+    allowed_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+    forbidden_dependency_classes: []
+
+  - package: aureline-largefile-proto
+    dependency_class: off_cone
+    protected_package: false
+    allowed_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+    forbidden_dependency_classes: []
+
+  - package: aureline-reactive-state
+    dependency_class: off_cone
+    protected_package: false
+    allowed_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+    forbidden_dependency_classes: []
+
+  - package: aureline-graph-proto
+    dependency_class: off_cone
+    protected_package: false
+    allowed_dependency_classes:
+      - shell_ui
+      - renderer
+      - text_buffer
+      - vfs_watchers
+      - index_search
+      - task_execution
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+      - support_diagnostics
+      - off_cone
+    forbidden_dependency_classes: []
+
+modules:
+  - path: crates/aureline-shell-spike/src/input_path.rs
+    owner_dependency_class: shell_ui
+    protected_path: true
+    allowed_local_modules:
+      - hooks
+    forbidden_sentinel_classes:
+      - blocking_fs_io
+      - blocking_network_io
+      - blocking_process_launch
+      - blocking_wait
+      - spawn_blocking
+
+  - path: crates/aureline-shell-spike/src/render_path.rs
+    owner_dependency_class: renderer
+    protected_path: true
+    allowed_local_modules:
+      - hooks
+      - input_path
+      - zones
+    forbidden_sentinel_classes:
+      - blocking_fs_io
+      - blocking_network_io
+      - blocking_process_launch
+      - blocking_wait
+      - spawn_blocking
