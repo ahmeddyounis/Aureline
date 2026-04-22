@@ -20,6 +20,13 @@ code.
   waivers, scorecards, docs, and release evidence.
 - [`governance/interface_inventory.md`](./governance/interface_inventory.md)
   — outline of interface-inventory categories and owning lanes.
+- [`governance/interface_lifecycle_policy.md`](./governance/interface_lifecycle_policy.md)
+  — shared lifecycle and deprecation metadata policy for stable ids,
+  aliases, schema families, replacement chains, support windows, and
+  notice surfaces. Boundary schema in
+  [`/schemas/governance/deprecation_metadata.schema.json`](../schemas/governance/deprecation_metadata.schema.json);
+  worked rows in
+  [`/fixtures/governance/deprecation_examples/`](../fixtures/governance/deprecation_examples/).
 - [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)
   — seed charter for the benchmark council (roles, scope, cadence,
   quorum placeholder, escalation).

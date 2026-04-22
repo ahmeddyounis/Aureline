@@ -37,6 +37,11 @@ Companion artifacts:
 - [`./interface_inventory.md`](./interface_inventory.md) — narrative
   companion to the stable-surface inventory and category outline for
   surfaces that have not yet earned a row.
+- [`./interface_lifecycle_policy.md`](./interface_lifecycle_policy.md)
+  — shared lifecycle and deprecation metadata policy for stable ids,
+  aliases, schema families, replacement chains, support windows, and
+  notice-surface requirements once an interface leaves experimental
+  state.
 - [`./contract_packet_template.md`](./contract_packet_template.md) —
   surface-contract packet template backed by
   `schemas/governance/contract_packet.schema.json`.
@@ -88,6 +93,12 @@ and scopes.
   `stable_surface_inventory.yaml` and the surface-contract packet
   template. Do not keep owner, versioning, support-window, or
   downgrade posture only in ADR prose.
+- Stable ids, alias ids, schema families, and record-class ids that
+  leave experimental state now route through
+  `interface_lifecycle_policy.md` and
+  `deprecation_metadata.schema.json`. Do not repurpose a
+  non-experimental id, hide a deprecated alias in prose only, or keep
+  replacement-chain history only in release notes.
 - Requirement ids now route through the canonical requirement register
   and alias crosswalk. Do not let scorecard calls, packet labels,
   fitness rows, or spec-local ids become de facto requirement ids in a
@@ -217,6 +228,11 @@ and scopes.
   retention, export, hold, delete, and offboarding posture that
   support bundles, issue handoff packets, and later managed support
   claims must quote instead of re-labelling privately.
+- Hidden compatibility aliases and retired schema families remain
+  support-visible through the interface-lifecycle metadata rows even
+  when general docs/help discovery hides them. Support/export surfaces
+  should treat "not listed in help" as a visibility choice, not as an
+  absence of governance.
 - The support-packet index contract now lives at
   [`/schemas/support/support_packet_index.schema.json`](../../schemas/support/support_packet_index.schema.json).
   Shiproom, support-export, and field-handoff flows cite its canonical

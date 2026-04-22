@@ -1,0 +1,595 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/deprecation_metadata.schema.json",
+  "title": "Aureline interface-lifecycle and deprecation metadata row",
+  "description": "Boundary schema for a single interface_lifecycle_metadata_row frozen in docs/governance/interface_lifecycle_policy.md. The row is the shared metadata shape stable-facing lanes use when they publish command ids, setting ids, schema families, aliases, replacement ids, retirement horizons, notice surfaces, and compatibility notes. Runtime capability posture remains governed by ADR-0011 and the surface-local contracts; this schema governs identifier continuity and deprecation metadata only. Adding a new interface family, lifecycle state, replacement posture, alias kind, help-visibility value, notice surface, or support-window unit is additive-minor and requires an interface_lifecycle_schema_version bump; repurposing an existing value or reusing a non-experimental id is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/interface_lifecycle_metadata_row",
+  "$defs": {
+    "interface_lifecycle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the interface-lifecycle metadata export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "version_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Release-line or version label. Kept as free text because some surfaces key off release families rather than strict SemVer."
+    },
+
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable interface id, alias id, schema URI, or record-class id. Exact grammar is owned by the underlying surface contract."
+    },
+
+    "surface_contract_ref": {
+      "type": "string",
+      "pattern": "^.+#.+$",
+      "description": "Stable-surface family row ref in artifacts/governance/stable_surface_inventory.yaml."
+    },
+
+    "interface_family": {
+      "type": "string",
+      "enum": [
+        "command_id",
+        "setting_id",
+        "docs_manifest_schema",
+        "profile_schema",
+        "layout_schema",
+        "record_class_id"
+      ],
+      "description": "Seeded stable-id family this row belongs to."
+    },
+
+    "row_role": {
+      "type": "string",
+      "enum": ["canonical", "alias"],
+      "description": "canonical = the live contract id or schema family. alias = a legacy or alternate spelling that resolves to a canonical row."
+    },
+
+    "interface_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "experimental",
+        "beta",
+        "stable",
+        "lts_surface",
+        "deprecated",
+        "retired"
+      ],
+      "description": "Lifecycle state for the interface identifier itself. This is the contract-evolution state, not the runtime capability-health state."
+    },
+
+    "replacement_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "replacement_required",
+        "replacement_optional",
+        "no_direct_replacement"
+      ],
+      "description": "Whether a consumer must migrate to another canonical id, may migrate, or has no direct successor."
+    },
+
+    "alias_kind": {
+      "type": "string",
+      "enum": [
+        "rename_redirect",
+        "visible_equivalent_alias",
+        "hidden_compat_alias"
+      ],
+      "description": "Alias classification. hidden_compat_alias is the compatibility-only path that stays machine-visible while remaining absent from general docs/help."
+    },
+
+    "help_visibility": {
+      "type": "string",
+      "enum": [
+        "visible_in_docs_and_help",
+        "visible_on_explicit_lookup_only",
+        "hidden_from_docs_and_help"
+      ],
+      "description": "How docs/help discovery surfaces render the id. Machine-readable metadata remains published regardless of this field."
+    },
+
+    "required_notice_surface": {
+      "type": "string",
+      "enum": [
+        "release_notes",
+        "docs_help",
+        "machine_readable_metadata",
+        "cli_help",
+        "support_export",
+        "compatibility_report",
+        "migration_guide"
+      ],
+      "description": "Notice surface that must carry the lifecycle state or migration cue."
+    },
+
+    "support_window_unit": {
+      "type": "string",
+      "enum": [
+        "days",
+        "months",
+        "minor_releases",
+        "major_releases",
+        "stable_lines",
+        "lts_cycles"
+      ],
+      "description": "Unit used in the structured overlap window."
+    },
+
+    "support_window_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Positive overlap count."
+        },
+        "unit": { "$ref": "#/$defs/support_window_unit" }
+      },
+      "description": "One overlap rule inside the support window."
+    },
+
+    "support_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_mode", "windows", "policy_source_ref"],
+      "properties": {
+        "rule_mode": {
+          "type": "string",
+          "enum": ["all_of", "any_of"],
+          "description": "all_of = every listed window must hold. any_of = any one listed window is sufficient."
+        },
+        "windows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_window_rule" },
+          "description": "Structured overlap rules that make the retirement horizon explicit."
+        },
+        "policy_source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable policy source backing the window."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          ],
+          "description": "Optional clarifying note for family-specific windows."
+        }
+      },
+      "description": "Structured overlap window owed before retirement. Null only while the row is still pre-deprecation."
+    },
+
+    "note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short reviewable compatibility note surfaces may quote verbatim or summarize."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "interface_lifecycle_metadata_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "interface_lifecycle_schema_version",
+        "surface_contract_ref",
+        "interface_family",
+        "row_role",
+        "interface_id",
+        "canonical_interface_id",
+        "interface_lifecycle_state",
+        "introduced_in_version",
+        "non_experimental_since_version",
+        "deprecated_in_version",
+        "removal_target_version",
+        "retired_in_version",
+        "replacement_posture",
+        "replacement_interface_ids",
+        "alias_kind",
+        "help_visibility",
+        "required_notice_surfaces",
+        "support_window",
+        "migration_guide_ref",
+        "compatibility_notes"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "interface_lifecycle_metadata_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "interface_lifecycle_schema_version": {
+          "$ref": "#/$defs/interface_lifecycle_schema_version"
+        },
+        "surface_contract_ref": { "$ref": "#/$defs/surface_contract_ref" },
+        "interface_family": { "$ref": "#/$defs/interface_family" },
+        "row_role": { "$ref": "#/$defs/row_role" },
+        "interface_id": { "$ref": "#/$defs/identifier" },
+        "canonical_interface_id": { "$ref": "#/$defs/identifier" },
+        "interface_lifecycle_state": { "$ref": "#/$defs/interface_lifecycle_state" },
+        "introduced_in_version": { "$ref": "#/$defs/version_label" },
+        "non_experimental_since_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_label" }
+          ],
+          "description": "First release line after which the id may not be repurposed."
+        },
+        "deprecated_in_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_label" }
+          ],
+          "description": "Release line that began the deprecation window."
+        },
+        "removal_target_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_label" }
+          ],
+          "description": "Announced earliest release line for retirement. Null before the target is fixed."
+        },
+        "retired_in_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_label" }
+          ],
+          "description": "Release line in which the id actually retired."
+        },
+        "replacement_posture": { "$ref": "#/$defs/replacement_posture" },
+        "replacement_interface_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" },
+          "description": "Immediate replacement canonical ids. Empty when replacement_posture is not_applicable or no_direct_replacement."
+        },
+        "alias_kind": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/alias_kind" }
+          ],
+          "description": "Alias classification. Null on canonical rows."
+        },
+        "help_visibility": { "$ref": "#/$defs/help_visibility" },
+        "required_notice_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/required_notice_surface" },
+          "description": "Surfaces that must disclose the lifecycle state or migration cue."
+        },
+        "support_window": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_window" }
+          ],
+          "description": "Structured overlap window. Null while the row is pre-deprecation."
+        },
+        "migration_guide_ref": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "description": "Guide or contract doc a consumer uses to migrate. Null only when no guide is needed."
+        },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/note_text" },
+          "description": "Short compatibility notes machine and review surfaces quote."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Canonical rows do not carry alias_kind; alias rows must.",
+          "if": {
+            "properties": { "row_role": { "const": "canonical" } },
+            "required": ["row_role"]
+          },
+          "then": {
+            "properties": { "alias_kind": { "const": null } }
+          },
+          "else": {
+            "properties": {
+              "alias_kind": { "$ref": "#/$defs/alias_kind" }
+            }
+          }
+        },
+        {
+          "description": "Once a row leaves experimental state, non_experimental_since_version becomes mandatory.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": {
+                "enum": [
+                  "beta",
+                  "stable",
+                  "lts_surface",
+                  "deprecated",
+                  "retired"
+                ]
+              }
+            },
+            "required": ["interface_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "non_experimental_since_version": {
+                "$ref": "#/$defs/version_label"
+              }
+            }
+          }
+        },
+        {
+          "description": "Pre-deprecation rows keep the deprecation clock unset and have no support window.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": {
+                "enum": ["internal", "experimental", "beta", "stable", "lts_surface"]
+              }
+            },
+            "required": ["interface_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "deprecated_in_version": { "const": null },
+              "removal_target_version": { "const": null },
+              "retired_in_version": { "const": null },
+              "support_window": { "const": null }
+            }
+          }
+        },
+        {
+          "description": "Deprecated rows must declare their window and must be published in machine-readable metadata.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": { "const": "deprecated" }
+            },
+            "required": ["interface_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "deprecated_in_version": { "$ref": "#/$defs/version_label" },
+              "support_window": { "$ref": "#/$defs/support_window" },
+              "replacement_posture": {
+                "enum": [
+                  "replacement_required",
+                  "replacement_optional",
+                  "no_direct_replacement"
+                ]
+              },
+              "required_notice_surfaces": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "machine_readable_metadata"
+                    }
+                  }
+                ]
+              }
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "removal_target_version": {
+                    "$ref": "#/$defs/version_label"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "retired_in_version": {
+                    "$ref": "#/$defs/version_label"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "Deprecated canonical rows must publish release-note and docs/help notice.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": { "const": "deprecated" },
+              "row_role": { "const": "canonical" }
+            },
+            "required": ["interface_lifecycle_state", "row_role"]
+          },
+          "then": {
+            "properties": {
+              "required_notice_surfaces": {
+                "allOf": [
+                  { "contains": { "const": "release_notes" } },
+                  { "contains": { "const": "docs_help" } },
+                  { "contains": { "const": "machine_readable_metadata" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Deprecated alias rows stay discoverable in machine/reporting surfaces even when hidden from general help.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": { "const": "deprecated" },
+              "row_role": { "const": "alias" }
+            },
+            "required": ["interface_lifecycle_state", "row_role"]
+          },
+          "then": {
+            "properties": {
+              "required_notice_surfaces": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "machine_readable_metadata"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "compatibility_report"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "support_export"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Retired rows must publish a retirement version. Retired non-experimental rows preserve the historical deprecated_in_version.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": { "const": "retired" }
+            },
+            "required": ["interface_lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "retired_in_version": { "$ref": "#/$defs/version_label" },
+              "replacement_posture": {
+                "enum": [
+                  "replacement_required",
+                  "replacement_optional",
+                  "no_direct_replacement"
+                ]
+              },
+              "required_notice_surfaces": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "machine_readable_metadata"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A retired row that was ever non-experimental keeps the published deprecated_in_version.",
+          "if": {
+            "properties": {
+              "interface_lifecycle_state": { "const": "retired" },
+              "non_experimental_since_version": { "type": "string" }
+            },
+            "required": [
+              "interface_lifecycle_state",
+              "non_experimental_since_version"
+            ]
+          },
+          "then": {
+            "properties": {
+              "deprecated_in_version": { "$ref": "#/$defs/version_label" }
+            }
+          }
+        },
+        {
+          "description": "Rows with direct replacements must list at least one replacement id.",
+          "if": {
+            "properties": {
+              "replacement_posture": {
+                "enum": ["replacement_required", "replacement_optional"]
+              }
+            },
+            "required": ["replacement_posture"]
+          },
+          "then": {
+            "properties": {
+              "replacement_interface_ids": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Rows without direct replacements or with no replacement context leave the replacement list empty.",
+          "if": {
+            "properties": {
+              "replacement_posture": {
+                "enum": ["not_applicable", "no_direct_replacement"]
+              }
+            },
+            "required": ["replacement_posture"]
+          },
+          "then": {
+            "properties": {
+              "replacement_interface_ids": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Hidden-from-help rows may not require docs/help notice surfaces.",
+          "if": {
+            "properties": {
+              "help_visibility": { "const": "hidden_from_docs_and_help" }
+            },
+            "required": ["help_visibility"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "required_notice_surfaces": {
+                      "contains": { "const": "docs_help" }
+                    }
+                  },
+                  "required": ["required_notice_surfaces"]
+                },
+                {
+                  "properties": {
+                    "required_notice_surfaces": {
+                      "contains": { "const": "cli_help" }
+                    }
+                  },
+                  "required": ["required_notice_surfaces"]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

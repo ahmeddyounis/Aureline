@@ -13,6 +13,12 @@ Companion artifacts:
   — machine-readable stable-surface and future stable-surface
   inventory. Compatibility, docs, migration, and deprecation work cite
   row refs here.
+- [`./interface_lifecycle_policy.md`](./interface_lifecycle_policy.md)
+  and
+  [`/schemas/governance/deprecation_metadata.schema.json`](../../schemas/governance/deprecation_metadata.schema.json)
+  — shared lifecycle and deprecation metadata policy for stable ids,
+  aliases, schema families, replacement ids, support windows, and
+  notice-surface requirements once a surface leaves experimental state.
 - [`./contract_packet_template.md`](./contract_packet_template.md)
   and
   [`/schemas/governance/contract_packet.schema.json`](../../schemas/governance/contract_packet.schema.json)
@@ -40,6 +46,11 @@ or partner depends on. Internal crate-to-crate APIs are governed by
 the dependency rules in
 [`/docs/repo/dependency_rules.md`](../repo/dependency_rules.md) and
 are not re-listed here.
+
+When a beta or stable-facing surface renames, aliases, deprecates, or
+retires one of its published ids or schema families, the surface row in
+this inventory stays the canonical family id and the per-id history is
+published through the interface-lifecycle metadata row schema above.
 
 Stable-facing rows in the YAML (`maturity_lane: stable` or `beta`)
 carry named owner, contract form, versioning rule, reader/writer
@@ -175,6 +186,11 @@ Every category above may produce zero or more surface rows in
 `artifacts/governance/stable_surface_inventory.yaml#<surface_id>` is
 the canonical id compatibility reports, docs/help surfaces, migration
 notes, and deprecation packets cite.
+
+If a surface row later needs per-id rename, alias, replacement, or
+retirement history, land the matching
+`interface_lifecycle_metadata_row` in the same change; do not keep
+stable-id deprecation state in release-note prose alone.
 
 Surfaces that are still category-only stay here until they need shared
 tracking across compatibility, docs, migration, deprecation, support,
