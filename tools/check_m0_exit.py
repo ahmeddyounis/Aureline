@@ -31,6 +31,7 @@ SCORECARD_REL = "artifacts/milestones/M0_scorecard.yaml"
 CONTROL_ARTIFACT_INDEX_REL = "artifacts/governance/control_artifact_index.yaml"
 DECISION_INDEX_REL = "artifacts/governance/decision_index.yaml"
 OWNERSHIP_REL = "artifacts/governance/ownership_matrix.yaml"
+FORUM_MATRIX_REL = "artifacts/governance/forum_matrix.yaml"
 CODEOWNERS_REL = "CODEOWNERS"
 DEPENDENCY_REGISTER_REL = "artifacts/governance/dependency_register.yaml"
 QUAL_MATRIX_REL = "artifacts/compat/qualification_matrix_seed.yaml"
@@ -40,6 +41,8 @@ FEATURE_FLAG_POLICY_REL = "docs/governance/feature_flag_policy.md"
 BENCH_WORKFLOW_REL = ".github/workflows/nightly_benchmark.yml"
 BENCH_DASHBOARD_REL = "artifacts/benchmarks/dashboard_seed/dashboard.json"
 BENCH_CHARTER_REL = "docs/governance/benchmark_council_charter.md"
+FORUM_CHARTERS_REL = "docs/governance/forum_charters.md"
+FORUM_PACKET_TEMPLATES_REL = "docs/governance/forum_packet_templates.md"
 RENDER_ADR_REL = "docs/adr/0002-renderer-text-stack-and-shaping-fallback.md"
 RENDER_SPIKE_REL = "artifacts/render/spike_capabilities.json"
 RENDER_TRACE_REL = "artifacts/render/spike_trace_samples/full_scene.json"
@@ -342,19 +345,87 @@ def check_dependency_ledger(root: Path) -> Result:
 def check_control_artifact_status(root: Path) -> Result:
     if not exists(root, CONTROL_ARTIFACT_INDEX_REL):
         return make_result(False, "control_artifact_status", f"missing ref: {CONTROL_ARTIFACT_INDEX_REL}", True)
-    if not contains_all(root, CONTROL_ARTIFACT_INDEX_REL, ["id: milestone_review_packet", "id: canonical_requirement_register"]):
-        return make_result(False, "control_artifact_status", "control-artifact index is missing the milestone review packet or canonical requirement-register row")
-    return make_result(True, "control_artifact_status", "control-artifact index includes the milestone review packet and canonical requirement-register rows")
+    if not contains_all(
+        root,
+        CONTROL_ARTIFACT_INDEX_REL,
+        [
+            "id: milestone_review_packet",
+            "id: canonical_requirement_register",
+            "id: decision_forum_charter_pack",
+            "id: decision_forum_packet_templates",
+        ],
+    ):
+        return make_result(
+            False,
+            "control_artifact_status",
+            "control-artifact index is missing the milestone review packet, canonical requirement-register, or decision-forum pack rows",
+        )
+    return make_result(
+        True,
+        "control_artifact_status",
+        "control-artifact index includes the milestone review packet, canonical requirement-register, and decision-forum pack rows",
+    )
 
 
 def check_decision_forums(root: Path) -> Result:
-    refs = [OWNERSHIP_REL, BENCH_CHARTER_REL]
+    refs = [
+        OWNERSHIP_REL,
+        FORUM_MATRIX_REL,
+        FORUM_CHARTERS_REL,
+        FORUM_PACKET_TEMPLATES_REL,
+        BENCH_CHARTER_REL,
+    ]
     missing = missing_paths(root, refs)
     if missing:
         return make_result(False, "decision_forums", f"missing refs: {', '.join(missing)}", True)
-    if not contains_all(root, OWNERSHIP_REL, ["decision_forums:", "architecture_council", "performance_council"]):
+    if not contains_all(
+        root,
+        OWNERSHIP_REL,
+        [
+            "decision_forums:",
+            "architecture_council",
+            "performance_council",
+            "accessibility_review",
+            "open_community_sync",
+        ],
+    ):
         return make_result(False, "decision_forums", "ownership matrix is missing the expected decision forums")
-    return make_result(True, "decision_forums", "decision forums and benchmark charter are both present")
+    if not contains_all(
+        root,
+        FORUM_MATRIX_REL,
+        [
+            "decision_classes:",
+            "packet_profiles:",
+            "forum_id: architecture_council",
+            "forum_id: accessibility_review",
+            "forum_id: open_community_sync",
+            "forum_id: shiproom_executive_scope_review",
+        ],
+    ):
+        return make_result(False, "decision_forums", "forum matrix is missing the expected standing forums or packet profiles")
+    if not contains_all(
+        root,
+        FORUM_CHARTERS_REL,
+        [
+            "# Decision-Forum Charters",
+            "Open community sync",
+            "Release shiproom",
+            "Milestone scope review",
+        ],
+    ):
+        return make_result(False, "decision_forums", "forum charter narrative is missing the expected standing forums")
+    if not contains_all(
+        root,
+        FORUM_PACKET_TEMPLATES_REL,
+        [
+            "architecture_decision_bundle",
+            "accessibility_review_packet",
+            "community_sync_note",
+            "release_readiness_packet",
+        ],
+    ):
+        return make_result(False, "decision_forums", "forum packet-template guide is missing expected packet profiles")
+    return make_result(True, "decision_forums", "forum matrix, charter narrative, packet templates, and benchmark charter are all present")
 
 
 def check_qualification_and_rings(root: Path) -> Result:

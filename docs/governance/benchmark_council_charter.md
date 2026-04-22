@@ -25,6 +25,11 @@ Companion artifacts:
 - [`/artifacts/governance/ownership_matrix.yaml`](../../artifacts/governance/ownership_matrix.yaml)
   — the `benchmark_lab` lane and the `performance_council` decision
   forum referenced below.
+- [`./forum_charters.md`](./forum_charters.md) and
+  [`/artifacts/governance/forum_matrix.yaml`](../../artifacts/governance/forum_matrix.yaml)
+  — standing program-forum pack. The benchmark council remains the
+  specialized protected-fitness forum and feeds the weekly
+  `performance_council` cadence rather than replacing it.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
   — canonical public benchmark packet skeleton.
 - [`/docs/benchmarks/corpus_governance.md`](../benchmarks/corpus_governance.md)

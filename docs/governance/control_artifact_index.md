@@ -35,6 +35,13 @@ Companion artifacts:
   [`/docs/repo/dependency_rules.md`](../repo/dependency_rules.md).
 - [`./benchmark_council_charter.md`](./benchmark_council_charter.md)
   — charter seed for the benchmark council (roles, scope, cadence).
+- [`./forum_charters.md`](./forum_charters.md) and
+  [`/artifacts/governance/forum_matrix.yaml`](../../artifacts/governance/forum_matrix.yaml)
+  — standing decision-forum charter pack and machine-readable forum
+  matrix.
+- [`./forum_packet_templates.md`](./forum_packet_templates.md)
+  — required input-packet profiles and output-landing rules for the
+  standing forums.
 - [`./requirement_alias_crosswalk.md`](./requirement_alias_crosswalk.md)
   — human-readable crosswalk for the canonical requirement register and
   the local labels that must resolve back to it.

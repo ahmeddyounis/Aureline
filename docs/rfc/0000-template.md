@@ -14,7 +14,7 @@ outcome. Metadata lives on the decision register row referenced below.
 - **Closed on:** YYYY-MM-DD or `pending`
 - **Owner:** `@handle`
 - **Backup owner:** `@handle` or `null` with a cited waiver id
-- **Forum:** architecture_council | performance_council | security_trust_review | compatibility_ecosystem_review | product_scope_review | release_council | shiproom_executive_scope_review
+- **Forum:** architecture_council | performance_council | security_trust_review | accessibility_review | compatibility_ecosystem_review | product_scope_review | release_council | shiproom_executive_scope_review
 - **Freeze deadline:** copied from the register
 - **Related requirement ids:** e.g. `PRD-FOO-001` (or `none`)
 

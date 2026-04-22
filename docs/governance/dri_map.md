@@ -86,7 +86,8 @@ protected; the spike itself is disposable.
 
 Governance forum families owned under the `Governance forums` row include the
 architecture council, performance council, security and trust review,
-compatibility / ecosystem review, product scope review, release council, and
+accessibility review, ecosystem and compatibility review, milestone scope
+review (`product_scope_review`), open community sync, release council, and
 shiproom / executive scope review. Under the solo-maintainer posture these
 forums are single-attendee decision logs; adding a second chair is part of
 closing the backup waiver.
@@ -126,7 +127,10 @@ closing the backup waiver.
   sources, and component references.
 - **Accessibility / input review** — `/artifacts/ux/` accessibility audits,
   input-method review packets, reduced-motion / contrast artifacts.
-- **Governance forums** — decision forum families listed above.
+- **Governance forums** — the standing forum families listed above, plus
+  their packet-profile and output-routing rules in
+  `docs/governance/forum_charters.md` and
+  `artifacts/governance/forum_matrix.yaml`.
 
 ## Blocker aging SLAs
 
