@@ -374,8 +374,16 @@ and scopes.
   and
   [`artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml),
   which bind binaries, debug manifests, docs/help truth, benchmark
-  proof packets, advisories, and promotion evidence into one
-  non-overlapping release graph.
+  proof packets, advisories/emergency actions/revocations, and
+  promotion evidence into one non-overlapping release graph.
+- Emergency actions and revocations now have one shared contract at
+  [`docs/security/emergency_action_model.md`](../security/emergency_action_model.md)
+  and
+  [`schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json).
+  Channel freezes, kill switches, trust-root rotations, mirror/manual-
+  import freshness, signer continuity, local continuity, and
+  post-incident reconciliation therefore travel as one governed object
+  instead of surface-local warning fields.
 - Release posture is no longer hidden inside packet prose. The
   governing ADR and machine-readable maps now live in
   [`docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md),

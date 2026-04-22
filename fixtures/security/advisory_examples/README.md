@@ -42,9 +42,11 @@ observable outcomes.
   already carries a seeded install-profile card or exact-build
   identity, these fixtures reuse that id verbatim; later-lane packet
   refs remain illustrative placeholders.
-- At this milestone there is no production incident-response
-  tooling, on-call lane, or emergency-action state model; fixtures
-  are pre-implementation governance artefacts.
+- At this milestone there is still no production incident-response
+  tooling or on-call lane. The emergency-action / revocation object
+  model now lives separately under
+  `docs/security/emergency_action_model.md`; these fixtures remain
+  pre-implementation governance artefacts.
 
 **Index**
 

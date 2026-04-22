@@ -17,6 +17,12 @@ Companion artifacts:
   — boundary schema for the `incident_workspace_packet_record` the
   private-triage workspace exports for evidence capture, timeline,
   continuity notes, and handoff / export routing.
+- [`/docs/security/emergency_action_model.md`](./emergency_action_model.md)
+  and
+  [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json)
+  — emergency-action and revocation model the advisory and incident
+  packet now link into for freeze, kill-switch, trust-root, revocation,
+  mirror/manual-import, and local-continuity truth.
 - [`/fixtures/security/advisory_examples/`](../../fixtures/security/advisory_examples/)
   — worked fixtures covering at least one alias-ready advisory (CVE +
   GHSA + Aureline advisory id) with an affected-install assessment
@@ -134,9 +140,9 @@ Out of scope until a superseding decision row opens:
 
 - Production incident-response automation, paging, or on-call tooling.
 - Live on-call rotation assignments or escalation trees.
-- Emergency-action UI, state model, or user-facing "kill switch"
-  behaviour beyond the reserved linkage points the advisory record
-  carries.
+- Final emergency-action UI behaviour beyond the object model, shared
+  field set, and linkage refs frozen here and in
+  [`/docs/security/emergency_action_model.md`](./emergency_action_model.md).
 - Disable-bundle artefact bytes. The advisory record reserves the
   linkage ref (`disable_bundle_refs`); the disable-bundle schema is a
   later lane co-owned by security / trust review and release council.
@@ -463,18 +469,23 @@ view.
   publication are decision-register events recorded in
   [`/artifacts/governance/decision_index.yaml`](../../artifacts/governance/decision_index.yaml).
   A severity upgrade without a decision-history row is non-conforming.
-- **Emergency action.** The advisory record reserves
-  `emergency_action_refs` as an array of opaque ids. The emergency-
-  action state model is out of scope at this milestone; the ref is
-  reserved so the linkage shape does not churn later.
-- **Approval quorum.** Until the emergency-action schema lands, the
-  action classes, quorum floor, and break-glass rules for
-  `emergency_action_refs`, `revocation_refs`, and disable/kill-switch
-  publication are those published in
+- **Emergency action.** The advisory record's `emergency_action_refs`
+  now resolve into
+  [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json)
+  `emergency_action_record` ids. The shared object model lives in
+  [`/docs/security/emergency_action_model.md`](./emergency_action_model.md)
+  and reuses the same affected-install linkage, deployment-profile
+  scope, and continuity vocabulary this document freezes.
+- **Approval quorum.** The action classes, quorum floor, and
+  break-glass rules for `emergency_action_refs`, `revocation_refs`, and
+  disable/kill-switch publication are those published in
   [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml).
-- **Revocation.** The advisory record reserves `revocation_refs` for
-  opaque revocation-record ids. The revocation-record body is a later
-  lane co-owned by security / trust review and release council.
+- **Revocation.** The advisory record's `revocation_refs` now resolve
+  into
+  [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json)
+  `revocation_record` ids. Revocation stays on the same artifact
+  identity graph as advisories and emergency actions; it no longer
+  relies on a future placeholder schema.
 - **Disable bundle.** The advisory record reserves
   `disable_bundle_refs` for opaque disable-bundle ids. The disable-
   bundle artefact is a later lane.
@@ -506,11 +517,9 @@ view.
 - Open decision rows that bind the severity clocks above to named
   release-council SLAs once the release-cadence decision (D-0010)
   closes.
-- Land the emergency-action and revocation schemas under
-  `/schemas/security/` with linkage refs that resolve the slots this
-  milestone reserves (`emergency_action_refs`, `revocation_refs`,
-  `disable_bundle_refs`) and inherit the action ids already named in
-  `artifacts/governance/signing_quorum.yaml`.
+- Land the disable-bundle transport/payload schema under
+  `/schemas/security/` so `disable_bundle_refs` stops being the only
+  remaining reserved slot in the security-response object family.
 - Open the coordinated-disclosure runbook referenced by the
   `coordinated_disclosure_group` scope value. The schema reserves the
   scope; the runbook content is support / security authority.

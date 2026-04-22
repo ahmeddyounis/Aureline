@@ -1,0 +1,1169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/emergency_action_record.schema.json",
+  "title": "Aureline emergency-action and revocation contract",
+  "description": "Boundary schema for the emergency_action_record and revocation_record frozen in docs/security/emergency_action_model.md. The contract turns trust-affecting emergency actions and revocations into signed, inspectable product objects tied to the same exact-build, install-profile, deployment-profile, and support/export identity model advisories already use. One record carries severity, user/admin-facing notice state, reason class, urgency, enforcement posture, affected subjects, affected-install linkage, signer continuity, distribution freshness across live/mirror/manual-import/offline paths, local continuity, required actions, supersedence or revocation links, durable history refs, and post-incident reconciliation hooks. Raw bundle bytes, raw signatures, raw evidence bodies, raw policy payloads, and raw incident notebooks never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe summary fields only. Adding a new action kind, reason class, trigger source class, enforcement posture, notice state, continuity state, distribution freshness state, validation state, required-action class, deadline semantics class, record state, blast-radius class, or reconciliation state is additive-minor and requires an emergency_action_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/emergency_action_record"
+    },
+    {
+      "$ref": "#/$defs/revocation_record"
+    }
+  ],
+  "$defs": {
+    "emergency_action_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this emergency-action and revocation export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / admin exports. Raw bundle bytes, raw signatures, raw policy payloads, and raw evidence bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, continuity, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "emergency_action_record",
+        "revocation_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "security_severity_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/security_severity_class"
+    },
+    "affected_install_linkage": {
+      "$ref": "./advisory_record.schema.json#/$defs/affected_install_linkage"
+    },
+    "deployment_profile_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/deployment_profile_class"
+    },
+    "redaction_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/redaction_class"
+    },
+    "policy_context": {
+      "$ref": "./advisory_record.schema.json#/$defs/policy_context"
+    },
+    "security_subject_kind": {
+      "type": "string",
+      "enum": [
+        "build_binary",
+        "build_symbol",
+        "docs_pack",
+        "extension",
+        "capability_gate",
+        "settings_definition",
+        "secret_class_posture",
+        "signing_material",
+        "signing_root",
+        "install_profile_card",
+        "runtime_component",
+        "managed_cloud_surface",
+        "third_party_dependency",
+        "workspace_trust_policy",
+        "ai_context_assembly",
+        "model_pack",
+        "route",
+        "release_channel",
+        "policy_bundle",
+        "registry_namespace"
+      ],
+      "description": "Frozen affected-subject vocabulary for emergency actions and revocations. Extends the advisory subject-kind set with the trust-root, channel, model-pack, and route classes the technical-design source requires."
+    },
+    "affected_subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_kind",
+        "subject_id"
+      ],
+      "properties": {
+        "subject_kind": {
+          "$ref": "#/$defs/security_subject_kind"
+        },
+        "subject_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        }
+      },
+      "description": "Typed ref to a subject the emergency action or revocation concerns. Raw bytes never appear here."
+    },
+    "surface_notice_class": {
+      "type": "string",
+      "enum": [
+        "emergency_action_required",
+        "critical_notice",
+        "high_notice",
+        "moderate_notice",
+        "low_notice"
+      ],
+      "description": "Frozen user/admin-facing notice state. emergency_action_required is distinct from ordinary severity and is used when product behavior or trust posture changes immediately."
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "active_signed_artifact_compromise",
+        "verified_malicious_distribution",
+        "trust_root_compromise_or_rotation",
+        "publisher_continuity_break",
+        "critical_runtime_exploit",
+        "critical_data_loss_or_corruption",
+        "registry_or_mirror_revocation",
+        "mirror_freshness_below_floor",
+        "policy_narrowing_required",
+        "minimum_safe_version_required",
+        "emergency_distribution_pause",
+        "route_or_provider_disable"
+      ],
+      "description": "Frozen reason vocabulary naming why the action or revocation exists."
+    },
+    "urgency_class": {
+      "type": "string",
+      "enum": [
+        "immediate",
+        "prompt",
+        "before_expiry",
+        "next_admin_window",
+        "scheduled_follow_up"
+      ],
+      "description": "Frozen urgency vocabulary for how quickly review or operator action should happen."
+    },
+    "trigger_source_class": {
+      "type": "string",
+      "enum": [
+        "runtime_policy",
+        "registry_metadata",
+        "signed_emergency_bundle",
+        "user_choice",
+        "admin_override",
+        "release_channel_control",
+        "mirror_imported_snapshot",
+        "manual_imported_snapshot",
+        "runtime_preload"
+      ],
+      "description": "Frozen trigger-source vocabulary. Required so surfaces can distinguish runtime policy, registry metadata, signed emergency bundle, user choice, admin override, and imported snapshot triggers without inferring from context."
+    },
+    "enforcement_posture_class": {
+      "type": "string",
+      "enum": [
+        "advisory_only",
+        "soft_pause",
+        "hard_pause",
+        "forced_disable",
+        "channel_frozen",
+        "trust_root_transition",
+        "revoked"
+      ],
+      "description": "Frozen enforcement-posture vocabulary answering what the action actually does to product behavior."
+    },
+    "record_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_distribution",
+        "active",
+        "superseded",
+        "expired",
+        "reconciled",
+        "withdrawn"
+      ],
+      "description": "Frozen lifecycle state for the emergency action or revocation."
+    },
+    "emergency_action_kind": {
+      "type": "string",
+      "enum": [
+        "channel_freeze",
+        "capability_kill_switch",
+        "trust_root_rotation",
+        "capability_narrowing",
+        "emergency_update_pause"
+      ],
+      "description": "Frozen emergency-action kind vocabulary."
+    },
+    "blast_radius_class": {
+      "type": "string",
+      "enum": [
+        "exact_subject_only",
+        "exact_build_subset",
+        "install_profile_subset",
+        "channel_wide",
+        "deployment_profile_wide",
+        "trust_chain_wide"
+      ],
+      "description": "Frozen blast-radius vocabulary for revocations."
+    },
+    "signer_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "same_signer_chain",
+        "rotated_with_continuity_statement",
+        "cross_signed_transition",
+        "continuity_review_required",
+        "continuity_broken",
+        "unknown_offline"
+      ],
+      "description": "Frozen signer-continuity vocabulary. distinct from freshness: an imported snapshot may have continuity proof but still be stale."
+    },
+    "signer_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "continuity_state",
+        "current_signer_ref",
+        "previous_signer_refs",
+        "continuity_statement_ref",
+        "last_verified_at",
+        "note"
+      ],
+      "properties": {
+        "continuity_state": {
+          "$ref": "#/$defs/signer_continuity_state_class"
+        },
+        "current_signer_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Opaque ref to the signer or trust root the record expects to be current. Null when the trigger source is not signature-backed."
+        },
+        "previous_signer_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "description": "Prior signer or trust-root refs relevant to the continuity story."
+        },
+        "continuity_statement_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Opaque ref to the continuity or rotation statement. Null when continuity_state does not rely on a statement."
+        },
+        "last_verified_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ],
+          "description": "When signer continuity was last verified on the producing path. Null is admissible for imported/offline states where only historic continuity evidence exists."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Signer-continuity envelope shared by emergency actions and revocations."
+    },
+    "distribution_source_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_origin",
+        "customer_managed_mirror",
+        "approved_private_mirror",
+        "manual_import_bundle",
+        "offline_transfer_snapshot",
+        "local_cached_copy",
+        "runtime_preload"
+      ],
+      "description": "Frozen source vocabulary for how a client/admin saw this record."
+    },
+    "distribution_path_class": {
+      "type": "string",
+      "enum": [
+        "managed_push",
+        "managed_pull",
+        "mirror_sync",
+        "file_import",
+        "offline_transfer",
+        "local_cache_projection",
+        "runtime_preload"
+      ],
+      "description": "Frozen distribution-path vocabulary."
+    },
+    "distribution_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "unknown"
+      ],
+      "description": "Frozen freshness vocabulary for live/mirror/manual-import/offline projections. Designed so an imported snapshot does not pretend to be live-connected."
+    },
+    "distribution_validation_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_but_stale",
+        "verification_failed",
+        "pending_review",
+        "cached_without_revalidation"
+      ],
+      "description": "Frozen validation-state vocabulary for one distribution path."
+    },
+    "distribution_status_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distribution_id",
+        "source_class",
+        "path_class",
+        "freshness_class",
+        "validation_state",
+        "observed_signer_continuity_state",
+        "observed_at",
+        "receipt_ref",
+        "supersedes_known_snapshot_ref",
+        "note"
+      ],
+      "properties": {
+        "distribution_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "source_class": {
+          "$ref": "#/$defs/distribution_source_class"
+        },
+        "path_class": {
+          "$ref": "#/$defs/distribution_path_class"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/distribution_freshness_class"
+        },
+        "validation_state": {
+          "$ref": "#/$defs/distribution_validation_state_class"
+        },
+        "observed_signer_continuity_state": {
+          "$ref": "#/$defs/signer_continuity_state_class"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "receipt_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Stable ref preserved by mirror-import rows, manual-import receipts, admin exports, and support packets when they quote this distribution state."
+        },
+        "supersedes_known_snapshot_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Opaque ref to the older imported/mirrored snapshot this row supersedes. Null when no prior snapshot is recorded."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "One live/mirror/manual-import/offline projection row for the same emergency action or revocation."
+    },
+    "required_action_actor_class": {
+      "type": "string",
+      "enum": [
+        "end_user",
+        "local_admin",
+        "org_admin",
+        "mirror_operator",
+        "release_operator",
+        "support_operator"
+      ],
+      "description": "Who needs to act next."
+    },
+    "required_action_class": {
+      "type": "string",
+      "enum": [
+        "review_notice",
+        "pause_updates",
+        "restart_before_continue",
+        "import_signed_snapshot",
+        "rotate_trust_root",
+        "pin_last_known_good",
+        "export_support_packet",
+        "retry_after_superseding_action",
+        "approve_signer_continuity",
+        "clear_revoked_artifact",
+        "update_to_minimum_safe_version",
+        "resume_channel_after_review"
+      ],
+      "description": "Frozen required-action vocabulary."
+    },
+    "required_action_blocking_class": {
+      "type": "string",
+      "enum": [
+        "required_to_restore_safe_updates",
+        "required_to_restore_feature",
+        "required_for_admin_audit",
+        "recommended_only"
+      ],
+      "description": "How strongly the action blocks recovery or normal work."
+    },
+    "deadline_semantics_class": {
+      "type": "string",
+      "enum": [
+        "immediate",
+        "before_next_launch",
+        "before_next_update_check",
+        "before_expiry",
+        "before_channel_resume",
+        "next_admin_window",
+        "informational_only"
+      ],
+      "description": "Frozen deadline-semantics vocabulary for user/admin actions."
+    },
+    "required_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_action_id",
+        "actor_class",
+        "action_class",
+        "blocking_class",
+        "deadline_semantics",
+        "deadline_at",
+        "note"
+      ],
+      "properties": {
+        "required_action_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "actor_class": {
+          "$ref": "#/$defs/required_action_actor_class"
+        },
+        "action_class": {
+          "$ref": "#/$defs/required_action_class"
+        },
+        "blocking_class": {
+          "$ref": "#/$defs/required_action_blocking_class"
+        },
+        "deadline_semantics": {
+          "$ref": "#/$defs/deadline_semantics_class"
+        },
+        "deadline_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "One required or recommended action row shared by banner, update-center, admin-export, and support/export consumers."
+    },
+    "local_continuity_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_continuity_intact",
+        "local_continuity_narrowed",
+        "offline_continuity_until_expiry",
+        "local_continuity_blocked"
+      ],
+      "description": "Frozen local-continuity posture vocabulary."
+    },
+    "local_continuity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "note",
+        "retained_capabilities",
+        "blocked_capabilities"
+      ],
+      "properties": {
+        "posture_class": {
+          "$ref": "#/$defs/local_continuity_posture_class"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "retained_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "blocked_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        }
+      },
+      "description": "Required continuity block naming what still works locally and what is blocked."
+    },
+    "relationship_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "related_advisory_refs",
+        "related_incident_workspace_packet_refs",
+        "supersedes_record_refs",
+        "superseded_by_record_ref",
+        "revokes_record_refs",
+        "revoked_subject_refs"
+      ],
+      "properties": {
+        "related_advisory_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "description": "Refs into advisory_record ids that carry the same affected-build or mitigation story."
+        },
+        "related_incident_workspace_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "supersedes_record_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "description": "Prior emergency-action or revocation records this record supersedes."
+        },
+        "superseded_by_record_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ],
+          "description": "Later emergency-action or revocation record that supersedes this record. Null while none is known."
+        },
+        "revokes_record_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "description": "Prior records this action or revocation explicitly revokes."
+        },
+        "revoked_subject_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "description": "Direct subject refs revoked by this record. Empty for emergency-action kinds that do not revoke a subject."
+        }
+      },
+      "description": "Typed relation envelope keeping supersedence and revocation identity explicit."
+    },
+    "history_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_history_refs",
+        "activity_event_refs",
+        "support_packet_refs",
+        "release_evidence_packet_refs",
+        "admin_export_refs",
+        "distribution_receipt_refs",
+        "public_notice_refs"
+      ],
+      "properties": {
+        "decision_history_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "activity_event_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "support_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "admin_export_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "distribution_receipt_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "public_notice_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        }
+      },
+      "description": "Durable history-link set preserved by banners, activity center, admin exports, manual-import receipts, and support packets."
+    },
+    "reconciliation_state_class": {
+      "type": "string",
+      "enum": [
+        "awaiting_superseding_action",
+        "awaiting_mirror_refresh",
+        "awaiting_manual_import",
+        "awaiting_post_incident_review",
+        "ready_for_resume_review",
+        "reconciled",
+        "superseded"
+      ],
+      "description": "Frozen post-incident reconciliation-state vocabulary."
+    },
+    "reconciliation_owner_class": {
+      "type": "string",
+      "enum": [
+        "security_trust_review",
+        "release_council",
+        "local_admin",
+        "org_admin",
+        "mirror_operator",
+        "support_export"
+      ]
+    },
+    "reconciliation_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "owner_class",
+        "post_incident_review_refs",
+        "follow_up_support_packet_refs",
+        "resume_condition_note"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/reconciliation_state_class"
+        },
+        "owner_class": {
+          "$ref": "#/$defs/reconciliation_owner_class"
+        },
+        "post_incident_review_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "follow_up_support_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "resume_condition_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Post-incident reconciliation and resume hook. Shared by emergency actions and revocations so follow-up state survives beyond the banner lifetime."
+    },
+    "enforcement_details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_capability_refs",
+        "affected_channel_refs",
+        "minimum_safe_version_ref",
+        "successor_signer_ref",
+        "successor_trust_root_ref",
+        "recovery_guidance_note"
+      ],
+      "properties": {
+        "affected_capability_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "affected_channel_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "minimum_safe_version_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "successor_signer_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "successor_trust_root_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "recovery_guidance_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Generic enforcement-details block consumed by update-center, admin-export, support, and mirror/offline surfaces without per-surface field invention."
+    },
+    "common_record_fields": {
+      "type": "object",
+      "required": [
+        "severity_class",
+        "surface_notice_class",
+        "reason_class",
+        "urgency_class",
+        "enforcement_posture_class",
+        "record_state",
+        "title",
+        "summary",
+        "affected_subjects",
+        "affected_install_linkage",
+        "deployment_profile_scope",
+        "trigger_source_class",
+        "signer_continuity",
+        "distribution_statuses",
+        "local_continuity",
+        "required_actions",
+        "relationship_links",
+        "history_links",
+        "reconciliation",
+        "enforcement_details",
+        "effective_at",
+        "review_deadline_at",
+        "expires_at",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "severity_class": {
+          "$ref": "#/$defs/security_severity_class"
+        },
+        "surface_notice_class": {
+          "$ref": "#/$defs/surface_notice_class"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/reason_class"
+        },
+        "urgency_class": {
+          "$ref": "#/$defs/urgency_class"
+        },
+        "enforcement_posture_class": {
+          "$ref": "#/$defs/enforcement_posture_class"
+        },
+        "record_state": {
+          "$ref": "#/$defs/record_state_class"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable title suitable for banner, activity-center, update-center, admin-export, and support surfaces."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "affected_subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/affected_subject_ref"
+          }
+        },
+        "affected_install_linkage": {
+          "$ref": "#/$defs/affected_install_linkage"
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/deployment_profile_class"
+          }
+        },
+        "trigger_source_class": {
+          "$ref": "#/$defs/trigger_source_class"
+        },
+        "signer_continuity": {
+          "$ref": "#/$defs/signer_continuity"
+        },
+        "distribution_statuses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/distribution_status_record"
+          }
+        },
+        "local_continuity": {
+          "$ref": "#/$defs/local_continuity_record"
+        },
+        "required_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/required_action_record"
+          }
+        },
+        "relationship_links": {
+          "$ref": "#/$defs/relationship_links"
+        },
+        "history_links": {
+          "$ref": "#/$defs/history_links"
+        },
+        "reconciliation": {
+          "$ref": "#/$defs/reconciliation_hook"
+        },
+        "enforcement_details": {
+          "$ref": "#/$defs/enforcement_details"
+        },
+        "effective_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "review_deadline_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ],
+          "description": "When the next mandatory review or resume decision must happen."
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ],
+          "description": "When this record expires if it is not already superseded or reconciled."
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "minted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "description": "emergency_action_required remains distinct from severity, but it still requires a high-urgency severity class and at least one typed required action.",
+          "if": {
+            "properties": {
+              "surface_notice_class": {
+                "const": "emergency_action_required"
+              }
+            },
+            "required": [
+              "surface_notice_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              },
+              "required_actions": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "emergency_action_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/common_record_fields"
+        },
+        {
+          "required": [
+            "emergency_action_schema_version",
+            "record_kind",
+            "action_id",
+            "action_kind"
+          ],
+          "properties": {
+            "emergency_action_schema_version": {
+              "$ref": "#/$defs/emergency_action_schema_version"
+            },
+            "record_kind": {
+              "const": "emergency_action_record"
+            },
+            "action_id": {
+              "$ref": "#/$defs/opaque_id"
+            },
+            "action_kind": {
+              "$ref": "#/$defs/emergency_action_kind"
+            }
+          }
+        },
+        {
+          "description": "High-urgency action kinds render as emergency_action_required.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": [
+                  "channel_freeze",
+                  "capability_kill_switch",
+                  "trust_root_rotation"
+                ]
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "surface_notice_class": {
+                "const": "emergency_action_required"
+              }
+            }
+          }
+        },
+        {
+          "description": "channel_freeze implies channel_frozen posture.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "const": "channel_freeze"
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "enforcement_posture_class": {
+                "const": "channel_frozen"
+              }
+            }
+          }
+        },
+        {
+          "description": "capability_kill_switch implies forced_disable posture.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "const": "capability_kill_switch"
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "enforcement_posture_class": {
+                "const": "forced_disable"
+              }
+            }
+          }
+        },
+        {
+          "description": "trust_root_rotation implies trust_root_transition posture.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "const": "trust_root_rotation"
+              }
+            },
+            "required": [
+              "action_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "enforcement_posture_class": {
+                "const": "trust_root_transition"
+              }
+            }
+          }
+        },
+        {
+          "description": "Every emergency action links to at least one advisory or incident packet.",
+          "properties": {
+            "relationship_links": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "related_advisory_refs": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "related_incident_workspace_packet_refs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Emergency-action record. One record per channel freeze, kill switch, trust-root rotation, capability narrowing, or emergency update pause. The record carries shared severity, notice, identity, continuity, distribution, required-action, history, and reconciliation state so banner, activity-center, update-center, admin-export, mirror/manual-import, and support/export surfaces resolve one stable action id instead of inventing surface-local fields."
+    },
+    "revocation_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "$ref": "#/$defs/common_record_fields"
+        },
+        {
+          "required": [
+            "emergency_action_schema_version",
+            "record_kind",
+            "revocation_id",
+            "blast_radius_class"
+          ],
+          "properties": {
+            "emergency_action_schema_version": {
+              "$ref": "#/$defs/emergency_action_schema_version"
+            },
+            "record_kind": {
+              "const": "revocation_record"
+            },
+            "revocation_id": {
+              "$ref": "#/$defs/opaque_id"
+            },
+            "blast_radius_class": {
+              "$ref": "#/$defs/blast_radius_class"
+            }
+          }
+        },
+        {
+          "description": "Revocations use revoked posture.",
+          "properties": {
+            "enforcement_posture_class": {
+              "const": "revoked"
+            }
+          }
+        },
+        {
+          "description": "Revocations must name at least one revoked subject ref.",
+          "properties": {
+            "relationship_links": {
+              "properties": {
+                "revoked_subject_refs": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every revocation links to at least one advisory or incident packet.",
+          "properties": {
+            "relationship_links": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "related_advisory_refs": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "related_incident_workspace_packet_refs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Revocation record. One durable record per revocation state. The record keeps blast radius, revoked subject refs, build/install linkage, local continuity, distribution freshness, signer continuity, required actions, history, and reconciliation on the same object so registry, update-center, support, mirror/import, and admin/export surfaces do not diverge on what was revoked or how recovery works."
+    }
+  }
+}

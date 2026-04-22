@@ -47,6 +47,12 @@ Companion artifacts:
   — minimal exact-build crash-symbolication smoke path plus the shared
   crash-artifact retention/redaction seed for envelopes, dump/core
   manifests, symbolication reports, and support-bundle references.
+- [`/docs/security/emergency_action_model.md`](../security/emergency_action_model.md)
+  and
+  [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json)
+  — shared emergency-action, revocation, mirror/manual-import, and
+  local-continuity contract that support packets now preserve by stable
+  ref instead of flattening into prose.
 - [`/fixtures/support/redaction_profiles/`](../../fixtures/support/redaction_profiles/)
   — seed bundle redaction profiles.
 - [`/fixtures/support/support_bundle_examples/`](../../fixtures/support/support_bundle_examples/)
@@ -103,7 +109,8 @@ Frozen at this revision:
   on every artifact row;
 - direct linkage to the record-class registry, ADR-0007, evidence-id
   conventions, the shared packet header, the continuity drill catalog,
-  and the runtime fault-domain contract.
+  the emergency-action / revocation contract, and the runtime
+  fault-domain contract.
 
 Out of scope:
 
@@ -215,6 +222,9 @@ inventing side metadata:
   checkpoint/quarantine state live in `fault_domain_context`;
 - recovery-ladder step, rung history, and repair/checkpoint refs live
   in `recovery_context`.
+- emergency-action, revocation, and manual-import receipt refs may live
+  in `artifact_manifest` rows with their upstream ids, freshness, and
+  continuity state preserved instead of paraphrased.
 
 That makes the packet useful for future support tooling, shiproom, or
 field handoff without a redesign of its core fields.
