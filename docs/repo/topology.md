@@ -23,7 +23,7 @@ to change, update this map in the same change.
 
 | Path                   | Purpose                                                                              |
 |------------------------|--------------------------------------------------------------------------------------|
-| `artifacts/governance/`| Package inventory, ownership matrix, requirement/waiver registers, scorecard/packet templates.   |
+| `artifacts/governance/`| Package inventory, ownership matrix, requirement/waiver registers, scorecard/packet templates, and public-truth claim/parity seeds. |
 | `artifacts/compat/`    | Compatibility qualification matrix, version-skew register, and boundary-row seeds.   |
 | `artifacts/evidence/`  | Shared evidence metadata catalogs and freshness field vocabularies used by release-facing packets. |
 | `artifacts/release/`   | Release-artifact graph rules, provenance, SBOMs, compatibility reports, claim manifests, rollback packets. |

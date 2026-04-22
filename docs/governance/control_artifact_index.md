@@ -183,6 +183,17 @@ and scopes.
   cite an evidence owner via the claim-manifest packet family
   (governance-packet template). The index does not duplicate the
   manifest itself — it only names where the manifest lives.
+- The public-truth claim-manifest contract now lives in
+  [`/schemas/governance/claim_manifest.schema.json`](../../schemas/governance/claim_manifest.schema.json)
+  with the seeded packet at
+  [`/artifacts/governance/claim_manifest_seed.yaml`](../../artifacts/governance/claim_manifest_seed.yaml),
+  the parity matrix at
+  [`/artifacts/governance/public_truth_parity_matrix.yaml`](../../artifacts/governance/public_truth_parity_matrix.yaml),
+  and the narrative overview at
+  [`/docs/governance/claim_manifest_contract.md`](./claim_manifest_contract.md).
+  Docs/help, support-export, release-note, CLI/help, evaluation, and
+  public-proof channels are all projections of those claim rows rather
+  than separate truth sources.
 - Known-limit notes, migration guidance, and public-proof docs should
   preserve the same `evidence_id` and packet refs that the upstream
   verification packet used; docs are not allowed to invent a second
@@ -315,8 +326,13 @@ and scopes.
   under [`/schemas/`](../../schemas/).
 - It is **not** the claim manifest. The claim-manifest family is
   defined by
-  [`/artifacts/governance/governance_packet_template.yaml`](../../artifacts/governance/governance_packet_template.yaml)
-  and instantiated per release.
+  [`/artifacts/governance/governance_packet_template.yaml`](../../artifacts/governance/governance_packet_template.yaml),
+  the row contract at
+  [`/schemas/governance/claim_manifest.schema.json`](../../schemas/governance/claim_manifest.schema.json),
+  and the narrative overview in
+  [`/docs/governance/claim_manifest_contract.md`](./claim_manifest_contract.md).
+  Concrete release-time instances extend the seeded row corpus rather
+  than inventing channel-local claim shapes.
 - It is **not** a substitute for the ownership matrix. The matrix
   defines who owns each lane; this index defines which artifacts sit
   inside those lanes. Lane IDs in the index always resolve back to
