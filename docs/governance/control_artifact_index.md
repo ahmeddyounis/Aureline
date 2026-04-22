@@ -68,6 +68,13 @@ Companion artifacts:
   — protected change-budget matrix, review thresholds, exception-packet
   routing, and debt-dashboard field definitions for freeze-era
   decisions.
+- [`./descoping_policy.md`](./descoping_policy.md)
+  — canonical scope-control ladder, never-cut bars, milestone-at-risk
+  defaults, and repeated-miss routing for milestone descopes.
+- [`/artifacts/milestones/cut_classes.yaml`](../../artifacts/milestones/cut_classes.yaml)
+  and [`/artifacts/milestones/kill_criteria.yaml`](../../artifacts/milestones/kill_criteria.yaml)
+  — machine-readable ledgers for backlog/requirement cut classes and
+  protected quality kill rows.
 - [`/artifacts/governance/evidence_id_conventions.md`](../../artifacts/governance/evidence_id_conventions.md)
   — stable evidence-id grammar plus artifact-linking rules across
   design, benchmark, verification, support, and signoff packets.
@@ -166,6 +173,11 @@ and scopes.
   `blocker_aging_sla_table`, and `correction_trigger_table`. Do not
   keep a critical-path blocker only in a scorecard note, risk-summary
   paragraph, or meeting memory.
+- Milestone descopes now route through `descoping_policy.md`,
+  `cut_classes.yaml`, and `kill_criteria.yaml`. Do not invent new
+  labels such as "probably optional" or "soft blocker" in a scorecard,
+  backlog note, or shiproom packet when the governed ledgers already
+  classify the row.
 - When a pull request changes anything under a canonical-location path
   named in the index, update the corresponding row's `status` or
   `notes` if the change moves the artifact between `outline_only`,

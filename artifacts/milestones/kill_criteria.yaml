@@ -1,0 +1,407 @@
+# Milestone kill-criteria ledger.
+#
+# Concrete kill rows for the protected quality lanes that must not drift into
+# "semi-supported" status. Each row names the governing metrics, packets, or
+# reports plus the first-miss, second-miss, and no-current-evidence response.
+
+schema_version: 1
+
+overview_page: docs/governance/descoping_policy.md
+cut_class_ledger_ref: artifacts/milestones/cut_classes.yaml
+owner_dri: "@ahmeddyounis"
+owning_lane: governance_packets
+
+source_documents:
+  - .plans/M00-102.md
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Technical_Design_Document.md
+  - artifacts/perf/latency_budget_ledger.yaml
+  - artifacts/bench/fitness_function_catalog.yaml
+  - artifacts/compat/qualification_matrix_seed.yaml
+  - artifacts/compat/version_skew_register.yaml
+  - artifacts/accessibility/platform_input_matrix.yaml
+  - artifacts/governance/claim_manifest_seed.yaml
+  - artifacts/governance/correction_trigger_table.yaml
+
+evaluation_rules:
+  miss_unit: consecutive milestone reviews
+  second_miss_threshold: 2
+  no_current_evidence_definition: >
+    The row is missing the packet, compatibility report, benchmark run,
+    claim row, or proof family required for the current milestone state, or
+    the available proof is stale, seed-only, or blocked for claim-bearing
+    use under the evidence-freshness and claim-manifest rules.
+  allowed_responses:
+    - narrow_claim
+    - cut_scope
+    - freeze_intake
+    - convert_to_correction_program
+    - block_promotion
+    - keep_preview_or_hook_only
+    - slip_or_rebaseline
+  milestone_effects:
+    - milestone: M0
+      blocked_outcome: >
+        Architecture freeze does not close; the affected lane remains
+        limited to spike-proven or seed-only posture.
+    - milestone: M1
+      blocked_outcome: >
+        The dogfood cutline narrows to truthful core loops only; no lane
+        with a red protected row counts as complete.
+    - milestone: M2
+      blocked_outcome: >
+        Alpha widening is blocked or narrowed to the strongest proved wedge.
+    - milestone: M3
+      blocked_outcome: >
+        Beta widening is blocked; the lane remains preview, limited, or
+        hook-only until the proof is current.
+    - milestone: M4
+      blocked_outcome: >
+        Stable release is blocked or the launch bundle shrinks to the
+        strongest currently evidenced scope.
+
+quality_rows:
+  - quality_row_id: quality.latency.desktop_hot_path
+    title: Protected shell and editor latency
+    claim_family_refs:
+      - benchmark_publication
+      - launch_wedge
+    canonical_requirement_ids:
+      - PERF-SHELL-001
+      - PERF-EDITOR-002
+      - ARCH-INV-001
+    spec_requirement_ids:
+      - PERF-SHELL-001
+      - PERF-EDITOR-002
+      - ARCH-INV-001
+    related_epic_ids:
+      - m1.shell_command_entry_surfaces
+      - m1.editor_io_recovery_core
+      - m2.language_search_graph_alpha
+    existing_correction_trigger_refs:
+      - corr.renderer_scope_descoping
+      - corr.benchmark_claim_requires_exception
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - benchmark_lab
+        - aureline-render
+        - aureline-buffer
+      forum_refs:
+        - performance_council
+        - architecture_council
+        - shiproom_executive_scope_review
+    trigger_conditions:
+      - budget.path.shell.launch first_paint_warm_ms exceeds the published target
+      - budget.path.editor.first_useful_edit key_to_paint_p95_ms exceeds the published target
+      - the fail-soft contract useful_edit_before_semantic_warmup no longer holds
+      - ARCH-INV-001 protected-path traces show blocking I/O or synchronous waits on the hot path
+    proof_inputs:
+      metric_refs:
+        - budget.path.shell.launch:first_paint_warm_ms
+        - budget.path.shell.first_useful_chrome:palette_available_warm_ms
+        - budget.path.editor.first_useful_edit:key_to_paint_p95_ms
+        - budget.path.editor.first_useful_edit:useful_edit_before_semantic_warmup
+      fitness_row_refs:
+        - ff.warm_start_to_first_paint
+        - ff.first_paint
+        - ff.input_to_paint
+        - ff.buffer_operations
+      packet_or_artifact_refs:
+        - artifacts/perf/latency_budget_ledger.yaml
+        - artifacts/bench/fitness_function_catalog.yaml
+        - artifacts/benchmarks/dashboard_seed/dashboard.json
+        - artifacts/governance/claim_manifest_seed.yaml#claim_row:benchmark.publication_truth
+    first_miss_response:
+      - cut target/stretch AI, chrome, or secondary-surface breadth on the same train
+      - keep the lane out of green milestone-close and out of wider launch wording
+    second_consecutive_miss_response:
+      - freeze new shell/editor feature intake until the row returns in-window or is explicitly rebaselined
+      - convert the miss into staffed correction work instead of another waiver
+      - cut breadth before changing the latency bar
+    no_current_evidence_response:
+      - treat the lane as red for promotion and public-proof use
+      - rerun benchmark evidence before any claim, badge, or widening survives
+
+  - quality_row_id: quality.trust.workspace_and_extension_boundaries
+    title: Workspace trust, policy, and extension-boundary integrity
+    claim_family_refs:
+      - trust_and_policy
+      - boundary_truth
+      - extension_governance
+    canonical_requirement_ids:
+      - GOV-OSS-001
+      - GOV-TRUTH-901
+      - OPS-BUILD-006
+    spec_requirement_ids:
+      - SEC-TRUST-001
+      - SEC-EXT-004
+    related_epic_ids:
+      - m1.supportability_public_truth_governance_seed
+      - m2.supportability_recovery_trust_alpha
+      - m2.provider_identity_policy_alpha
+      - m2.extension_install_review_alpha
+    existing_correction_trigger_refs:
+      - corr.public_truth_descoping
+      - corr.extension_claim_requires_exception
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - docs_public_truth
+        - support_export
+        - governance_packets
+      forum_refs:
+        - security_trust_review
+        - release_council
+        - shiproom_executive_scope_review
+    trigger_conditions:
+      - restricted or untrusted workspaces allow code egress, privileged execution, or undeclared widening
+      - extension install or runtime posture exceeds the current permission or isolation contract
+      - trust-bearing boundary wording outruns the current policy or review artifacts
+    proof_inputs:
+      claim_row_refs:
+        - claim_row:boundary.open_local_vs_managed
+      packet_or_artifact_refs:
+        - docs/security/safe_preview_trust_classes.md
+        - schemas/security/trust_class.schema.json
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        - docs/security/severity_matrix.md
+    first_miss_response:
+      - narrow to local-only, restricted, inspect-only, or curated-only posture in the same train
+      - keep provider-linked and extension-bearing rows preview, limited, or hook-only
+      - update the affected boundary and claim wording immediately
+    second_consecutive_miss_response:
+      - stop widening managed, provider, or extension scope on the affected lane
+      - convert the lane to explicit correction work with security-trust-review ownership
+      - hold beta or stable promotion rather than normalizing a weaker trust posture
+    no_current_evidence_response:
+      - boundary and trust-bearing claims downgrade or disappear until the packet is current
+      - no release, beta, or partner-facing claim may describe the posture as stable or complete
+
+  - quality_row_id: quality.recovery.save_restore_and_supportability
+    title: Save, restore, recovery, and supportable repair paths
+    claim_family_refs:
+      - recovery_and_restore
+      - public_truth_and_supportability
+    canonical_requirement_ids:
+      - REL-CORE-003
+      - TOOL-CTX-002
+      - GOV-DATA-002
+    spec_requirement_ids:
+      - REL-CORE-003
+      - REL-SUPPORT-001
+    related_epic_ids:
+      - m1.editor_io_recovery_core
+      - m1.supportability_public_truth_governance_seed
+      - m2.supportability_recovery_trust_alpha
+      - m2.profile_sync_portability_alpha
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - aureline-buffer
+        - aureline-vfs
+        - support_export
+      forum_refs:
+        - architecture_council
+        - release_council
+        - shiproom_executive_scope_review
+    trigger_conditions:
+      - compare_before_write_floor fails on any claimed save path
+      - save_mode_downgrade_without_envelope_permission occurs
+      - restore_level_must_not_exceed_advertised or no_silent_mutating_command_replay fails
+      - supportable recovery route is missing for a blocked user path
+    proof_inputs:
+      metric_refs:
+        - budget.path.editor.save:compare_before_write_floor
+        - budget.path.editor.save:save_mode_downgrade_without_envelope_permission
+        - budget.path.editor.save:recovery_journal_written_before_target_write
+        - budget.path.workspace.restore:restore_level_must_not_exceed_advertised
+        - budget.path.workspace.restore:no_silent_mutating_command_replay
+      fitness_row_refs:
+        - ff.vfs_save_conflict_handling
+        - ff.restore_fidelity
+      packet_or_artifact_refs:
+        - schemas/runtime/vfs_save_envelope.schema.json
+        - schemas/state/restore_provenance.schema.json
+        - docs/state/migration_and_restore_playbook.md
+        - fixtures/fs/save_truth_cases/
+        - fixtures/profile/restore_provenance_examples/
+    first_miss_response:
+      - cut other breadth and keep the row out of green milestone-close language
+      - disable or narrow the offending feature path rather than hiding the loss of recovery guarantees
+      - preserve explicit downgrade, manual-review, or safe-mode routes
+    second_consecutive_miss_response:
+      - open correction work under reliability and release ownership
+      - block promotion until the save and restore rows are back inside contract
+      - slip or rebaseline instead of shipping weaker recovery semantics
+    no_current_evidence_response:
+      - recovery claims and supportability claims narrow immediately
+      - release, support, and docs surfaces may not imply recoverability without current drills and packet references
+
+  - quality_row_id: quality.compatibility.claim_and_skew_truth
+    title: Compatibility, exact-build, and certification truth
+    claim_family_refs:
+      - version_skew_truth
+      - exact_build_identity
+      - launch_wedge
+      - docs_freshness
+    canonical_requirement_ids:
+      - CERT-WS-001
+      - OPS-BUILD-006
+      - GOV-TRUTH-901
+      - GOV-EVID-901
+    spec_requirement_ids:
+      - CERT-WS-001
+      - CERT-CLAIM-002
+    related_epic_ids:
+      - m1.supportability_public_truth_governance_seed
+      - m2.release_evidence_exact_build_alpha
+    existing_correction_trigger_refs:
+      - corr.exact_build_slip_rebaseline
+      - corr.public_truth_descoping
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - release_evidence
+        - docs_public_truth
+        - benchmark_lab
+      forum_refs:
+        - compatibility_ecosystem_review
+        - release_council
+        - shiproom_executive_scope_review
+    trigger_conditions:
+      - exact-build propagation or certification compatibility rows degrade or go stale
+      - claim surfaces render certified or supported wording without a current linked row
+      - version-skew or compatibility posture narrows but downstream claims do not
+    proof_inputs:
+      compat_row_refs:
+        - compat_row:release_identity.exact_build_propagation
+        - compat_row:certification.launch_archetype_matrix
+      skew_register_refs:
+        - skew_register:release_identity.exact_build_propagation
+        - skew_register:certification.launch_archetype_matrix
+      claim_row_refs:
+        - claim_row:build.exact_build_identity
+        - claim_row:compat.version_skew_truth
+        - claim_row:certification.launch_wedge_typescript_web
+      packet_or_artifact_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml
+        - artifacts/compat/version_skew_register.yaml
+        - docs/release/compatibility_report_template.md
+        - docs/release/certified_archetype_report_template.md
+        - artifacts/governance/claim_manifest_seed.yaml
+    first_miss_response:
+      - downgrade support class, certified scope, or channel wording immediately
+      - freeze claim widening and keep the lane out of green scorecard language
+      - cut archetype or platform breadth before weakening compatibility truth
+    second_consecutive_miss_response:
+      - remove the affected wedge, archetype, or artifact family from the committed launch set
+      - convert the row into explicit correction work or rebaseline
+      - block beta or stable promotion until the proof is current
+    no_current_evidence_response:
+      - claim rows degrade automatically and cannot be overridden by narrative optimism
+      - shiproom treats the lane as blocked for promotion-grade use
+
+  - quality_row_id: quality.accessibility.core_workflow_reachability
+    title: Accessibility and platform-input readiness
+    claim_family_refs:
+      - accessibility_readiness
+    canonical_requirement_ids:
+      - A11Y-CORE-002
+    spec_requirement_ids:
+      - A11Y-CORE-002
+      - A11Y-SR-003
+    related_epic_ids:
+      - m1.accessibility_install_review_hooks
+    existing_correction_trigger_refs:
+      - corr.accessibility_hook_only_descoping
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - accessibility_input_review
+        - design_system_seeds
+      forum_refs:
+        - accessibility_review
+        - product_scope_review
+        - release_council
+    trigger_conditions:
+      - a core workflow is no longer keyboard-complete on a claimed platform row
+      - required accessibility chrome, focus return, IME, or screen-reader path regresses on a claimed row
+      - the review packet family is still missing while the lane tries to widen past hook-only posture
+    proof_inputs:
+      packet_or_artifact_refs:
+        - docs/accessibility/a11y_ime_packet_template.md
+        - artifacts/accessibility/platform_input_matrix.yaml
+        - artifacts/accessibility/shell_conformance_checklist.yaml
+        - artifacts/accessibility/accessibility_tree_coverage_rows.yaml
+        - docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+        - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+    first_miss_response:
+      - disable or narrow the offending feature or platform claim in the same train
+      - keep the lane out of green milestone-close language
+      - do not widen beyond hook-only posture without the packet home
+    second_consecutive_miss_response:
+      - hold the train or cut the affected feature from the release scope
+      - keep the row blocked or unclaimed until current evidence exists
+      - route the miss through explicit accessibility correction work
+    no_current_evidence_response:
+      - no accessibility signoff, platform parity claim, or release-ready wording is allowed
+      - the lane remains blocked, pending evidence, or unclaimed by design
+
+  - quality_row_id: quality.launch_language.promised_support_class
+    title: Launch-language depth and support-class honesty
+    claim_family_refs:
+      - launch_wedge
+      - version_skew_truth
+    canonical_requirement_ids:
+      - CERT-WS-001
+    spec_requirement_ids:
+      - FR-SEARCH-002
+      - FR-DEBUG-001
+      - LANG-WEB-001
+      - LANG-CORE-001
+      - CERT-CLAIM-002
+    related_epic_ids:
+      - m2.language_search_graph_alpha
+      - m2.tasks_test_debug_execution_alpha
+      - m2.git_review_daily_loop_alpha
+    owner_refs:
+      primary_dri: "@ahmeddyounis"
+      lane_refs:
+        - benchmark_lab
+        - docs_public_truth
+        - release_evidence
+      forum_refs:
+        - compatibility_ecosystem_review
+        - product_scope_review
+        - release_council
+    trigger_conditions:
+      - a launch-language pack cannot meet its promised support class by milestone freeze
+      - the launch bundle is broad but shallow relative to the certified archetype and workflow proof
+      - certified report, compatibility report, or claim row freshness is no longer current
+    proof_inputs:
+      claim_row_refs:
+        - claim_row:certification.launch_wedge_typescript_web
+      compat_row_refs:
+        - compat_row:certification.launch_archetype_matrix
+      skew_register_refs:
+        - skew_register:certification.launch_archetype_matrix
+      packet_or_artifact_refs:
+        - docs/release/certified_archetype_report_template.md
+        - artifacts/compat/qualification_matrix_seed.yaml
+        - artifacts/governance/claim_manifest_seed.yaml
+        - artifacts/planning/m1_m2_work_breakdown.yaml
+    first_miss_response:
+      - reduce the launch bundle, certified archetype set, or support class before lowering quality bars
+      - keep docs, badges, and release copy aligned to the narrower scope
+      - cut long-tail framework or language breadth before the staffed wedge
+    second_consecutive_miss_response:
+      - remove the affected language or framework from the committed launch set
+      - downgrade the lane to limited, preview, or experimental rather than shipping inflated claims
+      - convert the miss into explicit correction work or rebaseline
+    no_current_evidence_response:
+      - certified, replacement-grade, or stable wording is blocked until current reports exist
+      - launch-language claims fall back to the strongest currently evidenced ecosystems only

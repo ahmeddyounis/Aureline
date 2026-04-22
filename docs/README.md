@@ -57,6 +57,13 @@ code.
 - [`../artifacts/governance/correction_trigger_table.yaml`](../artifacts/governance/correction_trigger_table.yaml)
   — scorecard and risk-linked correction triggers showing when a slip
   forces descoping, rebaseline, or an exception packet.
+- [`governance/descoping_policy.md`](./governance/descoping_policy.md)
+  — canonical descoping ladder, never-cut bars, milestone-at-risk
+  defaults, and repeated-miss routing.
+- [`../artifacts/milestones/cut_classes.yaml`](../artifacts/milestones/cut_classes.yaml)
+  and [`../artifacts/milestones/kill_criteria.yaml`](../artifacts/milestones/kill_criteria.yaml)
+  — machine-readable backlog/requirement cut classes and protected
+  quality kill rows.
 - [`governance/change_budget_workflow.md`](./governance/change_budget_workflow.md)
   — protected-path change-budget matrix, exception-packet workflow,
   repeated-exception thresholds, and dashboard-feed fields for
