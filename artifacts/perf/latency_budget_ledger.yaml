@@ -1,0 +1,460 @@
+# Protected-path latency-budget ledger.
+#
+# Threshold and posture register keyed by protected path id. This file owns
+# the current budget values, their provenance, the current measurement
+# sources, and the waiver path for each protected path.
+
+schema_version: 1
+ledger_id: aureline.latency_budget_ledger
+ledger_revision: 1
+status: seeded
+
+overview_document: docs/benchmarks/protected_path_ledgers.md
+protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+fitness_function_catalog_source: artifacts/bench/fitness_function_catalog.yaml
+protected_metrics_source: artifacts/bench/protected_metrics.yaml
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+reference_hardware_manifest_source: artifacts/perf/reference_hardware_manifest.yaml
+lab_image_manifest_source: artifacts/perf/lab_image_manifest.yaml
+task_success_source: artifacts/product/task_success_corpus_seed.yaml
+
+budget_status_vocabulary:
+  - seeded
+  - provisional
+
+threshold_mode_vocabulary:
+  - duration_ms
+  - duration_ms_plus_contract
+  - contract_gate_with_pending_latency
+  - stitched_end_to_end_budget
+
+threshold_source_kind_vocabulary:
+  - published_ux_budget
+  - protected_metrics_contract
+  - provisional_engineering_target
+  - degraded_state_fallback_rule
+
+measurement_source_kind_vocabulary:
+  - journey_trace_seed
+  - benchmark_lab_seed
+  - command_registry_seed
+  - task_success_seed
+  - supporting_contract_seed
+  - reserved_trace_segment
+
+budget_rows:
+  - budget_id: budget.path.shell.launch
+    path_id: path.shell.launch
+    status: seeded
+    threshold_mode: duration_ms
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_PRD.md §8.2 Product performance targets
+        note: First paint warm target.
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §T.8 Latency and responsiveness allocations
+        note: Warm startup to shell family.
+    thresholds:
+      - metric_id: first_paint_warm_ms
+        comparator: <=
+        target: 150
+        claim_scope: typical_project_warm_start
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-render
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/startup_to_first_useful_chrome__micro_local_folder.json
+      - kind: benchmark_lab_seed
+        source_ref: artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json
+        fitness_row_refs:
+          - ff.warm_start_to_first_paint
+          - ff.first_paint
+    fixture_or_reference_workspace_refs:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+      - fixtures/workspaces/reference/micro_local_folder.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Shell paint wins over indexing, tree hydration, and cache warm-up.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: package:aureline-render
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.shell.first_useful_chrome
+    path_id: path.shell.first_useful_chrome
+    status: seeded
+    threshold_mode: duration_ms_plus_contract
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_PRD.md "Latency and responsiveness allocations"
+        note: Command palette availability on warm startup.
+      - kind: degraded_state_fallback_rule
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §8.9 Success-critical user-journey and latency-budget architecture
+        note: File open, search, and editing remain available while indexing stays partial.
+    thresholds:
+      - metric_id: palette_available_warm_ms
+        comparator: <=
+        target: 400
+        claim_scope: typical_project_warm_start
+      - metric_id: indexing_must_not_block_first_command_entry
+        comparator: must_hold
+        target: true
+        claim_scope: startup_fail_soft_posture
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-render
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/startup_to_first_useful_chrome__micro_local_folder.json
+      - kind: command_registry_seed
+        source_ref: fixtures/commands/seed_commands/command_palette_open.registry.json
+      - kind: reserved_trace_segment
+        source_ref: seg.provisional.shell.first_useful_chrome.palette_entry_ready
+    fixture_or_reference_workspace_refs:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+      - fixtures/commands/seed_commands/command_palette_open.registry.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: File open, search, and editing remain available even if indexing is still partial.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: lane:shell_command_system
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.command_palette.open
+    path_id: path.command_palette.open
+    status: provisional
+    threshold_mode: duration_ms
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_PRD.md feature table "Command palette and quick action search"
+        note: Warm open target for the command palette surface.
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md Appendix BN
+        note: Quick-open file/symbol/command budget.
+    thresholds:
+      - metric_id: palette_open_warm_ms
+        comparator: <=
+        target: 50
+        claim_scope: interactive_warm_shell
+      - metric_id: quick_open_p50_ms
+        comparator: <=
+        target: 30
+        claim_scope: ranked_results_visible
+      - metric_id: quick_open_p95_ms
+        comparator: <=
+        target: 75
+        claim_scope: ranked_results_visible
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - lane:shell_command_system
+    measurement_sources:
+      - kind: command_registry_seed
+        source_ref: fixtures/commands/seed_commands/command_palette_open.registry.json
+      - kind: reserved_trace_segment
+        source_ref: seg.provisional.command_palette.invoke_to_surface_visible
+      - kind: reserved_trace_segment
+        source_ref: seg.provisional.command_palette.surface_visible_to_first_ranked_results
+    fixture_or_reference_workspace_refs:
+      - fixtures/commands/seed_commands/command_palette_open.registry.json
+      - corpus.workflow.startup_warm_to_first_paint
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Ranking may simplify, but results remain visible and navigable.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: lane:shell_command_system
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.editor.placeholder_open
+    path_id: path.editor.placeholder_open
+    status: seeded
+    threshold_mode: duration_ms
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_PRD.md §8.2 Product performance targets
+        note: File open latency target for a 1 MB text file.
+    thresholds:
+      - metric_id: file_open_small_project_ms
+        comparator: <=
+        target: 50
+        claim_scope: 1_mb_text_file_small_project
+      - metric_id: file_open_typical_project_ms
+        comparator: <=
+        target: 70
+        claim_scope: 1_mb_text_file_typical_project
+      - metric_id: file_open_large_repo_ms
+        comparator: <=
+        target: 90
+        claim_scope: 1_mb_text_file_large_repo
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - package:aureline-buffer
+      - package:aureline-vfs
+      - lane:shell_command_system
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/open_edit_save__first_useful_edit_rust_self_host.json
+    fixture_or_reference_workspace_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.reference.small_rust_self_host_slice
+      - fixtures/workspaces/reference/small_rust_self_host_slice.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Editable buffer may appear before semantic readiness; warm-up continues in the background.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: package:aureline-buffer
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.editor.first_useful_edit
+    path_id: path.editor.first_useful_edit
+    status: seeded
+    threshold_mode: duration_ms_plus_contract
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md Appendix BN
+        note: Keystroke-to-screen budget.
+      - kind: protected_metrics_contract
+        source_ref: artifacts/bench/protected_metrics.yaml row ff.buffer_operations
+        note: Buffer-operation correctness and latency share the same protected row family.
+    thresholds:
+      - metric_id: key_to_paint_p50_ms
+        comparator: <=
+        target: 4
+        claim_scope: active_file
+      - metric_id: key_to_paint_p95_ms
+        comparator: <=
+        target: 8
+        claim_scope: active_file
+      - metric_id: useful_edit_before_semantic_warmup
+        comparator: should_hold
+        target: true
+        claim_scope: onboarding_and_partial_readiness
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - package:aureline-buffer
+      - package:aureline-render
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/open_edit_save__first_useful_edit_rust_self_host.json
+      - kind: benchmark_lab_seed
+        source_ref: artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json
+        fitness_row_refs:
+          - ff.input_to_paint
+          - ff.buffer_operations
+      - kind: task_success_seed
+        source_ref: tsc.first_run_start_center_local_folder
+    fixture_or_reference_workspace_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.micro.interaction_safety_cases
+      - corpus.reference.small_rust_self_host_slice
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Background services yield before visible stall and editability arrives before full semantic warm-up.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: package:aureline-buffer
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.editor.save
+    path_id: path.editor.save
+    status: seeded
+    threshold_mode: contract_gate_with_pending_latency
+    threshold_sources:
+      - kind: protected_metrics_contract
+        source_ref: artifacts/bench/protected_metrics.yaml row ff.vfs_save_conflict_handling
+        note: Governed save contract and pending latency calibration.
+      - kind: degraded_state_fallback_rule
+        source_ref: .t2/docs/Aureline_PRD.md "Atomic save pipeline"
+        note: Crash-safe and named degraded-save posture.
+    thresholds:
+      - metric_id: compare_before_write_floor
+        comparator: must_hold
+        target: true
+        claim_scope: all_claimed_save_paths
+      - metric_id: save_mode_downgrade_without_envelope_permission
+        comparator: must_not_occur
+        target: true
+        claim_scope: all_claimed_save_paths
+      - metric_id: conflict_outcome_taxonomy_completeness
+        comparator: must_match
+        target: ADR_0006_closed_set
+        claim_scope: all_claimed_save_paths
+      - metric_id: recovery_journal_written_before_target_write
+        comparator: must_hold
+        target: true
+        claim_scope: save_and_recovery_path
+      - metric_id: save_pipeline_p50_ms
+        comparator: <=
+        target: to_be_set_by_benchmark_council
+        claim_scope: all_claimed_save_paths
+      - metric_id: save_pipeline_p95_ms
+        comparator: <=
+        target: to_be_set_by_benchmark_council
+        claim_scope: all_claimed_save_paths
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - package:aureline-vfs
+      - package:aureline-buffer
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/open_edit_save__first_useful_edit_rust_self_host.json
+      - kind: benchmark_lab_seed
+        source_ref: artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json
+        fitness_row_refs:
+          - ff.vfs_save_conflict_handling
+      - kind: supporting_contract_seed
+        source_ref: schemas/runtime/vfs_save_envelope.schema.json
+    fixture_or_reference_workspace_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.boundary.filesystem_identity_cases
+      - corpus.boundary.mutation_lineage_cases
+      - fixtures/workspaces/reference/small_rust_self_host_slice.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Atomic replace stays preferred; any in-place or conditional fallback remains explicit and reviewable.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: package:aureline-vfs
+      escalation_forum_refs:
+        - architecture_council
+        - release_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.workspace.restore
+    path_id: path.workspace.restore
+    status: seeded
+    threshold_mode: duration_ms_plus_contract
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_PRD.md §8.3 Performance budget allocation
+        note: Workspace snapshot restore allocation.
+      - kind: protected_metrics_contract
+        source_ref: artifacts/bench/protected_metrics.yaml row ff.restore_fidelity
+        note: Restore-fidelity gate reserved before calibration.
+      - kind: degraded_state_fallback_rule
+        source_ref: docs/product/onboarding_measurement_plan.md §3.5 Restore success
+        note: Restore level may not overclaim what was delivered.
+    thresholds:
+      - metric_id: workspace_snapshot_restore_ms
+        comparator: <=
+        target: 120
+        claim_scope: warm_restore_snapshot
+      - metric_id: restore_fidelity_match_rate
+        comparator: ">="
+        target: to_be_set_by_benchmark_council
+        claim_scope: advertised_vs_delivered_restore_level
+      - metric_id: restore_level_must_not_exceed_advertised
+        comparator: must_hold
+        target: true
+        claim_scope: all_claimed_restore_paths
+      - metric_id: no_silent_mutating_command_replay
+        comparator: must_hold
+        target: true
+        claim_scope: exact_and_compatible_restore
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - package:aureline-buffer
+      - lane:shell_command_system
+      - package:aureline-vfs
+      - lane:support_export
+    measurement_sources:
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/restore_adjacent__restore_last_session_compatible.json
+      - kind: task_success_seed
+        source_ref: tsc.restore_prompt_after_crash_compatible
+      - kind: task_success_seed
+        source_ref: tsc.recent_work_reopen_missing_target_locate
+      - kind: supporting_contract_seed
+        source_ref: schemas/state/restore_provenance.schema.json
+    fixture_or_reference_workspace_refs:
+      - corpus.recovery.restore_last_session_compatible
+      - corpus.recovery.recent_work_missing_target
+      - corpus.boundary.entry_restore_cases
+      - fixtures/profile/restore_provenance_examples/restore_provenance_compatible.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Compatible restore or evidence-only downgrade stays visible; journal replay is never hidden.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: package:aureline-buffer
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - budget_id: budget.path.onboarding.start_center_first_useful_edit
+    path_id: path.onboarding.start_center_first_useful_edit
+    status: provisional
+    threshold_mode: stitched_end_to_end_budget
+    threshold_sources:
+      - kind: published_ux_budget
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md Appendix BN
+        note: Open repo to first useful edit budget.
+      - kind: provisional_engineering_target
+        source_ref: docs/product/onboarding_measurement_plan.md
+        note: Start Center first-run path is measured now but not yet backed by one end-to-end journey trace.
+    thresholds:
+      - metric_id: warm_first_useful_edit_p50_seconds
+        comparator: <=
+        target: 30
+        claim_scope: warm_start_or_recent_boot
+      - metric_id: cold_first_useful_edit_p50_seconds
+        comparator: <=
+        target: 90
+        claim_scope: cold_start
+      - metric_id: warm_first_useful_edit_p95_seconds
+        comparator: <=
+        target: 60
+        claim_scope: warm_start_or_recent_boot
+      - metric_id: cold_first_useful_edit_p95_seconds
+        comparator: <=
+        target: 120
+        claim_scope: cold_start
+      - metric_id: forced_sign_in_before_useful_local_work
+        comparator: must_not_occur
+        target: true
+        claim_scope: account_free_local_first_path
+    budget_owner_ref: lane:benchmark_lab
+    implementation_owner_refs:
+      - lane:product_scope_review
+      - lane:shell_command_system
+      - package:aureline-buffer
+      - package:aureline-vfs
+    measurement_sources:
+      - kind: task_success_seed
+        source_ref: tsc.first_run_start_center_local_folder
+      - kind: journey_trace_seed
+        source_ref: fixtures/journeys/startup_to_first_useful_chrome__micro_local_folder.json
+      - kind: reserved_trace_segment
+        source_ref: seg.provisional.onboarding.start_center.first_edit_durable
+    fixture_or_reference_workspace_refs:
+      - fixture.entry_open_local_folder
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+      - fixtures/workspaces/reference/micro_local_folder.json
+    degraded_or_fallback_posture:
+      healthy_posture: healthy
+      fail_soft_posture: Local work remains available without forced sign-in, marketplace detours, or full semantic warm-up.
+    waiver_authority:
+      forum_ref: performance_council
+      co_signer_ref: lane:product_scope_review
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review

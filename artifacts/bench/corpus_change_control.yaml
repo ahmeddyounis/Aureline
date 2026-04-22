@@ -10,6 +10,9 @@ fitness_function_catalog_source: artifacts/bench/fitness_function_catalog.yaml
 benchmark_publication_pack_source: docs/benchmarks/benchmark_publication_pack_template.md
 reference_hardware_manifest_source: artifacts/perf/reference_hardware_manifest.yaml
 lab_image_manifest_source: artifacts/perf/lab_image_manifest.yaml
+protected_path_ledger_source: artifacts/perf/protected_path_ledger.yaml
+latency_budget_ledger_source: artifacts/perf/latency_budget_ledger.yaml
+evidence_linkage_seed_source: artifacts/perf/evidence_linkage_seed.yaml
 
 governance_assets:
   - id: microbenchmark_corpus
@@ -121,6 +124,19 @@ governance_assets:
       - performance_owner
     ci_review_rule: publication_pack_review
 
+  - id: protected_path_budget_ledgers
+    canonical_source: artifacts/perf/protected_path_ledger.yaml
+    required_metadata:
+      - stable_path_id
+      - owner_refs
+      - budget_row_ref
+      - evidence_row_ref
+      - change_records
+    change_authority:
+      - performance_owner
+      - architecture_board_for_protected_sets
+    ci_review_rule: protected_path_ledger_diff_check
+
 review_rules:
   workflow_corpus_still_required_for_protected_claims:
     applies_to:
@@ -163,6 +179,17 @@ review_rules:
       - a corpus removal on a protected path lacks comparability_note
       - a hardware or lab-image recalibration lacks an explicit comparability_note
 
+  protected_path_ledger_diff_check:
+    applies_to:
+      - artifacts/perf/protected_path_ledger.yaml
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/perf/evidence_linkage_seed.yaml
+    blocks_merge_when:
+      - a protected path is added removed or renamed without a named change_record
+      - a protected path changes without synchronized budget and evidence-linkage updates
+      - a budget row lacks a threshold source kind owner or waiver authority
+      - a save or restore path drops continuity_or_intent_preservation_hooks
+
   publication_pack_review:
     applies_to:
       - docs/benchmarks/benchmark_publication_pack_template.md
@@ -177,6 +204,9 @@ review_rules:
       - artifacts/bench/protected_metrics.yaml
       - artifacts/perf/reference_hardware_manifest.yaml
       - artifacts/perf/lab_image_manifest.yaml
+      - artifacts/perf/protected_path_ledger.yaml
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/perf/evidence_linkage_seed.yaml
       - docs/benchmarks/public_comparison_rules.md
     blocks_merge_when:
       - a protected benchmark asset change is bundled with a feature change without an explicit exception record
@@ -256,6 +286,20 @@ change_classes:
       - updated_comparison_rules_ref
       - updated_competitor_settings_disclosure
 
+  - id: protected_path_scope_change
+    example: add remove rename or split a protected path or rebind its evidence path
+    minimum_approvals:
+      - performance_owner
+      - architecture_board_for_protected_sets
+    release_note_expectation: benchmark_governance_changelog_entry
+    reset_comparability: true
+    required_artifacts:
+      - changelog_entry
+      - updated_protected_path_ledger
+      - updated_latency_budget_ledger
+      - updated_evidence_linkage_seed
+      - comparability_note
+
 workflow_stages:
   - order: 1
     id: request_opened
@@ -263,6 +307,7 @@ workflow_stages:
       - change_class
       - affected_assets
       - affected_corpus_refs_or_metric_ids
+      - affected_path_ids_when_scope_changes
 
   - order: 2
     id: evidence_captured
@@ -326,6 +371,7 @@ changelog_template:
     - change_summary
     - affected_assets
     - affected_corpus_refs_or_metric_ids
+    - affected_path_ids
     - rationale
     - comparability_note
     - approvals
@@ -346,6 +392,11 @@ changelog_template:
       - comparability_note
       - approvals
       - release_evidence_ref
+    protected_path_scope_change:
+      - rationale
+      - comparability_note
+      - approvals
+      - affected_path_ids
   sample_entry:
     change_id: benchmark_change.example
     change_class: threshold_easing
@@ -354,6 +405,7 @@ changelog_template:
       - artifacts/bench/protected_metrics.yaml
     affected_corpus_refs_or_metric_ids:
       - ff.example
+    affected_path_ids: []
     rationale: Explain why the protected path must change
     comparability_note: Explain what remains comparable and what does not
     approvals:

@@ -20,8 +20,17 @@ Companion artifacts:
   directional without overclaiming parity.
 - [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
   — revisioned protected-metrics file every claim-bearing packet cites.
+- [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
+  — fitness-row register every public packet cites alongside the
+  protected-metrics revision.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
   — revisioned corpus manifest every packet cites.
+- [`/artifacts/perf/protected_path_ledger.yaml`](../../artifacts/perf/protected_path_ledger.yaml),
+  [`/artifacts/perf/latency_budget_ledger.yaml`](../../artifacts/perf/latency_budget_ledger.yaml),
+  and
+  [`/artifacts/perf/evidence_linkage_seed.yaml`](../../artifacts/perf/evidence_linkage_seed.yaml)
+  — required whenever a public packet makes path-level claims rather
+  than component-only claims.
 - [`/docs/governance/benchmark_council_charter.md`](../governance/benchmark_council_charter.md)
   — approval forum for protected-path disputes and threshold changes.
 
@@ -42,7 +51,10 @@ Every public head-to-head comparison MUST disclose:
   toolchain state when exact-build identity does not exist for the other
   side;
 - exact command line and material configuration knobs;
-- corpus-manifest revision and protected-metrics revision;
+- corpus-manifest revision, protected-metrics revision, and
+  fitness-function catalog revision;
+- protected path ids plus the protected-path, latency-budget, and
+  evidence-linkage revisions whenever the claim is path-level;
 - hardware-definition ref, benchmark-environment ref, display class,
   and lab-image revision;
 - power / thermal posture plus any calibration-rule-set drift note;
@@ -95,6 +107,9 @@ following change in a way that affects comparability:
 
 - corpus-manifest revision;
 - protected-metrics revision;
+- fitness-function catalog revision;
+- protected-path, latency-budget, or evidence-linkage revision when the
+  packet makes path-level claims;
 - reference hardware or lab-image definition;
 - display class, screen configuration, or HDR/refresh posture;
 - power policy, AC versus battery posture, or thermal posture;

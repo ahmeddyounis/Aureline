@@ -688,6 +688,26 @@ code.
   `environment_ref`, `exact_build_identity_ref`,
   `linked_spike_trace_refs`, `evidence_refs`, and
   `requirement_refs` slots so reference-capture, release-evidence,
+  and protected-path budget stitching can attach without a schema
+  bump.
+- [`benchmarks/protected_path_ledgers.md`](./benchmarks/protected_path_ledgers.md)
+  — normative companion to the protected-path, latency-budget, and
+  evidence-linkage ledgers. Freezes the stable path ids
+  (`path.shell.launch`, `path.shell.first_useful_chrome`,
+  `path.command_palette.open`, `path.editor.placeholder_open`,
+  `path.editor.first_useful_edit`, `path.editor.save`,
+  `path.workspace.restore`,
+  `path.onboarding.start_center_first_useful_edit`), the stable versus
+  provisional segment-status vocabulary, the budget-source-kind set
+  (`published_ux_budget`, `protected_metrics_contract`,
+  `provisional_engineering_target`,
+  `degraded_state_fallback_rule`), the packet families that review a
+  path, and the named-change-record rule for path additions or
+  removals. Machine-readable companions in
+  [`/artifacts/perf/protected_path_ledger.yaml`](../artifacts/perf/protected_path_ledger.yaml),
+  [`/artifacts/perf/latency_budget_ledger.yaml`](../artifacts/perf/latency_budget_ledger.yaml),
+  and
+  [`/artifacts/perf/evidence_linkage_seed.yaml`](../artifacts/perf/evidence_linkage_seed.yaml).
   and requirement-linkage lanes attach without a schema version
   bump. Boundary schema in
   [`/schemas/traces/journey_trace.schema.json`](../schemas/traces/journey_trace.schema.json);
@@ -815,6 +835,20 @@ above is paired with a YAML form that is authoritative for automation:
   — lab-image revision, benchmark-environment row, display/power/
   thermal posture, and calibration-checklist register shared by
   benchmark packets, the dashboard seed, and self-capture parity docs.
+- [`/artifacts/perf/protected_path_ledger.yaml`](../artifacts/perf/protected_path_ledger.yaml)
+  — stable protected-path register: path ids, owners, measurement
+  boundaries, stable and provisional segment ids, budget-row refs,
+  evidence-row refs, and append-only named change records for path
+  additions or removals.
+- [`/artifacts/perf/latency_budget_ledger.yaml`](../artifacts/perf/latency_budget_ledger.yaml)
+  — per-path budget sheet: threshold provenance, threshold values,
+  measurement sources, fixture/reference-workspace refs, fail-soft
+  posture, and waiver authority for every protected path row.
+- [`/artifacts/perf/evidence_linkage_seed.yaml`](../artifacts/perf/evidence_linkage_seed.yaml)
+  — per-path evidence joins: journey traces, trace-segment refs,
+  benchmark-corpus refs, task-success scenario refs, qualification-row
+  refs, packet families, and the continuity/local-history hooks the
+  save and restore rows reserve.
 - [`/schemas/benchmarks/run_result.schema.json`](../schemas/benchmarks/run_result.schema.json)
   — boundary schema for one benchmark-lab run-result record. Pins
   every record to a single exact-build identity, a single corpus-

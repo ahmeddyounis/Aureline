@@ -24,6 +24,12 @@ Companion artifacts:
 - [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
   — lab-image revision, benchmark-environment row, calibration
   checklist, and comparability-reset register.
+- [`/artifacts/perf/protected_path_ledger.yaml`](../../artifacts/perf/protected_path_ledger.yaml),
+  [`/artifacts/perf/latency_budget_ledger.yaml`](../../artifacts/perf/latency_budget_ledger.yaml),
+  and
+  [`/artifacts/perf/evidence_linkage_seed.yaml`](../../artifacts/perf/evidence_linkage_seed.yaml)
+  — stable protected path ids, budget provenance, and evidence joins
+  for startup, shell, editor, recovery, and onboarding paths.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
   — revisioned corpus manifest for every benchmark fixture.
 - [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
@@ -53,7 +59,9 @@ an optimization game. This policy exists so that:
 3. partner- or customer-derived inputs cannot silently enter CI or
    public packets without licensing, redaction, retention, and
    access-control review; and
-4. public benchmark claims inherit one disclosure discipline rather than
+4. protected path additions or removals cannot drift silently outside
+   the path/budget/evidence ledgers; and
+5. public benchmark claims inherit one disclosure discipline rather than
    being reconstructed from dashboards, slides, and memory.
 
 ## 2. Scope
@@ -65,9 +73,11 @@ an optimization game. This policy exists so that:
   remote/collaboration, and accessibility corpora.
 - The revisioned protected-metrics file and its relationship to the
   fitness-function catalog.
+- The protected-path, latency-budget, and evidence-linkage ledgers that
+  stitch fixtures, traces, budgets, and packet families together.
 - Change-control workflow for corpus addition/removal, threshold
-  tightening/easing, hardware or lab-image recalibration, and public
-  comparison changes.
+  tightening/easing, protected-path scope changes, hardware or
+  lab-image recalibration, and public comparison changes.
 - Changelog requirements for protected-path changes.
 - Rules for customer-derived or third-party corpora entering CI or
   public benchmark packets.
@@ -98,6 +108,7 @@ authority, and a CI or review rule. The machine-readable form lives in
 | **Protected metrics file** | threshold value, rationale, comparability note, calibration state/date, change authority | performance owner + architecture board for threshold easing | easing thresholds requires before/after evidence |
 | **Reference hardware manifest** | hardware row id, CPU/GPU/memory/storage summary, display-class ids, default power posture, council status | performance owner + release engineering | recalibration requires comparability note |
 | **Lab-image / environment manifest** | lab-image revision, environment rows, calibration rule set, comparability-reset rules | performance owner + release engineering | recalibration requires comparability note |
+| **Protected-path / budget / evidence ledgers** | stable path ids, budget row refs, evidence row refs, named change records, continuity hooks on save/restore paths | performance owner + architecture board for protected sets | path additions/removals require a named change record and synchronized ledger refresh |
 | **Public benchmark publication pack** | exact command line, config, version, environment, competitor settings, protected-metrics revision | product + performance owner | raw run metadata retained for audit |
 
 ## 4. Single-source rule
@@ -131,6 +142,7 @@ rules live in
 | **Corpus removal** | retire a stale protected fixture | owner + architecture board when protected | comparability note and release-evidence linkage |
 | **Threshold easing** | widen startup or save latency bar | performance owner + architecture board | structured rationale, before/after evidence, release-evidence linkage |
 | **Threshold tightening** | harden an existing bar | performance owner | calibration note and protected-metrics refresh |
+| **Protected path scope change** | add/remove/rename a protected path or rebind its evidence joins | performance owner + architecture board | named change record plus same-change path/budget/evidence refresh |
 | **Hardware/image recalibration** | new reference laptop SKU or OS image | performance owner + release engineering | comparability reset note and release-family boundary note |
 | **Public comparison change** | change competitor version, plugin set, launch config, or task-parity method | performance owner + product owner | publication-pack refresh and comparison-rules review |
 
@@ -139,7 +151,8 @@ rules live in
 1. Open the change against the canonical benchmark-governance assets,
    not in a quiet feature PR.
 2. Record the affected corpus ids, fitness rows, protected-metrics rows,
-   and publication-pack or release-evidence refs up front.
+   protected path ids, and publication-pack or release-evidence refs up
+   front.
 3. Capture before/after evidence for any threshold easing, corpus
    removal on protected paths, or hardware/image recalibration.
 4. Record a comparability note explaining what remains comparable and
@@ -159,6 +172,10 @@ rules live in
   note, and a release-evidence ref in the same change.
 - Corpus removal on a protected path MUST include a comparability note,
   approvals, and release-evidence linkage in the same change.
+- A protected path addition, removal, rename, or split MUST append a
+  named change record and update
+  `protected_path_ledger.yaml`, `latency_budget_ledger.yaml`, and
+  `evidence_linkage_seed.yaml` in the same change.
 - Microbenchmark improvements do not justify workflow-corpus regressions
   unless a benchmark-council trade-off record says so explicitly.
 - Hardware or lab-image recalibration resets comparability until a new
@@ -194,6 +211,7 @@ record:
 
 - change class and summary;
 - affected corpus ids and/or protected-metric row ids;
+- affected path ids when the protected-path set changed;
 - rationale;
 - comparability note;
 - approvals;

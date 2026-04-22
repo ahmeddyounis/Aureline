@@ -1,0 +1,336 @@
+# Protected-path ledger.
+#
+# Stable register of the protected end-to-end paths the benchmark lab,
+# journey harness, onboarding measurement seeds, and release-evidence
+# packets are allowed to quote by id.
+#
+# This file owns path identity, ownership, path boundaries, and reserved
+# segment ids. Latency values live in latency_budget_ledger.yaml. Evidence
+# joins live in evidence_linkage_seed.yaml.
+
+schema_version: 1
+ledger_id: aureline.protected_path_ledger
+ledger_revision: 1
+status: seeded
+
+overview_document: docs/benchmarks/protected_path_ledgers.md
+latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+fitness_function_catalog_source: artifacts/bench/fitness_function_catalog.yaml
+protected_metrics_source: artifacts/bench/protected_metrics.yaml
+journey_trace_source:
+  schema: schemas/traces/journey_trace.schema.json
+  taxonomy: docs/benchmarks/journey_trace_taxonomy.md
+  seed_dir: fixtures/journeys/
+task_success_source: artifacts/product/task_success_corpus_seed.yaml
+change_control_policy: artifacts/bench/corpus_change_control.yaml
+
+path_status_vocabulary:
+  - seeded
+  - provisional
+
+evidence_status_vocabulary:
+  - end_to_end_seeded
+  - stitched_seed
+  - contract_seed_only
+
+segment_status_vocabulary:
+  - stable
+  - provisional
+
+path_family_vocabulary:
+  - startup
+  - command_entry
+  - editor_io
+  - recovery
+  - onboarding
+
+change_class_vocabulary:
+  - initial_seed
+  - protected_path_scope_change
+  - protected_path_rename_or_split
+  - protected_path_retirement
+  - budget_reallocation
+
+change_control:
+  additions_or_removals_require:
+    - named_change_record
+    - synchronized_budget_row_update
+    - synchronized_evidence_linkage_update
+    - comparability_note_when_claim_bearing
+  source_of_truth:
+    - artifacts/bench/corpus_change_control.yaml
+    - docs/benchmarks/corpus_governance.md
+  named_change_record_required_fields:
+    - change_id
+    - change_class
+    - recorded_on
+    - summary
+    - affected_path_ids
+    - approvals
+    - comparability_note
+
+change_records:
+  - change_id: path_change.seed.2026-04-22
+    change_class: initial_seed
+    recorded_on: "2026-04-22"
+    summary: >
+      Seed the protected-path corpus, latency-budget ledger, and
+      evidence-linkage seed so startup, shell, editor, recovery, and
+      onboarding paths resolve through one stable id set.
+    affected_path_ids:
+      - path.shell.launch
+      - path.shell.first_useful_chrome
+      - path.command_palette.open
+      - path.editor.placeholder_open
+      - path.editor.first_useful_edit
+      - path.editor.save
+      - path.workspace.restore
+      - path.onboarding.start_center_first_useful_edit
+    approvals:
+      - performance_owner
+      - architecture_board_seed
+    comparability_note: >
+      Initial seed. Some paths are fully backed by seeded journey traces;
+      others are intentionally stitched from current seeds while later
+      harness work lands.
+
+paths:
+  - path_id: path.shell.launch
+    title: Warm startup to first paint
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: startup
+    user_goal: See a non-blank shell surface before deeper workspace work completes.
+    primary_owner_ref: lane:shell_command_system
+    supporting_owner_refs:
+      - package:aureline-render
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.shell.launch
+    evidence_row_ref: evidence.path.shell.launch
+    protected_journeys:
+      - startup
+      - first_paint
+    start_event: warm_start
+    finish_event: first_paint
+    segments:
+      - segment_id: seg.startup_to_first_useful_chrome.startup
+        segment_status: stable
+        source_trace_ref: journey.startup_to_first_useful_chrome.micro_local_folder
+        note: Warm-start marker to first paint.
+
+  - path_id: path.shell.first_useful_chrome
+    title: Warm startup to first useful chrome
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: startup
+    user_goal: Reach readable shell chrome and a truthful first command-entry surface.
+    primary_owner_ref: lane:shell_command_system
+    supporting_owner_refs:
+      - package:aureline-render
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.shell.first_useful_chrome
+    evidence_row_ref: evidence.path.shell.first_useful_chrome
+    protected_journeys:
+      - startup
+      - first_paint
+      - first_useful_chrome
+    start_event: warm_start
+    finish_event: first_useful_chrome_or_palette_ready
+    segments:
+      - segment_id: seg.startup_to_first_useful_chrome.startup
+        segment_status: stable
+        source_trace_ref: journey.startup_to_first_useful_chrome.micro_local_folder
+        note: Warm-start marker to first paint on the shell-ready path.
+      - segment_id: seg.startup_to_first_useful_chrome.first_paint
+        segment_status: stable
+        source_trace_ref: journey.startup_to_first_useful_chrome.micro_local_folder
+        note: First paint to readable chrome.
+      - segment_id: seg.provisional.shell.first_useful_chrome.palette_entry_ready
+        segment_status: provisional
+        source_trace_ref: journey.startup_to_first_useful_chrome.micro_local_folder
+        note: Reserved bridge from readable chrome to palette-ready startup evidence.
+
+  - path_id: path.command_palette.open
+    title: Command palette invoke to first ranked results
+    status: provisional
+    evidence_status: stitched_seed
+    path_family: command_entry
+    user_goal: Open the universal action surface and see ranked results without menu hunting.
+    primary_owner_ref: lane:shell_command_system
+    supporting_owner_refs:
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.command_palette.open
+    evidence_row_ref: evidence.path.command_palette.open
+    protected_journeys:
+      - first_useful_chrome
+      - input_to_paint
+    start_event: palette_invoke_acknowledged
+    finish_event: first_ranked_result_list_paint
+    segments:
+      - segment_id: seg.provisional.command_palette.invoke_to_surface_visible
+        segment_status: provisional
+        source_trace_ref: command_palette.open.registry_entry
+        note: Reserved invoke-to-surface segment for the dedicated palette trace family.
+      - segment_id: seg.provisional.command_palette.surface_visible_to_first_ranked_results
+        segment_status: provisional
+        source_trace_ref: command_palette.open.registry_entry
+        note: Reserved surface-visible-to-ranked-results segment for provider stitching.
+
+  - path_id: path.editor.placeholder_open
+    title: Placeholder file open to editable buffer
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: editor_io
+    user_goal: Open a file and reach a visible editable buffer without waiting for full warm-up.
+    primary_owner_ref: package:aureline-buffer
+    supporting_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-vfs
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.editor.placeholder_open
+    evidence_row_ref: evidence.path.editor.placeholder_open
+    protected_journeys:
+      - placeholder_open
+    start_event: placeholder_open_requested
+    finish_event: buffer_visible_and_editable
+    segments:
+      - segment_id: seg.open_edit_save.placeholder_open
+        segment_status: stable
+        source_trace_ref: journey.open_edit_save.first_useful_edit_rust_self_host
+        note: Placeholder open lifecycle.
+
+  - path_id: path.editor.first_useful_edit
+    title: First accepted edit in active buffer
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: editor_io
+    user_goal: Turn a visible buffer into an accepted edit before semantic warm-up is complete.
+    primary_owner_ref: package:aureline-buffer
+    supporting_owner_refs:
+      - package:aureline-render
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.editor.first_useful_edit
+    evidence_row_ref: evidence.path.editor.first_useful_edit
+    protected_journeys:
+      - placeholder_edit
+      - input_to_paint
+    start_event: buffer_visible_and_editable
+    finish_event: first_edit_reflected_on_screen
+    segments:
+      - segment_id: seg.open_edit_save.placeholder_edit
+        segment_status: stable
+        source_trace_ref: journey.open_edit_save.first_useful_edit_rust_self_host
+        note: Buffer-ready to first keystroke.
+
+  - path_id: path.editor.save
+    title: Save request to durable save completion
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: editor_io
+    user_goal: Persist the edit through the save pipeline without hidden contract degradation.
+    primary_owner_ref: package:aureline-vfs
+    supporting_owner_refs:
+      - package:aureline-buffer
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.editor.save
+    evidence_row_ref: evidence.path.editor.save
+    protected_journeys:
+      - placeholder_save
+      - save_pipeline
+      - recovery_journal_write
+    start_event: save_requested
+    finish_event: save_pipeline_complete
+    segments:
+      - segment_id: seg.open_edit_save.placeholder_save
+        segment_status: stable
+        source_trace_ref: journey.open_edit_save.first_useful_edit_rust_self_host
+        note: Keystroke to save-requested.
+      - segment_id: seg.open_edit_save.save_pipeline
+        segment_status: stable
+        source_trace_ref: journey.open_edit_save.first_useful_edit_rust_self_host
+        note: Save pipeline including recovery-journal write.
+    continuity_and_intent_preservation:
+      - mutation_journal_entry_ref
+      - save_manifest_ref
+      - local_history_snapshot_ref_reserved
+
+  - path_id: path.workspace.restore
+    title: Restore prompt to delivered restore level
+    status: seeded
+    evidence_status: end_to_end_seeded
+    path_family: recovery
+    user_goal: Recover truthfully from restart or crash without hidden command replay.
+    primary_owner_ref: package:aureline-buffer
+    supporting_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-vfs
+      - lane:support_export
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.workspace.restore
+    evidence_row_ref: evidence.path.workspace.restore
+    protected_journeys:
+      - recovery_journal_restore
+      - boundary_truth_contract
+    start_event: restore_prompt_presented
+    finish_event: restore_level_delivered
+    segments:
+      - segment_id: seg.restore_adjacent.recovery_journal_restore
+        segment_status: stable
+        source_trace_ref: journey.restore_adjacent.restore_last_session_compatible
+        note: Prompt to degraded missing-target observation and journal replay.
+      - segment_id: seg.restore_adjacent.boundary_truth_contract
+        segment_status: stable
+        source_trace_ref: journey.restore_adjacent.restore_last_session_compatible
+        note: Boundary-truth verification during restore.
+      - segment_id: seg.restore_adjacent.finalise
+        segment_status: stable
+        source_trace_ref: journey.restore_adjacent.restore_last_session_compatible
+        note: Restore finalisation into the delivered compatible state.
+    continuity_and_intent_preservation:
+      - restore_provenance_ref
+      - mutation_group_ref
+      - local_history_snapshot_ref_reserved
+
+  - path_id: path.onboarding.start_center_first_useful_edit
+    title: Start Center to first useful local edit
+    status: provisional
+    evidence_status: stitched_seed
+    path_family: onboarding
+    user_goal: Reach useful local work from Start Center without forced sign-in or hidden setup debt.
+    primary_owner_ref: lane:product_scope_review
+    supporting_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-buffer
+      - package:aureline-vfs
+      - lane:docs_public_truth
+      - lane:support_export
+      - lane:benchmark_lab
+    budget_row_ref: budget.path.onboarding.start_center_first_useful_edit
+    evidence_row_ref: evidence.path.onboarding.start_center_first_useful_edit
+    protected_journeys:
+      - startup
+      - first_useful_chrome
+      - placeholder_open
+      - placeholder_edit
+      - placeholder_save
+    start_event: first_run_entry_route_selected
+    finish_event: first_useful_edit_durable
+    segments:
+      - segment_id: seg.provisional.onboarding.start_center.entry_admitted
+        segment_status: provisional
+        source_trace_ref: tsc.first_run_start_center_local_folder
+        note: Reserved segment for Start Center selection to admitted local-open intent.
+      - segment_id: seg.provisional.onboarding.start_center.shell_ready
+        segment_status: provisional
+        source_trace_ref: tsc.first_run_start_center_local_folder
+        note: Reserved segment for admitted intent to shell-ready state.
+      - segment_id: seg.provisional.onboarding.start_center.buffer_visible
+        segment_status: provisional
+        source_trace_ref: tsc.first_run_start_center_local_folder
+        note: Reserved segment for shell-ready state to first editable buffer.
+      - segment_id: seg.provisional.onboarding.start_center.first_edit_durable
+        segment_status: provisional
+        source_trace_ref: tsc.first_run_start_center_local_folder
+        note: Reserved segment for first editable buffer to durable first useful edit.

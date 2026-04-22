@@ -100,6 +100,10 @@ preview-only, or claim-narrowed.
 
 - **Protected metrics file:** `artifacts/bench/protected_metrics.yaml` (`metrics_file_revision: <n>`)
 - **Catalog:** `artifacts/bench/fitness_function_catalog.yaml` (`catalog_revision: <n>`)
+- **Protected-path ledger:** `artifacts/perf/protected_path_ledger.yaml` (`ledger_revision: <n>`)
+- **Latency-budget ledger:** `artifacts/perf/latency_budget_ledger.yaml` (`ledger_revision: <n>`)
+- **Evidence-linkage seed:** `artifacts/perf/evidence_linkage_seed.yaml` (`seed_revision: <n>`)
+- **Protected path ids cited:** list of `path.*` ids when the packet is making path-level claims
 - **Runs or dashboards cited:** `benchmark_run_id`, `dashboard_id`, or both
 - **Freshness and comparability:** one sentence that says whether the
   evidence is claim-bearing, seed-only, stale, or not yet comparable.

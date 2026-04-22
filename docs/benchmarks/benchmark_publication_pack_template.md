@@ -14,6 +14,9 @@ Related control artifacts:
 - docs/benchmarks/public_comparison_rules.md
 - artifacts/bench/fitness_function_catalog.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
+- artifacts/perf/protected_path_ledger.yaml
+- artifacts/perf/latency_budget_ledger.yaml
+- artifacts/perf/evidence_linkage_seed.yaml
 - artifacts/evidence/evidence_metadata_fields.yaml
 - artifacts/governance/evidence_id_conventions.md
 - docs/governance/evidence_freshness_policy.md
@@ -52,6 +55,9 @@ known-limit notes, or migration packets.
 - **Protected metrics revision:** `<metrics-file-id>@<revision>`
 - **Fitness-function catalog revision:** `<catalog-id>@<revision>`
 - **Corpus manifest revision:** `<manifest-id>@<revision>`
+- **Protected-path ledger revision:** `<ledger-id>@<revision>` or `not_applicable`
+- **Latency-budget ledger revision:** `<ledger-id>@<revision>` or `not_applicable`
+- **Evidence-linkage seed revision:** `<seed-id>@<revision>` or `not_applicable`
 - **Active waiver packet refs:** waiver packet ids or `none`
 - **Active advisory refs:** advisory ids or `none`
 
@@ -102,8 +108,10 @@ before reading numbers.
 
 ## Corpus and task definition
 
-- **Protected journeys or fitness rows cited:** list `ff.*` ids.
+- **Protected fitness rows cited:** list `ff.*` ids.
 - **Corpus refs:** list `corpus.*` ids or repo slices.
+- **Protected path ids cited when the claim is path-level:** list `path.*`
+  ids or `not_applicable`.
 - **Task script or success criterion:** quote the task the benchmark
   measures. If it is not a script, say exactly what counted as success.
 - **Exclusions declared up front:** list any intentionally omitted
@@ -156,8 +164,11 @@ These items MUST be public in the packet:
 - exact-build identity refs,
 - channel/version context,
 - protected-metrics revision,
+- fitness-function catalog revision,
 - run-context and comparability/quarantine posture,
 - corpus revision and task definition,
+- protected path ids plus protected-path, latency-budget, and
+  evidence-linkage revisions when the claim is path-level,
 - docs/help version-match state,
 - known limits and exclusions, and
 - competitor settings when a public comparison is made.
