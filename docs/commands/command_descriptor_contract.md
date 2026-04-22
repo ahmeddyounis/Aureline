@@ -93,8 +93,14 @@ Frozen at this revision:
 Out of scope until a superseding decision row opens:
 
 - The live command router, the command registry runtime, and the
-  parity-diff automation between palette / menu / CLI / AI-tool
-  registrations.
+  runtime-generated parity-diff automation between palette / menu
+  / CLI / AI-tool registrations.
+- The seed report format and synthetic parity corpus now live in
+  [`/docs/commands/command_parity_diff.md`](./command_parity_diff.md)
+  and
+  [`/artifacts/commands/command_parity_seed.yaml`](../../artifacts/commands/command_parity_seed.yaml);
+  what remains out of scope here is runtime-emitted surface
+  capture and diffing against shipped registries.
 - The full palette UI (scoring, ranking, typeahead).
 - Recipe / macro / batch-command authoring surfaces (one step
   further out; they will mint `invocation_session_packet_record`

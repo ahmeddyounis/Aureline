@@ -30,6 +30,12 @@ Companion artifacts:
 - [`/fixtures/commands/ui_slot_taxonomy_examples/`](../../fixtures/commands/ui_slot_taxonomy_examples/)
   — one taxonomy seed record and one cross-surface command
   projection example.
+- [`/docs/commands/command_parity_diff.md`](./command_parity_diff.md)
+  and
+  [`/artifacts/commands/command_parity_seed.yaml`](../../artifacts/commands/command_parity_seed.yaml)
+  — the reusable diff format and synthetic cross-surface seed
+  corpus that compare palette, menu/button, keybinding-help,
+  CLI/help, and AI-tool claims against the frozen command object.
 - [`/docs/commands/command_descriptor_contract.md`](./command_descriptor_contract.md)
   — the command object this seed projects from.
 - [`/docs/design/design_token_component_state_vocabulary.md`](../design/design_token_component_state_vocabulary.md)

@@ -395,6 +395,16 @@ code.
   worked fixtures (one taxonomy seed record and one cross-surface
   command projection example) in
   [`/fixtures/commands/ui_slot_taxonomy_examples/`](../fixtures/commands/ui_slot_taxonomy_examples/).
+- [`commands/command_parity_diff.md`](./commands/command_parity_diff.md)
+  — reusable cross-surface parity diff format plus the current
+  seed report for launch-bearing command surfaces. Compares stable
+  command id, label/alias, enablement rules, preview posture,
+  authority class, and result contract across palette,
+  menu/button, keybinding-help, CLI/help, and AI-tool claims.
+  Seed corpus in
+  [`/artifacts/commands/command_parity_seed.yaml`](../artifacts/commands/command_parity_seed.yaml);
+  generator in
+  [`/tools/commands/parity_diff_seed.py`](../tools/commands/parity_diff_seed.py).
 - [`design/design_token_component_state_vocabulary.md`](./design/design_token_component_state_vocabulary.md)
   — design-token, component-state, theme-support, accessibility-
   posture, and layer / scrim vocabulary every shell, docs / help,

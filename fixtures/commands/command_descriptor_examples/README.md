@@ -25,7 +25,11 @@ file as an integration check.
   palette, menu, keybinding / shortcut help, CLI help, and AI-tool
   surfaces compares emitted rows for the same
   `command_id` / `command_revision_ref` field-for-field. These
-  fixtures are the reference descriptors that audit reads.
+  fixtures are the reference descriptors that audit reads. The
+  seed diff corpus now lives in
+  [`/artifacts/commands/command_parity_seed.yaml`](../../../artifacts/commands/command_parity_seed.yaml)
+  and the seed report format in
+  [`/docs/commands/command_parity_diff.md`](../../../docs/commands/command_parity_diff.md).
 - **Invocation-session replay.** Replay, audit, rollback, and
   support-export tooling reads the invocation-session packet
   fixtures as the envelope every call site is expected to mint.
