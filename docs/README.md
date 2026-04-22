@@ -32,6 +32,9 @@ code.
   narrowing postures.
 - [`governance/decision_workflow.md`](./governance/decision_workflow.md)
   — how decisions open, close, supersede, and narrow.
+- [`governance/commitment_and_rebaseline_policy.md`](./governance/commitment_and_rebaseline_policy.md)
+  — commitment classes, assumption-invalidating events, phase-level
+  change budgets, and freeze-exception rules.
 - [`governance/dogfood_issue_taxonomy.md`](./governance/dogfood_issue_taxonomy.md)
   — dogfood intake taxonomy covering category, severity, evidence-link,
   exact-build, route-truth, and hidden-dependency fields for issue
@@ -135,6 +138,10 @@ code.
   the current M0 ADRs, prototypes, corpora, and decision gates. The
   machine-readable companions live in
   [`/artifacts/planning/`](../artifacts/planning/).
+  Commitment-class policy itself lives in
+  [`/docs/governance/commitment_and_rebaseline_policy.md`](./governance/commitment_and_rebaseline_policy.md)
+  and
+  [`/artifacts/governance/commitment_classes.yaml`](../artifacts/governance/commitment_classes.yaml).
 
 ## Product boundary
 

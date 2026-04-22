@@ -17,6 +17,8 @@ Planning posture:
 - Source of truth for milestone bars: `.t2/docs/Aureline_Milestones_Document.md`.
 - Source of truth for epic intent: `.t2/docs/Aureline_PRD.md` Appendix Q.
 - Source of truth for live gate status: `artifacts/governance/decision_index.yaml`.
+- Source of truth for commitment classes and re-baseline rules:
+  `docs/governance/commitment_and_rebaseline_policy.md`.
 - Current execution owner is still `@ahmeddyounis` under the
   `single-maintainer-backup` waiver; planned owner teams below are the
   milestone-team names, not current staffed teams.

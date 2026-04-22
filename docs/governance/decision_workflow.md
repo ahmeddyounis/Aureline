@@ -17,6 +17,9 @@ Companion artifacts:
   and proposals.
 - [`/docs/governance/dri_map.md`](./dri_map.md) — ownership, blocker
   aging, and narrowing authority.
+- [`/docs/governance/commitment_and_rebaseline_policy.md`](./commitment_and_rebaseline_policy.md)
+  — commitment classes, re-baseline triggers, phase budgets, and the
+  freeze-exception rulebook.
 - [`/docs/governance/templates/`](./templates/) — waiver, verification
   packet, and freeze-exception templates.
 
@@ -47,7 +50,7 @@ same PR.
 1. **Append a decision row.** Add a row to
    `artifacts/governance/decision_index.yaml` using the next unused
    `D-NNNN` id. Fill every required field, including
-   `default_if_unresolved`.
+   `commitment_class`, `evidence_owner`, and `default_if_unresolved`.
 2. **Add a navigational entry.** Update the table in
    `docs/governance/decision_backlog.md`.
 3. **Decide the proposal vehicle.**
@@ -120,9 +123,12 @@ it; the row is in `narrowed_by_default` with a `narrow` entry in
 A freeze exception is the only way to land a change after a freeze has
 fired. Open one by copying
 [`/docs/governance/templates/freeze_exception_template.md`](./templates/freeze_exception_template.md).
-Exceptions must be narrow, list a rollback plan, and be approved by the
-forum named in the narrowing authority table in
-[`dri_map.md`](./dri_map.md).
+Exceptions must be narrow, list a rollback plan, record the current
+milestone phase and default forum for that phase, say whether the
+requested change fits or exceeds the phase budget, and be approved by
+the forum named in the narrowing authority table in
+[`dri_map.md`](./dri_map.md). The packet shape is frozen in
+[`/schemas/governance/freeze_exception_packet.schema.json`](../../schemas/governance/freeze_exception_packet.schema.json).
 
 ## Linkage rules (the contract tooling relies on)
 
@@ -132,13 +138,17 @@ them is a tooling failure, not a style preference.
 1. Every ADR references exactly one `decision_id`.
 2. Every decided row has exactly one `linked_adr`.
 3. Every `linked_adr` path exists; every `linked_rfc` path exists.
-4. Every decision row names a backup owner or cites an active waiver
+4. Every decision row carries `commitment_class`, `target_milestone`,
+   `owner`, and `evidence_owner`.
+5. Every decision row names a backup owner or cites an active waiver
    from `ownership_matrix.yaml#waivers`.
-5. Every superseded row has a non-empty `superseded_by`.
-6. `decision_history` is append-only. Editing past entries is a
+6. Every superseded row has a non-empty `superseded_by`.
+7. `decision_history` is append-only. Editing past entries is a
    governance error even when the edit is cosmetic.
-7. Adding a new metadata field anywhere in the register, an ADR, an
+8. Adding a new metadata field anywhere in the register, an ADR, an
    RFC, a waiver, a verification packet, or a freeze-exception packet
    requires a schema change in
    [`/schemas/governance/decision_index.schema.json`](../../schemas/governance/decision_index.schema.json)
+   or
+   [`/schemas/governance/freeze_exception_packet.schema.json`](../../schemas/governance/freeze_exception_packet.schema.json)
    (or the relevant packet schema). No ad-hoc fields.

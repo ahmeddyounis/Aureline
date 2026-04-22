@@ -1,0 +1,250 @@
+# Commitment-class register.
+#
+# Canonical machine-readable export of the commitment-class vocabulary,
+# phase-level change budgets, rebaseline triggers, and repeated-exception
+# rules used by planning epics, decision rows, scorecards, and
+# freeze-exception packets.
+
+schema_version: 1
+
+source_specs:
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/decision_workflow.md
+  - docs/governance/commitment_and_rebaseline_policy.md
+
+projection_rules:
+  planning_epic_rows:
+    canonical_location: artifacts/planning/m1_m2_work_breakdown.yaml
+    required_fields:
+      - commitment_class
+      - target_milestone
+      - planned_owner_team
+      - evidence_owner_team
+    note: >
+      The current backlog records evidence ownership at the team level
+      because the repository still resolves execution through the
+      single-maintainer posture.
+  decision_rows:
+    canonical_location: artifacts/governance/decision_index.yaml
+    required_fields:
+      - commitment_class
+      - target_milestone
+      - owner
+      - evidence_owner
+  milestone_scorecard_rows:
+    canonical_location: artifacts/governance/milestone_scorecard_template.yaml
+    required_fields:
+      - commitment_class
+      - owner
+      - evidence_owner
+    note: >
+      Scorecard rows remain lane-scoped. The commitment class describes
+      the lane's role in the current milestone cutline, not long-term
+      product permanence.
+
+commitment_classes:
+  - id: committed
+    label: Committed
+    description: >
+      Required for milestone identity, protected-path integrity, or a
+      live public claim.
+    may_do:
+      - appear in exit gates
+      - consume critical-path capacity
+      - justify a freeze exception when the exception protects launch truth
+    must_not_do:
+      - slip silently
+      - broaden late without forum review
+      - appear in public claims without current evidence
+    claim_posture: claim_bearing_when_evidence_is_current
+    freeze_exception_posture: allowed_only_when_protecting_launch_truth
+  - id: target
+    label: Target
+    description: >
+      Strongly desired if dependency and staffing assumptions hold.
+    may_do:
+      - consume available slack
+      - appear in weekly scope review
+      - land prototype_or_preintegration_work
+    must_not_do:
+      - redefine_milestone_close
+      - require_late_freeze_exception
+      - appear_in_public_promises_before_promotion
+    claim_posture: not_claim_bearing_until_reclassified
+    freeze_exception_posture: only_by_explicit_scope_review_promotion
+  - id: stretch
+    label: Stretch
+    description: >
+      Useful upside when the team is ahead.
+    may_do:
+      - prototype
+      - collect_evidence
+      - prepare_architecture_hooks
+    must_not_do:
+      - take_capacity_from_protected_paths
+      - generate_implied_commitments
+    claim_posture: non_claim_bearing
+    freeze_exception_posture: not_eligible_for_late_scope_expansion
+  - id: parked_hook_only
+    label: Parked / hook-only
+    description: >
+      Architecture or extensibility accommodation retained for later
+      milestones.
+    may_do:
+      - influence_contracts
+      - preserve_extensibility_points
+      - remain_visible_in_backlog_structure
+    must_not_do:
+      - count_as_delivered_scope
+      - surface_as_alpha_or_stable_value
+    claim_posture: hook_only
+    freeze_exception_posture: only_for_contract_preservation_or_narrowing
+  - id: explicitly_cut
+    label: Explicitly cut
+    description: >
+      Outside the current milestone or outside current product truth.
+    may_do:
+      - remain_visible_in_history
+      - anchor_cutline_or_non_goal_language
+    must_not_do:
+      - reenter_active_scope_without_rebaseline
+      - appear_as_hidden_carry_forward_work
+    claim_posture: explicitly_unclaimed
+    freeze_exception_posture: not_eligible_without_rebaseline
+
+phase_budgets:
+  - phase_id: m0_m1_truth_establishment
+    phase_label: M0-M1 truth-establishment
+    default_decision_forum_ref: architecture_council
+    default_decision_forum_label: architecture council
+    allowed_changes:
+      - architecture_shaping
+      - benchmark_harness_refinement
+      - shell_editor_contract_closure
+      - prototype_only_experiments
+    explicit_exception_required_for:
+      - new_release_bearing_promises
+      - new_critical_path_subsystems_without_owners
+      - broad_service_plane_commitments
+  - phase_id: m2_alpha_wedge
+    phase_label: M2 alpha wedge
+    default_decision_forum_ref: product_scope_review
+    default_decision_forum_label: milestone scope review
+    allowed_changes:
+      - launch_wedge_completion
+      - trust_labeling
+      - search_index_usefulness
+      - supportability_alpha
+      - narrow_archetype_proof
+    explicit_exception_required_for:
+      - new_p0_personas
+      - late_language_or_framework_additions
+      - new_deployment_profile_promises
+      - cross_cutting_schema_churn
+  - phase_id: m3_beta_hardening
+    phase_label: M3 beta hardening
+    default_decision_forum_ref: release_council
+    default_decision_forum_label: release council
+    allowed_changes:
+      - packaging
+      - migration
+      - sdk_cli_stabilization
+      - policy_transport_hardening
+      - support_export
+      - compatibility_publication
+    explicit_exception_required_for:
+      - new_stable_class_surfaces
+      - major_public_interface_additions
+      - late_workflow_families_on_protected_paths
+  - phase_id: m4_rc_stable
+    phase_label: M4 RC/stable
+    default_decision_forum_ref: shiproom_executive_scope_review
+    default_decision_forum_label: shiproom
+    allowed_changes:
+      - blocker_fixes
+      - claim_narrowing
+      - docs_and_compatibility_corrections
+      - release_evidence_refresh
+      - rollback_and_runbook_hardening
+    explicit_exception_required_for:
+      - feature_additions
+      - support_class_widening
+      - late_schema_or_sdk_changes
+      - new_deployment_claims
+
+rebaseline_triggers:
+  - trigger_id: staffing_gap_enters_hardening
+    summary: Staffing remains below the assumed shape entering a hardening phase.
+    invalidates: >
+      The planned lane parallelism for beta or stable work no longer
+      fits the actual team shape.
+    response_window_business_days: 5
+    default_response: cut_scope_or_move_dates_explicitly
+    owner_forum_refs:
+      - product_scope_review
+      - architecture_council
+      - release_council
+  - trigger_id: evidence_automation_stale_or_manual
+    summary: Benchmark, compatibility, certification, or supportability evidence automation is stale or still manual at the planned checkpoint.
+    invalidates: >
+      Quality truth is no longer continuous evidence and becomes
+      narrative or batch work.
+    response_window_business_days: 5
+    default_response: redirect_capacity_to_evidence_system_before_breadth
+    owner_forum_refs:
+      - architecture_council
+      - release_council
+  - trigger_id: widened_launch_rows_without_capacity
+    summary: Launch rows widen beyond the currently staffed language, framework, or deployment wedge.
+    invalidates: >
+      The current launch claim is broader than the quality and support
+      depth the staffed lanes can defend.
+    response_window_business_days: 5
+    default_response: downgrade_widened_rows_or_rebaseline_staff_and_dates
+    owner_forum_refs:
+      - product_scope_review
+      - release_council
+  - trigger_id: optional_service_plane_on_core_team
+    summary: Optional service-plane or later-differentiation work lands on the same critical-path team as the desktop core.
+    invalidates: >
+      Desktop protected-path quality is now paying for later breadth.
+    response_window_business_days: 5
+    default_response: ring_fence_or_defer_the_work
+    owner_forum_refs:
+      - product_scope_review
+      - architecture_council
+  - trigger_id: repeated_waiver_or_exception_same_protected_path
+    summary: The same protected path requires repeated waivers or freeze exceptions.
+    invalidates: >
+      The exception has become hidden product policy rather than a
+      bounded risk acceptance.
+    response_window_business_days: 5
+    default_response: claim_narrowing_or_rebaseline_required
+    owner_forum_refs:
+      - architecture_council
+      - release_council
+  - trigger_id: manual_claim_publication_fragility
+    summary: Certified-archetype, migration, docs, or compatibility publication remains manual and fragile past the planned checkpoint.
+    invalidates: >
+      Stable publication can no longer be treated as one current truth.
+    response_window_business_days: 5
+    default_response: open_correction_program_before_widening_claims
+    owner_forum_refs:
+      - product_scope_review
+      - release_council
+
+repeat_exception_policy:
+  same_protected_path:
+    same_milestone_threshold: 2
+    consecutive_milestone_threshold: 2
+    repeated_waiver_threshold: 2
+    allowed_responses:
+      - claim_narrowing
+      - rebaseline
+    forbidden_response:
+      - silent_carry_forward
+    recording_requirements:
+      - freeze_exception_packet.repeat_exception_handling
+      - milestone_scorecard.scorecard_status_when_rebaseline_is_chosen
+      - decision_history_or_claim_packet_note_when_claim_narrowing_is_chosen
