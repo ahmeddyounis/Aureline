@@ -97,7 +97,12 @@ when the spike's M0 wiring always records zero.
 "Provisional" means the counter is wired to zero in the M0 spike and
 is reserved for later lanes to fill in. A trace consumer that needs
 one of these counters MUST read the schema, not the code, to know
-which counters are real in a given build.
+which counters are real in a given build. The policy and reviewable
+suppression scenarios that freeze when hidden-pane and off-screen
+counts must converge to zero live in
+[`/docs/perf/efficiency_state_policy.md`](../perf/efficiency_state_policy.md)
+and
+[`/fixtures/perf/hidden_pane_cases/`](../../fixtures/perf/hidden_pane_cases/).
 
 ## Regeneration
 

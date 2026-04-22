@@ -1,0 +1,659 @@
+# Shared efficiency-state worker-budget rules, render-suppression
+# vocabulary, and visible explanation contracts.
+#
+# Companion to docs/perf/efficiency_state_policy.md.
+# This file specializes the runtime resource governor for battery,
+# thermal, and power-saver pressure. It reuses the shared work
+# classes and visible-state vocabulary from
+# docs/runtime/resource_governor_contract.md instead of minting
+# a second scheduler taxonomy.
+
+schema_version: 1
+
+policy_doc_ref: docs/perf/efficiency_state_policy.md
+governor_contract_ref: docs/runtime/resource_governor_contract.md
+threshold_artifact_ref: artifacts/runtime/resource_governor_thresholds.yaml
+benchmark_refs:
+  - docs/benchmarks/spike_metric_names.md
+  - artifacts/bench/fitness_function_catalog.yaml
+fixture_refs:
+  - fixtures/perf/hidden_pane_cases/
+
+efficiency_state_vocabulary:
+  - nominal
+  - efficiency_aware
+  - thermal_constrained
+  - protect_core
+  - recovery
+
+work_class_vocabulary:
+  - core_interaction
+  - core_navigation
+  - short_foreground_task
+  - background_knowledge_work
+  - optional_assistance
+  - upload_and_replication
+
+queue_lane_vocabulary:
+  - foreground
+  - interactive_background
+  - maintenance
+  - provider_overlay
+  - upload_replication
+
+visible_health_state_vocabulary:
+  - ready
+  - warming
+  - partial
+  - degraded
+  - offline
+  - unsupported
+  - overloaded
+
+visible_explanation_contract_vocabulary:
+  - efficiency_state_pill
+  - throttled_capability_row
+  - partial_scope_chip
+  - stale_snapshot_badge
+  - durable_deferred_job_row
+  - recovery_note
+
+visibility_state_vocabulary:
+  - visible_focused
+  - visible_background
+  - occluded_window
+  - hidden_tab
+  - collapsed_split
+  - detached_offscreen
+
+claimed_protected_surface_vocabulary:
+  - editor_viewport
+  - terminal_viewport
+  - diff_review_viewport
+  - search_results_viewport
+  - task_log_viewport
+  - preview_viewport
+  - graph_panel
+
+protected_interaction_contract:
+  must_preserve:
+    - typing
+    - save
+    - undo
+    - local_navigation
+    - terminal_correctness
+    - current_task_visibility
+  throttle_order_by_state:
+    efficiency_aware:
+      - ai_warmup
+      - speculative_prefetch
+      - upload_transfer
+      - non_essential_animation
+    thermal_constrained:
+      - ai_warmup
+      - speculative_prefetch
+      - upload_transfer
+      - non_essential_animation
+      - indexing_refresh
+      - extension_polling
+      - preview_refresh
+      - graph_enrichment
+    protect_core:
+      - ai_warmup
+      - speculative_prefetch
+      - upload_transfer
+      - non_essential_animation
+      - indexing_refresh
+      - extension_polling
+      - preview_refresh
+      - graph_enrichment
+  recovery_ramp_order:
+    - indexing_refresh
+    - graph_enrichment
+    - preview_refresh
+    - extension_polling
+    - speculative_prefetch
+    - ai_warmup
+    - upload_transfer
+
+efficiency_state_rules:
+  - state: nominal
+    status_item_required: false
+    must_preserve:
+      - typing
+      - save
+      - local_navigation
+      - current_task_visibility
+    first_throttle_targets: []
+    visible_projection:
+      primary_contracts: []
+      notes: no dedicated state cue required
+
+  - state: efficiency_aware
+    status_item_required: true
+    primary_contracts:
+      - efficiency_state_pill
+    pill_fields:
+      - state_label
+      - source
+      - open_details_action
+      - accessibility_label
+    must_preserve:
+      - typing
+      - save
+      - local_navigation
+      - visible_editor_terminal_truth
+    first_throttle_targets:
+      - ai_warmup
+      - speculative_prefetch
+      - upload_transfer
+      - non_essential_animation
+    visible_projection:
+      affected_capabilities_use:
+        - throttled_capability_row
+        - partial_scope_chip
+      notes: battery or power-saver narrowing must be inspectable
+
+  - state: thermal_constrained
+    status_item_required: true
+    primary_contracts:
+      - efficiency_state_pill
+    pill_fields:
+      - state_label
+      - source
+      - open_details_action
+      - accessibility_label
+    must_preserve:
+      - editor_latency
+      - terminal_correctness
+      - current_task_visibility
+      - explicit_user_commands
+    first_throttle_targets:
+      - non_essential_animation
+      - indexing_refresh
+      - extension_polling
+      - preview_refresh
+      - graph_enrichment
+    visible_projection:
+      affected_capabilities_use:
+        - throttled_capability_row
+        - partial_scope_chip
+        - stale_snapshot_badge
+      notes: thermal reduction must name freshness and scope impact
+
+  - state: protect_core
+    status_item_required: true
+    primary_contracts:
+      - efficiency_state_pill
+      - throttled_capability_row
+    pill_fields:
+      - state_label
+      - source
+      - open_details_action
+      - accessibility_label
+    must_preserve:
+      - current_buffer_integrity
+      - save
+      - undo
+      - explicit_user_commands
+      - visible_task_control
+    first_throttle_targets:
+      - non_essential_animation
+      - ai_warmup
+      - speculative_prefetch
+      - upload_transfer
+      - indexing_refresh
+      - extension_polling
+      - preview_refresh
+      - graph_enrichment
+    visible_projection:
+      affected_capabilities_use:
+        - throttled_capability_row
+        - partial_scope_chip
+        - stale_snapshot_badge
+        - durable_deferred_job_row
+      denied_work_state: overloaded
+      notes: new heavy or speculative work may deny with retry path
+
+  - state: recovery
+    status_item_required: false
+    primary_contracts:
+      - recovery_note
+    must_preserve:
+      - hot_path_budget
+      - staged_queue_resume
+    first_throttle_targets:
+      - keep_hidden_surfaces_suppressed
+    visible_projection:
+      affected_capabilities_use:
+        - recovery_note
+        - partial_scope_chip
+      notes: capabilities remain warming or partial until checkpoints land
+
+workload_budget_rules:
+  - workload_id: ai_warmup
+    title: AI warmups and background model preparation
+    work_class: optional_assistance
+    queue_lane: maintenance
+    visible_explanation_contracts:
+      - efficiency_state_pill
+      - throttled_capability_row
+    truthful_narrowing: >
+      Assistant surfaces may stay cold or unavailable while warmup is
+      deferred. They may not relabel cached context or stale prepared
+      state as current.
+    state_budgets:
+      nominal:
+        admission: admit
+        concurrency_ratio: 1.0
+        trigger_policy: speculative_allowed_after_visible_idle
+        visible_state: ready
+      efficiency_aware:
+        admission: defer
+        concurrency_ratio: 0.25
+        trigger_policy: explicit_invoke_or_long_idle_only
+        visible_state: degraded
+      thermal_constrained:
+        admission: pause
+        concurrency_ratio: 0.0
+        trigger_policy: explicit_invoke_only
+        visible_state: degraded
+      protect_core:
+        admission: deny
+        concurrency_ratio: 0.0
+        trigger_policy: explicit_invoke_denied_with_retry
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        concurrency_ratio: 0.25
+        trigger_policy: resume_after_hot_path_stable
+        visible_state: warming
+
+  - workload_id: non_essential_animation
+    title: Non-essential motion and decorative animation
+    work_class: core_interaction
+    queue_lane: foreground
+    visible_explanation_contracts:
+      - efficiency_state_pill
+    truthful_narrowing: >
+      Focus visibility, cursor position, and state conveyance remain
+      intact while decorative motion, shimmer, blink embellishment, and
+      hidden animation loops collapse.
+    state_budgets:
+      nominal:
+        admission: admit
+        animation_posture: normal
+        hidden_animation_allowed: false
+        visible_state: ready
+      efficiency_aware:
+        admission: throttle
+        animation_posture: power_saver_posture
+        hidden_animation_allowed: false
+        visible_state: ready
+      thermal_constrained:
+        admission: throttle
+        animation_posture: suppress_non_essential
+        hidden_animation_allowed: false
+        visible_state: ready
+      protect_core:
+        admission: restrict
+        animation_posture: critical_hot_path_only
+        hidden_animation_allowed: false
+        visible_state: ready
+      recovery:
+        admission: staged_resume
+        animation_posture: power_saver_posture_until_stable
+        hidden_animation_allowed: false
+        visible_state: ready
+
+  - workload_id: speculative_prefetch
+    title: Prefetch and cache widening
+    work_class: background_knowledge_work
+    queue_lane: maintenance
+    visible_explanation_contracts:
+      - efficiency_state_pill
+      - throttled_capability_row
+      - partial_scope_chip
+    truthful_narrowing: >
+      Hot-local or cached data remains usable, but full-scope freshness
+      becomes warming or partial once prefetch is paused.
+    state_budgets:
+      nominal:
+        admission: admit
+        concurrency_ratio: 1.0
+        scope: hot_local_plus_speculative_widening
+        visible_state: ready
+      efficiency_aware:
+        admission: throttle
+        concurrency_ratio: 0.5
+        scope: hot_local_only
+        visible_state: warming
+      thermal_constrained:
+        admission: pause
+        concurrency_ratio: 0.0
+        scope: explicit_refresh_only
+        visible_state: partial
+      protect_core:
+        admission: deny
+        concurrency_ratio: 0.0
+        scope: explicit_refresh_only
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        concurrency_ratio: 0.5
+        scope: widen_after_hot_set_drains
+        visible_state: warming
+
+  - workload_id: upload_transfer
+    title: Uploads, replication, and deferred transfer
+    work_class: upload_and_replication
+    queue_lane: upload_replication
+    visible_explanation_contracts:
+      - durable_deferred_job_row
+      - throttled_capability_row
+    truthful_narrowing: >
+      Deferred transfer stays queued and attributable. A queued or
+      paused upload is never projected as sent.
+    state_budgets:
+      nominal:
+        admission: batch
+        concurrency_ratio: 1.0
+        replay_posture: automatic_under_policy
+        visible_state: ready
+      efficiency_aware:
+        admission: defer
+        concurrency_ratio: 0.5
+        replay_posture: batch_until_idle_or_explicit_send
+        visible_state: ready
+      thermal_constrained:
+        admission: pause
+        concurrency_ratio: 0.0
+        replay_posture: explicit_foreground_send_only
+        visible_state: degraded
+      protect_core:
+        admission: deny_background_only
+        concurrency_ratio: 0.0
+        replay_posture: explicit_foreground_confirmation_required
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        concurrency_ratio: 0.25
+        replay_posture: low_rate_backoff
+        visible_state: warming
+
+  - workload_id: indexing_refresh
+    title: Indexing, semantic refresh, and workspace scan
+    work_class: background_knowledge_work
+    queue_lane: interactive_background
+    visible_explanation_contracts:
+      - throttled_capability_row
+      - partial_scope_chip
+      - recovery_note
+    truthful_narrowing: >
+      Open files and hot-set symbols stay current first. Whole-workspace
+      answers must project partial until wider freshness resumes.
+    state_budgets:
+      nominal:
+        admission: admit
+        concurrency_ratio: 1.0
+        scope: whole_workspace
+        checkpoint_policy: phase_boundary
+        visible_state: warming
+      efficiency_aware:
+        admission: throttle
+        concurrency_ratio: 0.5
+        scope: open_files_and_hot_set
+        checkpoint_policy: phase_boundary
+        visible_state: partial
+      thermal_constrained:
+        admission: throttle
+        concurrency_ratio: 0.25
+        scope: open_files_and_hot_set
+        checkpoint_policy: phase_boundary
+        visible_state: partial
+      protect_core:
+        admission: pause
+        concurrency_ratio: 0.0
+        scope: explicit_open_file_only
+        checkpoint_policy: phase_boundary
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        concurrency_ratio: 0.25
+        scope: open_files_then_workspace
+        checkpoint_policy: resume_from_last_phase
+        visible_state: warming
+
+  - workload_id: extension_polling
+    title: Extension timers, polling, and background refresh
+    work_class: background_knowledge_work
+    queue_lane: provider_overlay
+    visible_explanation_contracts:
+      - throttled_capability_row
+      - recovery_note
+    truthful_narrowing: >
+      User-invoked extension commands remain attributable. Background
+      pause must project as throttled rather than appearing broken.
+    state_budgets:
+      nominal:
+        admission: admit
+        cadence_ratio: 1.0
+        trigger_policy: host_budgeted_only
+        visible_state: ready
+      efficiency_aware:
+        admission: throttle
+        cadence_ratio: 0.5
+        trigger_policy: optional_timers_only
+        visible_state: degraded
+      thermal_constrained:
+        admission: pause_optional
+        cadence_ratio: 0.0
+        trigger_policy: user_invoked_commands_only
+        visible_state: degraded
+      protect_core:
+        admission: pause
+        cadence_ratio: 0.0
+        trigger_policy: user_invoked_commands_only
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        cadence_ratio: 0.25
+        trigger_policy: resume_visible_extensions_first
+        visible_state: warming
+
+  - workload_id: preview_refresh
+    title: Preview, browser-runtime, and canvas refresh
+    work_class: background_knowledge_work
+    queue_lane: interactive_background
+    visible_explanation_contracts:
+      - stale_snapshot_badge
+      - throttled_capability_row
+      - recovery_note
+    truthful_narrowing: >
+      Hidden or non-focused previews freeze at the last truthful
+      snapshot. Snapshot age, source, and pause cause remain visible.
+    state_budgets:
+      nominal:
+        admission: admit_visible_only
+        cadence_ratio: 1.0
+        hidden_refresh_allowed: false
+        visible_state: ready
+      efficiency_aware:
+        admission: throttle_visible_only
+        cadence_ratio: 0.5
+        hidden_refresh_allowed: false
+        visible_state: degraded
+      thermal_constrained:
+        admission: throttle_visible_only
+        cadence_ratio: 0.25
+        hidden_refresh_allowed: false
+        visible_state: degraded
+      protect_core:
+        admission: freeze_background_and_hidden
+        cadence_ratio: 0.0
+        hidden_refresh_allowed: false
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume_visible_first
+        cadence_ratio: 0.25
+        hidden_refresh_allowed: false
+        visible_state: warming
+
+  - workload_id: graph_enrichment
+    title: Graph enrichment and non-hot-set semantic widening
+    work_class: background_knowledge_work
+    queue_lane: interactive_background
+    visible_explanation_contracts:
+      - throttled_capability_row
+      - partial_scope_chip
+      - recovery_note
+    truthful_narrowing: >
+      Graph, search, AI, and impact surfaces must say when only the hot
+      set is current or when imported enrichment is paused.
+    state_budgets:
+      nominal:
+        admission: admit
+        concurrency_ratio: 1.0
+        scope: whole_workspace_plus_imported_enrichment
+        visible_state: ready
+      efficiency_aware:
+        admission: throttle
+        concurrency_ratio: 0.5
+        scope: hot_set_and_visible_scope_only
+        visible_state: partial
+      thermal_constrained:
+        admission: throttle
+        concurrency_ratio: 0.25
+        scope: hot_set_and_visible_scope_only
+        visible_state: partial
+      protect_core:
+        admission: pause
+        concurrency_ratio: 0.0
+        scope: explicit_query_local_fallback_only
+        visible_state: overloaded
+      recovery:
+        admission: staged_resume
+        concurrency_ratio: 0.25
+        scope: hot_set_then_wider_graph
+        visible_state: warming
+
+render_visibility_rules:
+  - visibility_state: visible_focused
+    paint_allowed: true
+    animation_policy:
+      nominal: normal
+      efficiency_aware: power_saver_posture
+      thermal_constrained: suppress_non_essential
+      protect_core: critical_hot_path_only
+      recovery: power_saver_posture_until_stable
+    polling_policy: within_published_budget
+
+  - visibility_state: visible_background
+    paint_allowed: content_change_only
+    animation_policy:
+      nominal: minimal
+      efficiency_aware: suppress_non_essential
+      thermal_constrained: suppress_non_essential
+      protect_core: none
+      recovery: suppress_non_essential
+    polling_policy: correctness_or_visible_scope_only
+
+  - visibility_state: occluded_window
+    paint_allowed: false
+    animation_policy:
+      nominal: none
+      efficiency_aware: none
+      thermal_constrained: none
+      protect_core: none
+      recovery: none
+    polling_policy: correctness_only
+    benchmark_expectation:
+      hidden_pane_work: zero_expected
+
+  - visibility_state: hidden_tab
+    paint_allowed: false
+    animation_policy:
+      nominal: none
+      efficiency_aware: none
+      thermal_constrained: none
+      protect_core: none
+      recovery: none
+    polling_policy: correctness_only
+    preview_refresh_allowed: false
+    benchmark_expectation:
+      hidden_pane_work: zero_required_in_efficiency_aware_plus
+      offscreen_suppression_eligible: audit_only_then_converge_zero
+
+  - visibility_state: collapsed_split
+    paint_allowed: false
+    animation_policy:
+      nominal: none
+      efficiency_aware: none
+      thermal_constrained: none
+      protect_core: none
+      recovery: none
+    polling_policy: correctness_only
+    preview_refresh_allowed: false
+    benchmark_expectation:
+      hidden_pane_work: zero_required_in_efficiency_aware_plus
+
+  - visibility_state: detached_offscreen
+    paint_allowed: false
+    animation_policy:
+      nominal: none
+      efficiency_aware: none
+      thermal_constrained: none
+      protect_core: none
+      recovery: none
+    polling_policy: correctness_only
+    preview_refresh_allowed: false
+    benchmark_expectation:
+      hidden_pane_work: zero_required_in_all_constrained_states
+      offscreen_suppression_eligible: audit_only_then_converge_zero
+
+instrumentation_points:
+  runtime_events:
+    - event_id: efficiency_state_transition
+      required_fields:
+        - previous_state
+        - new_state
+        - source_signal
+        - top_throttled_contributors
+        - user_or_admin_override
+    - event_id: workload_budget_decision
+      required_fields:
+        - workload_id
+        - work_class
+        - queue_lane
+        - efficiency_state
+        - action
+        - checkpoint_state
+        - visible_explanation_contract
+    - event_id: render_visibility_decision
+      required_fields:
+        - surface_class
+        - visibility_state
+        - efficiency_state
+        - paint_suppressed
+        - animation_suppressed
+        - polling_mode
+  benchmark_counters:
+    - metric_id: visible_pane_work
+      source_ref: docs/benchmarks/spike_metric_names.md
+      expected_use: paint work attributable to visible panes
+    - metric_id: hidden_pane_work
+      source_ref: docs/benchmarks/spike_metric_names.md
+      expected_use: hidden-pane render waste counter
+    - metric_id: offscreen_suppression_eligible
+      source_ref: docs/benchmarks/spike_metric_names.md
+      expected_use: audit hook for candidate off-screen waste
+    - metric_id: frame_misses
+      source_ref: docs/benchmarks/spike_metric_names.md
+      expected_use: hot-path frame-budget breach signal
+  support_bundle_fields:
+    - efficiency_state_timeline
+    - throttled_workload_top_n
+    - deferred_queue_summary
+    - hidden_pane_violation_count
+    - user_or_admin_override
+    - visible_explanation_projection_log

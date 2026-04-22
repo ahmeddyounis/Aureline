@@ -322,6 +322,17 @@ code.
   `unsupported`, and `overloaded`. Machine-readable thresholds,
   policy fixtures, and overload scenarios live in
   [`/artifacts/runtime/resource_governor_thresholds.yaml`](../artifacts/runtime/resource_governor_thresholds.yaml).
+- [`perf/efficiency_state_policy.md`](./perf/efficiency_state_policy.md)
+  — battery, thermal, and power-saver specialization of the shared
+  runtime governor. Freezes the efficiency-state model, worker-
+  budget governance for AI warmups / prefetch / uploads /
+  indexing / extension polling / previews / graph enrichment,
+  hidden-pane and off-screen render suppression, and the visible
+  cue requirements that accompany partial or stale results under
+  constrained modes. Machine-readable rules live in
+  [`/artifacts/perf/worker_budget_rules.yaml`](../artifacts/perf/worker_budget_rules.yaml);
+  reviewable suppression scenarios live in
+  [`/fixtures/perf/hidden_pane_cases/`](../fixtures/perf/hidden_pane_cases/).
 - [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
   — command-descriptor contract every palette, application /
   context menu, keybinding / shortcut-help layer, CLI help, AI-

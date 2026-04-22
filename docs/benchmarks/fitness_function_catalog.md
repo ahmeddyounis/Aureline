@@ -384,8 +384,10 @@ is shaped the way it is; consult the YAML for authoritative fields.
   identity the TAD §8.7 power / thermal architecture will
   eventually gate against: under ThermalConstrained and
   ProtectCore the hot path stays inside its budget, and the
-  declared workloads shed in the declared order. No ADR has been
-  ratified; the row is provisional until one lands.
+  declared workloads shed in the declared order. The efficiency-
+  state policy, worker-budget matrix, and hidden-pane scenarios
+  are now frozen, but the benchmark harness, hardware baseline,
+  and release thresholds are still provisional.
 - **`ff.restore_fidelity`** (provisional) — reserves the
   `restore_fidelity_match_rate` name the onboarding measurement
   plan already uses, and slots against the four restore-fidelity

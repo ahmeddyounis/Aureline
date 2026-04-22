@@ -26,6 +26,9 @@ same change.
 - [`/docs/benchmarks/spike_metric_names.md`](../benchmarks/spike_metric_names.md)
   — protected hot-path metric names the governor consumes for
   key-to-paint, frame-budget, and render-path pressure.
+- [`/docs/perf/efficiency_state_policy.md`](../perf/efficiency_state_policy.md)
+  — battery, thermal, worker-budget, and hidden-pane suppression
+  policy that specializes the governor for laptop-safe behavior.
 - [`/docs/runtime/execution_context_vocabulary.md`](./execution_context_vocabulary.md)
   — scope and authority vocabulary the governor quotes when it
   narrows or defers work by workspace, workset, or slice.
