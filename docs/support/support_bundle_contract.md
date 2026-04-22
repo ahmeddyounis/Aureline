@@ -13,6 +13,12 @@ Companion artifacts:
 - [`/docs/support/support_center_concept.md`](./support_center_concept.md)
   — product-facing concept note for bundle preview, Project Doctor,
   recovery ladders, repair preview, and issue handoff.
+- [`/docs/support/object_handoff_packet.md`](./object_handoff_packet.md)
+  and
+  [`/schemas/support/object_handoff_packet.schema.json`](../../schemas/support/object_handoff_packet.schema.json)
+  — object-specific issue/report handoff family that can attach support
+  bundles, incident refs, recovery refs, and docs/help descriptor refs
+  without inventing surface-local forms.
 - [`/schemas/support/support_packet_index.schema.json`](../../schemas/support/support_packet_index.schema.json)
   — support packet family index that gives bundle consumers a stable
   packet-family vocabulary.

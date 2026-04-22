@@ -138,6 +138,11 @@ The goal is not to auto-classify everything perfectly. The goal is to
 preserve enough object identity that the next human does not start from a
 blank page.
 
+The concrete packet and route contract for these handoffs lives in
+[`docs/support/object_handoff_packet.md`](./object_handoff_packet.md)
+and
+[`schemas/support/object_handoff_packet.schema.json`](../../schemas/support/object_handoff_packet.schema.json).
+
 ## Repair-preview direction
 
 Every repair launched from the Center should use one transaction grammar:
