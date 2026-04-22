@@ -20,6 +20,11 @@ Machine-readable companions:
   service health, support export, release packets, release notes,
   CLI/help, evaluation artifacts, marketplace-style discovery, and
   public-proof packets.
+- [`/artifacts/governance/source_of_truth_map.yaml`](../../artifacts/governance/source_of_truth_map.yaml)
+  and
+  [`/docs/governance/drift_blocking_rules.md`](./drift_blocking_rules.md)
+  — canonical owner-routing map and drift-blocking rules the claim rows
+  participate in before they project onto downstream channels.
 
 Related upstream contracts:
 

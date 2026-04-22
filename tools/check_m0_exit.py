@@ -52,8 +52,13 @@ COMMAND_SCHEMA_REL = "schemas/commands/command_descriptor.schema.json"
 SILENT_DEPLOYMENT_REL = "artifacts/release/silent_deployment_seed.yaml"
 DOCS_TRUTH_ADR_REL = "docs/adr/0013-docs-help-service-health-truth.md"
 DOCS_PACK_REL = "docs/docs/docs_pack_manifest_contract.md"
+PUBLIC_SURFACE_TRUTH_MAP_REL = "docs/governance/public_surface_truth_map.md"
+DRIFT_BLOCKING_RULES_REL = "docs/governance/drift_blocking_rules.md"
+SOURCE_OF_TRUTH_MAP_REL = "artifacts/governance/source_of_truth_map.yaml"
 REQUIREMENT_REGISTER_REL = "artifacts/governance/requirement_register_seed.yaml"
 REQUIREMENT_CROSSWALK_REL = "docs/governance/requirement_alias_crosswalk.md"
+DESTINATION_DESCRIPTOR_CONTRACT_REL = "docs/docs/help_about_service_health_routes.md"
+SHIPROOM_DASHBOARD_REL = "artifacts/release/shiproom_dashboard_seed.yaml"
 
 REQUIRED_MD_HEADINGS = [
     "## Decision requested",
@@ -397,13 +402,70 @@ def check_cli_posture(root: Path) -> Result:
 
 
 def check_docs_control(root: Path) -> Result:
-    refs = [DOCS_TRUTH_ADR_REL, DOCS_PACK_REL, CONTROL_ARTIFACT_INDEX_REL]
+    refs = [
+        DOCS_TRUTH_ADR_REL,
+        DOCS_PACK_REL,
+        PUBLIC_SURFACE_TRUTH_MAP_REL,
+        DRIFT_BLOCKING_RULES_REL,
+        SOURCE_OF_TRUTH_MAP_REL,
+        CONTROL_ARTIFACT_INDEX_REL,
+    ]
     missing = missing_paths(root, refs)
     if missing:
         return make_result(False, "docs_control", f"missing refs: {', '.join(missing)}", True)
     if "id: docs_public_truth" not in read_text(rel_path(root, CONTROL_ARTIFACT_INDEX_REL)):
         return make_result(False, "docs_control", "control-artifact index no longer exposes the docs_public_truth row")
     return make_result(True, "docs_control", "docs-control policy remains anchored on the docs/help truth ADR and docs-pack contract")
+
+
+def check_public_surface_truth_map(root: Path) -> Result:
+    refs = [
+        SOURCE_OF_TRUTH_MAP_REL,
+        PUBLIC_SURFACE_TRUTH_MAP_REL,
+        DRIFT_BLOCKING_RULES_REL,
+        CONTROL_ARTIFACT_INDEX_REL,
+        SHIPROOM_DASHBOARD_REL,
+    ]
+    missing = missing_paths(root, refs)
+    if missing:
+        return make_result(False, "public_surface_truth_map", f"missing refs: {', '.join(missing)}", True)
+    if not contains_all(
+        root,
+        SOURCE_OF_TRUTH_MAP_REL,
+        [
+            "truth_domain_id: capability_lifecycle",
+            "truth_domain_id: compatibility",
+            "truth_domain_id: support_window_truth",
+            "truth_domain_id: known_limit_and_exclusion_notes",
+            "owner_artifact: tools/check_m0_exit.py",
+            "owner_artifact: artifacts/release/shiproom_dashboard_seed.yaml",
+            f"narrative_ref: {DESTINATION_DESCRIPTOR_CONTRACT_REL}",
+            "narrative_ref: docs/governance/claim_manifest_contract.md",
+        ],
+    ):
+        return make_result(False, "public_surface_truth_map", "source-of-truth map is missing expected truth domains or workflow integrations")
+    if not contains_all(
+        root,
+        PUBLIC_SURFACE_TRUTH_MAP_REL,
+        ["## Canonical owner map", "## Audit checklist", "## Current workflow bindings"],
+    ):
+        return make_result(False, "public_surface_truth_map", "public-surface truth-map narrative is missing required sections")
+    if not contains_all(
+        root,
+        DRIFT_BLOCKING_RULES_REL,
+        ["## Severity classes", "## Mandatory same-change-set cases", "## Audit checklist"],
+    ):
+        return make_result(False, "public_surface_truth_map", "drift-blocking rules are missing required sections")
+    control_text = read_text(rel_path(root, CONTROL_ARTIFACT_INDEX_REL))
+    if "id: public_surface_truth_map" not in control_text:
+        return make_result(False, "public_surface_truth_map", "control-artifact index is missing the public_surface_truth_map row")
+    if not contains_all(
+        root,
+        SHIPROOM_DASHBOARD_REL,
+        [SOURCE_OF_TRUTH_MAP_REL, DRIFT_BLOCKING_RULES_REL, "panel_id: public_proof_coverage"],
+    ):
+        return make_result(False, "public_surface_truth_map", "shiproom dashboard is missing the public-proof truth-map source refs")
+    return make_result(True, "public_surface_truth_map", "truth-map, drift rules, control-artifact row, and shiproom/signoff integrations are present")
 
 
 def check_evidence_freshness(packet: dict[str, Any]) -> Result:
@@ -488,6 +550,7 @@ def validate(root: Path) -> list[Result]:
         check_locality_and_transport(root),
         check_cli_posture(root),
         check_docs_control(root),
+        check_public_surface_truth_map(root),
         check_evidence_freshness(packet),
         check_contract_family_coverage(root, packet, packet_md),
     ]

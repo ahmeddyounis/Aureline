@@ -1,0 +1,346 @@
+record_kind: public_surface_source_of_truth_map_record
+schema_version: 1
+map_id: public_surface.source_of_truth_map.seed.01
+title: Public-surface source-of-truth map
+
+overview_doc: docs/governance/public_surface_truth_map.md
+drift_rules_doc: docs/governance/drift_blocking_rules.md
+control_artifact_index_ref: artifacts/governance/control_artifact_index.yaml
+
+workflow_integrations:
+  claim_manifest:
+    owner_artifact: artifacts/governance/claim_manifest_seed.yaml
+    contract_ref: schemas/governance/claim_manifest.schema.json
+    narrative_ref: docs/governance/claim_manifest_contract.md
+    required_join_fields:
+      - claim_row_id
+      - effective_claim_posture
+      - compatibility_row_refs
+      - version_skew_register_refs
+      - known_limit_refs
+      - exclusion_note_refs
+      - support_window_state
+  destination_descriptor:
+    owner_artifact: artifacts/docs/destination_descriptor_seed.yaml
+    contract_ref: schemas/docs/destination_descriptor.schema.json
+    narrative_ref: docs/docs/help_about_service_health_routes.md
+    required_join_fields:
+      - descriptor_id
+      - running_build_identity_ref
+      - version_match_state
+      - support_class
+      - client_scopes
+      - freshness_class
+      - availability_state
+      - preferred_route_class
+      - browser_handoff_reason
+  signoff_check:
+    owner_artifact: tools/check_m0_exit.py
+    packet_refs:
+      - artifacts/milestones/M0_signoff_packet.json
+      - artifacts/milestones/M0_signoff_packet.md
+    required_truth_artifacts:
+      - artifacts/governance/source_of_truth_map.yaml
+      - docs/governance/public_surface_truth_map.md
+      - docs/governance/drift_blocking_rules.md
+  public_proof_coverage:
+    owner_artifact: artifacts/release/shiproom_dashboard_seed.yaml
+    companion_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/benchmarks/benchmark_publication_pack_template.md
+      - docs/release/certified_archetype_report_template.md
+      - docs/governance/drift_blocking_rules.md
+
+severity_classes:
+  - severity_id: release_blocking_overclaim
+    summary: A downstream surface is broader than the canonical owner row
+      or hides a downgrade reason.
+  - severity_id: same_change_blocker
+    summary: A canonical owner changed without the required companion
+      projections or caveat updates.
+  - severity_id: time_boxed_truth_defect
+    summary: Surfaces disagree, but the visible posture is already
+      conservative and the defect must be corrected before widening.
+  - severity_id: seed_gap_review_required
+    summary: A seed or internal-only flow lacks a full projection path
+      and therefore may not widen into public or support claims.
+
+truth_domains:
+  - truth_domain_id: capability_lifecycle
+    truth_summary: >
+      Readiness, support-class, freshness, client-scope, and
+      dependency-marker posture for a capability rendered on a protected
+      surface.
+    canonical_owner_artifact: schemas/governance/capability_lifecycle.schema.json
+    narrative_contract_ref: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+    row_identity_rule:
+      primary_field: capability_lifecycle_row_id
+      supporting_fields:
+        - capability_ref.capability_id
+        - dependency_marker_id
+    downstream_projection_artifacts:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/docs/destination_descriptor_seed.yaml
+      - docs/support/support_bundle_contract.md
+    evidence_join_expectations:
+      - capability-lifecycle audit events or dependency markers carry the
+        proof of a narrowed effective state.
+    caveat_join_expectations:
+      - dependency_marker_record when a child capability narrows or gates
+        the parent capability.
+
+  - truth_domain_id: policy_disabled_state
+    truth_summary: >
+      Policy disable, kill-switch, or admin-narrowed state for a named
+      control row together with the visible fallback path.
+    canonical_owner_artifact: artifacts/governance/experiments_register.yaml
+    narrative_contract_ref: docs/governance/feature_flag_policy.md
+    row_identity_rule:
+      primary_field: id
+      supporting_fields:
+        - lifecycle_state
+        - policy_override_posture
+        - kill_switch.source_ref
+    downstream_projection_artifacts:
+      - artifacts/governance/labs_register.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/support/support_bundle_contract.md
+    evidence_join_expectations:
+      - kill_switch and rollback_path fields are the canonical disable
+        proof at this milestone.
+    caveat_join_expectations:
+      - support_note and visible fallback behavior remain attached to the
+        same control row.
+
+  - truth_domain_id: experiment_and_labs_state
+    truth_summary: >
+      Contributor-visible Labs and preview posture for non-stable rows,
+      including owner, cohort, expiry, and dependency markers.
+    canonical_owner_artifact: artifacts/governance/experiments_register.yaml
+    narrative_contract_ref: docs/governance/feature_flag_policy.md
+    row_identity_rule:
+      primary_field: id
+      supporting_fields:
+        - public_label
+        - lifecycle_state
+    downstream_projection_artifacts:
+      - artifacts/governance/labs_register.yaml
+      - docs/governance/control_artifact_index.md
+      - artifacts/governance/claim_manifest_seed.yaml
+    evidence_join_expectations:
+      - review_by or expires_on plus artifact_dependencies prove the row
+        is still governed.
+    caveat_join_expectations:
+      - support_note and dependency_summary stay attached to the same row.
+
+  - truth_domain_id: service_contract_state
+    truth_summary: >
+      Stable-surface maturity, downgrade behavior, compatibility-window
+      source, and support-window posture for a governed service or public
+      contract surface.
+    canonical_owner_artifact: artifacts/governance/stable_surface_inventory.yaml
+    narrative_contract_ref: docs/governance/interface_lifecycle_policy.md
+    row_identity_rule:
+      primary_field: surface_id
+      supporting_fields:
+        - maturity_lane
+        - compatibility.compatibility_report_refs
+    downstream_projection_artifacts:
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/support/support_packet_index.schema.json
+    evidence_join_expectations:
+      - compatibility_window_source_ref and publication_artifact_refs.
+    caveat_join_expectations:
+      - downgrade_behavior and deprecation_posture from the same row.
+
+  - truth_domain_id: install_mode
+    truth_summary: >
+      Install-mode, updater-owner, durable-state-root, rollout-ring, and
+      scriptability truth for one install topology cell.
+    canonical_owner_artifact: artifacts/release/install_topology_matrix.yaml
+    narrative_contract_ref: docs/release/install_topology_plan.md
+    row_identity_rule:
+      tuple_fields:
+        - install_mode_class
+        - channel_class
+        - platform_class
+        - architecture_class
+    downstream_projection_artifacts:
+      - docs/support/support_bundle_contract.md
+      - artifacts/release/shiproom_dashboard_seed.yaml
+      - docs/release/release_evidence_packet_template.md
+    evidence_join_expectations:
+      - running_build_identity_ref and durable_state_root_refs.
+    caveat_join_expectations:
+      - diagnostics_export_classes and rollback target class from the
+        same card.
+
+  - truth_domain_id: release_channel
+    truth_summary: >
+      Channel truth for a build or artifact family. This is the channel a
+      running or published artifact actually belongs to, not a surface-
+      local label.
+    canonical_owner_artifact: schemas/build/exact_build_identity.schema.json
+    narrative_contract_ref: docs/build/exact_build_identity_model.md
+    row_identity_rule:
+      primary_field: exact_build_identity_ref
+      supporting_fields:
+        - release_channel_class
+        - artifact_family_class
+    downstream_projection_artifacts:
+      - artifacts/docs/destination_descriptor_seed.yaml
+      - docs/release/release_evidence_packet_template.md
+      - docs/support/support_bundle_contract.md
+    evidence_join_expectations:
+      - exact_build_identity_ref is the only admissible join key.
+    caveat_join_expectations:
+      - version_match_state and any claim-row support-window narrowing
+        must remain attached to the same identity chain.
+
+  - truth_domain_id: provenance
+    truth_summary: >
+      Signing, attestation, SBOM, transparency-log, and producer-lane
+      provenance for an artifact family or running build.
+    canonical_owner_artifact: schemas/build/exact_build_identity.schema.json
+    narrative_contract_ref: docs/build/exact_build_identity_model.md
+    row_identity_rule:
+      primary_field: exact_build_identity_ref
+      supporting_fields:
+        - provenance.signing_class
+        - provenance.provenance_statement_ref
+    downstream_projection_artifacts:
+      - docs/release/release_artifact_graph.md
+      - docs/release/release_evidence_packet_template.md
+      - docs/support/support_bundle_contract.md
+    evidence_join_expectations:
+      - build_log_ref, artifact_graph_node_ref, SBOM, and provenance
+        statement refs.
+    caveat_join_expectations:
+      - publishability and known-limit notes from the release artifact
+        graph.
+
+  - truth_domain_id: version_skew
+    truth_summary: >
+      Supported, best-effort, untested, and unsupported skew cases for a
+      named boundary row.
+    canonical_owner_artifact: artifacts/compat/version_skew_register.yaml
+    narrative_contract_ref: docs/compat/compatibility_row_seed.md
+    row_identity_rule:
+      primary_field: register_id
+      supporting_fields:
+        - qualification_row_ref
+        - skew_case_id
+    downstream_projection_artifacts:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/release/compatibility_report_template.md
+      - docs/support/support_center_concept.md
+    evidence_join_expectations:
+      - qualification_row_ref back into the compatibility matrix.
+    caveat_join_expectations:
+      - outside_window_posture and skew-case notes from the same register.
+
+  - truth_domain_id: compatibility
+    truth_summary: >
+      Claim-bearing compatibility boundary row, support class, skew
+      window, and out-of-window posture.
+    canonical_owner_artifact: artifacts/compat/qualification_matrix_seed.yaml
+    narrative_contract_ref: docs/compat/compatibility_row_seed.md
+    row_identity_rule:
+      primary_field: row_id
+      supporting_fields:
+        - artifact_or_protocol_boundary_label
+        - version_skew_register_ref
+    downstream_projection_artifacts:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/release/certified_archetype_report_template.md
+      - docs/release/release_evidence_packet_template.md
+    evidence_join_expectations:
+      - supporting_artifact_refs and owner_ref from the same row.
+    caveat_join_expectations:
+      - support_class, out_of_window_posture, and downstream consumer set
+        from the same row.
+
+  - truth_domain_id: support_window_truth
+    truth_summary: >
+      Current support-window state and replacement or narrowing posture
+      for a published claim row.
+    canonical_owner_artifact: schemas/governance/claim_manifest.schema.json
+    narrative_contract_ref: docs/governance/claim_manifest_contract.md
+    row_identity_rule:
+      primary_field: claim_row_id
+      supporting_fields:
+        - support_window_state
+        - support_window_ref
+    downstream_projection_artifacts:
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/release/shiproom_dashboard_seed.yaml
+    evidence_join_expectations:
+      - evidence_links and exact_build_identity_refs from the claim row.
+    caveat_join_expectations:
+      - replacement_text or stale_text when the support window narrows or
+        expires.
+
+  - truth_domain_id: known_limit_and_exclusion_notes
+    truth_summary: >
+      Caveat, exclusion, and downgrade-note truth that must remain
+      attached to the same public claim row.
+    canonical_owner_artifact: schemas/governance/claim_manifest.schema.json
+    narrative_contract_ref: docs/governance/claim_manifest_contract.md
+    row_identity_rule:
+      primary_field: claim_row_id
+      supporting_fields:
+        - known_limit_refs
+        - exclusion_note_refs
+    downstream_projection_artifacts:
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - docs/release/release_artifact_graph.md
+      - docs/support/support_bundle_contract.md
+    evidence_join_expectations:
+      - claim_row evidence links and source anchor refs.
+    caveat_join_expectations:
+      - required_known_limit_refs and required_exclusion_note_refs remain
+        attached to the same claim row and channel binding.
+
+same_change_set_groups:
+  - group_id: claim_row_publication
+    trigger_owner_artifacts:
+      - schemas/governance/claim_manifest.schema.json
+      - artifacts/governance/claim_manifest_seed.yaml
+    must_update_in_same_change:
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - docs/governance/drift_blocking_rules.md
+      - every affected docs/help, release-note, support-export, and
+        public-proof projection
+  - group_id: destination_descriptor_routing
+    trigger_owner_artifacts:
+      - schemas/docs/destination_descriptor.schema.json
+      - artifacts/docs/destination_descriptor_seed.yaml
+    must_update_in_same_change:
+      - docs/docs/help_about_service_health_routes.md
+      - every affected docs/help, support-export, or route-bearing truth
+        surface
+  - group_id: experiments_and_policy_state
+    trigger_owner_artifacts:
+      - artifacts/governance/experiments_register.yaml
+    must_update_in_same_change:
+      - artifacts/governance/labs_register.yaml
+      - docs/governance/feature_flag_policy.md
+      - every affected public or support-facing projection
+  - group_id: install_channel_and_provenance
+    trigger_owner_artifacts:
+      - artifacts/release/install_topology_matrix.yaml
+      - schemas/build/exact_build_identity.schema.json
+    must_update_in_same_change:
+      - docs/release/install_topology_plan.md
+      - docs/build/exact_build_identity_model.md
+      - every affected support, release, docs/help, or proof projection
+  - group_id: compatibility_and_skew
+    trigger_owner_artifacts:
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/compat/version_skew_register.yaml
+    must_update_in_same_change:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - every affected compatibility, migration, support, release, or
+        public-proof projection

@@ -15,6 +15,15 @@ boundary every non-owning surface reads; if this document and the ADRs
 disagree, the ADRs win and this document MUST be updated in the same
 change.
 
+Related governance artifacts:
+
+- [`/artifacts/governance/source_of_truth_map.yaml`](../../artifacts/governance/source_of_truth_map.yaml)
+  — canonical owner-routing map that tells downstream reviewers which
+  artifact owns route-bearing truth versus claim-bearing truth.
+- [`/docs/governance/drift_blocking_rules.md`](../governance/drift_blocking_rules.md)
+  — same-change-set and severity rules this descriptor family follows
+  when route truth, source version, support class, or freshness changes.
+
 ## Why freeze this now
 
 ADR 0013 froze the truth-source badge contract for docs / Help / About /

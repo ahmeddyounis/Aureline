@@ -215,6 +215,11 @@ and scopes.
   Docs/help, support-export, release-note, CLI/help, evaluation, and
   public-proof channels are all projections of those claim rows rather
   than separate truth sources.
+- The `public_surface_truth_map` row is the canonical home for the
+  owner-routing map that says which artifact owns lifecycle, policy,
+  install, channel/provenance, compatibility, support-window, and
+  known-limit truth. If the owner changes, the map and its drift rules
+  update in the same change.
 - Known-limit notes, migration guidance, and public-proof docs should
   preserve the same `evidence_id` and packet refs that the upstream
   verification packet used; docs are not allowed to invent a second
