@@ -213,6 +213,12 @@ code.
   [`/artifacts/accessibility/`](../artifacts/accessibility/); concrete
   IME and text cases in
   [`/fixtures/accessibility/ime_and_text_cases/`](../fixtures/accessibility/ime_and_text_cases/).
+- [`accessibility/review_charter.md`](./accessibility/review_charter.md)
+  — seed charter for the accessibility review lane covering owner,
+  cadence, acceptance-pack families, waiver rules, and public
+  backlog-label mapping. Machine-readable companions in
+  [`/artifacts/accessibility/`](../artifacts/accessibility/) and
+  [`/fixtures/accessibility/task_corpus_manifest.yaml`](../fixtures/accessibility/task_corpus_manifest.yaml).
 
 ## Command contracts
 

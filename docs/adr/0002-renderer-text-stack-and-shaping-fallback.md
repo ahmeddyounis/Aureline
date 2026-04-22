@@ -293,9 +293,10 @@ they are the language the ADR's hook list refers to.
 - **Follow-up:** the renderer spike instruments every hot-path hook
   before claiming latency budgets. The benchmark lab stabilises
   traces against the claimed GPU targets. The accessibility /
-  input-review lane (tracked as dependency `DEP-0003`) stands up
-  its packet family against `accessibility_tree_update` and
-  `ime_composition_update`.
+  input-review lane now has a seeded packet family under
+  `docs/accessibility/`, `artifacts/accessibility/`, and
+  `fixtures/accessibility/`; later work attaches current evidence
+  against `accessibility_tree_update` and `ime_composition_update`.
 - **Follow-up:** a windowing-state ADR and an accessibility-bridge
   ADR MAY narrow specific subsurfaces above this floor, but cannot
   widen the rejected-alternatives list.

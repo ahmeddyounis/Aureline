@@ -137,6 +137,11 @@ preview-only, or claim-narrowed.
 - **Qualification row refs:**
   - `<compat-row-id>` — verdict, evidence status, and source path.
   - ...
+- **Accessibility acceptance-pack refs:** acceptance-pack family ids or
+  task ids from `fixtures/accessibility/task_corpus_manifest.yaml`, or
+  `none`
+- **Accessibility known-limit refs:** `known_limit.accessibility.*`
+  refs, or `none`
 - **Qualification packet or report refs:**
   - `<packet-id or stable ref>` — `present`, `seed_only`, or `not_yet_available`.
   - ...

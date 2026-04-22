@@ -2,7 +2,8 @@
 
 Reviewable fixture corpus for the accessibility and IME packet family.
 These files seed the cases the platform-input matrix and shell
-conformance checklist cite.
+conformance checklist cite. The parent task roster lives in
+`fixtures/accessibility/task_corpus_manifest.yaml`.
 
 Shared shape:
 

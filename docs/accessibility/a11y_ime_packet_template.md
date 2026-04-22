@@ -8,9 +8,16 @@ instead of ad hoc spreadsheets.
 
 Companion artifacts:
 
+- [`/docs/accessibility/review_charter.md`](./review_charter.md)
+  — named review-lane charter covering owner, cadence,
+  acceptance-pack families, public backlog mapping, and waiver posture.
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — machine-readable platform, assistive-technology, locale, and
   input-path matrix with the shared result-state vocabulary.
+- [`/artifacts/accessibility/assistive_tech_matrix.yaml`](../../artifacts/accessibility/assistive_tech_matrix.yaml)
+  — review-planning matrix tying each claimed desktop platform scope to
+  screen-reader, keyboard-only, zoom, high-contrast, reduced-motion,
+  and input-method rows.
 - [`/artifacts/accessibility/shell_conformance_checklist.yaml`](../../artifacts/accessibility/shell_conformance_checklist.yaml)
   — launch-critical shell checklist for keyboard, focus, narration,
   zoom, contrast, motion, and input behavior.
@@ -20,6 +27,9 @@ Companion artifacts:
 - [`/fixtures/accessibility/ime_and_text_cases/`](../../fixtures/accessibility/ime_and_text_cases/)
   — seeded IME, bidi, copy-parity, virtualization, range-selection, and
   mixed-DPI cases this packet cites.
+- [`/fixtures/accessibility/task_corpus_manifest.yaml`](../../fixtures/accessibility/task_corpus_manifest.yaml)
+  — stable task ids and acceptance-pack families future benchmark,
+  conformance, and release packets will cite.
 - [`/docs/governance/verification_packet_template.md`](../governance/verification_packet_template.md)
   — shared evidence header, claim-row, freshness, and signoff rules.
 - [`/docs/adr/0016-shell-windowing-input-accessibility-boundary.md`](../adr/0016-shell-windowing-input-accessibility-boundary.md)
@@ -44,7 +54,9 @@ Normative sources projected here:
 ## Shared result states
 
 This packet reuses the result-state vocabulary from
-`artifacts/accessibility/platform_input_matrix.yaml`.
+`artifacts/accessibility/platform_input_matrix.yaml` and the stable task
+and platform-review ids from `task_corpus_manifest.yaml` and
+`assistive_tech_matrix.yaml`.
 
 | State | Meaning | Required packet behavior |
 |---|---|---|

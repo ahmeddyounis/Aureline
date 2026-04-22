@@ -43,7 +43,7 @@ Planning posture:
 | Partially blocked | `m1.shell_command_entry_surfaces` | The renderer spike exists, but `D-0006` and `D-0007` still leave the shell home and full keyboard model open. |
 | Partially blocked | `m1.supportability_public_truth_governance_seed` | Support/export can start now, but `D-0011` still leaves exact-build joins open. |
 | Target, partially blocked | `m1.automation_cli_seed` | Shared command metadata can be reused now, but the long-term shell/command home still depends on `D-0006`. |
-| Blocked to hook-only | `m1.accessibility_install_review_hooks` | `D-0008`, `D-0007`, `DEP-0003`, and the still-proposed extension ADR keep this row from becoming a claimed surface. |
+| Blocked to hook-only | `m1.accessibility_install_review_hooks` | `D-0008`, `D-0007`, and the still-proposed extension ADR keep this row from becoming a claimed surface; the review family is seeded but evidence remains plan-only. |
 
 The practical implication is simple: most M1 engineering can start
 immediately, but the team should not wait for every open decision before
@@ -67,7 +67,7 @@ repeating blocker prose.
 | `m1.settings_tokens_activity_state` | Committed | UX/Design | Docs/Public Truth | No | settings ADR, lifecycle ADR, docs/help truth ADR | Keep the shell token/state layer and the settings resolver unified from the start. |
 | `m1.supportability_public_truth_governance_seed` | Committed | Supportability | Supportability | Yes | benchmark corpus, docs/help truth ADR, lifecycle ADR, build baseline, safe-preview contract | This row converts the M0 artifact pile into nightly evidence and support/export structure. |
 | `m1.automation_cli_seed` | Target | Tooling/Execution | Docs/Public Truth | No | `D-0006`, execution-context ADR, docs/help truth ADR | Pull forward just enough CLI/headless work to stop parity drift before M2. |
-| `m1.accessibility_install_review_hooks` | Parked / hook-only | UX/Design | Security/Trust | No | `D-0008`, `D-0007`, `DEP-0003`, extension ADR seed | Preserve seams only; do not count this as delivered M1 scope. |
+| `m1.accessibility_install_review_hooks` | Parked / hook-only | UX/Design | Security/Trust | No | `D-0008`, `D-0007`, extension ADR seed | Preserve seams only; do not count this as delivered M1 scope. |
 
 Task clusters inside the committed M1 rows:
 
@@ -124,7 +124,9 @@ Open decisions that allow only narrowed progress:
 
 Missing or late inputs that should stay visible:
 
-- `DEP-0003` is still open, so keyboard/accessibility review packet work has no final artifact home yet.
+- The accessibility review family is now seeded; future work must attach
+  current evidence and locale-governance follow-through rather than
+  inventing a second packet home.
 
 ## Recommended sequencing
 

@@ -54,6 +54,13 @@ Use these labels directly if you want an immediate label set:
 - `sev:scoped`
 - `sev:clarity-gap`
 
+For `dogfood:accessibility` issues, the reserved secondary labels live
+in [`/docs/accessibility/review_charter.md`](../accessibility/review_charter.md):
+`a11y:keyboard`, `a11y:screen-reader`, `a11y:zoom`,
+`a11y:high-contrast`, `a11y:reduced-motion`, `a11y:ime-input`,
+`a11y:docs-help`, `a11y:trust-prompt`, `a11y:task-terminal`, and
+`a11y:dense-review`.
+
 ## Intake record
 
 Use the field names below in issue templates or intake automation.

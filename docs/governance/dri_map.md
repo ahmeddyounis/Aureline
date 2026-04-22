@@ -127,8 +127,11 @@ closing the backup waiver.
   field runbooks, and crash-diagnostics corpus).
 - **Design-system seeds** — `/artifacts/ux/` design-system snapshots, token
   sources, and component references.
-- **Accessibility / input review** — `/artifacts/ux/` accessibility audits,
-  input-method review packets, reduced-motion / contrast artifacts.
+- **Accessibility / input review** — `/docs/accessibility/`,
+  `/artifacts/accessibility/`, and `/fixtures/accessibility/`
+  accessibility review charter, packet templates, assistive-tech and
+  platform-input matrices, task corpus manifests, input-method review
+  packets, and reduced-motion / contrast artifacts.
 - **Governance forums** — the standing forum families listed above, plus
   their packet-profile and output-routing rules in
   `docs/governance/forum_charters.md` and

@@ -21,7 +21,7 @@ Explicit red/yellow/green calls
 | Benchmark governance | Yellow | The nightly lane, corpus-governance policy, protected-metrics file, and dashboard seed exist, but the council-approved hardware baseline is not seeded yet. |
 | Ownership | Yellow | Every protected lane has an owner, but all protected backup coverage still rides the `single-maintainer-backup` waiver through 2026-10-19. |
 | Public-truth seeds | Yellow | Docs/help/service-health truth, docs-pack contract, and support-center concept are seeded, but exact-build joins and stale-example enforcement are still open. |
-| Unresolved narrowing decisions | Red | Shell home, keyboard model, accessibility packet home, exact-build identity, and several M1-facing contract families remain narrowed or explicitly deferred. |
+| Unresolved narrowing decisions | Red | Shell home, keyboard model, accessibility readiness evidence, exact-build identity, and several M1-facing contract families remain narrowed or explicitly deferred. |
 
 Packet tree
 
@@ -52,8 +52,8 @@ M0 to M1 cutline
 - M1 may build immediately on the accepted renderer, buffer, VFS, RPC,
   subscription, settings, execution-context, docs-truth, route-taxonomy,
   preview-trust, portability, benchmark, and release-skeleton artifacts.
-- M1 must treat shell home, keyboard completeness, accessibility packet
-  ownership, exact-build joins, council-approved benchmark baselines, and the
+- M1 must treat shell home, keyboard completeness, accessibility readiness
+  evidence, exact-build joins, council-approved benchmark baselines, and the
   extension/publication policy family as carry-forward constraints.
 - Collaboration, hosted review merge policy, diagnostics/code-action
   convergence, completion/signature-help/snippet truth, localization/locale

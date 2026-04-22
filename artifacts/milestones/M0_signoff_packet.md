@@ -93,7 +93,8 @@ as implied.
 
 - `RISK-004` exact-build and clean-room evidence remain below the claimed
   closure bar.
-- `RISK-005` accessibility and input review still lack a complete packet home.
+- `RISK-005` accessibility review is seeded, but claim-bearing proof and
+  locale follow-through are still incomplete.
 - `RISK-008` M1 may invent missing contract families in code if freeze
   exceptions are ignored.
 
@@ -105,7 +106,7 @@ as implied.
 | Product | `@ahmeddyounis` | `pending` | none |
 | Design | `@ahmeddyounis` | `pending` | none |
 | QE / Perf | `@ahmeddyounis` | `pending` | none |
-| Accessibility | `@ahmeddyounis` | `blocked` | `DEP-0003`, missing review-packet home, locale governance still deferred |
+| Accessibility | `@ahmeddyounis` | `blocked` | seed-only acceptance-pack evidence and locale governance still deferred |
 | Docs / Truth | `@ahmeddyounis` | `pending` | none |
 | Support | `@ahmeddyounis` | `pending` | none |
 | Security | `@ahmeddyounis` | `pending` | none |
@@ -191,7 +192,8 @@ as implied.
 
 ### Accessibility
 
-- Blocked on `DEP-0003` and the missing accessibility review-packet family.
+- The packet family is now seeded, but current acceptance-pack evidence and
+  locale follow-through are still missing for green signoff.
 
 ### Docs / Truth
 
