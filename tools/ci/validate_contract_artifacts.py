@@ -29,6 +29,17 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+CURRENT_DIR = Path(__file__).resolve().parent
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
+
+from frozen_surface_validation import (
+    FROZEN_SURFACE_MANIFEST_REL,
+    FROZEN_SURFACE_SCENARIO_REL,
+    FROZEN_SURFACE_TOOL_REL,
+    validate_frozen_surface_manifest,
+)
+
 CONTROL_ARTIFACT_INDEX_REL = "artifacts/governance/control_artifact_index.yaml"
 PACKAGE_INVENTORY_REL = "artifacts/governance/package_inventory.yaml"
 OWNERSHIP_MATRIX_REL = "artifacts/governance/ownership_matrix.yaml"
@@ -58,6 +69,7 @@ REQUIRED_CONTROL_ROWS = {
     "boundary_manifest_strawman": BOUNDARY_MANIFEST_REL,
     "repository_package_inventory": PACKAGE_INVENTORY_REL,
     "contract_artifact_validation_lane": CONTRACT_VALIDATION_WORKFLOW_REL,
+    "frozen_surface_manifests": FROZEN_SURFACE_MANIFEST_REL,
 }
 
 BOUNDARY_ROW_RE = re.compile(
@@ -1838,6 +1850,18 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
             f"contract-validation scenario fixture is missing: {CONTRACT_VALIDATION_SCENARIO_REL}",
             "Keep a checked-in failing scenario fixture so the deployment-profile and decision-reference checks stay demonstrable.",
         ),
+        (
+            FROZEN_SURFACE_TOOL_REL,
+            "contract_validation_lane.frozen_surface_tool_exists",
+            f"frozen-surface validator is missing: {FROZEN_SURFACE_TOOL_REL}",
+            "Keep tools/check_frozen_surfaces.py present so contributors can run the frozen-surface gate directly.",
+        ),
+        (
+            FROZEN_SURFACE_SCENARIO_REL,
+            "contract_validation_lane.frozen_surface_scenario_exists",
+            f"frozen-surface scenario fixture is missing: {FROZEN_SURFACE_SCENARIO_REL}",
+            "Keep a checked-in failing frozen-surface scenario so missing diff metadata stays demonstrable.",
+        ),
     ]
     for path, check_id, message, remediation in required_paths:
         if not repo.exists(path):
@@ -1901,6 +1925,18 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
                 "contract-validation doc no longer mentions the failing scenario fixture",
                 "Document the checked-in failing example so reviewers can prove the deployment-profile gate still trips.",
             ),
+            (
+                FROZEN_SURFACE_TOOL_REL,
+                "contract_validation_lane.doc_mentions_frozen_surface_tool",
+                "contract-validation doc no longer mentions tools/check_frozen_surfaces.py",
+                "Document the direct frozen-surface validator so reviewers can debug missing diff metadata locally.",
+            ),
+            (
+                FROZEN_SURFACE_SCENARIO_REL,
+                "contract_validation_lane.doc_mentions_frozen_surface_scenario",
+                "contract-validation doc no longer mentions the frozen-surface failing scenario fixture",
+                "Document the checked-in frozen-surface failing example so reviewers can prove the same-train gate still trips.",
+            ),
         ):
             if needle not in doc_text:
                 findings.append(
@@ -1946,6 +1982,37 @@ def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
                     )
                 )
 
+    if repo.exists(FROZEN_SURFACE_SCENARIO_REL):
+        try:
+            frozen_findings, _ = validate_frozen_surface_manifest(repo.root, repo.rel(FROZEN_SURFACE_SCENARIO_REL))
+        except SystemExit as exc:
+            findings.append(
+                make_finding(
+                    "error",
+                    "contract_validation_lane.frozen_surface_scenario_loads",
+                    FROZEN_SURFACE_SCENARIO_REL,
+                    lane_ref,
+                    f"frozen-surface scenario fixture could not be applied: {exc}",
+                    "Keep the checked-in frozen-surface scenario JSON structurally valid and pointed at a real monitored path.",
+                )
+            )
+        else:
+            expected_ids = {
+                "frozen_surface_manifest.diff_metadata_required",
+                "frozen_surface_manifest.same_train_follow_up_required",
+            }
+            if not any(finding.check_id in expected_ids for finding in frozen_findings):
+                findings.append(
+                    make_finding(
+                        "error",
+                        "contract_validation_lane.frozen_surface_scenario_fails",
+                        FROZEN_SURFACE_SCENARIO_REL,
+                        lane_ref,
+                        "frozen-surface scenario fixture no longer triggers the missing diff-metadata or same-train follow-up checks",
+                        "Keep one checked-in scenario that deterministically fails when a frozen surface changes without its required metadata and companion updates.",
+                    )
+                )
+
     return findings
 
 
@@ -1988,6 +2055,7 @@ def build_report(
     findings: list[Finding],
     check_ids: list[str],
     command_parity_analysis: dict[str, Any] | None,
+    frozen_surface_analysis: dict[str, Any] | None,
 ) -> dict[str, Any]:
     grouped = group_findings(findings)
     return {
@@ -2018,6 +2086,14 @@ def build_report(
         ],
         "findings": [finding.as_report() for finding in findings],
         "command_parity_summary": None if command_parity_analysis is None else command_parity_analysis.get("summary"),
+        "frozen_surface_summary": None
+        if frozen_surface_analysis is None
+        else {
+            "changed_file_count": frozen_surface_analysis["summary"]["changed_file_count"],
+            "changed_surface_count": frozen_surface_analysis["summary"]["changed_surface_count"],
+            "error_count": frozen_surface_analysis["summary"]["error_count"],
+            "warning_count": frozen_surface_analysis["summary"]["warning_count"],
+        },
     }
 
 
@@ -2042,6 +2118,13 @@ def main() -> int:
         ("boundary_manifest", boundary_findings),
         ("claim_manifest", validate_claim_manifest(repo, boundary_profiles)),
     ]
+    frozen_surface_findings, frozen_surface_analysis = validate_frozen_surface_manifest(repo.root, repo.scenario)
+    checks.append(
+        (
+            "frozen_surface_manifest",
+            [Finding(**finding.as_report()) for finding in frozen_surface_findings],
+        )
+    )
     command_findings, command_parity_analysis = validate_command_parity(repo)
     checks.append(("command_parity", command_findings))
     checks.append(("contract_validation_lane", validate_contract_validation_lane(repo)))
@@ -2055,7 +2138,17 @@ def main() -> int:
         report_path = repo.rel(args.report)
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(
-            json.dumps(build_report(repo, all_findings, check_ids, command_parity_analysis), indent=2, sort_keys=True)
+            json.dumps(
+                build_report(
+                    repo,
+                    all_findings,
+                    check_ids,
+                    command_parity_analysis,
+                    frozen_surface_analysis,
+                ),
+                indent=2,
+                sort_keys=True,
+            )
             + "\n",
             encoding="utf-8",
         )

@@ -58,6 +58,11 @@ Companion artifacts:
   canonical implementation-broadening freeze matrix and the short
   downstream citation guide that points task specs, ADRs, and packet
   updates at stable row ids instead of repeating contract prose.
+- [`./frozen_surface_ci_policy.md`](./frozen_surface_ci_policy.md) and
+  [`/artifacts/contracts/frozen_surface_manifest.yaml`](../../artifacts/contracts/frozen_surface_manifest.yaml)
+  — manifest-driven CI policy and machine-readable row set for the M0
+  frozen surfaces that already require same-train diff metadata and
+  companion updates.
 - [`./contract_packet_template.md`](./contract_packet_template.md) —
   surface-contract packet template backed by
   `schemas/governance/contract_packet.schema.json`.
@@ -154,9 +159,10 @@ and scopes.
   ownership, freshness, or evidence-id fields when the shared header
   already covers them.
 - Package, boundary, claim, source-anchor, and decision-reference drift
-  now route through the shared contract-artifact validation lane. Do not
-  broaden a governed artifact family without keeping that lane passing or
-  updating the expected checks in the same change.
+  now route through the shared contract-artifact validation lane. Frozen
+  surface changes also route through the frozen-surface manifest and CI
+  policy. Do not broaden a governed artifact family without keeping that
+  lane passing or updating the expected checks in the same change.
 - Experiments, feature flags, rollout rows, and Labs inventory updates
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer

@@ -33,6 +33,9 @@ code.
 - [`governance/interface_freeze_guide.md`](./governance/interface_freeze_guide.md)
   — short citation guide for downstream tasks that should reference
   frozen rows instead of repeating contract prose.
+- [`governance/frozen_surface_ci_policy.md`](./governance/frozen_surface_ci_policy.md)
+  — same-train CI policy for seeded frozen surfaces, including the
+  manifest-driven diff metadata and companion-update rules.
 - [`governance/benchmark_council_charter.md`](./governance/benchmark_council_charter.md)
   — seed charter for the benchmark council (roles, scope, cadence,
   quorum placeholder, escalation).
@@ -132,7 +135,8 @@ code.
   dependency directions between packages.
 - [`ci/control_artifact_validation.md`](./ci/control_artifact_validation.md)
   — local and CI contract-artifact validation lane for package,
-  boundary, claim, control-index, and decision/source-anchor drift.
+  boundary, claim, control-index, frozen-surface, and
+  decision/source-anchor drift.
 - [`build/exact_build_identity_model.md`](./build/exact_build_identity_model.md)
   — exact-build identity model and per-surface propagation rules for
   release, docs/help, benchmark, and support/export truth.
