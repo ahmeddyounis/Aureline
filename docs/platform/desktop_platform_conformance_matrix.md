@@ -16,6 +16,10 @@ Companion artifacts:
   — machine-readable claimed-profile roster, deployment-pattern support
   notes, platform-owned primitive rows, owners, validation methods, and
   known narrowings.
+- [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
+  — seeded scenario and drill ids for multi-window, monitor-topology,
+  mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen
+  continuity on claimed desktop rows.
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
   — install-profile card and updater/deployment vocabulary the platform
   rows compose over.
@@ -39,6 +43,11 @@ Normative sources projected here:
   — browser handoff, provider actor, and approval vocabulary.
 - [`/docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md`](../adr/0015-embedded-surface-boundary-and-auth-handoff.md)
   — system-browser-first auth and embedded-auth prohibition.
+
+The topology suite plus suspend/resume or display-reconnect drills named
+by the conformance rows resolve to the scenario ids and drill ids in the
+window/display verification matrix above rather than to ad hoc
+checklists.
 
 ## Claim-status meanings
 

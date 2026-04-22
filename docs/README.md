@@ -114,6 +114,13 @@ code.
   accessibility, and compatibility packets cite.
   Machine-readable companion in
   [`/artifacts/platform/claimed_desktop_profiles.yaml`](../artifacts/platform/claimed_desktop_profiles.yaml).
+- [`qa/multi_window_verification.md`](./qa/multi_window_verification.md)
+  — seeded verification matrix for multi-window, monitor-topology,
+  mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen
+  continuity on named desktop profiles. Machine-readable seed in
+  [`/artifacts/qa/window_display_matrix.yaml`](../artifacts/qa/window_display_matrix.yaml);
+  concrete cases in
+  [`/fixtures/platform/window_display_cases/`](../fixtures/platform/window_display_cases/).
 
 ## Planning
 

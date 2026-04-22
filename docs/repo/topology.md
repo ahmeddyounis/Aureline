@@ -17,7 +17,7 @@ to change, update this map in the same change.
 | `fixtures/`    | Reusable test inputs and golden artifacts. Subtrees grow per protected-path corpus.                  |
 | `tools/`       | Repository-local tooling (lint helpers, codegen scripts, governance checkers).                       |
 | `ci/`          | CI configuration shared across pipelines (job definitions, gate scripts).                            |
-| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `governance/`, `compat/`, `evidence/`, `release/`, `platform/`, `ux/`, `support/`.  |
+| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `governance/`, `compat/`, `evidence/`, `release/`, `platform/`, `qa/`, `ux/`, `support/`.  |
 
 ## Reserved subtrees inside `artifacts/`
 
@@ -28,6 +28,7 @@ to change, update this map in the same change.
 | `artifacts/evidence/`  | Shared evidence metadata catalogs and freshness field vocabularies used by release-facing packets. |
 | `artifacts/release/`   | Release-artifact graph rules, provenance, SBOMs, compatibility reports, claim manifests, rollback packets. |
 | `artifacts/platform/`  | Claimed desktop profile registry and platform-owned primitive matrices that bind desktop claims to named OS/profile rows. |
+| `artifacts/qa/`        | Seed QA verification matrices and claimed-profile continuity drill vocabularies. |
 | `artifacts/ux/`        | Design-system snapshots, accessibility audits, UX review packets.                    |
 | `artifacts/support/`   | Support-bundle templates, recovery drill outputs, Project Doctor seeded scenarios.   |
 

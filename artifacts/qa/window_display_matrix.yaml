@@ -1,0 +1,592 @@
+# Window/display continuity verification matrix seed.
+#
+# Canonical machine-readable QA seed for multi-window, monitor-topology,
+# mixed-DPI, fullscreen or snapped restore, off-screen recovery,
+# suspend/resume, and restart/reopen continuity on claimed desktop
+# profiles.
+#
+# Companion narrative:
+#   docs/qa/multi_window_verification.md
+# Concrete scenario fixtures:
+#   fixtures/platform/window_display_cases/
+#
+# Rules.
+#   - Every scenario row MUST name one stable scenario_id, at least one
+#     scenario_class, one continuity_level_expectation, one
+#     focus_visibility_rule, one authority_rebind_posture, and exactly
+#     one fixture_ref.
+#   - Layout intent, pane order, window role, and visible focus are the
+#     contract. Raw pixel coordinates are never authoritative.
+#   - Rows that touch terminal, debug, notebook, preview, remote, or
+#     managed surfaces MUST distinguish restorable_context from live
+#     authority that may need reconnect, rerun, or reauthorization.
+#   - Suspend/resume and restart/reopen rows MUST name the
+#     session_execution posture each live surface advertises after
+#     restore.
+#   - Required drill ids are frozen here so release, support, planning,
+#     and future automation do not mint parallel names.
+#   - If this file and docs/qa/multi_window_verification.md disagree,
+#     this file is authoritative and the narrative updates in the same
+#     change.
+#   - Scenario ids and drill ids MUST NOT contain milestone slugs.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/qa/multi_window_verification.md
+claimed_profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+desktop_conformance_source: docs/platform/desktop_platform_conformance_matrix.md
+layout_contract_source: docs/workspace/layout_serialization_contract.md
+entry_restore_source: docs/workspace/entry_restore_object_model.md
+planning_sources:
+  - artifacts/planning/m1_m2_work_breakdown.yaml
+  - docs/planning/m1_m2_dependency_backlog.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "State ownership by scope"
+      - "Window and restore rules"
+      - "FIT-WIN-001"
+      - "Window topology and session restore"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "desktop support contract"
+      - "Workspace-window, split-layout, and session-restore architecture"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Workspace serialization, portable-state packages, and restore provenance"
+      - "Window/topology, search-ranking, write-preview, and exit-parity drills"
+      - "Session-restore, fault-domain, and crash-forensics drills"
+  - path: docs/platform/desktop_platform_conformance_matrix.md
+    anchors:
+      - "DPI, fractional scaling, multi-monitor, and Spaces/desktops"
+      - "Wake-from-sleep and display-reconnect revalidation"
+  - path: docs/workspace/layout_serialization_contract.md
+    anchors:
+      - "Boundary and portability model"
+      - "Restore phases and shared recovery vocabulary"
+      - "Placeholder and degradation rules"
+      - "Live-surface no-rerun rules"
+
+scenario_class_vocabulary:
+  - split_layout
+  - detached_window
+  - display_topology_change
+  - mixed_dpi
+  - fullscreen_or_snapped_restore
+  - offscreen_recovery
+  - suspend_resume
+  - restart_reopen
+
+continuity_level_vocabulary:
+  - exact_restore
+  - compatible_restore
+  - layout_only
+  - evidence_only
+  - no_restore
+
+focus_visibility_rule_vocabulary:
+  - preserve_primary_focus_visible
+  - return_to_dialog_owner_visible
+  - keep_recovery_actions_keyboard_reachable
+
+authority_rebind_posture_vocabulary:
+  - no_live_authority_rebind_needed
+  - live_authority_rebind_required
+  - evidence_only_until_reauthorized
+
+restore_provenance_expectation_vocabulary:
+  - not_required_live_change
+  - topology_adjustment_note_required
+  - visible_after_reopen
+
+expected_session_execution_posture_vocabulary:
+  - transcript_restored_not_rerun
+  - session_ended
+  - reconnect_available
+  - rerun_required
+  - context_unavailable
+  - live_session_continued
+
+claimed_profile_scope_vocabulary:
+  - all_claimed_desktop_profiles
+
+claimed_profile_ids:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+required_drills:
+  - drill_id: focus_routing_visible_return
+    title: Focus routing keeps the working region visible
+    required_for:
+      - split_layout
+      - detached_window
+      - display_topology_change
+      - mixed_dpi
+      - fullscreen_or_snapped_restore
+      - offscreen_recovery
+      - suspend_resume
+      - restart_reopen
+    must_prove:
+      - focus stays window-local unless the user explicitly changes windows
+      - reflow, recenter, and reopen never land focus on a hidden or unreachable pane
+      - the next useful keyboard target stays visible after any topology change
+  - drill_id: dialog_ownership_window_local
+    title: Dialog ownership remains attached to the owning window
+    required_for:
+      - detached_window
+      - display_topology_change
+      - mixed_dpi
+      - fullscreen_or_snapped_restore
+      - offscreen_recovery
+    must_prove:
+      - modal ownership follows the originating window after move, scale, or reconnect
+      - dismiss, cancel, and confirm return focus to the owning surface
+      - dialogs never reopen on a background or unreachable window
+  - drill_id: placeholder_hydration_preserves_topology
+    title: Missing surfaces preserve pane slots and surrounding layout
+    required_for:
+      - suspend_resume
+      - restart_reopen
+    must_prove:
+      - only the unavailable pane degrades to placeholder or evidence-only state
+      - pane ids, tab order, and split intent remain intact
+      - recovery actions expose reconnect, reauthenticate, install, export, or remove
+  - drill_id: restore_provenance_visible_after_reopen
+    title: Restore provenance remains visible after reopen or wake
+    required_for:
+      - display_topology_change
+      - mixed_dpi
+      - fullscreen_or_snapped_restore
+      - suspend_resume
+      - restart_reopen
+    must_prove:
+      - continuity level stays explicit using exact_restore, compatible_restore, layout_only, evidence_only, or no_restore
+      - topology remaps and missing-target states are recorded when they materially changed continuity
+      - users can inspect or export restore details without reading logs
+  - drill_id: no_hidden_rerun_live_surfaces
+    title: Live surfaces never rerun or reauthorize in the background
+    required_for:
+      - suspend_resume
+      - restart_reopen
+    must_prove:
+      - terminals, tasks, debuggers, notebooks, previews, AI, and remote panes disclose transcript_restored_not_rerun, reconnect_available, rerun_required, session_ended, context_unavailable, or live_session_continued
+      - suspend/resume and reopen paths do not silently replay privileged or remote work
+      - authority rebind happens only after trust, policy, and connection revalidation
+
+cadence_guidance:
+  targeted_change_validation: >
+    Any change touching window topology, monitor moves, DPI, focus,
+    restore, dialogs, remote rebind, or live-surface resume runs the
+    affected scenario rows on the affected claimed profiles.
+  release_candidate_validation: >
+    Every scenario row and every required drill runs on every claimed
+    profile before desktop claim wording widens or ships.
+
+planning_bindings:
+  - path: artifacts/planning/m1_m2_work_breakdown.yaml
+    usage: >
+      Claimed dogfood rows for suspend/resume, mixed-DPI, and
+      multi-monitor continuity attach directly to these scenario ids and
+      drill ids without renaming them.
+  - path: docs/planning/m1_m2_dependency_backlog.md
+    usage: >
+      Supportability and public-truth planning cite this matrix as the
+      stable vocabulary for future evidence packets, not as a fresh
+      checklist to rewrite.
+
+claimed_profile_notes:
+  - profile_id: macos_15_plus_universal
+    monitor_topology_note: >
+      Claim-bearing topology rows include Spaces/fullscreen changes,
+      display detach and redock, and sleep/wake display reconnect on
+      Quartz / WindowServer. Safe-bounds remap and visible focus beat
+      stale coordinates.
+    mixed_dpi_note: >
+      Retina and non-Retina moves must preserve readable scale, avoid
+      stranding sheets, and keep the active pane visible after scale
+      bucket changes.
+    laptop_power_note: >
+      On battery-backed macOS hardware, lid-close or sleep/wake paths
+      must revalidate callback ownership, remote state, and monitor
+      topology before any privileged resume.
+  - profile_id: windows_11_23h2_plus_x86_64
+    monitor_topology_note: >
+      Claim-bearing topology rows include docking, undocking, snapped
+      layouts, taskbar/fullscreen transitions, and wake/display
+      reconnect under DWM / Win32 windowing.
+    mixed_dpi_note: >
+      Per-monitor DPI changes are normative on this row. Restore must
+      preserve pane intent, snapped adjacency, and dialog ownership
+      without relying on stale pixel rectangles.
+    laptop_power_note: >
+      On portable Windows hardware, suspend/resume may restore layout
+      and transcript context, but remote, callback, and debug authority
+      must rebind explicitly.
+  - profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    monitor_topology_note: >
+      GNOME Wayland topology claims cover portal-aware display changes,
+      monitor detach, and display reconnect while preserving visible
+      focus and safe recovery actions.
+    mixed_dpi_note: >
+      Fractional scaling changes must preserve readable scale and window
+      reachability even when compositor behavior narrows exact geometry
+      replay.
+    laptop_power_note: >
+      When this claimed row runs on laptop hardware, suspend/resume must
+      keep local-safe continuation explicit and require reconnect or
+      reapproval for remote work after wake.
+  - profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    monitor_topology_note: >
+      GNOME X11 claims remain explicit about monitor-topology changes
+      and off-screen recovery instead of assuming Wayland behavior.
+      Visible recovery outranks coordinate fidelity.
+    mixed_dpi_note: >
+      Mixed-DPI or fractional-scale behavior may be narrower than the
+      Wayland row, but any claimed scenario still must keep panes,
+      sheets, and focus reachable.
+    laptop_power_note: >
+      Battery-backed X11 rows still require suspend/resume revalidation
+      of remote and privileged state before any live resume is claimed.
+  - profile_id: linux_fedora_current_gnome_wayland_x86_64
+    monitor_topology_note: >
+      Fedora GNOME Wayland uses the same monitor-topology discipline as
+      the Ubuntu Wayland row: safe-bounds remap, visible focus, and no
+      silent stranded windows under disconnect or reconnect.
+    mixed_dpi_note: >
+      Fractional scaling claims are compositor-scoped and must keep the
+      active pane, owner dialog, and reflowed inspectors visible after a
+      monitor move.
+    laptop_power_note: >
+      On portable Fedora hardware, wake paths may continue local-safe
+      work but must revalidate remote authority and display topology
+      before live continuation is shown.
+  - profile_id: linux_debian_stable_gnome_x11_x86_64
+    monitor_topology_note: >
+      Debian GNOME X11 remains the narrowest Linux claim row, but
+      claimed topology scenarios still require explicit off-screen
+      recovery and reachable dialog ownership.
+    mixed_dpi_note: >
+      Mixed-DPI or scaling adjustments may degrade to layout-only
+      recovery when compositor exactness narrows, but layout intent and
+      visible focus remain mandatory.
+    laptop_power_note: >
+      If this row is exercised on battery-backed hardware,
+      suspend/resume must preserve local context while keeping reconnect
+      or rerun requirements visible for live surfaces.
+
+scenario_rows:
+  - scenario_id: split_layout_detached_auxiliary_focus
+    title: Split layout and detached auxiliary window keep focus and role
+    status: seeded
+    scenario_classes:
+      - split_layout
+      - detached_window
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      A user detaches and re-docks a secondary preview or inspector
+      window while the main workspace window remains open.
+    layout_intent_contract:
+      preserve:
+        - split hierarchy and pane order
+        - detached-window role
+        - active tab and inspector docking intent
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: no_restore
+    restore_provenance_expectation: not_required_live_change
+    focus_visibility_rule: preserve_primary_focus_visible
+    authority_rebind_posture: no_live_authority_rebind_needed
+    safe_recovery_actions:
+      - Re-dock window
+      - Move focus to last active editor
+      - Close auxiliary window
+    required_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+    fixture_ref: fixtures/platform/window_display_cases/split_layout_detached_auxiliary_focus.json
+
+  - scenario_id: display_detach_dock_safe_bounds
+    title: Display detach or dock change snaps windows into safe bounds
+    status: seeded
+    scenario_classes:
+      - display_topology_change
+      - offscreen_recovery
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      A monitor is removed, added, or redocked while one or more windows
+      previously occupied the changed display set.
+    layout_intent_contract:
+      preserve:
+        - window family roles
+        - relative focus priority
+        - reachable primary working pane
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: no_restore
+    restore_provenance_expectation: topology_adjustment_note_required
+    focus_visibility_rule: preserve_primary_focus_visible
+    authority_rebind_posture: no_live_authority_rebind_needed
+    safe_recovery_actions:
+      - Move all windows to primary display
+      - Review layout
+      - Restore detached window
+    required_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    fixture_ref: fixtures/platform/window_display_cases/display_detach_dock_safe_bounds.json
+
+  - scenario_id: mixed_dpi_cross_monitor_reflow
+    title: Mixed-DPI cross-monitor moves preserve readable scale and intent
+    status: seeded
+    scenario_classes:
+      - mixed_dpi
+      - display_topology_change
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      A window crosses displays with different scale factors or the OS
+      changes the per-monitor DPI bucket while the workspace stays open.
+    layout_intent_contract:
+      preserve:
+        - pane ordering and active tab
+        - readable scale bucket for chrome and editor
+        - inspector and sheet ownership
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: no_restore
+    restore_provenance_expectation: topology_adjustment_note_required
+    focus_visibility_rule: keep_recovery_actions_keyboard_reachable
+    authority_rebind_posture: no_live_authority_rebind_needed
+    safe_recovery_actions:
+      - Re-center window
+      - Review layout
+      - Keep current pane visible
+    required_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    fixture_ref: fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+
+  - scenario_id: fullscreen_snapped_restore_intent
+    title: Fullscreen or snapped restore preserves working intent
+    status: seeded
+    scenario_classes:
+      - fullscreen_or_snapped_restore
+      - restart_reopen
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      Aureline reopens after the OS cleared, rewrote, or narrowed a
+      prior fullscreen, snapped, or desktop-space arrangement.
+    layout_intent_contract:
+      preserve:
+        - dominant work mode intent
+        - reachable active pane and inspectors
+        - window role relative to sibling windows
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: compatible_restore
+    restore_provenance_expectation: visible_after_reopen
+    focus_visibility_rule: preserve_primary_focus_visible
+    authority_rebind_posture: no_live_authority_rebind_needed
+    safe_recovery_actions:
+      - Exit fullscreen or snapped mode
+      - Move to primary display
+      - Review layout
+    required_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    fixture_ref: fixtures/platform/window_display_cases/fullscreen_snapped_restore_intent.json
+
+  - scenario_id: offscreen_dialog_owner_recenter
+    title: Off-screen dialogs and sheets recenter on the owning window
+    status: seeded
+    scenario_classes:
+      - offscreen_recovery
+      - detached_window
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      A dialog, sheet, or child window would reopen off-screen because
+      its prior monitor or safe bounds no longer exist.
+    layout_intent_contract:
+      preserve:
+        - dialog ownership
+        - owning pane context
+        - keyboard-visible recovery path
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: no_restore
+    restore_provenance_expectation: topology_adjustment_note_required
+    focus_visibility_rule: return_to_dialog_owner_visible
+    authority_rebind_posture: no_live_authority_rebind_needed
+    safe_recovery_actions:
+      - Recenter dialog
+      - Move owner window to primary display
+      - Cancel or dismiss
+    required_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    fixture_ref: fixtures/platform/window_display_cases/offscreen_dialog_owner_recenter.json
+
+  - scenario_id: suspend_resume_remote_rebind
+    title: Suspend and resume preserve local context but rebind authority
+    status: seeded
+    scenario_classes:
+      - suspend_resume
+      - display_topology_change
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      A battery-backed machine sleeps and wakes while remote, debug,
+      task, or preview surfaces are present and the display topology may
+      have changed.
+    layout_intent_contract:
+      preserve:
+        - pane tree and detached-window roles
+        - dirty-buffer visibility and local context
+        - recent focus chain if the target remains visible
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: compatible_restore
+    restore_provenance_expectation: visible_after_reopen
+    focus_visibility_rule: preserve_primary_focus_visible
+    authority_rebind_posture: live_authority_rebind_required
+    restorable_context:
+      - editor tabs and dirty markers
+      - terminal transcript, title, and cwd hints
+      - task output and preview provenance
+    live_authority_requires_reauthorization:
+      - remote attach or forwarded-service grants
+      - debug control channel
+      - browser callback or approval ticket state
+    expected_missing_target_states:
+      - authority_expired_for_remote
+      - topology_changed
+    session_execution_postures:
+      - surface_class: terminal_pane
+        posture: reconnect_available
+      - surface_class: task_runner
+        posture: rerun_required
+      - surface_class: debug_session
+        posture: reconnect_available
+      - surface_class: preview_route
+        posture: context_unavailable
+    safe_recovery_actions:
+      - Continue local
+      - Reconnect
+      - Reauthenticate
+      - Export restore details
+    required_drills:
+      - focus_routing_visible_return
+      - placeholder_hydration_preserves_topology
+      - restore_provenance_visible_after_reopen
+      - no_hidden_rerun_live_surfaces
+    fixture_ref: fixtures/platform/window_display_cases/suspend_resume_remote_rebind.json
+
+  - scenario_id: restart_reopen_live_surface_rebind
+    title: Restart and reopen recover context without hidden reruns
+    status: seeded
+    scenario_classes:
+      - restart_reopen
+      - split_layout
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      Aureline reopens a prior session that included terminal, task,
+      debug, notebook, or collaboration surfaces.
+    layout_intent_contract:
+      preserve:
+        - pane ids and tab order
+        - detached-window family membership
+        - visible role badges and provenance labels
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: compatible_restore
+    restore_provenance_expectation: visible_after_reopen
+    focus_visibility_rule: preserve_primary_focus_visible
+    authority_rebind_posture: live_authority_rebind_required
+    restorable_context:
+      - terminal transcripts and cwd hints
+      - task or test output lineage
+      - notebook layout and last kernel label
+      - collaboration role badges
+    live_authority_requires_reauthorization:
+      - live terminal process control
+      - debug adapter control
+      - notebook kernel execution
+      - remote or collaboration session control
+    expected_missing_target_states:
+      - binary_or_extension_version_changed
+      - schema_migrated
+    session_execution_postures:
+      - surface_class: terminal_pane
+        posture: transcript_restored_not_rerun
+      - surface_class: task_runner
+        posture: rerun_required
+      - surface_class: debug_session
+        posture: session_ended
+      - surface_class: notebook_pane
+        posture: rerun_required
+      - surface_class: collaboration_session
+        posture: reconnect_available
+    safe_recovery_actions:
+      - Reconnect
+      - Rerun
+      - Open transcript
+      - Review restore provenance
+    required_drills:
+      - focus_routing_visible_return
+      - restore_provenance_visible_after_reopen
+      - no_hidden_rerun_live_surfaces
+    fixture_ref: fixtures/platform/window_display_cases/restart_reopen_live_surface_rebind.json
+
+  - scenario_id: restart_reopen_missing_dependency_placeholder
+    title: Restart and reopen keep missing panes as placeholders
+    status: seeded
+    scenario_classes:
+      - restart_reopen
+      - detached_window
+    claimed_profile_scope: all_claimed_desktop_profiles
+    trigger_summary: >
+      Aureline reopens after an extension host disappeared, a remote
+      target is unavailable, or authority was revoked for a live pane.
+    layout_intent_contract:
+      preserve:
+        - pane ids and tab order
+        - surrounding split and detached-window structure
+        - provenance and last-known surface title
+      raw_coordinate_policy: safe_bounds_and_focus_visibility_over_pixels
+    continuity_level_expectation: layout_only
+    restore_provenance_expectation: visible_after_reopen
+    focus_visibility_rule: keep_recovery_actions_keyboard_reachable
+    authority_rebind_posture: evidence_only_until_reauthorized
+    restorable_context:
+      - pane slot and title
+      - transcript or evidence summary
+      - restore provenance label
+    live_authority_requires_reauthorization:
+      - missing extension install
+      - remote reconnect and reauth
+      - revoked permission review
+    expected_missing_target_states:
+      - missing_extension_host
+      - missing_remote_target
+      - authority_expired_for_remote
+      - policy_blocked_restore
+    session_execution_postures:
+      - surface_class: extension_view
+        posture: context_unavailable
+      - surface_class: remote_shell
+        posture: context_unavailable
+      - surface_class: notebook_pane
+        posture: context_unavailable
+    safe_recovery_actions:
+      - Install extension
+      - Reconnect target
+      - Open without surface
+      - Export evidence
+      - Remove pane
+    required_drills:
+      - focus_routing_visible_return
+      - placeholder_hydration_preserves_topology
+      - restore_provenance_visible_after_reopen
+      - no_hidden_rerun_live_surfaces
+    fixture_ref: fixtures/platform/window_display_cases/restart_reopen_missing_dependency_placeholder.json

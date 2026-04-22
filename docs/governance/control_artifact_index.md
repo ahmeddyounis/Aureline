@@ -167,6 +167,12 @@ governance-packet template. The index only names, routes, and scopes.
   validation methods, and explicitly unclaimed lanes. Release and
   support wording should cite those rows rather than saying
   "desktop-supported" generically.
+- The window/display verification matrix seed lives under
+  [`/artifacts/qa/window_display_matrix.yaml`](../../artifacts/qa/window_display_matrix.yaml)
+  with narrative guidance in
+  [`/docs/qa/multi_window_verification.md`](../qa/multi_window_verification.md).
+  Claimed window/session continuity evidence should cite those scenario
+  and drill ids rather than shipping a per-release topology checklist.
 - Release completeness is no longer implicit. The canonical graph and
   machine-readable rules now live in
   [`docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)
