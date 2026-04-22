@@ -105,6 +105,16 @@ code.
   — methodology-only versus claim-bearing publication rules and
   head-to-head comparison disclosure requirements.
 
+## Platform conformance
+
+- [`platform/desktop_platform_conformance_matrix.md`](./platform/desktop_platform_conformance_matrix.md)
+  — claimed macOS, Windows, and Linux desktop profile roster plus the
+  per-surface owner, validation method, release bar, deployment-path
+  narrowing, and explicitly unclaimed lane matrix that release, support,
+  accessibility, and compatibility packets cite.
+  Machine-readable companion in
+  [`/artifacts/platform/claimed_desktop_profiles.yaml`](../artifacts/platform/claimed_desktop_profiles.yaml).
+
 ## Planning
 
 - [`planning/m1_m2_dependency_backlog.md`](./planning/m1_m2_dependency_backlog.md)

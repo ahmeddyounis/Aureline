@@ -161,6 +161,12 @@ governance-packet template. The index only names, routes, and scopes.
   anchor points for release assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
+- The desktop-platform conformance matrix and claimed-desktop-profile
+  registry are now the canonical home for named macOS, Windows, and
+  Linux claims, platform-owned primitives, deployment-path narrowings,
+  validation methods, and explicitly unclaimed lanes. Release and
+  support wording should cite those rows rather than saying
+  "desktop-supported" generically.
 - Release completeness is no longer implicit. The canonical graph and
   machine-readable rules now live in
   [`docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)

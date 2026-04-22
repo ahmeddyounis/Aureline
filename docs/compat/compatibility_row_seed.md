@@ -97,6 +97,7 @@ collapsed into one vague "not ideal" state.
 | `compat_row:remote.attach_envelope_and_drift` | `boundary.remote.agent_attach_envelope` | Seeds remote-agent attach, reconnect, and staged-upgrade truth. | `degraded` |
 | `compat_row:tooling.task_event_envelope` | `boundary.tooling.task_event_envelope` | Reserves one compatibility row for canonical task-event envelopes even before the dedicated schema export lands. | `fail_closed` |
 | `compat_row:provider.service_api_and_browser_handoff` | `boundary.provider.service_api_family` | Covers provider-linked lanes, browser handoff, and future optional service-API families. | `read_only` |
+| `compat_row:desktop.platform_conformance_profiles` | `boundary.desktop.claimed_platform_profiles` | Keeps named desktop-profile claims, deployment narrowings, and platform-owned primitives on one canonical registry instead of prose-only OS wording. | `degraded` |
 | `compat_row:certification.launch_archetype_matrix` | `boundary.certification.launch_archetype_matrix` | Links certified-archetype and launch-language claims to current reference-workspace evidence. | `degraded` |
 
 ## How later artifacts use these rows
@@ -137,6 +138,12 @@ Install-topology, boundary, and deployment-profile artifacts should cite
 the row id plus the named deployment profiles already attached to the
 row. That avoids profile-local aliases such as "desktop compatible" or
 "enterprise supported" with no stable backing id.
+
+Desktop-platform conformance material should do the same: release notes,
+support exports, and accessibility/review packets should cite
+`compat_row:desktop.platform_conformance_profiles` plus the named
+profile ids from the claimed-profile registry instead of saying only
+"macOS", "Windows", or "Linux" in free text.
 
 ## Change discipline
 

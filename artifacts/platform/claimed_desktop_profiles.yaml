@@ -1,0 +1,1556 @@
+# Claimed desktop profiles and platform-conformance rows.
+#
+# Machine-readable companion to docs/platform/desktop_platform_conformance_matrix.md.
+# This file binds one named claimed-profile roster, one deployment-pattern
+# support table, and one platform-owned primitive row set so release,
+# support, accessibility, and compatibility packets do not invent a second
+# desktop truth model.
+#
+# Rules.
+#   - A desktop claim is the tuple of platform profile, deployment pattern,
+#     and surface row. "macOS", "Windows", or "Linux" alone is not a claim.
+#   - Linux rows MUST name the tested display stack and secret-store
+#     assumption explicitly; "Linux" without the profile row is
+#     non-conforming.
+#   - System-browser-first auth is normative on every claimed row.
+#     Embedded password collection is outside the claim unless a separately
+#     approved exception row exists under the embedded-surface boundary
+#     contract.
+#   - Portable rows MUST NOT silently widen into default-handler, machine-
+#     global recent-item, or machine-global update ownership.
+#   - Unsupported or unclaimed lanes are recorded explicitly; omission is
+#     not support.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/platform/desktop_platform_conformance_matrix.md
+install_topology_source: artifacts/release/install_topology_matrix.yaml
+compatibility_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_source: artifacts/compat/version_skew_register.yaml
+ownership_matrix_source: artifacts/governance/ownership_matrix.yaml
+quiet_hours_source: artifacts/ux/quiet_hours_policy_matrix.yaml
+interruptibility_source: artifacts/ux/interruptibility_escalation_seed.yaml
+secret_broker_source: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+browser_handoff_source: docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+embedded_boundary_source: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix AA Desktop-Platform Conformance Matrix"
+      - "desktop-platform rules"
+      - "desktop integration and handoff contract"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "6.7 Platform, architecture, and packaging contract"
+      - "6.20 Qualification-matrix and version-skew contract"
+      - "7.9 Native desktop integration, continuity, and interruption-budget bars"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "6.6 Multi-window and multi-monitor behavior"
+      - "Native desktop integration, deep-link, and system-affordance contract"
+      - "23.41 International text/input, IME, bidi, and locale-pack drills"
+      - "23.42 Desktop-platform, dependency-safety, and storage-discipline drills"
+
+claim_status_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+release_bar_vocabulary:
+  - stable_blocker
+  - claimed_profile_blocker
+  - claimed_enterprise_support_blocker
+  - release_candidate_blocker
+
+profiles:
+  - profile_id: macos_15_plus_universal
+    label: macOS 15+ universal desktop profile
+    platform_class: macos
+    architecture_class: universal_binary
+    os_floor: macOS 15
+    display_stack:
+      assumption: Quartz / WindowServer with Spaces and fullscreen
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through Launch Services callback ownership
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: System Settings proxy and PAC resolution
+      assurance: normative
+    trust_store:
+      assumption: System Roots plus user/admin-imported keychains and configuration profiles
+      assurance: normative
+    secret_store:
+      assumption: Keychain Services
+      assurance: normative
+    ime_path:
+      assumption: macOS Text Input Services and system IMEs
+      assurance: normative
+    package_paths:
+      claimed:
+        - pkg_installer
+        - notarized_dmg
+        - portable_app_bundle_zip
+      best_effort:
+        - homebrew_cask
+      unclaimed:
+        - offline_bundle
+    deployment_hooks:
+      assumption: signed installer or package hooks plus previewable Launch Services ownership changes
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.macos.universal_binary.per_user_installed.stable
+          - card.macos.universal_binary.per_machine_installed.stable
+        field_support_notes: >
+          Claim-bearing macOS direct-install row. Launch Services handler
+          ownership, system-browser callback return, native dialogs, and
+          Keychain-backed session claims attach here.
+      managed_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.macos.universal_binary.managed_deployed.stable
+        field_support_notes: >
+          Managed macOS row uses the same desktop primitives as the direct
+          row, with package ownership and admin policy injection widened.
+      portable_install:
+        support_class: claimed_narrow
+        install_profile_card_refs:
+          - card.macos.universal_binary.portable.portable_stable
+        field_support_notes: >
+          Portable macOS claim is narrower by design: no machine-global
+          handler ownership, recent-item ownership, or package-manager
+          update semantics.
+      offline_bundle_or_customer_mirror:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          macOS offline-bundle and customer-mirror lanes are intentionally
+          outside the current claimed row set.
+      external_package_manager:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.macos.universal_binary.external_package_manager.stable
+        field_support_notes: >
+          Homebrew-owned update and install paths may work, but they do not
+          widen the claim-bearing macOS stable row or the default-handler
+          ownership posture.
+
+  - profile_id: windows_11_23h2_plus_x86_64
+    label: Windows 11 23H2+ x86_64 desktop profile
+    platform_class: windows
+    architecture_class: x86_64
+    os_floor: Windows 11 23H2
+    display_stack:
+      assumption: DWM / Win32 windowing with per-monitor DPI restore
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through registered protocol or loopback-safe callback path
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: WinHTTP and WinINET effective proxy and PAC resolution
+      assurance: normative
+    trust_store:
+      assumption: Current User and Local Machine certificate stores with enterprise CA handling
+      assurance: normative
+    secret_store:
+      assumption: Credential Manager and DPAPI-backed secure storage
+      assurance: normative
+    ime_path:
+      assumption: TSF/IME, AltGr, and dead-key input path
+      assurance: normative
+    package_paths:
+      claimed:
+        - msi_per_user
+        - msi_per_machine
+        - msix_per_machine
+        - signed_portable_zip
+        - signed_offline_bundle_zip
+      best_effort: []
+      unclaimed:
+        - winget_external_package_manager
+        - windows_arm64_package_path
+    deployment_hooks:
+      assumption: signed installer, offline bundle, managed deployment, and rollback evidence hooks
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.windows.x86_64.per_user_installed.stable
+          - card.windows.x86_64.per_machine_installed.stable
+        field_support_notes: >
+          Claim-bearing Windows direct row for protocol ownership,
+          SmartScreen-safe packaging, native dialogs, and shell reopen.
+      managed_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.windows.x86_64.managed_deployed.stable
+        field_support_notes: >
+          Managed Windows row widens the update path and admin policy
+          posture, but keeps the same shell and callback primitives.
+      portable_install:
+        support_class: claimed_narrow
+        install_profile_card_refs:
+          - card.windows.x86_64.portable.portable_stable
+        field_support_notes: >
+          Portable Windows claim excludes machine-global handler ownership,
+          machine-global recent items, and ambient updater claims.
+      offline_bundle_or_customer_mirror:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.windows.x86_64.offline_bundle.stable
+        field_support_notes: >
+          Offline-bundle Windows row is claim-bearing for install,
+          diagnostics, and rollback evidence, but still follows explicit
+          handler-ownership preview rules.
+      external_package_manager:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          `winget` is intentionally outside the current claimed row set
+          until it has a dedicated install card and support diagnostics
+          path.
+
+  - profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    label: Ubuntu 24.04 LTS GNOME Wayland x86_64 desktop profile
+    platform_class: linux
+    architecture_class: x86_64
+    os_floor: Ubuntu 24.04 LTS
+    display_stack:
+      assumption: GNOME Wayland with xdg-desktop-portal
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through xdg-open or portal plus desktop-file callback return
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: GNOME proxy settings plus launcher environment when present
+      assurance: normative
+    trust_store:
+      assumption: Ubuntu CA bundle plus enterprise CA import through distro trust tooling
+      assurance: normative
+    secret_store:
+      assumption: Secret Service via libsecret and GNOME Keyring
+      assurance: normative
+    ime_path:
+      assumption: IBus on the claimed GNOME session
+      assurance: normative
+    package_paths:
+      claimed:
+        - tarball_per_user
+        - appimage_portable
+        - managed_deployed_package
+        - signed_offline_bundle_tarball
+        - customer_mirror_distro_package
+      best_effort:
+        - distribution_native_package_manager
+      unclaimed:
+        - kwallet_secret_store_row
+        - non_gnome_desktop_environment_row
+    deployment_hooks:
+      assumption: direct tarball/AppImage, managed deploy, offline bundle, and customer-mirror hooks on the named Ubuntu Wayland profile
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        field_support_notes: >
+          Claim-bearing Ubuntu Wayland direct row. Portal-aware file
+          chooser, default-browser callback, and GNOME notification
+          semantics attach here.
+      managed_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.linux.x86_64.managed_deployed.stable
+        field_support_notes: >
+          Managed Linux widening is claim-bearing only on the named
+          Ubuntu Wayland profile.
+      portable_install:
+        support_class: claimed_narrow
+        install_profile_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        field_support_notes: >
+          Portable Linux claim is narrower by design and does not widen
+          machine-global handler ownership or distro package-manager
+          support.
+      offline_bundle_or_customer_mirror:
+        support_class: claimed_narrow
+        install_profile_card_refs:
+          - card.linux.x86_64.offline_bundle.stable
+          - card.linux.x86_64.customer_managed_mirror.stable
+        field_support_notes: >
+          Offline-bundle and customer-mirror Linux claims are currently
+          tied to the named Ubuntu Wayland profile only.
+      external_package_manager:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        field_support_notes: >
+          Distro-native package-manager rows may work, but they do not
+          widen the claim-bearing Ubuntu Wayland stable row.
+
+  - profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    label: Ubuntu 24.04 LTS GNOME X11 x86_64 desktop profile
+    platform_class: linux
+    architecture_class: x86_64
+    os_floor: Ubuntu 24.04 LTS
+    display_stack:
+      assumption: GNOME X11
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through xdg-open plus desktop-file callback return
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: GNOME proxy settings plus launcher environment when present
+      assurance: normative
+    trust_store:
+      assumption: Ubuntu CA bundle plus enterprise CA import through distro trust tooling
+      assurance: normative
+    secret_store:
+      assumption: Secret Service via libsecret and GNOME Keyring
+      assurance: normative
+    ime_path:
+      assumption: IBus on the claimed GNOME session
+      assurance: normative
+    package_paths:
+      claimed:
+        - tarball_per_user
+        - appimage_portable
+      best_effort:
+        - distribution_native_package_manager
+      unclaimed:
+        - managed_deployed_package
+        - signed_offline_bundle_tarball
+        - customer_mirror_distro_package
+        - kwallet_secret_store_row
+    deployment_hooks:
+      assumption: direct tarball/AppImage hooks on the named Ubuntu X11 profile
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        field_support_notes: >
+          Ubuntu X11 is a direct local-use claim row only.
+      managed_install:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Managed Linux widening is not claimed on the Ubuntu X11 row.
+      portable_install:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        field_support_notes: >
+          Portable Linux may work on Ubuntu X11, but support/export copy
+          may not widen the claim beyond the named Ubuntu Wayland row.
+      offline_bundle_or_customer_mirror:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Offline-bundle and customer-mirror widening are outside the
+          Ubuntu X11 claim.
+      external_package_manager:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        field_support_notes: >
+          Distro-native package-manager lanes are best-effort only.
+
+  - profile_id: linux_fedora_current_gnome_wayland_x86_64
+    label: Fedora current GNOME Wayland x86_64 desktop profile
+    platform_class: linux
+    architecture_class: x86_64
+    os_floor: Fedora current
+    display_stack:
+      assumption: GNOME Wayland with xdg-desktop-portal
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through xdg-open or portal plus desktop-file callback return
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: GNOME proxy settings plus launcher environment when present
+      assurance: normative
+    trust_store:
+      assumption: Fedora CA bundle plus enterprise CA import through distro trust tooling
+      assurance: normative
+    secret_store:
+      assumption: Secret Service via libsecret and GNOME Keyring
+      assurance: normative
+    ime_path:
+      assumption: IBus on the claimed GNOME session
+      assurance: normative
+    package_paths:
+      claimed:
+        - tarball_per_user
+        - appimage_portable
+      best_effort:
+        - distribution_native_package_manager
+      unclaimed:
+        - managed_deployed_package
+        - signed_offline_bundle_tarball
+        - customer_mirror_distro_package
+        - kwallet_secret_store_row
+    deployment_hooks:
+      assumption: direct tarball/AppImage hooks on the named Fedora Wayland profile
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        field_support_notes: >
+          Fedora current is a direct local-use claim row only.
+      managed_install:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Managed Linux widening is not claimed on the Fedora Wayland
+          row.
+      portable_install:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.portable.portable_stable
+        field_support_notes: >
+          Portable Linux may work on Fedora Wayland, but support/export
+          copy may not widen the claim beyond the named Ubuntu Wayland
+          row.
+      offline_bundle_or_customer_mirror:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Offline-bundle and customer-mirror widening are outside the
+          Fedora Wayland claim.
+      external_package_manager:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        field_support_notes: >
+          Distro-native package-manager lanes are best-effort only.
+
+  - profile_id: linux_debian_stable_gnome_x11_x86_64
+    label: Debian stable GNOME X11 x86_64 desktop profile
+    platform_class: linux
+    architecture_class: x86_64
+    os_floor: Debian stable
+    display_stack:
+      assumption: GNOME X11
+      assurance: normative
+    browser_callback:
+      assumption: system default browser through xdg-open plus desktop-file callback return
+      assurance: normative
+      best_effort_notes:
+        - Named browser-family certification is not claimed separately from the default-browser path.
+    proxy_source:
+      assumption: GNOME proxy settings plus launcher environment when present
+      assurance: normative
+    trust_store:
+      assumption: Debian CA bundle plus enterprise CA import through distro trust tooling
+      assurance: normative
+    secret_store:
+      assumption: Secret Service via libsecret and GNOME Keyring
+      assurance: normative
+    ime_path:
+      assumption: IBus on the claimed GNOME session
+      assurance: normative
+    package_paths:
+      claimed:
+        - tarball_per_user
+      best_effort:
+        - appimage_portable
+        - distribution_native_package_manager
+      unclaimed:
+        - managed_deployed_package
+        - signed_offline_bundle_tarball
+        - customer_mirror_distro_package
+        - kwallet_secret_store_row
+    deployment_hooks:
+      assumption: tarball direct-install hooks on the named Debian X11 profile
+      assurance: normative
+    deployment_patterns:
+      individual_install:
+        support_class: claimed
+        install_profile_card_refs:
+          - card.linux.x86_64.per_user_installed.stable
+        field_support_notes: >
+          Debian stable is intentionally the narrowest Linux claim row.
+      managed_install:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Managed Linux widening is not claimed on the Debian stable row.
+      portable_install:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Portable Linux widening is not claimed on the Debian stable
+          row.
+      offline_bundle_or_customer_mirror:
+        support_class: unclaimed
+        install_profile_card_refs: []
+        field_support_notes: >
+          Offline-bundle and customer-mirror widening are outside the
+          Debian stable claim.
+      external_package_manager:
+        support_class: best_effort
+        install_profile_card_refs:
+          - card.linux.x86_64.external_package_manager.stable
+        field_support_notes: >
+          Distro-native package-manager lanes are best-effort only.
+
+conformance_rows:
+  - row_id: desktop_conformance.macos.keyboard_notation_and_menu_accelerators
+    surface_id: keyboard_notation_and_menu_accelerators
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: macOS modifier glyphs plus the app menu and global menu bar
+    validation_method: keyboard-path review plus manual macOS menu smoke
+    release_bar: stable_blocker
+    claimed_behavior: Menus and accelerator labels use macOS-native notation and routing.
+    known_narrowings:
+      - Non-default keymap translation is outside this row.
+
+  - row_id: desktop_conformance.macos.window_chrome_and_menu_model
+    surface_id: window_chrome_and_menu_model
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: titlebar traffic lights, fullscreen affordance, and menu-bar ownership
+    validation_method: window chrome smoke plus fullscreen/Spaces drill
+    release_bar: stable_blocker
+    claimed_behavior: Window chrome and shell affordances map to host expectations.
+    known_narrowings:
+      - Portable lane may narrow dock ownership, but not titlebar or menu semantics.
+
+  - row_id: desktop_conformance.macos.file_path_and_path_separator_presentation
+    surface_id: file_path_and_path_separator_presentation
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: POSIX path grammar, volume labels, and Finder-style display naming
+    validation_method: path-presentation review plus alias/canonical-path smoke
+    release_bar: stable_blocker
+    claimed_behavior: Human-facing path presentation stays macOS-native without hiding the literal target.
+    known_narrowings:
+      - Canonical-path truth still wins before risky writes.
+
+  - row_id: desktop_conformance.macos.native_open_save_dialog_routing
+    surface_id: native_open_save_dialog_routing
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: AppKit-native open and save dialogs
+    validation_method: dialog-routing smoke plus overwrite/recovery review
+    release_bar: stable_blocker
+    claimed_behavior: Native open/save flows preserve overwrite, read-only, and recovery disclosure.
+    known_narrowings:
+      - Remote/generated-path disclosure may narrow actions but must remain explicit.
+
+  - row_id: desktop_conformance.macos.system_open_reveal_in_shell_and_open_from_terminal
+    surface_id: system_open_reveal_in_shell_and_open_from_terminal
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Finder reveal, open-command handoff, and shell/drag-drop entry path
+    validation_method: integration smoke plus wrong-target drill
+    release_bar: stable_blocker
+    claimed_behavior: OS-level open and reveal actions land on the intended object with truthful recovery.
+    known_narrowings:
+      - Portable rows do not claim machine-global default-open ownership.
+
+  - row_id: desktop_conformance.macos.default_browser_callback_and_auth_return
+    surface_id: default_browser_callback_and_auth_return
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: Launch Services callback ownership for system-browser sign-in return
+    validation_method: origin-validation suite plus manual sign-in drill
+    release_bar: stable_blocker
+    claimed_behavior: System-browser auth return is attributable, scoped, and spoof-resistant.
+    known_narrowings:
+      - Named browser-family certification is best-effort outside the default-browser path.
+
+  - row_id: desktop_conformance.macos.deep_link_protocol_handler_and_system_affordance_interstitial
+    surface_id: deep_link_protocol_handler_and_system_affordance_interstitial
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: Launch Services protocol and file-handler validation plus widen-authority interstitial
+    validation_method: deep-link spoof-resistance drill plus review-link reopen smoke
+    release_bar: stable_blocker
+    claimed_behavior: Protocol and system-affordance entry paths preserve origin, action class, and scope.
+    known_narrowings:
+      - Portable installs may open handoff links but must not silently seize shared handler ownership.
+
+  - row_id: desktop_conformance.macos.embedded_auth_boundary_and_device_code_fallback
+    surface_id: embedded_auth_boundary_and_device_code_fallback
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: system-browser-first auth with host-owned device-code and fallback state
+    validation_method: embedded-surface boundary audit plus browser/device-code drill
+    release_bar: stable_blocker
+    claimed_behavior: Claimed auth rows prefer the system browser and keep fallback truth host-owned.
+    known_narrowings:
+      - Embedded password collection is unclaimed unless an approved exception row exists.
+
+  - row_id: desktop_conformance.macos.proxy_pac_inheritance_and_route_source
+    surface_id: proxy_pac_inheritance_and_route_source
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: System Settings proxy and PAC resolution
+    validation_method: proxy/PAC lab plus route-inspection smoke
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Enterprise proxy and PAC inheritance remain inspectable and typed.
+    known_narrowings:
+      - Per-profile manual overrides may exist later but do not widen the inherited enterprise claim.
+
+  - row_id: desktop_conformance.macos.trust_store_enterprise_ca_and_client_certificate_handling
+    surface_id: trust_store_enterprise_ca_and_client_certificate_handling
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Keychain trust roots, config-profile CA import, and keychain-backed client-cert selection
+    validation_method: CA/client-cert lab plus certificate failure drill
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: CA and client-cert posture stays OS-backed with typed remediation.
+    known_narrowings:
+      - Raw private-key export is outside the claim by rule.
+
+  - row_id: desktop_conformance.macos.credential_store_lock_deny_and_session_only_degrade
+    surface_id: credential_store_lock_deny_and_session_only_degrade
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Keychain Services lock, deny, unavailable, and visible session-only fallback states
+    validation_method: keychain lock/deny drill plus session-only degradation audit
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Long-lived secrets remain OS-backed or explicitly degraded; plaintext fallback is forbidden.
+    known_narrowings:
+      - Session-only fallback is degraded, not parity.
+
+  - row_id: desktop_conformance.macos.ime_bidi_and_dead_key_input_path
+    surface_id: ime_bidi_and_dead_key_input_path
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: macOS text input services, dead keys, emoji path, and bidi composition
+    validation_method: IME/bidi corpus plus multilingual manual lab
+    release_bar: stable_blocker
+    claimed_behavior: IME, bidi, emoji, and dead-key behavior remain coherent across dense text surfaces.
+    known_narrowings:
+      - Multi-cursor composition narrowing must be explicit when coherent apply is not possible.
+
+  - row_id: desktop_conformance.macos.dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    surface_id: dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Retina scaling, monitor moves, fullscreen, and Spaces restore
+    validation_method: topology suite plus sleep/wake display drill
+    release_bar: stable_blocker
+    claimed_behavior: Visibility and focus survive monitor and workspace changes or offer explicit recovery.
+    known_narrowings:
+      - Off-screen recovery must be explicit; silent stranded windows are release-blocking.
+
+  - row_id: desktop_conformance.macos.os_notification_click_through_and_lock_screen_privacy
+    surface_id: os_notification_click_through_and_lock_screen_privacy
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+    platform_owned_primitive: Notification Center reopen target plus summary-only lock-screen copy by default
+    validation_method: notification privacy script plus reopen drill
+    release_bar: stable_blocker
+    claimed_behavior: Notification click-through reopens the authoritative object without leaking sensitive detail to the lock screen.
+    known_narrowings:
+      - Only one safe primary action is claim-bearing.
+
+  - row_id: desktop_conformance.macos.badge_semantics_and_quiet_hours_alignment
+    surface_id: badge_semantics_and_quiet_hours_alignment
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: design_system_seeds
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Dock badge and durable-attention count-class alignment
+    validation_method: quiet-hours matrix audit plus badge semantics review
+    release_bar: claimed_profile_blocker
+    claimed_behavior: Badge counts reflect durable queue truth and suppression policy.
+    known_narrowings:
+      - Mixed-class badge inflation is explicitly outside the claim.
+
+  - row_id: desktop_conformance.macos.theme_contrast_and_density_live_apply
+    surface_id: theme_contrast_and_density_live_apply
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: macOS appearance and contrast changes applied without restart where the platform allows
+    validation_method: theme/contrast live-apply smoke
+    release_bar: stable_blocker
+    claimed_behavior: Theme and contrast changes apply live on the claimed macOS row.
+    known_narrowings:
+      - Density-token changes may evolve later, but live apply is the current claim.
+
+  - row_id: desktop_conformance.macos.accessibility_bridge
+    surface_id: accessibility_bridge
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: AX API bridge for core editor, shell, and review surfaces
+    validation_method: accessibility regression suite
+    release_bar: stable_blocker
+    claimed_behavior: Core custom-rendered surfaces remain reachable through the macOS accessibility stack.
+    known_narrowings:
+      - Any custom surface without AX parity remains outside the stable claim.
+
+  - row_id: desktop_conformance.macos.wake_from_sleep_and_display_reconnect_revalidation
+    surface_id: wake_from_sleep_and_display_reconnect_revalidation
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: sleep/wake revalidation of callbacks, remote state, and display topology
+    validation_method: suspend/resume plus display-reconnect drill
+    release_bar: stable_blocker
+    claimed_behavior: Wake and reconnect paths preserve truthful state or require explicit revalidation.
+    known_narrowings:
+      - Privileged or remote actions must not replay automatically.
+
+  - row_id: desktop_conformance.macos.removable_volume_return_and_missing_root_recovery
+    surface_id: removable_volume_return_and_missing_root_recovery
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: placeholder, locate, cached-context, and close flow for missing volumes and later return
+    validation_method: missing-root plus removable-volume return drill
+    release_bar: stable_blocker
+    claimed_behavior: Missing removable roots degrade honestly and recover without silent target swap.
+    known_narrowings:
+      - The claim is truthful recovery, not auto-rewrite of target roots.
+
+  - row_id: desktop_conformance.macos.install_update_rollback_and_deployment_hooks
+    surface_id: install_update_rollback_and_deployment_hooks
+    platform_profile_refs: [macos_15_plus_universal]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: release_evidence
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: PKG/notarized-DMG install family, managed package hooks, and rollback evidence posture
+    validation_method: packaging-lane report plus install/update/rollback drill
+    release_bar: release_candidate_blocker
+    claimed_behavior: Deployment-hook and rollback claims on macOS attach only to the named direct and managed rows.
+    known_narrowings:
+      - Homebrew is best-effort only; offline-bundle lane is unclaimed.
+
+  - row_id: desktop_conformance.windows.keyboard_notation_and_menu_accelerators
+    surface_id: keyboard_notation_and_menu_accelerators
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: standard Windows accelerator notation and menu mnemonics
+    validation_method: keyboard-path review plus Windows shell smoke
+    release_bar: stable_blocker
+    claimed_behavior: Menus and accelerator labels use Windows-native notation and routing.
+    known_narrowings:
+      - AltGr correctness is governed by the IME row.
+
+  - row_id: desktop_conformance.windows.window_chrome_and_menu_model
+    surface_id: window_chrome_and_menu_model
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: DWM titlebar, system-menu conventions, and snap or fullscreen behavior
+    validation_method: window chrome smoke plus snap/docking drill
+    release_bar: stable_blocker
+    claimed_behavior: Window chrome and shell affordances map to host expectations.
+    known_narrowings:
+      - Preview and portable channels may coexist, but chrome semantics may not drift by channel.
+
+  - row_id: desktop_conformance.windows.file_path_and_path_separator_presentation
+    surface_id: file_path_and_path_separator_presentation
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: drive-letter, UNC, and backslash path presentation
+    validation_method: path-presentation review plus UNC/share smoke
+    release_bar: stable_blocker
+    claimed_behavior: Human-facing path presentation stays Windows-native without hiding the literal target.
+    known_narrowings:
+      - Canonical-path truth still wins before risky writes.
+
+  - row_id: desktop_conformance.windows.native_open_save_dialog_routing
+    surface_id: native_open_save_dialog_routing
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Windows common item dialogs with overwrite/read-only/trust disclosure
+    validation_method: dialog-routing smoke plus overwrite/recovery review
+    release_bar: stable_blocker
+    claimed_behavior: Native open/save flows preserve overwrite, read-only, and recovery disclosure.
+    known_narrowings:
+      - Generated or remote targets may narrow actions but must remain explicit.
+
+  - row_id: desktop_conformance.windows.system_open_reveal_in_shell_and_open_from_terminal
+    surface_id: system_open_reveal_in_shell_and_open_from_terminal
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Explorer reveal, shell open, and start-command or file-association handoff
+    validation_method: integration smoke plus wrong-target drill
+    release_bar: stable_blocker
+    claimed_behavior: OS-level open and reveal actions land on the intended object with truthful recovery.
+    known_narrowings:
+      - Portable rows must not claim machine-global recent-item or handler ownership.
+
+  - row_id: desktop_conformance.windows.default_browser_callback_and_auth_return
+    surface_id: default_browser_callback_and_auth_return
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: registered protocol or loopback-safe callback return from the default browser
+    validation_method: origin-validation suite plus manual sign-in drill
+    release_bar: stable_blocker
+    claimed_behavior: System-browser auth return is attributable, scoped, and spoof-resistant.
+    known_narrowings:
+      - Named browser-family certification is best-effort outside the default-browser path.
+
+  - row_id: desktop_conformance.windows.deep_link_protocol_handler_and_system_affordance_interstitial
+    surface_id: deep_link_protocol_handler_and_system_affordance_interstitial
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: registered app protocol plus widen-authority interstitial and wrong-target recovery
+    validation_method: deep-link spoof-resistance drill plus review-link reopen smoke
+    release_bar: stable_blocker
+    claimed_behavior: Protocol and system-affordance entry paths preserve origin, action class, and scope.
+    known_narrowings:
+      - Side-by-side channels must preview ownership changes; last-writer-wins is outside the claim.
+
+  - row_id: desktop_conformance.windows.embedded_auth_boundary_and_device_code_fallback
+    surface_id: embedded_auth_boundary_and_device_code_fallback
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: system-browser-first auth with host-owned fallback sheet
+    validation_method: embedded-surface boundary audit plus browser/device-code drill
+    release_bar: stable_blocker
+    claimed_behavior: Claimed auth rows prefer the system browser and keep fallback truth host-owned.
+    known_narrowings:
+      - Embedded password collection is unclaimed unless an approved exception row exists.
+
+  - row_id: desktop_conformance.windows.proxy_pac_inheritance_and_route_source
+    surface_id: proxy_pac_inheritance_and_route_source
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: WinHTTP and WinINET effective proxy and PAC resolution
+    validation_method: proxy/PAC lab plus route-inspection smoke
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Enterprise proxy and PAC inheritance remain inspectable and typed.
+    known_narrowings:
+      - Manual per-process override does not widen the system-inherited claim.
+
+  - row_id: desktop_conformance.windows.trust_store_enterprise_ca_and_client_certificate_handling
+    surface_id: trust_store_enterprise_ca_and_client_certificate_handling
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Current User and Local Machine certificate stores plus enterprise CA import and client-cert selection
+    validation_method: CA/client-cert lab plus certificate failure drill
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: CA and client-cert posture stays OS-backed with typed remediation.
+    known_narrowings:
+      - Raw private-key export is outside the claim by rule.
+
+  - row_id: desktop_conformance.windows.credential_store_lock_deny_and_session_only_degrade
+    surface_id: credential_store_lock_deny_and_session_only_degrade
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Credential Manager or DPAPI-backed storage with visible deny, unavailable, and session-only states
+    validation_method: credential-store lock/deny drill plus session-only degradation audit
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Long-lived secrets remain OS-backed or explicitly degraded; plaintext fallback is forbidden.
+    known_narrowings:
+      - Session-only fallback remains degraded and must be visibly labeled.
+
+  - row_id: desktop_conformance.windows.ime_bidi_and_dead_key_input_path
+    surface_id: ime_bidi_and_dead_key_input_path
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: TSF, IME, AltGr, dead keys, and bidi composition
+    validation_method: IME/bidi corpus plus multilingual manual lab
+    release_bar: stable_blocker
+    claimed_behavior: IME, bidi, AltGr, and dead-key behavior remain coherent across dense text surfaces.
+    known_narrowings:
+      - Composition narrowing must be explicit when coherent apply is not possible.
+
+  - row_id: desktop_conformance.windows.dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    surface_id: dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: per-monitor DPI, taskbar or fullscreen behavior, and restore across docking changes
+    validation_method: topology suite plus docking/undocking drill
+    release_bar: stable_blocker
+    claimed_behavior: Visibility and focus survive monitor and topology changes or offer explicit recovery.
+    known_narrowings:
+      - Off-screen stranded windows or sheets are release-blocking.
+
+  - row_id: desktop_conformance.windows.os_notification_click_through_and_lock_screen_privacy
+    surface_id: os_notification_click_through_and_lock_screen_privacy
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+    platform_owned_primitive: toast click-through, Action Center reopen target, and privacy-safe lock-screen copy
+    validation_method: notification privacy script plus reopen drill
+    release_bar: stable_blocker
+    claimed_behavior: Notification click-through reopens the authoritative object without leaking sensitive detail to the lock screen.
+    known_narrowings:
+      - Only one safe primary action is claim-bearing.
+
+  - row_id: desktop_conformance.windows.badge_semantics_and_quiet_hours_alignment
+    surface_id: badge_semantics_and_quiet_hours_alignment
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: design_system_seeds
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: taskbar badge and durable-attention count-class alignment
+    validation_method: quiet-hours matrix audit plus badge semantics review
+    release_bar: claimed_profile_blocker
+    claimed_behavior: Badge counts reflect durable queue truth and suppression policy.
+    known_narrowings:
+      - Mixed-class badge inflation is explicitly outside the claim.
+
+  - row_id: desktop_conformance.windows.theme_contrast_and_density_live_apply
+    surface_id: theme_contrast_and_density_live_apply
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: Windows theme and high-contrast changes applied live where supported
+    validation_method: theme/high-contrast live-apply smoke
+    release_bar: stable_blocker
+    claimed_behavior: Theme and high-contrast changes apply live on the claimed Windows row.
+    known_narrowings:
+      - Restart-only fallback is outside the stable Windows claim.
+
+  - row_id: desktop_conformance.windows.accessibility_bridge
+    surface_id: accessibility_bridge
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: UIA bridge for core editor, shell, and review surfaces
+    validation_method: accessibility regression suite
+    release_bar: stable_blocker
+    claimed_behavior: Core custom-rendered surfaces remain reachable through the Windows accessibility stack.
+    known_narrowings:
+      - Any custom surface without UIA parity remains outside the stable claim.
+
+  - row_id: desktop_conformance.windows.wake_from_sleep_and_display_reconnect_revalidation
+    surface_id: wake_from_sleep_and_display_reconnect_revalidation
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: suspend or resume revalidation for callbacks, remote state, and monitor topology
+    validation_method: suspend/resume plus display-reconnect drill
+    release_bar: stable_blocker
+    claimed_behavior: Wake and reconnect paths preserve truthful state or require explicit revalidation.
+    known_narrowings:
+      - Privileged or remote actions must not replay automatically.
+
+  - row_id: desktop_conformance.windows.removable_volume_return_and_missing_root_recovery
+    surface_id: removable_volume_return_and_missing_root_recovery
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: placeholder, locate, cached-context, and close flow for missing removable or network roots
+    validation_method: missing-root plus removable-volume return drill
+    release_bar: stable_blocker
+    claimed_behavior: Missing removable or network roots degrade honestly and recover without silent target swap.
+    known_narrowings:
+      - The claim is truthful recovery, not auto-remap of target roots.
+
+  - row_id: desktop_conformance.windows.install_update_rollback_and_deployment_hooks
+    surface_id: install_update_rollback_and_deployment_hooks
+    platform_profile_refs: [windows_11_23h2_plus_x86_64]
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: release_evidence
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: MSI, MSIX, and offline-bundle family plus managed deployment hooks and rollback evidence posture
+    validation_method: packaging-lane report plus install/update/rollback drill
+    release_bar: release_candidate_blocker
+    claimed_behavior: Deployment-hook and rollback claims on Windows attach only to the named direct, managed, and offline-bundle rows.
+    known_narrowings:
+      - winget remains unclaimed; portable rows stay narrower by design.
+
+  - row_id: desktop_conformance.linux.keyboard_notation_and_menu_accelerators
+    surface_id: keyboard_notation_and_menu_accelerators
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: GNOME session menu and accelerator rendering on the named Wayland/X11 rows
+    validation_method: keyboard-path review plus GNOME Wayland/X11 shell smoke
+    release_bar: stable_blocker
+    claimed_behavior: Menus and accelerator labels use the claimed GNOME desktop-session notation and routing.
+    known_narrowings:
+      - Desktop-environment-specific mnemonic rendering outside the named GNOME rows is best-effort only.
+
+  - row_id: desktop_conformance.linux.window_chrome_and_menu_model
+    surface_id: window_chrome_and_menu_model
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: GNOME Wayland/X11 window controls and claimed client-side decoration behavior
+    validation_method: window chrome smoke plus GNOME Wayland/X11 drill
+    release_bar: stable_blocker
+    claimed_behavior: Window chrome and shell affordances map to host expectations on the named GNOME rows.
+    known_narrowings:
+      - Alternate compositors and window managers are unclaimed.
+
+  - row_id: desktop_conformance.linux.file_path_and_path_separator_presentation
+    surface_id: file_path_and_path_separator_presentation
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: POSIX path grammar, mount-point identity, and shell-safe copy presentation
+    validation_method: path-presentation review plus mount/share smoke
+    release_bar: stable_blocker
+    claimed_behavior: Human-facing path presentation stays Linux-native without hiding the literal target.
+    known_narrowings:
+      - Canonical-path truth still wins before risky writes.
+
+  - row_id: desktop_conformance.linux.native_open_save_dialog_routing
+    surface_id: native_open_save_dialog_routing
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: xdg-desktop-portal chooser on Wayland and claimed GNOME-native chooser path on X11
+    validation_method: dialog-routing smoke plus portal/X11 chooser drill
+    release_bar: stable_blocker
+    claimed_behavior: Native file-picker routing stays explicit about overwrite, read-only, and recovery posture.
+    known_narrowings:
+      - If portal routing is unavailable on a claimed Wayland row, the row degrades visibly; silent fallback is unclaimed.
+
+  - row_id: desktop_conformance.linux.system_open_reveal_in_shell_and_open_from_terminal
+    surface_id: system_open_reveal_in_shell_and_open_from_terminal
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: desktop-file and xdg-open handoff, file-manager reveal, and terminal launch path
+    validation_method: integration smoke plus wrong-target drill
+    release_bar: stable_blocker
+    claimed_behavior: OS-level open and reveal actions land on the intended object with truthful recovery.
+    known_narrowings:
+      - Non-GNOME file-manager integration is best-effort only.
+
+  - row_id: desktop_conformance.linux.default_browser_callback_and_auth_return
+    surface_id: default_browser_callback_and_auth_return
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: xdg-open or portal default-browser handoff with desktop-file or custom-scheme return
+    validation_method: origin-validation suite plus manual sign-in drill
+    release_bar: stable_blocker
+    claimed_behavior: System-browser auth return is attributable, scoped, and spoof-resistant on the named GNOME rows.
+    known_narrowings:
+      - Named browser-family certification is best-effort; the claim is the default-browser path only.
+
+  - row_id: desktop_conformance.linux.deep_link_protocol_handler_and_system_affordance_interstitial
+    surface_id: deep_link_protocol_handler_and_system_affordance_interstitial
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: decision_forum
+        scope_id: security_trust_review
+    platform_owned_primitive: desktop-file x-scheme-handler ownership plus widen-authority interstitial
+    validation_method: deep-link spoof-resistance drill plus reopen smoke
+    release_bar: stable_blocker
+    claimed_behavior: Protocol and system-affordance entry paths preserve origin, action class, and scope.
+    known_narrowings:
+      - Portable rows do not claim machine-global handler ownership; distro package-manager rows do not widen the handler claim.
+
+  - row_id: desktop_conformance.linux.embedded_auth_boundary_and_device_code_fallback
+    surface_id: embedded_auth_boundary_and_device_code_fallback
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: system-browser-first auth with host-owned device-code fallback
+    validation_method: embedded-surface boundary audit plus browser/device-code drill
+    release_bar: stable_blocker
+    claimed_behavior: Claimed auth rows prefer the system browser and keep fallback truth host-owned.
+    known_narrowings:
+      - Embedded password collection is unclaimed unless an approved exception row exists.
+
+  - row_id: desktop_conformance.linux.proxy_pac_inheritance_and_route_source
+    surface_id: proxy_pac_inheritance_and_route_source
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: GNOME proxy settings plus launcher environment where present; PAC only where the session path exposes it
+    validation_method: proxy/PAC lab plus route-inspection smoke
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Enterprise proxy inheritance remains inspectable and typed on the named GNOME rows.
+    known_narrowings:
+      - Non-GNOME session proxy behavior and ad hoc env-only launchers are best-effort, not claim-bearing.
+
+  - row_id: desktop_conformance.linux.trust_store_enterprise_ca_and_client_certificate_handling
+    surface_id: trust_store_enterprise_ca_and_client_certificate_handling
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: distro trust bundle plus imported enterprise CA and brokered or system client-cert selection
+    validation_method: CA/client-cert lab plus certificate failure drill
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: CA and client-cert posture stays OS-backed or brokered with typed remediation.
+    known_narrowings:
+      - This row does not claim every distro TLS stack variant or raw private-key export.
+
+  - row_id: desktop_conformance.linux.credential_store_lock_deny_and_session_only_degrade
+    surface_id: credential_store_lock_deny_and_session_only_degrade
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: decision_forum
+      scope_id: security_trust_review
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: Secret Service via libsecret and GNOME Keyring with visible unavailable and session-only state
+    validation_method: secret-store failure drill plus session-only degradation audit
+    release_bar: claimed_enterprise_support_blocker
+    claimed_behavior: Long-lived secrets remain OS-backed or explicitly degraded; plaintext fallback is forbidden.
+    known_narrowings:
+      - KWallet and other secret-store implementations are best-effort or unclaimed unless separately named.
+
+  - row_id: desktop_conformance.linux.ime_bidi_and_dead_key_input_path
+    surface_id: ime_bidi_and_dead_key_input_path
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: IBus on the claimed GNOME rows with explicit Wayland and X11 coverage
+    validation_method: IME/bidi corpus plus multilingual manual lab
+    release_bar: stable_blocker
+    claimed_behavior: IME, bidi, and dead-key behavior remain coherent across dense text surfaces on the named GNOME rows.
+    known_narrowings:
+      - Fcitx is best-effort only until it has its own named profile row.
+
+  - row_id: desktop_conformance.linux.dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    surface_id: dpi_fractional_scaling_multi_monitor_and_spaces_desktops
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: GNOME Wayland/X11 scaling, workspace, and monitor-topology behavior
+    validation_method: topology suite plus GNOME Wayland/X11 display drill
+    release_bar: stable_blocker
+    claimed_behavior: Visibility and focus survive scaling, workspace, and monitor changes or offer explicit recovery.
+    known_narrowings:
+      - Alternate compositors and window managers are unclaimed.
+
+  - row_id: desktop_conformance.linux.os_notification_click_through_and_lock_screen_privacy
+    surface_id: os_notification_click_through_and_lock_screen_privacy
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: shell_command_system
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+    platform_owned_primitive: GNOME notification reopen target and privacy-safe summary
+    validation_method: notification privacy script plus reopen drill
+    release_bar: stable_blocker
+    claimed_behavior: Notification click-through reopens the authoritative object without leaking sensitive detail.
+    known_narrowings:
+      - Non-GNOME lock-screen and notification-center behavior is best-effort only.
+
+  - row_id: desktop_conformance.linux.badge_semantics_and_quiet_hours_alignment
+    surface_id: badge_semantics_and_quiet_hours_alignment
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: design_system_seeds
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: in-product durable attention as normative truth, with shell badge behavior claimed only on the named GNOME rows
+    validation_method: quiet-hours matrix audit plus GNOME badge semantics review
+    release_bar: claimed_profile_blocker
+    claimed_behavior: Badge counts reflect durable queue truth where the named GNOME shell path exposes them.
+    known_narrowings:
+      - Outside the named GNOME rows, shell badge behavior is unclaimed; the durable in-product truth remains the fallback.
+
+  - row_id: desktop_conformance.linux.theme_contrast_and_density_live_apply
+    surface_id: theme_contrast_and_density_live_apply
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: design_system_seeds
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: GNOME theme and contrast changes applied live where the session exposes them
+    validation_method: theme/contrast live-apply smoke
+    release_bar: stable_blocker
+    claimed_behavior: Theme and contrast changes apply live on the named GNOME rows.
+    known_narrowings:
+      - Desktop-environment-specific theme packs outside the named rows are best-effort only.
+
+  - row_id: desktop_conformance.linux.accessibility_bridge
+    surface_id: accessibility_bridge
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    review_refs:
+      - scope_type: governance_lane
+        scope_id: accessibility_input_review
+    platform_owned_primitive: AT-SPI bridge for core editor, shell, and review surfaces
+    validation_method: accessibility regression suite
+    release_bar: stable_blocker
+    claimed_behavior: Core custom-rendered surfaces remain reachable through the Linux accessibility stack on the named rows.
+    known_narrowings:
+      - Any Linux surface without AT-SPI parity remains outside the stable claim.
+
+  - row_id: desktop_conformance.linux.wake_from_sleep_and_display_reconnect_revalidation
+    surface_id: wake_from_sleep_and_display_reconnect_revalidation
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-render
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: suspend or resume and display-reconnect revalidation on the named GNOME rows
+    validation_method: suspend/resume plus display-reconnect drill
+    release_bar: stable_blocker
+    claimed_behavior: Wake and reconnect paths preserve truthful state or require explicit revalidation.
+    known_narrowings:
+      - Privileged or remote actions must not replay automatically.
+
+  - row_id: desktop_conformance.linux.removable_volume_return_and_missing_root_recovery
+    surface_id: removable_volume_return_and_missing_root_recovery
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: package
+      scope_id: aureline-vfs
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: mount-loss placeholder and return path with locate, cached-context, and close actions
+    validation_method: missing-root plus removable-volume return drill
+    release_bar: stable_blocker
+    claimed_behavior: Missing removable roots degrade honestly and recover without silent target swap.
+    known_narrowings:
+      - The claim is truthful placeholder recovery, not silent path remap.
+
+  - row_id: desktop_conformance.linux.install_update_rollback_and_deployment_hooks
+    surface_id: install_update_rollback_and_deployment_hooks
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_owner:
+      scope_type: governance_lane
+      scope_id: release_evidence
+      dri: "@ahmeddyounis"
+    platform_owned_primitive: direct tarball or AppImage rows on the named profiles, with managed/offline/customer-mirror widening only on Ubuntu 24.04 Wayland
+    validation_method: packaging-lane report plus install/update/rollback drill
+    release_bar: release_candidate_blocker
+    claimed_behavior: Deployment-hook and rollback claims on Linux attach only to the named direct rows and the explicitly widened Ubuntu Wayland rows.
+    known_narrowings:
+      - Distro-native package managers are best-effort only; KDE/KWallet, ARM64 Linux, and unnamed desktop environments remain outside the claim.
+
+explicitly_unclaimed_lanes:
+  - lane_id: windows_arm64
+    status: unclaimed
+    note: >
+      Windows ARM64 is outside the current claimed row set until
+      install-profile cards and per-OS conformance evidence exist.
+  - lane_id: linux_arm64
+    status: unclaimed
+    note: >
+      Linux ARM64 is outside the current claimed row set until
+      install-profile cards and named distro or desktop-profile rows
+      exist.
+  - lane_id: linux_kde_kwallet_and_non_gnome_shell_behaviors
+    status: unclaimed
+    note: >
+      KDE, KWallet, and non-GNOME badge, deep-link, notification, and
+      secret-store behaviors are not implied by the named GNOME rows.
+  - lane_id: macos_offline_bundle
+    status: unclaimed
+    note: >
+      macOS offline-bundle deployment is intentionally outside the
+      current claimed row set.
+  - lane_id: windows_winget_external_package_manager
+    status: unclaimed
+    note: >
+      winget is intentionally outside the current claimed row set until
+      it has a dedicated install-profile card and support diagnostics
+      path.
+  - lane_id: portable_rows_as_default_handler_owner
+    status: unclaimed
+    note: >
+      Portable installs on every OS are narrower by design and do not
+      claim machine-global file-association, protocol-handler, or
+      machine-global recent-item ownership.
+  - lane_id: embedded_password_collection_without_exception_register_row
+    status: unclaimed
+    note: >
+      Embedded password collection is prohibited on claimed rows unless a
+      separately approved exception row exists under the embedded-surface
+      boundary contract.
