@@ -157,6 +157,14 @@ and scopes.
   evidence-id join rules as verification and signoff packets. Reuse the
   same `evidence_id` when a benchmark run also appears in a design,
   verification, or release packet.
+- Evidence freshness, rerun-trigger handling, and stale-propagation now
+  route through
+  [`docs/governance/evidence_freshness_policy.md`](./evidence_freshness_policy.md),
+  [`artifacts/governance/evidence_freshness_slos.yaml`](../../artifacts/governance/evidence_freshness_slos.yaml),
+  and
+  [`artifacts/governance/evidence_rerun_triggers.yaml`](../../artifacts/governance/evidence_rerun_triggers.yaml).
+  Scorecards, shiproom packets, and claim rows now read one freshness
+  matrix instead of treating `stale_after` as packet-local prose.
 - Disputes about benchmark results route through the benchmark-council
   charter (see `benchmark_governance`); do not open ad-hoc comparison
   threads outside that forum. The `fitness_function_catalog` row is
@@ -274,6 +282,10 @@ and scopes.
   share one header contract and one evidence-id grammar, so release
   assembly can join upstream proof artifacts mechanically instead of by
   free-text packet prose.
+- Shiproom and milestone-close freshness checks now read the same SLO
+  matrix and rerun-trigger catalog the packet authors read. Release,
+  support, docs, and benchmark lanes no longer keep packet shelf-life in
+  separate review notes.
 - Maintainer coverage and emergency approval are no longer implicit
   release lore. Release packets now cite
   [`docs/governance/maintainer_coverage_policy.md`](./maintainer_coverage_policy.md)

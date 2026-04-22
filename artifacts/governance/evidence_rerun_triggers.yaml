@@ -1,0 +1,315 @@
+schema_version: 1
+catalog_id: aureline.evidence_rerun_triggers
+status: seeded
+
+policy_doc_ref: docs/governance/evidence_freshness_policy.md
+metadata_catalog_ref: artifacts/evidence/evidence_metadata_fields.yaml
+slo_catalog_ref: artifacts/governance/evidence_freshness_slos.yaml
+
+trigger_rows:
+  - trigger_id: reference_hardware_image_changed
+    title: Reference hardware image changed
+    summary: >
+      The benchmark or certification host image, firmware, display
+      profile, thermal posture baseline, or claimed hardware profile
+      changed.
+    change_source_refs:
+      - artifacts/perf/reference_laptop_matrix.yaml
+      - artifacts/platform/claimed_desktop_profiles.yaml
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+        - deployment_context
+      evaluation_rule: >
+        If the packet's trigger_revision no longer matches the hardware
+        image or claimed profile revision it was captured against, the
+        packet expires immediately.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - support_scenario_quality_proof
+    rerun_action: >
+      Re-capture benchmark, certification, or supportability proof on the
+      updated image before widening claims again.
+
+  - trigger_id: corpus_or_fixture_revision_changed
+    title: Corpus or fixture revision changed
+    summary: >
+      Benchmark corpora, reference workspaces, importer fixtures, task
+      success definitions, or support scenario fixtures changed.
+    change_source_refs:
+      - artifacts/bench/corpus_change_control.yaml
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - artifacts/product/task_success_corpus_seed.yaml
+      - docs/workspace/entry_restore_object_model.md
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+      evaluation_rule: >
+        Packets pin the corpus, fixture, or scenario revision in
+        trigger_revision. A revision mismatch invalidates the packet.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - support_scenario_quality_proof
+      - migration_parity_proof
+    rerun_action: >
+      Re-run the packet on the updated corpus or fixture set and refresh
+      any claim rows that quoted the prior revision.
+
+  - trigger_id: protected_metrics_or_fitness_catalog_changed
+    title: Protected metrics or fitness catalog changed
+    summary: >
+      Protected thresholds, comparability rules, or the fitness catalog's
+      claim-bearing row set changed.
+    change_source_refs:
+      - artifacts/bench/protected_metrics.yaml
+      - artifacts/bench/fitness_function_catalog.yaml
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+      evaluation_rule: >
+        Benchmark and release packets remain current only while their
+        trigger_revision matches the cited protected-metrics or fitness
+        catalog revision.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+    rerun_action: >
+      Re-baseline the affected benchmark packet and regenerate any public
+      or shiproom packet that used the prior thresholds.
+
+  - trigger_id: schema_or_packet_header_contract_changed
+    title: Schema or shared packet-header contract changed
+    summary: >
+      A packet schema, shared evidence-header contract, or other machine-
+      readable shape the proof depends on changed in a way that affects
+      interpretation.
+    change_source_refs:
+      - schemas/governance/evidence_packet_header.schema.json
+      - schemas/release/compatibility_row.schema.json
+      - schemas/governance/claim_manifest.schema.json
+      - schemas/security/advisory_record.schema.json
+      - schemas/security/incident_workspace_packet.schema.json
+    metadata_check:
+      required_packet_fields:
+        - source_revision
+        - trigger_revision
+      evaluation_rule: >
+        If a packet's cited schema or header revision no longer matches
+        the current contract it projects from, the packet expires even if
+        the underlying capture bytes did not change.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - support_scenario_quality_proof
+      - migration_parity_proof
+      - security_response_proof
+      - transport_governance_proof
+    rerun_action: >
+      Re-emit the packet against the updated schema and refresh any
+      downstream scorecard, claim, or signoff packet that depends on it.
+
+  - trigger_id: interface_or_version_skew_window_changed
+    title: Interface or version-skew window changed
+    summary: >
+      A compatibility row, supported skew window, or mixed-version
+      contract changed.
+    change_source_refs:
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/compat/version_skew_register.yaml
+      - artifacts/governance/stable_surface_inventory.yaml
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+        - qualification_row_refs
+      evaluation_rule: >
+        Compatibility, certification, docs, and migration packets that
+        cite a skew window expire when the quoted row or skew case
+        revision changes.
+    impacted_proof_classes:
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - migration_parity_proof
+    rerun_action: >
+      Re-run the compatibility or migration packet and update any claim
+      rows that consumed the prior skew window.
+
+  - trigger_id: exact_build_identity_chain_changed
+    title: Exact-build identity or artifact-graph chain changed
+    summary: >
+      The coordinated build identity set, artifact graph linkage, or
+      build-to-proof chain changed.
+    change_source_refs:
+      - docs/build/exact_build_identity_model.md
+      - artifacts/release/artifact_graph_rules.yaml
+      - artifacts/release/provenance_capture_seed.json
+    metadata_check:
+      required_packet_fields:
+        - exact_build_identity_ref
+        - trigger_revision
+      evaluation_rule: >
+        Packets that rely on exact-build truth expire when the identity
+        chain or artifact-graph revision they point at changes.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - security_response_proof
+    rerun_action: >
+      Refresh the packet against the new coordinated artifact set before
+      keeping build-bearing claims green.
+
+  - trigger_id: claim_row_or_channel_binding_changed
+    title: Claim row or channel binding changed
+    summary: >
+      Canonical claim copy, downgrade rules, or channel projections
+      changed.
+    change_source_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - docs/governance/claim_manifest_contract.md
+    metadata_check:
+      required_packet_fields:
+        - claim_row_refs
+        - trigger_revision
+      evaluation_rule: >
+        If a packet's trigger_revision or claim_row_refs no longer match
+        the current claim-manifest row or channel binding, the packet
+        expires even when the measured system behavior did not change.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - continuity_drill_proof
+      - support_scenario_quality_proof
+      - migration_parity_proof
+      - security_response_proof
+      - transport_governance_proof
+    rerun_action: >
+      Re-evaluate the packet against the updated claim surface and update
+      any narrowed or widened claim rows in the same change.
+
+  - trigger_id: support_window_or_release_family_changed
+    title: Support window or release family changed
+    summary: >
+      A published support window, deprecation overlap, branch family, or
+      release-family scope changed.
+    change_source_refs:
+      - artifacts/compat/version_skew_register.yaml
+      - docs/release/install_topology_plan.md
+      - artifacts/governance/release_notice_seed.yaml
+    metadata_check:
+      required_packet_fields:
+        - channel_context
+        - trigger_revision
+      evaluation_rule: >
+        Packets expire when the support or release-family window they cite
+        is superseded, narrowed, or ends.
+    impacted_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - continuity_drill_proof
+      - support_scenario_quality_proof
+      - migration_parity_proof
+      - security_response_proof
+      - transport_governance_proof
+    rerun_action: >
+      Refresh the packet for the new release family or support window, or
+      narrow the dependent claim rows before promotion.
+
+  - trigger_id: deployment_topology_or_boundary_changed
+    title: Deployment topology or boundary changed
+    summary: >
+      Deployment profiles, install topology, mirror posture, locality
+      boundary, or managed/local boundary semantics changed.
+    change_source_refs:
+      - docs/product/boundary_manifest_strawman.md
+      - artifacts/release/install_topology_matrix.yaml
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+    metadata_check:
+      required_packet_fields:
+        - deployment_context
+        - trigger_revision
+      evaluation_rule: >
+        Continuity, supportability, security, and transport packets expire
+        when the boundary or deployment profile they defend changes.
+    impacted_proof_classes:
+      - continuity_drill_proof
+      - support_scenario_quality_proof
+      - security_response_proof
+      - transport_governance_proof
+    rerun_action: >
+      Re-run the relevant drill or governance packet against the updated
+      deployment boundary before preserving claim-bearing profile copy.
+
+  - trigger_id: docs_truth_contract_or_pack_revision_changed
+    title: Docs truth contract or docs-pack revision changed
+    summary: >
+      The docs/help/service-health truth contract or the docs-pack
+      manifest revision changed.
+    change_source_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - docs/docs/docs_pack_manifest_contract.md
+      - schemas/docs/docs_pack_manifest.schema.json
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+        - channel_context
+      evaluation_rule: >
+        Docs and claim packets that depend on docs-pack truth expire when
+        the governing docs contract or pack revision changes.
+    impacted_proof_classes:
+      - docs_claim_truth_proof
+      - continuity_drill_proof
+    rerun_action: >
+      Refresh docs, release-notice, or claim-manifest packets and keep
+      stale-docs labeling visible until the refresh lands.
+
+  - trigger_id: security_severity_or_install_scope_changed
+    title: Security severity or affected-install scope changed
+    summary: >
+      An advisory severity, affected install-profile set, mirror-freshness
+      posture, or local-continuity note changed.
+    change_source_refs:
+      - docs/security/severity_matrix.md
+      - schemas/security/advisory_record.schema.json
+      - schemas/security/incident_workspace_packet.schema.json
+      - artifacts/release/install_topology_matrix.yaml
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+        - deployment_context
+      evaluation_rule: >
+        Security packets expire when their severity or affected-install
+        scope no longer matches the current advisory or incident record.
+    impacted_proof_classes:
+      - security_response_proof
+    rerun_action: >
+      Refresh the advisory, incident, revocation, or disable-bundle
+      packet before keeping release, support, or About / Help truth green.
+
+  - trigger_id: transport_endpoint_family_or_route_policy_changed
+    title: Transport endpoint family or route policy changed
+    summary: >
+      A network-capable endpoint family, route policy, browser-handoff
+      rule, proxy behavior, or mirror/offline route changed.
+    change_source_refs:
+      - artifacts/governance/stable_surface_inventory.yaml
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+      - .t2/docs/Aureline_Technical_Design_Document.md
+    metadata_check:
+      required_packet_fields:
+        - trigger_revision
+        - deployment_context
+      evaluation_rule: >
+        Transport proof expires when the endpoint family or route policy
+        it was captured against changes, even if the packet's stale_after
+        window has not elapsed.
+    impacted_proof_classes:
+      - transport_governance_proof
+    rerun_action: >
+      Re-run the transport-governance or proxy-lab packet before any
+      stable/LTS or enterprise profile keeps the affected network-capable
+      surface claim-bearing.

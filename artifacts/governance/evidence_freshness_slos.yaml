@@ -1,0 +1,452 @@
+schema_version: 1
+catalog_id: aureline.evidence_freshness_slos
+status: seeded
+
+policy_doc_ref: docs/governance/evidence_freshness_policy.md
+metadata_catalog_ref: artifacts/evidence/evidence_metadata_fields.yaml
+shared_header_schema_ref: schemas/governance/evidence_packet_header.schema.json
+rerun_trigger_catalog_ref: artifacts/governance/evidence_rerun_triggers.yaml
+claim_manifest_ref: artifacts/governance/claim_manifest_seed.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+shiproom_runbook_ref: docs/release/shiproom_runbook.md
+scorecard_template_ref: artifacts/governance/milestone_scorecard_template.yaml
+signoff_packet_ref: artifacts/milestones/M0_signoff_packet.json
+
+metadata_evaluation_contract:
+  allowed_sources:
+    - shared_header_metadata
+    - packet_local_metadata_reusing_evidence_metadata_field_names
+    - claim_manifest_row_metadata
+    - this_slo_catalog
+    - rerun_trigger_catalog
+  required_fields:
+    - packet_id
+    - evidence_id
+    - captured_at
+    - stale_after
+    - source_revision
+    - trigger_revision
+    - channel_context
+    - deployment_context
+    - scope_join_keys
+  scope_join_key_examples:
+    - claim_row_refs
+    - qualification_row_refs
+    - covered_lanes
+  evaluation_rules:
+    - A packet expires when the current UTC time reaches captured_at plus stale_after unless stale_after is null.
+    - A rerun-trigger mismatch expires the packet immediately even when stale_after remains in window.
+    - A stricter packet-local stale_after always wins over the proof-class ceiling.
+    - Missing freshness metadata fails closed for scorecard, signoff, claim, and promotion use.
+    - Freshness evaluators rely on metadata only; prose bodies are not required to decide whether proof is current.
+
+stale_propagation_profiles:
+  - profile_id: claim_narrow_and_hold
+    scorecard_effect:
+      lane_status_floor: yellow
+      rule: required proof may not leave the owning lane green.
+    claim_effect:
+      failure_mode: required_evidence_stale
+      effective_claim_posture_cap: experimental
+    compatibility_effect:
+      qualification_badge: Evidence stale
+    release_effect:
+      release_packet_readiness_cap: narrow_claims
+      shiproom_status_floor: hold_for_refresh
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+  - profile_id: compatibility_retest_pending
+    scorecard_effect:
+      lane_status_floor: yellow
+      rule: stale compatibility or certification proof keeps the lane out of green.
+    claim_effect:
+      failure_mode: required_evidence_stale
+      effective_claim_posture_cap: limited
+    compatibility_effect:
+      qualification_badge: Retest pending
+    release_effect:
+      release_packet_readiness_cap: narrow_claims
+      shiproom_status_floor: hold_for_refresh
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+  - profile_id: docs_truth_stale
+    scorecard_effect:
+      lane_status_floor: yellow
+      rule: docs/help/service-health truth may not stay current-looking once its proof ages out.
+    claim_effect:
+      failure_mode: docs_freshness_floor_unmet
+      effective_claim_posture_cap: limited
+    compatibility_effect:
+      qualification_badge: Evidence stale
+    release_effect:
+      release_packet_readiness_cap: narrow_claims
+      shiproom_status_floor: hold_for_refresh
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+  - profile_id: migration_narrow_or_block
+    scorecard_effect:
+      lane_status_floor: yellow
+      rule: breaking or claim-bearing migration rows may not stay green on stale proof.
+    claim_effect:
+      failure_mode: required_evidence_stale
+      effective_claim_posture_cap: limited
+    compatibility_effect:
+      qualification_badge: Retest pending
+    release_effect:
+      release_packet_readiness_cap: narrow_claims
+      shiproom_status_floor: hold_for_refresh
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+  - profile_id: supportability_release_block
+    scorecard_effect:
+      lane_status_floor: red
+      rule: stale supportability release bars are a blocker, not a cosmetic warning.
+    claim_effect:
+      failure_mode: required_evidence_stale
+      effective_claim_posture_cap: experimental
+    compatibility_effect:
+      qualification_badge: Evidence stale
+    release_effect:
+      release_packet_readiness_cap: blocked
+      shiproom_status_floor: no_go
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+  - profile_id: security_transport_no_go
+    scorecard_effect:
+      lane_status_floor: red
+      rule: stale trust, security, or transport proof blocks claim-bearing release posture.
+    claim_effect:
+      failure_mode: required_evidence_stale
+      effective_claim_posture_cap: limited
+    compatibility_effect:
+      qualification_badge: Evidence stale
+    release_effect:
+      release_packet_readiness_cap: blocked
+      shiproom_status_floor: no_go
+    signoff_effect:
+      blocked_if_required_for_close: true
+
+proof_classes:
+  - proof_class_id: benchmark_publication_proof
+    title: Benchmark publication and release-gate proof
+    owner_lane: benchmark_lab
+    selectors:
+      packet_families:
+        - benchmark_publication_pack
+        - benchmark_report
+        - release_evidence_packet
+      artifact_families:
+        - benchmark_run_result
+        - benchmark_dashboard
+        - fitness_catalog_snapshot
+      source_refs:
+        - docs/benchmarks/benchmark_publication_pack_template.md
+        - docs/release/release_evidence_packet_template.md
+        - docs/benchmarks/benchmark_lab_run_results.md
+        - artifacts/bench/fitness_function_catalog.yaml
+    max_stale_after: P14D
+    review_cadence: each_release
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - channel_context
+      - deployment_context
+      - comparability_note
+      - exact_build_identity_ref
+      - qualification_row_refs
+    rerun_trigger_refs:
+      - reference_hardware_image_changed
+      - corpus_or_fixture_revision_changed
+      - protected_metrics_or_fitness_catalog_changed
+      - schema_or_packet_header_contract_changed
+      - exact_build_identity_chain_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+    stale_propagation_profile: claim_narrow_and_hold
+    hard_block_conditions:
+      - stable_or_lts_release_packet_uses_public_performance_claim
+      - publication_posture_is_public_head_to_head_comparison
+    notes: >
+      Seed-only, self-captured, or smoke-subset benchmark packets may use
+      stricter windows such as P0D. The class ceiling is the widest
+      admissible claim-bearing window, not the default every packet must
+      use.
+
+  - proof_class_id: compatibility_report_proof
+    title: Compatibility-report and certified-archetype proof
+    owner_lane: release_evidence
+    selectors:
+      packet_families:
+        - compatibility_report
+        - certified_archetype_report
+        - release_evidence_packet
+      artifact_families:
+        - compatibility_row
+      source_refs:
+        - docs/release/compatibility_report_template.md
+        - docs/release/certified_archetype_report_template.md
+        - artifacts/compat/qualification_matrix_seed.yaml
+        - artifacts/compat/version_skew_register.yaml
+    max_stale_after: P14D
+    review_cadence: each_release
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - channel_context
+      - deployment_context
+      - qualification_row_refs
+      - claim_row_refs
+    rerun_trigger_refs:
+      - reference_hardware_image_changed
+      - corpus_or_fixture_revision_changed
+      - schema_or_packet_header_contract_changed
+      - interface_or_version_skew_window_changed
+      - exact_build_identity_chain_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+    stale_propagation_profile: compatibility_retest_pending
+    hard_block_conditions:
+      - stable_or_lts_claim_uses_certified_or_supported_wording
+    notes: >
+      Compatibility and certification rows stay inspectable when stale,
+      but they may no longer project certified or supported wording on
+      release, docs, evaluation, or marketplace surfaces.
+
+  - proof_class_id: docs_claim_truth_proof
+    title: Docs, claim-manifest, and release-notice truth
+    owner_lane: docs_public_truth
+    selectors:
+      packet_families:
+        - claim_manifest
+        - release_notice_pack
+        - docs_pack_manifest
+      artifact_families:
+        - claim_manifest_note
+        - release_note
+      source_refs:
+        - docs/governance/claim_manifest_contract.md
+        - artifacts/governance/claim_manifest_seed.yaml
+        - artifacts/governance/public_truth_parity_matrix.yaml
+        - docs/adr/0013-docs-help-service-health-truth.md
+    max_stale_after: P14D
+    review_cadence: each_change
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - channel_context
+      - deployment_context
+      - claim_row_refs
+      - known_limit_refs
+    rerun_trigger_refs:
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+      - interface_or_version_skew_window_changed
+      - docs_truth_contract_or_pack_revision_changed
+      - support_window_or_release_family_changed
+      - exact_build_identity_chain_changed
+    stale_propagation_profile: docs_truth_stale
+    hard_block_conditions:
+      - docs_help_about_or_service_health_renders_claim_bearing_copy_after_expiry
+    notes: >
+      Docs/help/service-health packets stay readable when stale, but they
+      must switch to stale, limited, or mismatch wording instead of
+      continuing to present current support or release truth.
+
+  - proof_class_id: continuity_drill_proof
+    title: Continuity and impairment drill proof
+    owner_lane: support_export
+    selectors:
+      packet_families:
+        - continuity_drill_packet
+        - release_evidence_packet
+      artifact_families:
+        - continuity_drill
+      source_refs:
+        - artifacts/support/deployment_drill_catalog_seed.yaml
+        - docs/deployment/drill_catalog_seed.md
+        - docs/release/install_topology_plan.md
+    max_stale_after: P30D
+    review_cadence: per_milestone
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - deployment_context
+      - continuity_drill_refs
+    rerun_trigger_refs:
+      - deployment_topology_or_boundary_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+      - docs_truth_contract_or_pack_revision_changed
+    stale_propagation_profile: claim_narrow_and_hold
+    hard_block_conditions:
+      - stable_or_lts_release_packet_uses_profile_continuity_claim_without_current_drill
+    notes: >
+      This row governs continuity wording such as mirror-only, local-only,
+      and failover-boundary truth. Future supportability packets may use a
+      stricter window than P30D.
+
+  - proof_class_id: support_scenario_quality_proof
+    title: Support-scenario, diagnosis-latency, and escalation-quality proof
+    owner_lane: support_export
+    selectors:
+      packet_families:
+        - support_scenario_matrix
+        - diagnosis_latency_dashboard
+        - escalation_packet_completeness_suite
+      artifact_families: []
+      source_refs:
+        - docs/support/support_center_concept.md
+        - docs/deployment/drill_catalog_seed.md
+        - .t2/docs/Aureline_Technical_Architecture_Document.md
+        - .t2/docs/Aureline_Technical_Design_Document.md
+    max_stale_after: P7D
+    review_cadence: weekly_plus_release_candidate
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - deployment_context
+      - covered_lanes
+    rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - deployment_topology_or_boundary_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+      - schema_or_packet_header_contract_changed
+    stale_propagation_profile: supportability_release_block
+    hard_block_conditions:
+      - stable_or_lts_supportability_bar_claimed
+      - release_packet_or_shiproom_uses_support_readiness_claim
+    notes: >
+      This class corresponds to support-scenario and escalation-quality
+      gates such as diagnosis accuracy, latency, false-safe-repair rate,
+      and escalation-packet completeness.
+
+  - proof_class_id: migration_parity_proof
+    title: Migration and import parity proof
+    owner_lane: docs_public_truth
+    selectors:
+      packet_families:
+        - migration_report
+        - migration_dry_run_diff_packet
+        - compatibility_report
+      artifact_families: []
+      source_refs:
+        - docs/workspace/entry_restore_object_model.md
+        - docs/product/onboarding_measurement_plan.md
+        - docs/release/compatibility_report_template.md
+    max_stale_after: P14D
+    review_cadence: each_release
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - channel_context
+      - deployment_context
+      - claim_row_refs
+    rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - schema_or_packet_header_contract_changed
+      - interface_or_version_skew_window_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+    stale_propagation_profile: migration_narrow_or_block
+    hard_block_conditions:
+      - breaking_change_or_source_tool_support_claim_widening_without_current_packet
+    notes: >
+      A breaking importer or widened migration claim requires current dry-
+      run diff, rollback, and parity proof. Stale migration packets may
+      remain useful for history, but not for widening support copy.
+
+  - proof_class_id: security_response_proof
+    title: Security advisory and incident-response proof
+    owner_lane: release_evidence
+    selectors:
+      packet_families:
+        - security_advisory_record
+        - security_incident_workspace_packet
+        - revocation_record
+        - disable_bundle
+      artifact_families: []
+      source_refs:
+        - docs/security/severity_matrix.md
+        - schemas/security/advisory_record.schema.json
+        - schemas/security/incident_workspace_packet.schema.json
+    max_stale_after: P7D
+    review_cadence: weekly_plus_release_candidate
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - deployment_context
+      - exact_build_identity_ref
+    rerun_trigger_refs:
+      - schema_or_packet_header_contract_changed
+      - exact_build_identity_chain_changed
+      - support_window_or_release_family_changed
+      - deployment_topology_or_boundary_changed
+      - security_severity_or_install_scope_changed
+      - claim_row_or_channel_binding_changed
+    stale_propagation_profile: security_transport_no_go
+    hard_block_conditions:
+      - security_severity_medium_or_higher_is_in_scope
+      - release_packet_claims_mitigation_or_safety_posture_from_the_stale_packet
+    notes: >
+      Stale security proof is never a green release condition. Historical
+      advisories may remain published, but release and support surfaces may
+      not project them as current mitigation or install truth without a
+      refreshed packet.
+
+  - proof_class_id: transport_governance_proof
+    title: Transport-governance, proxy-lab, and endpoint-family proof
+    owner_lane: release_evidence
+    selectors:
+      packet_families:
+        - transport_governance_packet
+        - proxy_lab_packet
+        - transport_drill_packet
+      artifact_families: []
+      source_refs:
+        - artifacts/governance/stable_surface_inventory.yaml
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - .t2/docs/Aureline_Technical_Design_Document.md
+    max_stale_after: P14D
+    review_cadence: each_release
+    required_metadata_fields:
+      - captured_at
+      - stale_after
+      - source_revision
+      - trigger_revision
+      - deployment_context
+      - covered_lanes
+    rerun_trigger_refs:
+      - schema_or_packet_header_contract_changed
+      - deployment_topology_or_boundary_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+      - transport_endpoint_family_or_route_policy_changed
+    stale_propagation_profile: security_transport_no_go
+    hard_block_conditions:
+      - stable_or_lts_publication_claims_network_capable_surface_without_current_transport_packet
+      - enterprise_or_air_gap_profile_claims_proxy_or_mirror_support_without_current_lab_proof
+    notes: >
+      The current repository has the route and browser-handoff contracts
+      seeded before the dedicated transport packet family lands. Once that
+      packet exists, it inherits this proof class rather than defining a
+      second freshness policy.

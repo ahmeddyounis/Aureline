@@ -6,6 +6,9 @@ schemas/governance/evidence_packet_header.schema.json.
 
 Stable evidence ids, artifact-linking rules, and family naming
 conventions live in artifacts/governance/evidence_id_conventions.md.
+Freshness ceilings and rerun-trigger ids live in
+artifacts/governance/evidence_freshness_slos.yaml and
+artifacts/governance/evidence_rerun_triggers.yaml.
 
 This template is the reviewer-facing narrative companion. It extends the
 minimum Appendix-Y verification packet in the technical architecture
@@ -177,8 +180,10 @@ For each reviewer or forum:
 
 ## Refresh trigger
 
-- **Named rerun trigger:** what change invalidates this packet
+- **Named rerun trigger:** prefer a trigger id from
+  `artifacts/governance/evidence_rerun_triggers.yaml`
 - **Expected freshness window:** when the packet should be refreshed if
-  nothing else changes
+  nothing else changes; it may not exceed the proof-class ceiling in
+  `artifacts/governance/evidence_freshness_slos.yaml`
 - **Next packet family to update with the same evidence ids:** release,
   benchmark-publication, migration, support, or signoff packet

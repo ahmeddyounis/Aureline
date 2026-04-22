@@ -9,6 +9,9 @@ Related control artifacts:
 - artifacts/compat/version_skew_register.yaml
 - docs/compat/compatibility_row_seed.md
 - artifacts/governance/governance_packet_template.yaml
+- docs/governance/evidence_freshness_policy.md
+- artifacts/governance/evidence_freshness_slos.yaml
+- artifacts/governance/evidence_rerun_triggers.yaml
 - schemas/governance/evidence_packet_header.schema.json
 - schemas/release/compatibility_row.schema.json
 - docs/release/certified_archetype_report_template.md
@@ -293,3 +296,7 @@ artifacts. They are examples of report shape, not live launch claims.
   freshness fields, and issue/export refs are all populated.
 - A stale report may remain inspectable, but it must not keep
   `supported` wording after the freshness window expires.
+- Prefer trigger ids from
+  `artifacts/governance/evidence_rerun_triggers.yaml` for refresh notes,
+  and keep `stale_after` within the applicable ceiling from
+  `artifacts/governance/evidence_freshness_slos.yaml`.

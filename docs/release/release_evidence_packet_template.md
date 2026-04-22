@@ -11,6 +11,9 @@ Related control artifacts:
 - artifacts/governance/signing_quorum.yaml
 - artifacts/governance/upstream_health_scorecard.yaml
 - artifacts/governance/evidence_id_conventions.md
+- docs/governance/evidence_freshness_policy.md
+- artifacts/governance/evidence_freshness_slos.yaml
+- artifacts/governance/evidence_rerun_triggers.yaml
 - schemas/governance/evidence_packet_header.schema.json
 - docs/build/exact_build_identity_model.md
 - docs/benchmarks/benchmark_publication_pack_template.md
@@ -183,4 +186,6 @@ Every evidence item listed here should use the shared field names from
 
 - **Decision:** `accept packet` | `keep preview-only` | `narrow claims` | `block release`
 - **Named next action:** one sentence that says what evidence refresh,
-  waiver closure, or compatibility recheck is required next.
+  waiver closure, or compatibility recheck is required next. Prefer a
+  trigger id from `artifacts/governance/evidence_rerun_triggers.yaml`
+  when the refresh is driven by a named invalidation rule.

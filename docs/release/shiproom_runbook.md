@@ -10,6 +10,9 @@ Companion artifacts:
 - `artifacts/release/shiproom_dashboard_seed.yaml`
 - `docs/release/release_evidence_packet_template.md`
 - `docs/release/release_evidence_packet_example.md`
+- `docs/governance/evidence_freshness_policy.md`
+- `artifacts/governance/evidence_freshness_slos.yaml`
+- `artifacts/governance/evidence_rerun_triggers.yaml`
 - `schemas/support/support_packet_index.schema.json`
 - `artifacts/governance/claim_manifest_seed.yaml`
 - `artifacts/governance/public_truth_parity_matrix.yaml`
@@ -52,6 +55,9 @@ exception id, the item is not promotion-grade proof.
 4. Evidence freshness and missing proof
 
 - Review `captured_at`, `stale_after`, `generated_at`, and any named
+  `trigger_revision` mismatches against
+  `artifacts/governance/evidence_freshness_slos.yaml` and
+  `artifacts/governance/evidence_rerun_triggers.yaml`, plus any named
   missing packet refs.
 - Treat stale or missing required proof as `hold_for_refresh` at
   minimum; treat stale exact-build, rollback, security, or public-proof

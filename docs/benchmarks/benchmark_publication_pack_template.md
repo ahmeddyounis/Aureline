@@ -13,6 +13,9 @@ Related control artifacts:
 - fixtures/benchmarks/corpus_manifest.yaml
 - artifacts/evidence/evidence_metadata_fields.yaml
 - artifacts/governance/evidence_id_conventions.md
+- docs/governance/evidence_freshness_policy.md
+- artifacts/governance/evidence_freshness_slos.yaml
+- artifacts/governance/evidence_rerun_triggers.yaml
 - schemas/governance/evidence_packet_header.schema.json
 - docs/build/exact_build_identity_model.md
 - docs/docs/docs_pack_manifest_contract.md
@@ -188,4 +191,7 @@ Every evidence item listed here should use the shared field names from
 - **Decision:** `publish packet` | `keep methodology_only` | `quarantine packet` | `withdraw packet`
 - **Named refresh trigger:** one sentence saying what new run, corpus
   revision, docs-pack revision, or comparability reset invalidates this
-  packet.
+  packet. Prefer a trigger id from
+  `artifacts/governance/evidence_rerun_triggers.yaml` and keep
+  `stale_after` within the ceiling from
+  `artifacts/governance/evidence_freshness_slos.yaml`.

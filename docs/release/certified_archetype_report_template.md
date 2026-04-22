@@ -10,6 +10,9 @@ Related control artifacts:
 - schemas/release/compatibility_row.schema.json
 - schemas/governance/evidence_packet_header.schema.json
 - artifacts/governance/governance_packet_template.yaml
+- docs/governance/evidence_freshness_policy.md
+- artifacts/governance/evidence_freshness_slos.yaml
+- artifacts/governance/evidence_rerun_triggers.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
 - fixtures/workspaces/reference/
 - artifacts/perf/reference_laptop_matrix.yaml
@@ -258,3 +261,7 @@ They are examples of packet shape, not live launch claims.
 - Keep exact issue-template refs and export refs attached to each row so
   support, docs, and release can route the same failure without
   translating the archetype name into a new local label.
+- Prefer trigger ids from
+  `artifacts/governance/evidence_rerun_triggers.yaml` for retest notes,
+  and keep `stale_after` within the applicable ceiling from
+  `artifacts/governance/evidence_freshness_slos.yaml`.
