@@ -1,0 +1,1866 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/support_bundle.schema.json",
+  "title": "Aureline support bundle and redaction profile contract",
+  "description": "Boundary schema for the support_bundle_record and support_bundle_redaction_profile_record frozen in docs/support/support_bundle_contract.md. The contract turns Aureline support/export bundles into governed packets instead of ad hoc archives: every bundle can embed the shared evidence-packet header, pin exact-build identity, install topology, route/execution truth, locality or tenant or key posture, recovery-ladder and repair history, fault-domain and restart lineage state, cache/storage classes, consent markers, waived fields, and a typed artifact manifest that distinguishes embedded evidence, by-reference evidence, local-only retention, optional upload candidates, and intentionally excluded items. The schema composes the record-class registry, ADR-0007 secret/redaction defaults, evidence-id conventions, the deployment continuity drill catalog, and the Appendix-CD fault-domain expectations rather than minting a parallel vocabulary.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/support_bundle_record"
+    },
+    {
+      "$ref": "#/$defs/support_bundle_redaction_profile_record"
+    }
+  ],
+  "$defs": {
+    "support_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for this support-bundle contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw paths, raw tokens, raw code bodies, and raw dump bytes never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for previews, manifests, or audit surfaces."
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "record_class_id_token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable record-class id from artifacts/governance/record_class_registry.yaml."
+    },
+    "record_class_id_or_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/record_class_id_token"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured at bundle assembly time."
+    },
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^evidence\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)+$",
+      "description": "Stable evidence id that follows artifacts/governance/evidence_id_conventions.md."
+    },
+    "evidence_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_id"
+      }
+    },
+    "requirement_id": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[A-Z0-9]+-[0-9]{3}$"
+    },
+    "requirement_id_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/requirement_id"
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ],
+          "description": "Policy epoch active when the bundle or profile was assembled."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "restricted",
+            "trusted",
+            "managed_admin"
+          ]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        }
+      }
+    },
+    "bundle_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the governed support/export vocabulary."
+    },
+    "diagnostic_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ],
+      "description": "Support-bundle diagnostic data class derived from the PRD and supportability architecture."
+    },
+    "support_export_posture": {
+      "type": "string",
+      "enum": [
+        "included_by_default",
+        "included_metadata_only",
+        "opt_in_only",
+        "excluded_by_default",
+        "excluded_always"
+      ]
+    },
+    "artifact_storage_mode": {
+      "type": "string",
+      "enum": [
+        "embedded_export_copy",
+        "local_only_copy_retained",
+        "managed_reference_only",
+        "optional_upload_candidate",
+        "intentionally_excluded"
+      ],
+      "description": "Where the artifact body actually lives relative to the exported bundle."
+    },
+    "evidence_embedding_state": {
+      "type": "string",
+      "enum": [
+        "embedded",
+        "by_reference",
+        "omitted",
+        "redacted"
+      ]
+    },
+    "export_inclusion_posture": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "broadened_capture_opt_in"
+      ]
+    },
+    "bundle_section_class": {
+      "type": "string",
+      "enum": [
+        "build_and_install_truth",
+        "route_and_execution_truth",
+        "locality_and_continuity_truth",
+        "recovery_and_repair_truth",
+        "fault_domain_and_restart_truth",
+        "storage_and_cache_truth",
+        "logs_traces_and_manifests",
+        "user_selected_evidence",
+        "governance_and_export_controls"
+      ],
+      "description": "Top-level support-bundle manifest section. Keeps bundle contents grouped by support task rather than as one flat attachments bucket."
+    },
+    "artifact_kind_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity_manifest",
+        "install_profile_card",
+        "docs_inventory_manifest",
+        "extension_inventory_manifest",
+        "policy_fingerprint_summary",
+        "secret_broker_state",
+        "execution_context_summary",
+        "action_route_truth_packet",
+        "project_doctor_findings",
+        "recovery_ladder_timeline",
+        "repair_transaction_preview",
+        "fault_domain_snapshot",
+        "restart_lineage_manifest",
+        "storage_class_inventory",
+        "cache_reset_manifest",
+        "continuity_note",
+        "trace_capture",
+        "log_capture",
+        "crash_envelope",
+        "crash_dump_manifest",
+        "crash_dump_payload",
+        "symbolication_report",
+        "mutation_journal_excerpt",
+        "migration_packet_reference",
+        "incident_workspace_packet_reference",
+        "evidence_packet_reference",
+        "code_snippet_attachment",
+        "notebook_cell_attachment",
+        "terminal_transcript_excerpt",
+        "full_shell_history_capture",
+        "user_annotation"
+      ]
+    },
+    "manifest_decision_reason_class": {
+      "type": "string",
+      "enum": [
+        "required_core_metadata",
+        "required_exact_build_truth",
+        "required_route_truth",
+        "required_recovery_truth",
+        "required_fault_domain_truth",
+        "required_locality_truth",
+        "required_storage_truth",
+        "user_selected_opt_in",
+        "retained_local_only_by_policy",
+        "reference_only_managed_copy",
+        "optional_upload_requires_review",
+        "redacted_by_profile",
+        "omitted_by_policy",
+        "omitted_by_user_choice",
+        "source_unavailable_or_expired"
+      ]
+    },
+    "omission_reason_class": {
+      "type": "string",
+      "enum": [
+        "redacted_by_profile",
+        "prohibited_secret_or_token",
+        "prohibited_full_shell_history",
+        "retained_local_only_pending_review",
+        "awaiting_explicit_opt_in",
+        "policy_denied",
+        "user_declined",
+        "source_unavailable_or_expired",
+        "not_collected_on_this_platform",
+        "not_applicable"
+      ]
+    },
+    "install_mode_class": {
+      "type": "string",
+      "enum": [
+        "per_user_installed",
+        "per_machine_installed",
+        "portable",
+        "offline_bundle",
+        "managed_deployed",
+        "side_by_side_preview"
+      ]
+    },
+    "install_channel_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "preview",
+        "beta",
+        "lts",
+        "portable_stable",
+        "portable_preview"
+      ]
+    },
+    "updater_owner_class_or_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "user",
+            "admin",
+            "external_package_manager",
+            "managed_fleet"
+          ]
+        }
+      ]
+    },
+    "docs_version_match_state_or_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "exact_build_match",
+            "compatible_minor_drift",
+            "incompatible_drift_detected",
+            "pre_release_unverified",
+            "unknown_target_build"
+          ]
+        }
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "locality_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_local",
+        "air_gapped_site",
+        "not_applicable"
+      ]
+    },
+    "region_scope_class": {
+      "type": "string",
+      "enum": [
+        "customer_region_pinned",
+        "remote_target_region",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "tenant_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "key_mode_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "vendor_managed",
+        "customer_managed",
+        "offline_trust_root",
+        "not_applicable"
+      ]
+    },
+    "recovery_rung_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode",
+        "extension_bisect",
+        "extension_quarantine",
+        "open_without_restore",
+        "cache_reset_candidate",
+        "restricted_reopen",
+        "rollback_reinstall_candidate",
+        "typed_repair_flow"
+      ]
+    },
+    "recovery_entry_reason_class": {
+      "type": "string",
+      "enum": [
+        "repeated_startup_failure",
+        "explicit_user_choice",
+        "extension_regression_suspected",
+        "crash_loop_detected",
+        "cache_integrity_failure",
+        "route_recovery_required",
+        "policy_blocked",
+        "manual_review_required"
+      ]
+    },
+    "recovery_exit_reason_class_or_null": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "recovered_successfully",
+            "escalated_to_next_rung",
+            "rolled_back",
+            "user_restored_full_mode",
+            "denied_by_policy",
+            "unchanged_session_exit"
+          ]
+        }
+      ]
+    },
+    "fault_domain_class": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "extension_and_tool_hosts",
+        "ai_and_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_verifier_helpers"
+      ]
+    },
+    "supervisor_action_class": {
+      "type": "string",
+      "enum": [
+        "no_auto_restart_user_decides",
+        "bounded_restart_with_backoff",
+        "terminate_affected_session_only",
+        "restart_within_strike_budget",
+        "revoke_and_restart_if_allowed",
+        "reconnect_with_bounded_retry",
+        "retry_idempotent_inputs_only"
+      ]
+    },
+    "restart_budget_state": {
+      "type": "string",
+      "enum": [
+        "within_budget",
+        "backoff_active",
+        "strike_window_elevated",
+        "disabled",
+        "quarantined"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "search_index_cache",
+        "graph_index_cache",
+        "docs_pack_cache",
+        "model_asset_cache",
+        "prebuild_layer_cache",
+        "symbol_bundle_cache",
+        "preview_runtime_cache",
+        "crash_forensics_store",
+        "support_export_store",
+        "policy_bundle_cache",
+        "execution_context_cache",
+        "session_restore_store",
+        "remote_attach_cache"
+      ]
+    },
+    "storage_scope_class": {
+      "type": "string",
+      "enum": [
+        "machine",
+        "user",
+        "workspace",
+        "tenant"
+      ]
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "low_rebuild_cost",
+        "medium_rebuild_cost",
+        "high_rebuild_cost"
+      ]
+    },
+    "storage_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ]
+    },
+    "gc_policy_class": {
+      "type": "string",
+      "enum": [
+        "never_gc_authoritative",
+        "gc_on_version_replace",
+        "gc_on_pressure_if_unpinned",
+        "gc_on_case_close",
+        "gc_on_explicit_reset_only"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "consent_scope_class": {
+      "type": "string",
+      "enum": [
+        "bundle_preview_reviewed",
+        "metadata_export_approved",
+        "code_adjacent_export_opt_in",
+        "crash_dump_export_opt_in",
+        "hosted_reference_allowed",
+        "optional_upload_authorized",
+        "high_risk_capture_denied"
+      ]
+    },
+    "consent_decision_class": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "denied",
+        "deferred",
+        "policy_forced_narrower"
+      ]
+    },
+    "consent_surface_class": {
+      "type": "string",
+      "enum": [
+        "support_center_preview",
+        "headless_cli",
+        "admin_policy",
+        "recovery_prompt",
+        "incident_workspace",
+        "export_review"
+      ]
+    },
+    "waived_field_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_available_on_this_platform",
+        "denied_by_policy",
+        "denied_by_user",
+        "intentionally_not_collected",
+        "source_expired_or_rotated",
+        "redacted_by_default",
+        "known_limit_pending",
+        "not_applicable"
+      ]
+    },
+    "profile_rule_handling_class": {
+      "type": "string",
+      "enum": [
+        "export_embedded",
+        "export_embedded_metadata_only",
+        "retain_local_only",
+        "export_by_reference",
+        "review_before_export",
+        "exclude_by_default",
+        "exclude_always"
+      ]
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_packet_index_schema_ref",
+        "record_class_registry_ref",
+        "record_class_governance_ref",
+        "secret_redaction_adr_ref",
+        "evidence_id_conventions_ref",
+        "evidence_packet_header_schema_ref",
+        "continuity_catalog_ref",
+        "fault_domain_source_ref",
+        "incident_workspace_packet_schema_ref",
+        "migration_session_schema_ref"
+      ],
+      "properties": {
+        "support_packet_index_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "record_class_registry_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "record_class_governance_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "secret_redaction_adr_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_id_conventions_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_packet_header_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "continuity_catalog_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "fault_domain_source_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "incident_workspace_packet_schema_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "migration_session_schema_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "support_bundle_header": {
+      "allOf": [
+        {
+          "$ref": "https://aureline.dev/schemas/governance/evidence_packet_header.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "packet_family": {
+              "const": "support_bundle"
+            }
+          },
+          "required": [
+            "packet_family"
+          ]
+        }
+      ]
+    },
+    "build_and_install_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_exact_build_identity_ref",
+        "related_exact_build_identity_refs",
+        "install_mode_class",
+        "install_channel_class",
+        "install_profile_card_ref",
+        "updater_owner_class",
+        "docs_pack_ref",
+        "docs_version_match_state",
+        "known_limit_refs",
+        "build_truth_note"
+      ],
+      "properties": {
+        "primary_exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "related_exact_build_identity_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "install_mode_class": {
+          "$ref": "#/$defs/install_mode_class"
+        },
+        "install_channel_class": {
+          "$ref": "#/$defs/install_channel_class"
+        },
+        "install_profile_card_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "updater_owner_class": {
+          "$ref": "#/$defs/updater_owner_class_or_null"
+        },
+        "docs_pack_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "docs_version_match_state": {
+          "$ref": "#/$defs/docs_version_match_state_or_null"
+        },
+        "known_limit_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "build_truth_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "route_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_route_packet_ref",
+        "command_id",
+        "invocation_session_id",
+        "action_origin_class",
+        "action_target_class",
+        "action_route_class",
+        "action_exposure_class",
+        "export_inclusion_posture",
+        "note"
+      ],
+      "properties": {
+        "action_route_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "command_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "invocation_session_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "action_origin_class": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "action_target_class": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "action_route_class": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "action_exposure_class": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "export_inclusion_posture": {
+          "$ref": "#/$defs/export_inclusion_posture"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "route_and_execution_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_route_packet_refs",
+        "execution_context_refs",
+        "invocation_session_refs",
+        "route_summaries"
+      ],
+      "properties": {
+        "action_route_packet_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "execution_context_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "invocation_session_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "route_summaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_summary"
+          }
+        }
+      }
+    },
+    "locality_and_continuity_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "locality_scope",
+        "region_scope",
+        "tenant_scope",
+        "key_mode",
+        "continuity_drill_refs",
+        "retained_local_safe_capabilities",
+        "blocked_managed_only_capabilities",
+        "continuity_note"
+      ],
+      "properties": {
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_profile_class"
+          }
+        },
+        "locality_scope": {
+          "$ref": "#/$defs/locality_scope_class"
+        },
+        "region_scope": {
+          "$ref": "#/$defs/region_scope_class"
+        },
+        "tenant_scope": {
+          "$ref": "#/$defs/tenant_scope_class"
+        },
+        "key_mode": {
+          "$ref": "#/$defs/key_mode_class"
+        },
+        "continuity_drill_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "retained_local_safe_capabilities": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "blocked_managed_only_capabilities": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "continuity_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "recovery_rung_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rung_class",
+        "entered_at",
+        "entry_reason_class",
+        "exited_at",
+        "exit_reason_class",
+        "changed_storage_class_ids",
+        "repair_transaction_ref",
+        "checkpoint_ref",
+        "note"
+      ],
+      "properties": {
+        "rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "entered_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "entry_reason_class": {
+          "$ref": "#/$defs/recovery_entry_reason_class"
+        },
+        "exited_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        },
+        "exit_reason_class": {
+          "$ref": "#/$defs/recovery_exit_reason_class_or_null"
+        },
+        "changed_storage_class_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/storage_class_id"
+          }
+        },
+        "repair_transaction_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "recovery_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_rung_class",
+        "rung_history",
+        "repair_transaction_refs",
+        "active_checkpoint_refs",
+        "affected_storage_class_ids",
+        "current_session_within_recovery",
+        "recovery_note"
+      ],
+      "properties": {
+        "current_rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "rung_history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recovery_rung_transition"
+          }
+        },
+        "repair_transaction_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "active_checkpoint_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "affected_storage_class_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/storage_class_id"
+          }
+        },
+        "current_session_within_recovery": {
+          "type": "boolean"
+        },
+        "recovery_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "fault_domain_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fault_domain_id",
+        "fault_domain_class",
+        "supervisor_action_class",
+        "restart_budget_state",
+        "restart_count",
+        "restart_lineage_refs",
+        "last_good_checkpoint_ref",
+        "quarantine_cause",
+        "process_lineage_ref",
+        "note"
+      ],
+      "properties": {
+        "fault_domain_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "fault_domain_class": {
+          "$ref": "#/$defs/fault_domain_class"
+        },
+        "supervisor_action_class": {
+          "$ref": "#/$defs/supervisor_action_class"
+        },
+        "restart_budget_state": {
+          "$ref": "#/$defs/restart_budget_state"
+        },
+        "restart_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "restart_lineage_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "last_good_checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "quarantine_cause": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "process_lineage_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "fault_domain_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_fault_domains",
+        "crash_envelope_refs",
+        "symbolication_report_refs",
+        "fault_domain_note"
+      ],
+      "properties": {
+        "observed_fault_domains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fault_domain_observation"
+          }
+        },
+        "crash_envelope_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "symbolication_report_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "fault_domain_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "storage_class_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_class_id",
+        "scope_class",
+        "rebuild_cost_class",
+        "sensitivity_data_class",
+        "authority_class",
+        "gc_policy_class",
+        "current_posture",
+        "note"
+      ],
+      "properties": {
+        "storage_class_id": {
+          "$ref": "#/$defs/storage_class_id"
+        },
+        "scope_class": {
+          "$ref": "#/$defs/storage_scope_class"
+        },
+        "rebuild_cost_class": {
+          "$ref": "#/$defs/rebuild_cost_class"
+        },
+        "sensitivity_data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "authority_class": {
+          "$ref": "#/$defs/storage_authority_class"
+        },
+        "gc_policy_class": {
+          "$ref": "#/$defs/gc_policy_class"
+        },
+        "current_posture": {
+          "$ref": "#/$defs/storage_posture_class"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "storage_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_classes",
+        "reset_candidate_storage_class_ids",
+        "pinned_evidence_refs",
+        "storage_note"
+      ],
+      "properties": {
+        "storage_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/storage_class_posture"
+          }
+        },
+        "reset_candidate_storage_class_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/storage_class_id"
+          }
+        },
+        "pinned_evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "storage_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "consent_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consent_id",
+        "consent_scope_class",
+        "decision_class",
+        "captured_via",
+        "captured_at",
+        "note"
+      ],
+      "properties": {
+        "consent_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "consent_scope_class": {
+          "$ref": "#/$defs/consent_scope_class"
+        },
+        "decision_class": {
+          "$ref": "#/$defs/consent_decision_class"
+        },
+        "captured_via": {
+          "$ref": "#/$defs/consent_surface_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "waived_field_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "applies_to_artifact_entry_id",
+        "reason_class",
+        "waiver_ref",
+        "note"
+      ],
+      "properties": {
+        "field_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "applies_to_artifact_entry_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "reason_class": {
+          "$ref": "#/$defs/waived_field_reason_class"
+        },
+        "waiver_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "artifact_materialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "embedded_member_ref",
+        "local_retention_ref",
+        "managed_reference_ref",
+        "optional_upload_ref",
+        "omission_reason_class",
+        "source_manifest_ref"
+      ],
+      "properties": {
+        "embedded_member_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "local_retention_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "managed_reference_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "optional_upload_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "omission_reason_class": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/omission_reason_class"
+            }
+          ]
+        },
+        "source_manifest_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "artifact_manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_entry_id",
+        "bundle_section_class",
+        "artifact_kind_class",
+        "title",
+        "record_class_id",
+        "governed_record_ref",
+        "data_class",
+        "redaction_class",
+        "support_export_posture",
+        "storage_mode",
+        "embedding_state",
+        "decision_reason_class",
+        "inspectable_without_raw_content",
+        "exact_build_identity_refs",
+        "requirement_ids",
+        "evidence_id_refs",
+        "continuity_drill_refs",
+        "fault_domain_refs",
+        "affected_storage_class_ids",
+        "applied_profile_rule_refs",
+        "materialization",
+        "decision_note"
+      ],
+      "properties": {
+        "artifact_entry_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "bundle_section_class": {
+          "$ref": "#/$defs/bundle_section_class"
+        },
+        "artifact_kind_class": {
+          "$ref": "#/$defs/artifact_kind_class"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "record_class_id": {
+          "$ref": "#/$defs/record_class_id_or_null"
+        },
+        "governed_record_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "data_class": {
+          "$ref": "#/$defs/diagnostic_data_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/bundle_redaction_class"
+        },
+        "support_export_posture": {
+          "$ref": "#/$defs/support_export_posture"
+        },
+        "storage_mode": {
+          "$ref": "#/$defs/artifact_storage_mode"
+        },
+        "embedding_state": {
+          "$ref": "#/$defs/evidence_embedding_state"
+        },
+        "decision_reason_class": {
+          "$ref": "#/$defs/manifest_decision_reason_class"
+        },
+        "inspectable_without_raw_content": {
+          "type": "boolean"
+        },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "requirement_ids": {
+          "$ref": "#/$defs/requirement_id_array"
+        },
+        "evidence_id_refs": {
+          "$ref": "#/$defs/evidence_id_array"
+        },
+        "continuity_drill_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "fault_domain_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          }
+        },
+        "affected_storage_class_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/storage_class_id"
+          }
+        },
+        "applied_profile_rule_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_dot_id"
+          }
+        },
+        "materialization": {
+          "$ref": "#/$defs/artifact_materialization"
+        },
+        "decision_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "embedding_state": {
+                "enum": [
+                  "embedded",
+                  "redacted"
+                ]
+              }
+            },
+            "required": [
+              "embedding_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "properties": {
+                  "embedded_member_ref": {
+                    "$ref": "#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "embedded_member_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "embedding_state": {
+                "const": "omitted"
+              }
+            },
+            "required": [
+              "embedding_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "properties": {
+                  "omission_reason_class": {
+                    "$ref": "#/$defs/omission_reason_class"
+                  }
+                },
+                "required": [
+                  "omission_reason_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "storage_mode": {
+                "const": "local_only_copy_retained"
+              }
+            },
+            "required": [
+              "storage_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "properties": {
+                  "local_retention_ref": {
+                    "$ref": "#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "local_retention_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "storage_mode": {
+                "const": "managed_reference_only"
+              }
+            },
+            "required": [
+              "storage_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "properties": {
+                  "managed_reference_ref": {
+                    "$ref": "#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "managed_reference_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "storage_mode": {
+                "const": "optional_upload_candidate"
+              }
+            },
+            "required": [
+              "storage_mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "properties": {
+                  "optional_upload_ref": {
+                    "$ref": "#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "optional_upload_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "embedding_state": {
+                "const": "by_reference"
+              }
+            },
+            "required": [
+              "embedding_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "materialization": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "managed_reference_ref": {
+                        "$ref": "#/$defs/opaque_id"
+                      }
+                    },
+                    "required": [
+                      "managed_reference_ref"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "local_retention_ref": {
+                        "$ref": "#/$defs/opaque_id"
+                      }
+                    },
+                    "required": [
+                      "local_retention_ref"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "optional_upload_ref": {
+                        "$ref": "#/$defs/opaque_id"
+                      }
+                    },
+                    "required": [
+                      "optional_upload_ref"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "source_manifest_ref": {
+                        "$ref": "#/$defs/non_empty_string"
+                      }
+                    },
+                    "required": [
+                      "source_manifest_ref"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One artifact row inside the support-bundle manifest. Every row carries section, data class, redaction class, storage mode, embedding state, and explicit materialization refs so future support tooling does not flatten everything into one generic attachments list."
+    },
+    "profile_rule_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_kind_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact_kind_class"
+          }
+        },
+        "bundle_section_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/bundle_section_class"
+          }
+        },
+        "data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/diagnostic_data_class"
+          }
+        },
+        "record_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/record_class_id_token"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "artifact_kind_classes"
+          ]
+        },
+        {
+          "required": [
+            "bundle_section_classes"
+          ]
+        },
+        {
+          "required": [
+            "data_classes"
+          ]
+        },
+        {
+          "required": [
+            "record_class_ids"
+          ]
+        }
+      ]
+    },
+    "support_bundle_redaction_profile_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "selector",
+        "handling_class",
+        "redaction_class",
+        "inspectable_without_raw_content",
+        "notes"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "selector": {
+          "$ref": "#/$defs/profile_rule_selector"
+        },
+        "handling_class": {
+          "$ref": "#/$defs/profile_rule_handling_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/bundle_redaction_class"
+        },
+        "inspectable_without_raw_content": {
+          "type": "boolean"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "support_bundle_redaction_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_schema_version",
+        "record_kind",
+        "profile_id",
+        "title",
+        "description",
+        "governance_bindings",
+        "default_redaction_class",
+        "rules",
+        "emitted_at"
+      ],
+      "properties": {
+        "support_bundle_schema_version": {
+          "$ref": "#/$defs/support_bundle_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_bundle_redaction_profile_record"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "description": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "default_redaction_class": {
+          "$ref": "#/$defs/bundle_redaction_class"
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/support_bundle_redaction_profile_rule"
+          }
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_schema_version",
+        "record_kind",
+        "support_bundle_id",
+        "record_class_id",
+        "bundle_header",
+        "governance_bindings",
+        "redaction_profile_ref",
+        "policy_context",
+        "bundle_redaction_class",
+        "build_and_install_context",
+        "route_and_execution_context",
+        "locality_and_continuity_context",
+        "recovery_context",
+        "fault_domain_context",
+        "storage_context",
+        "consent_markers",
+        "waived_fields",
+        "artifact_manifest",
+        "emitted_at"
+      ],
+      "properties": {
+        "support_bundle_schema_version": {
+          "$ref": "#/$defs/support_bundle_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_bundle_record"
+        },
+        "support_bundle_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "record_class_id": {
+          "type": "string",
+          "const": "support_bundle_archive"
+        },
+        "bundle_header": {
+          "$ref": "#/$defs/support_bundle_header"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "bundle_redaction_class": {
+          "$ref": "#/$defs/bundle_redaction_class"
+        },
+        "build_and_install_context": {
+          "$ref": "#/$defs/build_and_install_context"
+        },
+        "route_and_execution_context": {
+          "$ref": "#/$defs/route_and_execution_context"
+        },
+        "locality_and_continuity_context": {
+          "$ref": "#/$defs/locality_and_continuity_context"
+        },
+        "recovery_context": {
+          "$ref": "#/$defs/recovery_context"
+        },
+        "fault_domain_context": {
+          "$ref": "#/$defs/fault_domain_context"
+        },
+        "storage_context": {
+          "$ref": "#/$defs/storage_context"
+        },
+        "consent_markers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/consent_marker"
+          }
+        },
+        "waived_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/waived_field_entry"
+          }
+        },
+        "artifact_manifest": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/artifact_manifest_entry"
+          }
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}

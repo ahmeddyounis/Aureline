@@ -105,6 +105,11 @@ show:
 - which build, finding, and repair identifiers remain visible even after
   redaction.
 
+The governed machine-readable bundle contract for that preview lives in
+[`docs/support/support_bundle_contract.md`](./support_bundle_contract.md)
+and
+[`schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json).
+
 The Center should treat bundle preview as a review surface, not a final
 confirmation dialog. If policy prevents adding or removing an item, the
 user should see that in the preview itself. The preview quotes the

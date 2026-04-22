@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=../../../schemas/support/support_bundle.schema.json
+__fixture__:
+  name: local_first_default
+  scenario: >
+    Default local-first support export. Metadata and environment-adjacent
+    rows embed by default, route and packet references stay by
+    reference, raw crash traces remain local-only, code-adjacent rows
+    require review, and full shell history stays excluded.
+
+support_bundle_schema_version: 1
+record_kind: support_bundle_redaction_profile_record
+profile_id: support.redaction.local_first_default
+title: Local-first default support export
+description: >
+  Seed profile for ordinary support-bundle preview. It favors embedded
+  metadata, managed references for already-governed packet families,
+  local-only retention for raw high-risk captures, explicit review for
+  code-adjacent exports, and permanent exclusion for full shell history.
+governance_bindings:
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+  record_class_governance_ref: docs/governance/record_class_governance.md
+  secret_redaction_adr_ref: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  evidence_id_conventions_ref: artifacts/governance/evidence_id_conventions.md
+  evidence_packet_header_schema_ref: schemas/governance/evidence_packet_header.schema.json
+  continuity_catalog_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+  fault_domain_source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-cd-fault-domain-supervisor-and-restart-budget-matrix
+  incident_workspace_packet_schema_ref: schemas/security/incident_workspace_packet.schema.json
+  migration_session_schema_ref: schemas/migration/migration_session.schema.json
+default_redaction_class: internal_support_restricted
+rules:
+  - rule_id: support.redaction.local_first_default.metadata_core
+    selector:
+      bundle_section_classes:
+        - build_and_install_truth
+        - locality_and_continuity_truth
+        - recovery_and_repair_truth
+        - fault_domain_and_restart_truth
+      data_classes:
+        - metadata_only
+        - environment_adjacent
+    handling_class: export_embedded_metadata_only
+    redaction_class: metadata_safe_default
+    inspectable_without_raw_content: true
+    notes: >
+      Exact-build, install, locality, recovery, and fault-domain
+      summaries stay embedded because they are the minimum truthful
+      packet for support.
+  - rule_id: support.redaction.local_first_default.managed_refs
+    selector:
+      artifact_kind_classes:
+        - action_route_truth_packet
+        - evidence_packet_reference
+        - incident_workspace_packet_reference
+        - migration_packet_reference
+    handling_class: export_by_reference
+    redaction_class: operator_only_restricted
+    inspectable_without_raw_content: true
+    notes: >
+      Packet families that already have their own governed schema export
+      by stable ref instead of being inlined again.
+  - rule_id: support.redaction.local_first_default.high_risk_local
+    selector:
+      artifact_kind_classes:
+        - trace_capture
+        - crash_dump_payload
+      data_classes:
+        - high_risk
+    handling_class: retain_local_only
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      Raw traces and dumps remain on-device by default. The bundle may
+      export a manifest row or later upload token, but not the body.
+  - rule_id: support.redaction.local_first_default.review_code
+    selector:
+      artifact_kind_classes:
+        - code_snippet_attachment
+        - notebook_cell_attachment
+        - mutation_journal_excerpt
+      data_classes:
+        - code_adjacent
+    handling_class: review_before_export
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      Code-adjacent captures are never widened silently. Preview must
+      stop at manual review first.
+  - rule_id: support.redaction.local_first_default.exclude_shell_history
+    selector:
+      artifact_kind_classes:
+        - full_shell_history_capture
+    handling_class: exclude_always
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      Full shell history remains outside ordinary support exports.
+emitted_at: 2026-04-21T23:40:00Z

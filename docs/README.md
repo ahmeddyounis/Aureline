@@ -205,6 +205,13 @@ code.
   exact-build/docs/route truth the support center should preserve.
   Machine-readable support packet family index in
   [`/schemas/support/support_packet_index.schema.json`](../schemas/support/support_packet_index.schema.json).
+- [`support/support_bundle_contract.md`](./support/support_bundle_contract.md)
+  — governed support/export bundle packet with exact-build, route,
+  continuity, recovery-ladder, fault-domain, consent, waiver, and
+  typed artifact-manifest semantics. Machine-readable schema in
+  [`/schemas/support/support_bundle.schema.json`](../schemas/support/support_bundle.schema.json);
+  seed redaction profiles and example bundles in
+  [`/fixtures/support/`](../fixtures/support/).
 
 ## Frozen vocabularies
 

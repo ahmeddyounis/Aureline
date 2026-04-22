@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../../../schemas/support/support_bundle.schema.json
+__fixture__:
+  name: operator_escalation_review
+  scenario: >
+    Higher-fidelity escalation profile for operator-reviewed cases.
+    Metadata still embeds by default, governed packet families stay by
+    reference, code-adjacent rows require review before widening, and
+    raw crash/high-risk captures remain opt-in or excluded.
+
+support_bundle_schema_version: 1
+record_kind: support_bundle_redaction_profile_record
+profile_id: support.redaction.operator_escalation_review
+title: Operator-reviewed escalation export
+description: >
+  Seed profile for escalated support cases where an operator is
+  preparing a richer packet but still must preserve explicit review and
+  opt-in boundaries for code-adjacent or raw high-risk evidence.
+governance_bindings:
+  support_packet_index_schema_ref: schemas/support/support_packet_index.schema.json
+  record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+  record_class_governance_ref: docs/governance/record_class_governance.md
+  secret_redaction_adr_ref: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  evidence_id_conventions_ref: artifacts/governance/evidence_id_conventions.md
+  evidence_packet_header_schema_ref: schemas/governance/evidence_packet_header.schema.json
+  continuity_catalog_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+  fault_domain_source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-cd-fault-domain-supervisor-and-restart-budget-matrix
+  incident_workspace_packet_schema_ref: schemas/security/incident_workspace_packet.schema.json
+  migration_session_schema_ref: schemas/migration/migration_session.schema.json
+default_redaction_class: internal_support_restricted
+rules:
+  - rule_id: support.redaction.operator_escalation_review.metadata_core
+    selector:
+      data_classes:
+        - metadata_only
+        - environment_adjacent
+    handling_class: export_embedded
+    redaction_class: operator_only_restricted
+    inspectable_without_raw_content: true
+    notes: >
+      Escalation cases may embed the full metadata/default environment
+      packet so long as the declared redaction class remains restricted.
+  - rule_id: support.redaction.operator_escalation_review.review_code
+    selector:
+      data_classes:
+        - code_adjacent
+      artifact_kind_classes:
+        - code_snippet_attachment
+        - notebook_cell_attachment
+        - terminal_transcript_excerpt
+        - mutation_journal_excerpt
+    handling_class: review_before_export
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      Even escalation packets stop at review for code-bearing or
+      transcript-bearing artifacts.
+  - rule_id: support.redaction.operator_escalation_review.optional_high_risk
+    selector:
+      artifact_kind_classes:
+        - crash_dump_payload
+        - trace_capture
+      data_classes:
+        - high_risk
+    handling_class: exclude_by_default
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      A separate high-friction consent step is still required before raw
+      high-risk material can move beyond the local machine.
+  - rule_id: support.redaction.operator_escalation_review.packet_refs
+    selector:
+      artifact_kind_classes:
+        - action_route_truth_packet
+        - evidence_packet_reference
+        - incident_workspace_packet_reference
+    handling_class: export_by_reference
+    redaction_class: operator_only_restricted
+    inspectable_without_raw_content: true
+    notes: >
+      Existing governed packet families remain linked by stable
+      reference instead of being duplicated into one bundle body.
+  - rule_id: support.redaction.operator_escalation_review.exclude_shell_history
+    selector:
+      artifact_kind_classes:
+        - full_shell_history_capture
+    handling_class: exclude_always
+    redaction_class: internal_support_restricted
+    inspectable_without_raw_content: false
+    notes: >
+      Full shell history remains excluded even in operator-reviewed
+      escalation packets.
+emitted_at: 2026-04-21T23:45:00Z
