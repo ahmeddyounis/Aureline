@@ -386,6 +386,15 @@ code.
   worked fixtures (destructive core path, publish-capable /
   externally-mutating path, responsive-fallback denial) in
   [`/fixtures/ux/interaction_safety_cases/`](../fixtures/ux/interaction_safety_cases/).
+- [`ux/live_update_review_contract.md`](./ux/live_update_review_contract.md)
+  — shared live-update review contract covering pause/freeze,
+  buffered-vs-stale honesty, anchor stability, batch-membership drift,
+  provider-limited visibility, snapshot review, and copy/export scope
+  for dense tables, result grids, logs, and streaming timelines.
+  Boundary schema in
+  [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
 - [`security/safe_preview_trust_classes.md`](./security/safe_preview_trust_classes.md)
   — safe-preview trust-class and suspicious-content vocabulary for raw
   text, sanitized rich content, trusted local active content, and

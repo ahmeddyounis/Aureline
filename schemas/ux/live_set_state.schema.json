@@ -1,0 +1,979 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/live_set_state.schema.json",
+  "title": "Aureline live-set review contract state",
+  "description": "Boundary schema for the shared live-set review contract frozen in docs/ux/live_update_review_contract.md. A live_set_state_record captures the orthogonal review-control, delivery, and provider-limit posture for dense tables, result grids, log streams, activity feeds, and incident timelines. It also carries the basis, count truth, buffered-change indicator, jump-to-latest behavior, anchor status, batch-membership honesty, follow/autoscroll posture, provider-owned limitations, schema drift, truncation, and copy/export scope labels that every non-owning surface, support export, and companion review flow must project consistently. The eventual runtime / shell Rust types are the source of record; this schema is the cross-tool export external readers rely on. Adding a new surface family, control state, delivery state, provider-limit code, collection model, change indicator, jump action, anchor state, batch-membership state, follow mode, schema-drift state, truncation state, or copy/export scope class is additive-minor and requires a live_set_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/live_set_state_record" }
+  ],
+  "$defs": {
+    "live_set_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the live-set review contract export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["live_set_state_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ],
+          "description": "Scope class shared with the subscription contract."
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier within the scope class."
+        }
+      },
+      "description": "Typed scope the live set belongs to."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Canonical-owner classification re-exported from the subscription contract."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "dense_table",
+        "result_grid",
+        "log_stream",
+        "activity_stream",
+        "incident_timeline"
+      ],
+      "description": "Closed live-surface family vocabulary."
+    },
+
+    "collection_model": {
+      "type": "string",
+      "enum": [
+        "keyed_rows",
+        "windowed_rows",
+        "append_only_events",
+        "time_ordered_timeline"
+      ],
+      "description": "Closed collection-model vocabulary naming how the surface moves and how anchoring behaves."
+    },
+
+    "review_control_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "paused",
+        "frozen",
+        "snapshot_review"
+      ],
+      "description": "Client-owned review-control posture."
+    },
+
+    "delivery_state": {
+      "type": "string",
+      "enum": [
+        "live",
+        "buffered",
+        "stale",
+        "snapshot"
+      ],
+      "description": "Producer-owned delivery posture. Separates current continuity from client review control."
+    },
+
+    "authority_limit_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "provider_limited"
+      ],
+      "description": "Whether the current scope is narrowed by the upstream provider rather than by client review control."
+    },
+
+    "count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "exact" },
+            "value": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "approximate" },
+            "value": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "unknown" }
+          }
+        }
+      ],
+      "description": "Exact/approximate/unknown count truth."
+    },
+
+    "unseen_change_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "value"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["exact", "approximate"]
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Buffered change count. Unknown is not permitted; a buffered surface must emit a count or an approximation."
+    },
+
+    "count_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loaded_count", "visible_count", "total_count"],
+      "properties": {
+        "loaded_count": { "$ref": "#/$defs/count_value" },
+        "visible_count": { "$ref": "#/$defs/count_value" },
+        "total_count": { "$ref": "#/$defs/count_value" }
+      },
+      "description": "Loaded, visible, and total truth for the current live set."
+    },
+
+    "basis_class": {
+      "type": "string",
+      "enum": [
+        "live_query_execution",
+        "live_log_window",
+        "live_event_feed",
+        "provider_fetch_window",
+        "named_snapshot",
+        "incident_snapshot"
+      ],
+      "description": "Closed basis vocabulary naming what the current review posture is anchored to."
+    },
+
+    "current_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis_class", "basis_ref", "basis_label"],
+      "properties": {
+        "basis_class": { "$ref": "#/$defs/basis_class" },
+        "basis_ref": { "$ref": "#/$defs/opaque_id" },
+        "basis_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Current execution, fetch, or snapshot basis for the review state."
+    },
+
+    "ordering_ownership": {
+      "type": "string",
+      "enum": ["client", "provider", "mixed"],
+      "description": "Who owns ordering or regrouping for the current view."
+    },
+
+    "change_unit": {
+      "type": "string",
+      "enum": [
+        "rows",
+        "events",
+        "log_lines",
+        "log_segments",
+        "timeline_entries"
+      ],
+      "description": "What the unseen-change counter counts."
+    },
+
+    "change_indicator": {
+      "type": "string",
+      "enum": [
+        "append",
+        "insert_before_anchor",
+        "reordered",
+        "deleted",
+        "schema_changed",
+        "truncated"
+      ],
+      "description": "Closed buffered-change indicator vocabulary."
+    },
+
+    "jump_action_class": {
+      "type": "string",
+      "enum": [
+        "show_new_results",
+        "jump_to_latest",
+        "resume_live"
+      ],
+      "description": "Typed reveal/resume path for buffered change."
+    },
+
+    "jump_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "label",
+        "applies_buffered_changes",
+        "target_review_control_state",
+        "preserves_anchor"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/jump_action_class" },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "applies_buffered_changes": {
+          "type": "boolean"
+        },
+        "target_review_control_state": {
+          "$ref": "#/$defs/review_control_state"
+        },
+        "preserves_anchor": {
+          "type": "boolean"
+        }
+      },
+      "description": "Typed reveal/resume action. Distinguishes reveal-only from resume-live behavior."
+    },
+
+    "update_buffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unseen_change_count",
+        "change_unit",
+        "change_indicators"
+      ],
+      "properties": {
+        "unseen_change_count": {
+          "$ref": "#/$defs/unseen_change_count"
+        },
+        "change_unit": { "$ref": "#/$defs/change_unit" },
+        "change_indicators": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/change_indicator" },
+          "uniqueItems": true
+        },
+        "jump_action": { "$ref": "#/$defs/jump_action" }
+      },
+      "description": "Buffered-change indicator, unit, and reveal/resume action."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "row",
+        "range",
+        "cursor",
+        "time",
+        "group"
+      ],
+      "description": "Typed review anchor."
+    },
+
+    "anchor_state": {
+      "type": "string",
+      "enum": [
+        "not_anchored",
+        "stable",
+        "shifted",
+        "trimmed",
+        "deleted",
+        "unresolvable"
+      ],
+      "description": "Current stability of the review anchor."
+    },
+
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_kind", "anchor_state", "preserves_selection"],
+      "properties": {
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "anchor_state": { "$ref": "#/$defs/anchor_state" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preserves_selection": {
+          "type": "boolean"
+        }
+      },
+      "description": "Stable row/range/time anchor that protects review work from automatic motion."
+    },
+
+    "membership_basis_class": {
+      "type": "string",
+      "enum": [
+        "current_visible_set",
+        "current_filter_sort",
+        "loaded_window",
+        "query_snapshot",
+        "time_window",
+        "provider_cursor_window",
+        "snapshot_basis"
+      ],
+      "description": "Closed batch-basis vocabulary."
+    },
+
+    "membership_state": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "drifting",
+        "approximate",
+        "snapshot_pinned"
+      ],
+      "description": "Whether the current batch definition remains stable, is drifting, is provider-approximate, or is pinned to a snapshot."
+    },
+
+    "batch_membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "membership_basis_class",
+        "membership_state",
+        "selected_count",
+        "buffered_changes_excluded",
+        "basis_label",
+        "rebind_action_required"
+      ],
+      "properties": {
+        "membership_basis_class": {
+          "$ref": "#/$defs/membership_basis_class"
+        },
+        "membership_state": { "$ref": "#/$defs/membership_state" },
+        "selected_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "buffered_changes_excluded": {
+          "type": "boolean"
+        },
+        "basis_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rebind_action_required": {
+          "type": "boolean"
+        },
+        "rebind_reason_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Selection and batch-membership honesty for the current review set."
+    },
+
+    "follow_mode": {
+      "type": "string",
+      "enum": [
+        "follow_latest",
+        "manual_scroll",
+        "frozen",
+        "not_applicable"
+      ],
+      "description": "Autoscroll/follow posture for append-oriented surfaces."
+    },
+
+    "follow_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "$ref": "#/$defs/follow_mode" },
+        "toggle_action_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Follow/autoscroll posture exposed to the user."
+    },
+
+    "provider_limitation_class": {
+      "type": "string",
+      "enum": [
+        "sampled_subset",
+        "windowed_cursor",
+        "retention_window",
+        "truncated_history",
+        "approximate_total",
+        "schema_projection",
+        "rate_limited_updates"
+      ],
+      "description": "Closed provider-owned limitation vocabulary."
+    },
+
+    "provider_limitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limitation_class", "summary_label"],
+      "properties": {
+        "limitation_class": {
+          "$ref": "#/$defs/provider_limitation_class"
+        },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "One provider-owned narrowing or omission disclosure."
+    },
+
+    "provider_limitations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/provider_limitation" },
+      "description": "Zero or more provider-owned limitations."
+    },
+
+    "schema_drift_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "compatible_addition_pending_review",
+        "incompatible_reset_required"
+      ],
+      "description": "Schema/column drift posture for the current reviewed view."
+    },
+
+    "schema_drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "added_fields", "removed_fields"],
+      "properties": {
+        "state": { "$ref": "#/$defs/schema_drift_state" },
+        "added_fields": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "removed_fields": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Compatible or incompatible schema drift that must remain reviewable."
+    },
+
+    "truncation_owner": {
+      "type": "string",
+      "enum": [
+        "none",
+        "client",
+        "provider"
+      ],
+      "description": "Who owns the current windowing/truncation behavior."
+    },
+
+    "truncation_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "windowed",
+        "truncated_history",
+        "trimmed_before_anchor"
+      ],
+      "description": "Current windowing/truncation posture."
+    },
+
+    "windowing_or_truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "state"],
+      "properties": {
+        "owner": { "$ref": "#/$defs/truncation_owner" },
+        "state": { "$ref": "#/$defs/truncation_state" },
+        "summary_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "omitted_before_count": { "$ref": "#/$defs/count_value" }
+      },
+      "description": "Client- or provider-owned windowing/truncation disclosure."
+    },
+
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "formatted",
+        "sanitized",
+        "metadata_only"
+      ],
+      "description": "Representation class for copy/export on the current surface."
+    },
+
+    "copy_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_rows_or_events",
+        "anchored_selection",
+        "loaded_materialized_set",
+        "named_snapshot_only",
+        "metadata_only"
+      ],
+      "description": "Copy-scope class. Names exactly what a copy action includes."
+    },
+
+    "export_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_rows_or_events",
+        "loaded_materialized_set",
+        "provider_raw_download",
+        "named_snapshot_only",
+        "metadata_only"
+      ],
+      "description": "Export-scope class. Names exactly what an export action includes."
+    },
+
+    "buffered_change_visibility": {
+      "type": "string",
+      "enum": [
+        "excluded_until_jump",
+        "included_after_jump",
+        "not_applicable"
+      ],
+      "description": "Whether buffered changes are excluded from copy/export until the user reveals them."
+    },
+
+    "copy_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation_class",
+        "copy_scope_class",
+        "export_scope_class",
+        "buffered_change_visibility",
+        "scope_label"
+      ],
+      "properties": {
+        "representation_class": {
+          "$ref": "#/$defs/representation_class"
+        },
+        "copy_scope_class": {
+          "$ref": "#/$defs/copy_scope_class"
+        },
+        "export_scope_class": {
+          "$ref": "#/$defs/export_scope_class"
+        },
+        "buffered_change_visibility": {
+          "$ref": "#/$defs/buffered_change_visibility"
+        },
+        "scope_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Copy/export posture for the current review state."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from other boundary contracts."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy, identity-mode, and trust context the record was minted under."
+    },
+
+    "live_set_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "live_set_state_schema_version",
+        "surface_id",
+        "surface_family",
+        "collection_model",
+        "scope_ref",
+        "authority_class",
+        "review_control_state",
+        "delivery_state",
+        "authority_limit_state",
+        "review_summary_label",
+        "current_basis",
+        "ordering_ownership",
+        "ordering_label",
+        "count_truth",
+        "update_buffer",
+        "anchor",
+        "batch_membership",
+        "follow_control",
+        "provider_limitations",
+        "schema_drift",
+        "windowing_or_truncation",
+        "copy_export_posture",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "live_set_state_record" },
+        "live_set_state_schema_version": {
+          "$ref": "#/$defs/live_set_state_schema_version"
+        },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "collection_model": { "$ref": "#/$defs/collection_model" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "review_control_state": {
+          "$ref": "#/$defs/review_control_state"
+        },
+        "delivery_state": { "$ref": "#/$defs/delivery_state" },
+        "authority_limit_state": {
+          "$ref": "#/$defs/authority_limit_state"
+        },
+        "review_summary_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "current_basis": { "$ref": "#/$defs/current_basis" },
+        "ordering_ownership": {
+          "$ref": "#/$defs/ordering_ownership"
+        },
+        "ordering_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "count_truth": { "$ref": "#/$defs/count_truth" },
+        "update_buffer": { "$ref": "#/$defs/update_buffer" },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "batch_membership": {
+          "$ref": "#/$defs/batch_membership"
+        },
+        "follow_control": { "$ref": "#/$defs/follow_control" },
+        "provider_limitations": {
+          "$ref": "#/$defs/provider_limitations"
+        },
+        "schema_drift": { "$ref": "#/$defs/schema_drift" },
+        "windowing_or_truncation": {
+          "$ref": "#/$defs/windowing_or_truncation"
+        },
+        "copy_export_posture": {
+          "$ref": "#/$defs/copy_export_posture"
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "delivery_state": { "const": "buffered" }
+            },
+            "required": ["delivery_state"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "update_buffer": {
+                "type": "object",
+                "required": ["jump_action"],
+                "properties": {
+                  "unseen_change_count": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "minimum": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "delivery_state": {
+                "enum": ["live", "stale", "snapshot"]
+              }
+            },
+            "required": ["delivery_state"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "update_buffer": {
+                "type": "object",
+                "properties": {
+                  "unseen_change_count": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "const": 0 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "authority_limit_state": {
+                "const": "provider_limited"
+              }
+            },
+            "required": ["authority_limit_state"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "provider_limitations": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "review_control_state": {
+                "const": "snapshot_review"
+              }
+            },
+            "required": ["review_control_state"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "delivery_state": { "const": "snapshot" },
+              "follow_control": {
+                "type": "object",
+                "properties": {
+                  "mode": { "const": "not_applicable" }
+                }
+              },
+              "batch_membership": {
+                "type": "object",
+                "properties": {
+                  "membership_state": {
+                    "const": "snapshot_pinned"
+                  }
+                }
+              },
+              "current_basis": {
+                "type": "object",
+                "required": ["captured_at"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "anchor_kind": { "const": "none" }
+                }
+              }
+            },
+            "required": ["anchor"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "anchor_state": { "const": "not_anchored" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "anchor_kind": {
+                    "enum": ["row", "range", "cursor", "time", "group"]
+                  }
+                }
+              }
+            },
+            "required": ["anchor"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["anchor_ref", "anchor_label"],
+                "properties": {
+                  "anchor_state": {
+                    "not": { "const": "not_anchored" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "batch_membership": {
+                "type": "object",
+                "properties": {
+                  "rebind_action_required": { "const": true }
+                }
+              }
+            },
+            "required": ["batch_membership"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "batch_membership": {
+                "type": "object",
+                "required": ["rebind_reason_label"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
