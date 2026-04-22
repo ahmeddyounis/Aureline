@@ -185,7 +185,8 @@ minimum path needed to reconstruct what happened:
 6. **What the user tried next:** recovery rung entered, repair IDs,
    checkpoint refs, and reversal class.
 7. **What proof or claim context mattered:** benchmark packet,
-   compatibility report, or migration/claim packet refs when relevant.
+   compatibility report, compatibility-row refs, migration session /
+   outcome packet / report refs, or claim packet refs when relevant.
 
 If any field is unknown, the packet should carry a typed unknown value
 and the export path should stay honest about that gap.

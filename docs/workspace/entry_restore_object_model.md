@@ -32,6 +32,10 @@ The shared migration and restore playbook lives at:
 
 - [`/docs/state/migration_and_restore_playbook.md`](../state/migration_and_restore_playbook.md)
 
+The dedicated migration-center companion contract lives at:
+
+- [`/docs/migration/migration_center_object_model.md`](../migration/migration_center_object_model.md)
+
 This contract is normative. Where it disagrees with the PRD, TAD,
 TDD, or UI/UX spec quotations cited in §10, those documents win and
 this document MUST be updated in the same change. Where this

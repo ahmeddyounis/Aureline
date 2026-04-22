@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/migration_session.schema.json",
+  "title": "Aureline migration-session, shortcut-digest, and restore-record contracts",
+  "description": "Boundary schema for the durable migration-center records that survive first-run onboarding, later migration-center review, issue handoff, and support export. Freezes one migration_session_record, one migration_shortcut_digest_record, and one migration_restore_record so source tool/version truth, selected domains, checkpoint linkage, compatibility-report linkage, shortcut deltas, restore instructions, and machine-readable export refs remain aligned across UI, CLI, docs, and support. See docs/migration/migration_center_object_model.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/migration_session_record" },
+    { "$ref": "#/$defs/migration_shortcut_digest_record" },
+    { "$ref": "#/$defs/migration_restore_record" }
+  ],
+  "$defs": {
+    "migration_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the migration-center object model. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, support export, issue templates, and machine-readable handoff packets."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local timestamp. Opaque at this boundary."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before this value crosses the boundary."
+    },
+
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+
+    "compatibility_row_ref": {
+      "type": "string",
+      "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable compatibility-row id from schemas/release/compatibility_row.schema.json."
+    },
+
+    "compatibility_row_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/compatibility_row_ref" }
+    },
+
+    "migration_source_kind": {
+      "type": "string",
+      "enum": [
+        "vs_code",
+        "jetbrains_family",
+        "vim_or_neovim",
+        "prior_aureline",
+        "portable_profile_bundle",
+        "support_recovery_bundle",
+        "workflow_bundle_handoff",
+        "generic_import"
+      ],
+      "description": "Closed migration source-family set aligned with the design-doc migration wedge."
+    },
+
+    "migration_source_scope": {
+      "type": "string",
+      "enum": [
+        "user_profile",
+        "workspace",
+        "portable_export",
+        "support_bundle",
+        "workflow_bundle",
+        "other"
+      ],
+      "description": "What source scope the importer actually read."
+    },
+
+    "migration_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "display_name", "source_version"],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/migration_source_kind" },
+        "display_name": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "User-facing source product label."
+        },
+        "source_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Source product version string or importer-known profile revision."
+        },
+        "source_scope": { "$ref": "#/$defs/migration_source_scope" },
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the discovered source artifact or staged import root."
+        },
+        "discovery_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to a source-discovery card, evidence row, or staging manifest."
+        }
+      },
+      "description": "Source tool/version truth for one migration session."
+    },
+
+    "migration_target_kind": {
+      "type": "string",
+      "enum": [
+        "active_profile",
+        "profile_library_entry",
+        "portable_profile_artifact",
+        "active_workspace",
+        "workspace_manifest",
+        "workspace_candidate",
+        "workflow_bundle_candidate"
+      ],
+      "description": "Which target the migration will write or prepare."
+    },
+
+    "migration_apply_scope": {
+      "type": "string",
+      "enum": [
+        "preview_only",
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace"
+      ],
+      "description": "Whether the migration only previews, writes profile truth, writes workspace truth, or touches both."
+    },
+
+    "migration_target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_ref", "apply_scope"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/migration_target_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the profile, workspace, candidate, or bundle target."
+        },
+        "apply_scope": { "$ref": "#/$defs/migration_apply_scope" },
+        "target_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware display label for the destination."
+        }
+      },
+      "description": "Target profile/workspace truth for one migration session."
+    },
+
+    "migration_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_metadata",
+        "profiles_and_layout",
+        "docs_and_tours",
+        "bridge_metadata",
+        "other"
+      ],
+      "description": "Closed migration-domain set used by selection, parity scoring, and post-import follow-up."
+    },
+
+    "migration_domain_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/migration_domain" }
+    },
+
+    "migration_actor_kind": {
+      "type": "string",
+      "enum": [
+        "interactive_user",
+        "guided_onboarding",
+        "headless_cli",
+        "support_operator",
+        "automation",
+        "policy_driven"
+      ],
+      "description": "Who initiated or resumed the migration session."
+    },
+
+    "migration_actor_surface": {
+      "type": "string",
+      "enum": [
+        "migration_center",
+        "first_run_onboarding",
+        "command_palette",
+        "headless_cli",
+        "support_replay",
+        "workflow_bundle_handoff",
+        "other"
+      ],
+      "description": "Which surface or route originated the session."
+    },
+
+    "migration_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_kind", "surface"],
+      "properties": {
+        "actor_kind": { "$ref": "#/$defs/migration_actor_kind" },
+        "surface": { "$ref": "#/$defs/migration_actor_surface" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional pseudonymous actor or automation handle."
+        },
+        "actor_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware display label for the actor."
+        }
+      },
+      "description": "Actor identity for audit, support, and issue-handoff purposes."
+    },
+
+    "migration_session_state": {
+      "type": "string",
+      "enum": [
+        "source_selected",
+        "domains_chosen",
+        "diff_ready",
+        "applying",
+        "applied",
+        "partially_applied",
+        "restored",
+        "failed",
+        "abandoned"
+      ],
+      "description": "Closed migration-session state machine aligned with the technical design document."
+    },
+
+    "shortcut_delta_state": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "remapped",
+        "conflict",
+        "unsupported",
+        "skipped"
+      ],
+      "description": "Closed shortcut-delta state set used by the dedicated shortcut digest."
+    },
+
+    "shortcut_risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "How risky the shortcut delta is for muscle memory and high-frequency command use."
+    },
+
+    "shortcut_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_command_ref", "source_gesture", "delta_state", "risk_class"],
+      "properties": {
+        "source_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_gesture": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Imported gesture from the source tool."
+        },
+        "target_gesture": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Resolved target gesture on Aureline, when one exists."
+        },
+        "delta_state": { "$ref": "#/$defs/shortcut_delta_state" },
+        "risk_class": { "$ref": "#/$defs/shortcut_risk_class" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One shortcut-change row in the dedicated digest."
+    },
+
+    "migration_restore_scope": {
+      "type": "string",
+      "enum": [
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace",
+        "extensions_only",
+        "settings_only",
+        "composite_import"
+      ],
+      "description": "What the restore checkpoint covers."
+    },
+
+    "restore_action_hint": {
+      "type": "string",
+      "enum": [
+        "open_restore_center",
+        "restore_from_checkpoint",
+        "compare_before_restore",
+        "keep_partial_apply_visible",
+        "export_for_support",
+        "cleanup_retained_checkpoint"
+      ],
+      "description": "Typed restore follow-up actions or instructions surfaced after import."
+    },
+
+    "restore_action_hint_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/restore_action_hint" }
+    },
+
+    "migration_restore_availability_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "restored",
+        "expired",
+        "cleanup_pending",
+        "policy_hidden"
+      ],
+      "description": "Whether the checkpoint is still available for user or support initiated restore."
+    },
+
+    "migration_restore_cleanup_state": {
+      "type": "string",
+      "enum": [
+        "retained",
+        "cleanup_pending",
+        "cleaned_up",
+        "cleanup_blocked"
+      ],
+      "description": "Whether the restore checkpoint cleanup has run, is pending, or was blocked."
+    },
+
+    "migration_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "migration_session_schema_version",
+        "migration_session_id",
+        "source_descriptor",
+        "target_descriptor",
+        "selected_domains",
+        "session_state",
+        "actor",
+        "compatibility_report_ref",
+        "compatibility_row_refs",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "migration_session_record"
+        },
+        "migration_session_schema_version": {
+          "$ref": "#/$defs/migration_session_schema_version"
+        },
+        "migration_session_id": { "$ref": "#/$defs/opaque_id" },
+        "source_descriptor": { "$ref": "#/$defs/migration_source_descriptor" },
+        "target_descriptor": { "$ref": "#/$defs/migration_target_descriptor" },
+        "selected_domains": { "$ref": "#/$defs/migration_domain_array" },
+        "session_state": { "$ref": "#/$defs/migration_session_state" },
+        "actor": { "$ref": "#/$defs/migration_actor" },
+        "entry_action_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to the companion project_entry_action_record when the session began from an import entry flow."
+        },
+        "compatibility_report_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Machine-readable ref to the migration compatibility report or report fragment this session resolved against."
+        },
+        "compatibility_row_refs": {
+          "$ref": "#/$defs/compatibility_row_ref_array"
+        },
+        "outcome_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the importer_outcome_packet_record that captures grouped outcome rows for this session."
+        },
+        "shortcut_digest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the dedicated shortcut digest when shortcuts were selected or changed."
+        },
+        "restore_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the migration_restore_record. Required before apply begins."
+        },
+        "preview_diff_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reserved ref for a later preview/diff artifact."
+        },
+        "post_import_validation_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reserved ref for post-import validation summary packets."
+        },
+        "recommended_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reserved workflow-bundle handoff ref."
+        },
+        "migration_report_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Machine-readable migration-report ref shared by docs, support, and issue-template projections."
+        },
+        "issue_template_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Issue-template refs used when the session becomes a bug or design-review handoff."
+        },
+        "export_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable export refs carrying the session into support, docs, or offline review packets."
+        },
+        "support_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Support packet ids or packet paths that preserve this session."
+        },
+        "docs_help_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Docs/help refs attached to the session-level compatibility or follow-up story."
+        },
+        "restore_provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to a shared restore-provenance record when the migration also generated restore provenance."
+        },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "session_state": {
+                "enum": ["applying", "applied", "partially_applied", "restored", "failed"]
+              }
+            },
+            "required": ["session_state"]
+          },
+          "then": {
+            "required": ["restore_record_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "session_state": {
+                "enum": ["applied", "partially_applied", "restored"]
+              }
+            },
+            "required": ["session_state"]
+          },
+          "then": {
+            "required": ["outcome_packet_ref"]
+          }
+        }
+      ],
+      "description": "One durable migration session. The session exists before apply, survives partial apply or restore, and remains addressable by docs, support, and migration reports."
+    },
+
+    "migration_shortcut_digest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "migration_session_schema_version",
+        "shortcut_digest_id",
+        "migration_session_ref",
+        "imported_command_rows",
+        "remapped_gesture_rows",
+        "unresolved_conflict_rows",
+        "muscle_memory_risk_notes",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "migration_shortcut_digest_record"
+        },
+        "migration_session_schema_version": {
+          "$ref": "#/$defs/migration_session_schema_version"
+        },
+        "shortcut_digest_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "imported_command_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_row" },
+          "description": "Shortcut rows that imported with no remap beyond canonicalization."
+        },
+        "remapped_gesture_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_row" },
+          "description": "Shortcut rows that changed gesture or command mapping and therefore carry muscle-memory risk."
+        },
+        "unresolved_conflict_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_row" },
+          "description": "Shortcut rows that stayed conflicted, unsupported, or intentionally skipped."
+        },
+        "muscle_memory_risk_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/redaction_aware_text" },
+          "description": "Ordered notes summarizing the highest-risk shortcut deltas."
+        },
+        "export_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable export refs for shortcut-specific support or review handoff."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Dedicated shortcut digest reserved for high-frequency command deltas and unresolved shortcut conflicts."
+    },
+
+    "migration_restore_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "migration_session_schema_version",
+        "restore_record_id",
+        "migration_session_ref",
+        "checkpoint_ref",
+        "created_at",
+        "scope",
+        "availability_state",
+        "restore_action_hints",
+        "cleanup_state"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "migration_restore_record"
+        },
+        "migration_session_schema_version": {
+          "$ref": "#/$defs/migration_session_schema_version"
+        },
+        "restore_record_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable restore-checkpoint ref created before apply."
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scope": { "$ref": "#/$defs/migration_restore_scope" },
+        "availability_state": {
+          "$ref": "#/$defs/migration_restore_availability_state"
+        },
+        "restore_action_hints": {
+          "$ref": "#/$defs/restore_action_hint_array"
+        },
+        "cleanup_state": { "$ref": "#/$defs/migration_restore_cleanup_state" },
+        "partial_apply_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional note explaining why the checkpoint stays visible after partial apply or downgrade."
+        },
+        "restore_provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to shared restore provenance emitted alongside the checkpoint."
+        },
+        "support_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Support packet ids or packet paths that preserve this restore record."
+        },
+        "export_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable export refs carrying the restore record outside the local session."
+        }
+      },
+      "description": "Restore-checkpoint record for a migration session. The checkpoint remains addressable after apply, partial failure, or explicit restore."
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "migration_session_record",
+      "migration_session_schema_version": 1,
+      "migration_session_id": "migration-session:vs-code-first-run-0001",
+      "source_descriptor": {
+        "source_kind": "vs_code",
+        "display_name": "VS Code",
+        "source_version": "1.99.0",
+        "source_scope": "user_profile",
+        "artifact_ref": "artifact:vscode-user-settings-root"
+      },
+      "target_descriptor": {
+        "target_kind": "active_workspace",
+        "target_ref": "workspace:ts-web-app",
+        "apply_scope": "profile_and_workspace",
+        "target_label": "TypeScript Web App"
+      },
+      "selected_domains": [
+        "settings",
+        "shortcuts",
+        "extensions_and_providers",
+        "tasks_and_run_configs"
+      ],
+      "session_state": "applied",
+      "actor": {
+        "actor_kind": "guided_onboarding",
+        "surface": "first_run_onboarding",
+        "actor_ref": "actor:local-user"
+      },
+      "entry_action_ref": "entry-2026042110-0007",
+      "compatibility_report_ref": "docs/release/compatibility_report_template.md#migration.vs_code.profile_and_workspace",
+      "compatibility_row_refs": [
+        "compat_row:state.profile_layout_schema",
+        "compat_row:command_plane.command_descriptor_schema"
+      ],
+      "outcome_packet_ref": "importer-outcome-packet:vs-code-first-run-0001",
+      "shortcut_digest_ref": "migration-shortcut-digest:vs-code-first-run-0001",
+      "restore_record_ref": "migration-restore-record:vs-code-first-run-0001",
+      "preview_diff_ref": "diff-preview:migration:vs-code-first-run-0001",
+      "post_import_validation_summary_ref": "validator-summary:migration:vs-code-first-run-0001",
+      "recommended_bundle_ref": "bundle:ts_web_launch_pack",
+      "migration_report_ref": "migration-report:vs-code-first-run-0001",
+      "issue_template_refs": [
+        "docs/governance/dogfood_issue_taxonomy.md#importer-mismatch"
+      ],
+      "export_refs": [
+        "support_bundle.migration_report",
+        "migration_center.machine_readable_report"
+      ],
+      "support_packet_refs": [
+        "support_packet.rollback_review.migration-0001"
+      ],
+      "docs_help_refs": [
+        "docs/migration/migration_center_object_model.md",
+        "docs/release/compatibility_report_template.md"
+      ],
+      "restore_provenance_ref": "restore-prov:migration:vs-code-first-run-0001",
+      "updated_at": "2026-04-21T18:05:00Z"
+    },
+    {
+      "record_kind": "migration_shortcut_digest_record",
+      "migration_session_schema_version": 1,
+      "shortcut_digest_id": "migration-shortcut-digest:vs-code-first-run-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "imported_command_rows": [
+        {
+          "source_command_ref": "vscode:workbench.action.showCommands",
+          "target_command_ref": "aureline:command_palette.open",
+          "source_gesture": "Ctrl+Shift+P",
+          "target_gesture": "Ctrl+Shift+P",
+          "delta_state": "imported",
+          "risk_class": "low"
+        }
+      ],
+      "remapped_gesture_rows": [
+        {
+          "source_command_ref": "vscode:workbench.action.openSettings",
+          "target_command_ref": "aureline:settings.open",
+          "source_gesture": "Ctrl+,",
+          "target_gesture": "Cmd+,",
+          "delta_state": "remapped",
+          "risk_class": "medium",
+          "note": "The destination profile follows the platform-native gesture."
+        }
+      ],
+      "unresolved_conflict_rows": [
+        {
+          "source_command_ref": "vscode:workbench.action.openGlobalKeybindings",
+          "target_command_ref": "aureline:keybindings.open",
+          "source_gesture": "Ctrl+K Ctrl+S",
+          "target_gesture": "unresolved",
+          "delta_state": "conflict",
+          "risk_class": "high",
+          "note": "The imported chord collides with an existing shortcut on this profile."
+        }
+      ],
+      "muscle_memory_risk_notes": [
+        "Settings uses the platform-native gesture on the destination profile.",
+        "The imported keybindings chord needs manual review before apply."
+      ],
+      "export_refs": [
+        "support_bundle.migration_shortcuts"
+      ],
+      "emitted_at": "2026-04-21T18:03:00Z"
+    },
+    {
+      "record_kind": "migration_restore_record",
+      "migration_session_schema_version": 1,
+      "restore_record_id": "migration-restore-record:vs-code-first-run-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "checkpoint_ref": "checkpoint:migration:vs-code-first-run-0001",
+      "created_at": "2026-04-21T17:59:00Z",
+      "scope": "profile_and_workspace",
+      "availability_state": "available",
+      "restore_action_hints": [
+        "open_restore_center",
+        "restore_from_checkpoint",
+        "compare_before_restore"
+      ],
+      "cleanup_state": "retained",
+      "partial_apply_note": "The checkpoint stays visible because extension mapping still needs follow-up.",
+      "restore_provenance_ref": "restore-prov:migration:vs-code-first-run-0001",
+      "support_packet_refs": [
+        "support_packet.rollback_review.migration-0001"
+      ],
+      "export_refs": [
+        "support_bundle.migration_restore_record"
+      ]
+    }
+  ]
+}

@@ -350,6 +350,21 @@ code.
   resume managed workspace, start from prebuild, recent-work row
   with missing target) in
   [`/fixtures/workspace/entry_restore_examples/`](../fixtures/workspace/entry_restore_examples/).
+- [`migration/migration_center_object_model.md`](./migration/migration_center_object_model.md)
+  — durable migration-center session, importer-outcome, shortcut-digest,
+  and restore-record contract for import flows that must stay
+  reviewable after first-run or entry-surface UI closes. Freezes the
+  session fields for source tool/version, selected domains, target
+  profile/workspace, actor, restore-checkpoint linkage, and
+  compatibility-report linkage; the controlled importer outcome
+  vocabulary (`imported`, `mapped`, `skipped`, `manual_review`,
+  `bridge_required`, `unsupported`); and machine-readable report,
+  issue-template, support, and export refs shared across docs and
+  support handoff. Boundary schemas in
+  [`/schemas/migration/migration_session.schema.json`](../schemas/migration/migration_session.schema.json)
+  and
+  [`/schemas/migration/importer_outcome.schema.json`](../schemas/migration/importer_outcome.schema.json);
+  both schemas embed worked examples.
 - [`runtime/target_discovery_and_install_review_taxonomy.md`](./runtime/target_discovery_and_install_review_taxonomy.md)
   — target-discovery confidence, host-boundary cue, managed-
   workspace lifecycle, notebook-trust ladder, structured round-
