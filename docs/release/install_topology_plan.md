@@ -27,6 +27,12 @@ Companion artifacts:
   seed the install-profile cards, rollout evidence, and support/export
   lanes cite by stable `drill_id`. Companion narrative in
   [`/docs/deployment/drill_catalog_seed.md`](../deployment/drill_catalog_seed.md).
+- [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
+  and
+  [`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml)
+  — separate validation-ring policy for evidence widening, soak windows,
+  rollback-stop defaults, and evidence-reset floors. These are not the
+  same thing as the install-topology rollout rings owned here.
 
 Normative sources this plan projects from:
 
@@ -81,6 +87,13 @@ fleet tooling is implemented at this milestone. Every row below is
 tagged `proposed`; rows are not deleted, they are superseded by an
 ADR / RFC.
 
+The rollout rings in this document are deployment-exposure rings. The
+validation widening rings used by qualification, ORR, shiproom, and
+stable-facing claim movement live in
+[`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
+and
+[`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml).
+
 ## Scope
 
 Frozen at this revision:
@@ -107,7 +120,8 @@ Frozen at this revision:
   guideline.
 - Fleet-rollout ring vocabulary (`canary`, `pilot`, `broad`, `lts`)
   with the minimum promotion evidence and the admissible rollback
-  target for each ring.
+  target for each ring. This vocabulary is operational rollout posture,
+  not the validation-ring ladder used for claim widening.
 - State-root mapping for local, preview, portable, and managed-
   install styles with notes on scriptability, diagnostics visibility,
   repair / verify expectations, and exact-build install diagnostics.

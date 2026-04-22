@@ -159,6 +159,14 @@ code.
   contract-surface index.
 - [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
   — release-truth packet template and waiver-aware shiproom structure.
+- [`release/ring_progression_policy.md`](./release/ring_progression_policy.md)
+  — validation-ring policy for widening, minimum soak expectations,
+  rollback-stop defaults, evidence-reset floors, and the rule that
+  stable-facing widening preserves the exact evidence snapshot behind
+  the decision. Machine-readable companions in
+  [`/artifacts/release/ring_matrix.yaml`](../artifacts/release/ring_matrix.yaml)
+  and
+  [`/schemas/release/ring_history_packet.schema.json`](../schemas/release/ring_history_packet.schema.json).
 - [`release/qualification_cadence.md`](./release/qualification_cadence.md)
   — shared release-qualification plan covering cadence rows,
   rehearsal windows, proof-lane ownership, and default failure

@@ -14,6 +14,9 @@ Companion artifacts:
 - `docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`
 - `artifacts/release/artifact_family_map.yaml`
 - `artifacts/release/promotion_gate_map.yaml`
+- `docs/release/ring_progression_policy.md`
+- `artifacts/release/ring_matrix.yaml`
+- `schemas/release/ring_history_packet.schema.json`
 - `docs/release/release_evidence_packet_template.md`
 - `docs/release/release_evidence_packet_example.md`
 - `docs/governance/evidence_freshness_policy.md`
@@ -43,7 +46,9 @@ floor, and support packet family from
 release lore. Resolve due cadence rows, drill freshness, and proof-lane
 ownership from `artifacts/release/qualification_schedule.yaml` and
 `artifacts/release/evidence_ownership_map.yaml`, not from whoever
-happened to run the last rehearsal.
+happened to run the last rehearsal. Resolve validation ring, minimum
+soak, rollback-stop defaults, and reset floors from
+`artifacts/release/ring_matrix.yaml`, not from remembered dogfood lore.
 
 ## Evidence review order
 
@@ -52,11 +57,17 @@ happened to run the last rehearsal.
 - Confirm `exact_build_identity_ref` values, release channel,
   `candidate_stage`, deployment profile scope, and rollback target or
   rollback evidence.
+- Confirm the candidate names the current validation ring, the observed
+  soak summary, and any active reset-trigger families for the widened
+  lane.
 - Confirm the in-scope artifact families still form one coordinated
   release family under `artifact_family_map.yaml`; do not treat a lone
   binary as a promotable rollback atom.
+- Confirm the candidate can point to a current ring-history packet when
+  the lane is public-facing or stable-facing.
 - Stop immediately if the candidate cannot show one coordinated build
-  identity set, one rollback path, or one release-packet home.
+  identity set, one rollback path, one release-packet home, or one
+  current ring-history home for the widened lane.
 
 2. Readiness scorecard and owner coverage
 
@@ -165,6 +176,8 @@ Minimum fields:
 - `shiproom_status`
 - `candidate_ref` or `packet_id`
 - `exact_build_identity_refs`
+- `validation_ring`
+- `ring_history_packet_ref`
 - `blocking_requirement_ids`
 - `blocking_claim_row_refs`
 - `waiver_refs`
@@ -193,6 +206,8 @@ shiproom_status: hold_for_refresh
 candidate_ref: release-evidence.seed.current-repository-baseline
 exact_build_identity_refs:
   - build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b
+validation_ring: design_partner_preview
+ring_history_packet_ref: release.ring_history.seed.current_repository_baseline
 blocking_claim_row_refs:
   - claim_row:build.exact_build_identity
   - claim_row:benchmark.publication_truth
@@ -210,10 +225,12 @@ public_disclosure_required: true
 Release owner
 
 - Carry `exact_build_identity_ref` values, release channel/profile
-  scope, rollback target or waiver, and the final shiproom status into
-  the promotion packet.
+  scope, rollback target or waiver, validation ring, and the final
+  shiproom status into the promotion packet.
 - If the call is not `go`, carry the blocking packet refs and next
   refresh date.
+- Keep the ring-history packet current when the shiproom call widens,
+  holds, resets, or stops the lane.
 
 Support owner
 

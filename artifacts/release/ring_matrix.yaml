@@ -1,0 +1,362 @@
+# Validation ring-progression matrix.
+#
+# Machine-readable companion to docs/release/ring_progression_policy.md.
+# This file governs validation widening rings, not the operational
+# rollout_ring_class values in artifacts/release/install_topology_matrix.yaml.
+# Validation rings answer "how much evidence may justify a wider claim?";
+# rollout rings answer "where is the build deployed?".
+
+schema_version: 1
+matrix_id: aureline.release_ring_progression
+status: seeded
+
+policy_doc_ref: docs/release/ring_progression_policy.md
+qualification_cadence_ref: docs/release/qualification_cadence.md
+qualification_schedule_ref: artifacts/release/qualification_schedule.yaml
+evidence_ownership_map_ref: artifacts/release/evidence_ownership_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+release_evidence_packet_template_ref: docs/release/release_evidence_packet_template.md
+shiproom_runbook_ref: docs/release/shiproom_runbook.md
+install_topology_plan_ref: docs/release/install_topology_plan.md
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+version_skew_register_ref: artifacts/compat/version_skew_register.yaml
+approval_ticket_schema_ref: schemas/integration/approval_ticket.schema.json
+restore_provenance_schema_ref: schemas/state/restore_provenance.schema.json
+migration_session_schema_ref: schemas/migration/migration_session.schema.json
+dependency_policy_ref: docs/repo/dependency_rules.md
+package_inventory_ref: artifacts/governance/package_inventory.yaml
+ring_history_packet_schema_ref: schemas/release/ring_history_packet.schema.json
+
+ring_id_vocabulary:
+  - core_team_canary
+  - broad_internal_dogfood
+  - design_partner_preview
+  - public_preview_or_beta
+  - stable_candidate_or_ga
+
+widening_decision_vocabulary:
+  - allow_widen
+  - hold
+  - reset_to_narrower_ring
+  - rollback_stop
+
+normal_workload_cycle_class_vocabulary:
+  - core_team_workday
+  - internal_workweek
+  - design_partner_workweek
+  - public_preview_observation_window
+  - stable_candidate_release_window
+
+default_reset_trigger_vocabulary:
+  - reset.version_skew_behavior
+  - reset.provider_mutation_authority
+  - reset.install_topology
+  - reset.schema_migration
+  - reset.protected_dependency_posture
+
+decision_rules:
+  sequential_widening_rule: >
+    Lanes widen in order. A lane does not skip a validation ring unless
+    shiproom explicitly narrows scope first and the ring-history packet
+    captures why the skipped ring's evidence was not required.
+  reset_floor_rule: >
+    Reset triggers send the affected lane back to the named reset floor.
+    If the lane is already narrower, it holds its current ring until the
+    refreshed evidence lands.
+  rollout_distinction_rule: >
+    Validation rings govern evidence posture. Install-topology rollout
+    rings govern deployment exposure and rollback targets. One packet may
+    cite both, but tooling must not substitute one for the other.
+  stable_history_rule: >
+    Stable-facing widening is non-conforming until the ring-history
+    packet is current and linked from the release-evidence packet.
+
+history_capture_rules:
+  required_transition_actions:
+    - widen
+    - hold
+    - reset
+    - rollback_stop
+  required_snapshot_fields:
+    - evidence_id
+    - claim_row_refs
+    - release_evidence_packet_ref
+  notes: >
+    Ring history is evidence, not release-note prose. The packet keeps
+    the exact proof set that justified a widening, hold, reset, or
+    rollback stop.
+
+ring_rows:
+  - ring_id: core_team_canary
+    widening_order: 1
+    display_name: Core-team canary
+    purpose: Fastest regression signal on protected paths before broader internal use.
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    minimum_entry_evidence:
+      - owner coverage current for the affected lane and matrix rows
+      - crash, telemetry, or incident visibility present on the widened lane
+      - explicit rollback path named for every claimed profile or provider lane
+      - issue template captures exact_build_identity_ref, workspace or archetype, extension set, and safe-mode reproduction note
+    default_rollback_stop_condition: crash, data-loss, trust, or protected-path regression on the widened lane
+    minimum_normal_workload_soak:
+      minimum_duration: P1D
+      cycle_class: core_team_workday
+      expectation: At least one full core-team workday across the claimed matrix rows, not only synthetic smoke.
+    widen_when:
+      - current evidence ids exist for the protected rows being widened
+      - support and rollback owners can reconstruct the rollback path from stable refs
+      - no active reset-trigger family remains unresolved
+    hold_when:
+      - rollback path is unnamed or stale
+      - crash or trust visibility is missing
+      - protected-path evidence is seed-only or immediately stale
+    default_reset_trigger_refs:
+      - reset.provider_mutation_authority
+      - reset.schema_migration
+      - reset.protected_dependency_posture
+
+  - ring_id: broad_internal_dogfood
+    widening_order: 2
+    display_name: Broad internal dogfood
+    purpose: Real internal workload coverage before partner or public widening.
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    minimum_entry_evidence:
+      - current protected-function snapshot for the widened wedge
+      - install or update viability current for the widened profile
+      - current docs or support wording for the wedge remains aligned with the tested lane
+      - internal issue intake keeps exact-build, install-topology, and rollback details
+    default_rollback_stop_condition: repeated protected-path regression, update failure, or missing evidence refresh on a live internal lane
+    minimum_normal_workload_soak:
+      minimum_duration: P5D
+      cycle_class: internal_workweek
+      expectation: At least one multi-team internal workweek across the claimed profiles.
+    widen_when:
+      - current protected-function evidence and install evidence agree on the widened lane
+      - support export can reconstruct install posture and rollback target
+      - docs or support caveats for the lane are current
+    hold_when:
+      - install-topology truth or support-export truth drifts
+      - owner coverage or rollback visibility is missing
+      - a reset-trigger family changes the widened lane without refreshed evidence
+    default_reset_trigger_refs:
+      - reset.install_topology
+      - reset.protected_dependency_posture
+
+  - ring_id: design_partner_preview
+    widening_order: 3
+    display_name: Design-partner preview
+    purpose: Real partner workflow coverage before public claim widening.
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    minimum_entry_evidence:
+      - current compatibility row exists for the widened boundary
+      - support or export path is viable and tied to stable refs
+      - known-limit packet and incident path are named for the widened lane
+      - partner-facing caveats remain attached to the same claim rows
+    default_rollback_stop_condition: partner-blocking trust, recovery, or compatibility failure
+    minimum_normal_workload_soak:
+      minimum_duration: P5D
+      cycle_class: design_partner_workweek
+      expectation: At least one design-partner workweek across the claimed archetype or deployment-profile rows.
+    widen_when:
+      - the widened lane has current compatibility, supportability, and known-limit evidence
+      - mixed-version and rollback truth remains current where claimed
+      - docs and support owners agree on the same caveat set
+    hold_when:
+      - partner repro data cannot be tied back to current claim rows
+      - mixed-version or rollback evidence has aged out
+      - public-truth narrowing has not caught up to the lane
+    default_reset_trigger_refs:
+      - reset.version_skew_behavior
+      - reset.install_topology
+      - reset.schema_migration
+
+  - ring_id: public_preview_or_beta
+    widening_order: 4
+    display_name: Public preview or beta
+    purpose: Public claim-bearing widening with current docs, support, and rollback posture.
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    minimum_entry_evidence:
+      - widened matrix rows are current
+      - mixed-version and rollback drills are current where claimed
+      - docs, migration, and support language matches the current claim rows
+      - no unreviewed red-risk item remains on the widened lane
+      - ring-history packet is current for the widened lane
+    default_rollback_stop_condition: stale packet on a live claim, unresolved high-severity regression, contradictory public truth, or missing ring-history update
+    minimum_normal_workload_soak:
+      minimum_duration: P7D
+      cycle_class: public_preview_observation_window
+      expectation: At least seven calendar days with normal update or rollback usage where claimed.
+    widen_when:
+      - every widened claim row can point to a current packet and current ring-history transition
+      - docs, support, and rollback owners can explain the same narrowed or widened story
+      - no reset-trigger family remains unresolved
+    hold_when:
+      - any required packet is stale
+      - docs/help or support drift from the claim rows
+      - mixed-version, rollback, or install evidence no longer matches the widened lane
+    default_reset_trigger_refs:
+      - reset.version_skew_behavior
+      - reset.provider_mutation_authority
+      - reset.install_topology
+      - reset.schema_migration
+      - reset.protected_dependency_posture
+
+  - ring_id: stable_candidate_or_ga
+    widening_order: 5
+    display_name: Stable candidate or GA
+    purpose: Final stable-facing widening lane before a claim may remain live on stable or GA surfaces.
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    minimum_entry_evidence:
+      - ORR is green for the widened lane
+      - rehearsals are current for publish, rollback, mixed-version, advisory, and support handoff where claimed
+      - release-evidence packet is complete and current
+      - ring-history packet captures the exact evidence snapshot behind the widening decision
+      - no unresolved release-bearing blocker remains on the widened profile or provider lane
+    default_rollback_stop_condition: failed rehearsal, stale matrix or claim row, missing ring-history evidence snapshot, or claim outrunning current evidence
+    minimum_normal_workload_soak:
+      minimum_duration: P14D
+      cycle_class: stable_candidate_release_window
+      expectation: At least fourteen calendar days and one full RC or release-center observation window across the widened profile or provider lane.
+    widen_when:
+      - shiproom status is go for the widened lane
+      - the ring-history packet, release-evidence packet, claim rows, and known-limit refs agree
+      - docs, support, and rollback owners have acknowledged the exact same evidence snapshot
+    hold_when:
+      - shiproom is below go
+      - any required stable-facing proof is stale
+      - any reset-trigger family remains active or unresolved
+    default_reset_trigger_refs:
+      - reset.version_skew_behavior
+      - reset.provider_mutation_authority
+      - reset.install_topology
+      - reset.schema_migration
+      - reset.protected_dependency_posture
+
+default_reset_triggers:
+  - reset_trigger_id: reset.version_skew_behavior
+    change_family_summary: Supported skew window, upgrade order, rollback order, or distributed compatibility posture changed.
+    default_reset_floor_ring: design_partner_preview
+    affected_lane_classes:
+      - deployment_profile
+      - install_profile_card
+      - provider_authority_lane
+      - compatibility_boundary
+    required_refresh_evidence:
+      - current compatibility row and version-skew register row
+      - mixed-version and rollback rehearsal packet
+      - updated claim rows and known-limit refs
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    source_of_truth_refs:
+      - artifacts/compat/version_skew_register.yaml
+      - docs/release/compatibility_report_template.md
+      - artifacts/release/evidence_ownership_map.yaml#output.mixed_version_and_rollback_rehearsal_packet
+    notes: >
+      Skew or rollback truth is not allowed to remain on public or
+      stable-facing lanes while the refreshed evidence is pending.
+
+  - reset_trigger_id: reset.provider_mutation_authority
+    change_family_summary: Approval scope, provider actor class, publish authority, browser-handoff mutation path, or external side-effect posture changed.
+    default_reset_floor_ring: core_team_canary
+    affected_lane_classes:
+      - provider_authority_lane
+      - release_channel_slice
+      - compatibility_boundary
+    required_refresh_evidence:
+      - current approval-ticket contract or provider-authority proof
+      - current security or shiproom posture review
+      - updated claim rows and disclosure surfaces
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    source_of_truth_refs:
+      - schemas/integration/approval_ticket.schema.json
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+      - artifacts/release/promotion_gate_map.yaml
+    notes: >
+      Authority changes default to the narrowest ring because stale or
+      hidden mutation authority is a trust defect, not a docs cleanup.
+
+  - reset_trigger_id: reset.install_topology
+    change_family_summary: Install mode, updater owner, state-root ownership, side-by-side behavior, rollout envelope, or rollback target changed.
+    default_reset_floor_ring: broad_internal_dogfood
+    affected_lane_classes:
+      - install_profile_card
+      - deployment_profile
+      - release_channel_slice
+    required_refresh_evidence:
+      - current install-topology and state-root rows
+      - continuity-drill result and support-bundle install diagnostics
+      - rollback-target recheck
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:support_export"
+    source_of_truth_refs:
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+    notes: >
+      Install changes may recover broad internal truth quickly, but they
+      do not stay on partner or public lanes without refreshed install
+      and rollback evidence.
+
+  - reset_trigger_id: reset.schema_migration
+    change_family_summary: Durable-state schema meaning, migration path, restore semantics, or downgrade behavior changed.
+    default_reset_floor_ring: core_team_canary
+    affected_lane_classes:
+      - compatibility_boundary
+      - deployment_profile
+      - release_channel_slice
+    required_refresh_evidence:
+      - restore-provenance or migration-session evidence
+      - rollback review and compare/export path
+      - updated migration notes or known-limit refs
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+      - "lane:support_export"
+    source_of_truth_refs:
+      - docs/state/migration_and_restore_playbook.md
+      - schemas/state/restore_provenance.schema.json
+      - schemas/migration/migration_session.schema.json
+    notes: >
+      Schema meaning changes are treated as trust-sensitive state changes
+      and therefore reset to the narrowest ring by default.
+
+  - reset_trigger_id: reset.protected_dependency_posture
+    change_family_summary: Forbidden-dependency policy, protected package edge, hidden lifecycle dependency, or dependency-marker posture changed.
+    default_reset_floor_ring: broad_internal_dogfood
+    affected_lane_classes:
+      - compatibility_boundary
+      - release_channel_slice
+      - provider_authority_lane
+    required_refresh_evidence:
+      - dependency-policy or package-inventory update
+      - dependency-marker or claim parity refresh
+      - support caveats and waiver closure where applicable
+    required_owner_ack_refs:
+      - "lane:release_evidence"
+      - "lane:docs_public_truth"
+    source_of_truth_refs:
+      - docs/repo/dependency_rules.md
+      - artifacts/governance/package_inventory.yaml
+      - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+    notes: >
+      Hidden dependency drift is allowed to hold broad internal evidence
+      long enough for refreshed proof, but it does not stay public or
+      stable-facing by default.

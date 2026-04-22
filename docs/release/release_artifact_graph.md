@@ -21,6 +21,14 @@ Companion artifacts:
 - [`/artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml)
   — machine-readable promotion-stage, stale-proof, waiver-scope,
   late-proof, and emergency-transport gate map.
+- [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
+  and
+  [`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml)
+  — validation-ring widening, soak, rollback-stop, and reset-floor
+  policy used by channel-movement evidence.
+- [`/schemas/release/ring_history_packet.schema.json`](../../schemas/release/ring_history_packet.schema.json)
+  — packet contract preserving the exact evidence snapshot behind ring
+  widening, hold, reset, and rollback-stop decisions.
 - [`/docs/build/exact_build_identity_model.md`](../build/exact_build_identity_model.md)
   — exact-build identity model every release-bearing node resolves
   through.
@@ -146,7 +154,7 @@ This document closes that gap.
 | `benchmark_public_proof` | Public benchmark claims, benchmark-governance caveats, and methodology disclosures | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `docs/benchmarks/public_comparison_rules.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/protected_metrics.yaml`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml`, `artifacts/perf/protected_path_ledger.yaml`, `artifacts/perf/latency_budget_ledger.yaml`, `artifacts/perf/evidence_linkage_seed.yaml` | Required whenever a release packet or public claim cites performance evidence | Raw traces, restricted fixture bytes, private cohort identifiers, and internal dashboards may stay internal by ref |
 | `known_limit_and_disclosure_note` | Known issues, narrowed claims, exclusions, waivers, and caveats required to interpret the bundle honestly | `docs/release/release_evidence_packet_template.md`, `schemas/release/waiver_packet.schema.json`, `docs/` public-truth lane | Required for every publishable release or benchmark packet | Internal discussion can stay internal; the public narrowing note cannot |
 | `advisory_or_revocation_notice` | Active security advisories, revocations, emergency disables, and affected-install scope | `docs/security/severity_matrix.md`, `schemas/security/advisory_record.schema.json`, `schemas/security/incident_workspace_packet.schema.json` | Required whenever an active advisory or revocation touches the claimed scope | Private triage evidence may stay internal if the public advisory carries stable refs and disclosure state |
-| `promotion_evidence` | Rollout-ring, install-topology, rollback-target, continuity-drill, and waiver state for channel movement | `artifacts/release/install_topology_matrix.yaml`, `docs/release/install_topology_plan.md`, `artifacts/support/deployment_drill_catalog_seed.yaml`, `docs/release/release_evidence_packet_template.md` | Required for every preview/beta/stable/LTS promotion claim | Internal operator transcripts may stay internal; ring decision refs and continuity posture may not |
+| `promotion_evidence` | Validation-ring posture, rollout-ring envelope, install-topology, rollback-target, continuity-drill, waiver state, and ring-history refs for channel movement | `docs/release/ring_progression_policy.md`, `artifacts/release/ring_matrix.yaml`, `schemas/release/ring_history_packet.schema.json`, `artifacts/release/install_topology_matrix.yaml`, `docs/release/install_topology_plan.md`, `artifacts/support/deployment_drill_catalog_seed.yaml`, `docs/release/release_evidence_packet_template.md` | Required for every preview/beta/stable/LTS promotion claim | Internal operator transcripts may stay internal; ring decision refs, ring-history refs, and continuity posture may not |
 | `release_truth_bundle` | The aggregate packet that binds the graph into one publishable release set | `docs/release/release_evidence_packet_template.md`, `artifacts/evidence/evidence_metadata_fields.yaml` | Required for every release-facing bundle | None; this is the public aggregation surface |
 
 ## Bundle completeness
@@ -164,6 +172,11 @@ A publishable release-truth bundle MUST contain:
 5. `known_limit_and_disclosure_note`;
 6. `promotion_evidence`; and
 7. `release_truth_bundle` aggregation over the cited stable refs.
+
+Whenever the bundle widens a public-preview, beta, or stable-facing
+lane, `promotion_evidence` also includes the current ring-history packet
+ref so later review can reconstruct the exact evidence snapshot that
+justified the move.
 
 It MUST also contain these node families when applicable:
 

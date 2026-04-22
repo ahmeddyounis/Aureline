@@ -1,0 +1,558 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/ring_history_packet.schema.json",
+  "title": "Aureline release ring-history packet",
+  "description": "Boundary schema for the ring_history_packet_record, ring_transition_record, and ring_evidence_snapshot_row_record frozen in docs/release/ring_progression_policy.md. The packet preserves the exact validation-ring history behind a widening, hold, reset, or rollback-stop decision so later shiproom, support, docs, rollback, and incident review can reconstruct which evidence snapshot justified the lane posture. Ring history is evidence, not narrative release-note text: every transition keeps stable evidence ids, claim-row refs, release-evidence packet refs, soak observations, and scope refs instead of free-text summaries alone.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ring_history_packet_record" },
+    { "$ref": "#/$defs/ring_transition_record" },
+    { "$ref": "#/$defs/ring_evidence_snapshot_row_record" }
+  ],
+  "$defs": {
+    "ring_history_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the release ring-history packet contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "evidence_id": {
+      "$ref": "../governance/evidence_packet_header.schema.json#/$defs/evidence_id"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_or_null": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "ring_id": {
+      "type": "string",
+      "enum": [
+        "core_team_canary",
+        "broad_internal_dogfood",
+        "design_partner_preview",
+        "public_preview_or_beta",
+        "stable_candidate_or_ga"
+      ],
+      "description": "Closed validation-ring vocabulary from artifacts/release/ring_matrix.yaml."
+    },
+    "decision_posture": {
+      "type": "string",
+      "enum": [
+        "allow_widen",
+        "hold",
+        "reset_to_narrower_ring",
+        "rollback_stop"
+      ]
+    },
+    "transition_kind": {
+      "type": "string",
+      "enum": [
+        "enter",
+        "widen",
+        "hold",
+        "reset",
+        "rollback_stop",
+        "evidence_refresh"
+      ]
+    },
+    "lane_scope_class": {
+      "type": "string",
+      "enum": [
+        "deployment_profile",
+        "install_profile_card",
+        "provider_authority_lane",
+        "compatibility_boundary",
+        "release_channel_slice",
+        "mixed_scope"
+      ],
+      "description": "How the packet scopes the lane whose ring history is being recorded."
+    },
+    "snapshot_role": {
+      "type": "string",
+      "enum": [
+        "entry_gate",
+        "soak_observation",
+        "rollback_or_recovery_proof",
+        "compatibility_refresh",
+        "docs_or_claim_parity",
+        "supportability_refresh",
+        "security_or_authority_proof",
+        "dependency_posture_refresh",
+        "waiver_or_known_limit_binding"
+      ]
+    },
+    "shiproom_status": {
+      "type": "string",
+      "enum": [
+        "go",
+        "go_with_narrowing",
+        "hold_for_refresh",
+        "no_go",
+        "not_applicable"
+      ]
+    },
+    "soak_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_duration",
+        "observed_duration",
+        "cycle_class",
+        "summary",
+        "satisfied"
+      ],
+      "properties": {
+        "expected_duration": {
+          "$ref": "#/$defs/duration_or_null"
+        },
+        "observed_duration": {
+          "$ref": "#/$defs/duration_or_null"
+        },
+        "cycle_class": {
+          "$ref": "#/$defs/stable_token"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "satisfied": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ring_evidence_snapshot_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ring_history_packet_schema_version",
+        "record_kind",
+        "snapshot_row_id",
+        "evidence_id",
+        "snapshot_role",
+        "source_ref",
+        "captured_at",
+        "claim_row_refs",
+        "exact_build_identity_refs",
+        "compatibility_row_refs",
+        "continuity_drill_refs",
+        "notes"
+      ],
+      "properties": {
+        "ring_history_packet_schema_version": {
+          "$ref": "#/$defs/ring_history_packet_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "ring_evidence_snapshot_row_record"
+        },
+        "snapshot_row_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/evidence_id"
+        },
+        "snapshot_role": {
+          "$ref": "#/$defs/snapshot_role"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative path or stable packet ref that owns this evidence row."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "claim_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Stable claim rows kept alongside the evidence id."
+        },
+        "exact_build_identity_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "compatibility_row_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "continuity_drill_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "ring_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ring_history_packet_schema_version",
+        "record_kind",
+        "transition_id",
+        "transition_kind",
+        "decided_at",
+        "from_ring",
+        "to_ring",
+        "decision_posture",
+        "lane_scope_class",
+        "scope_refs",
+        "trigger_refs",
+        "release_evidence_packet_ref",
+        "shiproom_status",
+        "rollback_stop_condition_ref",
+        "soak_observation",
+        "claim_row_refs",
+        "known_limit_refs",
+        "waiver_packet_refs",
+        "owner_ack_refs",
+        "evidence_snapshot_rows",
+        "summary"
+      ],
+      "properties": {
+        "ring_history_packet_schema_version": {
+          "$ref": "#/$defs/ring_history_packet_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "ring_transition_record"
+        },
+        "transition_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "transition_kind": {
+          "$ref": "#/$defs/transition_kind"
+        },
+        "decided_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "from_ring": {
+          "type": ["string", "null"],
+          "enum": [
+            "core_team_canary",
+            "broad_internal_dogfood",
+            "design_partner_preview",
+            "public_preview_or_beta",
+            "stable_candidate_or_ga",
+            null
+          ]
+        },
+        "to_ring": {
+          "$ref": "#/$defs/ring_id"
+        },
+        "decision_posture": {
+          "$ref": "#/$defs/decision_posture"
+        },
+        "lane_scope_class": {
+          "$ref": "#/$defs/lane_scope_class"
+        },
+        "scope_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "trigger_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Gate refs, reset-trigger refs, issue ids, or drill refs that caused the transition."
+        },
+        "release_evidence_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "shiproom_status": {
+          "$ref": "#/$defs/shiproom_status"
+        },
+        "rollback_stop_condition_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "soak_observation": {
+          "$ref": "#/$defs/soak_observation"
+        },
+        "claim_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "known_limit_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "waiver_packet_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "owner_ack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "evidence_snapshot_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ring_evidence_snapshot_row_record"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "ring_history_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ring_history_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "shared_header",
+        "ring_matrix_ref",
+        "promotion_gate_map_ref",
+        "release_evidence_packet_refs",
+        "current_ring",
+        "current_decision_posture",
+        "lane_scope_class",
+        "scope_refs",
+        "latest_transition_id",
+        "transitions",
+        "notes"
+      ],
+      "properties": {
+        "ring_history_packet_schema_version": {
+          "$ref": "#/$defs/ring_history_packet_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "ring_history_packet_record"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "shared_header": {
+          "$ref": "../governance/evidence_packet_header.schema.json"
+        },
+        "ring_matrix_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "promotion_gate_map_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "current_ring": {
+          "$ref": "#/$defs/ring_id"
+        },
+        "current_decision_posture": {
+          "$ref": "#/$defs/decision_posture"
+        },
+        "lane_scope_class": {
+          "$ref": "#/$defs/lane_scope_class"
+        },
+        "scope_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "latest_transition_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "transitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ring_transition_record"
+          }
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "ring_history_packet_schema_version": 1,
+      "record_kind": "ring_history_packet_record",
+      "packet_id": "release.ring_history.seed.current_repository_baseline",
+      "shared_header": {
+        "schema_version": 1,
+        "header_kind": "evidence_packet_header",
+        "packet_family": "release_ring_history_packet",
+        "packet_id": "release.ring_history.seed.current_repository_baseline",
+        "evidence_id": "evidence.release.ring_history.seed.current_repository_baseline",
+        "title": "Seed ring history for the current repository baseline",
+        "ownership": {
+          "owner_dri": "@ahmedyounis",
+          "evidence_owner": "@ahmedyounis",
+          "backup_owner": null,
+          "backup_waiver": "single-maintainer-backup"
+        },
+        "coverage": {
+          "requirement_ids": [],
+          "claim_row_refs": [
+            "claim_row:build.exact_build_identity",
+            "claim_row:compat.version_skew_truth"
+          ],
+          "covered_lanes": [
+            "release_evidence",
+            "docs_public_truth",
+            "support_export"
+          ]
+        },
+        "result_status": "seed_only",
+        "visibility_class": "internal",
+        "freshness": {
+          "captured_at": "2026-04-22T18:00:00Z",
+          "stale_after": "P0D",
+          "freshness_class": "unverified",
+          "source_revision": "artifacts/release/ring_matrix.yaml@1",
+          "trigger_revision": "docs/release/ring_progression_policy.md@1"
+        },
+        "environment": {
+          "channel_context": "stable",
+          "deployment_context": [
+            "individual_local",
+            "self_hosted",
+            "air_gapped"
+          ],
+          "environment_summary": "Seed-only release-control ring history over the current repository baseline."
+        },
+        "artifact_links": {
+          "supporting_evidence_ids": [
+            "evidence.seed.compat.release_identity"
+          ],
+          "exact_build_identity_refs": [
+            "build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b"
+          ],
+          "fixture_refs": [],
+          "archetype_refs": [
+            "compat_row:release_identity.exact_build_propagation"
+          ],
+          "source_anchor_refs": [
+            "docs/release/ring_progression_policy.md",
+            "artifacts/release/ring_matrix.yaml"
+          ],
+          "waiver_refs": [],
+          "known_limit_refs": [],
+          "migration_packet_refs": []
+        }
+      },
+      "ring_matrix_ref": "artifacts/release/ring_matrix.yaml",
+      "promotion_gate_map_ref": "artifacts/release/promotion_gate_map.yaml",
+      "release_evidence_packet_refs": [
+        "release-evidence.seed.current-repository-baseline"
+      ],
+      "current_ring": "design_partner_preview",
+      "current_decision_posture": "hold",
+      "lane_scope_class": "compatibility_boundary",
+      "scope_refs": [
+        "compat_row:release_identity.exact_build_propagation"
+      ],
+      "latest_transition_id": "release.ring_history.seed.current_repository_baseline.hold_01",
+      "transitions": [
+        {
+          "ring_history_packet_schema_version": 1,
+          "record_kind": "ring_transition_record",
+          "transition_id": "release.ring_history.seed.current_repository_baseline.hold_01",
+          "transition_kind": "hold",
+          "decided_at": "2026-04-22T18:00:00Z",
+          "from_ring": "design_partner_preview",
+          "to_ring": "design_partner_preview",
+          "decision_posture": "hold",
+          "lane_scope_class": "compatibility_boundary",
+          "scope_refs": [
+            "compat_row:release_identity.exact_build_propagation"
+          ],
+          "trigger_refs": [
+            "reset.version_skew_behavior",
+            "output.mixed_version_and_rollback_rehearsal_packet"
+          ],
+          "release_evidence_packet_ref": "release-evidence.seed.current-repository-baseline",
+          "shiproom_status": "hold_for_refresh",
+          "rollback_stop_condition_ref": "stale mixed-version rehearsal on widened release-identity lane",
+          "soak_observation": {
+            "expected_duration": "P5D",
+            "observed_duration": "P0D",
+            "cycle_class": "design_partner_workweek",
+            "summary": "Seed packet assembled without a claim-bearing design-partner soak window.",
+            "satisfied": false
+          },
+          "claim_row_refs": [
+            "claim_row:build.exact_build_identity",
+            "claim_row:compat.version_skew_truth"
+          ],
+          "known_limit_refs": [],
+          "waiver_packet_refs": [],
+          "owner_ack_refs": [
+            "lane:release_evidence",
+            "lane:docs_public_truth",
+            "lane:support_export"
+          ],
+          "evidence_snapshot_rows": [
+            {
+              "ring_history_packet_schema_version": 1,
+              "record_kind": "ring_evidence_snapshot_row_record",
+              "snapshot_row_id": "release.ring_history.seed.current_repository_baseline.compat_refresh_01",
+              "evidence_id": "evidence.seed.compat.release_identity",
+              "snapshot_role": "compatibility_refresh",
+              "source_ref": "artifacts/compat/qualification_matrix_seed.yaml",
+              "captured_at": "2026-04-21T20:45:00Z",
+              "claim_row_refs": [
+                "claim_row:build.exact_build_identity",
+                "claim_row:compat.version_skew_truth"
+              ],
+              "exact_build_identity_refs": [
+                "build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b"
+              ],
+              "compatibility_row_refs": [
+                "compat_row:release_identity.exact_build_propagation"
+              ],
+              "continuity_drill_refs": [],
+              "notes": "Seeded compatibility evidence preserved by stable id for later narrowing or widening review."
+            }
+          ],
+          "summary": "Hold the release-identity lane until mixed-version and rollback evidence is refreshed."
+        }
+      ],
+      "notes": "Seed example only. Live widening requires current claim-bearing evidence and stable refs."
+    }
+  ]
+}

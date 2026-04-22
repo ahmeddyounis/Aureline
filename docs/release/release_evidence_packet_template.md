@@ -14,6 +14,8 @@ Related control artifacts:
 - artifacts/release/qualification_schedule.yaml
 - artifacts/release/evidence_ownership_map.yaml
 - artifacts/release/promotion_gate_map.yaml
+- docs/release/ring_progression_policy.md
+- artifacts/release/ring_matrix.yaml
 - artifacts/governance/signing_quorum.yaml
 - artifacts/governance/upstream_health_scorecard.yaml
 - artifacts/governance/evidence_id_conventions.md
@@ -21,6 +23,7 @@ Related control artifacts:
 - artifacts/governance/evidence_freshness_slos.yaml
 - artifacts/governance/evidence_rerun_triggers.yaml
 - schemas/governance/evidence_packet_header.schema.json
+- schemas/release/ring_history_packet.schema.json
 - docs/build/exact_build_identity_model.md
 - docs/benchmarks/benchmark_publication_pack_template.md
 - artifacts/bench/protected_metrics.yaml
@@ -60,6 +63,7 @@ notes, or migration packets.
 - **Primary exact-build identity set:** list of `exact_build_identity_ref`
 - **Active waiver packet refs:** waiver packet ids or `none`
 - **Promotion gate refs:** list of `gate.*` ids from `artifacts/release/promotion_gate_map.yaml`
+- **Ring history packet refs:** packet ids conforming to `schemas/release/ring_history_packet.schema.json` or `none`
 - **Late-proof exception refs:** exception ids from `artifacts/release/promotion_gate_map.yaml` or `none`
 - **Emergency transport flow:** `none` or `mirror_only_response`
 - **Maintainer coverage source:** `artifacts/governance/ownership_matrix.yaml` + `docs/governance/maintainer_coverage_policy.md`
@@ -90,6 +94,16 @@ preview-only, or claim-narrowed.
 - **Rollback atom posture:** `coordinated_release_family` or narrowed explanation for why the omitted family is truly not in scope
 - **Mirror/offline publication parity:** `not_required` | `required_when_claimed` | `required_for_supported_release_lines`
 - **Manual-import or mirror manifest refs:** `<manifest refs or none>`
+
+## Ring progression and reset posture
+
+- **Validation ring scope:** `core_team_canary` | `broad_internal_dogfood` | `design_partner_preview` | `public_preview_or_beta` | `stable_candidate_or_ga`
+- **Ring matrix source:** `artifacts/release/ring_matrix.yaml`
+- **Ring history packet refs:** packet ids or `none`
+- **Minimum soak observed:** one sentence with duration, cycle class, and whether the expectation is satisfied
+- **Active hold or reset trigger refs:** `reset.*` ids from `artifacts/release/ring_matrix.yaml` or `none`
+- **Reset-sensitive change families touched in this packet:** `version_skew_behavior` | `provider_mutation_authority` | `install_topology` | `schema_migration` | `protected_dependency_posture` | `none`
+- **Owner acknowledgements:** lane refs or packet refs showing release, docs, support, and rollback review state
 
 ## Exact-build identity set
 

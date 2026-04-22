@@ -176,6 +176,52 @@ truth_domains:
       - diagnostics_export_classes and rollback target class from the
         same card.
 
+  - truth_domain_id: validation_ring_progression
+    truth_summary: >
+      Validation widening ring, minimum soak expectation, rollback-stop
+      default, and reset floor for a claimed release lane.
+    canonical_owner_artifact: artifacts/release/ring_matrix.yaml
+    narrative_contract_ref: docs/release/ring_progression_policy.md
+    row_identity_rule:
+      primary_field: ring_id
+      supporting_fields:
+        - widening_order
+        - default_reset_trigger_refs
+    downstream_projection_artifacts:
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/shiproom_runbook.md
+      - artifacts/release/evidence_ownership_map.yaml
+    evidence_join_expectations:
+      - ring-history packet rows preserve evidence_id, claim_row_refs,
+        and release_evidence_packet_ref for the same lane decision.
+    caveat_join_expectations:
+      - minimum_normal_workload_soak, hold_when, and
+        default_rollback_stop_condition stay attached to the same ring
+        row.
+
+  - truth_domain_id: release_ring_history
+    truth_summary: >
+      Exact ring transition history and evidence snapshot used to widen,
+      hold, reset, or stop a release lane.
+    canonical_owner_artifact: schemas/release/ring_history_packet.schema.json
+    narrative_contract_ref: docs/release/ring_progression_policy.md
+    row_identity_rule:
+      primary_field: packet_id
+      supporting_fields:
+        - latest_transition_id
+        - current_ring
+    downstream_projection_artifacts:
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/shiproom_runbook.md
+      - artifacts/release/evidence_ownership_map.yaml
+    evidence_join_expectations:
+      - transition rows preserve evidence_id, claim_row_refs, and
+        release_evidence_packet_ref on the same widening or reset
+        decision.
+    caveat_join_expectations:
+      - shiproom_status, waiver_packet_refs, and known_limit_refs remain
+        attached to the same transition row.
+
   - truth_domain_id: release_channel
     truth_summary: >
       Channel truth for a build or artifact family. This is the channel a
@@ -344,3 +390,13 @@ same_change_set_groups:
       - artifacts/governance/claim_manifest_seed.yaml
       - every affected compatibility, migration, support, release, or
         public-proof projection
+  - group_id: release_ring_progression
+    trigger_owner_artifacts:
+      - docs/release/ring_progression_policy.md
+      - artifacts/release/ring_matrix.yaml
+      - schemas/release/ring_history_packet.schema.json
+    must_update_in_same_change:
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/shiproom_runbook.md
+      - docs/release/qualification_cadence.md
+      - every affected release, docs, support, or rollback projection

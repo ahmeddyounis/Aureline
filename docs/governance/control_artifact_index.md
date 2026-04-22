@@ -386,6 +386,16 @@ and scopes.
   membership, same-change-set release bundles, waiver and late-proof
   policy, emergency mirror/manual-import transport, and the gates that
   still block stable-facing promotion after a successful build.
+- Validation-ring widening is no longer implied by rollout folklore.
+  The canonical policy, machine-readable matrix, and ring-history packet
+  contract now live in
+  [`docs/release/ring_progression_policy.md`](../release/ring_progression_policy.md),
+  [`artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml),
+  and
+  [`schemas/release/ring_history_packet.schema.json`](../../schemas/release/ring_history_packet.schema.json).
+  Those artifacts separate validation widening from install-topology
+  rollout rings and preserve the exact evidence snapshot behind every
+  widening, hold, reset, or rollback-stop decision.
 - The release-evidence family is now seeded with a narrative packet
   template in [`docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md),
   a filled seed example, a release-waiver schema under

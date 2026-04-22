@@ -14,11 +14,18 @@ Machine-readable companions:
 - [`/artifacts/release/evidence_ownership_map.yaml`](../../artifacts/release/evidence_ownership_map.yaml)
   - required qualification outputs, proof lanes, review forums,
     freshness rules, and source-of-truth refs
+- [`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml)
+  - validation-ring widening order, soak expectations, rollback-stop
+    defaults, and evidence-reset floors
+- [`/schemas/release/ring_history_packet.schema.json`](../../schemas/release/ring_history_packet.schema.json)
+  - packet contract preserving the exact evidence snapshot behind a
+    widening, hold, reset, or rollback-stop decision
 
 Related control artifacts:
 
 - [`/docs/release/release_artifact_graph.md`](./release_artifact_graph.md)
 - [`/docs/release/release_evidence_packet_template.md`](./release_evidence_packet_template.md)
+- [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
 - [`/docs/release/shiproom_runbook.md`](./shiproom_runbook.md)
 - [`/docs/release/compatibility_report_template.md`](./compatibility_report_template.md)
 - [`/docs/release/certified_archetype_report_template.md`](./certified_archetype_report_template.md)
@@ -55,6 +62,13 @@ Normative sources:
   [`/artifacts/release/evidence_ownership_map.yaml`](../../artifacts/release/evidence_ownership_map.yaml)
   with a proof lane, owner, freshness rule, and default failure
   response.
+- Validation widening rings are a separate control from the
+  install-topology rollout rings. Use
+  [`/docs/release/ring_progression_policy.md`](./ring_progression_policy.md)
+  and
+  [`/artifacts/release/ring_matrix.yaml`](../../artifacts/release/ring_matrix.yaml)
+  to decide whether a lane may widen, must hold, or must reset; use the
+  install-topology artifacts only to decide where the build is deployed.
 - Qualification review uses three separate freshness axes:
   - **Artifact freshness** answers whether a packet, dashboard, report,
     or release artifact is still claim-bearing under
@@ -76,6 +90,11 @@ Normative sources:
   and beta may narrow within the existing waiver policy; RC, stable,
   LTS, and hotfix candidates do not widen on stale or missing required
   proof.
+- Public-preview, beta, and stable-facing widening should update a
+  current ring-history packet before the next ORR or shiproom review.
+  Stable-facing widening is non-conforming if the latest ring decision
+  cannot point to the exact evidence ids and claim rows that justified
+  it.
 
 ## Qualification cadence
 

@@ -23,6 +23,7 @@ release-ready packet.
   - `build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b:debug-symbols`
   - `build-id:aureline:stable:0.7.3:docs-pack:a4d1c3f0e27b`
 - **Active waiver packet refs:** `none`
+- **Ring history packet refs:** `release.ring_history.seed.current_repository_baseline`
 
 ## Executive summary
 
@@ -47,6 +48,16 @@ artifact exists yet.
   - `ff.buffer_operations`
   - `ff.vfs_save_conflict_handling`
   - `ff.benchmark_lab_health`
+
+## Ring progression and reset posture
+
+- **Validation ring scope:** `design_partner_preview`
+- **Ring matrix source:** `artifacts/release/ring_matrix.yaml`
+- **Ring history packet refs:** `release.ring_history.seed.current_repository_baseline`
+- **Minimum soak observed:** `P0D`, `design_partner_workweek`, not satisfied because the packet is a seed-only assembly example.
+- **Active hold or reset trigger refs:** `reset.version_skew_behavior`
+- **Reset-sensitive change families touched in this packet:** `version_skew_behavior`
+- **Owner acknowledgements:** `lane:release_evidence`, `lane:docs_public_truth`, `lane:support_export`
 
 ## Exact-build identity set
 
