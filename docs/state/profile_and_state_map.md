@@ -24,6 +24,10 @@ The companion fixtures live under:
 
 - [`/fixtures/profile/restore_provenance_examples/`](../../fixtures/profile/restore_provenance_examples/)
 
+The companion workspace-layout contract lives at:
+
+- [`/docs/workspace/layout_serialization_contract.md`](../workspace/layout_serialization_contract.md)
+
 This contract is normative. Where it disagrees with the PRD, TAD, TDD,
 or UI/UX spec quotations cited in §9, those documents win and this
 document MUST be updated in the same change. Where this document

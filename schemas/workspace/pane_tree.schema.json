@@ -1,0 +1,1007 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/pane_tree.schema.json",
+  "title": "Aureline pane-tree, window-topology snapshot, and layout-restore provenance",
+  "description": "Seed schema for workspace layout serialization. Freezes one versioned pane-tree vocabulary with stable pane IDs, split and tab-group nodes, focus chain, visible inspectors, follow or presentation state, collaboration role badges, and monitor-affinity hints, plus one layout-restore provenance record that reuses the explicit restore phases chooser, skeleton, hydrate, rebind, and evidence_only_fallback. The schema distinguishes workspace authority, window topology, profile defaults, and machine or display hints so multi-window restore, placeholder hydration, and support exports can describe the same layout truth without flattening authority and topology into one opaque blob. Rust types in the eventual workspace-shell crate are the schema of record; this file is the cross-tool export for diagnostics, support, portability review, and future session-restore tooling.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/window_topology_snapshot_record" },
+    { "$ref": "#/$defs/layout_restore_provenance_record" }
+  ],
+  "$defs": {
+    "pane_tree_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the pane-tree and layout-restore payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in manifests, and safe in support bundles. Raw absolute paths, credentials, and authority tokens never appear here."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; exporters may use any monotonic or pseudo-monotonic source."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters are responsible for applying redaction policy before the value crosses the schema boundary."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "window_topology_snapshot_record",
+        "layout_restore_provenance_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "restore_level": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-export of the entry-restore object model's restore-level vocabulary. Repeated here so layout restore provenance can stay self-contained."
+    },
+
+    "snapshot_reason": {
+      "type": "string",
+      "enum": [
+        "graceful_shutdown",
+        "crash_recovery_checkpoint",
+        "manual_export",
+        "diagnostic_capture",
+        "support_capture"
+      ],
+      "description": "Why a window-topology snapshot was emitted."
+    },
+
+    "window_role": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "auxiliary",
+        "presentation",
+        "review",
+        "incident",
+        "companion"
+      ],
+      "description": "Role of this window in a multi-window topology family. The role is topology-only; it never implies shared mutating authority."
+    },
+
+    "split_orientation": {
+      "type": "string",
+      "enum": ["horizontal", "vertical"],
+      "description": "Orientation of a split node."
+    },
+
+    "window_state": {
+      "type": "string",
+      "enum": ["normal", "maximized", "fullscreen", "zen", "minimized"],
+      "description": "Top-level window chrome state."
+    },
+
+    "density_preset": {
+      "type": "string",
+      "enum": ["comfortable", "compact", "presentation"],
+      "description": "Window density preset. Window-local topology state; not workspace authority."
+    },
+
+    "surface_role": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "terminal",
+        "debugger",
+        "notebook",
+        "search",
+        "problems",
+        "scm",
+        "docs",
+        "preview",
+        "ai_panel",
+        "explorer",
+        "test",
+        "custom_extension",
+        "placeholder"
+      ],
+      "description": "User-facing role the pane occupies in the shell. Placeholder cards keep the original role rather than collapsing to a generic unknown pane."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "text_editor",
+        "diff_editor",
+        "terminal_view",
+        "debug_view",
+        "notebook_view",
+        "search_results",
+        "problems_panel",
+        "scm_panel",
+        "docs_browser",
+        "preview_canvas",
+        "ai_panel",
+        "explorer_tree",
+        "test_results",
+        "extension_view",
+        "placeholder_card"
+      ],
+      "description": "Concrete surface class the pane resolves to. More specific than surface_role, but still a cross-surface seed taxonomy rather than an implementation detail."
+    },
+
+    "live_surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "debug_session",
+        "notebook",
+        "remote_shell",
+        "task_runner",
+        "pipeline_view",
+        "extension_view",
+        "preview_runtime"
+      ],
+      "description": "Live-surface class with potential reattach or no-rerun implications."
+    },
+
+    "hydration_behavior": {
+      "type": "string",
+      "enum": [
+        "eager_lightweight",
+        "lazy_heavy",
+        "placeholder_only",
+        "evidence_only"
+      ],
+      "description": "How restore should treat the surface. lazy_heavy is used for live or expensive panes; placeholder_only and evidence_only are explicit, inspectable degraded states."
+    },
+
+    "availability_state": {
+      "type": "string",
+      "enum": ["ready", "needs_hydration", "placeholder", "evidence_only"],
+      "description": "Current availability of the pane's surface. A pane MAY degrade from ready to placeholder or evidence_only without changing pane_id."
+    },
+
+    "placeholder_reason_class": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "missing_remote",
+        "missing_remote_authority",
+        "revoked_permission",
+        "unsupported_display_topology",
+        "non_reentrant_live_surface",
+        "schema_migration_review_required",
+        "manual_recovery_required"
+      ],
+      "description": "Why a placeholder card occupies a pane slot."
+    },
+
+    "placeholder_action": {
+      "type": "string",
+      "enum": [
+        "retry_hydrate",
+        "locate_extension",
+        "install_extension",
+        "reauthenticate",
+        "reconnect_remote",
+        "recover_draft",
+        "open_without",
+        "export_evidence",
+        "remove_pane",
+        "rerun_explicitly",
+        "rebind_existing_session"
+      ],
+      "description": "Typed safe recovery action rendered on a placeholder or provenance surface."
+    },
+
+    "display_class": {
+      "type": "string",
+      "enum": [
+        "internal_panel",
+        "external_monitor",
+        "virtual_display",
+        "projector_or_presentation",
+        "unknown"
+      ],
+      "description": "Best-effort display class for monitor-affinity hints."
+    },
+
+    "monitor_affinity_strength": {
+      "type": "string",
+      "enum": [
+        "none",
+        "prefer_same_display",
+        "prefer_same_class",
+        "prefer_same_region"
+      ],
+      "description": "Strength of the monitor-affinity hint. Hints never override safe-restore bounds."
+    },
+
+    "scale_bucket": {
+      "type": "string",
+      "enum": ["1x", "1_25x", "1_5x", "2x", "other"],
+      "description": "Best-effort display scale bucket captured with monitor-affinity metadata."
+    },
+
+    "focus_target_kind": {
+      "type": "string",
+      "enum": ["pane", "tab", "inspector", "follow_banner", "window_chrome"],
+      "description": "What the focus chain entry points at."
+    },
+
+    "inspector_kind": {
+      "type": "string",
+      "enum": [
+        "outline",
+        "problems",
+        "search",
+        "terminal_details",
+        "debug_variables",
+        "notebook_variables",
+        "ai_evidence",
+        "restore_diagnostics",
+        "preview_dom",
+        "property_token",
+        "custom_extension"
+      ],
+      "description": "Inspector or companion surface visible alongside the pane tree."
+    },
+
+    "dock_position": {
+      "type": "string",
+      "enum": ["left", "right", "bottom", "floating", "overlay"],
+      "description": "Where an inspector is visible."
+    },
+
+    "follow_mode": {
+      "type": "string",
+      "enum": [
+        "independent",
+        "following_participant",
+        "following_presenter",
+        "broadcasting_follow"
+      ],
+      "description": "Window-local follow state. This is topology state, not workspace authority."
+    },
+
+    "presentation_mode": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "local_presenting",
+        "shared_presenter",
+        "shared_audience"
+      ],
+      "description": "Window-local presentation state. Presentation does not imply write, debug, or approval authority."
+    },
+
+    "collaboration_badge": {
+      "type": "string",
+      "enum": [
+        "viewer",
+        "editor",
+        "driver",
+        "observer",
+        "presenter",
+        "co_presenter",
+        "approver",
+        "scribe"
+      ],
+      "description": "Visible collaboration or shared-session role badge carried by window topology."
+    },
+
+    "restore_source_class": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "graceful_shutdown_checkpoint",
+        "manual_window_export",
+        "portable_state_package",
+        "profile_sync_snapshot",
+        "imported_handoff",
+        "support_bundle_replay"
+      ],
+      "description": "Origin of the layout restore event."
+    },
+
+    "restore_phase": {
+      "type": "string",
+      "enum": [
+        "chooser",
+        "skeleton",
+        "hydrate",
+        "rebind",
+        "evidence_only_fallback"
+      ],
+      "description": "Shared restore-phase vocabulary for startup, diagnostics, and support flows. Human-facing copy may render evidence_only_fallback as 'evidence-only fallback'."
+    },
+
+    "phase_outcome": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "skipped",
+        "degraded",
+        "blocked",
+        "rerouted_to_evidence_only"
+      ],
+      "description": "Outcome of a restore phase."
+    },
+
+    "authority_rebind_result": {
+      "type": "string",
+      "enum": [
+        "bound_existing_authority",
+        "reevaluated_and_bound",
+        "degraded_local_only",
+        "missing_authority_placeholder"
+      ],
+      "description": "How workspace authority was resolved during restore."
+    },
+
+    "display_adjustment_class": {
+      "type": "string",
+      "enum": [
+        "snapped_to_safe_bounds",
+        "moved_to_primary_display",
+        "scale_normalized",
+        "fullscreen_cleared",
+        "stacking_repaired"
+      ],
+      "description": "Material display-topology adjustment applied during restore."
+    },
+
+    "surface_restore_posture": {
+      "type": "string",
+      "enum": [
+        "live_attach_visible",
+        "metadata_only_placeholder",
+        "evidence_only_placeholder",
+        "placeholder_until_manual_rebind",
+        "not_present"
+      ],
+      "description": "Resulting restore posture for one live surface."
+    },
+
+    "surface_authority_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "existing_authority_still_valid",
+        "manual_rebind_required",
+        "reauth_required"
+      ],
+      "description": "Authority posture for one live surface after restore."
+    },
+
+    "no_rerun_guardrail": {
+      "type": "string",
+      "enum": [
+        "no_command_rerun",
+        "no_hidden_authority_reacquire",
+        "transcript_or_snapshot_only",
+        "explicit_user_action_required",
+        "placeholder_preserved"
+      ],
+      "description": "Explicit guardrail the restore path honored for one live surface."
+    },
+
+    "bounds_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Best-effort geometry hint. Stored for remapping and diagnostics; never authoritative when the display topology changed."
+    },
+
+    "scope_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_authority_ref"],
+      "properties": {
+        "workspace_authority_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Authoritative workspace state backing this window. Many windows MAY point to the same authority ref."
+        },
+        "profile_defaults_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional reference to profile defaults that seeded the window. Defaults never overwrite explicit restored topology silently."
+        },
+        "machine_display_hint_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional reference to the machine-local display-hint cache row quoted by this snapshot."
+        }
+      },
+      "description": "Boundary refs that keep workspace authority, profile defaults, and display hints separate from window topology."
+    },
+
+    "monitor_affinity_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affinity_strength", "best_effort_only"],
+      "properties": {
+        "affinity_strength": { "$ref": "#/$defs/monitor_affinity_strength" },
+        "display_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/display_class" },
+            { "type": "null" }
+          ]
+        },
+        "last_known_display_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "last_known_topology_hash": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "preferred_scale_bucket": {
+          "anyOf": [
+            { "$ref": "#/$defs/scale_bucket" },
+            { "type": "null" }
+          ]
+        },
+        "preferred_bounds_hint": {
+          "anyOf": [
+            { "$ref": "#/$defs/bounds_hint" },
+            { "type": "null" }
+          ]
+        },
+        "best_effort_only": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true for monitor-affinity metadata. This field exists so producers cannot smuggle display geometry in as durable truth."
+        }
+      },
+      "description": "Best-effort monitor-affinity metadata. Off-screen coordinates and stale topology hashes never outrank safe restore behavior."
+    },
+
+    "focus_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_ref"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/focus_target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One entry in the remembered focus chain. The chain is window-local metadata and survives placeholder insertion."
+    },
+
+    "visible_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inspector_id", "inspector_kind", "dock_position", "visible"],
+      "properties": {
+        "inspector_id": { "$ref": "#/$defs/opaque_id" },
+        "inspector_kind": { "$ref": "#/$defs/inspector_kind" },
+        "target_pane_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional pane the inspector was scoped to."
+        },
+        "dock_position": { "$ref": "#/$defs/dock_position" },
+        "visible": { "type": "boolean" }
+      },
+      "description": "One visible inspector or companion surface associated with the window topology."
+    },
+
+    "follow_presentation_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_mode",
+        "presentation_mode",
+        "visible_role_badges",
+        "shared_control_badge_visible",
+        "audience_breakaway_allowed"
+      ],
+      "properties": {
+        "follow_mode": { "$ref": "#/$defs/follow_mode" },
+        "presentation_mode": { "$ref": "#/$defs/presentation_mode" },
+        "presenter_participant_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "visible_role_badges": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/collaboration_badge" }
+        },
+        "shared_control_badge_visible": { "type": "boolean" },
+        "audience_breakaway_allowed": { "type": "boolean" }
+      },
+      "description": "Window-local collaboration, follow, and presentation state. This block carries visible session roles without turning them into shared workspace authority."
+    },
+
+    "placeholder_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placeholder_reason", "safe_actions", "evidence_retained"],
+      "properties": {
+        "placeholder_reason": { "$ref": "#/$defs/placeholder_reason_class" },
+        "safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/placeholder_action" }
+        },
+        "evidence_retained": { "type": "boolean" },
+        "last_known_provenance_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Diagnostic placeholder occupying a pane slot when the live surface cannot hydrate. The placeholder preserves the pane slot rather than collapsing layout truth."
+    },
+
+    "pane_surface_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_role",
+        "surface_class",
+        "hydration_behavior",
+        "availability_state"
+      ],
+      "properties": {
+        "surface_role": { "$ref": "#/$defs/surface_role" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "live_surface_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/live_surface_class" },
+            { "type": "null" }
+          ]
+        },
+        "hydration_behavior": { "$ref": "#/$defs/hydration_behavior" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "title_hint": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Last useful title or label shown for the pane."
+        },
+        "surface_binding_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque ref to the surface binding or restore token. Never a raw capability ticket."
+        },
+        "follow_anchor_candidate": { "type": "boolean" },
+        "presentation_spotlighted": { "type": "boolean" },
+        "placeholder_card": {
+          "anyOf": [
+            { "$ref": "#/$defs/placeholder_card" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Surface payload attached to a leaf pane."
+    },
+
+    "pane_leaf_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "pane_id", "surface"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "leaf" },
+        "pane_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable pane identifier. Survives placeholder insertion, tab moves, split moves, and window restore."
+        },
+        "surface": { "$ref": "#/$defs/pane_surface_descriptor" }
+      },
+      "description": "Leaf pane carrying one surface descriptor."
+    },
+
+    "tab_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tab_id", "tab_label", "pane"],
+      "properties": {
+        "tab_id": { "$ref": "#/$defs/opaque_id" },
+        "tab_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "pinned": { "type": "boolean" },
+        "dirty_badge_visible": { "type": "boolean" },
+        "pane": { "$ref": "#/$defs/pane_leaf_node" }
+      },
+      "description": "One tab in a tab group. Tab identity remains stable even if the pane degrades to placeholder or evidence-only state."
+    },
+
+    "split_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "split_id", "orientation", "children"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "split" },
+        "split_id": { "$ref": "#/$defs/opaque_id" },
+        "orientation": { "$ref": "#/$defs/split_orientation" },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/pane_node" }
+        },
+        "weights": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "number", "exclusiveMinimum": 0 },
+          "description": "Optional relative split weights. Producers SHOULD align the count with children length."
+        }
+      },
+      "description": "Split node in the pane tree."
+    },
+
+    "tab_group_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "group_id", "tabs", "active_tab_id"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "tab_group" },
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tab_record" }
+        },
+        "active_tab_id": { "$ref": "#/$defs/opaque_id" },
+        "close_empty_group": { "type": "boolean" }
+      },
+      "description": "Tab-group node in the pane tree."
+    },
+
+    "pane_node": {
+      "oneOf": [
+        { "$ref": "#/$defs/split_node" },
+        { "$ref": "#/$defs/tab_group_node" },
+        { "$ref": "#/$defs/pane_leaf_node" }
+      ],
+      "description": "Recursive pane-tree node."
+    },
+
+    "pane_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tree_revision", "root_node"],
+      "properties": {
+        "tree_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Version of the tree instance within the snapshot's lifetime. Incremented when the topology mutates."
+        },
+        "root_node": { "$ref": "#/$defs/pane_node" }
+      },
+      "description": "Versioned pane tree for one window."
+    },
+
+    "window_chrome_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_state",
+        "zoom_percent",
+        "density_preset",
+        "activity_strip_visible",
+        "sidebar_visible",
+        "bottom_panel_visible"
+      ],
+      "properties": {
+        "window_state": { "$ref": "#/$defs/window_state" },
+        "zoom_percent": { "type": "number", "exclusiveMinimum": 0 },
+        "density_preset": { "$ref": "#/$defs/density_preset" },
+        "activity_strip_visible": { "type": "boolean" },
+        "sidebar_visible": { "type": "boolean" },
+        "bottom_panel_visible": { "type": "boolean" }
+      },
+      "description": "Window-level chrome state separate from the pane tree."
+    },
+
+    "window_topology_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pane_tree_schema_version",
+        "snapshot_id",
+        "snapshot_reason",
+        "window_id",
+        "window_role",
+        "scope_refs",
+        "pane_tree",
+        "focus_chain",
+        "visible_inspectors",
+        "follow_presentation_state",
+        "window_chrome_state",
+        "monitor_affinity_hint",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "window_topology_snapshot_record"
+        },
+        "pane_tree_schema_version": { "$ref": "#/$defs/pane_tree_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_reason": { "$ref": "#/$defs/snapshot_reason" },
+        "window_id": { "$ref": "#/$defs/opaque_id" },
+        "window_role": { "$ref": "#/$defs/window_role" },
+        "topology_family_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional multi-window topology family id. Many windows MAY share a family id while still carrying separate pane trees."
+        },
+        "sibling_window_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_refs": { "$ref": "#/$defs/scope_refs" },
+        "pane_tree": { "$ref": "#/$defs/pane_tree" },
+        "focus_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_chain_entry" }
+        },
+        "visible_inspectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/visible_inspector_record" }
+        },
+        "follow_presentation_state": { "$ref": "#/$defs/follow_presentation_state" },
+        "window_chrome_state": { "$ref": "#/$defs/window_chrome_state" },
+        "monitor_affinity_hint": { "$ref": "#/$defs/monitor_affinity_hint" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One remembered window-topology snapshot. Window-local topology points at workspace authority by ref instead of embedding authority state."
+    },
+
+    "restore_phase_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "outcome", "note"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/restore_phase" },
+        "outcome": { "$ref": "#/$defs/phase_outcome" },
+        "affected_pane_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One phase entry in a layout-restore provenance record."
+    },
+
+    "display_adjustment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adjustment_class", "note"],
+      "properties": {
+        "adjustment_class": { "$ref": "#/$defs/display_adjustment_class" },
+        "affected_pane_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One material display or monitor-topology adjustment applied during restore."
+    },
+
+    "placeholder_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "surface_role",
+        "surface_class",
+        "placeholder_reason",
+        "safe_actions",
+        "evidence_retained"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_role": { "$ref": "#/$defs/surface_role" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "placeholder_reason": { "$ref": "#/$defs/placeholder_reason_class" },
+        "safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/placeholder_action" }
+        },
+        "evidence_retained": { "type": "boolean" },
+        "last_known_provenance_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Degraded placeholder result for one pane during restore."
+    },
+
+    "live_surface_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pane_id",
+        "live_surface_class",
+        "restore_posture",
+        "authority_posture",
+        "no_rerun_guardrails",
+        "evidence_retained"
+      ],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "live_surface_class": { "$ref": "#/$defs/live_surface_class" },
+        "restore_posture": { "$ref": "#/$defs/surface_restore_posture" },
+        "authority_posture": { "$ref": "#/$defs/surface_authority_posture" },
+        "no_rerun_guardrails": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/no_rerun_guardrail" }
+        },
+        "evidence_retained": { "type": "boolean" },
+        "note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Restore outcome for one live surface class. This is where the no-rerun contract is recorded explicitly."
+    },
+
+    "layout_restore_provenance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pane_tree_schema_version",
+        "restore_event_id",
+        "source_snapshot_ref",
+        "restore_source_class",
+        "workspace_authority_ref",
+        "window_id",
+        "restore_level",
+        "phase_trace",
+        "authority_rebind_result",
+        "display_adjustments",
+        "placeholder_results",
+        "live_surface_outcomes",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "layout_restore_provenance_record"
+        },
+        "pane_tree_schema_version": { "$ref": "#/$defs/pane_tree_schema_version" },
+        "restore_event_id": { "$ref": "#/$defs/opaque_id" },
+        "source_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_source_class": { "$ref": "#/$defs/restore_source_class" },
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "window_id": { "$ref": "#/$defs/opaque_id" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "phase_trace": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/restore_phase_record" },
+          "description": "One entry per named restore phase. Producers SHOULD include all five phases exactly once."
+        },
+        "authority_rebind_result": { "$ref": "#/$defs/authority_rebind_result" },
+        "display_adjustments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/display_adjustment_record" }
+        },
+        "placeholder_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/placeholder_result_record" }
+        },
+        "live_surface_outcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/live_surface_outcome_record" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One restore event's layout-focused provenance. Records phase progression, display adjustments, placeholder insertion, and live-surface no-rerun outcomes without claiming that live authority was serialized into layout truth."
+    }
+  }
+}

@@ -192,6 +192,15 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`workspace/layout_serialization_contract.md`](./workspace/layout_serialization_contract.md)
+  — workspace-layout serialization boundary covering workspace
+  authority versus window topology, portable profile defaults,
+  machine/display hints, versioned pane trees, explicit restore phases,
+  missing-surface placeholders, and no-rerun guarantees for live
+  surfaces. Boundary schema in
+  [`/schemas/workspace/pane_tree.schema.json`](../schemas/workspace/pane_tree.schema.json);
+  worked fixtures in
+  [`/fixtures/workspace/layout_serialization_examples/`](../fixtures/workspace/layout_serialization_examples/).
 - [`ux/shell_interaction_safety_contract.md`](./ux/shell_interaction_safety_contract.md)
   — shell-level interaction-safety contract covering focus return,
   batch-scope review, preview / apply / revert, typed permission

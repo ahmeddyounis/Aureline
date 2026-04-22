@@ -1,0 +1,190 @@
+{
+  "$schema": "../../../schemas/workspace/pane_tree.schema.json",
+  "__fixture__": {
+    "name": "layout_restore_provenance_missing_dependencies",
+    "scenario": "A restore reopens the auxiliary presentation window after a crash. The original external display is gone, the preview extension is not installed, the remote notebook kernel cannot be reached, and the terminal must not rerun. The restore preserves topology, records all five restore phases, inserts placeholders, and keeps terminal context as evidence only.",
+    "record_kinds_exercised": ["layout_restore_provenance_record"],
+    "restore_phases_exercised": [
+      "chooser",
+      "skeleton",
+      "hydrate",
+      "rebind",
+      "evidence_only_fallback"
+    ],
+    "placeholder_reasons_exercised": [
+      "missing_extension",
+      "missing_remote",
+      "non_reentrant_live_surface"
+    ],
+    "doc_sections": [
+      "§4 Restore phases and shared recovery vocabulary",
+      "§5 Placeholder and degradation rules",
+      "§6 Live-surface no-rerun rules"
+    ]
+  },
+  "record_kind": "layout_restore_provenance_record",
+  "pane_tree_schema_version": 1,
+  "restore_event_id": "layout-restore-event-0001",
+  "source_snapshot_ref": "window-snapshot-presentation-aux-0001",
+  "restore_source_class": "auto_checkpoint",
+  "workspace_authority_ref": "workspace-authority-rust-service-0001",
+  "window_id": "window-presentation-aux-0001",
+  "restore_level": "compatible_restore",
+  "phase_trace": [
+    {
+      "phase": "chooser",
+      "outcome": "completed",
+      "affected_pane_ids": [],
+      "note": "The latest crash checkpoint was chosen after the user kept restore enabled and skipped safe mode."
+    },
+    {
+      "phase": "skeleton",
+      "outcome": "completed",
+      "affected_pane_ids": [
+        "pane-editor-main-0001",
+        "pane-terminal-0001",
+        "pane-notebook-0001",
+        "pane-preview-ext-0001"
+      ],
+      "note": "Window shell, pane tree, tabs, focus chain, and inspectors were rebuilt before any extension, remote, or runtime attach attempt."
+    },
+    {
+      "phase": "hydrate",
+      "outcome": "degraded",
+      "affected_pane_ids": [
+        "pane-terminal-0001",
+        "pane-notebook-0001",
+        "pane-preview-ext-0001"
+      ],
+      "note": "Editor panes reopened. The terminal, notebook, and preview extension degraded to placeholders or evidence-only state instead of collapsing layout truth."
+    },
+    {
+      "phase": "rebind",
+      "outcome": "completed",
+      "affected_pane_ids": [
+        "pane-editor-main-0001",
+        "pane-terminal-0001",
+        "pane-notebook-0001",
+        "pane-preview-ext-0001"
+      ],
+      "note": "Workspace authority rebound after trust and route reevaluation. No stale remote grant or extension capability was reused implicitly."
+    },
+    {
+      "phase": "evidence_only_fallback",
+      "outcome": "completed",
+      "affected_pane_ids": ["pane-terminal-0001", "pane-notebook-0001"],
+      "note": "Terminal transcript and notebook output summary were retained as context only. No command, cell, or attach action reran automatically."
+    }
+  ],
+  "authority_rebind_result": "reevaluated_and_bound",
+  "display_adjustments": [
+    {
+      "adjustment_class": "moved_to_primary_display",
+      "affected_pane_ids": [],
+      "note": "The saved projector display was unavailable, so the window was remapped to the primary display."
+    },
+    {
+      "adjustment_class": "snapped_to_safe_bounds",
+      "affected_pane_ids": [],
+      "note": "Saved fullscreen geometry was clamped to current safe bounds to avoid off-screen restore."
+    },
+    {
+      "adjustment_class": "scale_normalized",
+      "affected_pane_ids": [],
+      "note": "The original 1x presentation display was replaced by a 2x display; pane bounds were normalized without changing pane order."
+    }
+  ],
+  "placeholder_results": [
+    {
+      "pane_id": "pane-terminal-0001",
+      "surface_role": "terminal",
+      "surface_class": "terminal_view",
+      "placeholder_reason": "non_reentrant_live_surface",
+      "safe_actions": [
+        "rerun_explicitly",
+        "rebind_existing_session",
+        "export_evidence",
+        "remove_pane"
+      ],
+      "evidence_retained": true,
+      "last_known_provenance_label": "deploy shell on workspace host local-macos-dev",
+      "note": "The PTY transcript and cwd hint were kept, but replaying commands after crash recovery is forbidden."
+    },
+    {
+      "pane_id": "pane-notebook-0001",
+      "surface_role": "notebook",
+      "surface_class": "notebook_view",
+      "placeholder_reason": "missing_remote",
+      "safe_actions": [
+        "reconnect_remote",
+        "reauthenticate",
+        "export_evidence",
+        "remove_pane"
+      ],
+      "evidence_retained": true,
+      "last_known_provenance_label": "remote python kernel on staging notebook host",
+      "note": "Notebook outputs were retained as snapshot evidence; the remote kernel was not silently reacquired."
+    },
+    {
+      "pane_id": "pane-preview-ext-0001",
+      "surface_role": "preview",
+      "surface_class": "extension_view",
+      "placeholder_reason": "missing_extension",
+      "safe_actions": [
+        "locate_extension",
+        "install_extension",
+        "open_without",
+        "export_evidence",
+        "remove_pane"
+      ],
+      "evidence_retained": true,
+      "last_known_provenance_label": "topology preview provided by graph-preview extension",
+      "note": "The pane slot and title were preserved even though the extension host was unavailable."
+    }
+  ],
+  "live_surface_outcomes": [
+    {
+      "pane_id": "pane-terminal-0001",
+      "live_surface_class": "terminal",
+      "restore_posture": "evidence_only_placeholder",
+      "authority_posture": "manual_rebind_required",
+      "no_rerun_guardrails": [
+        "no_command_rerun",
+        "transcript_or_snapshot_only",
+        "explicit_user_action_required",
+        "placeholder_preserved"
+      ],
+      "evidence_retained": true,
+      "note": "The terminal remained inspectable as transcript only until the user deliberately reruns or rebinds."
+    },
+    {
+      "pane_id": "pane-notebook-0001",
+      "live_surface_class": "notebook",
+      "restore_posture": "placeholder_until_manual_rebind",
+      "authority_posture": "reauth_required",
+      "no_rerun_guardrails": [
+        "no_command_rerun",
+        "no_hidden_authority_reacquire",
+        "transcript_or_snapshot_only",
+        "explicit_user_action_required",
+        "placeholder_preserved"
+      ],
+      "evidence_retained": true,
+      "note": "Notebook kernel authority expired, so only output snapshots and recovery actions were shown."
+    },
+    {
+      "pane_id": "pane-preview-ext-0001",
+      "live_surface_class": "extension_view",
+      "restore_posture": "placeholder_until_manual_rebind",
+      "authority_posture": "not_applicable",
+      "no_rerun_guardrails": [
+        "explicit_user_action_required",
+        "placeholder_preserved"
+      ],
+      "evidence_retained": true,
+      "note": "The extension view remained a placeholder until the dependency is installed or the pane is removed."
+    }
+  ],
+  "emitted_at": "mono:6001:00:13:10.0000",
+  "notes": "This restore preserved surrounding layout truth despite display drift and missing dependencies. No live surface reran and no stale authority was reacquired implicitly."
+}
