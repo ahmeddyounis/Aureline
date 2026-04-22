@@ -48,6 +48,15 @@ code.
 - [`governance/commitment_and_rebaseline_policy.md`](./governance/commitment_and_rebaseline_policy.md)
   — commitment classes, assumption-invalidating events, phase-level
   change budgets, and exception-packet rules.
+- [`../artifacts/governance/dependency_ledger.yaml`](../artifacts/governance/dependency_ledger.yaml)
+  — canonical blocker ids for protected M0/M1 lanes and backlog rows,
+  with latest safe decision points and fallback posture.
+- [`governance/blocker_aging_slas.md`](./governance/blocker_aging_slas.md)
+  — blocker-aging and escalation table for architecture-freeze
+  blockers, stale evidence, owner gaps, and unresolved waivers.
+- [`../artifacts/governance/correction_trigger_table.yaml`](../artifacts/governance/correction_trigger_table.yaml)
+  — scorecard and risk-linked correction triggers showing when a slip
+  forces descoping, rebaseline, or an exception packet.
 - [`governance/change_budget_workflow.md`](./governance/change_budget_workflow.md)
   — protected-path change-budget matrix, exception-packet workflow,
   repeated-exception thresholds, and dashboard-feed fields for
@@ -183,6 +192,8 @@ code.
   the current M0 ADRs, prototypes, corpora, and decision gates. The
   machine-readable companions live in
   [`/artifacts/planning/`](../artifacts/planning/).
+  Program-blocking dependency ids themselves live in
+  [`/artifacts/governance/dependency_ledger.yaml`](../artifacts/governance/dependency_ledger.yaml).
   Commitment-class policy itself lives in
   [`/docs/governance/commitment_and_rebaseline_policy.md`](./governance/commitment_and_rebaseline_policy.md)
   and

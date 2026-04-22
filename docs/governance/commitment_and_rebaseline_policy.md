@@ -8,6 +8,8 @@ must become explicit program decisions rather than quiet carry-forward.
 Companion artifacts:
 
 - [`/artifacts/governance/commitment_classes.yaml`](../../artifacts/governance/commitment_classes.yaml)
+- [`/artifacts/governance/dependency_ledger.yaml`](../../artifacts/governance/dependency_ledger.yaml)
+- [`/artifacts/governance/correction_trigger_table.yaml`](../../artifacts/governance/correction_trigger_table.yaml)
 - [`/artifacts/governance/protected_change_budget.yaml`](../../artifacts/governance/protected_change_budget.yaml)
 - [`/schemas/governance/exception_packet.schema.json`](../../schemas/governance/exception_packet.schema.json)
 - [`/docs/governance/templates/exception_packet_template.md`](./templates/exception_packet_template.md)
@@ -54,6 +56,14 @@ dates`. Silent carry-forward is not a valid outcome.
 | Optional service-plane or later-differentiation work lands on the same protected-path team as the desktop core | Core quality starts paying for later breadth | Ring-fence the work or defer it |
 | The same protected path needs repeated waivers or freeze exceptions | The exception has become hidden product policy | Require claim narrowing, a recorded rebaseline, or explicit correction work |
 | Certified-archetype, migration, docs, or compatibility publication remains manual and fragile past the planned checkpoint | Stable publication can no longer be treated as one current truth | Open a correction program before widening claims |
+
+The current-milestone projection of those generic triggers now lives in
+[`/artifacts/governance/correction_trigger_table.yaml`](../../artifacts/governance/correction_trigger_table.yaml),
+which binds scorecard lanes, risk rows, and dependency ids to the
+required descoping, rebaseline, or exception-packet action. Scorecards
+and backlog rows should cite the dependency ids from
+[`/artifacts/governance/dependency_ledger.yaml`](../../artifacts/governance/dependency_ledger.yaml)
+rather than relying on prose-only blocker notes.
 
 ## Phase budgets and default forums
 

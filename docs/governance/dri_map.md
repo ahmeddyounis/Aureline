@@ -12,6 +12,9 @@ Companion artifacts:
   — machine-readable ownership and backup-owner waivers.
 - [`/artifacts/governance/package_inventory.yaml`](../../artifacts/governance/package_inventory.yaml)
   — package topology and protected-path posture.
+- [`/docs/governance/blocker_aging_slas.md`](./blocker_aging_slas.md)
+  — canonical blocker-aging clock and escalation table for freeze
+  blockers, stale evidence, owner gaps, and unresolved waivers.
 
 **No silent blanks.** Every protected lane has either a named backup owner or
 a recorded waiver with named expiry, reason, and escalation path. If this
@@ -127,25 +130,30 @@ closing the backup waiver.
 
 ## Blocker aging SLAs
 
-Times are business hours unless stated. "Escalation path" is the ordered
-list of who must be informed; consult the ownership matrix for exact
-handles.
+The canonical SLA table now lives in
+[`/docs/governance/blocker_aging_slas.md`](./blocker_aging_slas.md).
+Use that document for the active aging clock, the first containment
+step, and the escalation timing on:
 
-| Situation                                                             | Age threshold | First action                                                                   |
-|-----------------------------------------------------------------------|---------------|--------------------------------------------------------------------------------|
-| Protected lane has no primary DRI.                                    | 24 h          | Assign a DRI or freeze all dependent work for that lane.                       |
-| Protected lane has no backup owner and no active waiver.              | 24 h          | Open a waiver with expiry and escalation path, or assign a backup.             |
-| Release-blocking item has no named owner.                             | 24 h          | Assign a DRI before end of day or freeze the release lane.                     |
-| Critical-path blocker has no resolution plan.                         | 48 h          | Escalate to the primary DRI and the relevant decision forum.                   |
-| Protected lane backup-owner waiver has expired.                       | 0 h (at expiry) | Close, renew with a new expiry, or freeze the lane.                            |
-| Public-truth claim filed without a cited evidence owner.              | 24 h          | Withhold the claim or name the evidence owner in the claim manifest.           |
-| Supportability artifact family has no named owner for an active incident. | 4 h       | Escalate to the on-call DRI, then to the release council if unresolved at 24 h.|
-| Recurring waiver on the same protected lane (second renewal).         | On renewal    | Convert to a tracked correction program; waivers do not become the steady state. |
+- architecture-freeze blockers;
+- stale or rerun-triggered evidence;
+- owner gaps on protected or release-blocking lanes; and
+- expired or repeatedly renewed waivers.
 
-Escalation order for any of the above, under the current solo-maintainer
-posture: maintainer self-escalation entry in the shiproom packet →
-contributor-community thread → public notice on the repository. Replace with
-a multi-person path when the backup waiver closes.
+The summary floors are unchanged:
+
+- owner gaps must resolve to a named owner or waiver inside one
+  business day, with a 4-hour floor for active support incidents;
+- architecture-freeze blockers need an explicit resolution plan inside
+  48 business hours;
+- stale evidence downgrades the scorecard immediately and needs a rerun
+  owner inside one business day; and
+- waiver expiry is immediate containment, not a warning.
+
+Under the current solo-maintainer posture, the concrete escalation path
+is still the shiproom self-escalation log, then the contributor
+community thread, then a public repository notice until named backup
+coverage closes the waiver.
 
 ## Authority for narrowing, waivers, and re-baselining
 

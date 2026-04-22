@@ -30,6 +30,8 @@ Packet tree
 - `coverage_and_freeze_exceptions.yaml` - explicit cross-pack family coverage and every named freeze exception required to keep M1 from inventing missing contracts in code.
 - `../M0_scorecard.yaml` - lane-by-lane review surface keyed to the ownership matrix.
 - `../M0_risk_register.yaml` - named risks, explicit mitigations, and carry-forward owners.
+- `../../governance/dependency_ledger.yaml` - canonical dependency ids, latest safe decision points, and explicit `none required` coverage for M0 lanes and M1 workstreams.
+- `../../governance/correction_trigger_table.yaml` - current scorecard and risk-linked descoping, rebaseline, and exception triggers.
 - `../M0_design_evidence_index.yaml` - stable evidence IDs with owner, freshness, artifact ref, and source task reference.
 - `../../governance/evidence_id_conventions.md` - canonical evidence-id grammar and packet-linking rules used by benchmark, verification, and signoff packets.
 - `../../../schemas/governance/evidence_packet_header.schema.json` - shared packet-header contract for identity, ownership, freshness, visibility, and artifact-link fields.
@@ -40,7 +42,7 @@ Top-down review order
 1. Read `packet_index.yaml` for the review posture, accepted ADR set, and the M0 to M1 cutline.
 2. Read `canonical_matrices.yaml` to confirm the driver, principle, scheduler, route, and truth matrices that M1 must inherit.
 3. Read `coverage_and_freeze_exceptions.yaml` before approving any M1 breadth so missing contract families stay explicit.
-4. Read `../M0_scorecard.yaml` and `../M0_risk_register.yaml` together; the scorecard names lane health and the risk register names why specific yellows and reds still exist.
+4. Read `../M0_scorecard.yaml`, `../M0_risk_register.yaml`, `../../governance/dependency_ledger.yaml`, and `../../governance/correction_trigger_table.yaml` together; they now share the lane, risk, and dependency ids that drive narrowing or correction decisions.
 5. Read `../../governance/evidence_id_conventions.md` and `../../../schemas/governance/evidence_packet_header.schema.json` before reviewing any packet that aggregates proof across design, benchmark, or signoff surfaces.
 6. Read `../M0_signoff_packet.md` for the reviewer-facing exit checklist, required signoffs, freshness blockers, and shared packet sections.
 7. Use `../M0_design_evidence_index.yaml` as the evidence lookup table instead of reconstructing provenance from handoffs or git history.

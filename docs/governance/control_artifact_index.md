@@ -139,6 +139,11 @@ and scopes.
   `maintainer_coverage_policy`, `signing_quorum`, and
   `fork_review_policy`. Do not keep build-vs-buy posture, bus-factor
   risk, or quorum expectations only in an ADR or PR comment.
+- Program blocker ids, blocker-aging SLAs, and forced correction
+  responses now route through `program_dependency_ledger`,
+  `blocker_aging_sla_table`, and `correction_trigger_table`. Do not
+  keep a critical-path blocker only in a scorecard note, risk-summary
+  paragraph, or meeting memory.
 - When a pull request changes anything under a canonical-location path
   named in the index, update the corresponding row's `status` or
   `notes` if the change moves the artifact between `outline_only`,
@@ -167,7 +172,8 @@ and scopes.
   `benchmark_public_comparison_rules`, `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
   `qualification_cadence`, `canonical_requirement_register`,
-  `decision_dependency_register`,
+  `decision_dependency_register`, `program_dependency_ledger`,
+  `correction_trigger_table`,
   `build_vs_buy_register`, `critical_dependency_register`,
   `critical_upstream_health_scorecard`, `maintainer_coverage_policy`,
   `fork_review_policy`, `feature_flag_policy`, and
@@ -294,6 +300,10 @@ and scopes.
   owner handoffs, while the dashboard seed rolls scorecards, waivers,
   stale proof, dependency reds, claim-manifest drift, and public-proof
   coverage into one canonical release-control surface.
+- The blocker-aging SLA table and correction-trigger table now sit
+  between the scorecard, risk register, and shiproom view. Release and
+  milestone reviewers should use those ids instead of inferring whether
+  a slip means descoping, rebaseline, or an exception packet.
 - The desktop-platform conformance matrix and claimed-desktop-profile
   registry are now the canonical home for named macOS, Windows, and
   Linux claims, platform-owned primitives, deployment-path narrowings,

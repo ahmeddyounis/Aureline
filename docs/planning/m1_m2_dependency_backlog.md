@@ -11,12 +11,17 @@ Companion artifacts:
 - [`/artifacts/planning/commitment_class_rollup.yaml`](../../artifacts/planning/commitment_class_rollup.yaml) —
   commitment-class counts, critical path, implementation waves, and
   start posture.
+- [`/artifacts/governance/dependency_ledger.yaml`](../../artifacts/governance/dependency_ledger.yaml) —
+  canonical blocker ids, latest safe decision points, and lane/workstream
+  coverage for the M0 to M1 handoff.
 
 Planning posture:
 
 - Source of truth for milestone bars: `.t2/docs/Aureline_Milestones_Document.md`.
 - Source of truth for epic intent: `.t2/docs/Aureline_PRD.md` Appendix Q.
 - Source of truth for live gate status: `artifacts/governance/decision_index.yaml`.
+- Source of truth for program-blocking dependency ids:
+  `artifacts/governance/dependency_ledger.yaml`.
 - Source of truth for commitment classes and re-baseline rules:
   `docs/governance/commitment_and_rebaseline_policy.md`.
 - Current execution owner is still `@ahmeddyounis` under the
@@ -26,9 +31,6 @@ Planning posture:
   The backlog therefore binds to landed ADRs, prototypes, schemas, and
   decision rows, and treats missing contract freeze work as part of the
   first implementation wave.
-- The task spec names `M00-61` as a dependency, but there is no
-  `.plans/M00-61.md` or `.t2/handoff/M00-61.md` in the repository as of
-  2026-04-21. No row below depends on an invisible artifact.
 
 ## Immediate M1 posture
 
@@ -48,6 +50,11 @@ immediately, but the team should not wait for every open decision before
 building. The rows that need decision closure are narrow and explicit:
 non-throwaway shell home, keyboard/accessibility coverage, exact-build
 join semantics, and extension/install-review vocabulary.
+
+The machine-readable backlog now carries `dependency_ids` from the
+canonical dependency ledger for these rows, so downstream scorecards,
+scope reviews, and correction packets can key off stable ids instead of
+repeating blocker prose.
 
 ## M1 backlog
 
@@ -118,7 +125,6 @@ Open decisions that allow only narrowed progress:
 Missing or late inputs that should stay visible:
 
 - `DEP-0003` is still open, so keyboard/accessibility review packet work has no final artifact home yet.
-- The task-spec dependency `M00-61` has no repository artifact today and therefore cannot be treated as a real gate.
 
 ## Recommended sequencing
 
