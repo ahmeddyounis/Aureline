@@ -1,0 +1,418 @@
+# Critical-upstream health scorecard.
+#
+# Canonical health-review seed for every dependency row whose failure,
+# abandonment, or trust break could materially affect protected paths,
+# release engineering, or benchmark truth. Complements
+# artifacts/governance/dependency_register.yaml.
+
+schema_version: 1
+
+policy_docs:
+  dependency_review_policy: docs/governance/dependency_review_policy.md
+  maintainer_coverage_policy: docs/governance/maintainer_coverage_policy.md
+source_register: artifacts/governance/dependency_register.yaml
+
+assessment_state_classes:
+  - provisional_risk_only
+  - scored_review
+
+risk_class_classes:
+  - low
+  - medium
+  - high
+  - blocked
+
+cadence_class_classes:
+  - quarterly
+  - quarterly_and_before_manifest_admission
+  - quarterly_and_before_stable_cut
+  - on_pin_change_and_quarterly
+
+scoring_model:
+  score_range:
+    min: 0
+    max: 5
+  score_meaning:
+    "5": healthy, actively maintained, and replaceable with low current concern
+    "4": healthy with normal watchfulness required
+    "3": acceptable but watch-listed
+    "2": elevated risk that needs an explicit sustainment plan
+    "1": high risk or effectively unreviewed on a critical path
+    "0": blocked for admission or continued claim without explicit exception
+  dimensions:
+    - id: activity
+      weight_percent: 20
+      meaning: release cadence, branch movement, contributor continuity
+    - id: responsiveness
+      weight_percent: 15
+      meaning: issue triage, patch acceptance, maintainer contact path
+    - id: license
+      weight_percent: 15
+      meaning: clarity, compatibility, redistribution posture
+    - id: bus_factor
+      weight_percent: 20
+      meaning: maintainer depth and single-point-of-failure exposure
+    - id: security_posture
+      weight_percent: 20
+      meaning: disclosure, advisory response, release integrity signals
+    - id: replacement_feasibility
+      weight_percent: 10
+      meaning: feasibility of fork, patch carry, or replacement
+  overall_bands:
+    green: 4.0-5.0
+    yellow: 3.0-3.99
+    orange: 2.0-2.99
+    red: 0.0-1.99
+  provisional_rule: >
+    Until the first upstream review is captured, critical dependencies
+    may carry a provisional risk class instead of an overall numeric
+    score. Protected-path rows may not silently skip the scorecard.
+
+cadence_by_criticality:
+  protected_path_release_critical: quarterly_and_before_manifest_admission
+  release_engineering_critical: quarterly_and_before_stable_cut
+  benchmark_lab_required: quarterly
+  repo_operations_required: quarterly
+
+escalation_triggers:
+  - id: provisional_high_past_gate
+    when: >
+      A protected-path dependency still carries provisional risk class
+      high at manifest admission or stable-claim review.
+    required_action: >
+      Block the admission or stable claim until a scored review,
+      sponsor plan, or approved replacement/fork decision lands.
+
+  - id: license_ambiguity_or_distribution_block
+    when: >
+      License terms are ambiguous, incompatible with the intended
+      distribution path, or no longer match the dependency row.
+    required_action: >
+      Freeze admission or distribution and reopen selection review.
+
+  - id: security_posture_failure
+    when: >
+      A severe unresolved vulnerability, compromised release channel, or
+      missing disclosure path affects a critical upstream.
+    required_action: >
+      Open architecture plus security review and decide freeze, fork,
+      patch, or replacement before the next protected release.
+
+  - id: bus_factor_or_maintainer_loss
+    when: >
+      Bus-factor evidence drops to a single unavailable maintainer or no
+      responsive maintainer contact path remains.
+    required_action: >
+      Name a sponsor, open fork/replace planning, and shorten the
+      review cadence.
+
+  - id: review_stale
+    when: >
+      The row misses its cadence window or ships on a stable line
+      without a current review.
+    required_action: >
+      Downgrade one risk band and flag the gap in release evidence.
+
+rows:
+  - dependency_id: dep.renderer.wgpu
+    dependency_name: wgpu
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.renderer.wgpu
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: First upstream activity review is not yet captured in-repo.
+      responsiveness: No issue or patch-response sample is recorded yet.
+      license: Expected permissive OSS; verify upstream license text before admission.
+      bus_factor: Maintainer depth and backup contact path are not yet recorded.
+      security_posture: Advisory-monitoring posture is not yet linked in the register.
+      replacement_feasibility: Fork/replace trigger is defined but not yet exercised.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.renderer.winit
+    dependency_name: winit
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.renderer.winit
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: No current upstream activity capture is checked in yet.
+      responsiveness: No platform-bug response sample is recorded yet.
+      license: Expected permissive OSS; verify final admission terms before use.
+      bus_factor: Maintainer continuity is still unreviewed in-repo.
+      security_posture: Release-integrity and advisory posture are not yet documented.
+      replacement_feasibility: Replacement path exists conceptually but would be expensive on the protected path.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.text.rustybuzz
+    dependency_name: rustybuzz-class shaper
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.rustybuzz
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: First upstream activity review is still pending.
+      responsiveness: No issue-response sample is linked in the repo.
+      license: Expected permissive OSS; admission review must confirm exact terms.
+      bus_factor: Small-maintainer risk is plausible and not yet disproven.
+      security_posture: No advisory-handling evidence is linked yet.
+      replacement_feasibility: The platform-native seam exists, but replacement still carries text-stack cost.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.text.swash
+    dependency_name: swash-class rasterisation
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.swash
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: Upstream activity has not yet been captured in a checked-in review.
+      responsiveness: Protected-path bug-response expectations are still untested.
+      license: Expected permissive OSS; admission review must confirm exact terms.
+      bus_factor: Maintainer continuity is not yet recorded.
+      security_posture: No linked disclosure or patch posture is recorded yet.
+      replacement_feasibility: Replacement is possible but likely disruptive for glyph and atlas behavior.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.text.fontdb
+    dependency_name: fontdb-class discovery layer
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.fontdb
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: Upstream cadence is not yet checked in.
+      responsiveness: No issue-response sample is recorded.
+      license: Expected permissive OSS; verify exact license and notice needs before admission.
+      bus_factor: Maintainer-depth evidence is missing.
+      security_posture: Advisory-monitoring path is not yet documented.
+      replacement_feasibility: Replacement exists but could leak host-specific path behavior into the shell.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.accessibility.accesskit
+    dependency_name: accesskit-class accessibility bridge
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.accessibility.accesskit
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: No checked-in upstream activity review exists yet.
+      responsiveness: Claimed accessibility-path issue response is not yet sampled.
+      license: Expected permissive OSS; verify exact terms before admission.
+      bus_factor: Backup maintainer continuity is not yet recorded.
+      security_posture: No disclosure or fix-latency evidence is linked yet.
+      replacement_feasibility: Replacement is possible but high-cost because accessibility parity is on the protected path.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before manifest admission or stable claim.
+
+  - dependency_id: dep.text.noto_class_fallback_font
+    dependency_name: Noto-class fallback font source
+    criticality: protected_path_release_critical
+    cadence_class: quarterly_and_before_manifest_admission
+    assessment_state: provisional_risk_only
+    provisional_risk_class: high
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.noto_class_fallback_font
+      - artifacts/governance/build_vs_buy_register.yaml#domain.shell_renderer_editor_core
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    dimension_notes:
+      activity: Upstream release and source continuity review is still pending.
+      responsiveness: No maintainer contact or issue-response sample is recorded yet.
+      license: Redistribution terms are central and must be verified before import.
+      bus_factor: Source-family stewardship continuity is not yet documented.
+      security_posture: Signing and source-integrity posture are not yet captured.
+      replacement_feasibility: Replacement is possible but may affect glyph coverage and packaging.
+    escalation_triggers:
+      - provisional_high_past_gate
+      - license_ambiguity_or_distribution_block
+      - security_posture_failure
+      - bus_factor_or_maintainer_loss
+      - review_stale
+    required_follow_up: Complete the first upstream review before first import or stable claim.
+
+  - dependency_id: dep.repo.rust_toolchain
+    dependency_name: rustup-managed Rust toolchain
+    criticality: release_engineering_critical
+    cadence_class: on_pin_change_and_quarterly
+    assessment_state: provisional_risk_only
+    provisional_risk_class: medium
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.rust_toolchain
+      - docs/build/reproducible_build_baseline.md
+      - rust-toolchain.toml
+    dimension_notes:
+      activity: Toolchain pin is observed in-repo, but upstream cadence is not yet scored.
+      responsiveness: No external issue-response sample is captured yet.
+      license: Toolchain runtime posture is expected to remain acceptable for build input use.
+      bus_factor: Ecosystem breadth is likely better than niche protected-path libraries, but not yet formally reviewed.
+      security_posture: Security-update consumption is implied by pin changes, not yet scored explicitly.
+      replacement_feasibility: Alternate acquisition paths exist, but changing them would affect bootstrap and reproducibility.
+    escalation_triggers:
+      - security_posture_failure
+      - review_stale
+    required_follow_up: Capture the first scored review before the next stable-cut packet.
+
+  - dependency_id: dep.repo.rustup
+    dependency_name: rustup
+    criticality: release_engineering_critical
+    cadence_class: quarterly_and_before_stable_cut
+    assessment_state: provisional_risk_only
+    provisional_risk_class: medium
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.rustup
+      - docs/build/reproducible_build_baseline.md
+      - tools/build/bootstrap.sh
+    dimension_notes:
+      activity: Host-runtime observation exists, but no upstream activity review is checked in yet.
+      responsiveness: No support or issue-response sample is recorded.
+      license: Toolchain-runtime posture is expected to be acceptable for host acquisition.
+      bus_factor: Maintainer continuity is not yet formally recorded.
+      security_posture: No explicit advisory-monitoring note is linked yet.
+      replacement_feasibility: Alternative bootstrap paths exist but would affect connected and offline setup flows.
+    escalation_triggers:
+      - security_posture_failure
+      - review_stale
+    required_follow_up: Capture the first scored review before the next stable-cut packet.
+
+  - dependency_id: dep.repo.git_cli
+    dependency_name: Git CLI
+    criticality: repo_operations_required
+    cadence_class: quarterly
+    assessment_state: provisional_risk_only
+    provisional_risk_class: medium
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.git_cli
+      - docs/build/reproducible_build_baseline.md
+      - tools/build/print_build_identity.sh
+    dimension_notes:
+      activity: Host-runtime observation exists, but the upstream-health review is not yet scored.
+      responsiveness: No checked-in issue-response sample exists yet.
+      license: Host-runtime-only use is known, but review still needs to confirm ongoing notice posture.
+      bus_factor: Maintainer continuity is not yet recorded formally.
+      security_posture: Security and provenance posture are not yet scored in-repo.
+      replacement_feasibility: Replacement is plausible but would affect build identity, lockfile, and repo workflows.
+    escalation_triggers:
+      - security_posture_failure
+      - review_stale
+    required_follow_up: Capture the first scored review during the next quarterly dependency sweep.
+
+  - dependency_id: dep.repo.bash
+    dependency_name: bash
+    criticality: repo_operations_required
+    cadence_class: quarterly
+    assessment_state: provisional_risk_only
+    provisional_risk_class: low
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.bash
+      - ci/build.sh
+      - tools/build/bootstrap.sh
+    dimension_notes:
+      activity: Host-runtime use is known, though no formal upstream score exists yet.
+      responsiveness: No issue-response sample is recorded in the repo.
+      license: Host-runtime-only use is understood; no redistributed artifact depends on it today.
+      bus_factor: Runtime availability is broad, though not yet formally scored.
+      security_posture: Review is still needed, but current use is wrapper-only.
+      replacement_feasibility: A POSIX-shell or other wrapper rewrite remains possible if needed.
+    escalation_triggers:
+      - security_posture_failure
+      - review_stale
+    required_follow_up: Capture the first scored review during the next quarterly dependency sweep.
+
+  - dependency_id: dep.benchmark.python3
+    dependency_name: python3 runtime
+    criticality: benchmark_lab_required
+    cadence_class: quarterly
+    assessment_state: provisional_risk_only
+    provisional_risk_class: medium
+    last_reviewed_on: "2026-04-21"
+    sponsor_dri: "@ahmeddyounis"
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.benchmark.python3
+      - tools/benchmark_lab.sh
+      - tools/journey_harness.sh
+    dimension_notes:
+      activity: Host-runtime observation exists, but no upstream-health score is checked in yet.
+      responsiveness: No issue-response sample is captured in the repo.
+      license: Runtime posture is expected to remain acceptable for generator use.
+      bus_factor: Maintainer continuity is broad in practice but not yet formally reviewed here.
+      security_posture: No explicit advisory-monitoring link is recorded yet.
+      replacement_feasibility: Replacement is possible but would require moving benchmark and journey tooling.
+    escalation_triggers:
+      - security_posture_failure
+      - review_stale
+    required_follow_up: Capture the first scored review during the next quarterly dependency sweep.

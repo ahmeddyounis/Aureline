@@ -9,6 +9,9 @@ code.
 
 - [`governance/dri_map.md`](./governance/dri_map.md) — DRI, backup
   owners, blocker aging, and narrowing authority.
+- [`governance/maintainer_coverage_policy.md`](./governance/maintainer_coverage_policy.md)
+  — reviewer-depth, backup-owner, signing-quorum, and critical-upstream
+  linkage rules for protected paths.
 - [`governance/control_artifact_index.md`](./governance/control_artifact_index.md)
   — overview of the control-artifact index: one home, one owner,
   and one review path for every control asset.

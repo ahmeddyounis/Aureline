@@ -35,13 +35,15 @@ benchmark-publication pack, the public-comparison rules, the
 qualification cadence, the
 compatibility qualification seed, the decision dependency register, the
 build-vs-buy register, the fork-review policy, the supply-chain
-dependency and import registers, the experiment/Labs control registers,
-the release-notice seed, the release-artifact graph, release evidence,
-docs and help truth, route and build-truth artifacts,
-accessibility review packets, surface-traceability artifacts, and
-frozen-surface manifests — appears as exactly one row in the index
-file. If two documents describe the same asset, the index names only
-the canonical one and the other is either merged in or retired.
+dependency and import registers, the critical-upstream health
+scorecard, the maintainer-coverage policy, the signing-quorum matrix,
+the experiment/Labs control registers, the release-notice seed, the
+release-artifact graph, release evidence, docs and help truth, route
+and build-truth artifacts, accessibility review packets,
+surface-traceability artifacts, and frozen-surface manifests —
+appears as exactly one row in the index file. If two documents describe
+the same asset, the index names only the canonical one and the other is
+either merged in or retired.
 
 The index does not restate the content of the assets it points at. The
 detailed governance workflow lives in
@@ -61,10 +63,13 @@ governance-packet template. The index only names, routes, and scopes.
   now route through `feature_flag_policy`, `experiments_register`, and
   `labs_register`. Do not hide a new prototype mode or developer
   toggle in script help text alone.
-- Protected-path dependency choices and deliberate upstream divergence
-  now route through `build_vs_buy_register`, `dependency_review_policy`,
-  `critical_dependency_register`, and `fork_review_policy`. Do not keep
-  build-vs-buy posture or fork rationale only in an ADR or PR comment.
+- Protected-path dependency choices, deliberate upstream divergence,
+  reviewer-depth policy, and emergency approval rules now route through
+  `build_vs_buy_register`, `dependency_review_policy`,
+  `critical_dependency_register`, `critical_upstream_health_scorecard`,
+  `maintainer_coverage_policy`, `signing_quorum`, and
+  `fork_review_policy`. Do not keep build-vs-buy posture, bus-factor
+  risk, or quorum expectations only in an ADR or PR comment.
 - When a pull request changes anything under a canonical-location path
   named in the index, update the corresponding row's `status` or
   `notes` if the change moves the artifact between `outline_only`,
@@ -92,6 +97,7 @@ governance-packet template. The index only names, routes, and scopes.
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,
   `qualification_cadence`, `decision_dependency_register`,
   `build_vs_buy_register`, `critical_dependency_register`,
+  `critical_upstream_health_scorecard`, `maintainer_coverage_policy`,
   `fork_review_policy`, `feature_flag_policy`, and
   `experiments_register` rows are the anchor points for quality work.
   New fitness functions, benchmark corpora, and qualification gates
@@ -156,9 +162,10 @@ governance-packet template. The index only names, routes, and scopes.
 
 - The `release_artifact_graph`, `release_evidence`,
   `compatibility_qualification_seed`,
-  `release_notice_seed`, `frozen_surface_manifests`,
-  `route_build_truth`, and `cleanroom_rebuild_lane` rows are the
-  anchor points for release assembly.
+  `release_notice_seed`, `maintainer_coverage_policy`,
+  `signing_quorum`, `frozen_surface_manifests`, `route_build_truth`,
+  and `cleanroom_rebuild_lane` rows are the anchor points for release
+  assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
 - The desktop-platform conformance matrix and claimed-desktop-profile
@@ -189,6 +196,13 @@ governance-packet template. The index only names, routes, and scopes.
   [`artifacts/evidence/`](../../artifacts/evidence/). Concrete release
   packets still land under `artifacts/release/` when a real candidate is
   assembled.
+- Maintainer coverage and emergency approval are no longer implicit
+  release lore. Release packets now cite
+  [`docs/governance/maintainer_coverage_policy.md`](./maintainer_coverage_policy.md)
+  for reviewer-depth and waiver posture and
+  [`artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
+  for the action ids that governed promotion, freeze, revocation, or
+  break-glass handling.
 - The clean-room rebuild lane now has a canonical command
   ([`ci/cleanroom_rebuild.sh`](../../ci/cleanroom_rebuild.sh)), a public
   contract document

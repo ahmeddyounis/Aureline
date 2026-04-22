@@ -46,6 +46,11 @@ Normative sources this matrix projects from:
   for the `security_issue` class (private security channel, private-
   with-public-advisory privacy, `public_on_advisory` disclosure,
   `security_trust_review` forum).
+- [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml)
+  for the default quorum and break-glass action ids that govern
+  channel-freeze, revocation, disable-bundle, kill-switch, and
+  high-severity publication actions until the emergency-action schema
+  lands.
 
 ## Why publish this now
 
@@ -183,7 +188,11 @@ Rules:
   `security_severity.operational_emergency` record MAY open with an
   audited break-glass action, but release-council co-sign and
   reconciliation MUST land on the decision trail within the emergency
-  triage target.
+  triage target. The action still cites the applicable break-glass row
+  from
+  [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml);
+  "single responder" is a bounded exception path, not a separate
+  approval system.
 - **Never silent publication on medium or higher.** An advisory at
   `security_severity.medium`, `security_severity.high`,
   `security_severity.critical`, or
@@ -458,6 +467,11 @@ view.
   `emergency_action_refs` as an array of opaque ids. The emergency-
   action state model is out of scope at this milestone; the ref is
   reserved so the linkage shape does not churn later.
+- **Approval quorum.** Until the emergency-action schema lands, the
+  action classes, quorum floor, and break-glass rules for
+  `emergency_action_refs`, `revocation_refs`, and disable/kill-switch
+  publication are those published in
+  [`/artifacts/governance/signing_quorum.yaml`](../../artifacts/governance/signing_quorum.yaml).
 - **Revocation.** The advisory record reserves `revocation_refs` for
   opaque revocation-record ids. The revocation-record body is a later
   lane co-owned by security / trust review and release council.
@@ -495,7 +509,8 @@ view.
 - Land the emergency-action and revocation schemas under
   `/schemas/security/` with linkage refs that resolve the slots this
   milestone reserves (`emergency_action_refs`, `revocation_refs`,
-  `disable_bundle_refs`).
+  `disable_bundle_refs`) and inherit the action ids already named in
+  `artifacts/governance/signing_quorum.yaml`.
 - Open the coordinated-disclosure runbook referenced by the
   `coordinated_disclosure_group` scope value. The schema reserves the
   scope; the runbook content is support / security authority.

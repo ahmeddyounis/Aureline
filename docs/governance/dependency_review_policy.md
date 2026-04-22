@@ -25,6 +25,13 @@ Companion artifacts:
 - [`/artifacts/governance/compliance_checklist.yaml`](../../artifacts/governance/compliance_checklist.yaml)
   — bridge artifact and sweep ledger; it no longer owns dependency
   rows directly.
+- [`/docs/governance/maintainer_coverage_policy.md`](./maintainer_coverage_policy.md)
+  — protected-path reviewer-depth and backup-owner policy that also
+  links critical dependencies to maintainer durability and release
+  quorum rules.
+- [`/artifacts/governance/upstream_health_scorecard.yaml`](../../artifacts/governance/upstream_health_scorecard.yaml)
+  — canonical health-score or provisional-risk register keyed by
+  dependency row id for critical upstreams.
 - [`/docs/governance/provenance_and_compliance_baseline.md`](./provenance_and_compliance_baseline.md)
   — the broader DCO, REUSE/SPDX, and placeholder SBOM/provenance
   baseline this policy composes with.
@@ -126,7 +133,42 @@ Every import row MUST additionally declare:
 Rows missing these fields are review failures even if the code change is
 otherwise correct.
 
-## 5. Manual versus machine-refreshed fields
+## 5. Critical-upstream scorecard coverage
+
+Every dependency row with `criticality` in one of these classes:
+
+- `protected_path_release_critical`
+- `release_engineering_critical`
+- `benchmark_lab_required`
+- `repo_operations_required`
+
+MUST have a matching row in
+[`/artifacts/governance/upstream_health_scorecard.yaml`](../../artifacts/governance/upstream_health_scorecard.yaml).
+
+Minimum scorecard content:
+
+- matching `dependency_id`;
+- review cadence;
+- either an explicit health score or a provisional risk class;
+- one note for each health dimension (activity, responsiveness,
+  license, bus factor, security posture, replacement feasibility);
+- escalation triggers; and
+- a named sponsor or owner for follow-up.
+
+Rules:
+
+- protected-path rows may begin with a provisional risk class while the
+  first upstream review is still being assembled, but the row may not be
+  absent;
+- manifest admission or stable-claim work on a protected path may not
+  pretend the upstream is healthy if the scorecard still carries
+  provisional risk class `high` or `blocked`;
+- changing a row's `criticality`, fork trigger, or sustainment posture
+  without updating the scorecard is a review failure; and
+- the scorecard is where supply-chain fragility becomes release and
+  maintainer risk instead of remaining a comment in a dependency row.
+
+## 6. Manual versus machine-refreshed fields
 
 The registers intentionally separate human judgment from machine ingest.
 
@@ -142,7 +184,7 @@ Automation MAY refresh only the fields each row names under
 changes a manual field without an explicit human review is non-
 conforming.
 
-## 6. Stale-row thresholds
+## 7. Stale-row thresholds
 
 The seeded stale profiles are the minimum floor:
 
@@ -161,7 +203,7 @@ The seeded stale profiles are the minimum floor:
 These thresholds are seeds, not ceilings. A protected-path dependency
 with repeated instability may tighten its cadence in the same row.
 
-## 7. Notice, SBOM, and provenance flow
+## 8. Notice, SBOM, and provenance flow
 
 The third-party publication path is:
 
@@ -183,7 +225,7 @@ Practical rules:
 - Imported assets and mirrored packs flow through the import register
   and may publish through non-binary targets such as `docs_pack_manifest`.
 
-## 8. Local forks and mirrors
+## 9. Local forks and mirrors
 
 Local forks, long-lived upstream patch stacks, and mirrored upstream
 packs raise the review bar:
@@ -202,7 +244,7 @@ If a fork remains divergent across more than one release family, open a
 fresh architecture review instead of quietly carrying the patch stack
 forward.
 
-## 9. Relationship to the compliance checklist
+## 10. Relationship to the compliance checklist
 
 `compliance_checklist.yaml` remains in the repository, but its role is
 now narrow:

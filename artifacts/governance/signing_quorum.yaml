@@ -1,0 +1,250 @@
+# Signing and approval quorum policy.
+#
+# Canonical action matrix for protected release, policy, emergency, and
+# security-sensitive artifact actions. The human narrative lives in
+# docs/governance/maintainer_coverage_policy.md. Release, security, and
+# governance packets should cite the action ids in this file rather than
+# inventing per-run quorum rules in PR comments or chat logs.
+
+schema_version: 1
+
+policy_doc: docs/governance/maintainer_coverage_policy.md
+companion_docs:
+  release_evidence_packet_template: docs/release/release_evidence_packet_template.md
+  security_severity_matrix: docs/security/severity_matrix.md
+  exact_build_identity_model: docs/build/exact_build_identity_model.md
+
+current_repo_posture:
+  backup_waiver_ref: artifacts/governance/ownership_matrix.yaml#waivers.single-maintainer-backup
+  steady_state_required_for:
+    - beta
+    - stable
+    - lts
+  notes: >
+    The repository is still under the single-maintainer backup waiver.
+    This file defines the steady-state approval floor and the bounded
+    emergency exception path. Draft and seed artifacts may exist before
+    the full quorum is real; live promotion, revocation, or trust-root
+    actions may not rely on informal single-human approval.
+
+quorum_principles:
+  - no_single_human_release_path
+  - default_two_person_control_for_high_risk_actions
+  - release_widening_never_uses_break_glass
+  - break_glass_must_be_audited_and_time_boxed
+  - retrospective_co_sign_required_before_scope_resume
+
+quorum_profiles:
+  - id: two_person_release_control
+    min_distinct_humans: 2
+    required_forums:
+      - release_council
+    required_roles:
+      - release_operator
+      - evidence_owner_or_backup
+    author_only_forbidden: true
+    notes: >
+      Default floor for accepting release evidence, publishing routine
+      release metadata, and promoting non-stable channels.
+
+  - id: three_person_stable_promotion
+    min_distinct_humans: 3
+    required_forums:
+      - release_council
+      - shiproom_executive_scope_review
+    required_roles:
+      - candidate_owner
+      - evidence_owner
+      - publishing_operator_or_backup
+    author_only_forbidden: true
+    notes: >
+      Stable and LTS promotion require a wider quorum than routine
+      preview publication.
+
+  - id: two_person_cross_forum_emergency_control
+    min_distinct_humans: 2
+    required_forums:
+      - security_trust_review
+      - release_council
+    required_roles:
+      - security_operator
+      - release_operator
+    author_only_forbidden: true
+    notes: >
+      Default floor for freeze, revocation, disable, and emergency
+      policy actions that reduce capability or alter trust posture.
+
+  - id: three_person_trust_root_change
+    min_distinct_humans: 3
+    required_forums:
+      - security_trust_review
+      - release_council
+    required_roles:
+      - security_operator
+      - release_operator
+      - backup_signer_or_auditor
+    author_only_forbidden: true
+    notes: >
+      Planned signer-roster or trust-root replacement changes require a
+      wider quorum than emergency containment.
+
+break_glass_profiles:
+  - id: audited_single_responder_containment
+    allowed_when:
+      - security_severity.operational_emergency
+      - active_signed_artifact_compromise
+      - verified_malicious_distribution
+      - urgent_channel_freeze_needed
+    forbidden_for:
+      - stable_or_lts_promotion
+      - widening_claim_scope
+      - permanent_signer_roster_change
+      - deleting_or_mutating_audit_history
+    max_duration_hours: 24
+    required_audit_fields:
+      - action_id
+      - triggered_by
+      - utc_invoked_at
+      - affected_scope
+      - evidence_refs
+      - missing_approver_class
+      - temporary_mitigation
+      - expiry_or_review_deadline
+      - retrospective_decision_refs
+    retrospective_quorum_profile: two_person_cross_forum_emergency_control
+    notes: >
+      Break-glass is only for containment. It freezes, disables, pauses,
+      or publishes a bounded emergency packet; it does not widen access
+      or permanently normalize a single-person action.
+
+actions:
+  - id: release_evidence_acceptance
+    artifact_families:
+      - release_evidence_packet
+      - shiproom_packet
+      - claim_manifest
+    default_quorum_profile: two_person_release_control
+    evidence_refs_required:
+      - exact_build_identity_ref
+      - release_evidence_packet_ref
+    break_glass_profile: none
+    notes: >
+      Accepting the packet that gates publication is itself a protected
+      action; draft assembly is not.
+
+  - id: preview_or_beta_promotion
+    artifact_families:
+      - publish_target_metadata
+      - release_channel_pointer
+      - promotion_timeline
+    default_quorum_profile: two_person_release_control
+    evidence_refs_required:
+      - release_evidence_packet_ref
+      - install_topology_ref
+    break_glass_profile: none
+    notes: >
+      Routine preview and beta promotion still require two-person
+      control; the lower quorum does not apply to stable or LTS.
+
+  - id: stable_or_lts_promotion
+    artifact_families:
+      - signed_release_bundle
+      - release_channel_pointer
+      - release_evidence_packet
+    default_quorum_profile: three_person_stable_promotion
+    evidence_refs_required:
+      - release_evidence_packet_ref
+      - exact_build_identity_ref
+      - waiver_packet_refs_or_none
+    break_glass_profile: none
+    notes: >
+      Stable and LTS publication may not use break-glass. If quorum is
+      missing, the action waits or the scope narrows.
+
+  - id: routine_policy_bundle_publish
+    artifact_families:
+      - policy_bundle
+      - governance_packet
+    default_quorum_profile: two_person_release_control
+    evidence_refs_required:
+      - policy_bundle_ref
+      - change_decision_ref
+    break_glass_profile: none
+    notes: >
+      Routine policy publication that does not reduce capability still
+      follows two-person control and an auditable decision reference.
+
+  - id: emergency_policy_bundle_publish
+    artifact_families:
+      - emergency_policy_bundle
+      - disable_bundle
+      - kill_switch_bundle
+      - freeze_notice
+    default_quorum_profile: two_person_cross_forum_emergency_control
+    evidence_refs_required:
+      - policy_bundle_ref
+      - incident_or_advisory_ref
+    break_glass_profile: audited_single_responder_containment
+    notes: >
+      Emergency bundles that disable, freeze, or narrow trust posture
+      default to two-person cross-forum control and may use bounded
+      break-glass only for immediate containment.
+
+  - id: channel_freeze_or_resume
+    artifact_families:
+      - release_channel_pointer
+      - freeze_notice
+      - rollback_target
+    default_quorum_profile: two_person_cross_forum_emergency_control
+    evidence_refs_required:
+      - incident_or_advisory_ref
+      - release_channel_scope_ref
+    break_glass_profile: audited_single_responder_containment
+    notes: >
+      Freeze and resume are both auditable actions. Resume still needs
+      retrospective co-sign after any break-glass freeze.
+
+  - id: revocation_disable_or_kill_switch_publication
+    artifact_families:
+      - revocation_record
+      - disable_bundle
+      - kill_switch_bundle
+      - advisory_notice
+    default_quorum_profile: two_person_cross_forum_emergency_control
+    evidence_refs_required:
+      - incident_or_advisory_ref
+      - affected_install_scope_ref
+    break_glass_profile: audited_single_responder_containment
+    notes: >
+      Revocation, forced-disable, and kill-switch actions are never
+      "whoever is awake" operations. The action must preserve the
+      standard audit trail even in emergency mode.
+
+  - id: signer_roster_or_trust_root_change
+    artifact_families:
+      - signer_roster
+      - trust_root_metadata
+      - attestation_policy
+    default_quorum_profile: three_person_trust_root_change
+    evidence_refs_required:
+      - trust_root_change_plan_ref
+      - continuity_drill_ref
+    break_glass_profile: none
+    notes: >
+      Planned signer or trust-root changes require a wider quorum.
+      Emergency containment for compromise uses the freeze and
+      revocation rows above; permanent replacement returns to this row.
+
+  - id: high_severity_security_publication
+    artifact_families:
+      - advisory_record
+      - public_summary_notice
+      - recovery_guide
+    default_quorum_profile: two_person_cross_forum_emergency_control
+    evidence_refs_required:
+      - advisory_record_ref
+      - public_summary_ref
+    break_glass_profile: audited_single_responder_containment
+    notes: >
+      Applies to security_severity.high and above, including any public
+      summary that changes what users can safely run.

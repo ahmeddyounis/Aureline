@@ -8,6 +8,9 @@ point for contributors and reviewers. It pairs with:
 - [`CODEOWNERS`](./CODEOWNERS) — pull-request review routing.
 - [`docs/governance/dri_map.md`](./docs/governance/dri_map.md) —
   ownership, blocker aging, and escalation.
+- [`docs/governance/maintainer_coverage_policy.md`](./docs/governance/maintainer_coverage_policy.md)
+  — protected-path reviewer depth, backup-owner floor, signing quorum,
+  and critical-upstream linkage rules.
 - [`docs/governance/decision_workflow.md`](./docs/governance/decision_workflow.md)
   — how architecture decisions open, close, supersede, and narrow.
 - [`docs/repo/topology.md`](./docs/repo/topology.md),
@@ -38,6 +41,11 @@ point for contributors and reviewers. It pairs with:
   [`artifacts/governance/third_party_import_register.yaml`](./artifacts/governance/third_party_import_register.yaml)
   — the canonical machine-readable homes for third-party dependency and
   import rows.
+- [`artifacts/governance/upstream_health_scorecard.yaml`](./artifacts/governance/upstream_health_scorecard.yaml)
+  and
+  [`artifacts/governance/signing_quorum.yaml`](./artifacts/governance/signing_quorum.yaml)
+  — the companion upstream-risk and approval-quorum records for
+  protected dependency and release/security actions.
 
 Aureline is in its pre-implementation stage. The contribution rules
 below apply from the first source-bearing change so that compliance
@@ -136,6 +144,10 @@ The package map is a contract, not a suggestion.
 - Protected-path crates and governance lanes need higher review
   discipline. If `protected_path: true` in the package inventory, assume
   that evidence, routing, and decision-record rules apply.
+- Protected crates, claim-bearing docs, schema families, and release or
+  security artifacts also inherit the reviewer-depth and backup-owner
+  floor from
+  [`docs/governance/maintainer_coverage_policy.md`](./docs/governance/maintainer_coverage_policy.md).
 - Changes that introduce or widen a managed/service-plane dependency
   should update the boundary manifest so the dependency is declared,
   reviewable, and not left as a hidden product assumption.
@@ -436,6 +448,10 @@ When you add or update a third-party dependency:
    publication, update
    [`artifacts/governance/release_notice_seed.yaml`](./artifacts/governance/release_notice_seed.yaml)
    in the same change.
+6. If the dependency row is critical on a protected, release, repo-
+   operations, or benchmark path, add or update the matching row in
+   [`artifacts/governance/upstream_health_scorecard.yaml`](./artifacts/governance/upstream_health_scorecard.yaml)
+   in the same change.
 
 Vendored source files (third-party code copied into the repository
 rather than fetched as a Cargo dependency) follow the same rules and,
@@ -493,6 +509,10 @@ to the relevant evidence:
 - compatibility or migration changes: updated compatibility report,
   known-limits note, or migration packet;
 - docs/public-truth changes: docs-pack or claim-manifest parity updates.
+- release, policy, or security-sensitive actions: the applicable quorum
+  action id from
+  [`artifacts/governance/signing_quorum.yaml`](./artifacts/governance/signing_quorum.yaml)
+  plus any break-glass or retrospective-review refs.
 
 When evidence is not yet green, attach a waiver instead of leaving the
 reviewer to infer intent. Waivers must be time-bounded and should cite:
@@ -515,6 +535,9 @@ business as usual.
   in the same change.
 - Every protected-path or claim-bearing change attaches fresh evidence or
   an approved waiver/freeze exception in the same change.
+- Every release-, policy-, or security-sensitive action that changes
+  user trust posture cites the matching quorum row and any break-glass
+  audit refs.
 - Every change to a public-interface surface bumps the relevant
   `schema_version` (or attaches an ADR waiving the bump).
 - Every change to a protected lane links to the appropriate decision

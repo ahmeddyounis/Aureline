@@ -6,7 +6,10 @@ pre-release seed packet.
 
 Related control artifacts:
 - docs/release/release_artifact_graph.md
+- docs/governance/maintainer_coverage_policy.md
 - artifacts/release/artifact_graph_rules.yaml
+- artifacts/governance/signing_quorum.yaml
+- artifacts/governance/upstream_health_scorecard.yaml
 - docs/build/exact_build_identity_model.md
 - docs/benchmarks/benchmark_publication_pack_template.md
 - artifacts/bench/protected_metrics.yaml
@@ -36,6 +39,9 @@ source_anchor_ref, and waiver packet id. Do not substitute free-text
 - **Benchmark-governance revision:** `<protected-metrics-id>@<metrics-revision>`
 - **Primary exact-build identity set:** list of `exact_build_identity_ref`
 - **Active waiver packet refs:** waiver packet ids or `none`
+- **Maintainer coverage source:** `artifacts/governance/ownership_matrix.yaml` + `docs/governance/maintainer_coverage_policy.md`
+- **Quorum action ids used:** list of `signing_quorum.yaml#actions.id`
+- **Critical upstream refs:** list of `dependency_id` values from `artifacts/governance/upstream_health_scorecard.yaml` or `none`
 
 ## Executive summary
 
@@ -96,6 +102,16 @@ preview-only, or claim-narrowed.
   claimed path; do not hide `not_applicable` or `local_only` states.
 - **Linked release inputs:** install-topology, state-root, or mirror
   packet refs that explain the deployment envelope.
+
+## Maintainer coverage and approval quorum
+
+- **Protected lane refs:** package names or governance-lane ids touched
+  by this packet.
+- **Coverage posture:** `covered` | `waived_seed_only` | `blocked`
+- **Quorum action ids:** ids from `artifacts/governance/signing_quorum.yaml`
+- **Break-glass refs:** audit-log or governance-packet refs, or `none`
+- **Critical upstream status:** dependency ids plus score or provisional
+  risk from `artifacts/governance/upstream_health_scorecard.yaml`
 
 ## Active waivers
 
