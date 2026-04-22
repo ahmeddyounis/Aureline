@@ -18,6 +18,13 @@ disabled-with-reason case, a preview-required destructive case, an
 approval-required publish case, and an invocation-session packet
 projecting a result-evidence success) live in
 [`/fixtures/commands/command_descriptor_examples/`](../../fixtures/commands/command_descriptor_examples/).
+The seeded canonical registry companion for alias lifecycle,
+discoverability projections, current-shortcut display, disabled-state
+explainers, diagnostics, and machine-facing names lives in
+[`/schemas/commands/command_registry_entry.schema.json`](../../schemas/commands/command_registry_entry.schema.json),
+[`/fixtures/commands/seed_commands/`](../../fixtures/commands/seed_commands/),
+and
+[`/artifacts/commands/command_registry_seed.yaml`](../../artifacts/commands/command_registry_seed.yaml).
 
 The eventual command-registry / invocation-session crates' Rust
 types are the schema of record. This document and the JSON Schema

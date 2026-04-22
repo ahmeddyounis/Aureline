@@ -36,6 +36,15 @@ Companion artifacts:
   — the reusable diff format and synthetic cross-surface seed
   corpus that compare palette, menu/button, keybinding-help,
   CLI/help, and AI-tool claims against the frozen command object.
+- [`/schemas/commands/command_registry_entry.schema.json`](../../schemas/commands/command_registry_entry.schema.json),
+  [`/fixtures/commands/seed_commands/`](../../fixtures/commands/seed_commands/),
+  and
+  [`/artifacts/commands/command_registry_seed.yaml`](../../artifacts/commands/command_registry_seed.yaml)
+  — the seeded canonical command-registry object that keeps aliases,
+  discoverability projections, current-shortcut display refs,
+  disabled-state explainers, diagnostics, and machine-facing names
+  attached to the canonical command id instead of reauthoring them per
+  surface.
 - [`/docs/commands/command_descriptor_contract.md`](./command_descriptor_contract.md)
   — the command object this seed projects from.
 - [`/docs/design/design_token_component_state_vocabulary.md`](../design/design_token_component_state_vocabulary.md)

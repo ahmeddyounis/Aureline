@@ -194,6 +194,23 @@ code.
   IME and text cases in
   [`/fixtures/accessibility/ime_and_text_cases/`](../fixtures/accessibility/ime_and_text_cases/).
 
+## Command contracts
+
+- [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
+  — canonical command object and invocation-session packet contract for
+  palette, menu, CLI/help, AI-tool, automation, and replay or audit
+  surfaces.
+- [`commands/command_graph_and_ui_slots_seed.md`](./commands/command_graph_and_ui_slots_seed.md)
+  — slot-taxonomy and projection rules that translate descriptor
+  discoverability into concrete shell slots and help surfaces.
+- [`../schemas/commands/command_registry_entry.schema.json`](../schemas/commands/command_registry_entry.schema.json),
+  [`../fixtures/commands/seed_commands/`](../fixtures/commands/seed_commands/),
+  and
+  [`../artifacts/commands/command_registry_seed.yaml`](../artifacts/commands/command_registry_seed.yaml)
+  — canonical command-registry seed for aliases, discoverability
+  projections, current-shortcut display, disabled-state explainers,
+  diagnostics, and machine-facing names.
+
 ## Planning
 
 - [`planning/m1_m2_dependency_backlog.md`](./planning/m1_m2_dependency_backlog.md)
