@@ -235,6 +235,15 @@ code.
 - [`commands/command_graph_and_ui_slots_seed.md`](./commands/command_graph_and_ui_slots_seed.md)
   — slot-taxonomy and projection rules that translate descriptor
   discoverability into concrete shell slots and help surfaces.
+- [`ux/keybinding_resolver_contract.md`](./ux/keybinding_resolver_contract.md)
+  — deterministic keybinding precedence, conflict-review,
+  disabled-command explanation, import-bridge fidelity, leader
+  overlay, and high-frequency shortcut-diff contract shared by
+  shell, settings, migration, docs, and support surfaces. Boundary
+  schema in
+  [`/schemas/commands/keybinding_resolver.schema.json`](../schemas/commands/keybinding_resolver.schema.json);
+  worked fixtures in
+  [`/fixtures/commands/keybinding_conflict_examples/`](../fixtures/commands/keybinding_conflict_examples/).
 - [`../schemas/commands/command_registry_entry.schema.json`](../schemas/commands/command_registry_entry.schema.json),
   [`../fixtures/commands/seed_commands/`](../fixtures/commands/seed_commands/),
   and

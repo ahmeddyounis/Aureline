@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/migration/migration_session.schema.json",
   "title": "Aureline migration-session, shortcut-digest, and restore-record contracts",
-  "description": "Boundary schema for the durable migration-center records that survive first-run onboarding, later migration-center review, issue handoff, and support export. Freezes one migration_session_record, one migration_shortcut_digest_record, and one migration_restore_record so source tool/version truth, selected domains, checkpoint linkage, compatibility-report linkage, shortcut deltas, restore instructions, and machine-readable export refs remain aligned across UI, CLI, docs, and support. See docs/migration/migration_center_object_model.md.",
+  "description": "Boundary schema for the durable migration-center records that survive first-run onboarding, later migration-center review, issue handoff, and support export. Freezes one migration_session_record, one migration_shortcut_digest_record, and one migration_restore_record so source tool/version truth, selected domains, checkpoint linkage, compatibility-report linkage, shortcut deltas, high-frequency shortcut diffs, restore instructions, and machine-readable export refs remain aligned across UI, CLI, docs, and support. See docs/migration/migration_center_object_model.md.",
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/migration_session_record" },
@@ -501,6 +501,13 @@
           "items": { "$ref": "#/$defs/shortcut_delta_row" },
           "description": "Shortcut rows that stayed conflicted, unsupported, or intentionally skipped."
         },
+        "high_frequency_diff_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "../commands/keybinding_resolver.schema.json#/$defs/shortcut_diff_after_import_row_record"
+          },
+          "description": "Optional high-frequency shortcut rows that preserve post-import muscle-memory truth, import-bridge fidelity, resulting layer, and rollback or conflict-review linkage."
+        },
         "muscle_memory_risk_notes": {
           "type": "array",
           "minItems": 1,
@@ -513,7 +520,7 @@
         },
         "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
       },
-      "description": "Dedicated shortcut digest reserved for high-frequency command deltas and unresolved shortcut conflicts."
+      "description": "Dedicated shortcut digest reserved for high-frequency command deltas, post-import shortcut-diff rows, and unresolved shortcut conflicts."
     },
 
     "migration_restore_record": {
@@ -671,8 +678,64 @@
           "note": "The imported chord collides with an existing shortcut on this profile."
         }
       ],
+      "high_frequency_diff_rows": [
+        {
+          "record_kind": "shortcut_diff_after_import_row_record",
+          "keybinding_resolver_schema_version": 1,
+          "row_id": "shortcut-diff-row:save-all-0001",
+          "migration_session_ref": "migration-session:vs-code-first-run-0001",
+          "source_tool_ref": "bridge-source:vscode",
+          "source_command_ref": "vscode:workbench.action.files.saveAll",
+          "source_sequence": {
+            "literal_sequence": "Ctrl+K S",
+            "shape_class": "multi_stroke_chord",
+            "stroke_count": 2,
+            "leader_key_ref": null
+          },
+          "target_command": {
+            "command_id": "cmd:workspace.save_all",
+            "command_revision_ref": "cmd-rev:workspace.save_all:2026.04.22-01",
+            "preview_class": "inline_summary_preview",
+            "approval_posture_class": "no_approval_required",
+            "capability_scope_class": "recoverable_durable_mutation",
+            "required_evidence_ref_classes": [
+              "mutation_journal_entry_ref"
+            ]
+          },
+          "target_sequence": {
+            "literal_sequence": "<leader> w a",
+            "shape_class": "leader_sequence",
+            "stroke_count": 3,
+            "leader_key_ref": "leader-key:default"
+          },
+          "bridge_outcome_class": "translated",
+          "behavior_change_axes": [
+            "stroke_count_changed",
+            "leader_requirement_changed",
+            "timeout_posture_changed"
+          ],
+          "risk_class": "high",
+          "frequency_bucket": "daily_driver",
+          "resulting_layer": "user_profile_binding",
+          "conflict_review_ref": "keybinding-conflict-review:save-all-0001",
+          "rollback_ref": "migration-restore-record:vs-code-first-run-0001",
+          "next_safe_actions": [
+            {
+              "action_class": "open_conflict_review",
+              "label": "Review shortcut differences",
+              "target_ref": "keybinding-conflict-review:save-all-0001"
+            }
+          ],
+          "note": "Save All stayed semantically equivalent but now requires the default leader sequence on this profile.",
+          "docs_help_refs": [
+            "docs/ux/keybinding_resolver_contract.md#high-frequency-shortcut-diffs-after-import"
+          ],
+          "emitted_at": "2026-04-22T15:20:00Z"
+        }
+      ],
       "muscle_memory_risk_notes": [
         "Settings uses the platform-native gesture on the destination profile.",
+        "Save All no longer preserves the incumbent multi-stroke chord and now uses the leader sequence on this profile.",
         "The imported keybindings chord needs manual review before apply."
       ],
       "export_refs": [

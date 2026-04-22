@@ -21,6 +21,9 @@ Companion artifacts:
 - [`/schemas/migration/importer_outcome.schema.json`](../../schemas/migration/importer_outcome.schema.json)
   — machine-readable schema for `importer_outcome_row_record` and
   `importer_outcome_packet_record`.
+- [`/schemas/commands/keybinding_resolver.schema.json`](../../schemas/commands/keybinding_resolver.schema.json)
+  — keybinding-resolution, import-bridge fidelity, leader-overlay, and
+  high-frequency shortcut-diff contract reused by the shortcut digest.
 - [`/docs/workspace/entry_restore_object_model.md`](../workspace/entry_restore_object_model.md)
   — entry-surface model for `project_entry_action_record`,
   `restore_prompt_record`, and the earlier `migration_result_record`.
@@ -189,20 +192,27 @@ Rules:
 Shortcut migrations are special because preserving muscle memory is not
 the same thing as preserving raw configuration text.
 
-`migration_shortcut_digest_record` therefore keeps four dedicated slots:
+`migration_shortcut_digest_record` therefore keeps four durable digest
+buckets plus one dedicated post-import shortcut-diff row set:
 
 - `imported_command_rows`
 - `remapped_gesture_rows`
 - `unresolved_conflict_rows`
+- `high_frequency_diff_rows`
 - `muscle_memory_risk_notes`
 
 Rules:
 
 1. High-frequency shortcut changes remain separately addressable from the
    rest of the migration diff.
-2. Conflicted or unsupported shortcuts remain visible even when the
+2. `high_frequency_diff_rows`, when present, quote the frozen
+   import-bridge fidelity class and resulting resolver layer from
+   [`/schemas/commands/keybinding_resolver.schema.json`](../../schemas/commands/keybinding_resolver.schema.json)
+   rather than flattening every shortcut change into "imported" or
+   "remapped".
+3. Conflicted or unsupported shortcuts remain visible even when the
    broader migration succeeded.
-3. The digest is exportable on its own because shortcut regressions are
+4. The digest is exportable on its own because shortcut regressions are
    a common support and workflow-adoption issue.
 
 ## 5. Restore record

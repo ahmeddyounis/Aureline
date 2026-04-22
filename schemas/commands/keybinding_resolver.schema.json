@@ -1,0 +1,1221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/keybinding_resolver.schema.json",
+  "title": "Aureline keybinding resolver, conflict-review, and import-bridge contracts",
+  "description": "Boundary schema for keybinding resolution, conflict review, disabled-command explanation, import-bridge fidelity, leader overlay, and high-frequency shortcut-diff-after-import records. Freezes deterministic precedence, winner/loser explainability, waiting-state semantics, and imported-shortcut truth so shell, settings, docs, migration, and support surfaces can answer what a sequence does and why without reimplementing resolver logic. See docs/ux/keybinding_resolver_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/keybinding_resolution_packet_record" },
+    { "$ref": "#/$defs/keybinding_conflict_review_packet_record" },
+    { "$ref": "#/$defs/disabled_command_explanation_packet_record" },
+    { "$ref": "#/$defs/keybinding_import_bridge_record" },
+    { "$ref": "#/$defs/leader_overlay_row_record" },
+    { "$ref": "#/$defs/shortcut_diff_after_import_row_record" }
+  ],
+  "$defs": {
+    "keybinding_resolver_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the keybinding-resolver contract. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, support export, and cross-surface handoff."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware explanatory text. Exporters apply the active redaction policy before this value crosses the boundary."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local timestamp. Opaque at this boundary."
+    },
+    "policy_context": {
+      "$ref": "command_descriptor.schema.json#/$defs/policy_context"
+    },
+    "redaction_class": {
+      "$ref": "command_descriptor.schema.json#/$defs/redaction_class"
+    },
+    "disabled_reason_code": {
+      "$ref": "command_descriptor.schema.json#/$defs/disabled_reason_code"
+    },
+    "repair_hook_ref": {
+      "$ref": "command_descriptor.schema.json#/$defs/repair_hook_ref"
+    },
+    "preview_class": {
+      "$ref": "command_descriptor.schema.json#/$defs/preview_class"
+    },
+    "approval_posture_class": {
+      "$ref": "command_descriptor.schema.json#/$defs/approval_posture_class"
+    },
+    "capability_scope_class": {
+      "$ref": "command_descriptor.schema.json#/$defs/capability_scope_class"
+    },
+    "evidence_ref_class": {
+      "$ref": "command_descriptor.schema.json#/$defs/evidence_ref_class"
+    },
+    "platform_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "windows",
+        "linux",
+        "web",
+        "cross_platform"
+      ]
+    },
+    "resolver_layer_class": {
+      "type": "string",
+      "enum": [
+        "platform_reserved",
+        "emergency_security_hard_block",
+        "admin_policy_lock",
+        "temporary_mode_overlay",
+        "user_profile_binding",
+        "workspace_recommendation",
+        "extension_binding",
+        "core_default"
+      ],
+      "description": "Canonical keybinding precedence model. Earlier values in the contract win over later ones."
+    },
+    "sequence_shape_class": {
+      "type": "string",
+      "enum": [
+        "single_stroke",
+        "multi_stroke_chord",
+        "leader_sequence",
+        "operator_pending_sequence"
+      ]
+    },
+    "sequence_resolution_state": {
+      "type": "string",
+      "enum": [
+        "resolved",
+        "waiting_for_next_stroke",
+        "timed_out",
+        "unbound",
+        "blocked_by_host",
+        "blocked_by_security",
+        "blocked_by_policy",
+        "disabled_command",
+        "unsupported_on_surface"
+      ]
+    },
+    "surface_support_class": {
+      "type": "string",
+      "enum": [
+        "fully_supported",
+        "multi_stroke_limited",
+        "leader_limited",
+        "unsupported"
+      ]
+    },
+    "resolution_reason_code": {
+      "type": "string",
+      "enum": [
+        "platform_reserved_before_dispatch",
+        "emergency_security_blocked_dispatch",
+        "admin_policy_locked_binding",
+        "temporary_mode_overlay_preempted",
+        "higher_precedence_binding_won",
+        "more_specific_binding_won",
+        "partial_sequence_waiting_for_next_stroke",
+        "sequence_timeout_expired",
+        "disabled_reason_inherited_from_descriptor",
+        "host_capture_prevents_dispatch",
+        "surface_cannot_honor_sequence",
+        "no_candidate_bound",
+        "same_layer_collision_requires_review"
+      ]
+    },
+    "bridge_outcome_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "translated",
+        "alias_only",
+        "partial",
+        "shimmed",
+        "unsupported"
+      ]
+    },
+    "bridge_behavior_change_axis": {
+      "type": "string",
+      "enum": [
+        "command_identity_changed",
+        "gesture_changed",
+        "stroke_count_changed",
+        "leader_requirement_changed",
+        "mode_changed",
+        "surface_scope_narrowed",
+        "timeout_posture_changed",
+        "host_reserved_on_some_surfaces",
+        "preview_or_approval_changed",
+        "bridge_dependency_required"
+      ]
+    },
+    "pivot_action_class": {
+      "type": "string",
+      "enum": [
+        "open_command_palette",
+        "open_keybinding_settings",
+        "open_command_docs",
+        "open_conflict_review",
+        "open_migration_report",
+        "open_profile_import_review",
+        "switch_mode_or_focus",
+        "retry_on_supported_surface",
+        "dismiss_sequence_help"
+      ]
+    },
+    "outcome_change_condition_class": {
+      "type": "string",
+      "enum": [
+        "remove_higher_precedence_binding",
+        "exit_current_mode",
+        "move_focus_to_supported_surface",
+        "grant_required_policy_or_trust",
+        "disable_extension_binding",
+        "rebind_sequence",
+        "choose_different_import_mapping",
+        "wait_for_next_stroke",
+        "adjust_sequence_timeout"
+      ]
+    },
+    "waiting_timeout_outcome_class": {
+      "type": "string",
+      "enum": [
+        "cancel_sequence",
+        "resolve_exact_prefix_if_available",
+        "open_conflict_review",
+        "keep_waiting_until_explicit_cancel"
+      ]
+    },
+    "winning_resolution_kind": {
+      "type": "string",
+      "enum": [
+        "command_candidate",
+        "platform_reserved",
+        "emergency_security_hard_block",
+        "admin_policy_lock",
+        "waiting_state",
+        "unbound"
+      ]
+    },
+    "leader_option_availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "shadowed",
+        "blocked_by_host",
+        "unsupported_on_surface",
+        "requires_review"
+      ]
+    },
+    "frequency_bucket": {
+      "type": "string",
+      "enum": [
+        "daily_driver",
+        "high_frequency",
+        "standard"
+      ]
+    },
+    "shortcut_risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "sequence_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "literal_sequence",
+        "shape_class",
+        "stroke_count"
+      ],
+      "properties": {
+        "literal_sequence": { "$ref": "#/$defs/non_empty_string" },
+        "shape_class": { "$ref": "#/$defs/sequence_shape_class" },
+        "stroke_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leader_key_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "inspection_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform_class",
+        "surface_ref",
+        "surface_support_class"
+      ],
+      "properties": {
+        "platform_class": { "$ref": "#/$defs/platform_class" },
+        "surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "focus_context_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "active_mode_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "workspace_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "surface_support_class": { "$ref": "#/$defs/surface_support_class" }
+      }
+    },
+    "command_semantics_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "command_revision_ref",
+        "preview_class",
+        "approval_posture_class",
+        "capability_scope_class",
+        "required_evidence_ref_classes"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "required_evidence_ref_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence_ref_class" }
+        }
+      }
+    },
+    "binding_candidate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_ref",
+        "command",
+        "bound_sequence",
+        "resolver_layer"
+      ],
+      "properties": {
+        "candidate_ref": { "$ref": "#/$defs/opaque_id" },
+        "command": { "$ref": "#/$defs/command_semantics_snapshot" },
+        "bound_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "resolver_layer": { "$ref": "#/$defs/resolver_layer_class" },
+        "source_provenance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "imported_from_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "publisher_or_provider_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        }
+      }
+    },
+    "precedence_trace_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolver_layer",
+        "precedence_rank",
+        "disposition"
+      ],
+      "properties": {
+        "resolver_layer": { "$ref": "#/$defs/resolver_layer_class" },
+        "precedence_rank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "no_match",
+            "candidate_visible",
+            "candidate_shadowed",
+            "blocked",
+            "reserved",
+            "waiting_prefix",
+            "unsupported_on_surface"
+          ]
+        },
+        "candidate_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        }
+      }
+    },
+    "outcome_change_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "condition_class",
+        "explanation"
+      ],
+      "properties": {
+        "condition_class": { "$ref": "#/$defs/outcome_change_condition_class" },
+        "explanation": { "$ref": "#/$defs/redaction_aware_text" },
+        "resulting_layer": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resolver_layer_class" }
+          ]
+        }
+      }
+    },
+    "next_safe_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "label"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/pivot_action_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "losing_candidate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate",
+        "loss_reason_code",
+        "what_changes_outcome"
+      ],
+      "properties": {
+        "candidate": { "$ref": "#/$defs/binding_candidate_record" },
+        "loss_reason_code": { "$ref": "#/$defs/resolution_reason_code" },
+        "what_changes_outcome": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/outcome_change_condition" }
+        }
+      }
+    },
+    "winning_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "winner_kind",
+        "reason_code"
+      ],
+      "properties": {
+        "winner_kind": { "$ref": "#/$defs/winning_resolution_kind" },
+        "resolver_layer": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resolver_layer_class" }
+          ]
+        },
+        "command_candidate": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/binding_candidate_record" }
+          ]
+        },
+        "reason_code": { "$ref": "#/$defs/resolution_reason_code" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "winner_kind": { "const": "command_candidate" }
+            }
+          },
+          "then": {
+            "required": [
+              "resolver_layer",
+              "command_candidate"
+            ],
+            "properties": {
+              "resolver_layer": { "$ref": "#/$defs/resolver_layer_class" },
+              "command_candidate": { "$ref": "#/$defs/binding_candidate_record" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "winner_kind": {
+                "enum": [
+                  "platform_reserved",
+                  "emergency_security_hard_block",
+                  "admin_policy_lock",
+                  "waiting_state",
+                  "unbound"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "command_candidate": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "docs_help_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "waiting_timeout_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeout_ms",
+        "on_timeout_outcome"
+      ],
+      "properties": {
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "on_timeout_outcome": { "$ref": "#/$defs/waiting_timeout_outcome_class" },
+        "help_persists_after_timeout": {
+          "type": "boolean"
+        },
+        "timeout_explanation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "leader_next_key_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "next_key",
+        "availability_state"
+      ],
+      "properties": {
+        "next_key": { "$ref": "#/$defs/non_empty_string" },
+        "availability_state": { "$ref": "#/$defs/leader_option_availability" },
+        "target_command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "resolver_layer": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/resolver_layer_class" }
+          ]
+        },
+        "source_provenance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "keybinding_resolution_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "resolution_id",
+        "inspected_sequence",
+        "inspection_scope",
+        "sequence_state",
+        "winning_resolution",
+        "precedence_trace",
+        "losing_candidates",
+        "outcome_change_conditions",
+        "next_safe_actions",
+        "docs_help_refs",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "keybinding_resolution_packet_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "inspected_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "inspection_scope": { "$ref": "#/$defs/inspection_scope" },
+        "sequence_state": { "$ref": "#/$defs/sequence_resolution_state" },
+        "winning_resolution": { "$ref": "#/$defs/winning_resolution" },
+        "precedence_trace": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/precedence_trace_row" }
+        },
+        "losing_candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/losing_candidate_record" }
+        },
+        "outcome_change_conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/outcome_change_condition" }
+        },
+        "next_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_action_record" }
+        },
+        "conflict_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "disabled_explanation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "keybinding_conflict_review_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "conflict_review_id",
+        "inspected_sequence",
+        "inspection_scope",
+        "winning_resolution",
+        "losing_candidates",
+        "review_summary",
+        "next_safe_actions",
+        "docs_help_refs",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "keybinding_conflict_review_packet_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "conflict_review_id": { "$ref": "#/$defs/opaque_id" },
+        "inspected_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "inspection_scope": { "$ref": "#/$defs/inspection_scope" },
+        "winning_resolution": { "$ref": "#/$defs/winning_resolution" },
+        "losing_candidates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/losing_candidate_record" }
+        },
+        "review_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "next_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_action_record" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "disabled_command_explanation_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "explanation_id",
+        "inspected_sequence",
+        "inspection_scope",
+        "source_layer",
+        "command",
+        "disabled_reason_code",
+        "repair_hook_ref",
+        "why_unavailable",
+        "what_would_enable_it",
+        "next_safe_actions",
+        "docs_help_refs",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "disabled_command_explanation_packet_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "explanation_id": { "$ref": "#/$defs/opaque_id" },
+        "inspected_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "inspection_scope": { "$ref": "#/$defs/inspection_scope" },
+        "source_layer": { "$ref": "#/$defs/resolver_layer_class" },
+        "command": { "$ref": "#/$defs/command_semantics_snapshot" },
+        "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ]
+        },
+        "why_unavailable": { "$ref": "#/$defs/redaction_aware_text" },
+        "what_would_enable_it": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/outcome_change_condition" }
+        },
+        "fallback_command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "next_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_action_record" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "keybinding_import_bridge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "bridge_record_id",
+        "source_tool_ref",
+        "source_tool_version",
+        "source_command_ref",
+        "source_sequence",
+        "target_command",
+        "target_sequence",
+        "bridge_outcome_class",
+        "behavior_change_axes",
+        "resulting_layer",
+        "docs_help_refs",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "keybinding_import_bridge_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "bridge_record_id": { "$ref": "#/$defs/opaque_id" },
+        "source_tool_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_tool_version": { "$ref": "#/$defs/non_empty_string" },
+        "source_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "target_command": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/command_semantics_snapshot" }
+          ]
+        },
+        "target_sequence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/sequence_descriptor" }
+          ]
+        },
+        "bridge_outcome_class": { "$ref": "#/$defs/bridge_outcome_class" },
+        "behavior_change_axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bridge_behavior_change_axis" }
+        },
+        "resulting_layer": { "$ref": "#/$defs/resolver_layer_class" },
+        "bridge_dependency_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "migration_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "bridge_outcome_class": { "const": "exact" }
+            }
+          },
+          "then": {
+            "properties": {
+              "behavior_change_axes": { "maxItems": 0 },
+              "target_command": { "$ref": "#/$defs/command_semantics_snapshot" },
+              "target_sequence": { "$ref": "#/$defs/sequence_descriptor" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bridge_outcome_class": { "const": "shimmed" }
+            }
+          },
+          "then": {
+            "required": ["bridge_dependency_ref"],
+            "properties": {
+              "bridge_dependency_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bridge_outcome_class": { "const": "unsupported" }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_command": { "type": "null" },
+              "target_sequence": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "leader_overlay_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "overlay_row_id",
+        "inspected_prefix",
+        "inspection_scope",
+        "current_mode_label_ref",
+        "overlay_state",
+        "next_key_options",
+        "timeout_policy",
+        "pivot_actions",
+        "docs_help_refs",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "leader_overlay_row_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "overlay_row_id": { "$ref": "#/$defs/opaque_id" },
+        "inspected_prefix": { "$ref": "#/$defs/sequence_descriptor" },
+        "inspection_scope": { "$ref": "#/$defs/inspection_scope" },
+        "current_mode_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_state": {
+          "type": "string",
+          "enum": [
+            "showing_choices",
+            "waiting_for_next_stroke",
+            "timed_out",
+            "blocked_on_surface"
+          ]
+        },
+        "next_key_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/leader_next_key_option" }
+        },
+        "timeout_policy": { "$ref": "#/$defs/waiting_timeout_policy" },
+        "pivot_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_action_record" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "shortcut_diff_after_import_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "keybinding_resolver_schema_version",
+        "row_id",
+        "migration_session_ref",
+        "source_tool_ref",
+        "source_command_ref",
+        "source_sequence",
+        "target_command",
+        "target_sequence",
+        "bridge_outcome_class",
+        "behavior_change_axes",
+        "risk_class",
+        "frequency_bucket",
+        "resulting_layer",
+        "next_safe_actions",
+        "docs_help_refs",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shortcut_diff_after_import_row_record" },
+        "keybinding_resolver_schema_version": { "$ref": "#/$defs/keybinding_resolver_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_tool_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_sequence": { "$ref": "#/$defs/sequence_descriptor" },
+        "target_command": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/command_semantics_snapshot" }
+          ]
+        },
+        "target_sequence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/sequence_descriptor" }
+          ]
+        },
+        "bridge_outcome_class": { "$ref": "#/$defs/bridge_outcome_class" },
+        "behavior_change_axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bridge_behavior_change_axis" }
+        },
+        "risk_class": { "$ref": "#/$defs/shortcut_risk_class" },
+        "frequency_bucket": { "$ref": "#/$defs/frequency_bucket" },
+        "resulting_layer": { "$ref": "#/$defs/resolver_layer_class" },
+        "conflict_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rollback_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "next_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_action_record" }
+        },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/redaction_aware_text" }
+          ]
+        },
+        "docs_help_refs": { "$ref": "#/$defs/docs_help_refs" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "bridge_outcome_class": { "const": "exact" }
+            }
+          },
+          "then": {
+            "properties": {
+              "behavior_change_axes": { "maxItems": 0 },
+              "target_command": { "$ref": "#/$defs/command_semantics_snapshot" },
+              "target_sequence": { "$ref": "#/$defs/sequence_descriptor" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bridge_outcome_class": { "const": "unsupported" }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_command": { "type": "null" },
+              "target_sequence": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "keybinding_resolution_packet_record",
+      "keybinding_resolver_schema_version": 1,
+      "resolution_id": "keybinding-resolution:editor:cmd+b:0001",
+      "inspected_sequence": {
+        "literal_sequence": "Cmd+B",
+        "shape_class": "single_stroke",
+        "stroke_count": 1,
+        "leader_key_ref": null
+      },
+      "inspection_scope": {
+        "platform_class": "macos",
+        "surface_ref": "surface:editor_canvas",
+        "focus_context_ref": "focus:text_editor",
+        "active_mode_ref": null,
+        "workspace_scope_ref": "workspace:payments",
+        "surface_support_class": "fully_supported"
+      },
+      "sequence_state": "resolved",
+      "winning_resolution": {
+        "winner_kind": "command_candidate",
+        "resolver_layer": "user_profile_binding",
+        "command_candidate": {
+          "candidate_ref": "candidate:user-profile:toggle-sidebar",
+          "command": {
+            "command_id": "cmd:layout.toggle_sidebar",
+            "command_revision_ref": "cmd-rev:layout.toggle_sidebar:2026.04.22-01",
+            "preview_class": "no_preview_required",
+            "approval_posture_class": "no_approval_required",
+            "capability_scope_class": "inert_metadata_only",
+            "required_evidence_ref_classes": []
+          },
+          "bound_sequence": {
+            "literal_sequence": "Cmd+B",
+            "shape_class": "single_stroke",
+            "stroke_count": 1,
+            "leader_key_ref": null
+          },
+          "resolver_layer": "user_profile_binding",
+          "source_provenance_ref": "profile:default:keybindings",
+          "imported_from_ref": null,
+          "publisher_or_provider_ref": null,
+          "scope_note": "Profile binding applies on editor and explorer surfaces."
+        },
+        "reason_code": "higher_precedence_binding_won",
+        "note": "User profile override beat the extension-contributed binding for the same sequence."
+      },
+      "precedence_trace": [
+        {
+          "resolver_layer": "platform_reserved",
+          "precedence_rank": 0,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        },
+        {
+          "resolver_layer": "emergency_security_hard_block",
+          "precedence_rank": 1,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        },
+        {
+          "resolver_layer": "admin_policy_lock",
+          "precedence_rank": 2,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        },
+        {
+          "resolver_layer": "temporary_mode_overlay",
+          "precedence_rank": 3,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        },
+        {
+          "resolver_layer": "user_profile_binding",
+          "precedence_rank": 4,
+          "disposition": "candidate_visible",
+          "candidate_ref": "candidate:user-profile:toggle-sidebar",
+          "note": null
+        },
+        {
+          "resolver_layer": "workspace_recommendation",
+          "precedence_rank": 5,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        },
+        {
+          "resolver_layer": "extension_binding",
+          "precedence_rank": 6,
+          "disposition": "candidate_shadowed",
+          "candidate_ref": "candidate:extension:toggle-sidebar",
+          "note": "Lost to the higher-precedence user profile binding."
+        },
+        {
+          "resolver_layer": "core_default",
+          "precedence_rank": 7,
+          "disposition": "no_match",
+          "candidate_ref": null,
+          "note": null
+        }
+      ],
+      "losing_candidates": [
+        {
+          "candidate": {
+            "candidate_ref": "candidate:extension:toggle-sidebar",
+            "command": {
+              "command_id": "cmd:extension.sidebar.toggle",
+              "command_revision_ref": "cmd-rev:extension.sidebar.toggle:2026.04.22-01",
+              "preview_class": "no_preview_required",
+              "approval_posture_class": "no_approval_required",
+              "capability_scope_class": "inert_metadata_only",
+              "required_evidence_ref_classes": []
+            },
+            "bound_sequence": {
+              "literal_sequence": "Cmd+B",
+              "shape_class": "single_stroke",
+              "stroke_count": 1,
+              "leader_key_ref": null
+            },
+            "resolver_layer": "extension_binding",
+            "source_provenance_ref": "extension:sidebar-tools",
+            "imported_from_ref": null,
+            "publisher_or_provider_ref": "publisher:sidebar-tools",
+            "scope_note": "Extension only claimed editor_canvas."
+          },
+          "loss_reason_code": "higher_precedence_binding_won",
+          "what_changes_outcome": [
+            {
+              "condition_class": "remove_higher_precedence_binding",
+              "explanation": "Remove or rebind the user profile override for Cmd+B.",
+              "resulting_layer": "extension_binding"
+            }
+          ]
+        }
+      ],
+      "outcome_change_conditions": [
+        {
+          "condition_class": "remove_higher_precedence_binding",
+          "explanation": "Remove the profile override to let the extension binding win.",
+          "resulting_layer": "extension_binding"
+        }
+      ],
+      "next_safe_actions": [
+        {
+          "action_class": "open_keybinding_settings",
+          "label": "Open keybinding settings",
+          "target_ref": "settings:keybindings"
+        }
+      ],
+      "conflict_review_ref": "keybinding-conflict-review:cmd-b:0001",
+      "disabled_explanation_ref": null,
+      "docs_help_refs": [
+        "docs/ux/keybinding_resolver_contract.md#canonical-precedence-model"
+      ],
+      "policy_context": {
+        "policy_epoch": "pe:2026-04-22:01",
+        "trust_state": "trusted",
+        "execution_context_id": "exec:keybindings:01"
+      },
+      "redaction_class": "metadata_safe_default",
+      "emitted_at": "2026-04-22T15:20:00Z"
+    },
+    {
+      "record_kind": "keybinding_import_bridge_record",
+      "keybinding_resolver_schema_version": 1,
+      "bridge_record_id": "keybinding-bridge:vscode:files-save-all:0001",
+      "source_tool_ref": "bridge-source:vscode",
+      "source_tool_version": "1.101.0",
+      "source_command_ref": "vscode:command:workbench.action.files.saveAll",
+      "source_sequence": {
+        "literal_sequence": "Ctrl+K S",
+        "shape_class": "multi_stroke_chord",
+        "stroke_count": 2,
+        "leader_key_ref": null
+      },
+      "target_command": {
+        "command_id": "cmd:workspace.save_all",
+        "command_revision_ref": "cmd-rev:workspace.save_all:2026.04.22-01",
+        "preview_class": "inline_summary_preview",
+        "approval_posture_class": "no_approval_required",
+        "capability_scope_class": "recoverable_durable_mutation",
+        "required_evidence_ref_classes": [
+          "mutation_journal_entry_ref"
+        ]
+      },
+      "target_sequence": {
+        "literal_sequence": "<leader> w a",
+        "shape_class": "leader_sequence",
+        "stroke_count": 3,
+        "leader_key_ref": "leader-key:default"
+      },
+      "bridge_outcome_class": "translated",
+      "behavior_change_axes": [
+        "stroke_count_changed",
+        "leader_requirement_changed",
+        "timeout_posture_changed"
+      ],
+      "resulting_layer": "user_profile_binding",
+      "bridge_dependency_ref": null,
+      "migration_session_ref": "migration-session:vs-code-first-run-0007",
+      "docs_help_refs": [
+        "docs/ux/keybinding_resolver_contract.md#import-bridge-fidelity-classes"
+      ],
+      "emitted_at": "2026-04-22T15:20:00Z"
+    }
+  ]
+}

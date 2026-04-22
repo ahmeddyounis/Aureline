@@ -112,7 +112,10 @@ Out of scope until a superseding decision row opens:
 - Recipe / macro / batch-command authoring surfaces (one step
   further out; they will mint `invocation_session_packet_record`
   sequences, not their own envelope).
-- Keybinding resolution, conflict-detection, and remapping UI.
+- Keybinding resolution, conflict-detection, and remapping UI;
+  the frozen cross-surface resolver and import-bridge contract
+  now lives in
+  [`/docs/ux/keybinding_resolver_contract.md`](../ux/keybinding_resolver_contract.md).
 - The preview / apply / revert packet bodies, the approval ticket
   bodies, and the evidence packet bodies (these are frozen by
   their own lanes; this document names the refs a descriptor /
