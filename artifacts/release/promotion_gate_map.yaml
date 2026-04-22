@@ -1,0 +1,482 @@
+# Release promotion-gate map.
+#
+# Machine-readable companion to
+# docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md.
+# This file binds release candidate stages, gate families, stale-proof
+# behavior, same-change-set groups, waiver classes, and mirror/manual-
+# import emergency flows to the release-evidence packet and shiproom
+# review order.
+
+schema_version: 1
+map_id: aureline.release_promotion_gate_map
+status: seeded
+
+governing_adr: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+artifact_family_map_source: artifacts/release/artifact_family_map.yaml
+release_evidence_packet_source: docs/release/release_evidence_packet_template.md
+shiproom_runbook_source: docs/release/shiproom_runbook.md
+shiproom_dashboard_source: artifacts/release/shiproom_dashboard_seed.yaml
+evidence_freshness_policy_source: docs/governance/evidence_freshness_policy.md
+waiver_packet_schema_source: schemas/release/waiver_packet.schema.json
+claim_manifest_contract_source: docs/governance/claim_manifest_contract.md
+drift_blocking_rules_source: docs/governance/drift_blocking_rules.md
+support_packet_index_source: schemas/support/support_packet_index.schema.json
+severity_matrix_source: docs/security/severity_matrix.md
+
+candidate_stage_vocabulary:
+  - preview_candidate
+  - beta_candidate
+  - rc_or_stable_candidate
+  - lts_candidate
+  - hotfix_candidate
+
+shiproom_review_step_vocabulary:
+  - candidate_envelope_and_rollback_floor
+  - readiness_scorecard_and_owner_coverage
+  - waivers_exceptions_and_aging
+  - evidence_freshness_and_missing_proof
+  - claim_manifest_and_channel_parity
+  - support_packet_family_coverage
+  - security_and_incident_posture
+  - final_call_and_owner_handoff
+
+same_change_set_groups:
+  - group_id: exact_build_and_publication_bundle
+    trigger_summary: >
+      Exact-build meaning, release channel, install channel, artifact-
+      family posture, provenance semantics, or rollback-atom meaning changed.
+    required_updates:
+      - docs/build/exact_build_identity_model.md or schemas/build/exact_build_identity.schema.json
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+      - artifacts/release/artifact_family_map.yaml
+      - artifacts/release/promotion_gate_map.yaml
+      - docs/release/release_evidence_packet_template.md
+
+  - group_id: claim_docs_known_limit_bundle
+    trigger_summary: >
+      Claim row, support-window posture, known limit, exclusion note,
+      migration note, release note, docs/help version-match state, or
+      route-bearing disclosure changed.
+    required_updates:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - docs/help or release-note surfaces quoting the row
+      - support/export copy or packet references
+      - public-proof or evaluation packet templates that quote the row
+
+  - group_id: supportability_and_symbolication_bundle
+    trigger_summary: >
+      Debug sidecar, crash-symbol archive, source-map manifest,
+      support-bundle linkage, or support-runbook retention changed.
+    required_updates:
+      - exact-build sidecar refs and support-bundle anchors
+      - support packet family refs and support/export contract surfaces
+      - release packet or shiproom references that quote the changed posture
+
+  - group_id: advisory_and_revocation_bundle
+    trigger_summary: >
+      Advisory severity, revocation scope, emergency-disable scope, or
+      mitigation guidance changed.
+    required_updates:
+      - advisory or incident packet rows
+      - release-note and known-limit disclosures
+      - affected claim rows or support/export caveats
+      - shiproom/dashboard references for the active response path
+
+  - group_id: mirror_and_offline_bundle
+    trigger_summary: >
+      Mirror continuity, offline import behavior, bundle expiration, or
+      emergency transport posture changed.
+    required_updates:
+      - artifacts/release/install_topology_matrix.yaml
+      - docs/release/install_topology_plan.md
+      - release packet and shiproom references
+      - affected docs/help or support/export disclosures
+      - any signed manual-import or mirror manifests used by the response path
+
+rollback_atom_policy:
+  atom_class: coordinated_release_family
+  required_release_postures:
+    - primary_payload
+    - public_truth_payload
+    - supply_chain_proof
+    - supportability_payload
+    - release_control_packet
+  conditional_release_postures:
+    - debug_retention_sidecar
+  notes: >
+    Promotion and rollback move one coordinated release family. Advisories
+    may target a smaller affected node set, but rollback never does.
+
+stale_evidence_policy:
+  preview_candidate:
+    default_shiproom_status: hold_for_refresh
+    escalates_to_no_go_for:
+      - security_response_proof
+      - exact_build_release_truth
+  beta_candidate:
+    default_shiproom_status: hold_for_refresh
+    escalates_to_no_go_for:
+      - security_response_proof
+      - supportability_proof
+      - exact_build_release_truth
+  rc_or_stable_candidate:
+    default_shiproom_status: no_go
+    required_proof_state: current
+  lts_candidate:
+    default_shiproom_status: no_go
+    required_proof_state: current
+  hotfix_candidate:
+    default_shiproom_status: no_go
+    required_proof_state: current
+
+waiver_scope_policy:
+  - scope_kind: requirement_gap
+    allowed_candidate_stages: [preview_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Requirement gaps may narrow preview scope, but they never cross into
+      RC/stable, LTS, or hotfix promotion.
+
+  - scope_kind: fitness_regression
+    allowed_candidate_stages: [preview_candidate, beta_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+    notes: >
+      Protected-fitness waivers stop at beta and must cite current
+      compensating evidence.
+
+  - scope_kind: architecture_conformance_gap
+    allowed_candidate_stages: [preview_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Architecture conformance gaps are shaping-time or preview-time only.
+
+  - scope_kind: compatibility_gap
+    allowed_candidate_stages: [preview_candidate, beta_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Compatibility gaps must be resolved before an RC or stable-facing
+      candidate exists.
+
+  - scope_kind: continuity_gap
+    allowed_candidate_stages: [preview_candidate, beta_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.ecosystem_install_fleet_and_response
+      - gate.configuration_execution_context_and_continuity
+    notes: >
+      Continuity gaps may narrow preview or beta claims, but stable-facing
+      lines require current rollback and recovery proof.
+
+  - scope_kind: publication_gap
+    allowed_candidate_stages: [preview_candidate, beta_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Publication gaps are blocking once the candidate is on an RC/stable,
+      LTS, or hotfix path.
+
+  - scope_kind: security_or_compliance_gap
+    allowed_candidate_stages: [preview_candidate]
+    required_shiproom_status: go_with_narrowing
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.identity_admin_auditability_and_secret_handling
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Security or compliance gaps never cross into beta, RC/stable, LTS,
+      or hotfix promotion.
+
+  - scope_kind: other
+    allowed_candidate_stages: []
+    required_shiproom_status: no_go
+    forbidden_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    notes: >
+      Unclassified gaps are non-promotable until they are classified or closed.
+
+late_proof_exception_policy:
+  default_rule: none
+  exceptions:
+    - exception_id: preview_non_claim_widening
+      allowed_candidate_stages: [preview_candidate]
+      allowed_proof_classes:
+        - benchmark_public_proof
+        - docs_help_truth
+      forbidden_gate_refs:
+        - gate.candidate_envelope
+        - gate.public_interface_provenance_and_durability
+        - gate.docs_command_route_and_reproducible_release
+      required_shiproom_status: hold_for_refresh
+      notes: >
+        Preview-only exception for proof that arrives after the binary
+        build but before any claim widening. The candidate stays on hold
+        until the packet refresh lands.
+
+manual_import_and_mirror_only_emergency_flows:
+  - flow_id: mirror_only_response
+    allowed_candidate_stages: [rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    allowed_actions:
+      - advisory_publication
+      - revocation_publication
+      - correction_release_publication
+    prerequisites:
+      - current mirror/offline drill inside freshness SLO
+      - same exact_build_identity_refs as the hosted publication path
+      - same install_profile_card_refs, claim_row_refs, known_limit_refs, and release-note disclosures as the hosted path
+      - signed manual-import or mirror manifest published in the same packet refresh
+    does_not_waive:
+      - exact_build identity propagation
+      - rollback atom completeness
+      - advisory or revocation review
+      - same-change-set parity requirements
+    notes: >
+      Emergency transport changes the publication path only. It never
+      creates an alternate release graph or a quieter approval route.
+
+advisory_and_revocation_scope_policy:
+  default_advisory_scope: exact_build_plus_install_profile
+  default_revocation_scope: minimal_affected_node_set
+  escalation_conditions:
+    - condition: signed_update_metadata_or_signing_root_compromised
+      widened_scope: channel_manifest_or_signing_root
+    - condition: mirror_continuity_unknown_on_claimed_profile
+      widened_scope: affected_mirror_profile
+    - condition: partial_disable_would_break_rollback_atom
+      widened_scope: coordinated_release_family
+
+gates:
+  - gate_id: gate.candidate_envelope
+    title: Candidate envelope and rollback floor
+    primary_owner_lane: release_evidence
+    supporting_owner_lanes: [support_export, docs_public_truth]
+    required_candidate_stages:
+      - preview_candidate
+      - beta_candidate
+      - rc_or_stable_candidate
+      - lts_candidate
+      - hotfix_candidate
+    shiproom_review_step: candidate_envelope_and_rollback_floor
+    shiproom_panel_ids: [readiness_scorecard, stale_or_missing_evidence, owner_handoffs]
+    required_release_postures:
+      - primary_payload
+      - public_truth_payload
+      - supply_chain_proof
+      - supportability_payload
+      - release_control_packet
+    blocking_conditions:
+      - coordinated exact-build identity set missing or mismatched
+      - rollback target, install-profile scope, or release-packet home missing
+      - rollback atom narrower than the promoted artifact set
+      - claimed mirror/offline path lacks parity proof
+    notes: >
+      Candidate exists only when it can be named, rolled back, and
+      explained as one coordinated set.
+
+  - gate_id: gate.lifecycle_and_dependency_markers
+    title: Lifecycle and dependency-marker gate
+    primary_owner_lane: docs_public_truth
+    supporting_owner_lanes: [release_evidence]
+    required_candidate_stages: [rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: claim_manifest_and_channel_parity
+    shiproom_panel_ids: [claim_manifest_drift, owner_handoffs]
+    required_release_postures: [public_truth_payload, supportability_payload, release_control_packet]
+    blocking_conditions:
+      - lifecycle state, support class, or dependency marker differs across product, docs, support, and claim rows
+      - migration or deprecation notes lag the promoted surface
+      - help or About surfaces show different support or freshness truth than the packet
+    notes: >
+      Stable-facing promotion fails closed when lifecycle or dependency
+      truth is broader on any downstream surface than on the owner row.
+
+  - gate_id: gate.schema_corpus_and_governed_records
+    title: Schema, corpus, and governed-record review gate
+    primary_owner_lane: governance_packets
+    supporting_owner_lanes: [docs_public_truth, support_export]
+    required_candidate_stages: [rc_or_stable_candidate, lts_candidate]
+    shiproom_review_step: evidence_freshness_and_missing_proof
+    shiproom_panel_ids: [stale_or_missing_evidence, claim_manifest_drift]
+    required_release_postures: [public_truth_payload, supply_chain_proof, supportability_payload, release_control_packet]
+    blocking_conditions:
+      - public schema export lacks owner, version, or inspection path
+      - benchmark or certification evidence is not reproducible or comparable
+      - governed records or export/delete posture are undocumented on a claimed row
+      - public-proof text outruns the reviewed packet
+    notes: >
+      This gate blocks overclaim on schemas, corpora, and record-governed
+      surfaces even when the runtime path appears complete.
+
+  - gate_id: gate.public_interface_provenance_and_durability
+    title: Public-interface, provenance, and durability gate
+    primary_owner_lane: release_evidence
+    supporting_owner_lanes: [docs_public_truth, support_export]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: readiness_scorecard_and_owner_coverage
+    shiproom_panel_ids: [readiness_scorecard, assumptions_and_dependency_reds, owner_handoffs]
+    required_release_postures:
+      - primary_payload
+      - debug_retention_sidecar
+      - public_truth_payload
+      - supply_chain_proof
+      - release_control_packet
+    blocking_conditions:
+      - stable-facing diff, migration, or support-window truth missing
+      - one build identity does not cover binaries, docs, schemas, SDKs, SBOMs, attestations, symbols, and rollback metadata
+      - publish, mirror, revoke, or rollback drill stale or missing
+      - publication or security-response lanes lack current owner coverage
+    notes: >
+      This is the main binary-built-but-not-promotable gate for RC/stable,
+      LTS, and hotfix candidates.
+
+  - gate_id: gate.ecosystem_install_fleet_and_response
+    title: Ecosystem, install/fleet, and response gate
+    primary_owner_lane: support_export
+    supporting_owner_lanes: [release_evidence, docs_public_truth]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: support_packet_family_coverage
+    shiproom_panel_ids: [support_packet_families, owner_handoffs]
+    required_release_postures:
+      - primary_payload
+      - debug_retention_sidecar
+      - supportability_payload
+      - release_control_packet
+    blocking_conditions:
+      - install-topology or deployment drill truth stale on a claimed profile
+      - wrong-target, deep-link, or uninstall/rollback audit missing on a claimed path
+      - advisory, revocation, emergency-disable, or mirror/offline emergency path not drilled
+      - incident-workspace, support-export, or symbolication packet stale on the shipping line
+    notes: >
+      Stable-facing lines are blocked if supportability or emergency
+      response relies on memory instead of current packets.
+
+  - gate_id: gate.qualification_provider_authority_and_dependency
+    title: Qualification, provider-authority, and dependency gate
+    primary_owner_lane: release_evidence
+    supporting_owner_lanes: [governance_packets, docs_public_truth]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: evidence_freshness_and_missing_proof
+    shiproom_panel_ids: [stale_or_missing_evidence, assumptions_and_dependency_reds]
+    required_release_postures:
+      - primary_payload
+      - public_truth_payload
+      - supply_chain_proof
+      - release_control_packet
+    blocking_conditions:
+      - claimed platform, deployment, or mixed-version row is not explicitly named
+      - provider truth, authority lineage, or dependency notice pack is stale
+      - third-party import, fork, SBOM, or provenance pack lags the candidate
+    notes: >
+      Promotion cannot rely on remembered qualification or dependency scope.
+
+  - gate_id: gate.configuration_execution_context_and_continuity
+    title: Configuration, execution-context, and continuity gate
+    primary_owner_lane: support_export
+    supporting_owner_lanes: [release_evidence]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: support_packet_family_coverage
+    shiproom_panel_ids: [support_packet_families, readiness_scorecard]
+    required_release_postures:
+      - primary_payload
+      - supportability_payload
+      - release_control_packet
+    blocking_conditions:
+      - protected settings or execution-context truth cannot explain the promoted row
+      - recovery ladder, safe mode, cache repair, or restore proof is stale
+      - region, continuity, or desktop support packets are stale on a claimed profile
+    notes: >
+      This gate is where stable-facing continuity and recovery truth become
+      promotion-blocking rather than best effort.
+
+  - gate_id: gate.identity_admin_auditability_and_secret_handling
+    title: Identity, admin-auditability, and secret-handling gate
+    primary_owner_lane: support_export
+    supporting_owner_lanes: [release_evidence]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: security_and_incident_posture
+    shiproom_panel_ids: [support_packet_families, owner_handoffs]
+    required_release_postures:
+      - primary_payload
+      - supportability_payload
+      - release_control_packet
+    blocking_conditions:
+      - local-vs-managed identity boundary or deprovision posture unclear
+      - offline entitlement or policy-cache behavior stale or missing
+      - secret source, export, or trust-root change cannot be explained from current packets
+    notes: >
+      Enterprise-facing or secret-bearing promotion fails if the field
+      explanation path is not current and export-safe.
+
+  - gate_id: gate.workspace_truth_lineage_and_semantic_readiness
+    title: Workspace-truth, lineage, and semantic-readiness gate
+    primary_owner_lane: release_evidence
+    supporting_owner_lanes: [support_export]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate]
+    shiproom_review_step: evidence_freshness_and_missing_proof
+    shiproom_panel_ids: [readiness_scorecard, stale_or_missing_evidence]
+    required_release_postures: [primary_payload, release_control_packet]
+    blocking_conditions:
+      - filesystem identity, save target, or mutation lineage truth is stale on the promoted row
+      - semantic-readiness or generated-artifact lineage cannot explain the promoted row
+    notes: >
+      State-bearing or mutation-bearing claims require current lineage and
+      recovery truth, not just passing local smoke tests.
+
+  - gate_id: gate.search_interaction_and_operator_explainability
+    title: Search, interaction-safety, and operator-explainability gate
+    primary_owner_lane: release_evidence
+    supporting_owner_lanes: [support_export, docs_public_truth]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate]
+    shiproom_review_step: evidence_freshness_and_missing_proof
+    shiproom_panel_ids: [readiness_scorecard, stale_or_missing_evidence]
+    required_release_postures: [primary_payload, release_control_packet]
+    blocking_conditions:
+      - search/readiness or interaction-safety truth is stale on the promoted row
+      - AI context, route, or approval lineage cannot be reconstructed from current packets
+      - operator explainability depends on undocumented local state
+    notes: >
+      Search-bearing, action-bearing, or AI-bearing widening fails when
+      the operator cannot explain the row from current evidence.
+
+  - gate_id: gate.docs_command_route_and_reproducible_release
+    title: Documentation, command-parity, route-origin, and reproducible-release gate
+    primary_owner_lane: docs_public_truth
+    supporting_owner_lanes: [release_evidence, support_export, governance_packets]
+    required_candidate_stages: [beta_candidate, rc_or_stable_candidate, lts_candidate, hotfix_candidate]
+    shiproom_review_step: claim_manifest_and_channel_parity
+    shiproom_panel_ids: [claim_manifest_drift, public_proof_coverage, owner_handoffs]
+    required_release_postures:
+      - primary_payload
+      - debug_retention_sidecar
+      - public_truth_payload
+      - supply_chain_proof
+      - supportability_payload
+      - release_control_packet
+    blocking_conditions:
+      - docs/help/migration or release-note parity missing on the promoted row
+      - examples or public-proof text broader than current packet state
+      - command parity, authority source, or route/origin truth diverges across claimed surfaces
+      - binaries, docs, symbols, support bundles, rollback metadata, advisories, and mirror/offline publications cannot identify one exact build with current clean-room proof
+    notes: >
+      This gate is the final no-go for RC/stable, LTS, and hotfix
+      promotion when the binary builds but the truth surfaces still disagree.

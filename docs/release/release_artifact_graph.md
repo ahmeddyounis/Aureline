@@ -8,8 +8,19 @@ directory of loosely related files. The machine-readable companion is
 
 Companion artifacts:
 
+- [`/docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md)
+  — governing release-posture ADR for channels, rollback atom,
+  same-change-set release bundles, waiver/late-proof policy, and
+  stable-facing promotion vetoes.
 - [`/artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml)
   — machine-readable node-family and bundle-completeness rules.
+- [`/artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml)
+  — machine-readable map from exact-build artifact families to release
+  posture, owner lane, rollback-atom membership, same-change-set
+  bundle, and retention floor.
+- [`/artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml)
+  — machine-readable promotion-stage, stale-proof, waiver-scope,
+  late-proof, and emergency-transport gate map.
 - [`/docs/build/exact_build_identity_model.md`](../build/exact_build_identity_model.md)
   — exact-build identity model every release-bearing node resolves
   through.
@@ -108,6 +119,10 @@ This document closes that gap.
   Raw build logs, raw traces, raw symbol payloads, private triage
   packets, and similar artifacts may remain internal only when the
   public packet still cites a stable ref and a truthful disclosure note.
+- **Promotion and rollback move a coordinated release family.** The
+  graph is not publishable if the claimed payload outruns its paired
+  docs/help truth, symbolication/support sidecars, supply-chain proof,
+  release packet, or mirror/offline parity on supported lines.
 
 ## Node families
 
@@ -163,6 +178,16 @@ silent omission:
 - raw benchmark traces and raw restricted fixture bytes,
 - private incident-triage packet bodies, and
 - support-bundle payload bodies beyond the public redaction envelope.
+
+For `beta`, `rc_or_stable`, `lts`, and `hotfix` candidates, bundle
+completeness is not only a graph concern. The candidate must also clear
+the stage-appropriate gate refs in
+[`/artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml)
+for the artifact families named in
+[`/artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml).
+That is the mechanism that blocks stable-facing promotion when the
+binary exists but the coordinated docs/help, symbolication,
+supportability, reproducibility, or mirror/offline truth does not.
 
 ### Publishable benchmark packet
 

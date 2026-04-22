@@ -125,6 +125,16 @@ code.
 
 ## Release and benchmark publication
 
+- [`adr/0017-release-posture-artifact-families-and-promotion-gates.md`](./adr/0017-release-posture-artifact-families-and-promotion-gates.md)
+  — release-governance ADR covering channel posture, RC-as-stage,
+  rollback atom, same-change-set release bundles, waiver and
+  late-proof policy, emergency mirror/manual-import transport, and the
+  promotion vetoes that still block RC/stable, LTS, and hotfix
+  widening after a binary build succeeds. Machine-readable companions
+  in
+  [`/artifacts/release/artifact_family_map.yaml`](../artifacts/release/artifact_family_map.yaml)
+  and
+  [`/artifacts/release/promotion_gate_map.yaml`](../artifacts/release/promotion_gate_map.yaml).
 - [`release/release_artifact_graph.md`](./release/release_artifact_graph.md)
   — publishable release-artifact graph, bundle-completeness rules, and
   contract-surface index.

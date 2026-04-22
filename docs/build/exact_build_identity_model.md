@@ -23,12 +23,19 @@ updated in the same change.
 
 Companion artifacts:
 
+- [`/docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md)
+  — release-posture ADR that freezes channel posture, RC-as-stage, the
+  coordinated rollback atom, and release-blocking gate policy.
 - [`/docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)
   and
   [`/artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml)
   — release-artifact graph completeness rules that bind this identity
   model to docs/help truth, benchmark-publication packs, debug sidecars,
   advisories, and promotion evidence.
+- [`/artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml)
+  — family-level map that assigns release posture, owner lane,
+  rollback-atom membership, retention floor, and support packet class
+  to each exact-build artifact family.
 - [`/docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md)
   — aggregate release-truth packet that cites exact-build identities by
   stable ref.
@@ -169,7 +176,10 @@ The notable fields are:
   Downstream surfaces compute the docs-version-match axis
   (ADR-0013) against this value: `stable` / `lts` / `hotfix`
   render `exact_build_match`; `nightly` / `preview` / `beta`
-  render `pre_release_unverified` by default.
+  render `pre_release_unverified` by default. `rc_or_stable_candidate`
+  is a promotion-review stage from
+  `artifacts/release/promotion_gate_map.yaml`, not a new
+  `release_channel_class` value.
 - **Artifact family.** `artifact_family_class` is the closed set
   of artifact-family tokens
   (`ide_binary`, `ide_debug_symbols`, `cli_binary`,
@@ -177,7 +187,10 @@ The notable fields are:
   `docs_pack`, `schema_export`, `reference_pack`, `sbom_document`,
   `signed_attestation`, `source_bundle`, `crash_symbols_archive`,
   `reproducibility_pack`, `support_runbook_bundle`,
-  `release_evidence_packet`).
+  `release_evidence_packet`). Family-level release posture, promotion
+  owner lane, rollback-atom membership, and retention floor are
+  governed by `artifacts/release/artifact_family_map.yaml`; the schema
+  remains the closed vocabulary source for the family ids themselves.
 - **Commit / tree state.** `commit` carries full hash, short hash
   (12 hex chars, rendering-only), hash algorithm, committer epoch,
   and tree hash. `tree_state_class` is

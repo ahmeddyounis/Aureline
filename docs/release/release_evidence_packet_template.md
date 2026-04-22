@@ -5,9 +5,12 @@ Copy this template when assembling a release-evidence packet or a
 pre-release seed packet.
 
 Related control artifacts:
+- docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
 - docs/release/release_artifact_graph.md
 - docs/governance/maintainer_coverage_policy.md
 - artifacts/release/artifact_graph_rules.yaml
+- artifacts/release/artifact_family_map.yaml
+- artifacts/release/promotion_gate_map.yaml
 - artifacts/governance/signing_quorum.yaml
 - artifacts/governance/upstream_health_scorecard.yaml
 - artifacts/governance/evidence_id_conventions.md
@@ -42,6 +45,7 @@ notes, or migration packets.
 - **Packet state:** `draft` | `in_review` | `accepted` | `blocked` | `superseded`
 - **Readiness:** `releasable` | `preview_only` | `narrow_claims` | `blocked`
 - **Candidate or scope:** `<candidate-or-snapshot-label>`
+- **Candidate stage:** `preview_candidate` | `beta_candidate` | `rc_or_stable_candidate` | `lts_candidate` | `hotfix_candidate`
 - **Opened on:** `YYYY-MM-DD`
 - **Assembled on:** `YYYY-MM-DDTHH:MM:SSZ`
 - **Release channel scope:** `nightly` | `preview` | `beta` | `stable` | `lts` | `hotfix`
@@ -52,6 +56,9 @@ notes, or migration packets.
 - **Benchmark-governance revision:** `<protected-metrics-id>@<metrics-revision>`
 - **Primary exact-build identity set:** list of `exact_build_identity_ref`
 - **Active waiver packet refs:** waiver packet ids or `none`
+- **Promotion gate refs:** list of `gate.*` ids from `artifacts/release/promotion_gate_map.yaml`
+- **Late-proof exception refs:** exception ids from `artifacts/release/promotion_gate_map.yaml` or `none`
+- **Emergency transport flow:** `none` or `mirror_only_response`
 - **Maintainer coverage source:** `artifacts/governance/ownership_matrix.yaml` + `docs/governance/maintainer_coverage_policy.md`
 - **Quorum action ids used:** list of `signing_quorum.yaml#actions.id`
 - **Critical upstream refs:** list of `dependency_id` values from `artifacts/governance/upstream_health_scorecard.yaml` or `none`
@@ -71,6 +78,15 @@ preview-only, or claim-narrowed.
 - **Protected rows or requirement refs:**
   - `<requirement-id>` / `<fitness-row-id>` / `<compat-row-id>`
   - ...
+
+## Promotion posture
+
+- **Artifact families in scope:** `artifact_family_class` values from `schemas/build/exact_build_identity.schema.json`
+- **Release posture classes in scope:** `primary_payload` | `debug_retention_sidecar` | `public_truth_payload` | `supply_chain_proof` | `supportability_payload` | `release_control_packet`
+- **Same-change-set groups in scope:** `exact_build_and_publication_bundle` | `claim_docs_known_limit_bundle` | `supportability_and_symbolication_bundle` | `advisory_and_revocation_bundle` | `mirror_and_offline_bundle`
+- **Rollback atom posture:** `coordinated_release_family` or narrowed explanation for why the omitted family is truly not in scope
+- **Mirror/offline publication parity:** `not_required` | `required_when_claimed` | `required_for_supported_release_lines`
+- **Manual-import or mirror manifest refs:** `<manifest refs or none>`
 
 ## Exact-build identity set
 
@@ -159,6 +175,9 @@ not leave the section blank.
 - User-visible or enterprise-relevant risks that still remain.
 - Release-note disclosures required by active waivers or narrowed claims.
 - Evidence that is stale, seed-only, or pending re-baseline.
+- If the packet uses `Emergency transport flow != none`, describe the
+  hosted-path gap and confirm the same exact-build, claim-row,
+  known-limit, and release-note truth moved in the same refresh.
 
 ## Evidence index
 

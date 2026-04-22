@@ -29,6 +29,13 @@ Companion artifacts:
   [`/schemas/governance/evidence_packet_header.schema.json`](../../schemas/governance/evidence_packet_header.schema.json)
   — stable evidence-id grammar plus the shared packet header the
   bundle embeds.
+- [`/artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml)
+  and
+  [`/artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml)
+  — release-governance maps that pin which supportability and
+  symbolication families are promotion-bearing, which shiproom gate
+  reviews them, and how mirror/offline emergency publication preserves
+  the same exact-build joins.
 - [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   and
   [`/docs/deployment/drill_catalog_seed.md`](../deployment/drill_catalog_seed.md)
@@ -205,6 +212,14 @@ inventing side metadata:
 
 That makes the packet useful for future support tooling, shiproom, or
 field handoff without a redesign of its core fields.
+
+For release-facing support cases, the bundle also follows the release
+artifact-family posture map: `support_runbook_bundle`,
+`ide_debug_symbols`, `cli_debug_symbols`, `source_map_bundle`, and
+`crash_symbols_archive` are promotion-bearing families, not optional
+support leftovers. Shiproom and release packets therefore expect the
+bundle to preserve the same exact-build, known-limit, mirror/offline,
+and rollback joins those families carry in the release maps.
 
 ## Example
 

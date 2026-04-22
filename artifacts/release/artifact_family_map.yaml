@@ -1,0 +1,450 @@
+# Release artifact-family posture map.
+#
+# Machine-readable companion to
+# docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md.
+# Every exact-build artifact family maps to one release posture and one
+# functional promotion owner lane so release evidence, shiproom, support,
+# docs/help, and mirror/offline publication do not infer ownership or
+# rollback rules ad hoc.
+
+schema_version: 1
+map_id: aureline.release_artifact_family_map
+status: seeded
+
+governing_adr: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+exact_build_identity_source: schemas/build/exact_build_identity.schema.json
+release_artifact_graph_source: artifacts/release/artifact_graph_rules.yaml
+release_evidence_packet_source: docs/release/release_evidence_packet_template.md
+shiproom_runbook_source: docs/release/shiproom_runbook.md
+support_packet_index_source: schemas/support/support_packet_index.schema.json
+evidence_freshness_policy_source: docs/governance/evidence_freshness_policy.md
+public_surface_truth_source: docs/governance/public_surface_truth_map.md
+
+release_posture_vocabulary:
+  - primary_payload
+  - debug_retention_sidecar
+  - public_truth_payload
+  - supply_chain_proof
+  - supportability_payload
+  - release_control_packet
+
+promotion_owner_lane_vocabulary:
+  - release_evidence
+  - docs_public_truth
+  - support_export
+  - governance_packets
+
+candidate_stage_vocabulary:
+  - nightly_candidate
+  - preview_candidate
+  - beta_candidate
+  - rc_or_stable_candidate
+  - lts_candidate
+  - hotfix_candidate
+
+same_change_set_group_vocabulary:
+  - exact_build_and_publication_bundle
+  - claim_docs_known_limit_bundle
+  - supportability_and_symbolication_bundle
+  - advisory_and_revocation_bundle
+  - mirror_and_offline_bundle
+
+mirror_offline_parity_vocabulary:
+  - not_required
+  - required_when_claimed
+  - required_for_supported_release_lines
+
+retention_floor_vocabulary:
+  - not_applicable
+  - paired_release_family_support_window
+  - paired_release_family_support_window_and_open_advisories
+  - published_artifact_replacement_window
+  - declared_response_window
+
+artifact_families:
+  - artifact_family_class: ide_binary
+    release_posture_class: primary_payload
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: nightly_candidate
+    required_channels: [nightly, preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      Primary desktop payload. Promotion never moves this family without
+      the coordinated docs, provenance, rollback, and supportability set.
+
+  - artifact_family_class: cli_binary
+    release_posture_class: primary_payload
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: nightly_candidate
+    required_channels: [nightly, preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      CLI payload follows the same exact-build and rollback rules as the
+      desktop binary when it is claim-bearing.
+
+  - artifact_family_class: sdk_library
+    release_posture_class: primary_payload
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.qualification_provider_authority_and_dependency
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: exact_build_plus_claim_row
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      SDK artifacts are primary payloads for compatibility and support
+      purposes even though they are not installed like the desktop app.
+
+  - artifact_family_class: ide_debug_symbols
+    release_posture_class: debug_retention_sidecar
+    promotion_owner_lane: support_export
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: rollback_review
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set
+    notes: >
+      Retention is release-bearing even when payload bytes stay
+      support-only or mirror-only.
+
+  - artifact_family_class: cli_debug_symbols
+    release_posture_class: debug_retention_sidecar
+    promotion_owner_lane: support_export
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: rollback_review
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set
+    notes: >
+      CLI debug bytes follow the same sidecar-retention and exact-build
+      rules as the desktop pair.
+
+  - artifact_family_class: source_map_bundle
+    release_posture_class: debug_retention_sidecar
+    promotion_owner_lane: support_export
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: exact_build_plus_claim_row
+    revocation_granularity: exact_build_node_set
+    notes: >
+      Source maps are treated as release sidecars whenever the promoted
+      surface depends on them for field diagnosis or support exports.
+
+  - artifact_family_class: crash_symbols_archive
+    release_posture_class: debug_retention_sidecar
+    promotion_owner_lane: support_export
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window_and_open_advisories
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    support_packet_family_class: security_triage
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set
+    notes: >
+      Crash-symbol archives are required once field diagnosis or
+      incident-workspace symbolication is part of the claimed release line.
+
+  - artifact_family_class: docs_pack
+    release_posture_class: public_truth_payload
+    promotion_owner_lane: docs_public_truth
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: published_artifact_replacement_window
+    required_gate_refs:
+      - gate.lifecycle_and_dependency_markers
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: known_limit_correlation
+    advisory_granularity: claim_row_plus_exact_build
+    revocation_granularity: claim_row_plus_channel_manifest
+    notes: >
+      Docs/help truth is part of the promoted family, not a post-release
+      cleanup lane.
+
+  - artifact_family_class: reference_pack
+    release_posture_class: public_truth_payload
+    promotion_owner_lane: docs_public_truth
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: published_artifact_replacement_window
+    required_gate_refs:
+      - gate.lifecycle_and_dependency_markers
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: known_limit_correlation
+    advisory_granularity: claim_row_plus_exact_build
+    revocation_granularity: claim_row_plus_channel_manifest
+    notes: >
+      Generated or curated reference output follows the same truth and
+      parity rules as the main docs pack when it is part of the claim.
+
+  - artifact_family_class: schema_export
+    release_posture_class: public_truth_payload
+    promotion_owner_lane: governance_packets
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: published_artifact_replacement_window
+    required_gate_refs:
+      - gate.schema_corpus_and_governed_records
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    support_packet_family_class: route_origin_reconstruction
+    advisory_granularity: claim_row_plus_exact_build
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      Public schema exports are release-bearing contract truth and must
+      stay aligned with release notes, migration text, and claim rows.
+
+  - artifact_family_class: sbom_document
+    release_posture_class: supply_chain_proof
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: declared_response_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.qualification_provider_authority_and_dependency
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: security_triage
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      Supply-chain proof becomes promotion-blocking from beta onward.
+
+  - artifact_family_class: signed_attestation
+    release_posture_class: supply_chain_proof
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: declared_response_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.qualification_provider_authority_and_dependency
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: security_triage
+    advisory_granularity: exact_build_plus_install_profile
+    revocation_granularity: exact_build_node_set_or_channel_manifest
+    notes: >
+      Attestations share the same promotion and response posture as SBOMs.
+
+  - artifact_family_class: source_bundle
+    release_posture_class: supply_chain_proof
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: declared_response_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: exact_build_plus_claim_row
+    revocation_granularity: coordinated_release_family_or_channel_manifest
+    notes: >
+      Source bundles matter for mirror and clean-room parity on supported
+      release lines.
+
+  - artifact_family_class: reproducibility_pack
+    release_posture_class: supply_chain_proof
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: declared_response_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: rollback_review
+    advisory_granularity: exact_build_plus_claim_row
+    revocation_granularity: coordinated_release_family_or_channel_manifest
+    notes: >
+      Reproducibility packs become blocking when clean-room or release-center
+      parity is part of the claimed line.
+
+  - artifact_family_class: support_runbook_bundle
+    release_posture_class: supportability_payload
+    promotion_owner_lane: support_export
+    minimum_candidate_stage: beta_candidate
+    required_channels: [beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_when_claimed
+    retention_floor_class: paired_release_family_support_window
+    required_gate_refs:
+      - gate.ecosystem_install_fleet_and_response
+      - gate.configuration_execution_context_and_continuity
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: known_limit_correlation
+    advisory_granularity: claim_row_plus_exact_build
+    revocation_granularity: claim_row_plus_install_profile
+    notes: >
+      Support runbooks may stay narrower than product docs, but they
+      still follow the same exact-build and known-limit joins.
+
+  - artifact_family_class: release_evidence_packet
+    release_posture_class: release_control_packet
+    promotion_owner_lane: release_evidence
+    minimum_candidate_stage: preview_candidate
+    required_channels: [preview, beta, stable, lts, hotfix]
+    rollback_atom_member: true
+    exact_build_identity_required: true
+    mirror_offline_parity: required_for_supported_release_lines
+    retention_floor_class: declared_response_window
+    required_gate_refs:
+      - gate.candidate_envelope
+      - gate.lifecycle_and_dependency_markers
+      - gate.schema_corpus_and_governed_records
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.qualification_provider_authority_and_dependency
+      - gate.configuration_execution_context_and_continuity
+      - gate.identity_admin_auditability_and_secret_handling
+      - gate.workspace_truth_lineage_and_semantic_readiness
+      - gate.search_interaction_and_operator_explainability
+      - gate.docs_command_route_and_reproducible_release
+    same_change_set_groups:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    support_packet_family_class: exact_build_support
+    advisory_granularity: coordinated_release_family
+    revocation_granularity: coordinated_release_family_or_channel_manifest
+    notes: >
+      Aggregate packet that blocks promotion whenever any required family
+      or gate is stale, missing, or out of parity.

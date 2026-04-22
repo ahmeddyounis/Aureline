@@ -8,6 +8,9 @@ instead of scattered meeting notes.
 Companion artifacts:
 
 - `artifacts/release/shiproom_dashboard_seed.yaml`
+- `docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`
+- `artifacts/release/artifact_family_map.yaml`
+- `artifacts/release/promotion_gate_map.yaml`
 - `docs/release/release_evidence_packet_template.md`
 - `docs/release/release_evidence_packet_example.md`
 - `docs/governance/evidence_freshness_policy.md`
@@ -29,12 +32,23 @@ current panel is yellow or red. If a reviewer cannot point to a stable
 requirement id, claim row, exact-build identity, waiver id, or freeze
 exception id, the item is not promotion-grade proof.
 
+Resolve candidate stage and gate ids from
+`artifacts/release/promotion_gate_map.yaml` before opening the packet.
+Resolve artifact-family posture, rollback-atom membership, retention
+floor, and support packet family from
+`artifacts/release/artifact_family_map.yaml`, not from remembered
+release lore.
+
 ## Evidence review order
 
 1. Candidate envelope and rollback floor
 
-- Confirm `exact_build_identity_ref` values, release channel, deployment
-  profile scope, and rollback target or rollback evidence.
+- Confirm `exact_build_identity_ref` values, release channel,
+  `candidate_stage`, deployment profile scope, and rollback target or
+  rollback evidence.
+- Confirm the in-scope artifact families still form one coordinated
+  release family under `artifact_family_map.yaml`; do not treat a lone
+  binary as a promotable rollback atom.
 - Stop immediately if the candidate cannot show one coordinated build
   identity set, one rollback path, or one release-packet home.
 
@@ -62,6 +76,10 @@ exception id, the item is not promotion-grade proof.
 - Treat stale or missing required proof as `hold_for_refresh` at
   minimum; treat stale exact-build, rollback, security, or public-proof
   evidence as `no_go`.
+- For `rc_or_stable_candidate`, `lts_candidate`, and
+  `hotfix_candidate`, stale required proof is `no_go` by default per
+  `promotion_gate_map.yaml`; there is no stable-facing late-proof
+  escape hatch.
 
 5. Claim-manifest and channel parity
 
@@ -109,6 +127,9 @@ Status mapping:
   or `narrow_claims`.
 - `hold_for_refresh` maps to `in_review` or `needs_review`.
 - `no_go` maps to `blocked`.
+- `go_with_narrowing` is a preview/beta-only posture. Stable-facing
+  candidates do not ship with active release waivers or late-proof
+  placeholders.
 
 ## Support packet family map
 

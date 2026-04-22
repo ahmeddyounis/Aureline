@@ -280,6 +280,8 @@ and scopes.
 
 - The `release_artifact_graph`, `release_evidence`,
   `shiproom_runbook`, `shiproom_dashboard_seed`,
+  `release_posture_adr`, `release_artifact_family_map`,
+  `release_promotion_gate_map`,
   `compatibility_qualification_seed`,
   `release_notice_seed`, `maintainer_coverage_policy`,
   `signing_quorum`, `frozen_surface_manifests`, `route_build_truth`,
@@ -312,6 +314,16 @@ and scopes.
   which bind binaries, debug manifests, docs/help truth, benchmark
   proof packets, advisories, and promotion evidence into one
   non-overlapping release graph.
+- Release posture is no longer hidden inside packet prose. The
+  governing ADR and machine-readable maps now live in
+  [`docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md),
+  [`artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml),
+  and
+  [`artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml).
+  Those artifacts freeze channel posture, RC-as-stage, rollback-atom
+  membership, same-change-set release bundles, waiver and late-proof
+  policy, emergency mirror/manual-import transport, and the gates that
+  still block stable-facing promotion after a successful build.
 - The release-evidence family is now seeded with a narrative packet
   template in [`docs/release/release_evidence_packet_template.md`](../release/release_evidence_packet_template.md),
   a filled seed example, a release-waiver schema under

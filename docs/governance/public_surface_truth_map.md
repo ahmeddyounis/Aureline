@@ -12,6 +12,12 @@ Related contracts:
   — canonical claim-row publication contract.
 - [`/docs/docs/help_about_service_health_routes.md`](../docs/help_about_service_health_routes.md)
   — canonical route and destination-descriptor contract.
+- [`/docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md`](../adr/0017-release-posture-artifact-families-and-promotion-gates.md)
+  and
+  [`/artifacts/release/promotion_gate_map.yaml`](../../artifacts/release/promotion_gate_map.yaml)
+  — release-governance decision and stage-specific promotion gates that
+  say when public-truth drift is release-blocking rather than merely a
+  docs defect.
 - [`/docs/governance/drift_blocking_rules.md`](./drift_blocking_rules.md)
   — severity classes, same-change-set rules, and audit procedure for
   truth drift.
@@ -66,6 +72,10 @@ defer, or remove its wording; it may not invent a broader story.
    exclusion notes route through the claim manifest. Release notes,
    docs/help, CLI/help, support exports, and public-proof packets are
    projections of that row, not alternate owners.
+8. Release-facing widening additionally obeys the release-posture ADR
+   and promotion-gate map: if a downstream surface widens beyond the
+   canonical owner row, shiproom treats that as a promotion blocker even
+   when the binary itself is already built.
 
 ## Audit checklist
 
@@ -102,3 +112,7 @@ The current seed is intentionally tied into four existing workflows:
   validator.
 - Shiproom public-proof review cites the map so benchmark and
   certification proof stays attached to the same owner artifacts.
+- Stable-facing release review also cites the release-posture ADR and
+  promotion-gate map so docs/help, known-limit, advisory, and
+  release-note drift can block promotion on the same footing as stale
+  build or support evidence.
