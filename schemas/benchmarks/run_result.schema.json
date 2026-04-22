@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/benchmarks/run_result.schema.json",
   "title": "Aureline benchmark-lab run-result record",
-  "description": "Boundary schema for one benchmark-lab run-result record. The record pins every result to a single exact-build identity (schemas/build/exact_build_identity.schema.json), a single protected corpus-manifest revision (fixtures/benchmarks/corpus_manifest.yaml), a single protected-metrics revision (artifacts/bench/protected_metrics.yaml), a single fitness-function catalog revision (artifacts/bench/fitness_function_catalog.yaml), and a single hardware-definition ref so later methodology, comparability, and waiver lanes consume one schema family rather than diverging per-lane dialects. Raw trace bodies, raw fixture bytes, raw log bodies, and raw signing material never cross this boundary; the record carries opaque refs, typed vocabulary, integer counters, numeric SLI values, and timestamps only. Adding a new comparability class, quarantine-reason class, measurement-status class, data-source class, row-result class, or trend-direction class is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row. The record is the single source of truth for nightly raw artifacts (artifacts/benchmarks/dashboard_seed/raw/*.json) and for the machine-readable half of the benchmark-report governance packet family (schemas/governance/governance_packet.schema.json packet_family=benchmark_report).",
+  "description": "Boundary schema for one benchmark-lab run-result record. The record pins every result to a single exact-build identity (schemas/build/exact_build_identity.schema.json), a single protected corpus-manifest revision (fixtures/benchmarks/corpus_manifest.yaml), a single protected-metrics revision (artifacts/bench/protected_metrics.yaml), a single fitness-function catalog revision (artifacts/bench/fitness_function_catalog.yaml), a single hardware-definition ref, and a single benchmark-environment-definition ref so later methodology, comparability, and waiver lanes consume one schema family rather than diverging per-lane dialects. Raw trace bodies, raw fixture bytes, raw log bodies, and raw signing material never cross this boundary; the record carries opaque refs, typed vocabulary, integer counters, numeric SLI values, and timestamps only. Adding a new comparability class, quarantine-reason class, measurement-status class, data-source class, row-result class, or trend-direction class is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row. The record is the single source of truth for nightly raw artifacts (artifacts/benchmarks/dashboard_seed/raw/*.json) and for the machine-readable half of the benchmark-report governance packet family (schemas/governance/governance_packet.schema.json packet_family=benchmark_report).",
   "$ref": "#/$defs/benchmark_run_result_record",
   "$defs": {
     "run_result_schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Integer schema version for the benchmark run-result export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+      "const": 2,
+      "description": "Integer schema version for the benchmark run-result export. Current value is 2. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
     },
     "record_kind": {
       "type": "string",
@@ -185,7 +185,7 @@
       "properties": {
         "definition_id": {
           "$ref": "#/$defs/opaque_id",
-          "description": "Opaque id for the hardware-definition row the run matched. The hardware-definition catalog is not yet seeded; this field reserves the identity so later definitions land without renaming."
+          "description": "Opaque id for the hardware-definition row the run matched. Rows resolve against artifacts/perf/reference_hardware_manifest.yaml#hardware_rows[]."
         },
         "definition_revision": {
           "type": "integer",
@@ -204,7 +204,76 @@
           "description": "Opaque ref to a human-readable hardware note (free-form text lives outside this boundary)."
         }
       },
-      "description": "Hardware-definition reference. The exact hardware taxonomy (CPU model classes, DRAM tiers, storage classes, thermal envelopes) will land with a later benchmark-council decision; this record reserves the identity shape."
+      "description": "Hardware-definition reference. Rows resolve against the reference-hardware manifest and distinguish approved baseline rows from self-capture placeholders without widening the shared schema."
+    },
+    "environment_definition_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition_id",
+        "definition_revision",
+        "display_class_id",
+        "lab_image_id",
+        "lab_image_revision",
+        "power_posture_id",
+        "thermal_posture_id",
+        "calibration_rule_set_id",
+        "calibration_rule_set_revision",
+        "is_council_approved_reference_environment"
+      ],
+      "properties": {
+        "definition_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the benchmark-environment row the run matched. Rows resolve against artifacts/perf/lab_image_manifest.yaml#lab_images[].environment_rows[]."
+        },
+        "definition_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision of the benchmark-environment row the run matched."
+        },
+        "display_class_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the display class the run used. Resolves against artifacts/perf/reference_hardware_manifest.yaml#display_classes[]."
+        },
+        "lab_image_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the lab image or self-capture image class the run used."
+        },
+        "lab_image_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision of the lab image or self-capture image class the run used."
+        },
+        "power_posture_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the declared power posture. Resolves against artifacts/perf/lab_image_manifest.yaml#power_postures[]."
+        },
+        "thermal_posture_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the declared thermal posture. Resolves against artifacts/perf/lab_image_manifest.yaml#thermal_postures[]."
+        },
+        "calibration_rule_set_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the calibration checklist revision the run followed. Resolves against artifacts/perf/lab_image_manifest.yaml#calibration_rule_sets[]."
+        },
+        "calibration_rule_set_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision of the calibration checklist the run followed."
+        },
+        "is_council_approved_reference_environment": {
+          "type": "boolean",
+          "description": "True when the environment row is on the benchmark-council-approved reference list. Runs with this flag false MUST NOT claim comparability_class = comparable_to_baseline."
+        },
+        "comparability_note_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a human-readable comparability note when display, lab-image, power, thermal, or calibration drift narrows the claim."
+        }
+      },
+      "description": "Benchmark-environment reference. Captures the display class, lab-image revision, power posture, thermal posture, and calibration checklist revision the run used so packets and dashboards can distinguish reference rows from self-capture rows using the same schema."
     },
     "build_identity_reference": {
       "type": "object",
@@ -705,6 +774,7 @@
         "protected_metrics",
         "fitness_function_catalog",
         "hardware_definition",
+        "environment_definition",
         "comparability",
         "rows",
         "summary",
@@ -729,6 +799,7 @@
         "protected_metrics": { "$ref": "#/$defs/protected_metrics_reference" },
         "fitness_function_catalog": { "$ref": "#/$defs/fitness_function_catalog_reference" },
         "hardware_definition": { "$ref": "#/$defs/hardware_definition_reference" },
+        "environment_definition": { "$ref": "#/$defs/environment_definition_reference" },
         "comparability": { "$ref": "#/$defs/comparability_envelope" },
         "rows": {
           "type": "array",
@@ -745,7 +816,7 @@
           "description": "Opaque ref to run-level notes (free-form text lives outside this boundary)."
         }
       },
-      "description": "One benchmark-lab run-result record. The nightly lane writes exactly one record per run; the dashboard generator reads a directory of records keyed by run_id to produce a rolled-up dashboard snapshot. The record is the single source of truth for evidence lineage: every protected speed / safety claim that cites a benchmark number resolves through (exact_build_identity_ref, corpus_manifest.manifest_revision, protected_metrics.metrics_file_revision, fitness_function_catalog.catalog_revision, hardware_definition.definition_id) on one of these records rather than a free-text label."
+      "description": "One benchmark-lab run-result record. The nightly lane writes exactly one record per run; the dashboard generator reads a directory of records keyed by run_id to produce a rolled-up dashboard snapshot. The record is the single source of truth for evidence lineage: every protected speed / safety claim that cites a benchmark number resolves through (exact_build_identity_ref, corpus_manifest.manifest_revision, protected_metrics.metrics_file_revision, fitness_function_catalog.catalog_revision, hardware_definition.definition_id, environment_definition.definition_id) on one of these records rather than a free-text label."
     }
   }
 }

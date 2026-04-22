@@ -142,8 +142,12 @@ record.
 ## Later work reserved, not closed
 
 - **Reference capture** — `hardware_definition_ref` and
-  `environment_ref` are nullable today. The benchmark-council-
-  approved hardware baseline, once promoted, rides in those fields
+  `environment_ref` are nullable on the committed journey seeds today.
+  The benchmark-council-approved hardware rows now live in
+  [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  and the environment rows now live in
+  [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml);
+  a later journey lane can wire those ids into the reserved fields
   without renaming anything.
 - **Exact-build identity** — the minimum `build` record is always
   present; the full record (see

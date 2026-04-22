@@ -19,6 +19,11 @@ Companion artifacts:
   — revisioned protected-metrics file. Every row carries threshold
   snapshot, rationale, comparability note, calibration state, change
   authority, and public-reporting posture.
+- [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  — canonical benchmark hardware-row and display-class register.
+- [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
+  — lab-image revision, benchmark-environment row, calibration
+  checklist, and comparability-reset register.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
   — revisioned corpus manifest for every benchmark fixture.
 - [`/artifacts/bench/fitness_function_catalog.yaml`](../../artifacts/bench/fitness_function_catalog.yaml)
@@ -69,8 +74,9 @@ an optimization game. This policy exists so that:
 
 ### Out of scope
 
-- The detailed hardware-baseline register. Hardware identities remain a
-  separate benchmark-council decision surface.
+- Populating every future release-family or competitor-harness
+  environment row. The seeded hardware and lab-image manifests exist in
+  this milestone, but later milestones widen them.
 - Marketing copy or a public benchmark website. This policy governs the
   evidence packets those surfaces would have to quote.
 - Replacing the fitness-function catalog. The catalog remains the
@@ -90,6 +96,8 @@ authority, and a CI or review rule. The machine-readable form lives in
 | **Remote / collaboration corpus** | network profile, region assumptions, remote image versions, reconnect expectations | remote lead + performance owner | outage and reconnect scenarios included |
 | **Accessibility corpus** | assistive-tech setup, locale/input method, task script, task-fidelity note | accessibility owner + QA | no perf-only optimization may invalidate task fidelity |
 | **Protected metrics file** | threshold value, rationale, comparability note, calibration state/date, change authority | performance owner + architecture board for threshold easing | easing thresholds requires before/after evidence |
+| **Reference hardware manifest** | hardware row id, CPU/GPU/memory/storage summary, display-class ids, default power posture, council status | performance owner + release engineering | recalibration requires comparability note |
+| **Lab-image / environment manifest** | lab-image revision, environment rows, calibration rule set, comparability-reset rules | performance owner + release engineering | recalibration requires comparability note |
 | **Public benchmark publication pack** | exact command line, config, version, environment, competitor settings, protected-metrics revision | product + performance owner | raw run metadata retained for audit |
 
 ## 4. Single-source rule
@@ -99,7 +107,9 @@ traceable to:
 
 - exactly one corpus-manifest revision;
 - exactly one protected-metrics-file revision; and
-- exactly one fitness-function-catalog revision.
+- exactly one fitness-function-catalog revision;
+- exactly one hardware-definition row; and
+- exactly one benchmark-environment row.
 
 The corpus manifest answers "which bytes and scenarios were measured".
 The protected-metrics file answers "which governed thresholds and

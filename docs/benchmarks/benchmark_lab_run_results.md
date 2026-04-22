@@ -31,6 +31,14 @@ Companion artifacts:
   — public benchmark/public-proof packet template that composes over
   the raw run-result record when results leave the internal dashboard
   context.
+- [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  — canonical hardware rows and display classes for benchmark packets.
+- [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
+  — lab-image revisions, environment rows, and calibration checklists
+  every run now cites.
+- [`/docs/perf/self_capture_parity.md`](../perf/self_capture_parity.md)
+  — rules for comparing a `self_capture` against a reference row
+  without pretending they are identical.
 - [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
   — revisioned protected-metrics file every run cites alongside the
   corpus manifest and fitness catalog.
@@ -64,9 +72,10 @@ Companion artifacts:
 2. Regressions have to be comparable across runs. The schema pins every
    record to a single exact-build identity, a single corpus-manifest
    revision, a single protected-metrics revision, a single
-   fitness-catalog revision, and a single hardware definition. If any
-   of those drift, the record's `comparability_class` downgrades before
-   the dashboard compares trends.
+   fitness-catalog revision, a single hardware definition, and a single
+   benchmark environment definition. If any of those drift, the
+   record's `comparability_class` downgrades before the dashboard
+   compares trends.
 3. A regression has to be attributable to a named fitness row, a named
    corpus row (where applicable), a named threshold mode, and one
    typed `regression_trigger_ref.kind`. The schema forces a row-level
@@ -88,6 +97,7 @@ Companion artifacts:
   kind, host-platform class, host-OS class, and
   `regression_trigger_ref.kind`.
 - Record envelopes for `hardware_definition_reference`,
+  `environment_definition_reference`,
   `build_identity_reference`, `corpus_manifest_reference`,
   `protected_metrics_reference`,
   `fitness_function_catalog_reference`, `toolchain_pin_reference`,
@@ -130,7 +140,7 @@ before any numeric value appears.
 
 | Class | Meaning |
 |---|---|
-| `comparable_to_baseline` | Matches the approved hardware definition AND the same exact-build-identity axes as the baseline. |
+| `comparable_to_baseline` | Matches the approved hardware definition, the approved benchmark-environment definition, and the same exact-build-identity axes as the baseline. |
 | `comparable_to_prior_run_same_host` | Comparability guaranteed only to the immediately prior nightly on the same host. |
 | `not_yet_comparable` | Default when a new corpus revision or threshold has just landed; no trend claim is admissible until the next run. |
 | `quarantined` | Excluded from trend comparisons for a named reason. |
@@ -271,6 +281,10 @@ wasted running the lab.
 - Every markdown report carries a banner naming the run context. A
   `self_capture` report MUST state explicitly that the record is not
   a reference capture before any numeric value appears.
+- Every markdown report and every `source_run_refs[]` row in the
+  dashboard carries one hardware-definition id, one environment-
+  definition id, one display-class id, and one lab-image revision so
+  reference rows and self-capture rows project from the same schema.
 - The `dashboard.json` snapshot aggregates `source_run_refs` with
   per-run `row_count_by_result` and
   `regression_trigger_count_by_kind` totals, and a `by_fitness_row`
@@ -281,10 +295,13 @@ wasted running the lab.
 
 ## 12. Known holes carried forward
 
-- The `hardware_definition` rows are reserved under the sentinel
-  `hardware_definition.reserved.not_yet_seeded`. A benchmark-council-
-  approved hardware baseline is required before any record can claim
-  `comparability_class = comparable_to_baseline`.
+- The reference hardware rows now live in
+  [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  and the benchmark-environment rows now live in
+  [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml).
+  The committed seed still uses the explicit self-capture placeholder
+  rows, so the seed remains non-claim-bearing until a protected
+  `reference_capture` lands on an approved host and environment row.
 - The `toolchain_pin_reference.toolchain_pin_source` is set to
   `tools/build/build.sh` on the seed; once the release-council pins
   a full toolchain manifest, the seed is refreshed in the same

@@ -2,9 +2,10 @@
 """Emit a benchmark-lab run-result record and human-readable summary.
 
 Reads the committed protected corpus manifest, protected-metrics file,
-and fitness-function catalog, assembles one record per invocation conforming to
-``schemas/benchmarks/run_result.schema.json``, and writes the
-companion Markdown summary.
+fitness-function catalog, and benchmark environment manifests,
+assembles one record per invocation conforming to
+``schemas/benchmarks/run_result.schema.json``, and writes the companion
+Markdown summary.
 
 The script is intentionally conservative: it uses only the Python
 standard library, writes deterministic bytes (sorted keys, explicit
@@ -35,7 +36,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
-RUN_RESULT_SCHEMA_VERSION = 1
+RUN_RESULT_SCHEMA_VERSION = 2
 RECORD_KIND = "benchmark_run_result_record"
 
 FITNESS_CATALOG_REL = "artifacts/bench/fitness_function_catalog.yaml"
@@ -59,6 +60,12 @@ VALID_TRIGGERS = {
     "developer_invocation",
 }
 VALID_CORPUS_SUBSETS = {"full", "smoke"}
+VALID_ENVIRONMENT_PRESETS = {
+    "self_capture_current_machine",
+    "ref_macos_arm64_nominal",
+    "ref_windows_x86_64_nominal",
+    "ref_linux_x86_64_nominal",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,6 +76,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-context", default="self_capture", choices=sorted(VALID_RUN_CONTEXTS))
     parser.add_argument("--lane", default="developer_local", choices=sorted(VALID_LANES))
     parser.add_argument("--trigger", default="developer_invocation", choices=sorted(VALID_TRIGGERS))
+    parser.add_argument(
+        "--environment-preset",
+        default="self_capture_current_machine",
+        choices=sorted(VALID_ENVIRONMENT_PRESETS),
+    )
     parser.add_argument("--regression-demo", action="store_true")
     parser.add_argument("--verify-seed", action="store_true")
     return parser.parse_args()
@@ -507,13 +519,100 @@ def toolchain_pin_seed() -> dict[str, Any]:
     }
 
 
-def hardware_definition_seed(run_id: str) -> dict[str, Any]:
-    return {
-        "definition_id": "hardware_definition.reserved.not_yet_seeded",
-        "definition_revision": 1,
-        "is_council_approved_baseline": False,
-        "notes_ref": f"hardware_definition_note.seed.{run_id.split('.')[-1]}",
-    }
+ENVIRONMENT_PRESET_ROWS: dict[str, dict[str, dict[str, Any]]] = {
+    "self_capture_current_machine": {
+        "hardware_definition": {
+            "definition_id": "hardware_definition.self_capture.current_machine_reported",
+            "definition_revision": 1,
+            "is_council_approved_baseline": False,
+            "notes_ref": "hardware_definition_note.current_machine.self_capture",
+        },
+        "environment_definition": {
+            "definition_id": "environment_definition.self_capture.current_machine_default",
+            "definition_revision": 1,
+            "display_class_id": "display_class.self_capture.current_machine_reported",
+            "lab_image_id": "lab_image.self_capture.unmanaged_local.rev1",
+            "lab_image_revision": 1,
+            "power_posture_id": "power_posture.self_capture.reported_out_of_band",
+            "thermal_posture_id": "thermal_posture.self_capture.reported_out_of_band",
+            "calibration_rule_set_id": "calibration_rule_set.self_capture_disclosure",
+            "calibration_rule_set_revision": 1,
+            "is_council_approved_reference_environment": False,
+            "comparability_note_ref": "benchmark_environment_note.self_capture.current_machine_default",
+        },
+    },
+    "ref_macos_arm64_nominal": {
+        "hardware_definition": {
+            "definition_id": "hardware_definition.ref.macos15.arm64.apple_silicon_14in",
+            "definition_revision": 1,
+            "is_council_approved_baseline": True,
+            "notes_ref": "hardware_definition_note.ref.macos15.arm64.apple_silicon_14in",
+        },
+        "environment_definition": {
+            "definition_id": "environment_definition.ref.macos15.arm64.internal_14in_nominal",
+            "definition_revision": 1,
+            "display_class_id": "display_class.internal_14in_retina_3024x1964_sdr60",
+            "lab_image_id": "lab_image.macos15.arm64.rev1",
+            "lab_image_revision": 1,
+            "power_posture_id": "power_posture.ac_balanced",
+            "thermal_posture_id": "thermal_posture.nominal",
+            "calibration_rule_set_id": "calibration_rule_set.reference_lab",
+            "calibration_rule_set_revision": 1,
+            "is_council_approved_reference_environment": True,
+            "comparability_note_ref": None,
+        },
+    },
+    "ref_windows_x86_64_nominal": {
+        "hardware_definition": {
+            "definition_id": "hardware_definition.ref.windows11.x86_64.thinkpad_t14_gen5",
+            "definition_revision": 1,
+            "is_council_approved_baseline": True,
+            "notes_ref": "hardware_definition_note.ref.windows11.x86_64.thinkpad_t14_gen5",
+        },
+        "environment_definition": {
+            "definition_id": "environment_definition.ref.windows11.x86_64.internal_14in_nominal",
+            "definition_revision": 1,
+            "display_class_id": "display_class.internal_14in_1920x1200_sdr60",
+            "lab_image_id": "lab_image.windows11.x86_64.rev1",
+            "lab_image_revision": 1,
+            "power_posture_id": "power_posture.ac_balanced",
+            "thermal_posture_id": "thermal_posture.nominal",
+            "calibration_rule_set_id": "calibration_rule_set.reference_lab",
+            "calibration_rule_set_revision": 1,
+            "is_council_approved_reference_environment": True,
+            "comparability_note_ref": None,
+        },
+    },
+    "ref_linux_x86_64_nominal": {
+        "hardware_definition": {
+            "definition_id": "hardware_definition.ref.ubuntu24_04.x86_64.framework13",
+            "definition_revision": 1,
+            "is_council_approved_baseline": True,
+            "notes_ref": "hardware_definition_note.ref.ubuntu24_04.x86_64.framework13",
+        },
+        "environment_definition": {
+            "definition_id": "environment_definition.ref.ubuntu24_04.x86_64.internal_13_5in_nominal",
+            "definition_revision": 1,
+            "display_class_id": "display_class.internal_13_5in_2256x1504_sdr60",
+            "lab_image_id": "lab_image.ubuntu24_04.x86_64.rev1",
+            "lab_image_revision": 1,
+            "power_posture_id": "power_posture.ac_balanced",
+            "thermal_posture_id": "thermal_posture.nominal",
+            "calibration_rule_set_id": "calibration_rule_set.reference_lab",
+            "calibration_rule_set_revision": 1,
+            "is_council_approved_reference_environment": True,
+            "comparability_note_ref": None,
+        },
+    },
+}
+
+
+def hardware_definition_seed(environment_preset: str) -> dict[str, Any]:
+    return ENVIRONMENT_PRESET_ROWS[environment_preset]["hardware_definition"].copy()
+
+
+def environment_definition_seed(environment_preset: str) -> dict[str, Any]:
+    return ENVIRONMENT_PRESET_ROWS[environment_preset]["environment_definition"].copy()
 
 
 def build_run_record(
@@ -529,11 +628,12 @@ def build_run_record(
     evidence_channels: list[str],
     notes_ref: str,
     out_dir_rel: str,
+    dashboard_ref: str | None,
+    environment_preset: str,
 ) -> dict[str, Any]:
     row_count, trigger_count = summarise(rows)
     raw_ref = f"{out_dir_rel}/raw/{run_id}.json"
     report_ref = f"{out_dir_rel}/report/{run_id}.md"
-    dashboard_ref = f"{out_dir_rel}/dashboard.json"
     ts = pinned_epoch_timestamp()
     return {
         "run_result_schema_version": RUN_RESULT_SCHEMA_VERSION,
@@ -550,7 +650,8 @@ def build_run_record(
         "corpus_manifest": corpus_manifest,
         "protected_metrics": protected_metrics,
         "fitness_function_catalog": fitness_catalog,
-        "hardware_definition": hardware_definition_seed(run_id),
+        "hardware_definition": hardware_definition_seed(environment_preset),
+        "environment_definition": environment_definition_seed(environment_preset),
         "comparability": {
             "comparability_class": "not_yet_comparable",
             "quarantine_reasons": [],
@@ -577,100 +678,177 @@ def dump_json(path: Path, body: Any) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def relative_ref(from_ref: str, to_ref: str | None) -> str | None:
+    if to_ref is None:
+        return None
+    return os.path.relpath(to_ref, start=Path(from_ref).parent).replace(os.sep, "/")
+
+
 def render_self_capture_markdown(record: dict[str, Any]) -> str:
+    summary = record["summary"]
+    report_ref = summary["human_readable_summary_ref"]
+    raw_link = relative_ref(report_ref, summary["raw_artifact_ref"])
+    dashboard_link = relative_ref(report_ref, summary["dashboard_ref"])
+    protected_metrics_link = relative_ref(report_ref, PROTECTED_METRICS_REL)
+    fitness_catalog_link = relative_ref(report_ref, FITNESS_CATALOG_REL)
+    corpus_manifest_link = relative_ref(report_ref, CORPUS_MANIFEST_REL)
+    hardware_manifest_link = relative_ref(
+        report_ref, "artifacts/perf/reference_hardware_manifest.yaml"
+    )
+    lab_image_manifest_link = relative_ref(
+        report_ref, "artifacts/perf/lab_image_manifest.yaml"
+    )
+    parity_doc_link = relative_ref(report_ref, "docs/perf/self_capture_parity.md")
+    trace_bundle_link = relative_ref(report_ref, "artifacts/traces/examples/full_scene.json")
+    if record["run_context"] == "self_capture":
+        context_note = (
+            "**This run is `self_capture`, not a reference capture.** The numbers\n"
+            "below describe harness self-health on a seeded input set; they are\n"
+            "not admissible as release-evidence input. A reference capture MUST\n"
+            "run on the `ci_nightly` lane against a council-approved hardware\n"
+            "row and benchmark environment row.\n\n"
+        )
+    else:
+        context_note = (
+            f"**This run is `{record['run_context']}`.** The row results below describe\n"
+            "the current harness input set and still depend on the cited hardware row,\n"
+            "benchmark environment row, and comparability posture before they can widen\n"
+            "into release or publication evidence.\n\n"
+        )
     header = (
-        "# Benchmark run: `benchmark_run.seed.self_capture`\n\n"
+        f"# Benchmark run: `{record['run_id']}`\n\n"
         "| Field                              | Value                                                                 |\n"
         "|------------------------------------|-----------------------------------------------------------------------|\n"
-        "| Run context                        | `self_capture`                                                        |\n"
-        "| Lane                               | `developer_local`                                                     |\n"
-        "| Trigger                            | `developer_invocation`                                                |\n"
+        f"| Run context                        | `{record['run_context']}`                                                        |\n"
+        f"| Lane                               | `{record['lane_class']}`                                                     |\n"
+        f"| Trigger                            | `{record['trigger_kind']}`                                                |\n"
         f"| Measured on                        | {record['measured_on']}                                                            |\n"
         f"| Build identity                     | `{record['build_identity']['exact_build_identity_ref']}`                              |\n"
-        "| Release channel                    | `dev_local`                                                           |\n"
-        "| Workspace version                  | 0.0.0                                                                 |\n"
+        f"| Release channel                    | `{record['build_identity']['release_channel_class']}`                                                           |\n"
+        f"| Workspace version                  | {record['build_identity']['workspace_version']}                                                                 |\n"
         f"| Corpus manifest revision           | {record['corpus_manifest']['manifest_revision']}                                                                     |\n"
         f"| Protected metrics revision         | {record['protected_metrics']['metrics_file_revision']}                                                                     |\n"
         f"| Fitness-function catalog revision  | {record['fitness_function_catalog']['catalog_revision']}                                                                     |\n"
-        "| Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)  |\n"
-        "| Comparability                      | `not_yet_comparable` (no quarantine reasons)                          |\n\n"
-        "**This run is `self_capture`, not a reference capture.** The numbers\n"
-        "below describe harness self-health on a seeded input set; they are\n"
-        "not admissible as release-evidence input. A reference capture MUST\n"
-        "run on the `ci_nightly` lane against a council-approved hardware\n"
-        "baseline.\n\n"
-        "## Row results\n\n"
-        "| Fitness row                          | Result        | Trend                         | Threshold mode                    | Notes                                                                                          |\n"
-        "|--------------------------------------|---------------|-------------------------------|-----------------------------------|------------------------------------------------------------------------------------------------|\n"
-        "| `ff.warm_start_to_first_paint`       | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Trace digest seeded from `artifacts/traces/examples/full_scene.json`.                          |\n"
-        "| `ff.first_paint`                     | `provisional` | `unknown_insufficient_history`| `absolute_p50_and_p95`            | Same trace digest; numeric SLO bars deferred to benchmark-council ratification.                |\n"
-        "| `ff.input_to_paint`                  | `provisional` | `unknown_insufficient_history`| `absolute_p50_and_p95`            | Eight hot-path marks from the fixture scene.                                                   |\n"
-        "| `ff.buffer_operations`               | `pass`        | `unchanged`                   | `boolean_gate`                    | Undo-class correctness gate reads `artifacts/buffer/buffer_metrics_seed.json`.                 |\n"
-        "| `ff.vfs_save_conflict_handling`      | `pass`        | `unchanged`                   | `boolean_gate`                    | Compare-before-write floor held against the frozen VFS decision examples.                      |\n"
-        "| `ff.benchmark_lab_health`            | `pass`        | `unchanged`                   | `boolean_gate`                    | Self-audit across governance-packet, corpus-manifest, and fitness-catalog resolution.          |\n"
-        "| `ff.power_thermal_posture`           | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Data source `to_be_wired_by_benchmark_council`; row reserved by the fitness catalog.           |\n"
-        "| `ff.restore_fidelity`                | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Entry-restore harness not yet wired; reserves the onboarding-metric name.                      |\n"
-        "| `ff.command_parity`                  | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Command-graph parity harness not yet wired; ADR landing required.                              |\n\n"
-        "Row-count totals: **3 pass**, 0 warn, 0 fail, 0 not_measured, 0 waived,\n"
-        "**6 provisional**.\n\n"
-        "## Links\n\n"
-        "- Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.self_capture.json`](../raw/benchmark_run.seed.self_capture.json)\n"
-        "- Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)\n"
-        "- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)\n"
-        "- Fitness-function catalog: [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)\n"
-        "- Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)\n"
-        "- Trace bundle seed: [`artifacts/traces/examples/full_scene.json`](../../../traces/examples/full_scene.json)\n"
+        f"| Hardware definition                | `{record['hardware_definition']['definition_id']}` (council-approved: {'yes' if record['hardware_definition']['is_council_approved_baseline'] else 'no'})  |\n"
+        f"| Environment definition             | `{record['environment_definition']['definition_id']}`                                   |\n"
+        f"| Display class                      | `{record['environment_definition']['display_class_id']}`                                  |\n"
+        f"| Lab image                          | `{record['environment_definition']['lab_image_id']}` @ rev {record['environment_definition']['lab_image_revision']}                |\n"
+        f"| Power / thermal posture            | `{record['environment_definition']['power_posture_id']}` / `{record['environment_definition']['thermal_posture_id']}` |\n"
+        f"| Comparability                      | `{record['comparability']['comparability_class']}` (no quarantine reasons)                          |\n\n"
+        + context_note
+        + "## Row results\n\n"
+        + "| Fitness row                          | Result        | Trend                         | Threshold mode                    | Notes                                                                                          |\n"
+        + "|--------------------------------------|---------------|-------------------------------|-----------------------------------|------------------------------------------------------------------------------------------------|\n"
+        + "| `ff.warm_start_to_first_paint`       | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Trace digest seeded from `artifacts/traces/examples/full_scene.json`.                          |\n"
+        + "| `ff.first_paint`                     | `provisional` | `unknown_insufficient_history`| `absolute_p50_and_p95`            | Same trace digest; numeric SLO bars deferred to benchmark-council ratification.                |\n"
+        + "| `ff.input_to_paint`                  | `provisional` | `unknown_insufficient_history`| `absolute_p50_and_p95`            | Eight hot-path marks from the fixture scene.                                                   |\n"
+        + "| `ff.buffer_operations`               | `pass`        | `unchanged`                   | `boolean_gate`                    | Undo-class correctness gate reads `artifacts/buffer/buffer_metrics_seed.json`.                 |\n"
+        + "| `ff.vfs_save_conflict_handling`      | `pass`        | `unchanged`                   | `boolean_gate`                    | Compare-before-write floor held against the frozen VFS decision examples.                      |\n"
+        + "| `ff.benchmark_lab_health`            | `pass`        | `unchanged`                   | `boolean_gate`                    | Self-audit across governance-packet, corpus-manifest, and fitness-catalog resolution.          |\n"
+        + "| `ff.power_thermal_posture`           | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Data source `to_be_wired_by_benchmark_council`; row reserved by the fitness catalog.           |\n"
+        + "| `ff.restore_fidelity`                | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Entry-restore harness not yet wired; reserves the onboarding-metric name.                      |\n"
+        + "| `ff.command_parity`                  | `provisional` | `unknown_insufficient_history`| `to_be_set_by_benchmark_council`  | Command-graph parity harness not yet wired; ADR landing required.                              |\n\n"
+        + "Row-count totals: **3 pass**, 0 warn, 0 fail, 0 not_measured, 0 waived,\n"
+        + "**6 provisional**.\n\n"
+        + "## Links\n\n"
+        f"- Raw artifact: [`{summary['raw_artifact_ref']}`]({raw_link})\n"
+        + (
+            f"- Dashboard snapshot: [`{summary['dashboard_ref']}`]({dashboard_link})\n"
+            if dashboard_link is not None
+            else ""
+        )
+        + f"- Protected metrics: [`{PROTECTED_METRICS_REL}`]({protected_metrics_link})\n"
+        + f"- Fitness-function catalog: [`{FITNESS_CATALOG_REL}`]({fitness_catalog_link})\n"
+        + f"- Corpus manifest: [`{CORPUS_MANIFEST_REL}`]({corpus_manifest_link})\n"
+        + f"- Reference hardware manifest: [`artifacts/perf/reference_hardware_manifest.yaml`]({hardware_manifest_link})\n"
+        + f"- Lab-image manifest: [`artifacts/perf/lab_image_manifest.yaml`]({lab_image_manifest_link})\n"
+        + f"- Self-capture parity guidance: [`docs/perf/self_capture_parity.md`]({parity_doc_link})\n"
+        + f"- Trace bundle seed: [`artifacts/traces/examples/full_scene.json`]({trace_bundle_link})\n"
     )
     return header
 
 
 def render_regression_markdown(record: dict[str, Any]) -> str:
+    summary = record["summary"]
+    report_ref = summary["human_readable_summary_ref"]
+    raw_link = relative_ref(report_ref, summary["raw_artifact_ref"])
+    dashboard_link = relative_ref(report_ref, summary["dashboard_ref"])
+    protected_metrics_link = relative_ref(report_ref, PROTECTED_METRICS_REL)
+    fitness_catalog_link = relative_ref(report_ref, FITNESS_CATALOG_REL)
+    corpus_manifest_link = relative_ref(report_ref, CORPUS_MANIFEST_REL)
+    hardware_manifest_link = relative_ref(
+        report_ref, "artifacts/perf/reference_hardware_manifest.yaml"
+    )
+    lab_image_manifest_link = relative_ref(
+        report_ref, "artifacts/perf/lab_image_manifest.yaml"
+    )
+    parity_doc_link = relative_ref(report_ref, "docs/perf/self_capture_parity.md")
+    if record["run_context"] == "self_capture":
+        regression_scope_note = (
+            "artifact. It is `self_capture`, not a reference capture — the\n"
+            "fail verdict below is a harness demonstration, not a release signal.\n\n"
+        )
+    else:
+        regression_scope_note = (
+            f"artifact. It is `{record['run_context']}` — the\n"
+            "fail verdict below is still a harness demonstration, not a release signal.\n\n"
+        )
     return (
-        "# Benchmark run: `benchmark_run.seed.regression_example`\n\n"
+        f"# Benchmark run: `{record['run_id']}`\n\n"
         "| Field                              | Value                                                                  |\n"
         "|------------------------------------|------------------------------------------------------------------------|\n"
-        "| Run context                        | `self_capture`                                                         |\n"
-        "| Lane                               | `developer_local`                                                      |\n"
-        "| Trigger                            | `developer_invocation`                                                 |\n"
+        f"| Run context                        | `{record['run_context']}`                                                         |\n"
+        f"| Lane                               | `{record['lane_class']}`                                                      |\n"
+        f"| Trigger                            | `{record['trigger_kind']}`                                                 |\n"
         f"| Measured on                        | {record['measured_on']}                                                             |\n"
         f"| Build identity                     | `{record['build_identity']['exact_build_identity_ref']}`                         |\n"
-        "| Release channel                    | `dev_local`                                                            |\n"
-        "| Workspace version                  | 0.0.0                                                                  |\n"
+        f"| Release channel                    | `{record['build_identity']['release_channel_class']}`                                                            |\n"
+        f"| Workspace version                  | {record['build_identity']['workspace_version']}                                                                  |\n"
         f"| Corpus manifest revision           | {record['corpus_manifest']['manifest_revision']}                                                                      |\n"
         f"| Protected metrics revision         | {record['protected_metrics']['metrics_file_revision']}                                                                      |\n"
         f"| Fitness-function catalog revision  | {record['fitness_function_catalog']['catalog_revision']}                                                                      |\n"
-        "| Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)   |\n"
-        "| Comparability                      | `not_yet_comparable` (no quarantine reasons)                           |\n\n"
+        f"| Hardware definition                | `{record['hardware_definition']['definition_id']}` (council-approved: {'yes' if record['hardware_definition']['is_council_approved_baseline'] else 'no'})   |\n"
+        f"| Environment definition             | `{record['environment_definition']['definition_id']}`                                    |\n"
+        f"| Display class                      | `{record['environment_definition']['display_class_id']}`                                   |\n"
+        f"| Lab image                          | `{record['environment_definition']['lab_image_id']}` @ rev {record['environment_definition']['lab_image_revision']}                 |\n"
+        f"| Power / thermal posture            | `{record['environment_definition']['power_posture_id']}` / `{record['environment_definition']['thermal_posture_id']}`  |\n"
+        f"| Comparability                      | `{record['comparability']['comparability_class']}` (no quarantine reasons)                           |\n\n"
         "**This run intentionally demonstrates the regression path.** The\n"
         "lane emits it so the benchmark-lab wrappers and the nightly workflow\n"
         "can show a non-zero exit code end to end, with a named fitness row,\n"
         "a named regression-trigger kind, and a pointer back to the raw\n"
-        "artifact. It is `self_capture`, not a reference capture — the\n"
-        "fail verdict below is a harness demonstration, not a release signal.\n\n"
-        "## Row results\n\n"
-        "| Fitness row                 | Result | Trend        | Threshold mode | Regression trigger    | Notes                                                                                   |\n"
-        "|-----------------------------|--------|--------------|----------------|-----------------------|-----------------------------------------------------------------------------------------|\n"
-        "| `ff.benchmark_lab_health`   | `fail` | `regressing` | `boolean_gate` | `corpus_row_missing`  | The harness pretended a cited corpus id failed to resolve; the gate reported a fail.    |\n\n"
-        "Row-count totals: 0 pass, 0 warn, **1 fail**, 0 not_measured, 0 waived,\n"
-        "0 provisional. The regression-trigger bucket increments\n"
-        "`corpus_row_missing` by one.\n\n"
-        "## Why this is the regression demonstration\n\n"
-        "`ff.benchmark_lab_health` is the fitness row whose threshold reads\n"
-        "\"every fixture cited by a benchmark report resolves to an id in the\n"
-        "corpus manifest\". The fixture id this run cites\n"
-        "(`corpus.workflow.startup_warm_to_first_paint`) resolves cleanly\n"
-        "against the real manifest revision — the `fail` here comes from the\n"
-        "harness deliberately flipping the boolean outcome on emit to exercise\n"
-        "the wiring. A real nightly lane that hit the same regression would\n"
-        "fail the run, record the `corpus_row_missing` trigger, and flag the\n"
-        "row on the dashboard under the same summary_ref that this file\n"
-        "carries.\n\n"
-        "## Links\n\n"
-        "- Raw artifact: [`artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.regression_example.json`](../raw/benchmark_run.seed.regression_example.json)\n"
-        "- Dashboard snapshot: [`artifacts/benchmarks/dashboard_seed/dashboard.json`](../dashboard.json)\n"
-        "- Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)\n"
-        "- Fitness-function catalog row: `ff.benchmark_lab_health` in [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)\n"
-        "- Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)\n"
+        + regression_scope_note
+        + "## Row results\n\n"
+        + "| Fitness row                 | Result | Trend        | Threshold mode | Regression trigger    | Notes                                                                                   |\n"
+        + "|-----------------------------|--------|--------------|----------------|-----------------------|-----------------------------------------------------------------------------------------|\n"
+        + "| `ff.benchmark_lab_health`   | `fail` | `regressing` | `boolean_gate` | `corpus_row_missing`  | The harness pretended a cited corpus id failed to resolve; the gate reported a fail.    |\n\n"
+        + "Row-count totals: 0 pass, 0 warn, **1 fail**, 0 not_measured, 0 waived,\n"
+        + "0 provisional. The regression-trigger bucket increments\n"
+        + "`corpus_row_missing` by one.\n\n"
+        + "## Why this is the regression demonstration\n\n"
+        + "`ff.benchmark_lab_health` is the fitness row whose threshold reads\n"
+        + "\"every fixture cited by a benchmark report resolves to an id in the\n"
+        + "corpus manifest\". The fixture id this run cites\n"
+        + "(`corpus.workflow.startup_warm_to_first_paint`) resolves cleanly\n"
+        + "against the real manifest revision — the `fail` here comes from the\n"
+        + "harness deliberately flipping the boolean outcome on emit to exercise\n"
+        + "the wiring. A real nightly lane that hit the same regression would\n"
+        + "fail the run, record the `corpus_row_missing` trigger, and flag the\n"
+        + "row on the dashboard under the same summary_ref that this file\n"
+        + "carries.\n\n"
+        + "## Links\n\n"
+        f"- Raw artifact: [`{summary['raw_artifact_ref']}`]({raw_link})\n"
+        + (
+            f"- Dashboard snapshot: [`{summary['dashboard_ref']}`]({dashboard_link})\n"
+            if dashboard_link is not None
+            else ""
+        )
+        + f"- Protected metrics: [`{PROTECTED_METRICS_REL}`]({protected_metrics_link})\n"
+        + f"- Fitness-function catalog row: `ff.benchmark_lab_health` in [`{FITNESS_CATALOG_REL}`]({fitness_catalog_link})\n"
+        + f"- Corpus manifest: [`{CORPUS_MANIFEST_REL}`]({corpus_manifest_link})\n"
+        + f"- Reference hardware manifest: [`artifacts/perf/reference_hardware_manifest.yaml`]({hardware_manifest_link})\n"
+        + f"- Lab-image manifest: [`artifacts/perf/lab_image_manifest.yaml`]({lab_image_manifest_link})\n"
+        + f"- Self-capture parity guidance: [`docs/perf/self_capture_parity.md`]({parity_doc_link})\n"
     )
 
 
@@ -699,6 +877,15 @@ def dashboard_snapshot(records: list[dict[str, Any]]) -> dict[str, Any]:
                 "is_council_approved_baseline": rec["hardware_definition"][
                     "is_council_approved_baseline"
                 ],
+                "environment_definition_id": rec["environment_definition"]["definition_id"],
+                "display_class_id": rec["environment_definition"]["display_class_id"],
+                "lab_image_id": rec["environment_definition"]["lab_image_id"],
+                "lab_image_revision": rec["environment_definition"][
+                    "lab_image_revision"
+                ],
+                "is_council_approved_reference_environment": rec[
+                    "environment_definition"
+                ]["is_council_approved_reference_environment"],
                 "comparability_class": rec["comparability"]["comparability_class"],
                 "row_count_by_result": rec["summary"]["row_count_by_result"],
                 "regression_trigger_count_by_kind": rec["summary"][
@@ -798,6 +985,8 @@ def emit_seed_set(repo_root: Path, out_dir: Path) -> tuple[dict[str, Any], dict[
         evidence_channels=evidence_channels_self_capture(),
         notes_ref="benchmark_run_note.seed.self_capture",
         out_dir_rel=out_rel,
+        dashboard_ref=f"{out_rel}/dashboard.json",
+        environment_preset="self_capture_current_machine",
     )
     regr_rec = build_run_record(
         run_id="benchmark_run.seed.regression_example",
@@ -811,6 +1000,8 @@ def emit_seed_set(repo_root: Path, out_dir: Path) -> tuple[dict[str, Any], dict[
         evidence_channels=evidence_channels_regression_example(),
         notes_ref="benchmark_run_note.seed.regression_example",
         out_dir_rel=out_rel,
+        dashboard_ref=f"{out_rel}/dashboard.json",
+        environment_preset="self_capture_current_machine",
     )
     dashboard = dashboard_snapshot([self_rec, regr_rec])
 
@@ -888,6 +1079,7 @@ def emit_standard_run(
     lane: str,
     trigger: str,
     corpus_subset: str,
+    environment_preset: str,
 ) -> int:
     corpus_manifest = parse_corpus_manifest(
         read_text(repo_root / CORPUS_MANIFEST_REL)
@@ -913,6 +1105,8 @@ def emit_standard_run(
         evidence_channels=evidence_channels_self_capture(),
         notes_ref=f"benchmark_run_note.local.{run_context}.{run_id_suffix}",
         out_dir_rel=resolve_out_dir_rel(repo_root, out_dir),
+        dashboard_ref=None,
+        environment_preset=environment_preset,
     )
     dump_json(out_dir / "raw" / f"{run_id}.json", rec)
     (out_dir / "report").mkdir(parents=True, exist_ok=True)
@@ -930,6 +1124,7 @@ def emit_regression_run(
     run_context: str,
     lane: str,
     trigger: str,
+    environment_preset: str,
 ) -> int:
     corpus_manifest = parse_corpus_manifest(
         read_text(repo_root / CORPUS_MANIFEST_REL)
@@ -953,6 +1148,8 @@ def emit_regression_run(
         evidence_channels=evidence_channels_regression_example(),
         notes_ref=f"benchmark_run_note.local.regression_demo",
         out_dir_rel=resolve_out_dir_rel(repo_root, out_dir),
+        dashboard_ref=None,
+        environment_preset=environment_preset,
     )
     dump_json(out_dir / "raw" / f"{run_id}.json", rec)
     (out_dir / "report").mkdir(parents=True, exist_ok=True)
@@ -986,6 +1183,7 @@ def main() -> int:
             run_context=args.run_context,
             lane=args.lane,
             trigger=args.trigger,
+            environment_preset=args.environment_preset,
         )
     return emit_standard_run(
         repo_root,
@@ -994,6 +1192,7 @@ def main() -> int:
         lane=args.lane,
         trigger=args.trigger,
         corpus_subset=args.corpus_subset,
+        environment_preset=args.environment_preset,
     )
 
 

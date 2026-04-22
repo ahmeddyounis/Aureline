@@ -19,6 +19,7 @@
 #                            [--run-context reference_capture|provisional_capture|self_capture|smoke_subset]
 #                            [--lane ci_nightly|ci_merge_queue|ci_preview|developer_local]
 #                            [--trigger scheduled_nightly|manual_dispatch|commit_gated|developer_invocation]
+#                            [--environment-preset self_capture_current_machine|ref_macos_arm64_nominal|ref_windows_x86_64_nominal|ref_linux_x86_64_nominal]
 #                            [--out-dir DIR]
 #                            [--regression-demo]
 #                            [--skip-build]
@@ -29,6 +30,7 @@
 #   --run-context         self_capture
 #   --lane                developer_local
 #   --trigger             developer_invocation
+#   --environment-preset  self_capture_current_machine
 #   --out-dir             artifacts/benchmarks/dashboard_seed
 #
 # Modes:
@@ -55,6 +57,7 @@ CORPUS_SUBSET="smoke"
 RUN_CONTEXT="self_capture"
 LANE="developer_local"
 TRIGGER="developer_invocation"
+ENVIRONMENT_PRESET="self_capture_current_machine"
 OUT_DIR="artifacts/benchmarks/dashboard_seed"
 REGRESSION_DEMO="0"
 SKIP_BUILD="0"
@@ -70,6 +73,8 @@ while [[ $# -gt 0 ]]; do
     --lane=*) LANE="${1#--lane=}"; shift ;;
     --trigger) TRIGGER="${2:-}"; shift 2 ;;
     --trigger=*) TRIGGER="${1#--trigger=}"; shift ;;
+    --environment-preset) ENVIRONMENT_PRESET="${2:-}"; shift 2 ;;
+    --environment-preset=*) ENVIRONMENT_PRESET="${1#--environment-preset=}"; shift ;;
     --out-dir) OUT_DIR="${2:-}"; shift 2 ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}"; shift ;;
     --regression-demo) REGRESSION_DEMO="1"; shift ;;
@@ -85,6 +90,18 @@ done
 
 log() { printf '[benchmark_lab] %s\n' "$*"; }
 
+mkdir -p "${OUT_DIR}/raw" "${OUT_DIR}/report"
+
+if [[ "${VERIFY_SEED}" == "1" ]]; then
+  export SOURCE_DATE_EPOCH=0
+  export TZ=UTC
+  export LC_ALL=C
+  log "verifying committed seed under artifacts/benchmarks/dashboard_seed/"
+  exec python3 "${SCRIPT_DIR}/benchmark_lab_emit.py" \
+       --repo-root "${REPO_ROOT}" \
+       --verify-seed
+fi
+
 # Pin timestamp-affecting inputs so reruns on the same commit produce
 # byte-stable run records. Mirrors tools/build/build.sh.
 if [[ -z "${SOURCE_DATE_EPOCH:-}" ]]; then
@@ -93,15 +110,6 @@ fi
 export SOURCE_DATE_EPOCH
 export TZ=UTC
 export LC_ALL=C
-
-mkdir -p "${OUT_DIR}/raw" "${OUT_DIR}/report"
-
-if [[ "${VERIFY_SEED}" == "1" ]]; then
-  log "verifying committed seed under artifacts/benchmarks/dashboard_seed/"
-  exec python3 "${SCRIPT_DIR}/benchmark_lab_emit.py" \
-       --repo-root "${REPO_ROOT}" \
-       --verify-seed
-fi
 
 if [[ "${SKIP_BUILD}" != "1" ]]; then
   log "cargo build --locked --workspace --all-targets"
@@ -116,6 +124,7 @@ PY_ARGS=(
   --run-context "${RUN_CONTEXT}"
   --lane "${LANE}"
   --trigger "${TRIGGER}"
+  --environment-preset "${ENVIRONMENT_PRESET}"
 )
 
 if [[ "${REGRESSION_DEMO}" == "1" ]]; then

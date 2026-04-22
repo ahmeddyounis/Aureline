@@ -142,6 +142,8 @@ and scopes.
 ### Quality engineering
 
 - The `benchmark_governance`, `benchmark_change_control`,
+  `benchmark_reference_hardware_manifest`,
+  `benchmark_lab_image_manifest`, `benchmark_self_capture_parity`,
   `protected_metrics_file`, `benchmark_publication_pack`,
   `benchmark_public_comparison_rules`, `fitness_function_catalog`,
   `benchmark_corpus_manifest`, `compatibility_qualification_seed`,

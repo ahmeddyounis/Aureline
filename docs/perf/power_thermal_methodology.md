@@ -17,6 +17,13 @@ the same change.
 - [`/artifacts/perf/reference_laptop_matrix.yaml`](../../artifacts/perf/reference_laptop_matrix.yaml)
   — machine-readable reference-profile roster, capture postures,
   ambient assumptions, and provisional budgets.
+- [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  — canonical hardware rows and display classes the reference laptop
+  matrix resolves through.
+- [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
+  — lab-image revisions, benchmark-environment rows, calibration
+  checklists, and comparability-reset rules shared with benchmark
+  packets.
 - [`/schemas/benchmarks/power_thermal_capture.schema.json`](../../schemas/benchmarks/power_thermal_capture.schema.json)
   — boundary schema for raw power / thermal capture records.
 - [`/fixtures/perf/power_thermal_capture_examples/`](../../fixtures/perf/power_thermal_capture_examples/)
@@ -39,6 +46,9 @@ the same change.
 - [`/docs/benchmarks/public_comparison_rules.md`](../benchmarks/public_comparison_rules.md)
   — change-control and disclosure rules for any power / thermal claim
   that leaves the internal dashboard context.
+- [`/docs/perf/self_capture_parity.md`](./self_capture_parity.md)
+  — local-machine comparison rules when a capture narrows to a
+  self-capture instead of a frozen reference row.
 
 ## Scope and authority
 
@@ -87,6 +97,8 @@ run requires:
 
 - matching `reference_profile_id` and `reference_profile_revision`;
 - matching `reference_posture_id`;
+- matching the profile's `hardware_definition_ref`,
+  `display_class_id`, and `lab_image_ref`;
 - matching host architecture class and host platform class;
 - matching power source and battery mode;
 - ambient temperature within the declared tolerance band;

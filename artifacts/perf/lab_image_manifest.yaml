@@ -1,0 +1,269 @@
+# Benchmark lab-image, calibration, and environment-definition manifest.
+#
+# This file freezes the lab-image revisions, benchmark-environment rows,
+# calibration checklists, and comparability-reset rules the benchmark lab,
+# dashboard, publication packets, and self-capture parity guidance cite.
+
+schema_version: 1
+manifest_id: aureline.benchmark_lab_image_manifest
+manifest_revision: 1
+status: seeded
+
+overview_pages:
+  - docs/perf/power_thermal_methodology.md
+  - docs/perf/self_capture_parity.md
+  - docs/benchmarks/benchmark_lab_run_results.md
+reference_hardware_manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
+benchmark_run_schema_ref: schemas/benchmarks/run_result.schema.json
+
+comparability_reset_rules:
+  - change_id: lab_image_revision_changed
+    affected_fields:
+      - environment_definition.lab_image_id
+      - environment_definition.lab_image_revision
+    required_note: >
+      Record the old and new lab-image revision and mark the first
+      affected run not_yet_comparable until the benchmark baseline is
+      refreshed.
+
+  - change_id: power_policy_changed
+    affected_fields:
+      - environment_definition.power_posture_id
+    required_note: >
+      Explain the old and new power policy, whether AC versus battery
+      posture changed, and why the comparison remains valid or narrows.
+
+  - change_id: screen_configuration_changed
+    affected_fields:
+      - environment_definition.display_class_id
+    required_note: >
+      Name the old and new display class and state whether brightness,
+      scaling, refresh, HDR, or multi-display posture changed.
+
+  - change_id: thermal_posture_changed
+    affected_fields:
+      - environment_definition.thermal_posture_id
+    required_note: >
+      Name the old and new thermal posture and whether the run moved from
+      nominal to constrained capture or vice versa.
+
+  - change_id: calibration_rule_set_changed
+    affected_fields:
+      - environment_definition.calibration_rule_set_id
+      - environment_definition.calibration_rule_set_revision
+    required_note: >
+      Record the calibration checklist revision change and why the new
+      checklist does or does not preserve direct comparability.
+
+power_postures:
+  - id: power_posture.ac_balanced
+    label: AC attached, balanced OS power mode
+    source_of_truth: benchmark_lab_host_settings
+    notes: >
+      Default posture for nominal reference captures and publication-pack
+      evidence unless a narrower packet declares a battery-backed row.
+
+  - id: power_posture.battery_balanced
+    label: Battery backed, balanced OS power mode
+    source_of_truth: benchmark_lab_host_settings
+    notes: >
+      Use for battery drain and efficiency-aware captures with a declared
+      state-of-charge band.
+
+  - id: power_posture.self_capture.reported_out_of_band
+    label: Self-capture power posture reported out of band
+    source_of_truth: local_capture_summary
+    notes: >
+      Used when the current machine is not running a frozen lab image and
+      the packet can only disclose the local power posture, not normalize
+      it.
+
+thermal_postures:
+  - id: thermal_posture.nominal
+    label: Nominal thermal posture
+    notes: No thermal constraint or throttle is active at capture start.
+
+  - id: thermal_posture.efficiency_aware
+    label: EfficiencyAware capture posture
+    notes: >
+      Battery or power-saver posture narrows optional work budgets before
+      hot-path degradation.
+
+  - id: thermal_posture.thermal_constrained
+    label: ThermalConstrained capture posture
+    notes: >
+      Sustained pressure or thermal throttle is active and optional work
+      has already been shed.
+
+  - id: thermal_posture.self_capture.reported_out_of_band
+    label: Self-capture thermal posture reported out of band
+    notes: >
+      Use when the local machine is unmanaged and only a disclosure note
+      is available.
+
+calibration_rule_sets:
+  - id: calibration_rule_set.reference_lab
+    revision: 1
+    label: Reference-lab calibration checklist
+    warm_state_checklist:
+      - boot the declared lab image and wait for startup agents to settle
+      - perform one warm-up launch of Aureline before the measured run
+      - confirm pending OS updates, package refreshes, or index rebuilds are not still running
+    background_noise_controls:
+      - pause cloud sync, backup jobs, antivirus full scans, and package download agents
+      - use a dedicated benchmark user with no extra auto-start applications
+      - close browser tabs, chat clients, and any non-benchmark terminals
+    screen_configuration:
+      - only the declared display_class_id is active
+      - brightness is fixed at the declared target
+      - refresh is fixed at the declared capture rate
+      - HDR, adaptive tone, Night Shift, and vendor dynamic-refresh features are disabled
+    power_or_battery_posture:
+      - AC or battery posture must match the cited power_posture_id
+      - battery-backed captures begin inside the declared state-of-charge band
+      - OS power mode and any vendor battery utility posture remain unchanged for the run
+    thermal_preconditions:
+      - ambient temperature is 22.0C +/- 1.5C unless the environment row narrows it further
+      - no external cooling pad or manual fan-curve override is used
+      - the host does not begin already thermally constrained unless the row explicitly exercises that path
+    capture_prerequisites:
+      - exact-build identity, corpus manifest revision, protected-metrics revision, and run_context are recorded
+      - extension set and feature flags match the declared benchmark posture
+      - network posture matches the claimed row or is disclosed as a drift
+
+  - id: calibration_rule_set.self_capture_disclosure
+    revision: 1
+    label: Self-capture disclosure checklist
+    warm_state_checklist:
+      - say whether the run started cold, warm, or after prior workload
+      - note any large local services or toolchains that were already active
+      - capture whether background indexing or sync was still in flight
+    background_noise_controls:
+      - close avoidable local workload noise where possible
+      - if noise cannot be normalized, keep the run but disclose it explicitly
+      - do not relabel a noisy self_capture as a reference row after the fact
+    screen_configuration:
+      - disclose the active display setup, brightness, refresh, and scaling
+      - say whether external displays, HDR, or mirrored displays were active
+    power_or_battery_posture:
+      - disclose AC versus battery, battery saver, and user-selected power mode
+      - if posture changed during capture, say so and narrow the claim
+    thermal_preconditions:
+      - disclose whether the host already felt warm, loud, throttled, or constrained
+      - do not claim nominal parity if the capture started hot
+    capture_prerequisites:
+      - keep run_context = self_capture
+      - cite a hardware row and environment row from this manifest set
+      - include a parity note before comparing against any reference row
+
+lab_images:
+  - lab_image_id: lab_image.macos15.arm64.rev1
+    revision: 1
+    label: macOS 15.4 Apple Silicon benchmark image
+    host_os: macos
+    version_label: macOS 15.4
+    architecture_class: arm64
+    patch_policy: stable_patchline_frozen_within_revision
+    package_posture: stock_os_plus_benchmark_user_only
+    compatible_hardware_rows:
+      - hardware_definition.ref.macos15.arm64.apple_silicon_14in
+    default_calibration_rule_set_id: calibration_rule_set.reference_lab
+    default_calibration_rule_set_revision: 1
+    environment_rows:
+      - environment_id: environment_definition.ref.macos15.arm64.internal_14in_nominal
+        environment_revision: 1
+        hardware_definition_id: hardware_definition.ref.macos15.arm64.apple_silicon_14in
+        display_class_id: display_class.internal_14in_retina_3024x1964_sdr60
+        power_posture_id: power_posture.ac_balanced
+        thermal_posture_id: thermal_posture.nominal
+        calibration_rule_set_id: calibration_rule_set.reference_lab
+        calibration_rule_set_revision: 1
+        is_council_approved_reference_environment: true
+        comparability_note: >
+          Comparable only when the same Apple Silicon hardware row,
+          internal 14-inch SDR display class, lab-image revision, AC
+          balanced posture, and reference-lab calibration revision all
+          hold.
+
+  - lab_image_id: lab_image.windows11.x86_64.rev1
+    revision: 1
+    label: Windows 11 24H2 x86_64 benchmark image
+    host_os: windows
+    version_label: Windows 11 24H2
+    architecture_class: x86_64
+    patch_policy: stable_patchline_frozen_within_revision
+    package_posture: stock_os_plus_benchmark_user_only
+    compatible_hardware_rows:
+      - hardware_definition.ref.windows11.x86_64.thinkpad_t14_gen5
+    default_calibration_rule_set_id: calibration_rule_set.reference_lab
+    default_calibration_rule_set_revision: 1
+    environment_rows:
+      - environment_id: environment_definition.ref.windows11.x86_64.internal_14in_nominal
+        environment_revision: 1
+        hardware_definition_id: hardware_definition.ref.windows11.x86_64.thinkpad_t14_gen5
+        display_class_id: display_class.internal_14in_1920x1200_sdr60
+        power_posture_id: power_posture.ac_balanced
+        thermal_posture_id: thermal_posture.nominal
+        calibration_rule_set_id: calibration_rule_set.reference_lab
+        calibration_rule_set_revision: 1
+        is_council_approved_reference_environment: true
+        comparability_note: >
+          Comparable only when the same Windows x86_64 hardware row,
+          internal 14-inch SDR display class, lab-image revision, AC
+          balanced posture, and reference-lab calibration revision all
+          hold.
+
+  - lab_image_id: lab_image.ubuntu24_04.x86_64.rev1
+    revision: 1
+    label: Ubuntu 24.04.2 x86_64 benchmark image
+    host_os: linux
+    version_label: Ubuntu 24.04.2 LTS GNOME Wayland
+    architecture_class: x86_64
+    patch_policy: stable_patchline_frozen_within_revision
+    package_posture: stock_os_plus_benchmark_user_only
+    compatible_hardware_rows:
+      - hardware_definition.ref.ubuntu24_04.x86_64.framework13
+    default_calibration_rule_set_id: calibration_rule_set.reference_lab
+    default_calibration_rule_set_revision: 1
+    environment_rows:
+      - environment_id: environment_definition.ref.ubuntu24_04.x86_64.internal_13_5in_nominal
+        environment_revision: 1
+        hardware_definition_id: hardware_definition.ref.ubuntu24_04.x86_64.framework13
+        display_class_id: display_class.internal_13_5in_2256x1504_sdr60
+        power_posture_id: power_posture.ac_balanced
+        thermal_posture_id: thermal_posture.nominal
+        calibration_rule_set_id: calibration_rule_set.reference_lab
+        calibration_rule_set_revision: 1
+        is_council_approved_reference_environment: true
+        comparability_note: >
+          Comparable only when the same Ubuntu x86_64 hardware row,
+          internal 13.5-inch SDR display class, lab-image revision, AC
+          balanced posture, and reference-lab calibration revision all
+          hold.
+
+  - lab_image_id: lab_image.self_capture.unmanaged_local.rev1
+    revision: 1
+    label: Unmanaged self-capture local environment
+    host_os: mixed
+    version_label: local_machine_reported_out_of_band
+    architecture_class: mixed
+    patch_policy: no_frozen_patchline
+    package_posture: user_machine_as_found
+    compatible_hardware_rows:
+      - hardware_definition.self_capture.current_machine_reported
+    default_calibration_rule_set_id: calibration_rule_set.self_capture_disclosure
+    default_calibration_rule_set_revision: 1
+    environment_rows:
+      - environment_id: environment_definition.self_capture.current_machine_default
+        environment_revision: 1
+        hardware_definition_id: hardware_definition.self_capture.current_machine_reported
+        display_class_id: display_class.self_capture.current_machine_reported
+        power_posture_id: power_posture.self_capture.reported_out_of_band
+        thermal_posture_id: thermal_posture.self_capture.reported_out_of_band
+        calibration_rule_set_id: calibration_rule_set.self_capture_disclosure
+        calibration_rule_set_revision: 1
+        is_council_approved_reference_environment: false
+        comparability_note: >
+          Directional only. Use for self_capture exports when the local
+          machine summary is disclosed, but do not treat it as identical
+          to any approved reference environment.

@@ -11,6 +11,13 @@ Companion artifacts:
   — required packet shape for public benchmark evidence.
 - [`/docs/benchmarks/corpus_governance.md`](./corpus_governance.md)
   — change-control and protected-metric governance policy.
+- [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
+  — reference hardware rows and display classes benchmark packets cite.
+- [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
+  — lab-image revisions, environment rows, and calibration reset rules.
+- [`/docs/perf/self_capture_parity.md`](../perf/self_capture_parity.md)
+  — local-machine comparison guidance that keeps `self_capture`
+  directional without overclaiming parity.
 - [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
   — revisioned protected-metrics file every claim-bearing packet cites.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
@@ -36,6 +43,9 @@ Every public head-to-head comparison MUST disclose:
   side;
 - exact command line and material configuration knobs;
 - corpus-manifest revision and protected-metrics revision;
+- hardware-definition ref, benchmark-environment ref, display class,
+  and lab-image revision;
+- power / thermal posture plus any calibration-rule-set drift note;
 - task parity note, exclusions, and declared non-applicable features;
 - competitor version, plugin or extension posture, and install or
   launch posture;
@@ -86,6 +96,9 @@ following change in a way that affects comparability:
 - corpus-manifest revision;
 - protected-metrics revision;
 - reference hardware or lab-image definition;
+- display class, screen configuration, or HDR/refresh posture;
+- power policy, AC versus battery posture, or thermal posture;
+- calibration rule set or calibration revision;
 - Aureline docs/help applicability;
 - competitor version, plugin posture, or launch posture;
 - active waiver or advisory that narrows the claim; or

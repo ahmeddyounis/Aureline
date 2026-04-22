@@ -428,10 +428,19 @@ code.
   change instead of piggybacking on feature work. Machine-readable
   reference profiles live in
   [`/artifacts/perf/reference_laptop_matrix.yaml`](../artifacts/perf/reference_laptop_matrix.yaml);
+  benchmark hardware rows and display classes live in
+  [`/artifacts/perf/reference_hardware_manifest.yaml`](../artifacts/perf/reference_hardware_manifest.yaml);
+  lab-image revisions and calibration rules live in
+  [`/artifacts/perf/lab_image_manifest.yaml`](../artifacts/perf/lab_image_manifest.yaml);
   raw capture schema lives in
   [`/schemas/benchmarks/power_thermal_capture.schema.json`](../schemas/benchmarks/power_thermal_capture.schema.json);
   example captures live in
   [`/fixtures/perf/power_thermal_capture_examples/`](../fixtures/perf/power_thermal_capture_examples/).
+- [`perf/self_capture_parity.md`](./perf/self_capture_parity.md)
+  — guidance for comparing local-machine `self_capture` runs against
+  reference rows without pretending they are identical. Reuses the same
+  hardware rows, environment rows, display classes, and lab-image
+  revisions the benchmark dashboard and publication packet now cite.
 - [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
   — command-descriptor contract every palette, application /
   context menu, keybinding / shortcut-help layer, CLI help, AI-
@@ -723,14 +732,23 @@ above is paired with a YAML form that is authoritative for automation:
   comparability note, calibration state/date, change authority, CI
   review rule, and public-reporting posture for every protected
   fitness row.
+- [`/artifacts/perf/reference_hardware_manifest.yaml`](../artifacts/perf/reference_hardware_manifest.yaml)
+  — canonical benchmark hardware-row and display-class register. Every
+  benchmark packet now cites one hardware row from this manifest rather
+  than a free-text machine label.
+- [`/artifacts/perf/lab_image_manifest.yaml`](../artifacts/perf/lab_image_manifest.yaml)
+  — lab-image revision, benchmark-environment row, display/power/
+  thermal posture, and calibration-checklist register shared by
+  benchmark packets, the dashboard seed, and self-capture parity docs.
 - [`/schemas/benchmarks/run_result.schema.json`](../schemas/benchmarks/run_result.schema.json)
   — boundary schema for one benchmark-lab run-result record. Pins
   every record to a single exact-build identity, a single corpus-
   manifest revision, a single protected-metrics revision, a single
-  fitness-catalog revision, and a single hardware-definition ref;
-  freezes closed vocabularies for run context, comparability,
-  quarantine reason, row result, trend direction, threshold mode, SLI
-  kind, data-source kind, lane / trigger class, and
+  fitness-catalog revision, a single hardware-definition ref, and a
+  single benchmark-environment ref; freezes closed vocabularies for run
+  context, comparability, quarantine reason, row result, trend
+  direction, threshold mode, SLI kind, data-source kind, lane /
+  trigger class, and
   `regression_trigger_ref.kind`. Normative
   companion in
   [`/docs/benchmarks/benchmark_lab_run_results.md`](./benchmarks/benchmark_lab_run_results.md);

@@ -12,14 +12,18 @@
 | Corpus manifest revision           | 1                                                                     |
 | Protected metrics revision         | 1                                                                     |
 | Fitness-function catalog revision  | 1                                                                     |
-| Hardware definition                | `hardware_definition.reserved.not_yet_seeded` (council-approved: no)  |
+| Hardware definition                | `hardware_definition.self_capture.current_machine_reported` (council-approved: no)  |
+| Environment definition             | `environment_definition.self_capture.current_machine_default`                                   |
+| Display class                      | `display_class.self_capture.current_machine_reported`                                  |
+| Lab image                          | `lab_image.self_capture.unmanaged_local.rev1` @ rev 1                |
+| Power / thermal posture            | `power_posture.self_capture.reported_out_of_band` / `thermal_posture.self_capture.reported_out_of_band` |
 | Comparability                      | `not_yet_comparable` (no quarantine reasons)                          |
 
 **This run is `self_capture`, not a reference capture.** The numbers
 below describe harness self-health on a seeded input set; they are
 not admissible as release-evidence input. A reference capture MUST
 run on the `ci_nightly` lane against a council-approved hardware
-baseline.
+row and benchmark environment row.
 
 ## Row results
 
@@ -45,4 +49,7 @@ Row-count totals: **3 pass**, 0 warn, 0 fail, 0 not_measured, 0 waived,
 - Protected metrics: [`artifacts/bench/protected_metrics.yaml`](../../../bench/protected_metrics.yaml)
 - Fitness-function catalog: [`artifacts/bench/fitness_function_catalog.yaml`](../../../bench/fitness_function_catalog.yaml)
 - Corpus manifest: [`fixtures/benchmarks/corpus_manifest.yaml`](../../../../fixtures/benchmarks/corpus_manifest.yaml)
+- Reference hardware manifest: [`artifacts/perf/reference_hardware_manifest.yaml`](../../../perf/reference_hardware_manifest.yaml)
+- Lab-image manifest: [`artifacts/perf/lab_image_manifest.yaml`](../../../perf/lab_image_manifest.yaml)
+- Self-capture parity guidance: [`docs/perf/self_capture_parity.md`](../../../../docs/perf/self_capture_parity.md)
 - Trace bundle seed: [`artifacts/traces/examples/full_scene.json`](../../../traces/examples/full_scene.json)

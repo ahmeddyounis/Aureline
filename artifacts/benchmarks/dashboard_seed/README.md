@@ -7,8 +7,9 @@ stable registers the benchmark council already owns:
 - Raw run records under `raw/` conform to
   [`/schemas/benchmarks/run_result.schema.json`](../../../schemas/benchmarks/run_result.schema.json)
   and key every result by `exact_build_identity_ref`, the corpus
-  manifest revision, the fitness-function catalog revision, and a
-  hardware-definition ref rather than a free-text label.
+  manifest revision, the fitness-function catalog revision, one
+  hardware-definition ref, and one benchmark-environment ref rather
+  than a free-text label.
 - `dashboard.json` is the rolled-up snapshot the lane surfaces on the
   dashboard. It indexes the raw runs and carries trend counts per
   fitness row.
@@ -16,7 +17,9 @@ stable registers the benchmark council already owns:
   for one run. It links back to the raw artifact, names the protected
   metric, corpus row, or threshold that triggered any regression, and
   is distinct per `run_context` class (`reference_capture`,
-  `provisional_capture`, `self_capture`, `smoke_subset`).
+  `provisional_capture`, `self_capture`, `smoke_subset`). Reports now
+  quote the hardware row, environment row, display class, and lab-image
+  revision directly.
 
 The seed is deliberately frozen: regenerating it locally uses
 [`tools/benchmark_lab.sh --emit-seed`](../../../tools/benchmark_lab.sh)

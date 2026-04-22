@@ -6,6 +6,9 @@ dashboard or nightly-lab context.
 
 Related control artifacts:
 - docs/benchmarks/benchmark_lab_run_results.md
+- artifacts/perf/reference_hardware_manifest.yaml
+- artifacts/perf/lab_image_manifest.yaml
+- docs/perf/self_capture_parity.md
 - artifacts/bench/protected_metrics.yaml
 - artifacts/bench/corpus_change_control.yaml
 - docs/benchmarks/public_comparison_rules.md
@@ -87,6 +90,9 @@ before reading numbers.
 ## Environment notes
 
 - **Hardware definition ref:** `<hardware-definition-ref>`
+- **Benchmark environment ref:** `<environment-definition-ref>`
+- **Display class id:** `<display-class-id>`
+- **Lab image revision:** `<lab-image-id>@<revision>`
 - **Host OS / architecture:** `<os>` / `<arch>`
 - **Power / thermal posture:** `<battery/ac, governor, thermal note>`
 - **Display / font / locale note:** `<display scale, fonts, locale, input method>`
@@ -111,6 +117,7 @@ before reading numbers.
 - **Comparable baseline ref:** `<run_id or baseline ref>` or `none`
 - **Comparability note:** one sentence that says what the reader may and
   may not compare this packet against.
+- **Drift fields, if any:** `lab image` | `display class` | `power policy` | `thermal posture` | `calibration rules` | `none`
 - **Comparison-methodology change ref:** `<change_id from corpus_change_control.yaml>` or `none`
 
 ## Results cited
