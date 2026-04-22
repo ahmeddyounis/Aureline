@@ -1,0 +1,302 @@
+# Accessibility-tree coverage rows for launch-critical shell surfaces.
+#
+# Machine-readable companion to
+# docs/accessibility/a11y_ime_packet_template.md and
+# artifacts/accessibility/shell_conformance_checklist.yaml.
+#
+# Rules.
+#   - Every row names the shell surface, the required capture moments,
+#     the minimum semantic regions or role groups, and the focus-owner
+#     rule.
+#   - Tree rows cover host-owned shell chrome and host-owned review or
+#     trust surfaces. Embedded content may have its own tree, but the
+#     host boundary chrome still belongs here.
+#   - A missing visible host-owned control is a tree-coverage failure,
+#     not an allowed optimization.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/accessibility/a11y_ime_packet_template.md
+shell_checklist_source: artifacts/accessibility/shell_conformance_checklist.yaml
+platform_input_matrix_source: artifacts/accessibility/platform_input_matrix.yaml
+shell_boundary_source: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+
+capture_moment_vocabulary:
+  - initial_shell_render
+  - primary_text_input_focus
+  - overlay_or_dialog_open
+  - blocked_or_degraded_state_visible
+  - post_action_summary
+
+role_group_vocabulary:
+  - application_or_window_root
+  - heading_or_region_label
+  - searchbox_or_text_input
+  - list_or_tree
+  - grid_or_table
+  - toolbar_or_tablist
+  - button_or_link_actions
+  - status_or_alert_region
+  - terminal_or_log_region
+  - dialog_or_sheet
+
+tree_rows:
+  - tree_row_id: tree_coverage.shell_workspace_launcher
+    surface_group: shell_workspace_launcher
+    checklist_refs:
+      - shell_conformance.open_repo_from_launcher
+    capture_moments:
+      - initial_shell_render
+      - primary_text_input_focus
+      - blocked_or_degraded_state_visible
+    required_role_groups:
+      - application_or_window_root
+      - heading_or_region_label
+      - searchbox_or_text_input
+      - list_or_tree
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - start center
+      - recent work
+      - open workspace actions
+      - trust or recovery banner when present
+    focus_owner_rules:
+      - primary searchbox or active recent-work row owns focus at launch
+      - banners do not steal focus unless the user enters them
+    live_region_expectations:
+      - restore progress announces once
+      - blocked-open reasons remain readable and exportable
+    prohibited_gaps:
+      - unlabeled icon-only open actions
+      - missing-path or trust badges absent from the focused recent-work row
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+
+  - tree_row_id: tree_coverage.quick_open_palette
+    surface_group: palette_search
+    checklist_refs:
+      - shell_conformance.quick_open_palette
+    capture_moments:
+      - overlay_or_dialog_open
+      - primary_text_input_focus
+      - blocked_or_degraded_state_visible
+    required_role_groups:
+      - dialog_or_sheet
+      - searchbox_or_text_input
+      - list_or_tree
+      - status_or_alert_region
+      - button_or_link_actions
+    required_named_regions:
+      - quick open or command palette
+      - result list
+      - scope or disabled-reason summary
+    focus_owner_rules:
+      - the text input owns focus on open
+      - result-row focus remains within the palette surface until dismiss or invoke
+    live_region_expectations:
+      - result counts and disabled reasons narrate without repeating endlessly
+    prohibited_gaps:
+      - result rows missing identity or disabled reason
+      - palette footer actions present visually but missing from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+
+  - tree_row_id: tree_coverage.docs_reader
+    surface_group: docs_reader
+    checklist_refs:
+      - shell_conformance.read_docs_surface
+    capture_moments:
+      - initial_shell_render
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - application_or_window_root
+      - heading_or_region_label
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - document title region
+      - source or freshness summary
+      - citation or source-language actions
+    focus_owner_rules:
+      - heading or current reading anchor remains discoverable
+      - opening a citation returns focus to the originating anchor or action
+    live_region_expectations:
+      - source-language fallback and blocked-citation states remain narrated
+    prohibited_gaps:
+      - citation actions exposed only by hover
+      - status banner hidden from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+
+  - tree_row_id: tree_coverage.guided_tour_and_onboarding
+    surface_group: guided_tour_and_onboarding
+    checklist_refs:
+      - shell_conformance.guided_tour_or_onboarding_action
+    capture_moments:
+      - overlay_or_dialog_open
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - dialog_or_sheet
+      - heading_or_region_label
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - tour step title
+      - progress summary
+      - highlighted action or blocked-action explanation
+    focus_owner_rules:
+      - the first actionable control in the tour step owns focus when opened
+      - dismiss returns to the step owner or prior working surface
+    live_region_expectations:
+      - progress and blocked-action reasons remain concise and stable
+    prohibited_gaps:
+      - dimmed overlays that hide focus rings or suppress labels from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+
+  - tree_row_id: tree_coverage.task_run_and_output
+    surface_group: task_run_and_output
+    checklist_refs:
+      - shell_conformance.run_task_and_review_output
+    capture_moments:
+      - overlay_or_dialog_open
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - heading_or_region_label
+      - button_or_link_actions
+      - status_or_alert_region
+      - terminal_or_log_region
+    required_named_regions:
+      - task trigger or run summary
+      - active target or parameter summary
+      - output or failure summary region
+    focus_owner_rules:
+      - focus moves from the trigger to a named output or summary region, not an unlabeled shell container
+      - rerun or stop actions stay in the same logical region
+    live_region_expectations:
+      - run state transitions and blocked reasons remain narrated once
+    prohibited_gaps:
+      - output summary visible but absent from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+
+  - tree_row_id: tree_coverage.diff_review
+    surface_group: diff_review
+    checklist_refs:
+      - shell_conformance.diff_review_and_comment
+    capture_moments:
+      - initial_shell_render
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - heading_or_region_label
+      - list_or_tree
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - file list or hunk navigator
+      - comment or review summary
+      - representation-selection actions when raw or rendered choices exist
+    focus_owner_rules:
+      - returning from review details restores focus to the originating hunk or file row
+    live_region_expectations:
+      - stale-base and provider-state changes remain narrated
+    prohibited_gaps:
+      - copy-representation actions hidden from the tree
+      - focused hunk without identity or review state
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+
+  - tree_row_id: tree_coverage.sign_in_and_trust_prompt
+    surface_group: sign_in_and_trust_prompt
+    checklist_refs:
+      - shell_conformance.sign_in_or_trust_prompt_recovery
+    capture_moments:
+      - overlay_or_dialog_open
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - dialog_or_sheet
+      - heading_or_region_label
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - capability and scope summary
+      - continue-local or restricted fallback action
+      - browser handoff or device-code explanation when present
+    focus_owner_rules:
+      - the safest sensible action owns focus first
+      - close or deny returns to the invoking control or next productive surface
+    live_region_expectations:
+      - blocked reasons and expiry or scope notes remain narrated
+    prohibited_gaps:
+      - ambiguous yes-no controls without capability labels
+      - browser handoff note visible but absent from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+
+  - tree_row_id: tree_coverage.terminal_output
+    surface_group: terminal_output
+    checklist_refs:
+      - shell_conformance.terminal_output_follow_up
+    capture_moments:
+      - initial_shell_render
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - heading_or_region_label
+      - terminal_or_log_region
+      - button_or_link_actions
+      - status_or_alert_region
+    required_named_regions:
+      - terminal session summary
+      - command-boundary summary
+      - copy or export actions
+    focus_owner_rules:
+      - transcript focus remains in the terminal summary or boundary region, not a hidden viewport wrapper
+    live_region_expectations:
+      - exit-code, reconnect, and rerun-required states remain narrated
+    prohibited_gaps:
+      - copy raw or escaped actions absent from the tree
+      - focused transcript block without session identity
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+
+  - tree_row_id: tree_coverage.dense_collection_batch_review
+    surface_group: dense_collection_batch_review
+    checklist_refs:
+      - shell_conformance.dense_collection_batch_review
+    capture_moments:
+      - initial_shell_render
+      - overlay_or_dialog_open
+      - blocked_or_degraded_state_visible
+      - post_action_summary
+    required_role_groups:
+      - grid_or_table
+      - button_or_link_actions
+      - status_or_alert_region
+      - dialog_or_sheet
+    required_named_regions:
+      - collection summary
+      - selection or scope summary
+      - blocked or hidden count summary
+      - batch review sheet when open
+    focus_owner_rules:
+      - row focus remains visible through virtualization and returns to the originating row after sheet close
+      - batch review sheet records the invoker before focus shifts
+    live_region_expectations:
+      - selected count, hidden count, and query-backed scope remain narrated as they change
+    prohibited_gaps:
+      - virtualized rows with missing position-in-set or selected-state semantics
+      - batch review counts visible but absent from the tree
+    related_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/virtualized_selection_scope.yaml
+      - fixtures/accessibility/ime_and_text_cases/range_selection_anchor_stability.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml

@@ -1,0 +1,73 @@
+fixture_id: a11y_text.editor_ime_dead_key_altgr_emoji_commit
+title: IME, dead key, AltGr, and emoji commit across text-entry surfaces
+scenario: >
+  Launch-critical text-entry surfaces keep composition visible, preserve
+  exact Unicode commits, and refuse to reinterpret dead keys or AltGr as
+  command shortcuts while composition is active.
+platform_profile_scope: all_claimed_desktop_profiles
+surface_groups:
+  - editor
+  - palette_search
+  - terminal_output
+  - settings_dialogs
+assistive_technology_refs:
+  - at.voiceover.macos.core_shell
+  - at.nvda.windows.core_shell
+  - at.orca.linux.gnome.core_shell
+input_row_refs:
+  - input.macos.text_input_services
+  - input.windows.tsf_primary
+  - input.linux.ibus_gnome
+locale_row_refs:
+  - locale.shared.cjk_and_emoji_input
+steps:
+  - step_id: editor_ime_preedit_commit
+    applies_to_platform_scopes:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    action: >
+      In an editor text field, begin an IME preedit for "テスト入力",
+      move the caret within the preedit, and commit the text.
+    expected_focus_owner: editor
+    expected_announcement: composition active, then committed text available
+    expected_text_result: "テスト入力"
+  - step_id: dead_key_commit
+    applies_to_platform_scopes:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    action: >
+      In a rename or settings field, use a dead-key sequence to commit
+      "é" and then continue typing plain ASCII text.
+    expected_focus_owner: settings_dialogs
+    expected_announcement: field remains editable and no shortcut fires
+    expected_text_result: "é"
+  - step_id: altgr_commit
+    applies_to_platform_scopes:
+      - windows_claimed_desktop
+    action: >
+      In palette search, use AltGr with a compatible keyboard layout to
+      enter "ł" while the palette remains open.
+    expected_focus_owner: palette_search
+    expected_announcement: result count updates without announcing a shortcut conflict
+    expected_text_result: "ł"
+  - step_id: emoji_commit
+    applies_to_platform_scopes:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    action: >
+      Insert "🧪" through the platform emoji path into a terminal input or
+      notes field and keep the surrounding text unchanged.
+    expected_focus_owner: terminal_output
+    expected_announcement: emoji is inserted as text, not dropped or replaced
+    expected_text_result: "🧪"
+expected_results:
+  result_state_when_claimed: passed
+  failure_class_refs:
+    - ime_preedit_loss
+    - dead_key_as_shortcut
+    - altgr_as_shortcut
+  exact_text_preservation_required: true
+  silent_commit_or_cancel_forbidden: true

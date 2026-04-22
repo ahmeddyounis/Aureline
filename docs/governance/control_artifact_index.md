@@ -174,9 +174,14 @@ and scopes.
   rows as the only canonical locations for design-system snapshots,
   token sources, component references, accessibility audits, input-
   method review packets, and reduced-motion / contrast artifacts.
-- When proposing a new design-system artifact, extend the existing
-  canonical location under `artifacts/ux/`. Do not create parallel
-  homes in docs or in an external tool.
+- When proposing a new design-system artifact, extend the canonical
+  location under `artifacts/ux/`.
+- When proposing a new accessibility or input-review artifact, extend
+  the seeded family under `docs/accessibility/`,
+  `artifacts/accessibility/`, or `fixtures/accessibility/` according to
+  whether the change is a packet template, machine-readable matrix, or
+  review corpus. Do not create parallel homes in docs, UX snapshots, or
+  external tools.
 
 ### Quality engineering
 

@@ -187,6 +187,12 @@ code.
   [`/artifacts/qa/window_display_matrix.yaml`](../artifacts/qa/window_display_matrix.yaml);
   concrete cases in
   [`/fixtures/platform/window_display_cases/`](../fixtures/platform/window_display_cases/).
+- [`accessibility/a11y_ime_packet_template.md`](./accessibility/a11y_ime_packet_template.md)
+  — reviewer-facing packet template for launch-critical accessibility
+  and platform-input evidence. Machine-readable companions in
+  [`/artifacts/accessibility/`](../artifacts/accessibility/); concrete
+  IME and text cases in
+  [`/fixtures/accessibility/ime_and_text_cases/`](../fixtures/accessibility/ime_and_text_cases/).
 
 ## Planning
 

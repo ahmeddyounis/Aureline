@@ -1,0 +1,464 @@
+# Accessibility and platform-input matrix seed.
+#
+# Machine-readable companion to
+# docs/accessibility/a11y_ime_packet_template.md.
+#
+# This file freezes the platform assumptions, assistive-technology rows,
+# input-method paths, locale/RTL coverage rows, and shared result-state
+# vocabulary used by accessibility and IME packets.
+#
+# Rules.
+#   - Result-state names are shared across packets, checklists, and
+#     fixtures. Do not mint alternate names for "degraded", "blocked",
+#     "failed", or "unclaimed".
+#   - A platform claim is still the tuple of platform profile,
+#     assistive-technology row, input path, and surface group. "macOS",
+#     "Windows", or "Linux" alone is not enough.
+#   - Linux rows stay bound to the named GNOME profiles from
+#     artifacts/platform/claimed_desktop_profiles.yaml; they do not widen
+#     to unspecified Linux environments.
+#   - Best-effort or unclaimed rows must remain explicit so later
+#     accessibility packets and support exports do not infer parity.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/accessibility/a11y_ime_packet_template.md
+desktop_profile_source: artifacts/platform/claimed_desktop_profiles.yaml
+desktop_conformance_source: docs/platform/desktop_platform_conformance_matrix.md
+shell_boundary_source: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+shell_failure_modes_source: docs/architecture/input_adapter_failure_modes.md
+shell_checklist_source: artifacts/accessibility/shell_conformance_checklist.yaml
+tree_coverage_source: artifacts/accessibility/accessibility_tree_coverage_rows.yaml
+fixture_source_dir: fixtures/accessibility/ime_and_text_cases
+
+related_requirement_ids:
+  - A11Y-CORE-002
+  - A11Y-SR-003
+  - A11Y-TEXT-004
+  - A11Y-I18N-007
+  - A11Y-INCL-005
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "23. Accessibility, Internationalization, and Inclusive Interaction Architecture"
+      - "27.23 Verification lanes for localization, locale packs, RTL/IME correctness, and translated-surface parity"
+      - "A11Y-CORE-002"
+      - "A11Y-SR-003"
+      - "A11Y-TEXT-004"
+      - "A11Y-I18N-007"
+      - "A11Y-INCL-005"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "desktop support contract"
+      - "accessibility signoff"
+      - "IME / input fidelity"
+      - "Assistive-technology and inclusive-learning"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Appendix G — Minimum keyboard, focus-return, and announcement contract"
+      - "Appendix CD — Dense-surface accessibility and assistive-technology templates"
+      - "Appendix CL — Multi-cursor, Unicode/IME, and international-text templates"
+      - "23.31 Accessibility, assistive-technology, and microcopy consistency drills"
+      - "23.41 International text/input, IME, bidi, and locale-pack drills"
+
+support_class_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+result_state_vocabulary:
+  - pending_evidence
+  - passed
+  - degraded
+  - blocked
+  - failed
+  - unclaimed
+
+result_state_meanings:
+  - state: pending_evidence
+    meaning: >
+      Seed row exists and the verification shape is frozen, but no
+      claim-bearing packet has attached current evidence yet.
+  - state: passed
+    meaning: >
+      Claimed path behaved within the named scope and all required cues
+      remained available.
+  - state: degraded
+    meaning: >
+      Usable route remained, but the path narrowed visibly and the
+      packet must name the narrowed behavior and recovery path.
+  - state: blocked
+    meaning: >
+      The path could not complete because policy, platform state, or a
+      missing prerequisite blocked it. Silent fallback is forbidden.
+  - state: failed
+    meaning: >
+      Expected behavior on a claim-bearing row regressed or behaved
+      incorrectly.
+  - state: unclaimed
+    meaning: >
+      Outside the defended support scope. Docs, support, and release
+      packets must not imply parity.
+
+surface_group_vocabulary:
+  - shell_workspace_launcher
+  - palette_search
+  - docs_reader
+  - guided_tour_and_onboarding
+  - task_run_and_output
+  - diff_review
+  - sign_in_and_trust_prompt
+  - terminal_output
+  - dense_collection_batch_review
+  - editor
+  - settings_dialogs
+
+input_class_vocabulary:
+  - ime_preedit
+  - dead_key_text
+  - altgr_text
+  - compose_sequence
+  - emoji_picker
+  - bidi_commit
+
+platform_scope_rows:
+  - platform_scope_id: macos_claimed_desktop
+    platform_profile_refs:
+      - macos_15_plus_universal
+    accessibility_bridge: nsaccessibility
+    display_stack_assumption: Quartz / WindowServer with Spaces and fullscreen
+    text_input_assumption: macOS Text Input Services and system IMEs
+    primary_assistive_technology_rows:
+      - at.voiceover.macos.core_shell
+    primary_input_rows:
+      - input.macos.text_input_services
+    locale_rows:
+      - locale.shared.source_and_pseudoloc_shell
+      - locale.shared.rtl_mixed_direction_technical_content
+      - locale.shared.cjk_and_emoji_input
+    known_narrowings:
+      - Portable install rows remain narrower by design.
+      - Accessibility or IME evidence does not widen Homebrew or offline-bundle claims.
+
+  - platform_scope_id: windows_claimed_desktop
+    platform_profile_refs:
+      - windows_11_23h2_plus_x86_64
+    accessibility_bridge: uia
+    display_stack_assumption: DWM / Win32 windowing with per-monitor DPI restore
+    text_input_assumption: TSF, IME, AltGr, dead keys, and emoji panel
+    primary_assistive_technology_rows:
+      - at.nvda.windows.core_shell
+    primary_input_rows:
+      - input.windows.tsf_primary
+    locale_rows:
+      - locale.shared.source_and_pseudoloc_shell
+      - locale.shared.rtl_mixed_direction_technical_content
+      - locale.shared.cjk_and_emoji_input
+    known_narrowings:
+      - Windows Narrator is tracked explicitly as unclaimed until a named row lands.
+      - winget and Windows ARM64 remain outside the current claimed desktop envelope.
+
+  - platform_scope_id: linux_claimed_gnome_desktop
+    platform_profile_refs:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    accessibility_bridge: at_spi
+    display_stack_assumption: claimed GNOME Wayland or X11 rows only
+    text_input_assumption: IBus on the named GNOME profiles
+    primary_assistive_technology_rows:
+      - at.orca.linux.gnome.core_shell
+    primary_input_rows:
+      - input.linux.ibus_gnome
+    locale_rows:
+      - locale.shared.source_and_pseudoloc_shell
+      - locale.shared.rtl_mixed_direction_technical_content
+      - locale.shared.cjk_and_emoji_input
+    known_narrowings:
+      - Fcitx remains best-effort only until a named Linux profile row lands.
+      - KDE, KWallet, and non-GNOME shell behaviors remain unclaimed.
+
+assistive_technology_rows:
+  - at_row_id: at.voiceover.macos.core_shell
+    platform_scope_ref: macos_claimed_desktop
+    assistive_technology: VoiceOver
+    support_class: claimed
+    default_result_state: pending_evidence
+    validation_scope:
+      surface_groups:
+        - shell_workspace_launcher
+        - palette_search
+        - docs_reader
+        - guided_tour_and_onboarding
+        - task_run_and_output
+        - diff_review
+        - sign_in_and_trust_prompt
+        - terminal_output
+        - dense_collection_batch_review
+    required_tree_rows:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+      - tree_coverage.docs_reader
+      - tree_coverage.guided_tour_and_onboarding
+      - tree_coverage.task_run_and_output
+      - tree_coverage.diff_review
+      - tree_coverage.sign_in_and_trust_prompt
+      - tree_coverage.terminal_output
+      - tree_coverage.dense_collection_batch_review
+    known_narrowings:
+      - Custom-rendered surfaces outside the named tree rows remain outside the stable claim.
+
+  - at_row_id: at.nvda.windows.core_shell
+    platform_scope_ref: windows_claimed_desktop
+    assistive_technology: NVDA
+    support_class: claimed
+    default_result_state: pending_evidence
+    validation_scope:
+      surface_groups:
+        - shell_workspace_launcher
+        - palette_search
+        - docs_reader
+        - guided_tour_and_onboarding
+        - task_run_and_output
+        - diff_review
+        - sign_in_and_trust_prompt
+        - terminal_output
+        - dense_collection_batch_review
+    required_tree_rows:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+      - tree_coverage.docs_reader
+      - tree_coverage.guided_tour_and_onboarding
+      - tree_coverage.task_run_and_output
+      - tree_coverage.diff_review
+      - tree_coverage.sign_in_and_trust_prompt
+      - tree_coverage.terminal_output
+      - tree_coverage.dense_collection_batch_review
+    known_narrowings:
+      - Windows-specific accelerator notation and shortcut narration still route through the same checklist ids.
+
+  - at_row_id: at.orca.linux.gnome.core_shell
+    platform_scope_ref: linux_claimed_gnome_desktop
+    assistive_technology: Orca
+    support_class: claimed
+    default_result_state: pending_evidence
+    validation_scope:
+      surface_groups:
+        - shell_workspace_launcher
+        - palette_search
+        - docs_reader
+        - guided_tour_and_onboarding
+        - task_run_and_output
+        - diff_review
+        - sign_in_and_trust_prompt
+        - terminal_output
+        - dense_collection_batch_review
+    required_tree_rows:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+      - tree_coverage.docs_reader
+      - tree_coverage.guided_tour_and_onboarding
+      - tree_coverage.task_run_and_output
+      - tree_coverage.diff_review
+      - tree_coverage.sign_in_and_trust_prompt
+      - tree_coverage.terminal_output
+      - tree_coverage.dense_collection_batch_review
+    known_narrowings:
+      - Linux validation is bounded to the named GNOME rows only.
+
+  - at_row_id: at.narrator.windows.core_shell
+    platform_scope_ref: windows_claimed_desktop
+    assistive_technology: Narrator
+    support_class: unclaimed
+    default_result_state: unclaimed
+    validation_scope:
+      surface_groups:
+        - shell_workspace_launcher
+        - palette_search
+        - sign_in_and_trust_prompt
+    known_narrowings:
+      - UIA bridge work may benefit Narrator, but the stable AT claim remains NVDA-only until a dedicated row lands.
+
+input_rows:
+  - input_row_id: input.macos.text_input_services
+    platform_scope_ref: macos_claimed_desktop
+    support_class: claimed
+    default_result_state: pending_evidence
+    input_classes:
+      - ime_preedit
+      - dead_key_text
+      - emoji_picker
+      - bidi_commit
+    surface_groups:
+      - editor
+      - shell_workspace_launcher
+      - palette_search
+      - task_run_and_output
+      - terminal_output
+      - settings_dialogs
+      - sign_in_and_trust_prompt
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+    known_narrowings:
+      - Multi-cursor composition may narrow to one visible target when coherent apply is not possible.
+
+  - input_row_id: input.windows.tsf_primary
+    platform_scope_ref: windows_claimed_desktop
+    support_class: claimed
+    default_result_state: pending_evidence
+    input_classes:
+      - ime_preedit
+      - dead_key_text
+      - altgr_text
+      - emoji_picker
+      - bidi_commit
+    surface_groups:
+      - editor
+      - shell_workspace_launcher
+      - palette_search
+      - task_run_and_output
+      - terminal_output
+      - settings_dialogs
+      - sign_in_and_trust_prompt
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+    known_narrowings:
+      - AltGr must remain text production and must not be classified as command dispatch.
+
+  - input_row_id: input.linux.ibus_gnome
+    platform_scope_ref: linux_claimed_gnome_desktop
+    support_class: claimed
+    default_result_state: pending_evidence
+    input_classes:
+      - ime_preedit
+      - dead_key_text
+      - compose_sequence
+      - emoji_picker
+      - bidi_commit
+    surface_groups:
+      - editor
+      - shell_workspace_launcher
+      - palette_search
+      - task_run_and_output
+      - terminal_output
+      - settings_dialogs
+      - sign_in_and_trust_prompt
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+    known_narrowings:
+      - Claimed only on the named GNOME rows with IBus available.
+
+  - input_row_id: input.linux.fcitx_gnome
+    platform_scope_ref: linux_claimed_gnome_desktop
+    support_class: best_effort
+    default_result_state: pending_evidence
+    input_classes:
+      - ime_preedit
+      - compose_sequence
+      - bidi_commit
+    surface_groups:
+      - editor
+      - palette_search
+      - settings_dialogs
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml
+    known_narrowings:
+      - Best-effort only; this row does not widen the Linux stable claim until a named profile row and packet land.
+
+locale_rows:
+  - locale_row_id: locale.shared.source_and_pseudoloc_shell
+    platform_scope_refs:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    support_class: claimed
+    default_result_state: pending_evidence
+    locale_tags:
+      - en-US
+      - qps-ploc
+    directionality: ltr_with_expansion_stress
+    surface_groups:
+      - shell_workspace_launcher
+      - palette_search
+      - docs_reader
+      - guided_tour_and_onboarding
+      - task_run_and_output
+      - diff_review
+      - sign_in_and_trust_prompt
+      - terminal_output
+      - dense_collection_batch_review
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+    known_narrowings:
+      - Packet review must still name source-language fallback when a localized string remains untranslated.
+
+  - locale_row_id: locale.shared.rtl_mixed_direction_technical_content
+    platform_scope_refs:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    support_class: claimed_narrow
+    default_result_state: pending_evidence
+    locale_tags:
+      - ar-IQ
+      - he-IL
+    directionality: rtl_with_ltr_paths_flags_and_code_spans
+    surface_groups:
+      - docs_reader
+      - diff_review
+      - terminal_output
+      - dense_collection_batch_review
+      - editor
+      - palette_search
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+    known_narrowings:
+      - Claimed_narrow at this stage: launch-critical shell and dense review surfaces only.
+
+  - locale_row_id: locale.shared.cjk_and_emoji_input
+    platform_scope_refs:
+      - macos_claimed_desktop
+      - windows_claimed_desktop
+      - linux_claimed_gnome_desktop
+    support_class: claimed_narrow
+    default_result_state: pending_evidence
+    locale_tags:
+      - ja-JP
+      - zh-CN
+    directionality: ltr_with_cjk_ime_and_emoji
+    surface_groups:
+      - editor
+      - shell_workspace_launcher
+      - palette_search
+      - task_run_and_output
+      - terminal_output
+      - settings_dialogs
+    fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+    known_narrowings:
+      - Claimed_narrow until launch-critical shell and editor surfaces have current packet evidence on each platform scope.
+
+explicitly_unclaimed_rows:
+  - row_id: at.narrator.windows.core_shell
+    note: >
+      Windows Narrator remains outside the defended AT matrix until a
+      dedicated verification row and packet land.
+  - row_id: input.linux.fcitx_gnome
+    note: >
+      Fcitx is tracked as best-effort only and does not widen the named
+      Linux GNOME claim rows.
