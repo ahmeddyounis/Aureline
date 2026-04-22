@@ -215,6 +215,18 @@ code.
 
 ## Frozen vocabularies
 
+- [`docs/help_about_service_health_routes.md`](./docs/help_about_service_health_routes.md)
+  — shared destination-descriptor contract for Help, About,
+  service-health, docs-browser, migration, onboarding, provenance,
+  community-handoff, and support-export routes. Freezes the
+  product-bound field set for destination trust/owner/boundary,
+  source/version, exact-build applicability, support class,
+  client scopes, freshness, availability, locale/offline posture,
+  route class, browser/device-code rules, issue-template support,
+  and data-exit boundary. Boundary schema in
+  [`/schemas/docs/destination_descriptor.schema.json`](../schemas/docs/destination_descriptor.schema.json);
+  worked seed descriptors in
+  [`/artifacts/docs/destination_descriptor_seed.yaml`](../artifacts/docs/destination_descriptor_seed.yaml).
 - [`docs/docs_pack_manifest_contract.md`](./docs/docs_pack_manifest_contract.md)
   — docs-pack manifest contract consumed by every docs pane, docs
   browser, Help / About footer, service-health row, support summary,

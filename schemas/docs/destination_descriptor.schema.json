@@ -1,0 +1,719 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/destination_descriptor.schema.json",
+  "title": "Aureline docs / Help / About / service-health destination descriptor and handoff-route vocabulary",
+  "description": "Boundary schema for the destination_descriptor_record frozen in docs/docs/help_about_service_health_routes.md. Every Help, About, service-health, docs-browser, migration-center, onboarding, provenance, community-handoff, and support-export route reads one shared destination descriptor rather than inventing surface-local trust badges, auth copy, open-in-browser wording, or offline/mirror semantics. Raw URLs, raw issue-template bodies, raw support-bundle payloads, and raw embedded content bodies never cross this boundary; the record carries opaque refs and typed vocabulary only. The eventual docs-help-service-health crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new purpose class, trust class, owner class, boundary class, exact-build applicability, availability state, locale-availability class, offline behavior, route class, external-open policy, auth expectation, issue-template support state, data-exit boundary, disclosure-safety class, or destination-manifest source kind is additive-minor and requires a destination_descriptor_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/destination_descriptor_record",
+  "$defs": {
+    "destination_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this destination-descriptor export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["destination_descriptor_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support exports, release packets, and evidence bundles."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag (for example en, en-US, pt-BR, zh-Hant-HK). Case is normalized by the producer but preserved here for round-trip compatibility."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "support_export",
+        "migration_center",
+        "onboarding",
+        "provenance_inspector",
+        "release_notice",
+        "community_handoff"
+      ],
+      "description": "Closed surface-family vocabulary naming which product or export surfaces consume the descriptor."
+    },
+
+    "purpose_class": {
+      "type": "string",
+      "enum": [
+        "docs_pack",
+        "service_status",
+        "about_provenance",
+        "support_link",
+        "support_export",
+        "migration_help",
+        "onboarding_glossary",
+        "community_handoff",
+        "release_notice"
+      ],
+      "description": "Closed purpose-class vocabulary. One descriptor family serves docs, service-health, About/provenance, support, migration, onboarding, and community routes without branching into surface-local copies."
+    },
+
+    "destination_trust_class": {
+      "type": "string",
+      "enum": [
+        "official_public",
+        "official_authenticated",
+        "community",
+        "local_only"
+      ],
+      "description": "Closed trust-class vocabulary for the destination itself. Mirrors the product language frozen in the technical design document: official public, official authenticated, community, and local only remain distinct in UI and exports."
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "first_party_product",
+        "first_party_support",
+        "official_upstream_mirror",
+        "community_maintainer",
+        "customer_operator",
+        "external_status_provider",
+        "local_machine"
+      ],
+      "description": "Closed owner-class vocabulary naming who owns the destination on the other side of the route or who owns the local artifact when the route never leaves the machine."
+    },
+
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_product_boundary",
+        "first_party_hosted_service_boundary",
+        "community_site_boundary",
+        "customer_or_operator_boundary",
+        "external_status_feed_boundary"
+      ],
+      "description": "Closed boundary-class vocabulary naming where bytes, authority, and state live once the route is followed."
+    },
+
+    "disclosure_mode": {
+      "type": "string",
+      "enum": [
+        "inline_local_or_cached_badge",
+        "embedded_boundary_card",
+        "pre_handoff_review"
+      ],
+      "description": "How ownership and boundary must be disclosed. Local and offline-cached routes disclose inline; embedded routes use the host-owned boundary card (ADR-0015); browser and device-code routes disclose before leaving the product."
+    },
+
+    "source_descriptor_kind": {
+      "type": "string",
+      "enum": [
+        "about_packet",
+        "docs_pack_manifest",
+        "service_health_aggregator",
+        "exact_build_identity",
+        "support_export_template",
+        "migration_center_packet",
+        "onboarding_pack",
+        "release_notice_descriptor",
+        "destination_manifest",
+        "external_status_feed"
+      ],
+      "description": "Closed source-descriptor-kind vocabulary naming which upstream record family published this descriptor."
+    },
+
+    "exact_build_applicability": {
+      "type": "string",
+      "enum": [
+        "same_build_only",
+        "compatible_minor_window",
+        "release_channel_window",
+        "not_build_bound"
+      ],
+      "description": "Closed exact-build-applicability vocabulary. same_build_only is the default interpretation when no wider compatibility window is published. not_build_bound is reserved for routes whose truth is independent of the running build and therefore does not compute a version-match state."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification. Computed against the running build's exact-build identity whenever exact_build_applicability is not_build_bound."
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only_support",
+        "no_support"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification. Support class stays a separate axis from trust class, freshness, and client scope."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json and schemas/docs/help_status_badge.schema.json without modification."
+    },
+
+    "availability_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "cached_snapshot",
+        "mirror_only",
+        "local_only_continuation",
+        "not_installed",
+        "version_mismatched",
+        "unreachable",
+        "policy_blocked"
+      ],
+      "description": "Closed availability-state vocabulary. Freshness answers how current a descriptor is; availability answers whether and how the route can currently be used."
+    },
+
+    "locale_availability_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "default_locale_only",
+        "partial_locales",
+        "full_locales"
+      ],
+      "description": "Closed locale-availability vocabulary for destination rows. not_applicable is used for routes whose payload is language-neutral or whose locale is not part of the contract."
+    },
+
+    "offline_behavior": {
+      "type": "string",
+      "enum": [
+        "not_available_offline",
+        "fully_available_offline",
+        "cached_snapshot_offline",
+        "mirror_verified_offline",
+        "local_export_offline"
+      ],
+      "description": "Closed offline-behavior vocabulary. Surfaces use this together with freshness and availability so offline, cached, mirrored, and local-export routes do not overclaim live truth."
+    },
+
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "system_browser",
+        "embedded_surface",
+        "device_code",
+        "local_only",
+        "offline_cached_snapshot"
+      ],
+      "description": "Closed route-class vocabulary. Every seeded descriptor names one primary route and zero-or-more fallback routes from this set."
+    },
+
+    "external_destination_class": {
+      "type": "string",
+      "enum": [
+        "code_host_web",
+        "issue_tracker_web",
+        "ci_provider_web",
+        "docs_or_portal_web",
+        "identity_provider_web",
+        "package_registry_web",
+        "release_publisher_web",
+        "ai_provider_web",
+        "managed_admin_web",
+        "external_generic_web"
+      ],
+      "description": "Re-exported from schemas/integration/browser_handoff_packet.schema.json without modification. Present when the descriptor may hand off to a browser or device-code destination."
+    },
+
+    "external_open_policy": {
+      "type": "string",
+      "enum": [
+        "not_permitted",
+        "optional_same_object",
+        "required_primary_route",
+        "required_fallback_when_in_product_unavailable"
+      ],
+      "description": "Closed open-in-browser policy vocabulary. required_primary_route means the route is browser-first. required_fallback_when_in_product_unavailable covers embedded or cached routes whose truthful fallback is browser-only."
+    },
+
+    "auth_expectation": {
+      "type": "string",
+      "enum": [
+        "none",
+        "optional_account_context",
+        "required_authenticated_session",
+        "required_step_up",
+        "device_code_exchange",
+        "managed_admin_session"
+      ],
+      "description": "Closed auth-expectation vocabulary. Auth expectation is distinct from trust class and distinct from whether the route is local, embedded, browser-mediated, or device-code mediated."
+    },
+
+    "browser_handoff_reason_subset": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ],
+      "description": "Re-exported from the subset frozen in schemas/docs/help_status_badge.schema.json. This subset is the only handoff-reason vocabulary docs/help/About/service-health/support routes may quote because it remains screenshot-safe and export-safe."
+    },
+
+    "disclosure_safety_class": {
+      "type": "string",
+      "enum": [
+        "screenshot_safe_export_safe",
+        "local_only_diagnostic_only"
+      ],
+      "description": "Closed disclosure-safety vocabulary for route reasons. Browser and device-code handoff reasons used by this descriptor family MUST remain screenshot-safe and export-safe."
+    },
+
+    "issue_template_support": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_export_packet",
+        "external_prefill",
+        "local_export_and_external_prefill"
+      ],
+      "description": "Closed issue-template support vocabulary. local_export_packet keeps the payload on-device; external_prefill opens a browser route with safe metadata only; local_export_and_external_prefill supports both."
+    },
+
+    "data_exit_boundary": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_only_on_handoff",
+        "user_reviewed_export_packet",
+        "user_authored_submission",
+        "device_code_only_no_payload"
+      ],
+      "description": "Closed data-exit boundary vocabulary. Surfaces disclose this field before navigation or export so users can tell whether nothing leaves the machine, only metadata leaves, or a reviewed export packet or user-authored submission is required."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the descriptor was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the descriptor was minted inside a live execution. Null when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the descriptor was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "destination_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "destination_descriptor_schema_version",
+        "descriptor_id",
+        "title",
+        "purpose_class",
+        "purpose_summary",
+        "surface_families",
+        "destination_trust_class",
+        "owner_class",
+        "boundary_class",
+        "disclosure_mode",
+        "source_descriptor_kind",
+        "source_ref",
+        "source_revision_ref",
+        "display_source_version",
+        "running_build_identity_ref",
+        "exact_build_applicability",
+        "version_match_state",
+        "support_class",
+        "client_scopes",
+        "freshness_class",
+        "availability_state",
+        "locale_availability_class",
+        "available_locales",
+        "offline_behavior",
+        "preferred_route_class",
+        "fallback_route_classes",
+        "external_open_policy",
+        "external_destination_class",
+        "auth_expectation",
+        "browser_handoff_reason",
+        "disclosure_safety_class",
+        "issue_template_support",
+        "data_exit_boundary",
+        "policy_context",
+        "redaction_class",
+        "minted_at",
+        "last_refreshed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "destination_descriptor_record" },
+        "destination_descriptor_schema_version": {
+          "$ref": "#/$defs/destination_descriptor_schema_version"
+        },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-legible title for the destination row or exportable handoff tile."
+        },
+        "purpose_class": { "$ref": "#/$defs/purpose_class" },
+        "purpose_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Copy-safe summary of why the route exists and what the user should expect from it."
+        },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/surface_family" },
+          "description": "Surface families that consume the descriptor directly instead of rewriting its route vocabulary."
+        },
+        "destination_trust_class": {
+          "$ref": "#/$defs/destination_trust_class"
+        },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "boundary_class": { "$ref": "#/$defs/boundary_class" },
+        "disclosure_mode": { "$ref": "#/$defs/disclosure_mode" },
+        "source_descriptor_kind": {
+          "$ref": "#/$defs/source_descriptor_kind"
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable ref to the source object that published the descriptor."
+        },
+        "source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque revision or manifest pin for the source object. Null only when the source kind has no versioned revision."
+        },
+        "display_source_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Human-legible version or channel string safe to render in product or export surfaces."
+        },
+        "running_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque pin to the running build's exact-build identity when this descriptor is build-bound. Null when exact_build_applicability = not_build_bound."
+        },
+        "exact_build_applicability": {
+          "$ref": "#/$defs/exact_build_applicability"
+        },
+        "version_match_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/version_match_state" }
+          ],
+          "description": "Version-match state against the running build. Null only when exact_build_applicability = not_build_bound."
+        },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes this descriptor is published for. A client whose scope is excluded MUST NOT render the route as available there."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "locale_availability_class": {
+          "$ref": "#/$defs/locale_availability_class"
+        },
+        "available_locales": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bcp47_locale_tag" },
+          "description": "Locales the destination advertises directly. Empty only when locale_availability_class = not_applicable."
+        },
+        "offline_behavior": { "$ref": "#/$defs/offline_behavior" },
+        "preferred_route_class": { "$ref": "#/$defs/route_class" },
+        "fallback_route_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/route_class" },
+          "description": "Zero-or-more fallback routes the surface may offer without changing the meaning of the descriptor."
+        },
+        "external_open_policy": { "$ref": "#/$defs/external_open_policy" },
+        "external_destination_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/external_destination_class" }
+          ],
+          "description": "Browser or device-code destination class when the descriptor may leave the product. Null when external_open_policy = not_permitted and no fallback leaves the product."
+        },
+        "auth_expectation": { "$ref": "#/$defs/auth_expectation" },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason_subset" }
+          ],
+          "description": "Reason code used when the descriptor hands off to a browser or device-code route. Null when no handoff route exists."
+        },
+        "disclosure_safety_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disclosure_safety_class" }
+          ],
+          "description": "Safety posture for the user-visible handoff reason. Browser and device-code routes on this descriptor family must remain screenshot-safe and export-safe."
+        },
+        "issue_template_support": {
+          "$ref": "#/$defs/issue_template_support"
+        },
+        "data_exit_boundary": { "$ref": "#/$defs/data_exit_boundary" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp of the last refresh against the descriptor's canonical owner. Null when the route is packaged locally and has no live refresh path."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Build-bound descriptors MUST carry a running_build_identity_ref and a version_match_state.",
+          "if": {
+            "properties": {
+              "exact_build_applicability": {
+                "not": { "const": "not_build_bound" }
+              }
+            },
+            "required": ["exact_build_applicability"]
+          },
+          "then": {
+            "properties": {
+              "running_build_identity_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version_match_state": {
+                "$ref": "#/$defs/version_match_state"
+              }
+            },
+            "required": [
+              "running_build_identity_ref",
+              "version_match_state"
+            ]
+          }
+        },
+        {
+          "description": "not_build_bound descriptors MUST keep build/version fields null.",
+          "if": {
+            "properties": {
+              "exact_build_applicability": {
+                "const": "not_build_bound"
+              }
+            },
+            "required": ["exact_build_applicability"]
+          },
+          "then": {
+            "properties": {
+              "running_build_identity_ref": { "type": "null" },
+              "version_match_state": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Locale-neutral descriptors MUST keep available_locales empty.",
+          "if": {
+            "properties": {
+              "locale_availability_class": {
+                "const": "not_applicable"
+              }
+            },
+            "required": ["locale_availability_class"]
+          },
+          "then": {
+            "properties": {
+              "available_locales": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Localized descriptors MUST name at least one locale.",
+          "if": {
+            "properties": {
+              "locale_availability_class": {
+                "not": { "const": "not_applicable" }
+              }
+            },
+            "required": ["locale_availability_class"]
+          },
+          "then": {
+            "properties": {
+              "available_locales": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Embedded routes use the embedded boundary card disclosure mode.",
+          "if": {
+            "properties": {
+              "preferred_route_class": { "const": "embedded_surface" }
+            },
+            "required": ["preferred_route_class"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_mode": {
+                "const": "embedded_boundary_card"
+              }
+            }
+          }
+        },
+        {
+          "description": "Browser and device-code routes disclose before leaving the product.",
+          "if": {
+            "properties": {
+              "preferred_route_class": {
+                "enum": ["system_browser", "device_code"]
+              }
+            },
+            "required": ["preferred_route_class"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_mode": {
+                "const": "pre_handoff_review"
+              }
+            }
+          }
+        },
+        {
+          "description": "Local and offline-cached routes disclose inline.",
+          "if": {
+            "properties": {
+              "preferred_route_class": {
+                "enum": ["local_only", "offline_cached_snapshot"]
+              }
+            },
+            "required": ["preferred_route_class"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_mode": {
+                "const": "inline_local_or_cached_badge"
+              }
+            }
+          }
+        },
+        {
+          "description": "When a handoff reason is present, the descriptor MUST name the destination class and keep the reason screenshot-safe and export-safe.",
+          "if": {
+            "properties": {
+              "browser_handoff_reason": {
+                "$ref": "#/$defs/browser_handoff_reason_subset"
+              }
+            },
+            "required": ["browser_handoff_reason"]
+          },
+          "then": {
+            "properties": {
+              "external_destination_class": {
+                "$ref": "#/$defs/external_destination_class"
+              },
+              "disclosure_safety_class": {
+                "const": "screenshot_safe_export_safe"
+              }
+            },
+            "required": [
+              "external_destination_class",
+              "disclosure_safety_class"
+            ]
+          }
+        },
+        {
+          "description": "Version-mismatched descriptors MUST compute a non-green version-match state.",
+          "if": {
+            "properties": {
+              "availability_state": {
+                "const": "version_mismatched"
+              }
+            },
+            "required": ["availability_state"]
+          },
+          "then": {
+            "properties": {
+              "version_match_state": {
+                "enum": [
+                  "incompatible_drift_detected",
+                  "unknown_target_build"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Shared destination descriptor consumed by Help, About, service-health, docs-browser, migration, onboarding, provenance, community-handoff, and support-export surfaces. Product-bound fields (trust class, owner class, boundary class, source/version, exact-build applicability, support class, client scope, freshness, availability, route class, auth expectation, issue-template support, data-exit boundary, and handoff safety) remain separately addressable so UI, CLI, exports, and evidence packets can reuse one vocabulary without rewriting route semantics."
+    }
+  }
+}
