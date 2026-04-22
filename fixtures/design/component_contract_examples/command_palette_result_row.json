@@ -1,0 +1,724 @@
+{
+  "component_contract_schema_version": 1,
+  "record_kind": "component_contract_record",
+  "component_id": "command_palette.result_row",
+  "component_title": "Command Palette Result Row",
+  "summary": "Reusable row for command-discovery and command-invocation results. The row keeps command identity, provenance, disabled reasons, and optional inline follow-up actions visible without requiring hover-only affordances.",
+  "component_family_class": "result_row",
+  "stability_label": "seed",
+  "source_anchor_refs": [
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#4.1-non-negotiable-ux-principles",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#8.9-token-theme-package-and-component-lifecycle-governance",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#23.2-component-review-checklist",
+    "docs/commands/command_graph_and_ui_slots_seed.md",
+    ".t2/docs/Aureline_UX_Design_System_Style_Guide.md#appendix-n--critical-component-state-matrix"
+  ],
+  "theme_package_hooks": {
+    "default_theme_support_row_ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+    "supported_theme_classes": [
+      "dark_reference",
+      "light_parity",
+      "high_contrast_dark",
+      "high_contrast_light"
+    ],
+    "hook_records": [
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+        "required": true,
+        "notes": "Reference-theme row for default command-palette review."
+      },
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:light_parity",
+        "required": true,
+        "notes": "Light theme is parity-quality, not a reduced shell mode."
+      },
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:high_contrast_dark",
+        "required": true,
+        "notes": "High-contrast validation keeps focus, selection, and disabled reasons distinct."
+      },
+      {
+        "hook_class": "theme_package_manifest",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#9.47-theme-package-token-overlay-and-appearance-session-contract",
+        "required": true,
+        "notes": "The row consumes versioned appearance and theme-package truth rather than local CSS assumptions."
+      },
+      {
+        "hook_class": "appearance_session_contract",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#7.1.17-appearance-theme-packages-token-overlays-and-live-appearance-change-architecture",
+        "required": true,
+        "notes": "Live theme, contrast, and density changes resolve through the shared appearance session."
+      }
+    ]
+  },
+  "anatomy": {
+    "slots": [
+      {
+        "slot_id": "row_surface",
+        "role_class": "surface",
+        "required": true,
+        "focusable": true,
+        "localized": false,
+        "description": "Focus-owning row container inside the palette results list."
+      },
+      {
+        "slot_id": "leading_icon",
+        "role_class": "icon",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "Canonical command or source icon shown before the label."
+      },
+      {
+        "slot_id": "primary_label",
+        "role_class": "primary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Primary command label and the start of the accessible name."
+      },
+      {
+        "slot_id": "secondary_context",
+        "role_class": "secondary_label",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Context such as scope, category, or nearby path detail."
+      },
+      {
+        "slot_id": "reason_chips",
+        "role_class": "status_badge",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Freshness, approval, provenance, or partiality chips that materially change interpretation."
+      },
+      {
+        "slot_id": "shortcut_hint",
+        "role_class": "metadata",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Shortcut or route hint aligned to the trailing edge."
+      },
+      {
+        "slot_id": "disabled_reason",
+        "role_class": "reason_text",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Inline reason shown when the row is restricted, blocked, or otherwise not directly invokable."
+      },
+      {
+        "slot_id": "command_id_literal",
+        "role_class": "metadata",
+        "required": false,
+        "focusable": false,
+        "localized": false,
+        "description": "Optional raw command id when support, docs, or extension provenance makes it worth showing exactly."
+      },
+      {
+        "slot_id": "inline_action",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Optional trailing action such as open details or open docs."
+      }
+    ],
+    "focus_order": [
+      "row_surface",
+      "inline_action"
+    ],
+    "responsive_reflow_notes": [
+      "Secondary context and shortcut hint collapse before the primary label truncates.",
+      "Reason chips may wrap to a second line only when the palette surface is already in a two-line result mode.",
+      "Disabled reasons remain inline and never move to hover-only disclosure."
+    ]
+  },
+  "state_machine": {
+    "default_state_ref": "idle",
+    "state_nodes": [
+      {
+        "state_ref": "idle",
+        "display_label": "Default",
+        "component_state_classes": [
+          "idle"
+        ],
+        "user_visible_summary": "The row is ready for arrow navigation and invocation.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": false
+      },
+      {
+        "state_ref": "hover",
+        "display_label": "Hover",
+        "component_state_classes": [
+          "hover"
+        ],
+        "user_visible_summary": "Pointer hover adds emphasis but does not reveal unique information.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": false
+      },
+      {
+        "state_ref": "focus_selected",
+        "display_label": "Focused selection",
+        "component_state_classes": [
+          "focus_visible",
+          "selected"
+        ],
+        "user_visible_summary": "Keyboard focus and current selection are both active on this row.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "stale",
+        "display_label": "Stale",
+        "component_state_classes": [
+          "stale"
+        ],
+        "user_visible_summary": "The row is inspectable but depends on stale or cached supporting truth.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "restricted",
+        "display_label": "Restricted",
+        "component_state_classes": [
+          "restricted"
+        ],
+        "user_visible_summary": "Workspace trust narrowed the available action or supporting detail.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "policy_blocked",
+        "display_label": "Policy blocked",
+        "component_state_classes": [
+          "policy_blocked"
+        ],
+        "user_visible_summary": "Administrative policy blocked direct invocation of the row's primary action.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "disabled",
+        "display_label": "Disabled",
+        "component_state_classes": [
+          "disabled"
+        ],
+        "user_visible_summary": "The row remains visible and selectable, but the action is unavailable until the named condition changes.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      }
+    ],
+    "transitions": [
+      {
+        "from_state_ref": "idle",
+        "event_ref": "pointer_enter",
+        "to_state_ref": "hover",
+        "user_visible_effect": "Background emphasis increases without introducing hover-only meaning.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "idle",
+        "event_ref": "arrow_navigation_focus",
+        "to_state_ref": "focus_selected",
+        "user_visible_effect": "Focus ring and selection treatment move onto the row and the accessible description updates.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "focus_selected",
+        "event_ref": "freshness_downgraded",
+        "to_state_ref": "stale",
+        "user_visible_effect": "Freshness chip and explanation remain inline while the row stays keyboard reachable.",
+        "recovery_action_ref": "cmd:search.refresh_scope"
+      },
+      {
+        "from_state_ref": "focus_selected",
+        "event_ref": "workspace_trust_narrowed",
+        "to_state_ref": "restricted",
+        "user_visible_effect": "The row keeps its place in the list and adds a direct explanation of the narrowed action.",
+        "recovery_action_ref": "cmd:workspace.review_trust"
+      },
+      {
+        "from_state_ref": "focus_selected",
+        "event_ref": "policy_denied",
+        "to_state_ref": "policy_blocked",
+        "user_visible_effect": "A policy reason and repair route replace direct invocation without hiding the row.",
+        "recovery_action_ref": "cmd:policy.view_effective_rule"
+      },
+      {
+        "from_state_ref": "restricted",
+        "event_ref": "trust_restored",
+        "to_state_ref": "focus_selected",
+        "user_visible_effect": "The row returns to normal invocation behavior without changing its list position.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "policy_blocked",
+        "event_ref": "policy_recomputed_allows_action",
+        "to_state_ref": "focus_selected",
+        "user_visible_effect": "Blocked messaging clears and the row is again directly invokable.",
+        "recovery_action_ref": null
+      }
+    ],
+    "composite_state_rules": [
+      {
+        "when_all_of_component_state_classes": [
+          "focus_visible",
+          "selected"
+        ],
+        "presentation_priority": 80,
+        "required_disclosure_slot_ids": [
+          "primary_label",
+          "secondary_context"
+        ],
+        "non_color_cues": [
+          "border",
+          "position"
+        ]
+      },
+      {
+        "when_all_of_component_state_classes": [
+          "selected",
+          "policy_blocked"
+        ],
+        "presentation_priority": 100,
+        "required_disclosure_slot_ids": [
+          "reason_chips",
+          "disabled_reason"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ]
+      }
+    ]
+  },
+  "content_contract": {
+    "slot_content_rules": [
+      {
+        "slot_id": "primary_label",
+        "content_kind_class": "primary_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "The primary label remains the first readable identity and never disappears behind chips or shortcut hints."
+      },
+      {
+        "slot_id": "secondary_context",
+        "content_kind_class": "supporting_text",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": false,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "Context may contain localized framing around a literal path, category, or support-class fragment."
+      },
+      {
+        "slot_id": "reason_chips",
+        "content_kind_class": "badge_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Chips carry only information that materially changes how the user should interpret or trust the result."
+      },
+      {
+        "slot_id": "shortcut_hint",
+        "content_kind_class": "shortcut_hint",
+        "max_lines": 1,
+        "overflow_behavior_class": "hide_when_unavailable",
+        "plain_language_required": false,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Shortcut hints are secondary to identity and may disappear before the label truncates."
+      },
+      {
+        "slot_id": "disabled_reason",
+        "content_kind_class": "reason_text",
+        "max_lines": 2,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "Blocked and degraded reasons remain inline and readable without hover."
+      },
+      {
+        "slot_id": "command_id_literal",
+        "content_kind_class": "raw_identifier",
+        "max_lines": 1,
+        "overflow_behavior_class": "preserve_raw",
+        "plain_language_required": false,
+        "raw_identifier_display_mode": "strict_raw",
+        "notes": "The literal command id stays exact for support, docs, and extension-conformance flows."
+      },
+      {
+        "slot_id": "inline_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "hide_when_unavailable",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Trailing actions stay textual enough to preserve accessibility and reduce icon-metaphor drift."
+      }
+    ],
+    "blocked_and_degraded_copy_rule": "When the row is stale, restricted, or policy blocked, the explanation stays inside the row and names what still works, what is narrowed, and where the user can recover.",
+    "empty_or_missing_data_rule": "If optional metadata such as a shortcut or secondary context is unavailable, the row preserves command identity and focus behavior instead of leaving a misleading blank badge area."
+  },
+  "interaction_contract": {
+    "keyboard_model_ref": "listbox.option_with_optional_inline_action",
+    "entry_command_refs": [
+      "cmd:command_palette.open"
+    ],
+    "primary_navigation_keys": [
+      {
+        "key": "ArrowDown",
+        "effect": "Move focus to the next result row.",
+        "when": "While focus remains in the command-palette results list."
+      },
+      {
+        "key": "ArrowUp",
+        "effect": "Move focus to the previous result row.",
+        "when": "While focus remains in the command-palette results list."
+      },
+      {
+        "key": "Tab",
+        "effect": "Move from the focused row to the optional inline action when one exists.",
+        "when": "Only after the row itself already owns focus."
+      }
+    ],
+    "activation_keys": [
+      {
+        "key": "Enter",
+        "effect": "Invoke the row's primary action or the host-defined safe preview path.",
+        "when": "When the row surface owns focus and the row is not blocked."
+      },
+      {
+        "key": "Space",
+        "effect": "Open a row-local preview or details action when the host maps one for the result type.",
+        "when": "Only for rows that advertise a preview path."
+      }
+    ],
+    "dismissal_keys": [
+      {
+        "key": "Escape",
+        "effect": "Dismiss the palette and return focus to the invoking surface.",
+        "when": "When no nested inline action menu is open."
+      }
+    ],
+    "focus_return_rule": "Dismissing the palette returns focus to the invoking surface or the nearest safe ancestor if the invoker disappeared while the palette was open.",
+    "pointer_behavior_note": "Hover may strengthen emphasis but must not be the only route to source badges, disabled reasons, or inline actions."
+  },
+  "accessibility_contract": {
+    "role_description": "Option row inside the command-palette results list.",
+    "accessible_name_rule": "The accessible name is composed from the primary label plus any visible source or disabled-reason text that materially changes interpretation.",
+    "accessible_description_rule": "The accessible description appends secondary context, shortcut hint, and any approval, freshness, or policy chip in stable order.",
+    "announcement_rules": [
+      {
+        "trigger_ref": "result_count_or_query_changed",
+        "announcement_channel_class": "polite_live_region",
+        "message_rule": "The palette announces the updated result count once, then the focused row's disabled or stale reason only if that reason changed."
+      },
+      {
+        "trigger_ref": "row_became_policy_blocked",
+        "announcement_channel_class": "description_change",
+        "message_rule": "When the row becomes blocked or restricted, the repair or review route is appended to the description without moving focus."
+      },
+      {
+        "trigger_ref": "inline_action_focused",
+        "announcement_channel_class": "focus_name",
+        "message_rule": "The inline action exposes a distinct label and does not masquerade as row selection."
+      }
+    ],
+    "high_contrast_behavior": "Focus ring, selection outline, and blocked-state explanations remain distinct in both high-contrast themes; chips flatten to text-plus-border treatments when needed.",
+    "forced_colors_behavior": "Forced-colors mode preserves row focus, selection, and disabled meaning through borders, text, and icon treatment rather than hue.",
+    "blocked_and_degraded_behavior": "Stale, restricted, and policy-blocked rows remain arrow-navigable and keep their explanation in the accessibility tree instead of relying on tooltip-only disclosure."
+  },
+  "token_binding_rules": {
+    "design_token_manifest_ref": "docs/design/design_token_component_state_vocabulary.md",
+    "semantic_token_bindings": [
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.bg.subtle",
+          "al.color.border.default",
+          "al.color.text.primary"
+        ],
+        "when_component_state_classes": [
+          "idle"
+        ],
+        "notes": "Base surface, border, and text roles."
+      },
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.bg.hover",
+          "al.color.border.strong"
+        ],
+        "when_component_state_classes": [
+          "hover"
+        ],
+        "notes": "Hover adds restrained emphasis only."
+      },
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.focus.ring",
+          "al.color.bg.active"
+        ],
+        "when_component_state_classes": [
+          "focus_visible",
+          "selected"
+        ],
+        "notes": "Focus and selection remain distinct from hover."
+      },
+      {
+        "slot_id": "disabled_reason",
+        "token_role_refs": [
+          "al.color.text.secondary",
+          "al.color.border.strong"
+        ],
+        "when_component_state_classes": [
+          "restricted",
+          "policy_blocked",
+          "disabled"
+        ],
+        "notes": "Blocked messaging keeps readable contrast and a load-bearing border."
+      },
+      {
+        "slot_id": "reason_chips",
+        "token_role_refs": [
+          "al.color.text.primary",
+          "al.color.bg.raised"
+        ],
+        "when_component_state_classes": [
+          "stale"
+        ],
+        "notes": "Freshness and provenance chips stay legible without looking like primary actions."
+      }
+    ],
+    "density_variant_bindings": [
+      {
+        "density_class": "compact",
+        "slot_ids": [
+          "row_surface",
+          "primary_label",
+          "secondary_context",
+          "shortcut_hint"
+        ],
+        "measurement_token_refs": [
+          "density.compact",
+          "space.2",
+          "size.row.compact"
+        ],
+        "layout_effect": "Row height tightens and trailing metadata collapses before the label does."
+      },
+      {
+        "density_class": "standard",
+        "slot_ids": [
+          "row_surface",
+          "primary_label",
+          "secondary_context",
+          "reason_chips",
+          "shortcut_hint"
+        ],
+        "measurement_token_refs": [
+          "density.standard",
+          "space.3",
+          "size.row.standard"
+        ],
+        "layout_effect": "Reference density for screenshots and keyboard-review baselines."
+      },
+      {
+        "density_class": "comfortable",
+        "slot_ids": [
+          "row_surface",
+          "primary_label",
+          "secondary_context",
+          "disabled_reason",
+          "inline_action"
+        ],
+        "measurement_token_refs": [
+          "density.comfortable",
+          "space.4",
+          "size.row.comfortable"
+        ],
+        "layout_effect": "Supporting text may breathe more, but the row keeps the same state vocabulary and focus order."
+      }
+    ],
+    "motion_bindings": [
+      {
+        "motion_preset_ref": "motion-preset:command_palette.result_row.emphasis",
+        "slot_ids": [
+          "row_surface",
+          "reason_chips"
+        ],
+        "default_duration_token_refs": [
+          "motion.fast"
+        ],
+        "default_easing_token_refs": [
+          "ease.standard"
+        ],
+        "reduced_motion_posture_refs": [
+          "motion_reduced",
+          "motion_low_motion",
+          "motion_power_saver",
+          "motion_critical_hot_path"
+        ],
+        "reduced_motion_behavior": "Hover and focus changes become instant; chip entrance and row shimmer are suppressed."
+      }
+    ],
+    "state_visualization_bindings": [
+      {
+        "state_ref": "stale",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "reason_chips",
+          "secondary_context"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Freshness must remain visible in-line."
+      },
+      {
+        "state_ref": "restricted",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": "restricted_workspace",
+        "required_disclosure_slot_ids": [
+          "disabled_reason",
+          "reason_chips"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "border",
+          "icon"
+        ],
+        "notes": "Workspace-trust narrowing is distinct from admin policy."
+      },
+      {
+        "state_ref": "policy_blocked",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": "policy_locked",
+        "required_disclosure_slot_ids": [
+          "disabled_reason",
+          "reason_chips"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "border",
+          "icon"
+        ],
+        "notes": "Policy lock stays distinct from trust restriction and ordinary disabled state."
+      }
+    ]
+  },
+  "visual_asset_hooks": {
+    "asset_slots": [
+      {
+        "slot_id": "leading_icon",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:command.canonical",
+        "icon_treatment_class": "shell_stroke_standard",
+        "rtl_behavior_class": "literal_no_mirror",
+        "notes": "Uses the command's canonical icon metaphor."
+      },
+      {
+        "slot_id": "reason_chips",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:status.semantic",
+        "icon_treatment_class": "status_semantic",
+        "rtl_behavior_class": "not_applicable",
+        "notes": "Freshness or blocked-state chips may include a semantic glyph."
+      },
+      {
+        "slot_id": "inline_action",
+        "asset_kind_class": "none",
+        "asset_ref": "not_applicable",
+        "icon_treatment_class": null,
+        "rtl_behavior_class": "not_applicable",
+        "notes": "The trailing action may stay text-only to preserve clarity."
+      }
+    ]
+  },
+  "localization_contract": {
+    "translation_required_slot_ids": [
+      "primary_label",
+      "secondary_context",
+      "disabled_reason",
+      "inline_action"
+    ],
+    "raw_identifier_slot_ids": [
+      "command_id_literal"
+    ],
+    "text_expansion_strategy": "Primary label truncates last. Secondary context and shortcut metadata collapse first, and two-line expansion is allowed only when the hosting palette already supports it.",
+    "bidi_behavior": "Mixed-direction command ids or file paths remain isolated in code-style spans while surrounding explanatory copy follows the active locale direction.",
+    "formatting_behavior": "Shortcut hints and any date text use locale-aware rendering when the host exposes it; command ids remain literal.",
+    "source_language_fallback_behavior": "If an extension contributes only a source-language label, that fact remains visible instead of pretending translation parity.",
+    "notes": "The component must remain usable in pseudoloc and mixed-direction command labels without clipping the disabled reason."
+  },
+  "extension_guidance": {
+    "parity_posture_class": "must_match",
+    "required_inheritance_axes": [
+      "semantic_tokens",
+      "density",
+      "contrast",
+      "focus",
+      "reduced_motion",
+      "state_machine",
+      "keyboard_model",
+      "command_routing",
+      "provenance_badging"
+    ],
+    "allowed_extension_variations": [
+      "An extension-contributed row may add one provider or activation-cost chip when the host registry declares it.",
+      "An extension-contributed row may omit the trailing inline action when there is no safe secondary route."
+    ],
+    "required_gap_disclosure": "If an extension surface cannot show provenance, disabled reasons, or approval state inline, it must hand off to the host-owned command-palette row instead of rendering a misleading approximation."
+  },
+  "substitution_and_deprecation": {
+    "deprecated_refs": [
+      "token-substitution:command_palette.result_row.deprecated_chip_role"
+    ],
+    "replacement_refs": [
+      "al.color.bg.raised",
+      "icon-slot:command.canonical"
+    ],
+    "visibility_required": true,
+    "visibility_surface_refs": [
+      "appearance-debug:token-substitutions",
+      "command-palette:theme-compatibility-note"
+    ],
+    "unsupported_package_behavior": "If the active theme or extension package cannot map a required semantic role, the host row falls back to the first-party semantic role set and keeps the mismatch visible in the appearance/debug path."
+  },
+  "evidence_hooks": {
+    "keyboard_journey_refs": [
+      "shell_conformance.quick_open_palette",
+      "keyboard-journey:command_palette.result_row.primary_and_inline_action"
+    ],
+    "assistive_technology_refs": [
+      "at_matrix.macos.core_shell",
+      "at_matrix.windows.core_shell",
+      "at_matrix.linux_gnome.core_shell",
+      "tree_coverage.quick_open_palette"
+    ],
+    "token_drift_check_refs": [
+      "token-drift:command_palette.result_row.base_and_blocked_states"
+    ],
+    "screenshot_baseline_refs": [
+      "design-screenshot:command_palette.result_row.dark_light_hc_density_matrix"
+    ],
+    "localization_or_pseudoloc_refs": [
+      "locale.shared.source_and_pseudoloc_shell",
+      "fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml"
+    ],
+    "state_machine_validation_refs": [
+      "state-machine-probe:command_palette.result_row.selection_focus_disabled_reason"
+    ]
+  }
+}

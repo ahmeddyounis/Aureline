@@ -24,6 +24,14 @@ The companion artifacts are:
   the `component_state_record`, the `theme_support_row_record`,
   the `accessibility_posture_record`, the `layer_order_record`,
   the `scrim_token_record`, and the `token_export_audit_event_record`.
+- [`/docs/ux/component_contract_template.md`](../ux/component_contract_template.md),
+  [`/schemas/design/component_contract.schema.json`](../../schemas/design/component_contract.schema.json),
+  and
+  [`/fixtures/design/component_contract_examples/`](../../fixtures/design/component_contract_examples/)
+  — reusable component-contract packet template, machine-readable
+  schema, and worked example packets that consume this vocabulary by
+  ref instead of re-minting local state, token, density, or motion
+  rules.
 - [`/artifacts/design/theme_support_rows.yaml`](../../artifacts/design/theme_support_rows.yaml)
   — dark reference, light parity, high-contrast dark, and high-
   contrast light theme rows plus the five accessibility /

@@ -1,0 +1,733 @@
+{
+  "component_contract_schema_version": 1,
+  "record_kind": "component_contract_record",
+  "component_id": "trust.permission_prompt",
+  "component_title": "Trust and Permission Prompt",
+  "summary": "Host-owned prompt for trust-, permission-, or identity-changing actions. The prompt keeps scope, owner, raw identifiers, consequences, and safe-local continuity visible before the user changes authority.",
+  "component_family_class": "permission_prompt",
+  "stability_label": "seed",
+  "source_anchor_refs": [
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#4.1-non-negotiable-ux-principles",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#21.1-extension-ux-principles",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#23.2-component-review-checklist",
+    ".t2/docs/Aureline_Technical_Design_Document.md#7.1.17-appearance-theme-packages-token-overlays-and-live-appearance-change-architecture",
+    ".t2/docs/Aureline_UX_Design_System_Style_Guide.md#appendix-j--release-note-migration-and-incident-templates"
+  ],
+  "theme_package_hooks": {
+    "default_theme_support_row_ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+    "supported_theme_classes": [
+      "dark_reference",
+      "light_parity",
+      "high_contrast_dark",
+      "high_contrast_light"
+    ],
+    "hook_records": [
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+        "required": true,
+        "notes": "Reference review theme for trust prompts."
+      },
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:high_contrast_light",
+        "required": true,
+        "notes": "Forced-colors and high-contrast review keep trust meaning intact without hue-only signaling."
+      },
+      {
+        "hook_class": "theme_package_manifest",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#9.47-theme-package-token-overlay-and-appearance-session-contract",
+        "required": true,
+        "notes": "Permission prompts follow the shared appearance and token-overlay model."
+      },
+      {
+        "hook_class": "appearance_session_contract",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#8.55-theme-appearance-contrast-and-token-import-ux",
+        "required": true,
+        "notes": "Theme or contrast changes apply live while the prompt is open."
+      }
+    ]
+  },
+  "anatomy": {
+    "slots": [
+      {
+        "slot_id": "prompt_surface",
+        "role_class": "surface",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "Dialog or sheet container that traps focus until the prompt resolves."
+      },
+      {
+        "slot_id": "header_icon",
+        "role_class": "icon",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "State icon communicating trust or warning posture."
+      },
+      {
+        "slot_id": "title",
+        "role_class": "primary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Prompt headline naming the capability or change under review."
+      },
+      {
+        "slot_id": "scope_summary",
+        "role_class": "secondary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Workspace, target, owner, and expiry summary."
+      },
+      {
+        "slot_id": "owner_identifier",
+        "role_class": "metadata",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "Raw owner, publisher, or provider identifier shown in strict display mode."
+      },
+      {
+        "slot_id": "capability_identifier",
+        "role_class": "metadata",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "Raw permission or capability identifier shown exactly when a compatibility or trust decision depends on it."
+      },
+      {
+        "slot_id": "consequence_list",
+        "role_class": "reason_text",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Plain-language list of what the action allows, what boundary changes, and what remains excluded."
+      },
+      {
+        "slot_id": "safe_local_note",
+        "role_class": "status_text",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Local-only or reduced-mode alternative when the user declines or the policy blocks widening."
+      },
+      {
+        "slot_id": "help_link",
+        "role_class": "help_link",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Optional docs or policy detail route."
+      },
+      {
+        "slot_id": "allow_action",
+        "role_class": "action",
+        "required": true,
+        "focusable": true,
+        "localized": true,
+        "description": "Primary trust-changing action."
+      },
+      {
+        "slot_id": "deny_action",
+        "role_class": "action",
+        "required": true,
+        "focusable": true,
+        "localized": true,
+        "description": "Explicit decline route that preserves a productive local path."
+      },
+      {
+        "slot_id": "continue_local_action",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Safe reduced-mode continuation when the workflow supports it."
+      }
+    ],
+    "focus_order": [
+      "allow_action",
+      "deny_action",
+      "continue_local_action",
+      "help_link"
+    ],
+    "responsive_reflow_notes": [
+      "Raw identifiers never collapse behind an expander; action labels or help affordances collapse first.",
+      "The safe-local continuity note stays above the action row in compact layouts so the alternative is visible before focus enters the buttons.",
+      "The prompt may become a sheet on narrow layouts, but focus order and action wording stay unchanged."
+    ]
+  },
+  "state_machine": {
+    "default_state_ref": "review_required",
+    "state_nodes": [
+      {
+        "state_ref": "identity_resolving",
+        "display_label": "Resolving identity",
+        "component_state_classes": [
+          "loading"
+        ],
+        "user_visible_summary": "Owner or capability context is still being resolved and the prompt must not imply trust yet.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "review_required",
+        "display_label": "Review required",
+        "component_state_classes": [
+          "warning"
+        ],
+        "user_visible_summary": "The user must review scope, owner, and consequences before widening authority.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "restricted_path",
+        "display_label": "Restricted path",
+        "component_state_classes": [
+          "restricted",
+          "degraded"
+        ],
+        "user_visible_summary": "The action can continue only in a reduced local or inspect-only mode.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "policy_denied",
+        "display_label": "Policy denied",
+        "component_state_classes": [
+          "policy_blocked"
+        ],
+        "user_visible_summary": "Administrative policy prevents the requested authority change.",
+        "blocks_primary_action": true,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "approved_pending_handoff",
+        "display_label": "Approved",
+        "component_state_classes": [
+          "completed"
+        ],
+        "user_visible_summary": "The user approved the action and the prompt is handing control to the owning surface or route.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": false
+      }
+    ],
+    "transitions": [
+      {
+        "from_state_ref": "identity_resolving",
+        "event_ref": "owner_and_scope_resolved",
+        "to_state_ref": "review_required",
+        "user_visible_effect": "The prompt replaces loading text with exact scope, identifiers, and consequences.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "review_required",
+        "event_ref": "user_selects_allow",
+        "to_state_ref": "approved_pending_handoff",
+        "user_visible_effect": "Approval records the decision and moves control to the owning route without hiding provenance.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "review_required",
+        "event_ref": "user_selects_continue_local",
+        "to_state_ref": "restricted_path",
+        "user_visible_effect": "The prompt narrows to the safe-local path and keeps the denied capability explicit.",
+        "recovery_action_ref": "cmd:workspace.continue_local"
+      },
+      {
+        "from_state_ref": "review_required",
+        "event_ref": "policy_epoch_denies_request",
+        "to_state_ref": "policy_denied",
+        "user_visible_effect": "The prompt disables approval and shows the governing policy source and next review path.",
+        "recovery_action_ref": "cmd:policy.view_effective_rule"
+      },
+      {
+        "from_state_ref": "policy_denied",
+        "event_ref": "policy_epoch_changes",
+        "to_state_ref": "review_required",
+        "user_visible_effect": "The prompt re-enables review once the policy posture allows it again.",
+        "recovery_action_ref": null
+      }
+    ],
+    "composite_state_rules": [
+      {
+        "when_all_of_component_state_classes": [
+          "restricted",
+          "degraded"
+        ],
+        "presentation_priority": 90,
+        "required_disclosure_slot_ids": [
+          "safe_local_note",
+          "continue_local_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ]
+      },
+      {
+        "when_all_of_component_state_classes": [
+          "warning",
+          "policy_blocked"
+        ],
+        "presentation_priority": 100,
+        "required_disclosure_slot_ids": [
+          "scope_summary",
+          "consequence_list",
+          "safe_local_note"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ]
+      }
+    ]
+  },
+  "content_contract": {
+    "slot_content_rules": [
+      {
+        "slot_id": "title",
+        "content_kind_class": "primary_label",
+        "max_lines": 2,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "The title names the capability or trust change in direct language."
+      },
+      {
+        "slot_id": "scope_summary",
+        "content_kind_class": "supporting_text",
+        "max_lines": 3,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "Scope summary includes exact dates or versions when expiry or deprecation is relevant."
+      },
+      {
+        "slot_id": "owner_identifier",
+        "content_kind_class": "raw_identifier",
+        "max_lines": 1,
+        "overflow_behavior_class": "preserve_raw",
+        "plain_language_required": false,
+        "raw_identifier_display_mode": "strict_raw",
+        "notes": "Publisher, provider, or owner identifiers remain exact and reveal confusable or invisible-text issues."
+      },
+      {
+        "slot_id": "capability_identifier",
+        "content_kind_class": "raw_identifier",
+        "max_lines": 2,
+        "overflow_behavior_class": "preserve_raw",
+        "plain_language_required": false,
+        "raw_identifier_display_mode": "strict_raw",
+        "notes": "Capability identifiers stay exact when support, policy, or docs flows need to match them verbatim."
+      },
+      {
+        "slot_id": "consequence_list",
+        "content_kind_class": "reason_text",
+        "max_lines": 6,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "The list says what the action enables, what it does not enable, and the retention or boundary impact when relevant."
+      },
+      {
+        "slot_id": "safe_local_note",
+        "content_kind_class": "status_text",
+        "max_lines": 3,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "The reduced-mode alternative stays visible even when the prompt blocks widening."
+      },
+      {
+        "slot_id": "allow_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Actions must name the consequence, not a generic yes/no verb."
+      },
+      {
+        "slot_id": "deny_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Deny keeps the productive local path explicit."
+      },
+      {
+        "slot_id": "continue_local_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Continue-local is distinct from deny and from allow."
+      }
+    ],
+    "blocked_and_degraded_copy_rule": "Restricted or policy-blocked variants explicitly name what still works locally, what boundary stays closed, and how the user can recover or review the rule.",
+    "empty_or_missing_data_rule": "If owner or capability metadata cannot be resolved, the prompt stays in the loading state and disables trust-changing actions rather than guessing."
+  },
+  "interaction_contract": {
+    "keyboard_model_ref": "focus_trap.review_prompt",
+    "entry_command_refs": [
+      "cmd:workspace.review_trust",
+      "cmd:extension.review_permissions"
+    ],
+    "primary_navigation_keys": [
+      {
+        "key": "Tab",
+        "effect": "Move to the next focusable action or help route inside the prompt.",
+        "when": "While the prompt remains open."
+      },
+      {
+        "key": "Shift+Tab",
+        "effect": "Move to the previous focusable action or help route inside the prompt.",
+        "when": "While the prompt remains open."
+      }
+    ],
+    "activation_keys": [
+      {
+        "key": "Enter",
+        "effect": "Activate the focused action after the user reviews scope and consequence text.",
+        "when": "When one of the prompt actions owns focus."
+      }
+    ],
+    "dismissal_keys": [
+      {
+        "key": "Escape",
+        "effect": "Dismiss the prompt when a safe deny or continue-local path exists.",
+        "when": "Only when dismissal does not skip a required acknowledgement."
+      }
+    ],
+    "focus_return_rule": "Closing or denying returns focus to the invoking control or the next safe productive surface, never to a hidden or destroyed element.",
+    "pointer_behavior_note": "Pointer interaction mirrors the keyboard route exactly; no consequence explanation or raw identifier is hidden behind hover."
+  },
+  "accessibility_contract": {
+    "role_description": "Trust- or permission-changing dialog or sheet.",
+    "accessible_name_rule": "The accessible name combines the prompt title and the capability or scope phrase so the user hears what is being decided immediately.",
+    "accessible_description_rule": "The accessible description appends owner identifier, scope summary, consequences, safe-local note, and any policy-block reason in stable order.",
+    "announcement_rules": [
+      {
+        "trigger_ref": "prompt_opened",
+        "announcement_channel_class": "focus_name",
+        "message_rule": "Initial focus lands on the safest sensible action while the title and scope summary remain discoverable from the dialog root."
+      },
+      {
+        "trigger_ref": "policy_denied_state_entered",
+        "announcement_channel_class": "assertive_live_region",
+        "message_rule": "Policy denial announces the governing source and the remaining safe-local path without moving focus unexpectedly."
+      },
+      {
+        "trigger_ref": "continue_local_revealed",
+        "announcement_channel_class": "polite_live_region",
+        "message_rule": "The prompt announces that a reduced local path is available and keeps the button in the normal tab order."
+      }
+    ],
+    "high_contrast_behavior": "Header icon, focus ring, and action emphasis remain distinct in both high-contrast themes, and raw identifier blocks keep border separation from explanatory text.",
+    "forced_colors_behavior": "Forced-colors mode preserves icon, border, and text hierarchy while flattening decorative fills; the prompt still exposes which action is safest.",
+    "blocked_and_degraded_behavior": "Policy-blocked and restricted variants keep consequences, safe-local continuity, and recovery routes in the accessibility tree instead of requiring visual comparison."
+  },
+  "token_binding_rules": {
+    "design_token_manifest_ref": "docs/design/design_token_component_state_vocabulary.md",
+    "semantic_token_bindings": [
+      {
+        "slot_id": "prompt_surface",
+        "token_role_refs": [
+          "al.color.bg.surface",
+          "al.color.border.default",
+          "al.color.text.primary"
+        ],
+        "when_component_state_classes": [
+          "warning"
+        ],
+        "notes": "Review-required prompt surface."
+      },
+      {
+        "slot_id": "header_icon",
+        "token_role_refs": [
+          "status.warning",
+          "status.info"
+        ],
+        "when_component_state_classes": [
+          "warning",
+          "loading"
+        ],
+        "notes": "Icon treatment follows the prompt state and never acts alone."
+      },
+      {
+        "slot_id": "safe_local_note",
+        "token_role_refs": [
+          "al.color.bg.raised",
+          "al.color.text.primary",
+          "al.color.border.strong"
+        ],
+        "when_component_state_classes": [
+          "restricted",
+          "degraded"
+        ],
+        "notes": "Reduced-mode continuity stays visually separated from the main consequence list."
+      },
+      {
+        "slot_id": "consequence_list",
+        "token_role_refs": [
+          "al.color.text.primary",
+          "al.color.text.secondary"
+        ],
+        "when_component_state_classes": [
+          "policy_blocked"
+        ],
+        "notes": "Blocked-state copy remains readable and subordinate to the title."
+      },
+      {
+        "slot_id": "allow_action",
+        "token_role_refs": [
+          "al.color.focus.ring",
+          "al.color.bg.active"
+        ],
+        "when_component_state_classes": [
+          "completed"
+        ],
+        "notes": "Final approved handoff still preserves focus visibility during the route transition."
+      }
+    ],
+    "density_variant_bindings": [
+      {
+        "density_class": "compact",
+        "slot_ids": [
+          "prompt_surface",
+          "title",
+          "scope_summary",
+          "allow_action",
+          "deny_action"
+        ],
+        "measurement_token_refs": [
+          "density.compact",
+          "space.3",
+          "size.control.compact"
+        ],
+        "layout_effect": "Action row tightens, but raw identifiers remain full-width and readable."
+      },
+      {
+        "density_class": "standard",
+        "slot_ids": [
+          "prompt_surface",
+          "consequence_list",
+          "safe_local_note",
+          "allow_action",
+          "deny_action",
+          "continue_local_action"
+        ],
+        "measurement_token_refs": [
+          "density.standard",
+          "space.4",
+          "size.control.standard"
+        ],
+        "layout_effect": "Reference density for trust and permission review."
+      },
+      {
+        "density_class": "comfortable",
+        "slot_ids": [
+          "prompt_surface",
+          "title",
+          "scope_summary",
+          "consequence_list",
+          "safe_local_note"
+        ],
+        "measurement_token_refs": [
+          "density.comfortable",
+          "space.5",
+          "size.control.comfortable"
+        ],
+        "layout_effect": "More vertical separation is allowed for accessibility or long localized strings without changing action order."
+      }
+    ],
+    "motion_bindings": [
+      {
+        "motion_preset_ref": "motion-preset:trust.permission_prompt.enter_exit",
+        "slot_ids": [
+          "prompt_surface",
+          "safe_local_note"
+        ],
+        "default_duration_token_refs": [
+          "motion.fast"
+        ],
+        "default_easing_token_refs": [
+          "ease.enter",
+          "ease.exit"
+        ],
+        "reduced_motion_posture_refs": [
+          "motion_reduced",
+          "motion_low_motion",
+          "motion_power_saver",
+          "motion_critical_hot_path"
+        ],
+        "reduced_motion_behavior": "Enter and exit collapse to instant transitions; focus and announcement order stay unchanged."
+      }
+    ],
+    "state_visualization_bindings": [
+      {
+        "state_ref": "review_required",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "scope_summary",
+          "consequence_list"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Review-required is cautionary but not yet blocked."
+      },
+      {
+        "state_ref": "restricted_path",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": "restricted_workspace",
+        "required_disclosure_slot_ids": [
+          "safe_local_note",
+          "continue_local_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Restricted path keeps the safe-local action and explanation co-located."
+      },
+      {
+        "state_ref": "policy_denied",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": "policy_locked",
+        "required_disclosure_slot_ids": [
+          "scope_summary",
+          "safe_local_note"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Policy denial stays separate from restricted local mode."
+      }
+    ]
+  },
+  "visual_asset_hooks": {
+    "asset_slots": [
+      {
+        "slot_id": "header_icon",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:trust.prompt.state",
+        "icon_treatment_class": "status_semantic",
+        "rtl_behavior_class": "not_applicable",
+        "notes": "Trust and policy prompts use the same host-owned icon slot."
+      },
+      {
+        "slot_id": "prompt_surface",
+        "asset_kind_class": "none",
+        "asset_ref": "not_applicable",
+        "icon_treatment_class": null,
+        "rtl_behavior_class": "not_applicable",
+        "notes": "Trust-critical prompts do not use decorative illustration."
+      },
+      {
+        "slot_id": "help_link",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:help.external_or_local",
+        "icon_treatment_class": "shell_stroke_standard",
+        "rtl_behavior_class": "mirror_directional",
+        "notes": "Help or policy routes may use a directional link icon."
+      }
+    ]
+  },
+  "localization_contract": {
+    "translation_required_slot_ids": [
+      "title",
+      "scope_summary",
+      "consequence_list",
+      "safe_local_note",
+      "help_link",
+      "allow_action",
+      "deny_action",
+      "continue_local_action"
+    ],
+    "raw_identifier_slot_ids": [
+      "owner_identifier",
+      "capability_identifier"
+    ],
+    "text_expansion_strategy": "Title and scope wrap before the action row reflows. Raw identifiers preserve exact bytes and may horizontal-scroll or line-break only at safe separators.",
+    "bidi_behavior": "Owner and capability identifiers are bidi-isolated and never mirrored; surrounding explanatory copy follows the active locale direction.",
+    "formatting_behavior": "Expiry, deadline, and version text use exact locale-aware dates or versions instead of vague relative phrasing on durable or trust-critical prompts.",
+    "source_language_fallback_behavior": "If only source-language publisher or policy labels exist, the prompt keeps those exact labels and adds translated framing rather than silently substituting approximate copy.",
+    "notes": "This component must survive pseudoloc expansion, mixed-direction identifiers, and confusable-character review without collapsing the safe-local path."
+  },
+  "extension_guidance": {
+    "parity_posture_class": "handoff_only",
+    "required_inheritance_axes": [
+      "semantic_tokens",
+      "contrast",
+      "focus",
+      "reduced_motion",
+      "state_machine",
+      "keyboard_model",
+      "command_routing",
+      "provenance_badging"
+    ],
+    "allowed_extension_variations": [
+      "An extension may request one extension-specific docs link or policy-details link.",
+      "An extension may pass through a provider-specific identifier as raw metadata when the host prompt exposes it exactly."
+    ],
+    "required_gap_disclosure": "UI-bearing extensions should invoke the host-owned trust prompt; if they cannot, they must hand off before authority changes rather than shipping a look-alike prompt with weaker disclosure."
+  },
+  "substitution_and_deprecation": {
+    "deprecated_refs": [
+      "permission-label:legacy.full_access",
+      "token-substitution:trust.prompt.legacy_warning_fill"
+    ],
+    "replacement_refs": [
+      "capability-manifest:effective_permission",
+      "trust.policy_locked",
+      "trust.restricted_workspace"
+    ],
+    "visibility_required": true,
+    "visibility_surface_refs": [
+      "prompt:scope_summary",
+      "help-surface:permission-migration-note",
+      "appearance-debug:token-substitutions"
+    ],
+    "unsupported_package_behavior": "If a theme or extension package cannot express the host trust tokens faithfully, the prompt falls back to the host-owned trust palette and keeps the mismatch visible in docs/help or appearance review."
+  },
+  "evidence_hooks": {
+    "keyboard_journey_refs": [
+      "shell_conformance.sign_in_or_trust_prompt_recovery",
+      "keyboard-journey:trust.permission_prompt.safe_default_and_return"
+    ],
+    "assistive_technology_refs": [
+      "corpus.accessibility.trust.permission_prompt_recovery",
+      "at_matrix.macos.core_shell",
+      "at_matrix.windows.core_shell",
+      "at_matrix.linux_gnome.core_shell",
+      "tree_coverage.sign_in_and_trust_prompt"
+    ],
+    "token_drift_check_refs": [
+      "token-drift:trust.permission_prompt.warning_restricted_policy_states"
+    ],
+    "screenshot_baseline_refs": [
+      "design-screenshot:trust.permission_prompt.dark_light_hc_restricted_policy_matrix"
+    ],
+    "localization_or_pseudoloc_refs": [
+      "locale.shared.source_and_pseudoloc_shell",
+      "locale.shared.cjk_and_emoji_input",
+      "fixtures/accessibility/ime_and_text_cases/platform_input_feature_unavailable.yaml"
+    ],
+    "state_machine_validation_refs": [
+      "state-machine-probe:trust.permission_prompt.review_restricted_policy_handoff"
+    ]
+  }
+}

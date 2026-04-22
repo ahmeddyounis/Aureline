@@ -1,0 +1,739 @@
+{
+  "component_contract_schema_version": 1,
+  "record_kind": "component_contract_record",
+  "component_id": "activity_center.durable_job_row",
+  "component_title": "Durable Job Row",
+  "summary": "Reusable durable row for long-running, deferred, or throttled work that must stay visible beyond a toast. The row keeps subject identity, current job state, freshness or backlog truth, and the next safe action visible in the activity center or other durable shells.",
+  "component_family_class": "job_row",
+  "stability_label": "seed",
+  "source_anchor_refs": [
+    "docs/ux/attention_activity_taxonomy.md",
+    "docs/perf/efficiency_state_policy.md",
+    ".t2/docs/Aureline_UI_UX_Spec_Document.md#27.24-power-battery-thermal-and-background-work-ux",
+    ".t2/docs/Aureline_Technical_Design_Document.md#task-run-review-blocked-reasons-and-failure-follow-up",
+    ".t2/docs/Aureline_UX_Design_System_Style_Guide.md#appendix-n--critical-component-state-matrix"
+  ],
+  "theme_package_hooks": {
+    "default_theme_support_row_ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+    "supported_theme_classes": [
+      "dark_reference",
+      "light_parity",
+      "high_contrast_dark",
+      "high_contrast_light"
+    ],
+    "hook_records": [
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:dark_reference",
+        "required": true,
+        "notes": "Reference shell row for activity center review."
+      },
+      {
+        "hook_class": "theme_support_row",
+        "ref": "artifacts/design/theme_support_rows.yaml#design:theme:light_parity",
+        "required": true,
+        "notes": "Durable rows must remain parity-quality on light theme."
+      },
+      {
+        "hook_class": "theme_package_manifest",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#9.47-theme-package-token-overlay-and-appearance-session-contract",
+        "required": true,
+        "notes": "The row participates in the shared appearance-session contract."
+      },
+      {
+        "hook_class": "appearance_session_contract",
+        "ref": ".t2/docs/Aureline_Technical_Design_Document.md#8.55-theme-appearance-contrast-and-token-import-ux",
+        "required": true,
+        "notes": "Durable activity rows inherit the same live theme and contrast changes as shell chrome."
+      }
+    ]
+  },
+  "anatomy": {
+    "slots": [
+      {
+        "slot_id": "row_surface",
+        "role_class": "surface",
+        "required": true,
+        "focusable": true,
+        "localized": false,
+        "description": "Focus-owning durable row container in the activity center or equivalent durable surface."
+      },
+      {
+        "slot_id": "state_icon",
+        "role_class": "icon",
+        "required": true,
+        "focusable": false,
+        "localized": false,
+        "description": "Current job-state icon or semantic activity marker."
+      },
+      {
+        "slot_id": "job_title",
+        "role_class": "primary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Primary identity of the work item."
+      },
+      {
+        "slot_id": "scope_summary",
+        "role_class": "secondary_label",
+        "required": true,
+        "focusable": false,
+        "localized": true,
+        "description": "Current target, provider, workspace, or destination summary."
+      },
+      {
+        "slot_id": "progress_summary",
+        "role_class": "progress_indicator",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Current progress, duration, or queued workload summary."
+      },
+      {
+        "slot_id": "freshness_or_backlog_note",
+        "role_class": "status_text",
+        "required": false,
+        "focusable": false,
+        "localized": true,
+        "description": "Staleness, deferral, throttling, or backlog note that changes the truth of the row."
+      },
+      {
+        "slot_id": "evidence_link",
+        "role_class": "help_link",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Route to logs, evidence, diagnostics, or the owning object."
+      },
+      {
+        "slot_id": "primary_action",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Safe primary follow-up such as open details, retry, or resume."
+      },
+      {
+        "slot_id": "secondary_action",
+        "role_class": "action",
+        "required": false,
+        "focusable": true,
+        "localized": true,
+        "description": "Additional action such as pause, cancel, or view logs when the state allows it."
+      }
+    ],
+    "focus_order": [
+      "row_surface",
+      "primary_action",
+      "secondary_action",
+      "evidence_link"
+    ],
+    "responsive_reflow_notes": [
+      "Progress and backlog notes collapse before job identity or the next safe action.",
+      "In compact layouts the evidence link may move below the action row, but the row itself stays directly focusable.",
+      "The row may not demote into a toast-only summary when the work is still durable or recoverable."
+    ]
+  },
+  "state_machine": {
+    "default_state_ref": "queued",
+    "state_nodes": [
+      {
+        "state_ref": "queued",
+        "display_label": "Queued",
+        "component_state_classes": [
+          "pending"
+        ],
+        "user_visible_summary": "Work is scheduled but not yet actively running.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "running",
+        "display_label": "Running",
+        "component_state_classes": [
+          "loading"
+        ],
+        "user_visible_summary": "Work is actively running and should expose progress or the last truthful checkpoint.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "awaiting_input",
+        "display_label": "Awaiting input",
+        "component_state_classes": [
+          "warning",
+          "pending"
+        ],
+        "user_visible_summary": "The row needs an explicit user decision before work can continue.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "succeeded",
+        "display_label": "Succeeded",
+        "component_state_classes": [
+          "completed"
+        ],
+        "user_visible_summary": "The durable work completed and now links to its resulting object or evidence.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "failed",
+        "display_label": "Failed",
+        "component_state_classes": [
+          "warning"
+        ],
+        "user_visible_summary": "The work failed and the row must name the failure class and next safe action.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "cancelled",
+        "display_label": "Cancelled",
+        "component_state_classes": [
+          "warning"
+        ],
+        "user_visible_summary": "The work stopped intentionally or by policy and remains inspectable.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      },
+      {
+        "state_ref": "stale_deferred",
+        "display_label": "Stale or deferred",
+        "component_state_classes": [
+          "stale",
+          "degraded"
+        ],
+        "user_visible_summary": "The row shows the last truthful checkpoint while work is deferred, throttled, or partially paused.",
+        "blocks_primary_action": false,
+        "requires_persistent_disclosure": true
+      }
+    ],
+    "transitions": [
+      {
+        "from_state_ref": "queued",
+        "event_ref": "worker_started",
+        "to_state_ref": "running",
+        "user_visible_effect": "Progress and live state appear without changing the row's durable identity.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "running",
+        "event_ref": "requires_user_input",
+        "to_state_ref": "awaiting_input",
+        "user_visible_effect": "The row pauses at the current checkpoint and moves the next safe action into the action cluster.",
+        "recovery_action_ref": "cmd:activity.open_job_review"
+      },
+      {
+        "from_state_ref": "running",
+        "event_ref": "completed_successfully",
+        "to_state_ref": "succeeded",
+        "user_visible_effect": "Success state replaces live progress and keeps evidence or result links visible.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "running",
+        "event_ref": "failed_with_reason",
+        "to_state_ref": "failed",
+        "user_visible_effect": "The row surfaces the failure class inline and exposes retry or inspect routes.",
+        "recovery_action_ref": "cmd:activity.retry_job"
+      },
+      {
+        "from_state_ref": "queued",
+        "event_ref": "efficiency_policy_deferred_work",
+        "to_state_ref": "stale_deferred",
+        "user_visible_effect": "The row remains durable and names the deferred or throttled reason instead of disappearing.",
+        "recovery_action_ref": "cmd:activity.inspect_efficiency_state"
+      },
+      {
+        "from_state_ref": "stale_deferred",
+        "event_ref": "pressure_cleared_and_work_resumed",
+        "to_state_ref": "running",
+        "user_visible_effect": "The row returns to active progress while preserving the prior deferred checkpoint in evidence links.",
+        "recovery_action_ref": null
+      },
+      {
+        "from_state_ref": "awaiting_input",
+        "event_ref": "user_cancelled",
+        "to_state_ref": "cancelled",
+        "user_visible_effect": "The row stays visible with the cancellation reason and any retained evidence path.",
+        "recovery_action_ref": "cmd:activity.open_job_details"
+      }
+    ],
+    "composite_state_rules": [
+      {
+        "when_all_of_component_state_classes": [
+          "stale",
+          "degraded"
+        ],
+        "presentation_priority": 100,
+        "required_disclosure_slot_ids": [
+          "freshness_or_backlog_note",
+          "scope_summary"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ]
+      },
+      {
+        "when_all_of_component_state_classes": [
+          "warning",
+          "pending"
+        ],
+        "presentation_priority": 90,
+        "required_disclosure_slot_ids": [
+          "progress_summary",
+          "primary_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ]
+      }
+    ]
+  },
+  "content_contract": {
+    "slot_content_rules": [
+      {
+        "slot_id": "job_title",
+        "content_kind_class": "primary_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Job identity remains stable across state changes."
+      },
+      {
+        "slot_id": "scope_summary",
+        "content_kind_class": "supporting_text",
+        "max_lines": 2,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "localized_wrapper_only",
+        "notes": "Scope summary keeps provider, destination, or workspace identity visible."
+      },
+      {
+        "slot_id": "progress_summary",
+        "content_kind_class": "progress_summary",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Progress speaks in job terms such as queued bytes, passed checks, or current stage."
+      },
+      {
+        "slot_id": "freshness_or_backlog_note",
+        "content_kind_class": "status_text",
+        "max_lines": 2,
+        "overflow_behavior_class": "wrap",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Deferred, throttled, or stale states remain inline and durable."
+      },
+      {
+        "slot_id": "primary_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Primary follow-up names the action exactly, such as Retry, Resume, or Open details."
+      },
+      {
+        "slot_id": "secondary_action",
+        "content_kind_class": "action_label",
+        "max_lines": 1,
+        "overflow_behavior_class": "truncate_tail",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Secondary actions stay distinct from the primary next step."
+      },
+      {
+        "slot_id": "evidence_link",
+        "content_kind_class": "help_link",
+        "max_lines": 1,
+        "overflow_behavior_class": "hide_when_unavailable",
+        "plain_language_required": true,
+        "raw_identifier_display_mode": "not_applicable",
+        "notes": "Links to logs, diagnostics, or the owning durable object never replace the primary action."
+      }
+    ],
+    "blocked_and_degraded_copy_rule": "Deferred, throttled, stale, and failure states must say what still works, what paused, and whether the row represents live work, a queued action, or the last truthful checkpoint.",
+    "empty_or_missing_data_rule": "If exact progress is unavailable, the row still states the current state and the last known truthful checkpoint instead of showing empty chrome."
+  },
+  "interaction_contract": {
+    "keyboard_model_ref": "listitem_with_embedded_actions",
+    "entry_command_refs": [
+      "cmd:activity.open_center",
+      "cmd:task.open_recent_runs"
+    ],
+    "primary_navigation_keys": [
+      {
+        "key": "ArrowDown",
+        "effect": "Move focus to the next durable row.",
+        "when": "While focus remains inside the durable activity list."
+      },
+      {
+        "key": "ArrowUp",
+        "effect": "Move focus to the previous durable row.",
+        "when": "While focus remains inside the durable activity list."
+      },
+      {
+        "key": "Tab",
+        "effect": "Move from the row surface to row-local actions and evidence links.",
+        "when": "Only after the row itself owns focus."
+      }
+    ],
+    "activation_keys": [
+      {
+        "key": "Enter",
+        "effect": "Open the durable row's primary detail or follow-up route.",
+        "when": "When the row surface owns focus."
+      },
+      {
+        "key": "Space",
+        "effect": "Trigger the primary follow-up action when the host maps one for the current state.",
+        "when": "When the primary action owns focus."
+      }
+    ],
+    "dismissal_keys": [],
+    "focus_return_rule": "Closing a row-owned detail sheet returns focus to the originating durable row or the nearest surviving durable ancestor.",
+    "pointer_behavior_note": "Pointer hover may increase emphasis but must not be required to reveal backlog, throttling, or retry information."
+  },
+  "accessibility_contract": {
+    "role_description": "Durable activity list item with optional embedded actions.",
+    "accessible_name_rule": "The accessible name combines the job title and current local state label so users hear both identity and state immediately.",
+    "accessible_description_rule": "The accessible description appends scope summary, progress or backlog note, and the primary next action in stable order.",
+    "announcement_rules": [
+      {
+        "trigger_ref": "job_state_changed",
+        "announcement_channel_class": "polite_live_region",
+        "message_rule": "The row announces meaningful state transitions such as queued to running, running to failed, or running to deferred, but does not spam on every progress tick."
+      },
+      {
+        "trigger_ref": "awaiting_input_entered",
+        "announcement_channel_class": "assertive_live_region",
+        "message_rule": "Awaiting-input state announces the next required action and keeps focus on the row until the user moves into the action cluster."
+      },
+      {
+        "trigger_ref": "evidence_link_focused",
+        "announcement_channel_class": "focus_name",
+        "message_rule": "Evidence links speak as links to logs, diagnostics, or the source object rather than as generic details buttons."
+      }
+    ],
+    "high_contrast_behavior": "State icon, row outline, backlog note, and primary action remain distinct in high-contrast themes without relying on filled progress bars alone.",
+    "forced_colors_behavior": "Forced-colors mode keeps job-state meaning through text, icon, and border emphasis while suppressing decorative fills or subtle progress gradients.",
+    "blocked_and_degraded_behavior": "Deferred or stale rows remain addressable, narrate what is paused or narrowed, and keep retry or inspect routes available from the same durable row."
+  },
+  "token_binding_rules": {
+    "design_token_manifest_ref": "docs/design/design_token_component_state_vocabulary.md",
+    "semantic_token_bindings": [
+      {
+        "slot_id": "row_surface",
+        "token_role_refs": [
+          "al.color.bg.surface",
+          "al.color.border.default",
+          "al.color.text.primary"
+        ],
+        "when_component_state_classes": [
+          "pending"
+        ],
+        "notes": "Queued rows retain durable visibility without overclaiming progress."
+      },
+      {
+        "slot_id": "progress_summary",
+        "token_role_refs": [
+          "al.color.text.primary",
+          "al.color.text.secondary"
+        ],
+        "when_component_state_classes": [
+          "loading"
+        ],
+        "notes": "Running rows emphasize truthful progress over ornament."
+      },
+      {
+        "slot_id": "freshness_or_backlog_note",
+        "token_role_refs": [
+          "al.color.bg.raised",
+          "al.color.border.strong"
+        ],
+        "when_component_state_classes": [
+          "stale",
+          "degraded"
+        ],
+        "notes": "Deferred or stale notes must stand out in-place."
+      },
+      {
+        "slot_id": "primary_action",
+        "token_role_refs": [
+          "al.color.bg.active",
+          "al.color.focus.ring"
+        ],
+        "when_component_state_classes": [
+          "completed",
+          "warning"
+        ],
+        "notes": "Follow-up actions stay discoverable in success and failure states."
+      }
+    ],
+    "density_variant_bindings": [
+      {
+        "density_class": "compact",
+        "slot_ids": [
+          "row_surface",
+          "job_title",
+          "scope_summary",
+          "progress_summary"
+        ],
+        "measurement_token_refs": [
+          "density.compact",
+          "space.2",
+          "size.row.compact"
+        ],
+        "layout_effect": "Compact rows preserve a single-line title and progress summary before lower-priority notes wrap."
+      },
+      {
+        "density_class": "standard",
+        "slot_ids": [
+          "row_surface",
+          "job_title",
+          "scope_summary",
+          "progress_summary",
+          "freshness_or_backlog_note",
+          "primary_action"
+        ],
+        "measurement_token_refs": [
+          "density.standard",
+          "space.3",
+          "size.row.standard"
+        ],
+        "layout_effect": "Reference density for durable-job review."
+      },
+      {
+        "density_class": "comfortable",
+        "slot_ids": [
+          "row_surface",
+          "scope_summary",
+          "freshness_or_backlog_note",
+          "primary_action",
+          "secondary_action",
+          "evidence_link"
+        ],
+        "measurement_token_refs": [
+          "density.comfortable",
+          "space.4",
+          "size.row.comfortable"
+        ],
+        "layout_effect": "Extra breathing room supports longer localized backlog or failure explanations without changing row order."
+      }
+    ],
+    "motion_bindings": [
+      {
+        "motion_preset_ref": "motion-preset:activity_center.durable_job_row.progress",
+        "slot_ids": [
+          "state_icon",
+          "progress_summary"
+        ],
+        "default_duration_token_refs": [
+          "motion.fast"
+        ],
+        "default_easing_token_refs": [
+          "ease.standard"
+        ],
+        "reduced_motion_posture_refs": [
+          "motion_reduced",
+          "motion_low_motion",
+          "motion_power_saver",
+          "motion_critical_hot_path"
+        ],
+        "reduced_motion_behavior": "Progress animation collapses to instant textual updates; no shimmer or pulse survives when motion is reduced or power constrained."
+      }
+    ],
+    "state_visualization_bindings": [
+      {
+        "state_ref": "queued",
+        "semantic_status_class": "info",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "progress_summary",
+          "scope_summary"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Queued rows must still name what is waiting."
+      },
+      {
+        "state_ref": "awaiting_input",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "progress_summary",
+          "primary_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Action-required state surfaces the exact next step."
+      },
+      {
+        "state_ref": "succeeded",
+        "semantic_status_class": "success",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "evidence_link",
+          "primary_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon"
+        ],
+        "notes": "Success is durable and links to the resulting object or evidence."
+      },
+      {
+        "state_ref": "failed",
+        "semantic_status_class": "danger",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "freshness_or_backlog_note",
+          "primary_action"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Failure stays explicit and recoverable."
+      },
+      {
+        "state_ref": "stale_deferred",
+        "semantic_status_class": "warning",
+        "trust_visual_state_class": null,
+        "required_disclosure_slot_ids": [
+          "freshness_or_backlog_note",
+          "scope_summary"
+        ],
+        "non_color_cues": [
+          "label_text",
+          "icon",
+          "border"
+        ],
+        "notes": "Deferred or throttled rows remain honest about what paused and what still works."
+      }
+    ]
+  },
+  "visual_asset_hooks": {
+    "asset_slots": [
+      {
+        "slot_id": "state_icon",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:activity.job.state",
+        "icon_treatment_class": "status_semantic",
+        "rtl_behavior_class": "not_applicable",
+        "notes": "Semantic job-state icon shared across durable job rows."
+      },
+      {
+        "slot_id": "progress_summary",
+        "asset_kind_class": "none",
+        "asset_ref": "not_applicable",
+        "icon_treatment_class": null,
+        "rtl_behavior_class": "not_applicable",
+        "notes": "Progress is primarily textual and numeric; decorative progress imagery is optional."
+      },
+      {
+        "slot_id": "evidence_link",
+        "asset_kind_class": "icon",
+        "asset_ref": "icon-slot:activity.evidence_link",
+        "icon_treatment_class": "shell_stroke_standard",
+        "rtl_behavior_class": "mirror_directional",
+        "notes": "Evidence and diagnostics links may use a directional affordance."
+      }
+    ]
+  },
+  "localization_contract": {
+    "translation_required_slot_ids": [
+      "job_title",
+      "scope_summary",
+      "progress_summary",
+      "freshness_or_backlog_note",
+      "primary_action",
+      "secondary_action",
+      "evidence_link"
+    ],
+    "raw_identifier_slot_ids": [],
+    "text_expansion_strategy": "The job title truncates last. Backlog and throttling notes may wrap to a second line before actions collapse.",
+    "bidi_behavior": "Mixed-direction target names or artifact identifiers inside scope summaries remain isolated while surrounding activity copy follows the active locale direction.",
+    "formatting_behavior": "Durations, counts, and exact times use locale-aware formatting; when a deadline matters the row prefers the exact date or time over vague relative phrasing.",
+    "source_language_fallback_behavior": "If a provider contributes only a source-language stage label, the row keeps the original label and adds localized framing instead of inventing parity.",
+    "notes": "Durable rows must remain readable under pseudoloc expansion and retain truthful quantity labels such as blocked count or queued bytes."
+  },
+  "extension_guidance": {
+    "parity_posture_class": "must_match",
+    "required_inheritance_axes": [
+      "semantic_tokens",
+      "density",
+      "contrast",
+      "focus",
+      "reduced_motion",
+      "state_machine",
+      "keyboard_model",
+      "provenance_badging"
+    ],
+    "allowed_extension_variations": [
+      "An extension-contributed durable job may add one provider badge or artifact-count fragment inside the scope summary.",
+      "An extension-contributed job may omit the secondary action when there is only one safe next step."
+    ],
+    "required_gap_disclosure": "Extensions that cannot honor durable-row semantics, throttling truth, or host-owned retry language must hand off to the host activity center instead of presenting a toast-only approximation."
+  },
+  "substitution_and_deprecation": {
+    "deprecated_refs": [
+      "job-state-label:legacy.waiting",
+      "token-substitution:activity_center.job_row.legacy_progress_chip"
+    ],
+    "replacement_refs": [
+      "activity-event-envelope:durable_job_record",
+      "status.success",
+      "status.warning",
+      "status.danger"
+    ],
+    "visibility_required": true,
+    "visibility_surface_refs": [
+      "activity-center:job-details",
+      "help-surface:activity-state-legend",
+      "appearance-debug:token-substitutions"
+    ],
+    "unsupported_package_behavior": "If a theme or provider package cannot express the required state tokens or backlog note treatment, the host durable row falls back to first-party semantic roles and keeps the compatibility gap visible in diagnostics or appearance review."
+  },
+  "evidence_hooks": {
+    "keyboard_journey_refs": [
+      "shell_conformance.run_task_and_review_output",
+      "keyboard-journey:activity_center.durable_job_row.open_retry_resume"
+    ],
+    "assistive_technology_refs": [
+      "corpus.accessibility.execution.task_run_review",
+      "at_matrix.macos.core_shell",
+      "at_matrix.windows.core_shell",
+      "at_matrix.linux_gnome.core_shell",
+      "tree_coverage.task_run_and_output"
+    ],
+    "token_drift_check_refs": [
+      "token-drift:activity_center.durable_job_row.running_failed_deferred_matrix"
+    ],
+    "screenshot_baseline_refs": [
+      "design-screenshot:activity_center.durable_job_row.dark_light_hc_density_matrix"
+    ],
+    "localization_or_pseudoloc_refs": [
+      "locale.shared.source_and_pseudoloc_shell",
+      "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml"
+    ],
+    "state_machine_validation_refs": [
+      "state-machine-probe:activity_center.durable_job_row.queue_run_defer_retry"
+    ]
+  }
+}

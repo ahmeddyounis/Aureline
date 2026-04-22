@@ -404,6 +404,15 @@ code.
   [`/schemas/ux/live_set_state.schema.json`](../schemas/ux/live_set_state.schema.json);
   worked fixtures in
   [`/fixtures/ux/live_review_examples/`](../fixtures/ux/live_review_examples/).
+- [`ux/component_contract_template.md`](./ux/component_contract_template.md)
+  — reusable component-contract packet for anatomy, explicit
+  state-machine rows, content rules, keyboard behavior, accessibility,
+  token and density bindings, theme/icon/motion hooks, localization
+  behavior, extension guidance, substitution visibility, and typed
+  evidence hooks. Boundary schema in
+  [`/schemas/design/component_contract.schema.json`](../schemas/design/component_contract.schema.json);
+  worked fixtures in
+  [`/fixtures/design/component_contract_examples/`](../fixtures/design/component_contract_examples/).
 - [`security/safe_preview_trust_classes.md`](./security/safe_preview_trust_classes.md)
   — safe-preview trust-class and suspicious-content vocabulary for raw
   text, sanitized rich content, trusted local active content, and
