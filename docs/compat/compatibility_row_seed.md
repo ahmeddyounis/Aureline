@@ -15,6 +15,15 @@ Companion artifacts:
 - [`/artifacts/compat/version_skew_register.yaml`](../../artifacts/compat/version_skew_register.yaml)
   — explicit supported, best-effort, untested, and unsupported skew
   cases for each qualification row.
+- [`/schemas/release/compatibility_row.schema.json`](../../schemas/release/compatibility_row.schema.json)
+  — reusable release-row schema extended by compatibility and
+  certified-archetype reports.
+- [`/docs/release/compatibility_report_template.md`](../release/compatibility_report_template.md)
+  — reviewer-facing compatibility-report template that extends these row
+  ids by reference.
+- [`/docs/release/certified_archetype_report_template.md`](../release/certified_archetype_report_template.md)
+  — reviewer-facing certified-archetype report template that reuses the
+  same row shape plus hardware/toolchain/repo/workflow matrices.
 - [`/artifacts/governance/governance_packet_template.yaml`](../../artifacts/governance/governance_packet_template.yaml)
   — later release-time `compatibility_report` and `claim_manifest`
   packets extend the row ids defined here.
@@ -111,6 +120,10 @@ Release-time compatibility reports should add:
 - release verdicts, and
 - per-row freshness timestamps.
 
+Compatibility-report rows SHOULD conform to
+`schemas/release/compatibility_row.schema.json` and SHOULD follow
+`docs/release/compatibility_report_template.md`.
+
 They should not rename row families, collapse multiple boundaries into
 one prose paragraph, or carry compatibility status without a `row_id`.
 
@@ -131,6 +144,12 @@ Certified-archetype or launch-language packets should cite the same
 `row_id` values the compatibility report and claim-manifest lanes cite.
 That keeps "Certified", "Supported", and "Experimental" wording
 mechanically aligned with the same source rows and freshness windows.
+
+Certified-archetype rows SHOULD use
+`docs/release/certified_archetype_report_template.md` and the shared
+row schema at `schemas/release/compatibility_row.schema.json` so
+hardware, toolchain, reference-workspace, and workflow evidence remains
+joined to the same seeded row ids.
 
 ### Deployment-profile artifacts
 

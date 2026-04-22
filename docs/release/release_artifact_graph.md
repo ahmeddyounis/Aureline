@@ -15,6 +15,15 @@ Companion artifacts:
   through.
 - [`/docs/release/release_evidence_packet_template.md`](./release_evidence_packet_template.md)
   — aggregate release-truth packet template.
+- [`/docs/release/compatibility_report_template.md`](./compatibility_report_template.md)
+  — compatibility report template that extends seeded compatibility rows
+  into release-facing packets.
+- [`/docs/release/certified_archetype_report_template.md`](./certified_archetype_report_template.md)
+  — certified-archetype report template that binds archetype claims to
+  hardware, toolchain, workspace, and workflow evidence.
+- [`/schemas/release/compatibility_row.schema.json`](../../schemas/release/compatibility_row.schema.json)
+  — reusable compatibility-row schema shared by compatibility and
+  certified-archetype reports.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](../benchmarks/benchmark_publication_pack_template.md)
   — public benchmark/public-proof packet template.
 - [`/artifacts/bench/protected_metrics.yaml`](../../artifacts/bench/protected_metrics.yaml)
@@ -179,7 +188,7 @@ The following may remain internal by stable ref:
 
 | Surface | Canonical source artifacts | Graph families it may own | Rule |
 |---|---|---|---|
-| Release evidence | `docs/release/release_evidence_packet_template.md`, `artifacts/evidence/evidence_metadata_fields.yaml`, `artifacts/release/artifact_graph_rules.yaml`, `schemas/release/waiver_packet.schema.json` | `release_truth_bundle`, `known_limit_and_disclosure_note`, `promotion_evidence` | Aggregates by stable ref; does not become the canonical source for leaf evidence |
+| Release evidence | `docs/release/release_evidence_packet_template.md`, `docs/release/compatibility_report_template.md`, `docs/release/certified_archetype_report_template.md`, `schemas/release/compatibility_row.schema.json`, `artifacts/evidence/evidence_metadata_fields.yaml`, `artifacts/release/artifact_graph_rules.yaml`, `schemas/release/waiver_packet.schema.json` | `release_truth_bundle`, `known_limit_and_disclosure_note`, `promotion_evidence` | Aggregates by stable ref; compatibility and archetype rows extend the seeded row ids instead of becoming a second truth source |
 | Docs/help truth | `docs/docs/docs_pack_manifest_contract.md`, `schemas/docs/docs_pack_manifest.schema.json`, `schemas/docs/help_status_badge.schema.json`, `docs/build/exact_build_identity_model.md` | `docs_help_truth` | Owns docs applicability and version-match truth; release notes and benchmark packets quote it |
 | Benchmark claims | `docs/benchmarks/benchmark_publication_pack_template.md`, `docs/benchmarks/benchmark_lab_run_results.md`, `docs/benchmarks/public_comparison_rules.md`, `schemas/benchmarks/run_result.schema.json`, `artifacts/bench/protected_metrics.yaml`, `artifacts/bench/fitness_function_catalog.yaml`, `fixtures/benchmarks/corpus_manifest.yaml` | `benchmark_public_proof` | Owns public benchmark caveats, comparability, protected-metrics revisioning, and competitor-configuration disclosure |
 | Support/export packets | `artifacts/support/`, `docs/state/profile_and_state_map.md`, `docs/build/exact_build_identity_model.md`, `docs/security/severity_matrix.md`, `docs/docs/docs_pack_manifest_contract.md` | support-export projections over `build_identity`, `docs_help_truth`, `advisory_or_revocation_notice`, and redaction-bound state/export records | Support/export surfaces quote upstream refs and redaction classes; they do not invent a release-only or benchmark-only dialect |
