@@ -333,6 +333,19 @@ code.
   [`/artifacts/perf/worker_budget_rules.yaml`](../artifacts/perf/worker_budget_rules.yaml);
   reviewable suppression scenarios live in
   [`/fixtures/perf/hidden_pane_cases/`](../fixtures/perf/hidden_pane_cases/).
+- [`perf/power_thermal_methodology.md`](./perf/power_thermal_methodology.md)
+  — reproducible raw-capture and audit methodology for laptop power,
+  battery-drain, thermal-transition, hidden-pane suppression, and
+  worker-budget claims. Freezes the reference-laptop matrix, raw
+  capture schema, measurement windows, and audit-script contract so
+  power / thermal recalibration lands as an explicit methodology
+  change instead of piggybacking on feature work. Machine-readable
+  reference profiles live in
+  [`/artifacts/perf/reference_laptop_matrix.yaml`](../artifacts/perf/reference_laptop_matrix.yaml);
+  raw capture schema lives in
+  [`/schemas/benchmarks/power_thermal_capture.schema.json`](../schemas/benchmarks/power_thermal_capture.schema.json);
+  example captures live in
+  [`/fixtures/perf/power_thermal_capture_examples/`](../fixtures/perf/power_thermal_capture_examples/).
 - [`commands/command_descriptor_contract.md`](./commands/command_descriptor_contract.md)
   — command-descriptor contract every palette, application /
   context menu, keybinding / shortcut-help layer, CLI help, AI-

@@ -1,0 +1,279 @@
+# Reference laptop matrix for power / thermal captures.
+#
+# Companion to docs/perf/power_thermal_methodology.md.
+# This file freezes the reference hardware classes, OS images, capture
+# postures, and provisional operating targets Aureline cites when a power /
+# thermal run claims comparability. Hardware or image recalibration belongs
+# in this file and in benchmark-governance review, not in feature PRs.
+
+schema_version: 1
+status: provisional
+
+overview_page: docs/perf/power_thermal_methodology.md
+capture_schema_ref: schemas/benchmarks/power_thermal_capture.schema.json
+policy_refs:
+  - docs/perf/efficiency_state_policy.md
+  - artifacts/perf/worker_budget_rules.yaml
+  - docs/runtime/resource_governor_contract.md
+benchmark_refs:
+  - artifacts/bench/fitness_function_catalog.yaml
+  - docs/benchmarks/public_comparison_rules.md
+
+shared_policy_targets:
+  hidden_pane_work:
+    value: 0
+    unit: count
+    status: hard_policy_floor
+    notes: hidden-pane work on claimed stable surfaces is a policy violation
+  hidden_surface_committed_paint_count:
+    value: 0
+    unit: count
+    status: hard_policy_floor
+    notes: hidden or detached-offscreen surfaces perform no committed paint
+  offscreen_suppression_eligible:
+    value: audit_only_then_converge_zero
+    unit: policy_state
+    status: provisional_subject_to_calibration
+    notes: non-zero values are surfaced by audit and should trend to zero
+  transition_settle_window_seconds:
+    value: 30
+    unit: seconds
+    status: provisional_subject_to_calibration
+    notes: required workload-budget decisions should land inside this window
+  recovery_quiet_window_seconds:
+    value: 60
+    unit: seconds
+    status: provisional_subject_to_calibration
+    notes: staged resume begins only after the hot path stabilizes
+
+profiles:
+  - profile_id: ref.arm64.macos15.apple_silicon_14in
+    label: Apple Silicon macOS 15 ARM64 reference laptop
+    architecture_class: arm64
+    host_platform_class: macos
+    comparability_family: laptop_arm64_macos_reference
+    status: provisional_subject_to_calibration
+    example_host_signature:
+      vendor: Apple
+      model_family: 14-inch notebook
+      soc_class: apple_silicon_m3_pro
+      memory_gib: 36
+      internal_display_native_hz: 120
+      internal_display_capture_hz: 60
+    os_image:
+      image_id: lab.macos15.4.arm64.rev1
+      os_version_label: macOS 15.4
+      patch_policy: stable_patchline_frozen_within_revision
+      image_notes: >
+        Clean benchmark-lab image with stock background services only.
+        Any image revision bump resets comparability until re-baselined.
+    ambient_contract:
+      target_temperature_c: 22.0
+      tolerance_c: 1.5
+      airflow_note: bench_top_no_external_cooling_pad
+      acoustics_note: normal_lab_noise_floor_no_fan_cap_override
+    display_contract:
+      brightness_nits: 200
+      refresh_rate_hz: 60
+      scaling_note: internal_panel_only_default_scaling
+    network_contract:
+      profile_id: wifi6_associated_idle
+      notes: associated_to_known_ssid_no_large_background_transfer
+    capture_postures:
+      - posture_id: nominal_ac_200nits
+        power_source: ac
+        charger_wattage: 96
+        battery_mode: not_applicable
+        user_power_mode: balanced
+        expected_initial_efficiency_state: Nominal
+        allowed_capture_classes:
+          - idle_draw
+          - hidden_pane_suppression
+        minimum_duration_seconds:
+          idle_draw: 300
+          hidden_pane_suppression: 180
+        provisional_targets:
+          idle_shell_cpu_pct_avg_5m:
+            value: 1.0
+            unit: percent
+            status: seeded_from_prd
+          idle_draw_avg_system_power_w:
+            value: subject_to_calibration
+            unit: watts
+            status: provisional_subject_to_calibration
+      - posture_id: steady_edit_battery_balanced
+        power_source: battery
+        charger_wattage: null
+        battery_mode: battery_saver_off
+        user_power_mode: balanced
+        start_state_of_charge_pct_band:
+          min: 65
+          max: 85
+        expected_initial_efficiency_state: EfficiencyAware
+        allowed_capture_classes:
+          - active_interactive_draw
+          - worker_budget_behavior
+        minimum_duration_seconds:
+          active_interactive_draw: 900
+          worker_budget_behavior: 600
+        provisional_targets:
+          active_interactive_drain_pct_per_hour:
+            value: 10.0
+            unit: percent_per_hour
+            status: seeded_from_prd
+          active_interactive_avg_system_power_w:
+            value: subject_to_calibration
+            unit: watts
+            status: provisional_subject_to_calibration
+          hot_path_p95_ms_under_efficiency_aware:
+            value: subject_to_calibration
+            unit: milliseconds
+            status: provisional_subject_to_calibration
+      - posture_id: thermal_transition_battery_induced
+        power_source: battery
+        charger_wattage: null
+        battery_mode: battery_saver_off
+        user_power_mode: balanced
+        start_state_of_charge_pct_band:
+          min: 55
+          max: 80
+        expected_initial_efficiency_state: EfficiencyAware
+        expected_transition_sequence:
+          - EfficiencyAware
+          - ThermalConstrained
+          - Recovery
+        allowed_capture_classes:
+          - thermal_pressure_transition
+          - hidden_pane_suppression
+          - worker_budget_behavior
+        minimum_duration_seconds:
+          thermal_pressure_transition: 600
+          hidden_pane_suppression: 180
+          worker_budget_behavior: 600
+        provisional_targets:
+          hot_path_p95_ms_under_thermal_constrained:
+            value: subject_to_calibration
+            unit: milliseconds
+            status: provisional_subject_to_calibration
+          background_shed_order_matches_policy:
+            value: required
+            unit: boolean_gate
+            status: seeded_contract
+
+  - profile_id: ref.x86_64.ubuntu24_04.framework13
+    label: Ubuntu 24.04 GNOME Wayland x86_64 reference laptop
+    architecture_class: x86_64
+    host_platform_class: linux
+    comparability_family: laptop_x86_64_linux_reference
+    status: provisional_subject_to_calibration
+    example_host_signature:
+      vendor: Framework
+      model_family: Laptop 13
+      soc_class: amd_ryzen_7_7840u
+      memory_gib: 32
+      internal_display_native_hz: 60
+      internal_display_capture_hz: 60
+    os_image:
+      image_id: lab.ubuntu24.04.gnome_wayland.x86_64.rev1
+      os_version_label: Ubuntu 24.04.2 LTS GNOME Wayland
+      patch_policy: stable_patchline_frozen_within_revision
+      image_notes: >
+        Claimed Linux reference image with GNOME Wayland session,
+        distro power defaults, and benchmark-lab background services
+        limited to the stock image.
+    ambient_contract:
+      target_temperature_c: 22.0
+      tolerance_c: 1.5
+      airflow_note: bench_top_no_external_cooling_pad
+      acoustics_note: normal_lab_noise_floor_no_manual_fan_curve
+    display_contract:
+      brightness_nits: 200
+      refresh_rate_hz: 60
+      scaling_note: internal_panel_only_100_percent_scale
+    network_contract:
+      profile_id: wifi6_associated_idle
+      notes: associated_to_known_ssid_no_large_background_transfer
+    capture_postures:
+      - posture_id: nominal_ac_200nits
+        power_source: ac
+        charger_wattage: 60
+        battery_mode: not_applicable
+        user_power_mode: balanced
+        expected_initial_efficiency_state: Nominal
+        allowed_capture_classes:
+          - idle_draw
+          - hidden_pane_suppression
+        minimum_duration_seconds:
+          idle_draw: 300
+          hidden_pane_suppression: 180
+        provisional_targets:
+          idle_shell_cpu_pct_avg_5m:
+            value: 1.0
+            unit: percent
+            status: seeded_from_prd
+          idle_draw_avg_system_power_w:
+            value: subject_to_calibration
+            unit: watts
+            status: provisional_subject_to_calibration
+      - posture_id: steady_edit_battery_balanced
+        power_source: battery
+        charger_wattage: null
+        battery_mode: battery_saver_off
+        user_power_mode: balanced
+        start_state_of_charge_pct_band:
+          min: 65
+          max: 85
+        expected_initial_efficiency_state: EfficiencyAware
+        allowed_capture_classes:
+          - active_interactive_draw
+          - worker_budget_behavior
+        minimum_duration_seconds:
+          active_interactive_draw: 900
+          worker_budget_behavior: 600
+        provisional_targets:
+          active_interactive_drain_pct_per_hour:
+            value: 12.0
+            unit: percent_per_hour
+            status: seeded_from_prd
+          active_interactive_avg_system_power_w:
+            value: subject_to_calibration
+            unit: watts
+            status: provisional_subject_to_calibration
+      - posture_id: thermal_transition_battery_induced
+        power_source: battery
+        charger_wattage: null
+        battery_mode: battery_saver_off
+        user_power_mode: balanced
+        start_state_of_charge_pct_band:
+          min: 55
+          max: 80
+        expected_initial_efficiency_state: EfficiencyAware
+        expected_transition_sequence:
+          - EfficiencyAware
+          - ThermalConstrained
+          - Recovery
+        allowed_capture_classes:
+          - thermal_pressure_transition
+          - hidden_pane_suppression
+          - worker_budget_behavior
+        minimum_duration_seconds:
+          thermal_pressure_transition: 600
+          hidden_pane_suppression: 180
+          worker_budget_behavior: 600
+        provisional_targets:
+          hot_path_p95_ms_under_thermal_constrained:
+            value: subject_to_calibration
+            unit: milliseconds
+            status: provisional_subject_to_calibration
+          background_shed_order_matches_policy:
+            value: required
+            unit: boolean_gate
+            status: seeded_contract
+
+comparability_reset_triggers:
+  - profile_hardware_changed
+  - os_image_revision_changed
+  - ambient_contract_changed
+  - display_contract_changed
+  - network_contract_changed
+  - provisional_target_eased_or_tightened
