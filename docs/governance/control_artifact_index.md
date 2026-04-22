@@ -203,12 +203,18 @@ and scopes.
 
 - The `support_export` and `accessibility_review_packets` rows are the
   canonical homes for supportability artifacts. Field runbooks, the
-  crash-diagnostics corpus, and export-safe packet schemas all live
-  there.
+  crash-diagnostics corpus, export-safe packet schemas, and the
+  support-packet family index all live there.
 - The `record_class_registry` row is the canonical home for class-level
   retention, export, hold, delete, and offboarding posture that
   support bundles, issue handoff packets, and later managed support
   claims must quote instead of re-labelling privately.
+- The support-packet index contract now lives at
+  [`/schemas/support/support_packet_index.schema.json`](../../schemas/support/support_packet_index.schema.json).
+  Shiproom, support-export, and field-handoff flows cite its canonical
+  family ids for exact-build support, route/origin reconstruction,
+  known-limit correlation, security triage, and rollback review instead
+  of inventing case-local packet names.
 - The deployment continuity drill catalog seed lives under
   [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   with narrative guidance in
@@ -223,6 +229,7 @@ and scopes.
 ### Release
 
 - The `release_artifact_graph`, `release_evidence`,
+  `shiproom_runbook`, `shiproom_dashboard_seed`,
   `compatibility_qualification_seed`,
   `release_notice_seed`, `maintainer_coverage_policy`,
   `signing_quorum`, `frozen_surface_manifests`, `route_build_truth`,
@@ -230,6 +237,11 @@ and scopes.
   assembly.
   `review_cadence: each_release` means the release-engineer DRI MUST
   re-consult the artifact's rules before cutting a release.
+- Shiproom review is no longer meeting-local folklore. The runbook now
+  fixes the review order, go/no-go vocabulary, exception logging, and
+  owner handoffs, while the dashboard seed rolls scorecards, waivers,
+  stale proof, dependency reds, claim-manifest drift, and public-proof
+  coverage into one canonical release-control surface.
 - The desktop-platform conformance matrix and claimed-desktop-profile
   registry are now the canonical home for named macOS, Windows, and
   Linux claims, platform-owned primitives, deployment-path narrowings,

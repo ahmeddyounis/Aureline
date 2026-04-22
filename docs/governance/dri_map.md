@@ -108,14 +108,17 @@ closing the backup waiver.
   (`crates/aureline-shell-spike`). Unprotected and time-boxed.
 - **Benchmark lab** — `crates/aureline-bench`, `/fixtures/`, and the
   benchmark-council charter, corpora, and protected fitness references.
-- **Release evidence** — `/artifacts/release/` (provenance, SBOMs,
-  compatibility reports, claim manifests, rollback/shiproom packets).
+- **Release evidence** — `/artifacts/release/` plus
+  `docs/release/shiproom_runbook.md` (provenance, SBOMs,
+  compatibility reports, claim manifests, rollback/shiproom packets,
+  shiproom dashboard seeds, and reviewer operating order).
 - **Docs / public truth** — `/docs/`, `/README.md`, `/AGENTS.md`,
   `/CLAUDE.md`, external-facing copy, known-limits matrix,
   support-window statements, migration guides.
-- **Support / export** — `/artifacts/support/` (support bundles with
-  redaction rules, doctor probes, recovery ladder, export-safe packet
-  schema, field runbooks, crash-diagnostics corpus).
+- **Support / export** — `/artifacts/support/` and `/schemas/support/`
+  (support bundles with redaction rules, doctor probes, recovery
+  ladder, export-safe packet schemas, the support-packet family index,
+  field runbooks, and crash-diagnostics corpus).
 - **Design-system seeds** — `/artifacts/ux/` design-system snapshots, token
   sources, and component references.
 - **Accessibility / input review** — `/artifacts/ux/` accessibility audits,

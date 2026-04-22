@@ -113,6 +113,9 @@ code.
   contract-surface index.
 - [`release/release_evidence_packet_template.md`](./release/release_evidence_packet_template.md)
   — release-truth packet template and waiver-aware shiproom structure.
+- [`release/shiproom_runbook.md`](./release/shiproom_runbook.md)
+  — canonical shiproom review order, go/no-go vocabulary, exception
+  logging, and release/support/docs/security/architecture handoffs.
 - [`benchmarks/benchmark_publication_pack_template.md`](./benchmarks/benchmark_publication_pack_template.md)
   — public benchmark/public-proof packet template with exact command
   line, comparability, protected-metrics revision, docs applicability,
@@ -193,6 +196,8 @@ code.
   — concept note for Project Doctor, safe mode, support-bundle preview,
   repair-preview transactions, object-specific issue handoff, and the
   exact-build/docs/route truth the support center should preserve.
+  Machine-readable support packet family index in
+  [`/schemas/support/support_packet_index.schema.json`](../schemas/support/support_packet_index.schema.json).
 
 ## Frozen vocabularies
 
