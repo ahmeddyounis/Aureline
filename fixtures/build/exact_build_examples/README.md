@@ -29,13 +29,13 @@ an integration check.
   emitted rows for the same `exact_build_identity_ref`
   field-for-field. These fixtures are the reference identities
   that audit reads.
-- **Diffing two nearby builds.** The six fixtures span one commit
-  (`a4d1c3f0e27b`, stable `0.7.3`) cut across three artifact
-  families (`ide_binary`, `ide_debug_symbols`, `docs_pack`) plus a
-  clean-room rebuild of that same release, and a separate hotfix
-  (`0.7.3-hotfix.1`) and nightly (`0.8.0-nightly.20260421`). A
-  diffing tool can read any two fixtures and enumerate the axes
-  that differ mechanically.
+- **Diffing two nearby builds.** The eight fixtures span one commit
+  (`a4d1c3f0e27b`, stable `0.7.3`) cut across five artifact
+  families (`ide_binary`, `ide_debug_symbols`, `source_map_bundle`,
+  `crash_symbols_archive`, `docs_pack`) plus a clean-room rebuild of
+  that same release, and a separate hotfix (`0.7.3-hotfix.1`) and
+  nightly (`0.8.0-nightly.20260421`). A diffing tool can read any
+  two fixtures and enumerate the axes that differ mechanically.
 
 ## Required fields (per the schema)
 
@@ -83,13 +83,23 @@ schema violation.
   x86_64-unknown-linux-gnu. `signing_material_state =
   signed_verified` clears the release-evidence gate. `debug_info_class
   = split_debug_info_external` cross-references the split-symbols
-  identity via `evidence.split_symbols_ref`.
+  identity via `evidence.split_symbols_ref`; `source_map_manifest_ref`
+  cross-references the paired renderer source-map sidecar.
 - [`ci_release_stable_linux_ide_debug_symbols.json`](./ci_release_stable_linux_ide_debug_symbols.json)
   — companion ide_debug_symbols identity minted alongside the
   production release. Shares commit / toolchain / target / producer
   lane / provenance with its paired binary; differs on
   `artifact_family_class`, `profile` (no strip), and
   `propagation.binary_embed_class = sidecar_manifest_beside_binary`.
+- [`ci_release_stable_linux_source_map_bundle.json`](./ci_release_stable_linux_source_map_bundle.json)
+  — renderer source-map sidecar minted alongside the production linux
+  release. Shares the stable build tuple with the paired runtime
+  binary; differs on `artifact_family_class = source_map_bundle` and
+  the sidecar propagation path used by symbolication.
+- [`ci_release_stable_linux_crash_symbols_archive.json`](./ci_release_stable_linux_crash_symbols_archive.json)
+  — crash-symbol archive retained for the same stable linux release.
+  Shares the stable build tuple with the paired runtime binary and
+  carries the same GNU build-id tag the crash smoke path validates.
 - [`ci_release_stable_docs_pack.json`](./ci_release_stable_docs_pack.json)
   — docs_pack cut from the same stable release. OS / CPU-agnostic
   axes (`target_os_class = other_unspecified`, `target_cpu_class =

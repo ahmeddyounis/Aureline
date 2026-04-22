@@ -291,6 +291,13 @@ and scopes.
   family ids for exact-build support, route/origin reconstruction,
   known-limit correlation, security triage, and rollback review instead
   of inventing case-local packet names.
+- The crash-artifact retention seed and exact-build symbolication smoke
+  path now live with the same support family under
+  [`/artifacts/support/`](../../artifacts/support/) and
+  [`/docs/support/`](../support/). Crash envelopes, dump/core manifests,
+  symbolication reports, and support-bundle refs therefore reuse the
+  same redaction and retention seed instead of creating case-local
+  labels.
 - The deployment continuity drill catalog seed lives under
   [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   with narrative guidance in

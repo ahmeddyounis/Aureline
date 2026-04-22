@@ -277,6 +277,16 @@ code.
   [`/schemas/support/support_bundle.schema.json`](../schemas/support/support_bundle.schema.json);
   seed redaction profiles and example bundles in
   [`/fixtures/support/`](../fixtures/support/).
+- [`support/exact_build_symbolication_smoke.md`](./support/exact_build_symbolication_smoke.md)
+  — local crash-to-symbolication smoke path proving one exact-build
+  identity can drive native symbols, renderer source maps, crash dump
+  manifests, support-bundle references, and fail-closed mismatch
+  handling. Fixture corpus in
+  [`/fixtures/support/crash_fixture/`](../fixtures/support/crash_fixture/);
+  retention/redaction seed in
+  [`/artifacts/support/crash_artifact_retention_seed.json`](../artifacts/support/crash_artifact_retention_seed.json);
+  runner in
+  [`/tools/support/symbolicate_smoke.sh`](../tools/support/symbolicate_smoke.sh).
 
 ## Frozen vocabularies
 

@@ -41,6 +41,12 @@ Companion artifacts:
   [`/docs/deployment/drill_catalog_seed.md`](../deployment/drill_catalog_seed.md)
   — continuity/locality/tenant/key posture vocabulary the bundle
   reuses.
+- [`/docs/support/exact_build_symbolication_smoke.md`](./exact_build_symbolication_smoke.md)
+  and
+  [`/artifacts/support/crash_artifact_retention_seed.json`](../../artifacts/support/crash_artifact_retention_seed.json)
+  — minimal exact-build crash-symbolication smoke path plus the shared
+  crash-artifact retention/redaction seed for envelopes, dump/core
+  manifests, symbolication reports, and support-bundle references.
 - [`/fixtures/support/redaction_profiles/`](../../fixtures/support/redaction_profiles/)
   — seed bundle redaction profiles.
 - [`/fixtures/support/support_bundle_examples/`](../../fixtures/support/support_bundle_examples/)
@@ -237,3 +243,9 @@ demonstrates one realistic local-first bundle:
 
 That is the minimum shape future support tooling should be able to read
 mechanically.
+
+The crash symbolication smoke path under
+[`/docs/support/exact_build_symbolication_smoke.md`](./exact_build_symbolication_smoke.md)
+reuses the same artifact classes and support-bundle joins on one
+minimal crash corpus so exact-build supportability is exercised beyond
+manifest publication alone.
