@@ -1,0 +1,68 @@
+__example__:
+  name: checkpoint_cleanup_pending_manual
+  scenario: >
+    The retention window for a rollback checkpoint has elapsed, but
+    the automatic cleanup job failed because an open handle held a
+    preserved prior artifact. The checkpoint remains visible with a
+    typed cleanup-blocked disclosure and a manual-repair hook.
+  rollback_checkpoint_outcome_class: checkpoint_cleanup_pending_manual
+  import_diff_manifest_case_ref: null
+  doc_sections:
+    - "§Rollback-checkpoint expectations"
+
+record_kind: rollback_checkpoint_example_record
+example_id: rollback_checkpoint.example.checkpoint_cleanup_pending_manual
+schema_version: 1
+rollback_checkpoint_outcome_class: checkpoint_cleanup_pending_manual
+
+migration_session_ref: migration-session:clean-import-stuck-handle-0004
+migration_session_state: applied
+restore_record_ref: migration-restore-record:clean-import-stuck-handle-0004
+checkpoint_ref: rollback-checkpoint:clean-import-stuck-handle-0004
+scope: profile_only
+availability_state: cleanup_pending
+cleanup_state: cleanup_blocked
+restore_action_hints:
+  - open_restore_center
+  - restore_from_checkpoint
+  - export_for_support
+  - cleanup_retained_checkpoint
+partial_apply_note: null
+preserved_prior_artifact_refs:
+  - preserved-artifact:clean-import-prior-settings-0004
+post_restore_validator_outcomes: []
+
+compatibility_report_ref: docs/release/compatibility_report_template.md#migration.vs_code.profile_only
+compatibility_row_refs:
+  - compat_row:state.profile_layout_schema
+
+cleanup_blocker:
+  blocker_class: open_handle_on_preserved_artifact
+  blocker_ref: open-handle:preserved-artifact:clean-import-prior-settings-0004
+  repair_hook_ref: repair-hook:release-preserved-artifact-handle-0004
+  note: >
+    Cleanup is retrying on every migration-center refresh and
+    denying new retention-expiry actions until the repair hook
+    releases the open handle.
+
+host_boundary_cue: local_host_boundary
+freshness_class: warm_cached
+redaction_class: ui_string_only
+export_inclusion_posture: operator_only_restricted
+
+support_packet_refs:
+  - support_packet.cleanup_blocked.clean-import-stuck-handle-0004
+export_refs:
+  - migration_center.machine_readable_report
+
+conformance_tests:
+  - id: cleanup_pending_requires_repair_hook
+    description: >
+      checkpoint_cleanup_pending_manual MUST cite a repair hook via
+      cleanup_blocker.repair_hook_ref; silent auto-retry past the
+      retention window is non-conforming.
+  - id: cleanup_pending_retains_preserved_artifact
+    description: >
+      A cleanup_blocked checkpoint MUST retain the preserved
+      prior-artifact ref so support can inspect what the cleanup
+      job was holding.

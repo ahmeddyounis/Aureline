@@ -1,0 +1,542 @@
+# Migration import-diff manifest.
+#
+# Stable case ids for the import_diff_row_record every migration /
+# import / restore surface (migration-center diff rail, first-run
+# import review, post-import follow-up, issue-template export,
+# support-export row, release-evidence packet) emits. Later
+# migration-center, conflict-journal, profile-library, and managed-
+# sync surfaces should cite these ids instead of minting per-surface
+# migration language, silent "approximate" labels, or an ambiguous
+# "restored" chip.
+#
+# This manifest is the companion roster for
+# docs/verification/migration_and_profile_packet.md. If the two
+# disagree, the packet doc wins for reviewer language and the frozen
+# contracts (docs/migration/migration_center_object_model.md,
+# docs/state/migration_and_restore_playbook.md,
+# docs/state/profile_and_state_map.md,
+# schemas/migration/migration_session.schema.json,
+# schemas/migration/importer_outcome.schema.json,
+# schemas/state/restore_provenance.schema.json) win for tooling.
+#
+# Rules:
+#   - Every import-diff row MUST cite one interop_result_state token,
+#     one fidelity_label token, and one state_plane token from the
+#     frozen vocabularies. Silent blanks are non-conforming.
+#   - Rows whose outcome_state is imported / mapped / manual_review /
+#     bridge_required / unsupported MUST obey the closed mapping in
+#     docs/verification/migration_and_profile_packet.md
+#     §Lossy-vs-exact migration labels.
+#   - Rows whose state_plane_projection is non_portable_live_authority
+#     MAY NOT claim outcome_state = imported.
+#   - Rows touching user_authored_durable_truth with outcome_state in
+#     {mapped, manual_review, bridge_required} MUST cite a non-null
+#     preserved_prior_artifact_ref and a non-null
+#     rollback_checkpoint_ref.
+#   - Sync-conflict rows MUST cite local_side, remote_side,
+#     last_common_ancestor_ref (when required), and
+#     reviewer_action_required.
+#   - Rollback rows MUST project onto one
+#     rollback_checkpoint_outcome_class token and MUST cite the
+#     restore_record_ref of the session they rolled back.
+#   - Adding a case id is additive-minor. Repurposing an id is
+#     breaking and requires a new decision row in
+#     artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+manifest_id: migration.import_diff_manifest.v1
+status: seeded
+
+overview_page: docs/verification/migration_and_profile_packet.md
+migration_center_contract_source: docs/migration/migration_center_object_model.md
+state_migration_playbook_source: docs/state/migration_and_restore_playbook.md
+profile_and_state_map_source: docs/state/profile_and_state_map.md
+entry_restore_object_model_source: docs/workspace/entry_restore_object_model.md
+migration_session_schema_source: schemas/migration/migration_session.schema.json
+importer_outcome_schema_source: schemas/migration/importer_outcome.schema.json
+restore_provenance_schema_source: schemas/state/restore_provenance.schema.json
+
+reference_fixture_refs:
+  - fixtures/state/migration_cases/profile_restore_exact.json
+  - fixtures/state/migration_cases/profile_restore_compatible_schema_shift.json
+  - fixtures/state/migration_cases/layout_restore_layout_only_missing_dependencies.json
+  - fixtures/state/migration_cases/support_bundle_manual_review_workspace_conflict.json
+  - fixtures/profile/restore_provenance_examples/restore_provenance_exact.json
+  - fixtures/profile/restore_provenance_examples/restore_provenance_compatible.json
+  - fixtures/profiles/portability_and_temp_profile_cases/portable_profile_plain_cross_machine.json
+  - fixtures/profiles/portability_and_temp_profile_cases/temporary_profile_ephemeral_session.json
+
+import_diff_row_record_fields:
+  - case_id
+  - migration_session_ref
+  - import_diff_row_id
+  - entry_action_ref
+  - migration_result_ref
+  - domain
+  - source_object_ref
+  - target_object_ref
+  - presentation_label
+  - outcome_state
+  - reason_class
+  - confidence_class
+  - mapping_basis
+  - fidelity_label_projection
+  - state_plane_projection
+  - bridge_requirement_ref
+  - alias_remap
+  - preserved_prior_artifact_ref
+  - rollback_checkpoint_ref
+  - docs_help_refs
+  - export_inclusion_posture
+  - redaction_class
+  - freshness_class
+  - minted_at
+
+# Frozen vocabularies re-exported so tooling can discover the
+# authoritative list without parsing the packet doc.
+interop_result_state_vocabulary:
+  - imported
+  - mapped
+  - skipped
+  - manual_review
+  - bridge_required
+  - unsupported
+
+fidelity_label_vocabulary:
+  - exact
+  - compatible
+  - layout_only
+  - manual_review
+
+state_plane_vocabulary:
+  - portable_settings
+  - local_context
+  - workspace_shared_manifest
+  - non_portable_live_authority
+
+migration_domain_vocabulary:
+  - settings
+  - shortcuts
+  - themes_and_visuals
+  - snippets_and_templates
+  - tasks_and_run_configs
+  - launch_debug
+  - extensions_and_providers
+  - workspace_metadata
+  - profiles_and_layout
+  - docs_and_tours
+  - bridge_metadata
+  - other
+
+outcome_reason_class_vocabulary:
+  - exact_equivalent_available
+  - semantic_equivalent_available
+  - capability_mapping_available
+  - user_declined_import
+  - policy_excludes_import
+  - existing_state_retained
+  - conflict_requires_review
+  - bridge_needed_for_parity
+  - target_feature_not_supported
+  - source_artifact_unreadable
+  - source_version_not_qualified
+  - insufficient_evidence
+
+mapping_basis_vocabulary:
+  - exact_identity
+  - semantic_equivalent
+  - capability_based
+  - bridge_adapter
+  - name_heuristic
+  - user_override
+  - not_applicable
+
+sync_conflict_review_state_vocabulary:
+  - no_conflict_detected
+  - review_required_user_resolution
+  - review_required_admin_resolution
+  - auto_resolved_local_wins_policy
+  - auto_resolved_remote_wins_policy
+  - deferred_pending_reauth
+  - conflict_journal_corrupt_manual_repair
+
+reviewer_action_required_vocabulary:
+  - pick_local
+  - pick_remote
+  - merge
+  - escalate_to_admin
+  - reauthenticate
+  - repair_conflict_journal
+  - none
+
+rollback_checkpoint_outcome_class_vocabulary:
+  - checkpoint_created_pre_apply
+  - checkpoint_available_post_apply_clean
+  - checkpoint_available_post_apply_partial
+  - checkpoint_restored_to_prior_state
+  - checkpoint_expired_cleanup_complete
+  - checkpoint_cleanup_pending_manual
+  - checkpoint_policy_hidden_support_only
+
+export_inclusion_posture_vocabulary:
+  - metadata_safe_default
+  - operator_only_restricted
+  - broadened_capture_opt_in
+
+cases:
+
+  - case_id: migration_and_profile.clean_import.settings_round_trip
+    title: Clean import of a portable settings row
+    migration_session_ref: migration-session:clean-import-0001
+    import_diff_row_id: import-diff-row:settings-clean-0001
+    entry_action_ref: entry-action:import-portable-profile-0001
+    migration_result_ref: migres:clean-import-0001
+    domain: settings
+    source_object_ref: portable-profile:user-global-settings#editor.tabSize
+    target_object_ref: aureline:setting:editor.tabSize
+    presentation_label: editor.tabSize
+    outcome_state: imported
+    reason_class: exact_equivalent_available
+    confidence_class: high
+    mapping_basis: exact_identity
+    fidelity_label_projection: exact
+    state_plane_projection: portable_settings
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: null
+    rollback_checkpoint_ref: rollback-checkpoint:clean-import-0001
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#import-diff-row-record
+      - docs/migration/migration_center_object_model.md#importer-outcome-row
+    export_inclusion_posture: metadata_safe_default
+    redaction_class: ui_string_only
+    freshness_class: authoritative_live
+    minted_at: 2026-04-23T12:00:00Z
+    conformance_tests:
+      - id: clean_import_exact_requires_no_equivalence_map
+        description: >
+          A row claiming fidelity_label_projection = exact MUST have
+          mapping_basis in {exact_identity, not_applicable} and MUST
+          NOT cite an equivalence-map row at the packet level.
+      - id: clean_import_rollback_checkpoint_present
+        description: >
+          A row whose migration session reached applying / applied
+          MUST cite a non-null rollback_checkpoint_ref.
+
+  - case_id: migration_and_profile.partial_import.extension_missing
+    title: Partial import with a missing extension dependency
+    migration_session_ref: migration-session:partial-import-0002
+    import_diff_row_id: import-diff-row:extension-missing-0002
+    entry_action_ref: entry-action:import-portable-profile-0002
+    migration_result_ref: migres:partial-import-0002
+    domain: extensions_and_providers
+    source_object_ref: portable-profile:extension-selection#preview-renderer
+    target_object_ref: null
+    presentation_label: Preview Renderer
+    outcome_state: manual_review
+    reason_class: conflict_requires_review
+    confidence_class: medium
+    mapping_basis: capability_based
+    fidelity_label_projection: manual_review
+    state_plane_projection: local_context
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: preserved-artifact:partial-import-extension-slot-0002
+    rollback_checkpoint_ref: rollback-checkpoint:partial-import-0002
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#lossy-vs-exact-migration-labels
+      - docs/state/migration_and_restore_playbook.md#downgrade-and-failure-state-playbook
+    export_inclusion_posture: operator_only_restricted
+    redaction_class: redact_value_preserve_shape
+    freshness_class: warm_cached
+    minted_at: 2026-04-23T12:05:00Z
+    conformance_tests:
+      - id: partial_import_preserves_pane_slot
+        description: >
+          A manual_review row on local_context MUST preserve the pane
+          slot as a placeholder and cite the preserved prior-artifact
+          ref for the layout snapshot.
+      - id: partial_import_rollback_checkpoint_retained
+        description: >
+          A session that lands any manual_review row MUST preserve
+          the rollback checkpoint past the apply event.
+
+  - case_id: migration_and_profile.skipped_object.user_declined_setting
+    title: Skipped object - user declined to import a setting
+    migration_session_ref: migration-session:clean-import-0001
+    import_diff_row_id: import-diff-row:telemetry-skipped-0003
+    entry_action_ref: entry-action:import-portable-profile-0001
+    migration_result_ref: migres:clean-import-0001
+    domain: settings
+    source_object_ref: portable-profile:user-global-settings#telemetry.enable
+    target_object_ref: null
+    presentation_label: telemetry.enable
+    outcome_state: skipped
+    reason_class: user_declined_import
+    confidence_class: high
+    mapping_basis: not_applicable
+    fidelity_label_projection: exact
+    state_plane_projection: portable_settings
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: null
+    rollback_checkpoint_ref: rollback-checkpoint:clean-import-0001
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#lossy-vs-exact-migration-labels
+    export_inclusion_posture: metadata_safe_default
+    redaction_class: ui_string_only
+    freshness_class: authoritative_live
+    minted_at: 2026-04-23T12:06:00Z
+    conformance_tests:
+      - id: skipped_is_never_compatible
+        description: >
+          A row whose outcome_state is skipped MUST NOT claim
+          fidelity_label_projection = compatible; skipped rows do
+          not translate.
+      - id: skipped_user_declined_preserves_destination_truth
+        description: >
+          A user_declined_import row MUST leave target_object_ref
+          null and MUST NOT mutate the destination value.
+
+  - case_id: migration_and_profile.alias_remap.keybinding_reserved_chord
+    title: Alias / remap - imported chord collides with a reserved chord
+    migration_session_ref: migration-session:alias-remap-0004
+    import_diff_row_id: import-diff-row:keybinding-remap-0004
+    entry_action_ref: entry-action:import-portable-profile-0004
+    migration_result_ref: migres:alias-remap-0004
+    domain: shortcuts
+    source_object_ref: portable-profile:keybindings#ctrl+k
+    target_object_ref: aureline:keybinding:command_palette.search
+    presentation_label: Command Palette Search
+    outcome_state: mapped
+    reason_class: semantic_equivalent_available
+    confidence_class: high
+    mapping_basis: semantic_equivalent
+    fidelity_label_projection: compatible
+    state_plane_projection: portable_settings
+    bridge_requirement_ref: null
+    alias_remap:
+      source_alias: "Ctrl+K"
+      target_alias: "Ctrl+Alt+K"
+      collision_class: reserved_target_chord
+      user_ack_required: true
+      equivalence_map_row_ref: equivalence-map-row:keybinding-remap-ctrl-k-0004
+    preserved_prior_artifact_ref: preserved-artifact:alias-remap-prior-keybindings-0004
+    rollback_checkpoint_ref: rollback-checkpoint:alias-remap-0004
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#import-diff-row-record
+      - docs/migration/migration_center_object_model.md#shortcut-digest
+    export_inclusion_posture: metadata_safe_default
+    redaction_class: none
+    freshness_class: authoritative_live
+    minted_at: 2026-04-23T12:10:00Z
+    conformance_tests:
+      - id: alias_remap_equivalence_map_row_required
+        description: >
+          An alias / remap row whose fidelity_label_projection is
+          compatible MUST cite an equivalence-map row and MUST
+          carry user_ack_required = true.
+      - id: alias_remap_preserves_prior_keybindings
+        description: >
+          An alias / remap row MUST cite a preserved prior-artifact
+          ref so compare/export shows the pre-remap binding.
+
+  - case_id: migration_and_profile.temporary_profile_session.ephemeral_scratch
+    title: Temporary / ephemeral profile session - layout preserved, no durable write
+    migration_session_ref: migration-session:temporary-profile-0005
+    import_diff_row_id: import-diff-row:temporary-layout-0005
+    entry_action_ref: entry-action:open-temporary-profile-0005
+    migration_result_ref: migres:temporary-profile-0005
+    domain: profiles_and_layout
+    source_object_ref: temporary-profile:ephemeral-session-0005
+    target_object_ref: null
+    presentation_label: Ephemeral session layout
+    outcome_state: skipped
+    reason_class: existing_state_retained
+    confidence_class: high
+    mapping_basis: not_applicable
+    fidelity_label_projection: layout_only
+    state_plane_projection: local_context
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: null
+    rollback_checkpoint_ref: null
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#temporary-profile-lifecycles
+      - docs/state/profile_and_state_map.md#profile-modes
+    export_inclusion_posture: metadata_safe_default
+    redaction_class: redact_value_preserve_shape
+    freshness_class: authoritative_live
+    minted_at: 2026-04-23T12:15:00Z
+    temporary_profile_context:
+      profile_portability_state: local_only_unpublishable
+      temporary_profile_lifecycle_state: ephemeral_in_memory_only
+      declared_lifetime_class: until_session_end
+      promotion_required_to_persist: true
+    conformance_tests:
+      - id: temporary_profile_skips_durable_write
+        description: >
+          A temporary_profile_lifecycle_state = ephemeral_in_memory_only
+          session MUST NOT write any row to AURELINE_CONFIG and MUST
+          leave preserved_prior_artifact_ref and rollback_checkpoint_ref
+          null.
+      - id: temporary_profile_layout_only_scope
+        description: >
+          A temporary-profile row MUST project
+          fidelity_label_projection = layout_only with
+          state_plane_projection = local_context; it MAY NOT claim
+          portable_settings restoration.
+
+  - case_id: migration_and_profile.sync_conflict_review.keybindings_diverged
+    title: Sync conflict - local and remote keybindings diverged
+    migration_session_ref: migration-session:sync-conflict-0006
+    import_diff_row_id: import-diff-row:sync-conflict-keybindings-0006
+    entry_action_ref: null
+    migration_result_ref: null
+    domain: shortcuts
+    source_object_ref: sync-row:keybindings#remote@revA
+    target_object_ref: sync-row:keybindings#local@revB
+    presentation_label: Keybindings sync conflict
+    outcome_state: manual_review
+    reason_class: conflict_requires_review
+    confidence_class: medium
+    mapping_basis: not_applicable
+    fidelity_label_projection: manual_review
+    state_plane_projection: portable_settings
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: preserved-artifact:sync-conflict-common-ancestor-0006
+    rollback_checkpoint_ref: rollback-checkpoint:sync-conflict-0006
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#sync-conflict-review-object
+      - docs/state/profile_and_state_map.md#state-map-rows-appendix-f-style
+    export_inclusion_posture: operator_only_restricted
+    redaction_class: redact_value_preserve_shape
+    freshness_class: warm_cached
+    minted_at: 2026-04-23T12:20:00Z
+    sync_conflict_review:
+      sync_conflict_review_state: review_required_user_resolution
+      state_class_ref: keybindings
+      local_side:
+        snapshot_ref: sync-row:keybindings#local@revB
+        producer_build: "aureline:0.0.0-m00:experimental"
+        redaction_class: redact_value_preserve_shape
+        emitted_at: 2026-04-23T11:50:00Z
+      remote_side:
+        snapshot_ref: sync-row:keybindings#remote@revA
+        producer_build: "aureline:0.0.0-m00-prior:experimental"
+        redaction_class: redact_value_preserve_shape
+        emitted_at: 2026-04-22T09:15:00Z
+      last_common_ancestor_ref: sync-row:keybindings#common@rev0
+      reviewer_action_required: merge
+      policy_pack_ref: null
+      conflict_journal_ref: conflict-journal:keybindings-0006
+      preserved_prior_artifact_refs:
+        - preserved-artifact:sync-conflict-local-side-0006
+        - preserved-artifact:sync-conflict-remote-side-0006
+    conformance_tests:
+      - id: sync_conflict_names_both_sides_and_ancestor
+        description: >
+          A sync_conflict_review row whose state is
+          review_required_user_resolution MUST cite local_side,
+          remote_side, and last_common_ancestor_ref; collapsing
+          either side is non-conforming.
+      - id: sync_conflict_review_preserves_both_sides
+        description: >
+          A review_required_user_resolution row MUST preserve both
+          sides as prior-artifact refs so compare/export shows the
+          full divergence.
+
+  - case_id: migration_and_profile.downgrade_migration.schema_meaning_changed
+    title: Downgrade migration - theme-density token meaning changed
+    migration_session_ref: migration-session:downgrade-migration-0007
+    import_diff_row_id: import-diff-row:theme-density-downgrade-0007
+    entry_action_ref: entry-action:import-portable-profile-0007
+    migration_result_ref: migres:downgrade-migration-0007
+    domain: themes_and_visuals
+    source_object_ref: portable-profile:themes#density-token
+    target_object_ref: aureline:theme-token:density-pair
+    presentation_label: UI density token
+    outcome_state: mapped
+    reason_class: capability_mapping_available
+    confidence_class: medium
+    mapping_basis: capability_based
+    fidelity_label_projection: compatible
+    state_plane_projection: portable_settings
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: preserved-artifact:downgrade-prior-theme-0007
+    rollback_checkpoint_ref: rollback-checkpoint:downgrade-migration-0007
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#lossy-vs-exact-migration-labels
+      - docs/state/migration_and_restore_playbook.md#prior-artifact-preservation-rules
+    export_inclusion_posture: metadata_safe_default
+    redaction_class: ui_string_only
+    freshness_class: warm_cached
+    minted_at: 2026-04-23T12:25:00Z
+    downgrade_migration_context:
+      source_producer_version: "aureline:0.0.0-m00-next:experimental"
+      target_producer_version: "aureline:0.0.0-m00:experimental"
+      schema_meaning_changed: true
+      equivalence_map_row_ref: equivalence-map-row:theme-density-v2-to-v1-0007
+    conformance_tests:
+      - id: downgrade_compatible_requires_equivalence_map_row
+        description: >
+          A downgrade migration row whose fidelity_label_projection
+          is compatible MUST cite an equivalence-map row and MUST
+          preserve the prior artifact because schema meaning
+          changed.
+      - id: downgrade_never_claims_exact
+        description: >
+          A row whose source schema meaning changed MAY NOT claim
+          fidelity_label_projection = exact.
+
+  - case_id: migration_and_profile.rollback_to_prior_checkpoint.partial_apply_reverted
+    title: Rollback to prior checkpoint after partial apply
+    migration_session_ref: migration-session:partial-import-0002
+    import_diff_row_id: import-diff-row:rollback-revert-0008
+    entry_action_ref: entry-action:restore-checkpoint-0008
+    migration_result_ref: migres:partial-import-0002
+    domain: workspace_metadata
+    source_object_ref: rollback-checkpoint:partial-import-0002
+    target_object_ref: workspace-manifest:pre-apply-snapshot-0002
+    presentation_label: Revert partial apply
+    outcome_state: manual_review
+    reason_class: conflict_requires_review
+    confidence_class: high
+    mapping_basis: not_applicable
+    fidelity_label_projection: manual_review
+    state_plane_projection: workspace_shared_manifest
+    bridge_requirement_ref: null
+    alias_remap: null
+    preserved_prior_artifact_ref: preserved-artifact:rollback-prior-workspace-manifest-0008
+    rollback_checkpoint_ref: rollback-checkpoint:partial-import-0002
+    docs_help_refs:
+      - docs/verification/migration_and_profile_packet.md#rollback-checkpoint-expectations
+      - docs/migration/migration_center_object_model.md#restore-record
+    export_inclusion_posture: operator_only_restricted
+    redaction_class: ui_string_only
+    freshness_class: authoritative_live
+    minted_at: 2026-04-23T12:30:00Z
+    rollback_context:
+      rollback_checkpoint_outcome_class: checkpoint_restored_to_prior_state
+      restore_record_ref: migration-restore-record:partial-import-0002
+      post_restore_validator_outcomes:
+        - validator_class: settings_schema_migration
+          outcome_class: passed
+          validator_run_ref: validator-run:restore-settings-schema-migration-0008
+        - validator_class: launch_config_sanity
+          outcome_class: passed_with_warnings
+          validator_run_ref: validator-run:restore-launch-config-sanity-0008
+    conformance_tests:
+      - id: rollback_preserves_compatibility_linkage
+        description: >
+          A rollback row MUST preserve the migration session's
+          compatibility_row_refs and compatibility_report_ref; a
+          rollback that drops compatibility linkage is
+          non-conforming.
+      - id: rollback_requires_post_restore_validators
+        description: >
+          A row whose rollback_checkpoint_outcome_class is
+          checkpoint_restored_to_prior_state MUST cite at least one
+          post-restore validator outcome.

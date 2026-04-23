@@ -1,0 +1,72 @@
+__example__:
+  name: checkpoint_policy_hidden_support_only
+  scenario: >
+    An admin policy pack restricted visibility on rollback
+    checkpoints for managed-workspace bindings so they are visible
+    only to support. The checkpoint record still exists and can
+    still be restored by an operator, but the user-facing
+    migration-center does not render an inline restore affordance.
+    Support export carries the record under operator_only_restricted.
+  rollback_checkpoint_outcome_class: checkpoint_policy_hidden_support_only
+  import_diff_manifest_case_ref: null
+  doc_sections:
+    - "§Rollback-checkpoint expectations"
+
+record_kind: rollback_checkpoint_example_record
+example_id: rollback_checkpoint.example.checkpoint_policy_hidden_support_only
+schema_version: 1
+rollback_checkpoint_outcome_class: checkpoint_policy_hidden_support_only
+
+migration_session_ref: migration-session:managed-binding-apply-0005
+migration_session_state: applied
+restore_record_ref: migration-restore-record:managed-binding-apply-0005
+checkpoint_ref: rollback-checkpoint:managed-binding-apply-0005
+scope: composite_import
+availability_state: policy_hidden
+cleanup_state: retained
+restore_action_hints:
+  - export_for_support
+partial_apply_note: null
+preserved_prior_artifact_refs:
+  - preserved-artifact:managed-binding-apply-prior-manifest-0005
+post_restore_validator_outcomes: []
+
+policy_visibility:
+  policy_pack_ref: policy-pack:managed-admin-rollback-support-only
+  hides_from_user_surface: true
+  visible_to_operator_role: true
+  disclosure_class: admin_policy_restricted_visibility
+  policy_epoch_ref: policy-epoch:managed-admin-0005
+
+compatibility_report_ref: docs/release/compatibility_report_template.md#migration.managed_binding.composite
+compatibility_row_refs:
+  - compat_row:state.profile_layout_schema
+  - compat_row:managed_workspace.binding_schema
+
+host_boundary_cue: managed_workspace_boundary
+freshness_class: authoritative_live
+redaction_class: redact_to_class_label
+export_inclusion_posture: operator_only_restricted
+
+support_packet_refs:
+  - support_packet.policy_hidden_rollback.managed-binding-apply-0005
+export_refs:
+  - support_bundle.migration_restore_record
+
+conformance_tests:
+  - id: policy_hidden_restricts_user_surface
+    description: >
+      checkpoint_policy_hidden_support_only MUST hide restore
+      affordances from the user surface and MUST set
+      export_inclusion_posture = operator_only_restricted.
+  - id: policy_hidden_preserves_operator_restore_path
+    description: >
+      A policy-hidden checkpoint MUST still be reachable by an
+      operator role via the support export; silently dropping the
+      checkpoint during policy narrowing is non-conforming.
+  - id: policy_hidden_discloses_restriction_on_export
+    description: >
+      Any support-export surface that quotes a
+      checkpoint_policy_hidden_support_only record MUST render the
+      typed admin_policy_restricted_visibility disclosure inline;
+      hiding the restriction during export is non-conforming.
