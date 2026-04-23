@@ -1,0 +1,767 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/identity/policy_bundle.schema.json",
+  "title": "Aureline signed policy-bundle boundary schema",
+  "description": "Boundary schema for one signed policy_bundle_record frozen in docs/identity/offline_entitlement_and_policy_seed.md. A policy bundle is the versioned, signed, inspectable object a self-hosted or managed deployment distributes to Aureline clients so that policy decisions, managed-capability narrowing, and workspace-trust restrictions ride on one auditable artifact instead of surface-local toggles. One record carries policy-source provenance, signer identity, signer continuity state, scope selector (tenant or org, deployment-profile scope, install-profile linkage), bundle version, policy epoch, last-known-good linkage, distribution posture across live / mirror / file-import / offline paths, effective and expiry windows, revocation refs, downgrade-safety posture, local-only-lane posture, and explicit local-versus-vendor-console explainability so an enterprise claim about narrowing or widening can be justified without privileged console-only state. Raw bundle bytes, raw signatures, raw policy rule bodies, raw OIDC tokens, raw claim payloads, raw directory attributes, and raw tenant directory material never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable-sentence summaries only. Live OIDC, SCIM, and provider implementations are out of scope at this revision. Adding a new policy_source_class, signer_authority_class, signer_continuity_state, distribution_source_class, distribution_freshness_class, bundle_validation_state, scope_selector_class, policy_capability_class, revocation_reason_class, downgrade_safety_posture, or local_vs_vendor_console_explainability value is additive-minor and requires a policy_bundle_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and product_scope_review.",
+  "$ref": "#/$defs/policy_bundle_record",
+  "$defs": {
+    "policy_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this policy-bundle export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw bundle bytes, raw signatures, raw policy rule bodies, and raw directory attributes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence safe for banners, admin exports, support packets, and release evidence. Raw policy rule text, raw claim payloads, and raw secret material MUST NOT appear."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, export-safe label for banners and admin consoles. Raw URLs, raw tenant ids, raw directory attribute values, and raw signing material MUST NOT appear."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001. account_free_local never has a policy bundle bound to it except as an inspectable informational artifact; self_hosted_org uses a customer-run source; managed_workspace is the vendor-hosted convenience layer layered over self_hosted_org."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ],
+      "description": "Frozen deployment-profile vocabulary reused across policy bundle, entitlement snapshot, admin audit packet, and boundary manifest surfaces."
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [ "trusted", "restricted" ],
+      "description": "Workspace trust state re-exported from ADR-0001. A policy bundle MAY narrow trusted-workspace behaviour but MUST NOT widen it and MUST NOT remove the restricted-mode read / search / edit / save guarantees."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle/support/release vocabulary."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "identity_mode", "policy_epoch", "trust_state" ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy, identity-mode, and trust-state context the record was minted under."
+    },
+
+    "policy_epoch_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$",
+      "description": "Stable epoch identifier of the form policy_epoch.<lane>.<windowed>.<id>. An epoch identifies a contiguous active window for the bundle; a new epoch is minted on every rotation, rotation-class signer change, or substantive policy change. Consumers never concatenate or parse the epoch beyond equality and 'newer than' ordering carried elsewhere in the record."
+    },
+
+    "bundle_version_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*@[0-9]+(\\.[0-9]+){2}(-[a-z0-9_.]+)?$",
+      "description": "Bundle version identifier of the form <bundle_name>@<semver>. The semver segment follows <major>.<minor>.<patch> with an optional pre-release suffix. Diffs are mechanical across versions; support / admin-export rows cite the exact version."
+    },
+
+    "policy_source_class": {
+      "type": "string",
+      "enum": [
+        "customer_self_hosted_origin",
+        "vendor_managed_origin",
+        "signed_mirror_origin",
+        "manual_file_import_origin",
+        "air_gapped_transfer_origin",
+        "runtime_preload_origin"
+      ],
+      "description": "Closed policy-source vocabulary. customer_self_hosted_origin is the ADR-0001 self_hosted_org default. vendor_managed_origin is the managed_convenience layer. signed_mirror_origin is a customer- or vendor-operated mirror of an authoritative source. manual_file_import_origin is a file-import posture for bounded-network deployments. air_gapped_transfer_origin names an offline signed transfer. runtime_preload_origin names a preload bundle shipped with the build and used only as a last-known-good seed before the first live fetch."
+    },
+
+    "signer_authority_class": {
+      "type": "string",
+      "enum": [
+        "customer_operated_trust_root",
+        "vendor_operated_trust_root",
+        "cross_signed_transition_root",
+        "managed_admin_delegated_signer",
+        "build_preload_signer"
+      ],
+      "description": "Closed signer-authority vocabulary describing who minted the bundle. customer_operated_trust_root is the self-hosted case. vendor_operated_trust_root is the managed case. cross_signed_transition_root is admissible only during a signer rotation window. managed_admin_delegated_signer is a named admin delegation scoped by signing_scope_note. build_preload_signer is the last-known-good seed class shipped with the build."
+    },
+
+    "signer_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "same_signer_chain",
+        "rotated_with_continuity_statement",
+        "cross_signed_transition",
+        "continuity_review_required",
+        "continuity_broken",
+        "unknown_offline"
+      ],
+      "description": "Closed signer-continuity vocabulary. Distinct from freshness: a mirrored snapshot may carry continuity proof while still being past its freshness grace."
+    },
+
+    "signer_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_authority_class",
+        "signer_authority_ref",
+        "continuity_state",
+        "previous_signer_refs",
+        "continuity_statement_ref",
+        "last_verified_at",
+        "signing_scope_note"
+      ],
+      "properties": {
+        "signer_authority_class": { "$ref": "#/$defs/signer_authority_class" },
+        "signer_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the signer or trust root the record expects to be current. Null is admissible only for air_gapped_transfer_origin or runtime_preload_origin variants where signer identity resolves by separate continuity statement."
+        },
+        "continuity_state": { "$ref": "#/$defs/signer_continuity_state_class" },
+        "previous_signer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Prior signer refs relevant to the continuity story."
+        },
+        "continuity_statement_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the continuity or rotation statement. Null when continuity_state does not rely on a statement."
+        },
+        "last_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When signer continuity was last verified on the producing path. Null is admissible for imported / offline states where only historic continuity evidence exists."
+        },
+        "signing_scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Signer identity and continuity envelope. Raw signing material never appears here."
+    },
+
+    "scope_selector_class": {
+      "type": "string",
+      "enum": [
+        "tenant_or_org_scoped",
+        "deployment_profile_scoped",
+        "install_profile_scoped",
+        "workspace_scoped",
+        "global_tenant_inherited",
+        "local_advisory_scope_only"
+      ],
+      "description": "Closed scope-selector vocabulary. local_advisory_scope_only is the posture that applies to inspectable-only bundles used by account_free_local lanes for visibility without any authority over managed-gated features."
+    },
+
+    "scope_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_class",
+        "tenant_or_org_ref",
+        "deployment_profile_scope",
+        "install_profile_card_refs",
+        "workspace_refs",
+        "inherits_parent_scope_ref",
+        "selector_note"
+      ],
+      "properties": {
+        "selector_class": { "$ref": "#/$defs/scope_selector_class" },
+        "tenant_or_org_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the tenant or org the bundle is scoped to. Null for local_advisory_scope_only and for deployment-profile-only scopes."
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. Empty is admissible when the bundle applies across all install-profile cards in scope."
+        },
+        "workspace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to specific workspace ids the bundle narrows to. Empty is admissible when the bundle applies across every workspace in scope."
+        },
+        "inherits_parent_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a parent scope this bundle inherits from. Non-null only when selector_class is tenant_or_org_scoped or deployment_profile_scoped."
+        },
+        "selector_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Scope selector envelope. Raw tenant names, raw directory attribute values, and raw workspace paths never appear here; every binding is an opaque ref."
+    },
+
+    "policy_capability_class": {
+      "type": "string",
+      "enum": [
+        "settings_policy",
+        "workspace_trust_narrowing_policy",
+        "ai_capability_gating_policy",
+        "extension_publisher_policy",
+        "credential_store_policy",
+        "network_egress_policy",
+        "update_channel_policy",
+        "support_export_policy",
+        "sync_scope_policy",
+        "feature_flag_gating_policy",
+        "admin_console_explainability_policy"
+      ],
+      "description": "Closed policy-capability vocabulary listing the capability classes a bundle may narrow or widen. widening narrowing rules are expressed per-capability inside narrowing_rule."
+    },
+
+    "narrowing_direction_class": {
+      "type": "string",
+      "enum": [
+        "narrows_only",
+        "widens_only_within_self_hosted_ceiling",
+        "informational_only"
+      ],
+      "description": "Direction a capability rule moves the effective posture. narrows_only is the default admissible direction; widens_only_within_self_hosted_ceiling is admissible only when the widening stays at or below the self_hosted_org ceiling frozen in ADR-0001. informational_only is the inspectable advisory posture."
+    },
+
+    "narrowing_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class",
+        "direction",
+        "reversible_on_downgrade",
+        "rule_note"
+      ],
+      "properties": {
+        "capability_class": { "$ref": "#/$defs/policy_capability_class" },
+        "direction": { "$ref": "#/$defs/narrowing_direction_class" },
+        "reversible_on_downgrade": {
+          "type": "boolean",
+          "description": "True when downgrading from managed_workspace to self_hosted_org or to account_free_local reverses the narrowing. False names a narrowing that persists until superseded."
+        },
+        "rule_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "distribution_source_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_origin",
+        "customer_managed_mirror",
+        "approved_private_mirror",
+        "manual_file_import",
+        "offline_transfer_snapshot",
+        "local_cache_projection",
+        "runtime_preload"
+      ],
+      "description": "How the local client / admin saw this policy bundle."
+    },
+
+    "distribution_path_class": {
+      "type": "string",
+      "enum": [
+        "managed_push",
+        "managed_pull",
+        "mirror_sync",
+        "file_import",
+        "offline_transfer",
+        "local_cache_projection",
+        "runtime_preload"
+      ],
+      "description": "Closed distribution-path vocabulary, parallel to schemas/security/emergency_action_record."
+    },
+
+    "distribution_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "unknown"
+      ],
+      "description": "Closed freshness vocabulary. An imported snapshot MUST NOT present as authoritative_live."
+    },
+
+    "bundle_validation_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_but_stale_within_grace",
+        "verified_but_stale_past_grace",
+        "verification_failed",
+        "pending_review",
+        "cached_without_revalidation"
+      ],
+      "description": "Closed validation-state vocabulary for one distribution path."
+    },
+
+    "distribution_status_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distribution_id",
+        "source_class",
+        "path_class",
+        "freshness_class",
+        "validation_state",
+        "observed_at",
+        "receipt_ref",
+        "supersedes_known_snapshot_ref",
+        "note"
+      ],
+      "properties": {
+        "distribution_id": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/distribution_source_class" },
+        "path_class": { "$ref": "#/$defs/distribution_path_class" },
+        "freshness_class": { "$ref": "#/$defs/distribution_freshness_class" },
+        "validation_state": { "$ref": "#/$defs/bundle_validation_state_class" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Stable ref preserved by mirror-import rows, manual-import receipts, admin exports, and support packets that quote this distribution state."
+        },
+        "supersedes_known_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One live / mirror / manual-import / offline projection row for the same policy bundle."
+    },
+
+    "last_known_good_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_known_good_bundle_ref",
+        "last_known_good_bundle_version",
+        "last_known_good_policy_epoch",
+        "last_known_good_verified_at",
+        "fallback_posture_note"
+      ],
+      "properties": {
+        "last_known_good_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the last bundle this record supersedes under same-signer-chain continuity. Null only for the first bundle ever observed under a new signer."
+        },
+        "last_known_good_bundle_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bundle_version_ref" }
+          ]
+        },
+        "last_known_good_policy_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/policy_epoch_ref" }
+          ]
+        },
+        "last_known_good_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "fallback_posture_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "How the client falls back to last-known-good when refresh fails: which narrowings persist, which widen, and when visible recovery is required."
+        }
+      },
+      "description": "Last-known-good linkage. The bundle a client falls back to when a refresh fails. ADR-0001 pins that expired bundles degrade to the safe defaults documented by the bundle itself rather than a hard lockout, unless the bundle was explicitly configured to fail closed."
+    },
+
+    "revocation_reason_class": {
+      "type": "string",
+      "enum": [
+        "signer_compromise_rotation",
+        "policy_authoring_mistake",
+        "tenant_wind_down",
+        "superseded_by_successor_bundle",
+        "cross_signed_transition_completed",
+        "emergency_policy_narrowing",
+        "mirror_integrity_failure"
+      ],
+      "description": "Closed revocation-reason vocabulary for referencing emergency-action / revocation records against a bundle."
+    },
+
+    "revocation_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_ref",
+        "revoked_at",
+        "reason_class",
+        "revocation_note"
+      ],
+      "properties": {
+        "revocation_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/security/emergency_action_record.schema.json#revocation_record that revokes this bundle."
+        },
+        "revoked_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reason_class": { "$ref": "#/$defs/revocation_reason_class" },
+        "revocation_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "downgrade_safety_posture_class": {
+      "type": "string",
+      "enum": [
+        "fail_safe_local_continuity",
+        "fail_safe_self_hosted_continuity",
+        "configured_fail_closed_restricted",
+        "configured_fail_closed_emergency_only",
+        "posture_unresolved_review_required"
+      ],
+      "description": "Closed downgrade-safety vocabulary. fail_safe_local_continuity guarantees ADR-0001 local-core capabilities on expiry. configured_fail_closed_restricted is admissible only when the bundle explicitly opts into fail-closed behaviour. posture_unresolved_review_required fails closed with a visible repair hook; it is never a silent default."
+    },
+
+    "local_only_lane_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_only_safe_default",
+        "local_only_requires_explicit_opt_in",
+        "local_only_not_available_requires_managed",
+        "local_only_inspectable_only",
+        "local_only_ambiguous_requires_review"
+      ],
+      "description": "Posture reviewers audit to spot bundles whose defaults would be coercive or ambiguous on an account_free_local lane. Anything other than local_only_safe_default or local_only_inspectable_only requires a justification note."
+    },
+
+    "local_vs_vendor_console_explainability_class": {
+      "type": "string",
+      "enum": [
+        "locally_explainable_from_bundle",
+        "locally_explainable_with_signed_evidence",
+        "vendor_console_required_for_full_detail",
+        "vendor_console_only_acknowledged_gap"
+      ],
+      "description": "Closed local-versus-vendor-console vocabulary. locally_explainable_from_bundle is the default and the value required for every enterprise narrowing claim; vendor_console_only_acknowledged_gap is admissible only when a gap is explicitly acknowledged and a separately-reviewed waiver names the closing plan."
+    },
+
+    "explainability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explainability_class",
+        "locally_inspectable_fields",
+        "vendor_console_only_fields",
+        "acknowledged_gap_waiver_refs",
+        "explainability_note"
+      ],
+      "properties": {
+        "explainability_class": { "$ref": "#/$defs/local_vs_vendor_console_explainability_class" },
+        "locally_inspectable_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Fields a local inspector, CLI, support-export surface, or admin desktop can render from this bundle without calling the vendor console."
+        },
+        "vendor_console_only_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Fields only the vendor console can render at full detail. An empty list is required when explainability_class is locally_explainable_from_bundle."
+        },
+        "acknowledged_gap_waiver_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/governance/exception_packet rows acknowledging an explainability gap. Required to be non-empty when explainability_class is vendor_console_only_acknowledged_gap."
+        },
+        "explainability_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "review_schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_at",
+        "review_deadline_at",
+        "expires_at",
+        "grace_window_note"
+      ],
+      "properties": {
+        "effective_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_deadline_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the next mandatory review of this bundle must happen. Null when the bundle does not carry a review obligation (runtime_preload_origin seeds)."
+        },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the bundle expires if not superseded. Null when the bundle is an open-ended seed."
+        },
+        "grace_window_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Plain-language description of what the grace window guarantees while the bundle is between expires_at and a successor bundle."
+        }
+      }
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "policy_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "policy_bundle_schema_version",
+        "policy_bundle_id",
+        "bundle_version",
+        "policy_epoch",
+        "policy_source_class",
+        "signer_identity",
+        "scope_selector",
+        "narrowing_rules",
+        "distribution_statuses",
+        "last_known_good_linkage",
+        "revocation_refs",
+        "review_schedule",
+        "downgrade_safety_posture",
+        "local_only_lane_posture",
+        "local_only_lane_note",
+        "explainability_envelope",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "const": "policy_bundle_record",
+          "description": "Discriminator for this payload shape."
+        },
+        "policy_bundle_schema_version": { "$ref": "#/$defs/policy_bundle_schema_version" },
+        "policy_bundle_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for this policy bundle, preserved across bundle_version rolls within the same signer chain. Mint a new id only under cross-signed or broken continuity."
+        },
+        "bundle_version": { "$ref": "#/$defs/bundle_version_ref" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "policy_source_class": { "$ref": "#/$defs/policy_source_class" },
+        "policy_source_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Export-safe label naming the authoritative source of the bundle (for example 'Customer OIDC policy origin'). Raw URLs, raw hostnames, and raw tenant names MUST NOT appear."
+        },
+        "signer_identity": { "$ref": "#/$defs/signer_identity" },
+        "scope_selector": { "$ref": "#/$defs/scope_selector" },
+        "narrowing_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/narrowing_rule" },
+          "description": "Capability-level narrowing rules. Every rule states which capability class it addresses, which direction it moves the posture, whether a downgrade reverses it, and a reviewable note."
+        },
+        "distribution_statuses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/distribution_status_record" }
+        },
+        "last_known_good_linkage": { "$ref": "#/$defs/last_known_good_linkage" },
+        "revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revocation_link" },
+          "description": "Zero or more revocation refs into emergency_action_record.revocation_record. A bundle is considered revoked when any entry is present; consumers render the most recent by revoked_at."
+        },
+        "review_schedule": { "$ref": "#/$defs/review_schedule" },
+        "downgrade_safety_posture": { "$ref": "#/$defs/downgrade_safety_posture_class" },
+        "local_only_lane_posture": { "$ref": "#/$defs/local_only_lane_posture_class" },
+        "local_only_lane_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Justification that makes the local-only-lane posture reviewable. Anything other than local_only_safe_default or local_only_inspectable_only MUST explain why the posture is honest rather than coercive or ambiguous."
+        },
+        "explainability_envelope": { "$ref": "#/$defs/explainability_envelope" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "account_free_local identity mode MUST use local_advisory_scope_only scope and MUST remain inspectable-only on the local-only lane.",
+          "if": {
+            "properties": {
+              "policy_context": {
+                "properties": {
+                  "identity_mode": { "const": "account_free_local" }
+                },
+                "required": [ "identity_mode" ]
+              }
+            },
+            "required": [ "policy_context" ]
+          },
+          "then": {
+            "properties": {
+              "scope_selector": {
+                "properties": {
+                  "selector_class": { "const": "local_advisory_scope_only" }
+                }
+              },
+              "local_only_lane_posture": {
+                "enum": [ "local_only_safe_default", "local_only_inspectable_only" ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A stale_past_grace or offline_snapshot_expired distribution status MUST NOT claim authoritative-live freshness and MUST NOT be the only distribution row if the bundle is being relied on for managed narrowing.",
+          "properties": {
+            "distribution_statuses": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "freshness_class": { "const": "authoritative_live" }
+                  },
+                  "required": [ "freshness_class" ]
+                },
+                "then": {
+                  "properties": {
+                    "validation_state": {
+                      "enum": [ "verified_current", "pending_review" ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A bundle that carries any revocation_refs MUST declare a posture that does not introduce new managed narrowing for clients holding stale copies.",
+          "if": {
+            "properties": {
+              "revocation_refs": { "minItems": 1 }
+            },
+            "required": [ "revocation_refs" ]
+          },
+          "then": {
+            "properties": {
+              "downgrade_safety_posture": {
+                "enum": [
+                  "fail_safe_local_continuity",
+                  "fail_safe_self_hosted_continuity",
+                  "posture_unresolved_review_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "explainability_class must be locally_explainable_from_bundle, locally_explainable_with_signed_evidence, or acknowledged-gap with waiver refs.",
+          "if": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "explainability_class": { "const": "vendor_console_only_acknowledged_gap" }
+                },
+                "required": [ "explainability_class" ]
+              }
+            },
+            "required": [ "explainability_envelope" ]
+          },
+          "then": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "acknowledged_gap_waiver_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Policy-bundle record. One record per versioned signed policy bundle. Carries the policy source, signer identity and continuity state, scope selector, bundle version, policy epoch, per-capability narrowing rules, distribution status across live / mirror / file-import / offline paths, last-known-good linkage, review schedule, revocation refs, downgrade-safety posture, local-only-lane posture, and the local-versus-vendor-console explainability envelope so an enterprise narrowing or widening claim can be justified from the bundle alone."
+    }
+  }
+}

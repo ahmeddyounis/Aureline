@@ -1,0 +1,868 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/identity/entitlement_snapshot.schema.json",
+  "title": "Aureline offline-capable entitlement-snapshot boundary schema",
+  "description": "Boundary schema for one entitlement_snapshot_record frozen in docs/identity/offline_entitlement_and_policy_seed.md. An entitlement snapshot is the signed, offline-tolerant object that names the plan, features, seat state, quota posture, grace or expiry state, source, signer, last refresh, and local-safe versus managed-only behavior under one stable id so the desktop core can remain inspectable and non-blocking when the managed control plane is stale, narrowed, or unreachable. Raw plan SKU strings, raw billing ledger rows, raw directory attribute values, raw quota counters from upstream, raw seat-directory identifiers, and raw audit trail bodies never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable-sentence summaries only. Live OIDC, SCIM, provider implementations, and billing-system integrations are out of scope at this revision. Adding a new plan_class, feature_availability_class, seat_state_class, quota_limit_class, quota_usage_state_class, grace_reason_class, entitlement_source_class, signer_authority_class, refresh_freshness_class, local_safe_vs_managed_only_class, offline_tolerance_class, or local_vs_vendor_console_explainability_class value is additive-minor and requires an entitlement_snapshot_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review, product_scope_review, and finance_controls.",
+  "$ref": "#/$defs/entitlement_snapshot_record",
+  "$defs": {
+    "entitlement_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this entitlement-snapshot export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in admin exports, support bundles, entitlement_usage_export_packet rows, and boundary-manifest surfaces. Raw plan SKU strings, raw directory attribute values, and raw billing ledger rows never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for banners, admin consoles, and support packets. Raw billing strings and raw directory attribute values MUST NOT appear."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe label. Raw SKUs, raw line-item ids, raw tenant names, raw invoice numbers, and raw directory attribute values MUST NOT appear."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [ "trusted", "restricted" ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "identity_mode", "policy_epoch", "trust_state" ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "plan_class": {
+      "type": "string",
+      "enum": [
+        "account_free_local_plan",
+        "self_hosted_community_plan",
+        "self_hosted_enterprise_plan",
+        "managed_individual_plan",
+        "managed_team_plan",
+        "managed_business_plan",
+        "managed_enterprise_plan",
+        "evaluation_trial_plan",
+        "education_plan",
+        "non_profit_plan"
+      ],
+      "description": "Closed plan-class vocabulary. Names the contractual shape of the plan without minting raw SKU strings."
+    },
+
+    "feature_availability_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe_default",
+        "available_self_hosted_required",
+        "available_managed_only",
+        "available_when_seat_active",
+        "available_during_grace_only",
+        "available_when_quota_remains",
+        "unavailable_outside_plan",
+        "unavailable_pending_entitlement_refresh",
+        "unavailable_revoked"
+      ],
+      "description": "Closed feature-availability vocabulary. available_local_safe_default is the posture for features listed in ADR-0001 as offline-capable. available_managed_only names features that only exist in the managed_convenience layer."
+    },
+
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "desktop_core",
+        "local_ai_byok",
+        "workspace_tasks_trusted",
+        "extensions_catalog_view",
+        "extensions_install",
+        "managed_settings_sync",
+        "managed_marketplace_publish",
+        "managed_ai_quota",
+        "hosted_admin_console",
+        "hosted_fleet_admin",
+        "hosted_audit_stream",
+        "self_hosted_policy_authoring",
+        "self_hosted_scim_provisioning"
+      ],
+      "description": "Closed capability-scope vocabulary. Links a feature row to the capability class it belongs to so support / admin / boundary-manifest surfaces resolve one capability taxonomy."
+    },
+
+    "local_safe_vs_managed_only_class": {
+      "type": "string",
+      "enum": [
+        "local_safe_always",
+        "local_safe_when_trusted_workspace",
+        "local_safe_when_byok_configured",
+        "managed_only_when_signed_in",
+        "managed_only_requires_fresh_refresh",
+        "managed_only_requires_admin_console"
+      ],
+      "description": "Closed vocabulary answering whether a feature stays usable locally or requires a managed refresh / sign-in / admin console. Features flagged managed_only_requires_fresh_refresh MUST NOT be granted by a stale snapshot; consumers fail closed and render visible recovery."
+    },
+
+    "feature_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_ref",
+        "feature_label",
+        "capability_scope",
+        "availability_class",
+        "local_safe_vs_managed_only",
+        "managed_narrowing_on_stale_snapshot",
+        "feature_note"
+      ],
+      "properties": {
+        "feature_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable opaque ref for this feature row. Cited verbatim by support / admin / marketplace surfaces."
+        },
+        "feature_label": { "$ref": "#/$defs/export_safe_label" },
+        "capability_scope": { "$ref": "#/$defs/capability_scope_class" },
+        "availability_class": { "$ref": "#/$defs/feature_availability_class" },
+        "local_safe_vs_managed_only": { "$ref": "#/$defs/local_safe_vs_managed_only_class" },
+        "managed_narrowing_on_stale_snapshot": {
+          "type": "string",
+          "enum": [
+            "remains_available_local_continuity",
+            "narrows_to_inspect_only",
+            "narrows_to_read_only",
+            "pauses_with_visible_recovery",
+            "blocks_with_visible_repair_hook"
+          ],
+          "description": "What happens to the feature when the snapshot that grants it is stale beyond grace. ADR-0001 pins that desktop-core rows stay local-continuity; managed-only rows narrow visibly rather than silently."
+        },
+        "feature_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One feature row. A feature is rendered by resolving feature_ref through admin / marketplace / support surfaces; raw SKU strings never appear here."
+    },
+
+    "seat_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_account_free",
+        "seat_active",
+        "seat_active_pending_first_sign_in",
+        "seat_suspended_grace",
+        "seat_revoked",
+        "seat_deprovisioned_local_preserved",
+        "seat_unknown_refresh_required"
+      ],
+      "description": "Closed seat-state vocabulary. seat_deprovisioned_local_preserved is the ADR-0001 guarantee that managed deprovision preserves local workspace, local Git, local tasks, and BYOK AI capability."
+    },
+
+    "seat_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seat_state",
+        "actor_subject_ref",
+        "group_refs",
+        "seat_note"
+      ],
+      "properties": {
+        "seat_state": { "$ref": "#/$defs/seat_state_class" },
+        "actor_subject_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the actor subject this seat binds. Null for not_applicable_account_free."
+        },
+        "group_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to group memberships influencing entitlement. Raw directory attribute values never appear."
+        },
+        "seat_changed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the seat state last transitioned. Null for not_applicable_account_free."
+        },
+        "seat_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "quota_limit_class": {
+      "type": "string",
+      "enum": [
+        "unlimited_in_plan",
+        "fixed_monthly_limit",
+        "fixed_daily_limit",
+        "sliding_window_limit",
+        "concurrency_limit",
+        "pooled_org_limit",
+        "evaluation_trial_limit",
+        "managed_only_not_applicable_locally"
+      ],
+      "description": "Closed quota-limit vocabulary. Structural shape only; numeric counters ride on their own fields."
+    },
+
+    "quota_usage_state_class": {
+      "type": "string",
+      "enum": [
+        "unused",
+        "within_soft_budget",
+        "within_hard_limit",
+        "approaching_limit",
+        "limit_exhausted",
+        "unknown_refresh_required"
+      ],
+      "description": "Closed quota usage-state vocabulary."
+    },
+
+    "quota_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quota_ref",
+        "quota_label",
+        "capability_scope",
+        "limit_class",
+        "usage_state",
+        "remaining_count",
+        "limit_count",
+        "window_resets_at",
+        "overage_posture_note"
+      ],
+      "properties": {
+        "quota_ref": { "$ref": "#/$defs/opaque_id" },
+        "quota_label": { "$ref": "#/$defs/export_safe_label" },
+        "capability_scope": { "$ref": "#/$defs/capability_scope_class" },
+        "limit_class": { "$ref": "#/$defs/quota_limit_class" },
+        "usage_state": { "$ref": "#/$defs/quota_usage_state_class" },
+        "remaining_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Remaining count the snapshot reports. Null when limit_class is unlimited_in_plan or managed_only_not_applicable_locally, or when usage_state is unknown_refresh_required."
+        },
+        "limit_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Upstream limit count. Null for unlimited / inapplicable rows."
+        },
+        "window_resets_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the quota window next resets. Null for concurrency, pooled_org, and unlimited rows."
+        },
+        "overage_posture_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One quota row. A managed-quota row that requires a fresh snapshot MUST NOT report remaining_count derived from a stale snapshot; instead it reports usage_state = unknown_refresh_required."
+    },
+
+    "grace_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_in_grace",
+        "managed_service_unreachable",
+        "policy_bundle_refresh_failed",
+        "billing_settlement_pending",
+        "seat_transition_pending",
+        "entitlement_signer_rotation_pending",
+        "air_gapped_offline_window"
+      ],
+      "description": "Closed grace-reason vocabulary."
+    },
+
+    "grace_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_class",
+        "grace_started_at",
+        "grace_expires_at",
+        "grace_posture_note",
+        "on_expiry_posture"
+      ],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/grace_reason_class" },
+        "grace_started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "grace_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "grace_posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "on_expiry_posture": {
+          "type": "string",
+          "enum": [
+            "narrow_to_local_safe_defaults",
+            "narrow_to_inspect_only_managed_features",
+            "pause_managed_only_features_with_visible_recovery",
+            "configured_fail_closed_restricted"
+          ],
+          "description": "What the snapshot guarantees when grace expires. narrow_to_local_safe_defaults is the ADR-0001 default for any row covering desktop core capabilities. configured_fail_closed_restricted is admissible only when the bundle explicitly opts into fail-closed on expiry."
+        }
+      }
+    },
+
+    "expiry_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_at",
+        "expires_at",
+        "review_deadline_at",
+        "expiry_note"
+      ],
+      "properties": {
+        "effective_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the snapshot expires if not refreshed or superseded. Null only when plan_class is account_free_local_plan or self_hosted_community_plan."
+        },
+        "review_deadline_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "expiry_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "entitlement_source_class": {
+      "type": "string",
+      "enum": [
+        "customer_self_hosted_entitlement_origin",
+        "vendor_managed_entitlement_origin",
+        "signed_mirror_entitlement",
+        "manual_file_import_entitlement",
+        "air_gapped_transfer_entitlement",
+        "build_preload_entitlement",
+        "local_derived_account_free"
+      ],
+      "description": "Closed entitlement-source vocabulary. local_derived_account_free is the posture for rows that describe account_free_local capability without any hosted source."
+    },
+
+    "signer_authority_class": {
+      "type": "string",
+      "enum": [
+        "customer_operated_trust_root",
+        "vendor_operated_trust_root",
+        "cross_signed_transition_root",
+        "managed_admin_delegated_signer",
+        "build_preload_signer",
+        "not_applicable_local_derived"
+      ]
+    },
+
+    "signer_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "same_signer_chain",
+        "rotated_with_continuity_statement",
+        "cross_signed_transition",
+        "continuity_review_required",
+        "continuity_broken",
+        "unknown_offline",
+        "not_applicable_local_derived"
+      ]
+    },
+
+    "signer_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_authority_class",
+        "signer_authority_ref",
+        "continuity_state",
+        "previous_signer_refs",
+        "continuity_statement_ref",
+        "last_verified_at",
+        "signing_scope_note"
+      ],
+      "properties": {
+        "signer_authority_class": { "$ref": "#/$defs/signer_authority_class" },
+        "signer_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "continuity_state": { "$ref": "#/$defs/signer_continuity_state_class" },
+        "previous_signer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "continuity_statement_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "last_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "signing_scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "refresh_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "refreshed_within_grace",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "never_refreshed_seed",
+        "not_applicable_account_free"
+      ],
+      "description": "Closed freshness vocabulary for the snapshot's refresh state. stale_past_grace and offline_snapshot_expired MUST NOT be presented as authoritative."
+    },
+
+    "last_refresh_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "last_refreshed_at",
+        "refresh_attempt_at",
+        "next_refresh_deadline_at",
+        "source_class",
+        "refresh_note"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/refresh_freshness_class" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "refresh_attempt_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the last refresh attempt ran, regardless of success."
+        },
+        "next_refresh_deadline_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "source_class": { "$ref": "#/$defs/entitlement_source_class" },
+        "refresh_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "offline_tolerance_class": {
+      "type": "string",
+      "enum": [
+        "unlimited_offline_local_safe",
+        "bounded_offline_until_expiry",
+        "bounded_offline_signed_window",
+        "bounded_offline_air_gapped_window",
+        "refresh_required_before_new_managed_use",
+        "offline_not_permitted_managed_only_feature"
+      ],
+      "description": "Closed offline-tolerance vocabulary. refresh_required_before_new_managed_use is the posture required on any feature that must not be granted by a stale snapshot."
+    },
+
+    "policy_bundle_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "policy_bundle_ref", "bundle_version", "policy_epoch", "link_note" ],
+      "properties": {
+        "policy_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into schemas/identity/policy_bundle.schema.json#policy_bundle_record that authorises this entitlement snapshot."
+        },
+        "bundle_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "link_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "revocation_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "revocation_ref", "revoked_at", "revocation_note" ],
+      "properties": {
+        "revocation_ref": { "$ref": "#/$defs/opaque_id" },
+        "revoked_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "revocation_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "local_vs_vendor_console_explainability_class": {
+      "type": "string",
+      "enum": [
+        "locally_explainable_from_snapshot",
+        "locally_explainable_with_signed_evidence",
+        "vendor_console_required_for_full_detail",
+        "vendor_console_only_acknowledged_gap"
+      ],
+      "description": "Closed local-versus-vendor-console vocabulary for the snapshot."
+    },
+
+    "explainability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explainability_class",
+        "locally_inspectable_fields",
+        "vendor_console_only_fields",
+        "acknowledged_gap_waiver_refs",
+        "explainability_note"
+      ],
+      "properties": {
+        "explainability_class": { "$ref": "#/$defs/local_vs_vendor_console_explainability_class" },
+        "locally_inspectable_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "vendor_console_only_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "acknowledged_gap_waiver_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "explainability_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "entitlement_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entitlement_snapshot_schema_version",
+        "snapshot_id",
+        "entitlement_epoch",
+        "plan_class",
+        "plan_label",
+        "deployment_profile_scope",
+        "tenant_or_org_ref",
+        "feature_rows",
+        "seat_binding",
+        "quota_rows",
+        "grace_state",
+        "expiry_state",
+        "source_class",
+        "signer_identity",
+        "last_refresh",
+        "offline_tolerance",
+        "policy_bundle_links",
+        "revocation_refs",
+        "explainability_envelope",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "entitlement_snapshot_record" },
+        "entitlement_snapshot_schema_version": {
+          "$ref": "#/$defs/entitlement_snapshot_schema_version"
+        },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "entitlement_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^entitlement_epoch(\\.[a-z0-9_]+)+$",
+          "description": "Monotonic epoch identifier. A snapshot whose epoch is less than the client's current cached epoch is refused for managed_only_requires_fresh_refresh features."
+        },
+        "plan_class": { "$ref": "#/$defs/plan_class" },
+        "plan_label": { "$ref": "#/$defs/export_safe_label" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "tenant_or_org_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the tenant or org this snapshot binds to. Null for account_free_local_plan and self_hosted_community_plan."
+        },
+        "feature_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/feature_row" }
+        },
+        "seat_binding": { "$ref": "#/$defs/seat_binding" },
+        "quota_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quota_row" }
+        },
+        "grace_state": { "$ref": "#/$defs/grace_state" },
+        "expiry_state": { "$ref": "#/$defs/expiry_state" },
+        "source_class": { "$ref": "#/$defs/entitlement_source_class" },
+        "signer_identity": { "$ref": "#/$defs/signer_identity" },
+        "last_refresh": { "$ref": "#/$defs/last_refresh_record" },
+        "offline_tolerance": { "$ref": "#/$defs/offline_tolerance_class" },
+        "policy_bundle_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_bundle_link" },
+          "description": "Zero or more links to the policy bundle(s) that authorise this snapshot's narrowing rules. Empty is admissible only for local_derived_account_free snapshots."
+        },
+        "revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revocation_link" },
+          "description": "Zero or more revocation refs. A snapshot referenced by any revocation row is treated as revoked by consumers."
+        },
+        "explainability_envelope": { "$ref": "#/$defs/explainability_envelope" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "account_free_local_plan binds to local_derived_account_free source and requires no tenant.",
+          "if": {
+            "properties": {
+              "plan_class": { "const": "account_free_local_plan" }
+            },
+            "required": [ "plan_class" ]
+          },
+          "then": {
+            "properties": {
+              "source_class": { "const": "local_derived_account_free" },
+              "tenant_or_org_ref": { "type": "null" },
+              "seat_binding": {
+                "properties": {
+                  "seat_state": { "const": "not_applicable_account_free" }
+                }
+              },
+              "signer_identity": {
+                "properties": {
+                  "signer_authority_class": { "const": "not_applicable_local_derived" },
+                  "continuity_state": { "const": "not_applicable_local_derived" }
+                }
+              },
+              "offline_tolerance": { "const": "unlimited_offline_local_safe" }
+            }
+          }
+        },
+        {
+          "description": "A stale_past_grace or offline_snapshot_expired refresh state MUST NOT grant managed_only_requires_fresh_refresh features; feature rows tagged managed_only_requires_fresh_refresh MUST mark themselves unavailable_pending_entitlement_refresh or narrow under managed_narrowing_on_stale_snapshot.",
+          "if": {
+            "properties": {
+              "last_refresh": {
+                "properties": {
+                  "freshness_class": {
+                    "enum": [
+                      "stale_past_grace",
+                      "offline_snapshot_expired"
+                    ]
+                  }
+                },
+                "required": [ "freshness_class" ]
+              }
+            },
+            "required": [ "last_refresh" ]
+          },
+          "then": {
+            "properties": {
+              "feature_rows": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "local_safe_vs_managed_only": {
+                        "const": "managed_only_requires_fresh_refresh"
+                      }
+                    },
+                    "required": [ "local_safe_vs_managed_only" ]
+                  },
+                  "then": {
+                    "properties": {
+                      "availability_class": {
+                        "enum": [
+                          "unavailable_pending_entitlement_refresh",
+                          "unavailable_revoked"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Snapshots with any revocation_ref MUST NOT claim authoritative_live freshness.",
+          "if": {
+            "properties": {
+              "revocation_refs": { "minItems": 1 }
+            },
+            "required": [ "revocation_refs" ]
+          },
+          "then": {
+            "properties": {
+              "last_refresh": {
+                "properties": {
+                  "freshness_class": {
+                    "enum": [
+                      "refreshed_within_grace",
+                      "stale_within_grace",
+                      "stale_past_grace",
+                      "offline_snapshot_unexpired",
+                      "offline_snapshot_expired",
+                      "never_refreshed_seed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Quota rows reporting unknown_refresh_required MUST NOT expose remaining_count or limit_count derived from a stale snapshot.",
+          "properties": {
+            "quota_rows": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "usage_state": { "const": "unknown_refresh_required" }
+                  },
+                  "required": [ "usage_state" ]
+                },
+                "then": {
+                  "properties": {
+                    "remaining_count": { "type": "null" },
+                    "limit_count": { "type": "null" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "vendor_console_only_acknowledged_gap requires at least one waiver ref.",
+          "if": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "explainability_class": { "const": "vendor_console_only_acknowledged_gap" }
+                },
+                "required": [ "explainability_class" ]
+              }
+            },
+            "required": [ "explainability_envelope" ]
+          },
+          "then": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "acknowledged_gap_waiver_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Entitlement-snapshot record. One record per tenant / plan state at a given epoch. Carries the plan class, feature rows with per-feature availability and local-safe-vs-managed-only posture, seat binding, quota rows, grace or expiry state, entitlement source, signer identity and continuity, last refresh freshness, offline tolerance, linked policy bundle refs, revocation refs, and the local-versus-vendor-console explainability envelope so desktop-core use remains inspectable and non-blocking when the managed control plane is stale, narrowed, or unreachable."
+    }
+  }
+}
