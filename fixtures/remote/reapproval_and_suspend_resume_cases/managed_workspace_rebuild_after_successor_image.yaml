@@ -1,0 +1,110 @@
+__fixture__:
+  name: managed_workspace_rebuild_after_successor_image
+  scenario: >
+    Managed workspace mw:alpha is retiring because a successor image
+    is available. The user confirmed a rebuild onto the new image
+    version, which triggered provisioning of a fresh instance
+    mw:gamma. The target_truth_record reflects the rebuild: it
+    renders managed_workspace_reviewer_label = warming because the
+    new instance is still provisioning. The declared capability
+    envelope of the successor image differs from the retiring one
+    (a new activator was added), so approval-ticket reissue is
+    required before launches commit. The prior instance mw:alpha is
+    preserved under prior_target_ref so the mutation journal and
+    support export can reconstruct the rebuild path.
+  case_id: reapproval.managed_workspace.rebuild_after_successor_image
+  exercises:
+    managed_workspace_reviewer_label: warming
+    managed_workspace_lifecycle_state: provisioning
+    managed_workspace_state_transition_reason: successor_image_available
+    prior_managed_workspace_lifecycle_state: retiring
+    reachability_state: warming
+    wrong_target_correction_class: corrected_before_commit
+    reapproval_requirement_class: approval_ticket_reissue_required
+  related_fixture_refs:
+    - fixtures/runtime/route_taxonomy_examples/wrong_target_detected_managed_workspace_drift.yaml
+    - artifacts/runtime/managed_workspace_lifecycle.yaml
+
+record_kind: target_truth_record
+target_and_host_boundary_schema_version: 1
+packet_id: "tt:20260423T121500Z:0104"
+
+case_id: reapproval.managed_workspace.rebuild_after_successor_image
+invocation_session_id: "inv:20260423T121500Z:0104"
+execution_context_id: "exec:20260423T121500Z:0104"
+
+target_class: managed_workspace
+action_target_class: managed_workspace_target
+action_route_class: managed_control_plane_route
+action_exposure_class: workspace_visible_mutation
+action_origin_class: user_keystroke_local
+
+host_boundary_cue_stack:
+  - local_host_boundary
+  - managed_workspace_boundary
+
+target_discovery_confidence_class: canonical_declared
+divergence_or_inference_reasons: null
+
+adapter_confidence_placeholder:
+  adapter_kind: managed_workspace_adapter
+  adapter_confidence_class: adapter_authoritative_match
+  adapter_divergence_or_inference_reasons: null
+  adapter_authority_envelope_tag: projected_from_execution
+  adapter_freshness_class: authoritative_live
+  adapter_evidence_refs:
+    - "managed_workspace_instance:mw:gamma:0104"
+    - "successor_image_pin:image:v2:sha256:cafebabe"
+
+reachability_state: warming
+managed_workspace_lifecycle_state: provisioning
+managed_workspace_reviewer_label: warming
+expiry_reason_class: null
+local_only_continuation_reason_class: null
+activation_budget_summary_ref: "abs:20260423T121500Z:0104"
+
+wrong_target_correction_class: corrected_before_commit
+reapproval_requirement_class: approval_ticket_reissue_required
+prior_target_ref: "managed_workspace_instance:mw:alpha:0104"
+prior_route_class: managed_control_plane_route
+route_change_reason_code: route_changed_target_reassigned
+
+authority_linkage_class: approval_ticket_linked
+authority_linkage_ref:
+  approval_ticket_ref: "approval_ticket:at:pending_reissue:successor_image:0104"
+  managed_control_plane_token_ref: "mcp_tok:20260423T121459Z:0104"
+  prior_approval_ticket_ref: "approval_ticket:at:retired:0104"
+
+target_evidence_refs:
+  - "execution_context:exec:20260423T121500Z:0104"
+  - "managed_workspace_instance:mw:gamma:0104"
+  - "successor_image_pin:image:v2:sha256:cafebabe"
+  - "audit:managed_workspace_provisioning_started:20260423T121500Z:0104"
+  - "audit:managed_workspace_state_changed:20260423T121500Z:0104"
+
+repair_hook_ref: "repair:approval_ticket_reissue:successor_image:0104"
+
+freshness_class: authoritative_live
+redaction_class: metadata_and_hashes_only
+export_inclusion_posture: operator_only_restricted
+minted_at: "2026-04-23T12:15:00Z"
+
+conformance_tests:
+  - id: rebuild_label_projects_warming
+    description: >
+      A managed_workspace_reviewer_label of warming MUST project
+      onto managed_workspace_lifecycle_state in {provisioning,
+      warming}. Overlays on ready, recovering, or expired are
+      non-conforming.
+  - id: rebuild_requires_approval_ticket_reissue
+    description: >
+      A rebuild whose successor image changes the declared
+      capability envelope MUST set
+      reapproval_requirement_class = approval_ticket_reissue_required
+      and preserve the prior approval ticket under
+      authority_linkage_ref.prior_approval_ticket_ref.
+  - id: rebuild_preserves_prior_instance_ref
+    description: >
+      The retiring instance mw:alpha MUST remain under
+      prior_target_ref; dropping it on rebuild makes the mutation
+      journal unable to reconstruct the continuity chain.

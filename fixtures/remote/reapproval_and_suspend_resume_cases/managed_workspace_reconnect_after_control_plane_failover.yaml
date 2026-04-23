@@ -1,0 +1,107 @@
+__fixture__:
+  name: managed_workspace_reconnect_after_control_plane_failover
+  scenario: >
+    Managed workspace mw:alpha lost its primary control plane due
+    to a node failure; the control plane failed over to a secondary
+    and is restoring the instance. Reachability is degraded while
+    recovery runs. The session holds the prior managed-control-plane
+    token, but admin-confirmation policy requires an administrator
+    to re-admit the instance after a control-plane failover;
+    reapproval is gated on admin_confirmation_required. The
+    target_truth_record renders
+    managed_workspace_reviewer_label = degraded on top of
+    managed_workspace_lifecycle_state = recovering. The route packet
+    carries route_change_reason_code =
+    route_changed_authority_escalation because authority is
+    escalating from user-linked to admin-linked.
+  case_id: reapproval.managed_workspace.reconnect_after_control_plane_failover
+  exercises:
+    managed_workspace_reviewer_label: degraded
+    managed_workspace_lifecycle_state: recovering
+    managed_workspace_state_transition_reason: control_plane_failure
+    reachability_state: degraded
+    wrong_target_correction_class: blocked_pending_reapproval
+    reapproval_requirement_class: admin_confirmation_required
+  related_fixture_refs:
+    - fixtures/support/object_handoff_examples/trust_warning_remote_boundary.json
+    - artifacts/runtime/managed_workspace_lifecycle.yaml
+
+record_kind: target_truth_record
+target_and_host_boundary_schema_version: 1
+packet_id: "tt:20260423T121000Z:0103"
+
+case_id: reapproval.managed_workspace.reconnect_after_control_plane_failover
+invocation_session_id: "inv:20260423T121000Z:0103"
+execution_context_id: "exec:20260423T121000Z:0103"
+
+target_class: managed_workspace
+action_target_class: managed_workspace_target
+action_route_class: managed_control_plane_route
+action_exposure_class: workspace_visible_mutation
+action_origin_class: user_keystroke_local
+
+host_boundary_cue_stack:
+  - local_host_boundary
+  - managed_workspace_boundary
+
+target_discovery_confidence_class: canonical_materialised
+divergence_or_inference_reasons: null
+
+adapter_confidence_placeholder:
+  adapter_kind: managed_workspace_adapter
+  adapter_confidence_class: adapter_probed_divergent
+  adapter_divergence_or_inference_reasons:
+    - control_plane_failover_observed
+    - volume_drift_bounded_pending_recovery
+  adapter_authority_envelope_tag: projected_from_execution
+  adapter_freshness_class: warm_cached
+  adapter_evidence_refs:
+    - "managed_workspace_instance:mw:alpha:0103"
+    - "control_plane_failover_event:cpfo:20260423T120959Z:0103"
+
+reachability_state: degraded
+managed_workspace_lifecycle_state: recovering
+managed_workspace_reviewer_label: degraded
+expiry_reason_class: null
+local_only_continuation_reason_class: null
+activation_budget_summary_ref: "abs:20260423T121000Z:0103"
+
+wrong_target_correction_class: blocked_pending_reapproval
+reapproval_requirement_class: admin_confirmation_required
+prior_target_ref: "managed_control_plane_token:mcp_tok:primary:0103"
+prior_route_class: managed_control_plane_route
+route_change_reason_code: route_changed_authority_escalation
+
+authority_linkage_class: managed_control_plane_token_linked
+authority_linkage_ref:
+  managed_control_plane_token_ref: "mcp_tok:secondary:pending_admin:0103"
+
+target_evidence_refs:
+  - "execution_context:exec:20260423T121000Z:0103"
+  - "managed_workspace_instance:mw:alpha:0103"
+  - "control_plane_failover_event:cpfo:20260423T120959Z:0103"
+  - "audit:managed_workspace_recovery_started:20260423T121000Z:0103"
+
+repair_hook_ref: "repair:admin_confirmation:failover_readmit:0103"
+
+freshness_class: warm_cached
+redaction_class: metadata_and_hashes_only
+export_inclusion_posture: operator_only_restricted
+minted_at: "2026-04-23T12:10:00Z"
+
+conformance_tests:
+  - id: failover_overlays_degraded_on_recovering_only
+    description: >
+      A managed_workspace_reviewer_label of degraded MUST overlay
+      managed_workspace_lifecycle_state = recovering only. Overlays
+      on paused, suspended, or expired are non-conforming.
+  - id: failover_requires_admin_confirmation
+    description: >
+      A control-plane failover that escalates authority from the
+      primary to a secondary token MUST set
+      reapproval_requirement_class = admin_confirmation_required.
+  - id: failover_preserves_prior_control_plane_token
+    description: >
+      The prior control-plane token MUST remain under
+      prior_target_ref; dropping it on reconnect is non-conforming
+      and blocks support-export reconstruction of the failover.

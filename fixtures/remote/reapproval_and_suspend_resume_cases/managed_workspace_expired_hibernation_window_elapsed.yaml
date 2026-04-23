@@ -1,0 +1,106 @@
+__fixture__:
+  name: managed_workspace_expired_hibernation_window_elapsed
+  scenario: >
+    Managed workspace mw:alpha was idle past the hibernation window.
+    The instance moved from idle_suspended through to hibernated;
+    its long-idle snapshot sits in cold storage. Reactivation
+    requires re-pull plus a session-ticket refresh because the
+    hibernation window aged every live ticket past its refresh
+    floor. The target_truth_record renders
+    managed_workspace_reviewer_label = expired with
+    expiry_reason_class = hibernation_window_elapsed and
+    reapproval_requirement_class = session_ticket_refresh_required.
+    wrong_target_correction_class = blocked_pending_reapproval keeps
+    any launch denied until the refresh and the reactivation land.
+  case_id: reapproval.managed_workspace.expired_hibernation_window_elapsed
+  exercises:
+    managed_workspace_reviewer_label: expired
+    managed_workspace_lifecycle_state: hibernated
+    managed_workspace_state_transition_reason: hibernation_window_elapsed
+    expiry_reason_class: hibernation_window_elapsed
+    reachability_state: unreachable
+    wrong_target_correction_class: blocked_pending_reapproval
+    reapproval_requirement_class: session_ticket_refresh_required
+  related_fixture_refs:
+    - fixtures/remote/reapproval_and_suspend_resume_cases/managed_workspace_suspend_idle_window.yaml
+    - artifacts/runtime/managed_workspace_lifecycle.yaml
+
+record_kind: target_truth_record
+target_and_host_boundary_schema_version: 1
+packet_id: "tt:20260423T122000Z:0105"
+
+case_id: reapproval.managed_workspace.expired_hibernation_window_elapsed
+invocation_session_id: "inv:20260423T122000Z:0105"
+execution_context_id: "exec:20260423T122000Z:0105"
+
+target_class: managed_workspace
+action_target_class: managed_workspace_target
+action_route_class: managed_control_plane_route
+action_exposure_class: workspace_visible_mutation
+action_origin_class: user_keystroke_local
+
+host_boundary_cue_stack:
+  - local_host_boundary
+  - managed_workspace_boundary
+
+target_discovery_confidence_class: canonical_materialised
+divergence_or_inference_reasons: null
+
+adapter_confidence_placeholder:
+  adapter_kind: managed_workspace_adapter
+  adapter_confidence_class: adapter_inferred_from_session
+  adapter_divergence_or_inference_reasons:
+    - hibernation_snapshot_in_cold_storage
+    - live_probe_unavailable
+  adapter_authority_envelope_tag: projected_from_execution
+  adapter_freshness_class: warm_cached
+  adapter_evidence_refs:
+    - "managed_workspace_instance:mw:alpha:0105"
+    - "hibernation_snapshot_pin:hib:20260409T080000Z:0105"
+
+reachability_state: unreachable
+managed_workspace_lifecycle_state: hibernated
+managed_workspace_reviewer_label: expired
+expiry_reason_class: hibernation_window_elapsed
+local_only_continuation_reason_class: null
+activation_budget_summary_ref: "abs:20260423T122000Z:0105"
+
+wrong_target_correction_class: blocked_pending_reapproval
+reapproval_requirement_class: session_ticket_refresh_required
+prior_target_ref: null
+prior_route_class: null
+route_change_reason_code: route_changed_freshness_floor_unmet
+
+authority_linkage_class: authority_missing_denied
+authority_linkage_ref:
+  managed_control_plane_token_ref: null
+  prior_managed_session_ticket_ref: "mst:20260409T080000Z:0105"
+
+target_evidence_refs:
+  - "execution_context:exec:20260423T122000Z:0105"
+  - "managed_workspace_instance:mw:alpha:0105"
+  - "hibernation_snapshot_pin:hib:20260409T080000Z:0105"
+  - "audit:managed_workspace_state_changed:20260409T080000Z:0105"
+
+repair_hook_ref: "repair:hibernation_reactivation_plus_ticket_refresh:0105"
+
+freshness_class: warm_cached
+redaction_class: metadata_and_hashes_only
+export_inclusion_posture: operator_only_restricted
+minted_at: "2026-04-23T12:20:00Z"
+
+conformance_tests:
+  - id: expired_label_requires_expiry_reason
+    description: >
+      A managed_workspace_reviewer_label of expired MUST carry an
+      expiry_reason_class; null is non-conforming.
+  - id: hibernated_forces_ticket_refresh
+    description: >
+      A hibernation_window_elapsed expiry MUST set
+      reapproval_requirement_class = session_ticket_refresh_required
+      and wrong_target_correction_class = blocked_pending_reapproval.
+  - id: expired_hibernation_forces_reactivation_slice_charge
+    description: >
+      The reactivation MUST charge against
+      hibernation_reactivation_events in the activation-budget
+      summary on resume; the slice MAY NOT be silently skipped.
