@@ -1,0 +1,1986 @@
+# Telemetry, diagnostics, and support-export schema registry + consent-ledger seed.
+#
+# Machine-readable seed backing
+#   docs/governance/telemetry_and_support_schema_registry.md
+# and conforming row-by-row to
+#   schemas/governance/schema_registry_entry.schema.json
+# as `schema_registry_entry_row`.
+#
+# Each row names one governed payload family before shared plumbing (exporter,
+# upload queue, redaction profile, manifest writer, CLI stdout, offboarding
+# assembler) starts hiding policy differences. The file behaves as a consent
+# ledger: for every family it fixes owner, schema identity, consent class,
+# endpoint class, per-build-flavor default posture, retention note, sibling
+# cross-links, local-only lane posture, default UX-telemetry exclusions, and
+# the downgrade rules readers/writers must honor when they encounter a
+# schema_version outside the active horizon.
+#
+# Conformance rules:
+#   - Every row conforms to
+#     schemas/governance/schema_registry_entry.schema.json.
+#   - Consent, endpoint, retention, build-flavor posture, compatibility horizon,
+#     downgrade, and exclusion fields stay in separate objects. No row
+#     collapses them into one string or one lifecycle label.
+#   - Support-bundle manifests, analytics/usage payloads, and offboarding
+#     packets remain separate rows even when they share transport or
+#     redaction plumbing. Cross-linkage happens via `sibling_family_links`,
+#     never by conflating `family_class`.
+#   - Default UX-telemetry exclusions (raw code, prompts, repo names, file
+#     paths, clipboard contents, full search queries, terminal command
+#     payloads, voice audio, secret material, and similar) remain excluded
+#     unless a separately reviewed schema, ADR, or waiver explicitly permits
+#     them. Such permission is cited via
+#     `permitted_by_separate_review_refs`.
+#   - Each row's `record_class_id_refs` points at rows in
+#     artifacts/governance/record_class_registry.yaml when a governed record
+#     class already covers the retention/delete/export posture. Delete,
+#     hold, export, and offboarding obligations are inherited from that
+#     class rather than redeclared here.
+#   - Rows naming a build-flavor posture other than
+#     `local_only_safe_default` must explain, in `local_only_lane_note`,
+#     why the posture is honest on a local-only lane rather than coercive
+#     or ambiguous.
+
+schema_version: 1
+schema_ref: schemas/governance/schema_registry_entry.schema.json
+overview_page: docs/governance/telemetry_and_support_schema_registry.md
+paired_record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+
+rows:
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: telemetry.ux_product_event
+    family_class: ux_product_telemetry
+    title: UX product-usage telemetry event
+    description: >
+      Aggregate usage signal emitted by shell, editor, search, and command
+      palette surfaces to describe what broad capability was used, at
+      what coarse frequency, and under which build flavor. The family
+      never names raw code, raw prompts, repo names, file paths,
+      clipboard contents, full search queries, or similar sensitive
+      payloads. It does not stand in for crash, diagnostic, support
+      bundle, usage-export, or offboarding schemas.
+    owner_ref: telemetry_governance
+    schema_family_binding:
+      schema_ref: schemas/telemetry/ux_product_event.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/telemetry/ux_product_event.schema.json
+      record_class_id_refs:
+        - telemetry_contract_schema
+    consent_class: explicit_opt_in_required
+    endpoint_class: local_authoritative_with_optional_upload
+    retention_note: >
+      Local aggregate retention follows the telemetry descriptor record
+      class; uploaded aggregates close on version-replace or user reset.
+      Declining the family never degrades local product function.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: disabled_by_default
+        note: Developer builds never default-on upload.
+      - build_flavor: nightly
+        posture: opt_in_only
+        note: Nightly may prompt once per install; never each session.
+      - build_flavor: preview
+        posture: opt_in_only
+        note: Preview flavors treat upload as opt-in only.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Beta flavors treat upload as opt-in only.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Stable never default-enables upload.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: LTS never default-enables upload.
+      - build_flavor: hotfix
+        posture: disabled_by_default
+        note: Hotfix builds disable upload unless a ticket widens it.
+      - build_flavor: portable_stable
+        posture: disabled_by_default
+        note: Portable flavors default to disabled because there is no stable install profile to attach consent to.
+      - build_flavor: portable_preview
+        posture: disabled_by_default
+        note: Portable preview flavors default to disabled for the same reason.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_disabled
+        note: Managed enterprise admins drive consent; the product never default-enables upload behind their back.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old aggregate shapes remain readable for at least one LTS cycle
+        after a breaking change is landed.
+      sunset_window_note: >
+        Writers drop a deprecated field only after the downgrade rule
+        below has been in effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: drop_field_on_read
+        note: Unknown aggregate fields are dropped when projecting down to the prior shape.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown-at-read fields land in the envelope's unknown bag rather than being silently discarded.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Code bodies never travel through ux product telemetry.
+      - exclusion_class: raw_ai_prompts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: AI prompts are not part of this family.
+      - exclusion_class: raw_ai_responses
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: AI responses are not part of this family.
+      - exclusion_class: repo_names
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Repo names never appear in aggregates.
+      - exclusion_class: file_paths
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: File paths never appear in aggregates.
+      - exclusion_class: directory_names
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Directory names never appear in aggregates.
+      - exclusion_class: branch_names
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Branch names never appear in aggregates.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents are never sampled.
+      - exclusion_class: full_search_queries
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Full search strings are never captured.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input is never captured.
+      - exclusion_class: terminal_command_payloads
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Terminal command payloads are never captured.
+      - exclusion_class: raw_environment_variables
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Environment variables are never captured.
+      - exclusion_class: raw_hostnames
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw hostnames are never captured.
+      - exclusion_class: raw_user_identifiers
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw user identifiers are never captured.
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice audio never travels with this family.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice transcripts never travel with this family.
+      - exclusion_class: notebook_cell_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Notebook cells never travel with this family.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret/token material never travels with this family.
+    separation_rule:
+      canonical_family_class: ux_product_telemetry
+      must_not_conflate_with_family_classes:
+        - crash_diagnostic
+        - support_bundle_manifest
+        - metering_usage_export
+        - offboarding_exit_packet
+        - learning_onboarding_telemetry
+      shared_plumbing_note: >
+        Transport code, redaction profile, and upload queue may be shared
+        with crash and support surfaces, but the manifest shape, consent
+        prompt, and default posture remain separate.
+    sibling_family_links:
+      - sibling_entry_ref: telemetry.learning_onboarding_event
+        sibling_family_class: learning_onboarding_telemetry
+        linkage_class: sibling_must_never_embed_this
+        note: Learning/onboarding telemetry remains its own family even if it shares the transport pipe.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      On a local-only lane the family simply does not emit. The product
+      remains fully functional without any upload path being active.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+        - docs/governance/record_class_governance.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+    notes: >
+      The registry entry names the family. A separately reviewed schema
+      document lands the concrete event-row shape; that schema inherits
+      every posture field on this row verbatim.
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: telemetry.learning_onboarding_event
+    family_class: learning_onboarding_telemetry
+    title: Learning and onboarding telemetry event
+    description: >
+      Coarse-grained signal describing first-run tour completion,
+      onboarding dismissal, docs/help opt-out, and learning-surface
+      readiness. Kept separate from ux_product_telemetry so an onboarding
+      posture change never leaks into steady-state product telemetry
+      posture and vice versa.
+    owner_ref: onboarding_governance
+    schema_family_binding:
+      schema_ref: schemas/telemetry/learning_onboarding_event.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/telemetry/learning_onboarding_event.schema.json
+      record_class_id_refs:
+        - telemetry_contract_schema
+    consent_class: explicit_opt_in_required
+    endpoint_class: local_authoritative_with_optional_upload
+    retention_note: >
+      Retained locally long enough to deduplicate onboarding prompts;
+      uploaded aggregates share the telemetry descriptor record class
+      window.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: disabled_by_default
+        note: Developer builds do not emit onboarding telemetry.
+      - build_flavor: nightly
+        posture: opt_in_only
+        note: Nightly treats onboarding telemetry as opt-in.
+      - build_flavor: preview
+        posture: opt_in_only
+        note: Preview flavors treat onboarding telemetry as opt-in.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Beta flavors treat onboarding telemetry as opt-in.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Stable never default-enables onboarding upload.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: LTS never default-enables onboarding upload.
+      - build_flavor: hotfix
+        posture: disabled_by_default
+        note: Hotfix builds do not emit onboarding telemetry.
+      - build_flavor: portable_stable
+        posture: disabled_by_default
+        note: Portable stable has no persistent onboarding state to emit.
+      - build_flavor: portable_preview
+        posture: disabled_by_default
+        note: Portable preview has no persistent onboarding state to emit.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_disabled
+        note: Managed admins drive onboarding posture; the client never widens it unilaterally.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old onboarding event shapes remain readable long enough to close
+        out deferred first-run flows that were already in progress.
+      sunset_window_note: >
+        Writers stop emitting a deprecated field only after the
+        downgrade rule has been in effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: drop_field_on_read
+        note: Unknown onboarding-event fields are dropped on read, not silently coerced.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown-at-read fields land in the envelope's unknown bag.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Never part of onboarding telemetry.
+      - exclusion_class: raw_ai_prompts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Never part of onboarding telemetry.
+      - exclusion_class: raw_ai_responses
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Never part of onboarding telemetry.
+      - exclusion_class: repo_names
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Repo names never appear.
+      - exclusion_class: file_paths
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: File paths never appear.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: full_search_queries
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Full queries never appear.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input never appears.
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice audio never travels with this family.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice transcripts never travel with this family.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never travels with this family.
+    separation_rule:
+      canonical_family_class: learning_onboarding_telemetry
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - crash_diagnostic
+        - hosted_review_parity_record
+      shared_plumbing_note: >
+        Shares redaction profile with ux_product_telemetry but keeps its
+        own consent surface, posture row, and audit note so onboarding
+        changes never ride on top of steady-state telemetry reviews.
+    sibling_family_links:
+      - sibling_entry_ref: telemetry.ux_product_event
+        sibling_family_class: ux_product_telemetry
+        linkage_class: sibling_must_never_embed_this
+        note: Onboarding events stand alone; they never inline ux_product events.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      On a local-only lane the family simply does not emit. Onboarding
+      copy paths remain local and work without telemetry.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/governance/record_class_governance.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: diagnostics.crash_payload
+    family_class: crash_diagnostic
+    title: Crash and diagnostic payload
+    description: >
+      Crash dump, doctor-probe capture, symbolication input, and
+      diagnostic sidecar payloads produced while investigating a local
+      or remote failure. The payload is locally authoritative; optional
+      upload is explicitly user-gated. The family is distinct from UX
+      telemetry, from the support-bundle manifest that may reference it,
+      and from usage/offboarding exports.
+    owner_ref: diagnostics_governance
+    schema_family_binding:
+      schema_ref: schemas/support/crash_diagnostic_payload.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/support/crash_diagnostic_payload.schema.json
+      record_class_id_refs:
+        - crash_diagnostic_payload
+    consent_class: explicit_opt_in_required
+    endpoint_class: local_authoritative_with_optional_upload
+    retention_note: >
+      Local retention is user-owned until export or attachment to a
+      managed support case. Managed retention follows the
+      crash_diagnostic_payload record class (case close, retention
+      floor, or support-policy timer).
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_metadata_only
+        note: Dev builds keep local-only crash metadata on; upload remains disabled.
+      - build_flavor: nightly
+        posture: opt_in_only
+        note: Upload is opt-in; local capture is always available.
+      - build_flavor: preview
+        posture: opt_in_only
+        note: Upload is opt-in; local capture is always available.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Upload is opt-in; local capture is always available.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Upload is opt-in; local capture is always available.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: Upload is opt-in; local capture is always available.
+      - build_flavor: hotfix
+        posture: opt_in_only
+        note: Hotfix flavors still require opt-in before any upload.
+      - build_flavor: portable_stable
+        posture: opt_in_only
+        note: Portable flavors keep crash payloads local-only unless the user explicitly exports.
+      - build_flavor: portable_preview
+        posture: opt_in_only
+        note: Portable flavors keep crash payloads local-only unless the user explicitly exports.
+      - build_flavor: managed_enterprise
+        posture: admin_policy_gated
+        note: Managed admins may route crash payloads through an internal sink with an explicit policy.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Older crash payload shapes must remain parseable for at least
+        one full LTS cycle so retained local captures stay readable.
+      sunset_window_note: >
+        A deprecated crash-payload field is only removed after its
+        downgrade rule has been in place long enough for LTS users to
+        migrate their retained local captures.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown crash-payload fields land in the envelope's unknown bag rather than being silently dropped.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_upload
+        note: Payloads whose shape cannot be mapped to the active upload schema refuse upload and stay local.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw code bodies are redacted from crash payloads by default.
+      - exclusion_class: raw_ai_prompts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw prompts are redacted by default.
+      - exclusion_class: raw_ai_responses
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw responses are redacted by default.
+      - exclusion_class: repo_names
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Repo names may appear only when a separately reviewed support-bundle redaction profile explicitly widens capture.
+      - exclusion_class: file_paths
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: File paths may appear only under a separately reviewed support-bundle redaction profile.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents are never captured.
+      - exclusion_class: full_search_queries
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Full search queries are never captured.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input is never captured.
+      - exclusion_class: terminal_command_payloads
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Terminal excerpts may appear only under a separately reviewed support-bundle redaction profile.
+      - exclusion_class: raw_environment_variables
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Environment variables are never captured in raw form.
+      - exclusion_class: raw_hostnames
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw hostnames are never captured.
+      - exclusion_class: raw_user_identifiers
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw user identifiers are never captured.
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice audio never travels with crash payloads.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice transcripts never travel with crash payloads.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material is never embedded in crash payloads.
+    separation_rule:
+      canonical_family_class: crash_diagnostic
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - support_bundle_manifest
+        - repair_transaction_packet
+        - metering_usage_export
+      shared_plumbing_note: >
+        The support-bundle manifest may embed or reference crash
+        payloads, but a crash payload is never the manifest itself and
+        never a UX-telemetry event.
+    sibling_family_links:
+      - sibling_entry_ref: support.bundle_manifest
+        sibling_family_class: support_bundle_manifest
+        linkage_class: cited_by_sibling_support_bundle
+        note: Crash payloads appear in support bundles by reference or as embedded evidence under a reviewed profile.
+      - sibling_entry_ref: diagnostics.repair_transaction_packet
+        sibling_family_class: repair_transaction_packet
+        linkage_class: references_sibling_in_manifest
+        note: Repair transactions may cite the crash payload that motivated the repair.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      Crash capture stays local-authoritative on every build flavor.
+      Upload is strictly user or admin initiated.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        - docs/support/support_bundle_contract.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_bundle_contract.md
+        - docs/support/project_doctor_packet.md
+      supportability_refs:
+        - docs/support/support_bundle_contract.md
+      related_schema_refs:
+        - schemas/support/support_bundle.schema.json
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: diagnostics.repair_transaction_packet
+    family_class: repair_transaction_packet
+    title: Repair transaction packet
+    description: >
+      Packet describing a typed repair action, the checkpoint it was
+      taken against, the affected storage classes, and the resulting
+      destruction/rollback receipt. Kept separate from crash payloads,
+      support bundles, and offboarding packets so a repair action is
+      never confused with the crash that motivated it.
+    owner_ref: supportability_governance
+    schema_family_binding:
+      schema_ref: schemas/support/recovery_action.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/support/recovery_action.schema.json
+      record_class_id_refs:
+        - destruction_receipt_record
+    consent_class: implied_for_local_authoritative
+    endpoint_class: local_authoritative_with_optional_upload
+    retention_note: >
+      Retained locally with the repair-case lineage. Managed copies
+      follow destruction_receipt_record retention and case close.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_metadata_only
+        note: Dev builds keep repair packets local.
+      - build_flavor: nightly
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default on every flavor.
+      - build_flavor: preview
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: beta
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: stable
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: lts
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: hotfix
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: portable_stable
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: portable_preview
+        posture: enabled_metadata_only
+        note: Repair packets remain local by default.
+      - build_flavor: managed_enterprise
+        posture: admin_policy_gated
+        note: Managed admins may route repair packets into a case store with an explicit policy.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Prior repair-packet shapes remain readable long enough to close
+        ongoing repair cases.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect long enough for open repair cases to close.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown repair-packet fields land in the unknown bag.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: require_manual_review
+        note: A packet that cannot be mapped to the active schema requires manual review before it is replayed or exported.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw code bodies are never embedded in repair packets.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents are never embedded.
+      - exclusion_class: full_search_queries
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Full search queries are never embedded.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input is never embedded.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material is never embedded.
+    separation_rule:
+      canonical_family_class: repair_transaction_packet
+      must_not_conflate_with_family_classes:
+        - crash_diagnostic
+        - support_bundle_manifest
+        - offboarding_exit_packet
+      shared_plumbing_note: >
+        Support bundles and offboarding packets may cite repair
+        transactions by reference, but a repair packet is never the
+        bundle or exit packet itself.
+    sibling_family_links:
+      - sibling_entry_ref: diagnostics.crash_payload
+        sibling_family_class: crash_diagnostic
+        linkage_class: references_sibling_in_manifest
+        note: Repair packets cite the crash payload that motivated the repair when applicable.
+      - sibling_entry_ref: support.bundle_manifest
+        sibling_family_class: support_bundle_manifest
+        linkage_class: cited_by_sibling_support_bundle
+        note: Support bundles include repair lineage by reference.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      Repair packets are local-authoritative even on managed lanes.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/recovery_ladder_packet.md
+      related_schema_refs:
+        - schemas/support/recovery_action.schema.json
+        - schemas/support/support_bundle.schema.json
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: support.bundle_manifest
+    family_class: support_bundle_manifest
+    title: Support bundle manifest
+    description: >
+      Manifest row for the support/export bundle packet family. Names
+      bundle-level metadata (exact-build identity, redaction class,
+      manifest rows, consent markers, waived fields) distinct from the
+      telemetry, crash, usage, or offboarding schemas it may reference
+      by row.
+    owner_ref: support_export
+    schema_family_binding:
+      schema_ref: schemas/support/support_bundle.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/support/support_bundle.schema.json
+      record_class_id_refs:
+        - support_bundle_archive
+    consent_class: export_only_on_user_request
+    endpoint_class: export_only_user_initiated
+    retention_note: >
+      The bundle follows the support_bundle_archive record class:
+      user-controlled local bytes; managed copies close on case close,
+      packet expiry, or a stricter policy hold.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_by_default
+        note: Developer builds retain local support-bundle assembly.
+      - build_flavor: nightly
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated; the channel does not change that.
+      - build_flavor: preview
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated.
+      - build_flavor: beta
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated.
+      - build_flavor: stable
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated.
+      - build_flavor: lts
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated.
+      - build_flavor: hotfix
+        posture: enabled_by_default
+        note: Bundle assembly is always user-initiated.
+      - build_flavor: portable_stable
+        posture: enabled_by_default
+        note: Portable flavors retain local bundle assembly.
+      - build_flavor: portable_preview
+        posture: enabled_by_default
+        note: Portable flavors retain local bundle assembly.
+      - build_flavor: managed_enterprise
+        posture: admin_policy_gated
+        note: Managed admins may scope which sections and redaction profiles are available but cannot hide user-initiated local assembly.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Support tooling reads at least one prior bundle schema version
+        for the length of the active LTS cycle.
+      sunset_window_note: >
+        Bundle fields are retired only after downgrade rules have been
+        in place for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown manifest fields land in the unknown bag; they are never dropped silently.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_export
+        note: A bundle whose manifest cannot be mapped to the active schema refuses export rather than producing a lossy archive.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Code snippet attachments are opt-in through a separately reviewed redaction profile.
+      - exclusion_class: raw_ai_prompts
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+          - docs/ai/context_assembly_contract.md
+        note: Prompt excerpts require a reviewed profile.
+      - exclusion_class: raw_ai_responses
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+          - docs/ai/context_assembly_contract.md
+        note: Response excerpts require a reviewed profile.
+      - exclusion_class: repo_names
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Repo names appear only under a reviewed redaction profile.
+      - exclusion_class: file_paths
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: File paths appear only under a reviewed profile.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear in support bundles.
+      - exclusion_class: full_search_queries
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Search-query excerpts require a reviewed profile.
+      - exclusion_class: terminal_command_payloads
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Terminal excerpts require a reviewed profile.
+      - exclusion_class: raw_environment_variables
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw environment variables never appear.
+      - exclusion_class: raw_hostnames
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw hostnames never appear.
+      - exclusion_class: raw_user_identifiers
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw user identifiers never appear.
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice audio never appears.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice transcripts never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears; the redaction layer enforces this.
+    separation_rule:
+      canonical_family_class: support_bundle_manifest
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - crash_diagnostic
+        - metering_usage_export
+        - offboarding_exit_packet
+        - assurance_compliance_packet
+      shared_plumbing_note: >
+        The bundle may embed or reference crash payloads, repair
+        packets, and evidence rows, but the manifest shape, consent
+        markers, and redaction class stay distinct from analytics,
+        usage, and offboarding schemas.
+    sibling_family_links:
+      - sibling_entry_ref: support.bundle_redaction_profile
+        sibling_family_class: support_bundle_redaction_profile
+        linkage_class: mutual_cross_reference_required
+        note: Every bundle record cites the redaction profile it was assembled under, and every profile row lists the bundle handling it governs.
+      - sibling_entry_ref: diagnostics.crash_payload
+        sibling_family_class: crash_diagnostic
+        linkage_class: references_sibling_in_manifest
+        note: Crash payloads appear embedded or by reference under the active profile.
+      - sibling_entry_ref: diagnostics.repair_transaction_packet
+        sibling_family_class: repair_transaction_packet
+        linkage_class: references_sibling_in_manifest
+        note: Repair lineage appears by reference.
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Exit packets may quote bundle manifests, but a bundle is never the exit packet.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      Bundle assembly is user-initiated on every flavor. Nothing is
+      emitted without a user or admin-driven export action.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        - docs/support/support_bundle_contract.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_bundle_contract.md
+        - docs/support/support_center_concept.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+      supportability_refs:
+        - docs/support/support_bundle_contract.md
+      related_schema_refs:
+        - schemas/support/support_bundle.schema.json
+        - schemas/support/support_packet_index.schema.json
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: support.bundle_redaction_profile
+    family_class: support_bundle_redaction_profile
+    title: Support bundle redaction profile
+    description: >
+      Profile row describing which artifact kinds a bundle embeds,
+      retains locally, references by managed copy, or excludes. Kept
+      separate from the bundle manifest itself so a profile change is a
+      reviewable row rather than a silent bundle-shape change.
+    owner_ref: support_export
+    schema_family_binding:
+      schema_ref: schemas/support/support_bundle.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/support/support_bundle.schema.json
+      record_class_id_refs:
+        - support_bundle_archive
+    consent_class: admin_policy_gated
+    endpoint_class: export_only_user_initiated
+    retention_note: >
+      Profile rows are configuration records retained alongside the
+      bundle they governed. They inherit support_bundle_archive
+      retention posture.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_by_default
+        note: Developer builds expose profiles locally.
+      - build_flavor: nightly
+        posture: enabled_by_default
+        note: Profiles are always part of the support tooling surface.
+      - build_flavor: preview
+        posture: enabled_by_default
+        note: Profiles are part of the support tooling surface.
+      - build_flavor: beta
+        posture: enabled_by_default
+        note: Profiles are part of the support tooling surface.
+      - build_flavor: stable
+        posture: enabled_by_default
+        note: Profiles are part of the support tooling surface.
+      - build_flavor: lts
+        posture: enabled_by_default
+        note: Profiles are part of the support tooling surface.
+      - build_flavor: hotfix
+        posture: enabled_by_default
+        note: Profiles are part of the support tooling surface.
+      - build_flavor: portable_stable
+        posture: enabled_by_default
+        note: Portable flavors retain local profile editing.
+      - build_flavor: portable_preview
+        posture: enabled_by_default
+        note: Portable flavors retain local profile editing.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed admins may pin the active profile but cannot hide the existence of the profile row.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        A profile row from a prior schema version must stay readable so
+        previously assembled bundles remain interpretable.
+      sunset_window_note: >
+        Profile fields are retired only after downgrade rules have been
+        in effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown profile fields land in the unknown bag rather than changing handling silently.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: require_manual_review
+        note: A profile row that cannot be mapped to the active schema is flagged for review before it is applied.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Profile rows never embed raw payloads; they describe how the bundle handles them.
+      - exclusion_class: raw_ai_prompts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Profiles never embed raw prompts.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Profiles never embed clipboard contents.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Profiles never embed secret material.
+    separation_rule:
+      canonical_family_class: support_bundle_redaction_profile
+      must_not_conflate_with_family_classes:
+        - support_bundle_manifest
+        - assurance_compliance_packet
+      shared_plumbing_note: >
+        Profiles are configuration records that govern bundle assembly.
+        They share the support_bundle schema file but remain a distinct
+        family so a profile change is reviewable independently.
+    sibling_family_links:
+      - sibling_entry_ref: support.bundle_manifest
+        sibling_family_class: support_bundle_manifest
+        linkage_class: mutual_cross_reference_required
+        note: Every bundle cites a profile and every profile lists the bundle section rules it governs.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      Profile rows are local configuration; applying them does not by
+      itself transmit any payload.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+        - docs/support/support_bundle_contract.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_bundle_contract.md
+      related_schema_refs:
+        - schemas/support/support_bundle.schema.json
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: privacy.voice_dictation_event
+    family_class: voice_dictation_privacy_event
+    title: Voice and dictation privacy event
+    description: >
+      Privacy-scoped event describing voice or dictation surface state:
+      listen window activation, local-only transcription, consent
+      reprompt, and capture-denied reasons. Kept separate from UX
+      telemetry so a voice feature change never rides on a telemetry
+      schema review and vice versa.
+    owner_ref: privacy_governance
+    schema_family_binding:
+      schema_ref: schemas/privacy/voice_dictation_event.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/privacy/voice_dictation_event.schema.json
+      record_class_id_refs: []
+    consent_class: explicit_opt_in_required
+    endpoint_class: local_device_only
+    retention_note: >
+      Events stay local; they exist to power the user's own privacy
+      surface (listen indicator, capture log, consent reprompt timing).
+      Export participates only when the user explicitly adds the log to
+      a support bundle.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: disabled_by_default
+        note: Voice features stay fully off until the user opts in.
+      - build_flavor: nightly
+        posture: opt_in_only
+        note: Voice features require an explicit opt-in.
+      - build_flavor: preview
+        posture: opt_in_only
+        note: Voice features require an explicit opt-in.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Voice features require an explicit opt-in.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Voice features require an explicit opt-in.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: Voice features require an explicit opt-in.
+      - build_flavor: hotfix
+        posture: disabled_by_default
+        note: Hotfix builds disable voice by default.
+      - build_flavor: portable_stable
+        posture: disabled_by_default
+        note: Portable flavors default to disabled.
+      - build_flavor: portable_preview
+        posture: disabled_by_default
+        note: Portable flavors default to disabled.
+      - build_flavor: managed_enterprise
+        posture: admin_policy_gated
+        note: Managed admins control voice availability explicitly.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Older privacy-event shapes remain readable long enough to keep
+        retained local privacy logs honest.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown privacy-event fields land in the unknown bag.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: degrade_to_local_only
+        note: If the event cannot be mapped to the active schema it stays local-only rather than silently changing shape.
+    default_ux_payload_exclusions:
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw audio never appears in the privacy event; the event describes listen state only.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Transcripts never appear in the privacy event.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input never appears.
+      - exclusion_class: raw_user_identifiers
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw user identifiers never appear.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears.
+    separation_rule:
+      canonical_family_class: voice_dictation_privacy_event
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - learning_onboarding_telemetry
+        - support_bundle_manifest
+      shared_plumbing_note: >
+        Voice events stay separate from UX telemetry so posture review
+        happens on privacy terms and never rides along with product
+        telemetry reviews.
+    sibling_family_links: []
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      Voice privacy events are local-only. Even on a managed lane no
+      upload happens unless the user explicitly adds the log to a
+      support bundle.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/governance/record_class_governance.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: review.hosted_parity_record
+    family_class: hosted_review_parity_record
+    title: Hosted review parity record
+    description: >
+      Record that proves a hosted review surface (comment, replay pack,
+      grant grant, shared-review timeline) is parity-exported into the
+      user-visible format the offboarding and access-export flows
+      promise. Kept distinct from raw review evidence so a parity audit
+      is reviewable as its own row.
+    owner_ref: collaboration_governance
+    schema_family_binding:
+      schema_ref: schemas/review/hosted_review_parity_record.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/review/hosted_review_parity_record.schema.json
+      record_class_id_refs:
+        - collaboration_evidence_packet
+    consent_class: admin_policy_gated
+    endpoint_class: managed_mirror_when_enabled
+    retention_note: >
+      Parity records follow collaboration_evidence_packet retention:
+      archive-seal or case closure windows, with held copies gated by
+      administrative-legal, support-investigation, and retention-minimum
+      holds.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: not_available_on_flavor
+        note: Dev-local has no hosted review surface.
+      - build_flavor: nightly
+        posture: opt_in_only
+        note: Nightly exercises the parity record only under explicit opt-in.
+      - build_flavor: preview
+        posture: opt_in_only
+        note: Preview exercises the parity record only under opt-in.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Beta exercises the parity record only under opt-in.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Stable exercises the parity record only under opt-in.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: LTS exercises the parity record only under opt-in.
+      - build_flavor: hotfix
+        posture: opt_in_only
+        note: Hotfix exercises the parity record only under opt-in.
+      - build_flavor: portable_stable
+        posture: not_available_on_flavor
+        note: Portable flavors have no hosted review surface.
+      - build_flavor: portable_preview
+        posture: not_available_on_flavor
+        note: Portable flavors have no hosted review surface.
+      - build_flavor: managed_enterprise
+        posture: admin_policy_gated
+        note: Managed admins own parity posture for hosted review.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Prior parity-record shapes remain readable across the active
+        hosted-review retention window.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown parity fields land in the unknown bag.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_export
+        note: Parity export refuses rather than producing a record that silently drops parity fields.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: Code excerpts may appear only under a separately reviewed review-parity profile.
+      - exclusion_class: user_free_text_input
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: Review comments that include free-text travel only under a reviewed profile.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears in parity records.
+    separation_rule:
+      canonical_family_class: hosted_review_parity_record
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - support_bundle_manifest
+        - offboarding_exit_packet
+      shared_plumbing_note: >
+        Parity records share storage with collaboration evidence but
+        remain their own row so parity posture changes stay reviewable.
+    sibling_family_links:
+      - sibling_entry_ref: export.portability_record
+        sibling_family_class: portability_export_record
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Portability export records reference parity records so access-export lanes can confirm what was exported.
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Exit packets cite parity records to prove hosted review content was exported.
+    local_only_lane_posture: local_only_not_available_requires_managed
+    local_only_lane_note: >
+      Hosted review parity is only meaningful when a managed review
+      surface exists. Local-only lanes never emit the record; the
+      registry row is present so a local-only lane cannot pretend parity
+      exists when it does not.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: export.portability_record
+    family_class: portability_export_record
+    title: Portability and user-export record
+    description: >
+      Record describing one user-initiated portability/export action
+      (what was exported, in which format, against which bundle/profile,
+      with which receipt). Kept distinct from metering exports and from
+      the offboarding exit packet so portability remains a first-class
+      user right rather than a byproduct of offboarding.
+    owner_ref: boundary_governance
+    schema_family_binding:
+      schema_ref: schemas/governance/portability_export_record.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/governance/portability_export_record.schema.json
+      record_class_id_refs:
+        - destruction_receipt_record
+    consent_class: export_only_on_user_request
+    endpoint_class: export_only_user_initiated
+    retention_note: >
+      Portability records remain local with the user's own export copy;
+      managed receipts follow destruction_receipt_record retention.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_by_default
+        note: Portability export is always available locally.
+      - build_flavor: nightly
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: preview
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: beta
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: stable
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: lts
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: hotfix
+        posture: enabled_by_default
+        note: Portability export is always user-initiated.
+      - build_flavor: portable_stable
+        posture: enabled_by_default
+        note: Portable flavors retain local portability export.
+      - build_flavor: portable_preview
+        posture: enabled_by_default
+        note: Portable flavors retain local portability export.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed admins may shape formats but cannot remove portability export as a user right.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Portability record shapes remain readable long enough to honor
+        retained user-initiated export copies.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect for at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown portability fields land in the unknown bag.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: require_manual_review
+        note: A record whose format cannot be mapped to the active schema requires manual review before it is cited in offboarding.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: redacted_placeholder_only
+        permitted_by_separate_review_refs: []
+        note: User content exports travel per profile; the portability record itself carries references, not raw code.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears in portability records.
+    separation_rule:
+      canonical_family_class: portability_export_record
+      must_not_conflate_with_family_classes:
+        - metering_usage_export
+        - offboarding_exit_packet
+        - support_bundle_manifest
+      shared_plumbing_note: >
+        Portability is a user right and remains distinct from billing
+        usage exports and from the offboarding exit packet.
+    sibling_family_links:
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Offboarding packets cite portability records to show what was already exported.
+      - sibling_entry_ref: usage.metering_export_packet
+        sibling_family_class: metering_usage_export
+        linkage_class: sibling_must_never_embed_this
+        note: Portability records never embed billing metering; they may reference by id.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      On local-only lanes portability records point at local export
+      copies. Nothing leaves the device unless the user explicitly
+      chooses a managed destination.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: usage.metering_export_packet
+    family_class: metering_usage_export
+    title: Metering and entitlement usage export packet
+    description: >
+      Managed usage snapshot, seat or quota summary, entitlement state,
+      or policy-adjacent export packet made available to a user or
+      admin. Remains its own row so billing-facing fields never ride on
+      telemetry or support-bundle reviews and vice versa.
+    owner_ref: finance_controls
+    schema_family_binding:
+      schema_ref: schemas/governance/metering_usage_export_packet.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/governance/metering_usage_export_packet.schema.json
+      record_class_id_refs:
+        - entitlement_usage_export_packet
+    consent_class: admin_policy_gated
+    endpoint_class: managed_authoritative_when_enabled
+    retention_note: >
+      Retained per the entitlement_usage_export_packet record class:
+      managed aggregates follow billing-period close, audit windows, or
+      entitlement-policy retention even after a local copy is deleted.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: not_available_on_flavor
+        note: Dev-local has no billing pipeline.
+      - build_flavor: nightly
+        posture: not_available_on_flavor
+        note: Nightly has no billing pipeline.
+      - build_flavor: preview
+        posture: not_available_on_flavor
+        note: Preview has no billing pipeline.
+      - build_flavor: beta
+        posture: not_available_on_flavor
+        note: Beta has no billing pipeline.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Metering exports are only enabled when the user or admin explicitly enables a managed tier.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: Metering exports are only enabled when a managed tier is active.
+      - build_flavor: hotfix
+        posture: not_available_on_flavor
+        note: Hotfix has no billing pipeline.
+      - build_flavor: portable_stable
+        posture: not_available_on_flavor
+        note: Portable flavors never surface metering exports.
+      - build_flavor: portable_preview
+        posture: not_available_on_flavor
+        note: Portable flavors never surface metering exports.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed enterprise tenants always expect a usable metering export; admins pin the format and destination.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Prior metering packet shapes remain readable for at least one
+        full billing-period cycle after a breaking change.
+      sunset_window_note: >
+        Billing-facing fields are only retired after downgrade rules
+        have been in effect across at least one full billing period.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown metering fields land in the unknown bag rather than being silently dropped.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_export
+        note: Metering export refuses rather than emitting a lossy packet that a billing review cannot trust.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Metering never embeds raw code.
+      - exclusion_class: raw_ai_prompts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Metering never embeds raw prompts.
+      - exclusion_class: raw_ai_responses
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Metering never embeds raw responses.
+      - exclusion_class: repo_names
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Repo names never appear in metering packets.
+      - exclusion_class: file_paths
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: File paths never appear in metering packets.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: full_search_queries
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Full search queries never appear.
+      - exclusion_class: user_free_text_input
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Free-text input never appears.
+      - exclusion_class: voice_or_dictation_audio
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice audio never appears.
+      - exclusion_class: voice_transcripts
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Voice transcripts never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears.
+    separation_rule:
+      canonical_family_class: metering_usage_export
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - support_bundle_manifest
+        - portability_export_record
+        - offboarding_exit_packet
+      shared_plumbing_note: >
+        Billing/usage packets share export plumbing with support
+        bundles and offboarding but remain a distinct row so a billing
+        change is never reviewed as a telemetry or support change.
+    sibling_family_links:
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Exit packets cite the last contractual metering export.
+      - sibling_entry_ref: linkage.usage_export_offboarding
+        sibling_family_class: usage_export_offboarding_linkage
+        linkage_class: mutual_cross_reference_required
+        note: The linkage row freezes how metering and offboarding packets cross-reference without embedding each other.
+    local_only_lane_posture: local_only_not_available_requires_managed
+    local_only_lane_note: >
+      Metering exports are meaningful only on managed lanes. Local-only
+      lanes do not emit them, and the row makes that boundary explicit.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+        - docs/governance/record_class_governance.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: offboarding.exit_packet
+    family_class: offboarding_exit_packet
+    title: Offboarding and access-end exit packet
+    description: >
+      Exit packet inventorying managed artifacts at access end,
+      referencing metering usage export, portability records, support
+      bundle manifests, destruction receipts, and any held-data notes.
+      The packet itself stays distinct from the siblings it cites.
+    owner_ref: boundary_governance
+    schema_family_binding:
+      schema_ref: schemas/governance/offboarding_exit_packet.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/governance/offboarding_exit_packet.schema.json
+      record_class_id_refs:
+        - offboarding_exit_packet
+    consent_class: admin_policy_gated
+    endpoint_class: deletion_or_offboarding_export_channel_only
+    retention_note: >
+      Follows the offboarding_exit_packet record class: the packet
+      outlives the access cutover long enough for the user or org to
+      verify what was exported, what remained held, and what stayed
+      outside platform scope.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: not_available_on_flavor
+        note: Dev-local has no managed access to end.
+      - build_flavor: nightly
+        posture: not_available_on_flavor
+        note: Nightly has no managed access to end.
+      - build_flavor: preview
+        posture: not_available_on_flavor
+        note: Preview has no managed access to end.
+      - build_flavor: beta
+        posture: not_available_on_flavor
+        note: Beta has no managed access to end.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Stable emits an exit packet only when a managed access relationship ends.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: LTS emits an exit packet only when a managed access relationship ends.
+      - build_flavor: hotfix
+        posture: not_available_on_flavor
+        note: Hotfix builds do not manufacture exit packets.
+      - build_flavor: portable_stable
+        posture: not_available_on_flavor
+        note: Portable flavors do not manufacture exit packets.
+      - build_flavor: portable_preview
+        posture: not_available_on_flavor
+        note: Portable flavors do not manufacture exit packets.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed enterprise tenants always emit an exit packet on access end; admins pin the destination.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Prior exit-packet shapes remain readable across the exit-packet
+        verification window offered to the user or org.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect long enough for the verification window to close.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown exit-packet fields land in the unknown bag rather than changing completeness silently.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_export
+        note: An exit packet refuses export rather than producing a lossy manifest that hides what remained held or unexported.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Exit packets reference user content; they do not embed raw code.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears.
+    separation_rule:
+      canonical_family_class: offboarding_exit_packet
+      must_not_conflate_with_family_classes:
+        - support_bundle_manifest
+        - metering_usage_export
+        - portability_export_record
+        - assurance_compliance_packet
+      shared_plumbing_note: >
+        The exit packet quotes siblings by reference; it never replaces
+        them. Support bundles, metering exports, and portability records
+        remain their own rows with their own posture.
+    sibling_family_links:
+      - sibling_entry_ref: usage.metering_export_packet
+        sibling_family_class: metering_usage_export
+        linkage_class: mutual_cross_reference_required
+        note: Exit packets reference the last contractual metering export.
+      - sibling_entry_ref: export.portability_record
+        sibling_family_class: portability_export_record
+        linkage_class: mutual_cross_reference_required
+        note: Exit packets cite portability records to show what the user already exported.
+      - sibling_entry_ref: support.bundle_manifest
+        sibling_family_class: support_bundle_manifest
+        linkage_class: cited_by_sibling_support_bundle
+        note: Exit packets may cite bundle manifests but the bundle is never the exit packet.
+      - sibling_entry_ref: assurance.compliance_packet
+        sibling_family_class: assurance_compliance_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Exit packets cite compliance packets where assurance rows apply.
+      - sibling_entry_ref: linkage.usage_export_offboarding
+        sibling_family_class: usage_export_offboarding_linkage
+        linkage_class: mutual_cross_reference_required
+        note: The linkage row freezes how the two packet families must cross-reference.
+    local_only_lane_posture: local_only_not_available_requires_managed
+    local_only_lane_note: >
+      Exit packets only exist to close a managed access relationship.
+      On local-only lanes the family is deliberately unavailable; the
+      registry row makes that boundary reviewable.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/product/boundary_manifest_strawman.md
+        - docs/governance/record_class_governance.md
+      boundary_manifest_refs:
+        - docs/product/boundary_manifest_strawman.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: cli.headless_diagnostic_payload
+    family_class: cli_headless_diagnostic
+    title: CLI and headless diagnostic payload
+    description: >
+      Payload emitted by the Aureline CLI or headless runner for
+      diagnostic, verification, and support purposes: doctor runs,
+      build-identity probes, verification envelope captures, and
+      replayable diagnostics. Kept separate from UX telemetry so CLI
+      usage never turns into an analytics pipeline.
+    owner_ref: cli_governance
+    schema_family_binding:
+      schema_ref: schemas/support/cli_headless_diagnostic_payload.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/support/cli_headless_diagnostic_payload.schema.json
+      record_class_id_refs:
+        - crash_diagnostic_payload
+    consent_class: implied_for_local_authoritative
+    endpoint_class: cli_stdio_local_only
+    retention_note: >
+      CLI diagnostic payloads are emitted to stdout, file sinks, or a
+      support bundle the user assembles. They inherit the
+      crash_diagnostic_payload class once captured into a bundle.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_by_default
+        note: Dev-local CLI users expect diagnostics by default.
+      - build_flavor: nightly
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: preview
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: beta
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: stable
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: lts
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: hotfix
+        posture: enabled_by_default
+        note: CLI output is a local user right on every flavor.
+      - build_flavor: portable_stable
+        posture: enabled_by_default
+        note: Portable flavors retain local CLI output.
+      - build_flavor: portable_preview
+        posture: enabled_by_default
+        note: Portable flavors retain local CLI output.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed admins may redact with a policy but may not hide the CLI's ability to emit a local diagnostic.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        CLI payload shapes remain readable long enough for automation
+        scripts to migrate across LTS cycles.
+      sunset_window_note: >
+        Fields are retired only after downgrade rules have been in
+        effect across at least one LTS cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown CLI payload fields land in the unknown bag.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: degrade_to_local_only
+        note: If the payload cannot be mapped to the active schema it stays local-only and is not uploaded or exported.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Raw code appears only under a separately reviewed diagnostic profile.
+      - exclusion_class: raw_environment_variables
+        override_policy: separately_reviewed_opt_in_required
+        permitted_by_separate_review_refs:
+          - docs/support/support_bundle_contract.md
+        note: Environment capture requires a separately reviewed profile.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents are never captured.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material is never captured.
+      - exclusion_class: raw_user_identifiers
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Raw user identifiers never appear.
+    separation_rule:
+      canonical_family_class: cli_headless_diagnostic
+      must_not_conflate_with_family_classes:
+        - ux_product_telemetry
+        - crash_diagnostic
+        - support_bundle_manifest
+      shared_plumbing_note: >
+        CLI payloads may flow into crash or support channels when the
+        user explicitly routes them there, but the CLI/headless schema
+        family stays separate so the CLI is not an analytics pipe.
+    sibling_family_links:
+      - sibling_entry_ref: support.bundle_manifest
+        sibling_family_class: support_bundle_manifest
+        linkage_class: cited_by_sibling_support_bundle
+        note: Support bundles may embed CLI payloads under a reviewed profile.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      CLI payloads stay on the user's device unless the user directs
+      output elsewhere. On local-only lanes this is the whole story.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/support/support_bundle_contract.md
+      related_schema_refs:
+        - schemas/support/support_bundle.schema.json
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: assurance.compliance_packet
+    family_class: assurance_compliance_packet
+    title: Assurance and compliance packet
+    description: >
+      Packet describing an assurance or compliance attestation (policy
+      fingerprint, frozen-surface acceptance row, dependency attestation,
+      retention/hold verification). Kept separate from support bundles
+      and offboarding exit packets so a compliance row is reviewable as
+      its own contract.
+    owner_ref: governance_packets
+    schema_family_binding:
+      schema_ref: schemas/governance/assurance_compliance_packet.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/governance/assurance_compliance_packet.schema.json
+      record_class_id_refs:
+        - destruction_receipt_record
+    consent_class: admin_policy_gated
+    endpoint_class: admin_broker_gated
+    retention_note: >
+      Assurance packets are governed records retained under an
+      integrity-preserving store; they follow the
+      destruction_receipt_record retention posture.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: not_available_on_flavor
+        note: Dev-local does not produce assurance packets.
+      - build_flavor: nightly
+        posture: not_available_on_flavor
+        note: Nightly does not produce assurance packets.
+      - build_flavor: preview
+        posture: not_available_on_flavor
+        note: Preview does not produce assurance packets.
+      - build_flavor: beta
+        posture: opt_in_only
+        note: Beta produces assurance packets only on explicit review events.
+      - build_flavor: stable
+        posture: opt_in_only
+        note: Stable produces assurance packets only on explicit review events.
+      - build_flavor: lts
+        posture: opt_in_only
+        note: LTS produces assurance packets only on explicit review events.
+      - build_flavor: hotfix
+        posture: opt_in_only
+        note: Hotfix may emit assurance packets tied to a hotfix review event.
+      - build_flavor: portable_stable
+        posture: not_available_on_flavor
+        note: Portable flavors do not emit assurance packets.
+      - build_flavor: portable_preview
+        posture: not_available_on_flavor
+        note: Portable flavors do not emit assurance packets.
+      - build_flavor: managed_enterprise
+        posture: admin_forced_enabled
+        note: Managed enterprise tenants expect assurance packets on policy events.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Assurance packet shapes remain readable across compliance audit
+        windows.
+      sunset_window_note: >
+        Assurance fields are retired only after downgrade rules have
+        been in effect across at least one audit cycle.
+    downgrade_rules:
+      - from_schema_version: 2
+        to_schema_version: 1
+        action: preserve_as_unknown
+        note: Unknown assurance fields land in the unknown bag; assurance never silently coerces shape.
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: refuse_export
+        note: Assurance export refuses rather than emitting a packet that cannot be reproduced later.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Assurance packets never embed raw code.
+      - exclusion_class: clipboard_contents
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Clipboard contents never appear.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: Secret material never appears.
+    separation_rule:
+      canonical_family_class: assurance_compliance_packet
+      must_not_conflate_with_family_classes:
+        - support_bundle_manifest
+        - offboarding_exit_packet
+        - metering_usage_export
+      shared_plumbing_note: >
+        Assurance rows may be cited by offboarding and support surfaces
+        but are never embedded as if they were support or billing rows.
+    sibling_family_links:
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: cited_by_sibling_offboarding_packet
+        note: Offboarding packets cite assurance rows for retention/hold proof.
+    local_only_lane_posture: local_only_not_available_requires_managed
+    local_only_lane_note: >
+      Assurance packets are only meaningful on managed lanes. The row
+      makes the local-only boundary explicit so a local-only lane does
+      not pretend an assurance posture exists.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/governance/record_class_governance.md
+        - docs/governance/record_state_and_policy_simulation_models.md
+
+  - record_kind: schema_registry_entry_row
+    schema_registry_schema_version: 1
+    entry_id: linkage.usage_export_offboarding
+    family_class: usage_export_offboarding_linkage
+    title: Usage-export / offboarding cross-reference contract
+    description: >
+      Linkage row freezing how metering usage-export packets and the
+      offboarding exit packet must cross-reference one another. Prevents
+      either family from quietly embedding the other or from drifting
+      into one combined billing-plus-offboarding schema.
+    owner_ref: boundary_governance
+    schema_family_binding:
+      schema_ref: schemas/governance/schema_registry_entry.schema.json
+      schema_version: 1
+      schema_version_uri: https://aureline.dev/schemas/governance/schema_registry_entry.schema.json
+      record_class_id_refs:
+        - offboarding_exit_packet
+        - entitlement_usage_export_packet
+    consent_class: not_applicable_local_mechanics
+    endpoint_class: local_device_only
+    retention_note: >
+      The linkage row itself is a governance contract retained with
+      the registry; it does not carry a payload of its own.
+    build_flavor_default_posture:
+      - build_flavor: dev_local
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor as a review aid.
+      - build_flavor: nightly
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: preview
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: beta
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: stable
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: lts
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: hotfix
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: portable_stable
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: portable_preview
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+      - build_flavor: managed_enterprise
+        posture: enabled_by_default
+        note: The linkage contract exists on every flavor.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        The linkage contract moves only when both sibling families move
+        together; it never retires alone.
+      sunset_window_note: >
+        Fields are retired only once the metering and offboarding rows
+        have also been retired under their own downgrade rules.
+    downgrade_rules:
+      - from_schema_version: 1
+        to_schema_version: 1
+        action: require_manual_review
+        note: Any change to the linkage requires simultaneous review of both sibling rows.
+    default_ux_payload_exclusions:
+      - exclusion_class: raw_code_bodies
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: The linkage row carries no payload.
+      - exclusion_class: secret_or_token_material
+        override_policy: never_permitted
+        permitted_by_separate_review_refs: []
+        note: The linkage row carries no payload.
+    separation_rule:
+      canonical_family_class: usage_export_offboarding_linkage
+      must_not_conflate_with_family_classes:
+        - metering_usage_export
+        - offboarding_exit_packet
+      shared_plumbing_note: >
+        The linkage is a contract, not a payload. It exists so
+        reviewers can catch either sibling trying to embed the other.
+    sibling_family_links:
+      - sibling_entry_ref: usage.metering_export_packet
+        sibling_family_class: metering_usage_export
+        linkage_class: mutual_cross_reference_required
+        note: Metering exports cite this contract when they produce an offboarding-referenced row.
+      - sibling_entry_ref: offboarding.exit_packet
+        sibling_family_class: offboarding_exit_packet
+        linkage_class: mutual_cross_reference_required
+        note: Exit packets cite this contract when they pin a metering export reference.
+    local_only_lane_posture: local_only_safe_default
+    local_only_lane_note: >
+      The linkage row is governance-only and has no local payload. Its
+      presence clarifies that on local-only lanes neither sibling
+      family is active and no cross-reference is emitted.
+    governance_links:
+      redaction_artifact_refs:
+        - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      retention_artifact_refs:
+        - docs/governance/record_state_and_policy_simulation_models.md
+      source_docs:
+        - docs/governance/record_class_governance.md

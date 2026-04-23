@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/schema_registry_entry.schema.json",
+  "title": "Aureline telemetry, diagnostics, and support-export schema registry entry",
+  "description": "Boundary schema for one row in the telemetry, crash, diagnostics, support-bundle, metering/usage-export, offboarding-packet, and CLI/headless schema registry seeded in artifacts/governance/consent_ledger_seed.yaml and described in docs/governance/telemetry_and_support_schema_registry.md. Each row names one governed payload family so telemetry, crash, diagnostic, support-export, metering, offboarding, and CLI/headless schemas stay distinguishable even when they share transport, redaction, or export plumbing. A row carries owner, schema version, consent class, endpoint class, retention note, per-build-flavor default posture, compatibility horizon, downgrade rules, the default UX-telemetry exclusions the family inherits, explicit sibling-family linkage, and the local-only-lane posture reviewers need to spot coercive or ambiguous defaults. Adding a new family_class, consent_class, endpoint_class, build_flavor, build_flavor_posture, downgrade_action, telemetry_exclusion_class, or local_only_lane_posture value is additive-minor and requires a schema_registry_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/schema_registry_entry_row",
+  "$defs": {
+    "schema_registry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this registry-entry vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for reviewer surfaces, docs, manifests, or audit rows."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Stable lowercase token identifier."
+    },
+
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Dot-separated stable identifier; used for the row id and sibling-link references."
+    },
+
+    "owner_ref": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier for the owning team, role, or governance body (for example telemetry_governance, support_export, boundary_governance, finance_controls)."
+    },
+
+    "record_class_id_token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Record-class id from artifacts/governance/record_class_registry.yaml that this payload family maps to."
+    },
+
+    "family_class": {
+      "type": "string",
+      "enum": [
+        "ux_product_telemetry",
+        "learning_onboarding_telemetry",
+        "crash_diagnostic",
+        "repair_transaction_packet",
+        "support_bundle_manifest",
+        "support_bundle_redaction_profile",
+        "voice_dictation_privacy_event",
+        "hosted_review_parity_record",
+        "portability_export_record",
+        "metering_usage_export",
+        "offboarding_exit_packet",
+        "cli_headless_diagnostic",
+        "assurance_compliance_packet",
+        "usage_export_offboarding_linkage"
+      ],
+      "description": "Top-level family this registry row governs. Registry consumers key off family_class to separate analytics, support manifests, crash/diagnostic payloads, metering/usage exports, offboarding packets, and CLI/headless schemas even when plumbing is shared."
+    },
+
+    "consent_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_local_mechanics",
+        "implied_for_local_authoritative",
+        "explicit_opt_in_required",
+        "explicit_opt_in_default_on",
+        "admin_policy_gated",
+        "export_only_on_user_request",
+        "delete_governed_only",
+        "deny_by_default_requires_ticket"
+      ],
+      "description": "How consent is established for this payload family. The class names who decides and under what posture; it does not name individual settings keys or UX copy."
+    },
+
+    "endpoint_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_authoritative_with_optional_upload",
+        "export_only_user_initiated",
+        "managed_mirror_when_enabled",
+        "managed_authoritative_when_enabled",
+        "admin_broker_gated",
+        "deletion_or_offboarding_export_channel_only",
+        "cli_stdio_local_only"
+      ],
+      "description": "Where the payload may travel by default. Parallel to record-class scope_posture but specific to the transport or export surface that carries the schema."
+    },
+
+    "build_flavor": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix",
+        "portable_stable",
+        "portable_preview",
+        "managed_enterprise"
+      ],
+      "description": "Build flavor token, aligned with schemas/governance/evidence_packet_header channel_context and schemas/support/support_bundle install_channel_class."
+    },
+
+    "build_flavor_posture": {
+      "type": "string",
+      "enum": [
+        "not_available_on_flavor",
+        "disabled_by_default",
+        "opt_in_only",
+        "opt_in_required_each_session",
+        "enabled_metadata_only",
+        "enabled_by_default",
+        "admin_policy_gated",
+        "admin_forced_enabled",
+        "admin_forced_disabled",
+        "preview_gated",
+        "export_only"
+      ],
+      "description": "Default posture the build flavor ships with. admin_policy_gated names a flavor where the managed admin decides posture but the client does not default to a specific enable/disable state; admin_forced_enabled and admin_forced_disabled name a flavor where the managed admin has already forced one side. Reviewers check whether a flavor's posture would be coercive or ambiguous on a local-only lane and must land a justification when it is."
+    },
+
+    "build_flavor_posture_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_flavor",
+        "posture",
+        "note"
+      ],
+      "properties": {
+        "build_flavor": { "$ref": "#/$defs/build_flavor" },
+        "posture": { "$ref": "#/$defs/build_flavor_posture" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "compatibility_horizon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_readable_version",
+        "min_writable_version",
+        "deprecation_window_note",
+        "sunset_window_note"
+      ],
+      "properties": {
+        "min_readable_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Oldest schema_version readers must still parse into the current shape."
+        },
+        "min_writable_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Oldest schema_version writers may still emit when a consumer requests compatibility output."
+        },
+        "deprecation_window_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "sunset_window_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "downgrade_action": {
+      "type": "string",
+      "enum": [
+        "drop_field_on_read",
+        "preserve_as_unknown",
+        "refuse_read",
+        "refuse_export",
+        "refuse_upload",
+        "degrade_to_local_only",
+        "require_manual_review"
+      ],
+      "description": "Typed action a reader or writer must take when it encounters a schema_version outside the supported horizon."
+    },
+
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_schema_version",
+        "to_schema_version",
+        "action",
+        "note"
+      ],
+      "properties": {
+        "from_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action": { "$ref": "#/$defs/downgrade_action" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "telemetry_exclusion_class": {
+      "type": "string",
+      "enum": [
+        "raw_code_bodies",
+        "raw_ai_prompts",
+        "raw_ai_responses",
+        "repo_names",
+        "file_paths",
+        "directory_names",
+        "branch_names",
+        "clipboard_contents",
+        "full_search_queries",
+        "user_free_text_input",
+        "terminal_command_payloads",
+        "raw_environment_variables",
+        "raw_hostnames",
+        "raw_user_identifiers",
+        "voice_or_dictation_audio",
+        "voice_transcripts",
+        "notebook_cell_contents",
+        "secret_or_token_material"
+      ],
+      "description": "Classes of raw or sensitive payload that UX telemetry, crash metadata, usage exports, and CLI/headless captures never include by default."
+    },
+
+    "exclusion_override_policy": {
+      "type": "string",
+      "enum": [
+        "never_permitted",
+        "separately_reviewed_opt_in_required",
+        "separately_reviewed_opt_out_receipt_required",
+        "redacted_placeholder_only"
+      ],
+      "description": "How an exclusion may be overridden, if at all. Anything other than never_permitted must cite a separately-reviewed approval."
+    },
+
+    "ux_payload_exclusion_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exclusion_class",
+        "override_policy",
+        "permitted_by_separate_review_refs",
+        "note"
+      ],
+      "properties": {
+        "exclusion_class": { "$ref": "#/$defs/telemetry_exclusion_class" },
+        "override_policy": { "$ref": "#/$defs/exclusion_override_policy" },
+        "permitted_by_separate_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Separately-reviewed schemas, ADRs, or waivers that explicitly permit the exclusion class. Required when override_policy names a reviewed opt-in or opt-out."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "override_policy": {
+                "enum": [
+                  "separately_reviewed_opt_in_required",
+                  "separately_reviewed_opt_out_receipt_required"
+                ]
+              }
+            },
+            "required": ["override_policy"]
+          },
+          "then": {
+            "properties": {
+              "permitted_by_separate_review_refs": { "minItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "permitted_by_separate_review_refs": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+
+    "sibling_linkage_class": {
+      "type": "string",
+      "enum": [
+        "references_sibling_in_manifest",
+        "cited_by_sibling_offboarding_packet",
+        "cited_by_sibling_support_bundle",
+        "receipt_for_sibling_action",
+        "mutual_cross_reference_required",
+        "sibling_must_never_embed_this"
+      ],
+      "description": "How this family relates to another family when they must reference each other or must be kept from embedding one another."
+    },
+
+    "sibling_family_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sibling_entry_ref",
+        "sibling_family_class",
+        "linkage_class",
+        "note"
+      ],
+      "properties": {
+        "sibling_entry_ref": { "$ref": "#/$defs/stable_dot_id" },
+        "sibling_family_class": { "$ref": "#/$defs/family_class" },
+        "linkage_class": { "$ref": "#/$defs/sibling_linkage_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "separation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_family_class",
+        "must_not_conflate_with_family_classes",
+        "shared_plumbing_note"
+      ],
+      "properties": {
+        "canonical_family_class": {
+          "$ref": "#/$defs/family_class",
+          "description": "The family this row is canonical for. A support-bundle manifest row, for example, remains separate even when it shares transport with analytics or offboarding schemas."
+        },
+        "must_not_conflate_with_family_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/family_class" },
+          "description": "Families whose plumbing may be shared but whose policy or manifest shape must not be collapsed into this row."
+        },
+        "shared_plumbing_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "local_only_lane_posture": {
+      "type": "string",
+      "enum": [
+        "local_only_safe_default",
+        "local_only_requires_explicit_opt_in",
+        "local_only_not_available_requires_managed",
+        "local_only_export_only_when_user_initiates",
+        "local_only_ambiguous_requires_review"
+      ],
+      "description": "Posture reviewers audit to spot payload families whose defaults would be coercive or ambiguous on a local-only lane. Anything other than local_only_safe_default must carry a justification note."
+    },
+
+    "schema_family_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_version",
+        "schema_version_uri",
+        "record_class_id_refs"
+      ],
+      "properties": {
+        "schema_ref": { "$ref": "#/$defs/path_ref" },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "schema_version_uri": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable $id or version URI the schema document publishes. Consumers cite this verbatim."
+        },
+        "record_class_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/record_class_id_token" },
+          "description": "Record-class ids from artifacts/governance/record_class_registry.yaml that govern the retention, export, delete, and offboarding posture this payload family inherits."
+        }
+      }
+    },
+
+    "governance_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_artifact_refs",
+        "retention_artifact_refs",
+        "source_docs"
+      ],
+      "properties": {
+        "redaction_artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Canonical redaction artifacts the family inherits."
+        },
+        "retention_artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Canonical retention, delete-honesty, or hold artifacts the family inherits."
+        },
+        "source_docs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Repo docs a reviewer should consult when changing the row."
+        },
+        "boundary_manifest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" }
+        },
+        "supportability_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" }
+        },
+        "related_schema_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional sibling boundary schemas cited by the family."
+        }
+      }
+    },
+
+    "schema_registry_entry_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_registry_schema_version",
+        "entry_id",
+        "family_class",
+        "title",
+        "description",
+        "owner_ref",
+        "schema_family_binding",
+        "consent_class",
+        "endpoint_class",
+        "retention_note",
+        "build_flavor_default_posture",
+        "compatibility_horizon",
+        "downgrade_rules",
+        "default_ux_payload_exclusions",
+        "separation_rule",
+        "sibling_family_links",
+        "local_only_lane_posture",
+        "local_only_lane_note",
+        "governance_links"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "schema_registry_entry_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "schema_registry_schema_version": { "$ref": "#/$defs/schema_registry_schema_version" },
+        "entry_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable dot-separated id for this registry entry. Mint a new id rather than reusing an old one for a different family."
+        },
+        "family_class": { "$ref": "#/$defs/family_class" },
+        "title": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short human-readable title for the entry."
+        },
+        "description": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "One-paragraph statement of what the family is, what it does not cover, and how it is distinguished from siblings it shares plumbing with."
+        },
+        "owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "schema_family_binding": { "$ref": "#/$defs/schema_family_binding" },
+        "consent_class": { "$ref": "#/$defs/consent_class" },
+        "endpoint_class": { "$ref": "#/$defs/endpoint_class" },
+        "retention_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence stating how long the payload lives, what closes the window, and which record-class retention posture it inherits."
+        },
+        "build_flavor_default_posture": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/build_flavor_posture_entry" },
+          "description": "Per-build-flavor default posture. Any flavor the product is shipped under must appear here so the reviewer can spot posture drift across channels."
+        },
+        "compatibility_horizon": { "$ref": "#/$defs/compatibility_horizon" },
+        "downgrade_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/downgrade_rule" },
+          "description": "Ordered downgrade rules readers and writers apply when they encounter a schema_version outside the active horizon."
+        },
+        "default_ux_payload_exclusions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ux_payload_exclusion_rule" },
+          "description": "Default exclusion posture for raw code, prompts, repo names, file paths, clipboard contents, full search queries, voice audio, and similar sensitive payloads. Every exclusion carries an override_policy that names how it may be widened if at all."
+        },
+        "separation_rule": { "$ref": "#/$defs/separation_rule" },
+        "sibling_family_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sibling_family_link" },
+          "description": "Explicit linkage rows when this family must reference a sibling family or must be kept from embedding one. Empty when the family stands alone."
+        },
+        "local_only_lane_posture": { "$ref": "#/$defs/local_only_lane_posture" },
+        "local_only_lane_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Justification that makes the local-only-lane posture reviewable. Anything other than local_only_safe_default must explain why the posture is honest rather than coercive or ambiguous."
+        },
+        "governance_links": { "$ref": "#/$defs/governance_links" },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Optional additional note for future consumers."
+        }
+      }
+    }
+  }
+}
