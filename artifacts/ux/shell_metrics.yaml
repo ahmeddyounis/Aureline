@@ -1,0 +1,993 @@
+# Shell metrics, density, adaptive classes, collapse policy,
+# and window-restore rules.
+#
+# Machine-readable companion to
+# docs/ux/shell_zone_and_density_contract.md. Renderer, layout,
+# restore, review, AI, extension, and provider surfaces read
+# this file by id — zone ids, density-mode ids, adaptive-class
+# ids, identity-cue fallback ids, and lifecycle-event ids —
+# rather than minting local copies.
+#
+# Rules:
+#   - If this file and the contract doc disagree, the contract
+#     doc wins and this file MUST update in the same change.
+#   - Zone ids mirror the canonical shell-zone model from
+#     ADR 0016 and the ADR-0016 boundary matrix. This file does
+#     not mint new zone ids.
+#   - Responsive-fallback modes and required-visible-field
+#     classes are re-exported verbatim from the shell-
+#     interaction-safety contract; this file does not re-mint
+#     them.
+#   - Restore phases are re-exported verbatim from the layout-
+#     serialization contract; this file does not re-mint them.
+#   - Adding a new zone, density mode, adaptive class, identity
+#     cue, fallback surface, or lifecycle rule is additive-minor
+#     and bumps shell_metrics_schema_version. Repurposing an
+#     existing value is breaking and requires a new decision
+#     row in artifacts/governance/decision_index.yaml.
+
+shell_metrics_schema_version: 1
+
+sources:
+  contract_doc_ref: docs/ux/shell_zone_and_density_contract.md
+  adr_source_ref: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+  decision_id: D-0022
+  decision_register_ref: artifacts/governance/decision_index.yaml
+  boundary_matrix_ref: artifacts/ux/desktop_shell_boundary_matrix.yaml
+  interaction_safety_contract_ref: docs/ux/shell_interaction_safety_contract.md
+  layout_serialization_contract_ref: docs/workspace/layout_serialization_contract.md
+  multi_window_verification_ref: docs/qa/multi_window_verification.md
+  multi_window_matrix_ref: artifacts/qa/window_display_matrix.yaml
+  input_adapter_failure_modes_ref: docs/architecture/input_adapter_failure_modes.md
+  ui_ux_spec_sections:
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.1
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.3
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.4
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.5
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.6
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#EP
+  ux_style_guide_sections:
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.1
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.3
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.4
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.5
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.6
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies re-exported for tooling discovery. Rows below MUST
+# quote exactly one value from each applicable vocabulary.
+# ---------------------------------------------------------------------------
+
+shell_zone_vocabulary:
+  - title_context_bar
+  - activity_rail
+  - left_sidebar
+  - main_workspace
+  - right_inspector
+  - bottom_panel
+  - status_bar
+  - transient_overlay
+
+adaptive_class_vocabulary:
+  - compact_desktop
+  - standard_desktop
+  - expanded_desktop
+  - split_heavy_desktop
+  - multi_window_desktop
+
+density_mode_vocabulary:
+  - compact
+  - standard
+  - comfortable
+
+# Re-exported verbatim from docs/ux/shell_interaction_safety_contract.md
+# §Core axes / Responsive-fallback mode. Do not re-mint.
+responsive_fallback_mode_vocabulary:
+  - full_chrome
+  - compact_shell
+  - split_shell
+  - narrow_width_sheet
+  - very_narrow_compare
+  - zoom_400_overflow
+  - missing_extension_placeholder
+  - presentation_overlay_dimmed
+
+# Re-exported verbatim from docs/ux/shell_interaction_safety_contract.md
+# §Required-visible-field set. Do not re-mint.
+required_visible_field_class_vocabulary:
+  - target_identity
+  - actor_identity
+  - authority_class_label
+  - consequence_class_label
+  - scope_statement
+  - recovery_class_label
+  - policy_source_label
+  - expiry_or_revocation_claim
+  - blocked_or_hidden_member_count
+  - representation_class_label
+  - basis_snapshot_freshness
+
+# Re-exported verbatim from docs/workspace/layout_serialization_contract.md
+# §4. Do not re-mint.
+restore_phase_vocabulary:
+  - chooser
+  - skeleton
+  - hydrate
+  - rebind
+  - evidence_only_fallback
+
+# Re-exported from docs/adr/0016 §Desktop lifecycle and
+# artifacts/ux/desktop_shell_boundary_matrix.yaml#lifecycle_rows.
+lifecycle_event_vocabulary:
+  - restart_or_reopen
+  - wake_from_sleep
+  - display_reconnect
+  - removable_volume_return
+
+# Multi-window verification scenario ids re-exported from
+# artifacts/qa/window_display_matrix.yaml / docs/qa/multi_window_verification.md.
+multi_window_scenario_id_vocabulary:
+  - split_layout_detached_auxiliary_focus
+  - display_detach_dock_safe_bounds
+  - mixed_dpi_cross_monitor_reflow
+  - fullscreen_snapped_restore_intent
+  - offscreen_dialog_owner_recenter
+  - suspend_resume_remote_rebind
+  - restart_reopen_live_surface_rebind
+  - restart_reopen_missing_dependency_placeholder
+
+# Identity cues with declared fallback surfaces (§9 of the contract).
+identity_cue_id_vocabulary:
+  - cue.breadcrumbs
+  - cue.tabs
+  - cue.status_indicators
+  - cue.terminal_headers
+  - cue.inspector_headers
+  - cue.trust_policy_recovery_state
+  - cue.collaboration_presentation_role_badges
+  - cue.command_palette_entry
+
+fallback_surface_id_vocabulary:
+  - fallback.overflow_menu
+  - fallback.summary_chip
+  - fallback.placeholder_card
+  - fallback.sheet
+  - fallback.drawer
+  - fallback.status_bar_aggregate
+  - fallback.compact_shell_menu
+  - fallback.keyboard_shortcut
+
+# ---------------------------------------------------------------------------
+# Zone rows. One row per shell-zone id.
+# Required-on / optional-on adaptive-class lists determine collapse policy.
+# ---------------------------------------------------------------------------
+zone_rows:
+
+  - record_kind: shell_zone_row
+    shell_zone: title_context_bar
+    primary_role: identity_and_global_state
+    slot_family: title_context_bar
+    restorable: true
+    focus_policy: deterministic_tab_stop_then_delegate
+    required_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes: []
+    collapse_policy:
+      may_compress: true
+      may_sheet: false
+      may_drawer: false
+      keyboard_reachable_fallback_required: true
+    typical_occupants:
+      - workspace_name
+      - repo_branch
+      - trust_class
+      - remote_target
+      - profile
+      - window_controls
+      - high_level_route_state
+    forbid_becoming:
+      - transient_error_dump
+      - tutorial_clutter
+      - workflow_local_action_bar
+
+  - record_kind: shell_zone_row
+    shell_zone: activity_rail
+    primary_role: durable_mode_switching
+    slot_family: activity_rail
+    restorable: true
+    focus_policy: route_entry_not_hover_driven
+    required_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes: []
+    collapse_policy:
+      may_compress: true
+      may_sheet: false
+      may_drawer: true
+      keyboard_reachable_fallback_required: true
+    typical_occupants:
+      - explorer
+      - search
+      - source_control
+      - run_test
+      - extensions
+      - collaboration
+      - support_or_admin
+    forbid_becoming:
+      - scrolling_secondary_toolbar
+
+  - record_kind: shell_zone_row
+    shell_zone: left_sidebar
+    primary_role: structural_navigation
+    slot_family: sidebar
+    restorable: true
+    focus_policy: active_structural_view_owns_focus
+    required_on_adaptive_classes:
+      - standard_desktop
+      - expanded_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes:
+      - compact_desktop
+      - split_heavy_desktop
+    collapse_policy:
+      may_compress: true
+      may_sheet: true
+      may_drawer: true
+      keyboard_reachable_fallback_required: true
+    typical_occupants:
+      - file_tree
+      - search_results
+      - source_control_lists
+      - dependency_views
+      - admin_queues
+    forbid_becoming:
+      - only_location_for_critical_action
+
+  - record_kind: shell_zone_row
+    shell_zone: main_workspace
+    primary_role: dominant_task_surface
+    slot_family: editor_chrome
+    restorable: true
+    focus_policy: default_return_target
+    required_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes: []
+    collapse_policy:
+      may_compress: false
+      may_sheet: false
+      may_drawer: false
+      keyboard_reachable_fallback_required: true
+      preserve_minimum_useful_width_before_other_zones: true
+    typical_occupants:
+      - editors
+      - diff_or_merge
+      - notebooks
+      - dashboards
+      - review_packets
+      - visual_designers
+    forbid_becoming:
+      - narrow_afterthought_squeezed_by_persistent_chrome
+
+  - record_kind: shell_zone_row
+    shell_zone: right_inspector
+    primary_role: contextual_detail
+    slot_family: inspector
+    restorable: true
+    focus_policy: optional_context_focus
+    required_on_adaptive_classes: []
+    optional_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    collapse_policy:
+      may_compress: true
+      may_sheet: true
+      may_drawer: false
+      keyboard_reachable_fallback_required: true
+      preserve_target_ref_on_sheet_open: true
+    typical_occupants:
+      - docs
+      - symbol_details
+      - ai_context
+      - run_metadata
+      - properties
+      - provider_state
+    forbid_becoming:
+      - primary_navigation_route_for_core_work
+
+  - record_kind: shell_zone_row
+    shell_zone: bottom_panel
+    primary_role: execution_output_and_longitudinal_state
+    slot_family: bottom_panel
+    restorable: true
+    focus_policy: active_panel_tab_owns_focus
+    required_on_adaptive_classes:
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes:
+      - compact_desktop
+    collapse_policy:
+      may_compress: true
+      may_sheet: false
+      may_drawer: true
+      keyboard_reachable_fallback_required: true
+      secondary_tabs_overflow_before_workspace_shrinks: true
+    typical_occupants:
+      - terminal
+      - problems
+      - output
+      - debug_console
+      - test_results
+      - activity_traces
+    forbid_becoming:
+      - replacement_for_main_editor
+
+  - record_kind: shell_zone_row
+    shell_zone: status_bar
+    primary_role: persistent_low_urgency_state
+    slot_family: status_bar
+    restorable: true
+    focus_policy: narrate_state_then_route_to_owner
+    required_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes: []
+    collapse_policy:
+      may_compress: true
+      may_sheet: false
+      may_drawer: false
+      keyboard_reachable_fallback_required: true
+      compact_shell_menu_may_summarize_but_not_hide_critical_state: true
+    typical_occupants:
+      - language_mode
+      - encoding
+      - line_endings
+      - execution_target
+      - environment
+      - sync_state
+      - background_state
+    forbid_becoming:
+      - transient_alert_channel
+
+  - record_kind: shell_zone_row
+    shell_zone: transient_overlay
+    primary_role: scoped_interruption_or_quick_access
+    slot_family: command_palette
+    restorable: false
+    focus_policy: record_focus_return_target_first
+    required_on_adaptive_classes:
+      - compact_desktop
+      - standard_desktop
+      - expanded_desktop
+      - split_heavy_desktop
+      - multi_window_desktop
+    optional_on_adaptive_classes: []
+    collapse_policy:
+      may_compress: false
+      may_sheet: true
+      may_drawer: false
+      keyboard_reachable_fallback_required: true
+      window_local_only: true
+    typical_occupants:
+      - command_palette
+      - dialog
+      - sheet
+      - quick_picker
+      - context_menu
+      - peek
+    forbid_becoming:
+      - semi_permanent_hidden_state
+
+# ---------------------------------------------------------------------------
+# Default metric rows. Logical pixels at 100% zoom in standard density.
+# ---------------------------------------------------------------------------
+metric_rows:
+
+  - record_kind: shell_metric_row
+    metric_id: metric.title_context_bar.height
+    shell_zone: title_context_bar
+    axis: height
+    minimum_px: 32
+    recommended_default_px: 32
+    recommended_maximum_px: 40
+    notes: grows only where platform chrome or accessibility settings require
+
+  - record_kind: shell_metric_row
+    metric_id: metric.activity_rail.width
+    shell_zone: activity_rail
+    axis: width
+    minimum_px: 44
+    recommended_default_px: 48
+    recommended_maximum_px: 56
+    notes: icon column stays visually stable across sections; overflow lands in a drawer
+
+  - record_kind: shell_metric_row
+    metric_id: metric.left_sidebar.width
+    shell_zone: left_sidebar
+    axis: width
+    minimum_px: 220
+    recommended_default_min_px: 260
+    recommended_default_max_px: 320
+    recommended_maximum_px: 420
+    notes: preserves labels without forcing early truncation
+
+  - record_kind: shell_metric_row
+    metric_id: metric.main_workspace.min_group_width
+    shell_zone: main_workspace
+    axis: width
+    minimum_px: 420
+    recommended_default_min_px: 720
+    recommended_default_max_px: null
+    recommended_maximum_px: null
+    notes: compare views drop to tabbed or staged mode before violating this floor
+
+  - record_kind: shell_metric_row
+    metric_id: metric.right_inspector.width
+    shell_zone: right_inspector
+    axis: width
+    minimum_px: 280
+    recommended_default_min_px: 320
+    recommended_default_max_px: 360
+    recommended_maximum_px: 420
+    notes: sheet before starving the workspace under compact_desktop
+
+  - record_kind: shell_metric_row
+    metric_id: metric.bottom_panel.height
+    shell_zone: bottom_panel
+    axis: height
+    minimum_px: 180
+    recommended_default_min_px: 240
+    recommended_default_max_px: 320
+    recommended_maximum_fraction_of_window_height: 0.45
+    notes: last meaningful size persists per workspace when possible
+
+  - record_kind: shell_metric_row
+    metric_id: metric.status_bar.height
+    shell_zone: status_bar
+    axis: height
+    minimum_px: 24
+    recommended_default_px: 24
+    recommended_maximum_px: 28
+    notes: dense but still legible at high zoom
+
+  - record_kind: shell_metric_row
+    metric_id: metric.tab.min_width
+    shell_zone: main_workspace
+    axis: width
+    minimum_px: 96
+    recommended_default_min_px: 120
+    recommended_default_max_px: 160
+    notes: tab overflow occurs before labels become meaningless
+
+  - record_kind: shell_metric_row
+    metric_id: metric.resize_handle.hit_area
+    shell_zone: null
+    axis: hit_area
+    minimum_px: 4
+    recommended_default_min_px: 6
+    recommended_default_max_px: 8
+    notes: visual line may remain thinner than the actual hit area
+
+  - record_kind: shell_metric_row
+    metric_id: metric.icon_only_control.hit_target
+    shell_zone: null
+    axis: hit_target
+    minimum_px: 28
+    recommended_default_min_px: 28
+    recommended_default_max_px: 32
+    recommended_maximum_px: 36
+    notes: logical hit target matters more than visible glyph size
+
+metric_rules:
+  - rule_id: metric.extensions_inherit_tokens
+    statement: Extensions and embedded views inherit shell metrics from tokens; arbitrary widths that fracture the layout are non-conforming.
+  - rule_id: metric.minimums_are_floors
+    statement: When a layout cannot satisfy the minimum, the shell collapses or sheets a secondary zone instead of allowing a visually broken arrangement.
+  - rule_id: metric.hit_targets_survive_density
+    statement: Density may reduce padding and chrome thickness but not hit targets below the minimums above.
+  - rule_id: metric.truncate_before_growth
+    statement: Truncation, overflow menus, and text wrapping are preferred over unbounded shell growth that hides adjacent zones.
+
+# ---------------------------------------------------------------------------
+# Density-mode rows. Presentation only; never information architecture.
+# ---------------------------------------------------------------------------
+density_rows:
+
+  - record_kind: density_mode_row
+    density_mode: compact
+    row_height_px: 24
+    control_height_px: 28
+    typical_use: large_repos_expert_users_smaller_laptops_dense_queue_work
+    affects:
+      - row_height
+      - tab_chip_badge_spacing
+      - panel_padding
+      - gutter_spacing
+      - inline_action_overflow_threshold
+    must_not_change:
+      - command_semantics
+      - focus_order_or_keyboard_routes
+      - information_architecture_or_shell_zoning
+      - state_vocabulary_icon_meaning_or_badge_categories
+      - required_visible_field_set_at_commit
+      - hit_target_floors
+
+  - record_kind: density_mode_row
+    density_mode: standard
+    row_height_px: 28
+    control_height_px: 32
+    typical_use: default
+    affects:
+      - row_height
+      - tab_chip_badge_spacing
+      - panel_padding
+      - gutter_spacing
+      - inline_action_overflow_threshold
+    must_not_change:
+      - command_semantics
+      - focus_order_or_keyboard_routes
+      - information_architecture_or_shell_zoning
+      - state_vocabulary_icon_meaning_or_badge_categories
+      - required_visible_field_set_at_commit
+      - hit_target_floors
+
+  - record_kind: density_mode_row
+    density_mode: comfortable
+    row_height_px: 32
+    control_height_px: 36
+    typical_use: accessibility_notebook_data_onboarding_review_heavy
+    affects:
+      - row_height
+      - tab_chip_badge_spacing
+      - panel_padding
+      - gutter_spacing
+      - inline_action_overflow_threshold
+    must_not_change:
+      - command_semantics
+      - focus_order_or_keyboard_routes
+      - information_architecture_or_shell_zoning
+      - state_vocabulary_icon_meaning_or_badge_categories
+      - required_visible_field_set_at_commit
+      - hit_target_floors
+
+density_rules:
+  - rule_id: density.profile_level_default
+    statement: Density preference is profile-level by default and survives restarts.
+  - rule_id: density.local_override_requires_explanation
+    statement: A surface may opt into a more spacious local presentation only when it explains why (e.g. presentation mode or an accessibility-specific viewer). Silent local overrides are non-conforming.
+  - rule_id: density.operable_at_400_zoom
+    statement: At 400% zoom or equivalent assistive use, dense surfaces remain operable even when the profile prefers compact.
+  - rule_id: density.no_silent_switch
+    statement: The shell must never silently switch density because a provider loads, a theme changes, or a workflow changes.
+  - rule_id: density.extensions_declare_reduced_support
+    statement: Extensions that cannot honor supported density tokens declare reduced support rather than rendering an inconsistent private scale.
+
+# ---------------------------------------------------------------------------
+# Adaptive-class rows. Width bands and shell-state classes.
+# ---------------------------------------------------------------------------
+adaptive_rows:
+
+  - record_kind: adaptive_class_row
+    adaptive_class: compact_desktop
+    class_kind: width_band
+    width_band_min_px: 1024
+    width_band_max_px: 1279
+    collapse_order:
+      - right_inspector_to_sheet
+      - secondary_bottom_panel_tabs_to_overflow
+      - low_frequency_side_tools_to_drawer
+    preserve:
+      - title_context_bar_identity
+      - main_workspace_dominance
+      - trust_and_recovery_state
+      - visible_focus
+      - status_bar_summary_of_overflowed_critical_state
+    forbid:
+      - hidden_only_critical_actions
+      - invisible_focus_jump
+      - silent_loss_of_preview_or_approval_state
+
+  - record_kind: adaptive_class_row
+    adaptive_class: standard_desktop
+    class_kind: width_band
+    width_band_min_px: 1280
+    width_band_max_px: 1599
+    collapse_order:
+      - right_inspector_on_demand
+    preserve:
+      - left_sidebar
+      - optional_bottom_panel
+      - active_task_dominance
+      - no_hidden_only_commands
+    forbid:
+      - unstable_zone_rearrangement_on_content_warmup
+
+  - record_kind: adaptive_class_row
+    adaptive_class: expanded_desktop
+    class_kind: width_band
+    width_band_min_px: 1600
+    width_band_max_px: null
+    collapse_order:
+      - no_forced_collapse_if_readability_holds
+    preserve:
+      - main_workspace_dominance
+      - optional_dual_side_surfaces
+    forbid:
+      - duplicated_truth_surfaces
+      - oversized_empty_chrome
+
+  - record_kind: adaptive_class_row
+    adaptive_class: split_heavy_desktop
+    class_kind: shell_state
+    width_band_min_px: null
+    width_band_max_px: null
+    state_trigger: two_or_more_simultaneous_editor_groups_or_compare_views
+    collapse_order:
+      - tabbed_compare_over_split_compare_when_second_group_would_violate_minimum
+      - right_inspector_sheets_before_compare_pane_shrinks_below_minimum
+    preserve:
+      - identity_of_each_editor_group
+      - per_group_tab_overflow_before_filename_truncation
+      - focus_preserved_across_dock_to_sheet_transitions
+    forbid:
+      - silently_producing_unusable_narrow_panes
+      - rename_or_reidentify_group_on_dock_to_sheet
+
+  - record_kind: adaptive_class_row
+    adaptive_class: multi_window_desktop
+    class_kind: shell_state
+    width_band_min_px: null
+    width_band_max_px: null
+    state_trigger: two_or_more_aureline_top_level_windows_backed_by_same_workspace_authority
+    per_window_adaptive_class_independent: true
+    preserve:
+      - canonical_command_graph
+      - workspace_identity
+      - trust_state
+      - remote_or_host_identity
+      - profile
+      - recovery_critical_status_on_every_affected_window
+    forbid:
+      - cross_window_focus_jump_on_adaptive_collapse
+      - dialog_or_sheet_attached_to_non_owning_window
+      - workspace_global_risk_or_policy_state_missing_on_sibling_window
+
+adaptive_rules:
+  - rule_id: adaptive.palette_tabs_status_every_width
+    statement: Command palette, title / context state, editor tabs, and recovery-critical status remain visible at every supported width including 400% zoom.
+  - rule_id: adaptive.no_hover_only_on_narrow_widths
+    statement: Essential actions must not become hover-only as width narrows.
+  - rule_id: adaptive.identity_stable_dock_to_sheet
+    statement: A surface that moves from docked to sheet is the same task surface with the same state, not a fresh instance.
+  - rule_id: adaptive.second_group_degrades_explicitly
+    statement: When opening a second editor group, diff, or compare view would violate the minimum group width, the shell falls back to tabbed compare, staged peek, or an explicit user choice.
+  - rule_id: adaptive.multi_window_parity
+    statement: Every window in multi_window_desktop retains the same command graph, trust state, and recovery-critical status as the primary shell.
+
+# ---------------------------------------------------------------------------
+# Identity-cue rows and fallback policy.
+# ---------------------------------------------------------------------------
+identity_cue_rows:
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.breadcrumbs
+    lives_in: main_workspace
+    slot_family_ref: editor_chrome
+    required_visible_field_refs:
+      - target_identity
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.overflow_menu
+      narrow_width_sheet:
+        - fallback.overflow_menu
+      zoom_400_overflow:
+        - fallback.overflow_menu
+      split_heavy_desktop:
+        - fallback.overflow_menu
+      multi_window_desktop:
+        - fallback.overflow_menu
+    preserve_on_fallback:
+      - root_segment
+      - current_file_or_item_segment
+      - current_symbol_segment_when_present
+    forbid:
+      - hiding_the_root_segment
+      - hiding_the_current_item_segment
+      - silent_collapse_with_no_expand_affordance
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.tabs
+    lives_in: main_workspace
+    slot_family_ref: editor_chrome
+    required_visible_field_refs:
+      - target_identity
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.overflow_menu
+      narrow_width_sheet:
+        - fallback.overflow_menu
+      split_heavy_desktop:
+        - fallback.overflow_menu
+      multi_window_desktop:
+        - fallback.overflow_menu
+    preserve_on_fallback:
+      - pinned_tab_identity
+      - dirty_tab_badge
+      - active_tab_identity
+    forbid:
+      - dropping_active_or_dirty_tab_from_visible_set
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.status_indicators
+    lives_in: status_bar
+    slot_family_ref: status_bar
+    required_visible_field_refs:
+      - authority_class_label
+      - policy_source_label
+      - basis_snapshot_freshness
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.compact_shell_menu
+        - fallback.status_bar_aggregate
+      narrow_width_sheet:
+        - fallback.compact_shell_menu
+      zoom_400_overflow:
+        - fallback.compact_shell_menu
+      split_heavy_desktop:
+        - fallback.status_bar_aggregate
+      multi_window_desktop:
+        - fallback.status_bar_aggregate
+    preserve_on_fallback:
+      - trust_class
+      - execution_target
+      - blocked_or_suppressed_counts
+    forbid:
+      - silent_loss_of_trust_or_execution_target_cues
+      - mixing_transient_alerts_into_summary
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.terminal_headers
+    lives_in: bottom_panel
+    slot_family_ref: bottom_panel
+    required_visible_field_refs:
+      - target_identity
+      - basis_snapshot_freshness
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.overflow_menu
+        - fallback.placeholder_card
+      narrow_width_sheet:
+        - fallback.overflow_menu
+      split_heavy_desktop:
+        - fallback.overflow_menu
+      multi_window_desktop:
+        - fallback.overflow_menu
+    preserve_on_fallback:
+      - session_label
+      - host_identity
+      - exit_state
+      - view_transcript_action
+    forbid:
+      - replaying_latent_pty_input
+      - hiding_exit_state
+      - silent_session_rename
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.inspector_headers
+    lives_in: right_inspector
+    slot_family_ref: inspector
+    required_visible_field_refs:
+      - target_identity
+      - basis_snapshot_freshness
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.sheet
+      narrow_width_sheet:
+        - fallback.sheet
+      split_heavy_desktop:
+        - fallback.sheet
+      multi_window_desktop:
+        - fallback.sheet
+    preserve_on_fallback:
+      - target_pane_ref
+      - inspector_kind
+      - pin_back_to_docked_action
+    forbid:
+      - opening_sheet_without_target_pane_ref
+      - silent_retargeting_on_sheet_close
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.trust_policy_recovery_state
+    lives_in: title_context_bar
+    slot_family_ref: title_context_bar
+    required_visible_field_refs:
+      - authority_class_label
+      - policy_source_label
+      - recovery_class_label
+      - expiry_or_revocation_claim
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.summary_chip
+        - fallback.status_bar_aggregate
+      narrow_width_sheet:
+        - fallback.summary_chip
+      zoom_400_overflow:
+        - fallback.summary_chip
+      split_heavy_desktop:
+        - fallback.summary_chip
+      multi_window_desktop:
+        - fallback.summary_chip
+    preserve_on_fallback:
+      - trust_class
+      - policy_source_label
+      - recovery_class_label
+      - active_blocks_count
+    forbid:
+      - collapsing_trust_loss_into_undisclosed_overflow
+      - hiding_broken_restore_or_policy_block
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.collaboration_presentation_role_badges
+    lives_in: title_context_bar
+    slot_family_ref: title_context_bar
+    required_visible_field_refs:
+      - actor_identity
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.summary_chip
+      narrow_width_sheet:
+        - fallback.summary_chip
+      split_heavy_desktop:
+        - fallback.summary_chip
+      multi_window_desktop:
+        - fallback.summary_chip
+    preserve_on_fallback:
+      - presenter_or_observer_badge
+      - shared_control_chrome
+    forbid:
+      - dropping_role_badge_on_zone_sheet
+      - implying_shared_authority_not_granted
+
+  - record_kind: identity_cue_row
+    identity_cue_id: cue.command_palette_entry
+    lives_in: transient_overlay
+    slot_family_ref: command_palette
+    required_visible_field_refs: []
+    fallback_surfaces_by_class:
+      compact_desktop:
+        - fallback.keyboard_shortcut
+      narrow_width_sheet:
+        - fallback.keyboard_shortcut
+      zoom_400_overflow:
+        - fallback.keyboard_shortcut
+      split_heavy_desktop:
+        - fallback.keyboard_shortcut
+      multi_window_desktop:
+        - fallback.keyboard_shortcut
+    preserve_on_fallback:
+      - keyboard_shortcut
+      - rail_overflow_entry
+    forbid:
+      - hover_or_timing_dependent_palette_entry
+
+identity_cue_rules:
+  - rule_id: cue.every_cue_has_typed_fallback
+    statement: A responsive fallback may collapse secondary chrome but must not drop any field in the required_visible_field_class set for the active consequence class and must disclose collapsed cues through one of the fallback surfaces above.
+  - rule_id: cue.fallback_is_keyboard_complete
+    statement: Every collapse has a keyboard-reachable re-entry affordance — overflow menu, sheet open, pin-back action, or command-palette route.
+  - rule_id: cue.overflow_explains_hidden_items
+    statement: A compact shell menu names its hidden items (e.g. "3 more status items") rather than presenting an empty trigger.
+  - rule_id: cue.identity_before_ornament
+    statement: When space runs out, the shell truncates labels and drops ornament (icons-only, badge hidden) in that order; it does not drop identity text until the declared fallback surface takes over.
+
+# ---------------------------------------------------------------------------
+# Multi-window and window-restore rules. Re-export scenario ids from the
+# multi-window verification seed without duplicating claimed-profile notes.
+# ---------------------------------------------------------------------------
+multi_window_rules:
+
+  - rule_id: multi_window.one_window_one_native_top_level
+    statement: One Aureline top-level window maps to one native top-level window, one renderer surface root, and one accessibility root. Many windows may still share one workspace authority.
+    adr_anchor: docs/adr/0016-shell-windowing-input-accessibility-boundary.md#decision
+  - rule_id: multi_window.every_window_is_a_full_shell
+    statement: Every window retains the canonical command graph, workspace identity, trust state, remote / host identity, profile, and recovery-critical status cues.
+  - rule_id: multi_window.cross_window_operations_advertise_verb
+    statement: Cross-window drag-and-drop advertises the resulting verb (Move tab / Copy editor / Open compare here / Create window) before drop.
+  - rule_id: multi_window.closing_never_orphans_durable_state
+    statement: Closing a secondary window must not orphan dirty buffers, active approvals, shared-session control, or long-running evidence review without an explicit continuation path.
+  - rule_id: multi_window.dialogs_window_local
+    statement: Dialogs, permission sheets, trust prompts, and destructive confirmations attach to the owning window and return focus to the invoker on dismiss.
+  - rule_id: multi_window.notifications_route_to_owner
+    statement: Notifications route to the owning window when context matters and degrade to badges or activity-center entries instead of stealing focus from the active typing surface.
+
+restore_rules:
+
+  - rule_id: restore.layout_intent_over_pixels
+    statement: Session restore preserves window role, editor-group composition, pinned / dirty tabs, panel visibility, and dominant monitor rather than brittle pixel-perfect coordinates.
+    restore_phases_exercised: [chooser, skeleton, hydrate]
+  - rule_id: restore.safe_bounds_remap_on_topology_change
+    statement: When monitor topology, DPI, fullscreen / space state, snapped layout, or window-manager rules change, the shell remaps windows into reachable bounds and records the adjustment on restore provenance.
+    restore_phases_exercised: [skeleton, hydrate]
+    lifecycle_events_exercised: [display_reconnect]
+  - rule_id: restore.scale_bucket_update_silent_on_identity
+    statement: A display-scale change updates safe bounds, scale bucket, and owner-dialog placement without changing window ownership, focus owner, or command routes.
+    lifecycle_events_exercised: [display_reconnect]
+  - rule_id: restore.dialogs_follow_their_window
+    statement: An orphaned dialog, sheet, or prompt recenters with its owning window and must not survive on a detached or hidden display.
+    restore_phases_exercised: [skeleton]
+  - rule_id: restore.typed_lifecycle_not_silent_resume
+    statement: Off-screen restore records the typed lifecycle event (display_reconnect / wake_from_sleep / removable_volume_return) and preserves restore provenance; live authority requires explicit rebind.
+    restore_phases_exercised: [rebind, evidence_only_fallback]
+    lifecycle_events_exercised: [wake_from_sleep, removable_volume_return, restart_or_reopen]
+  - rule_id: restore.recovery_actions_reachable
+    statement: After recentre, the active pane, owner dialog, and safe-recovery actions (Move to primary display / Review layout / Restore detached window) remain reachable by keyboard.
+    restore_phases_exercised: [hydrate]
+  - rule_id: restore.provenance_inspectable
+    statement: Topology adjustments, missing dependencies, and continuity level remain inspectable after reopen or wake via the layout_restore_provenance_record.
+    restore_phases_exercised: [chooser, skeleton, hydrate, rebind]
+
+multi_window_scenario_linkage:
+  - scenario_id: split_layout_detached_auxiliary_focus
+    adaptive_class_refs: [split_heavy_desktop, multi_window_desktop]
+    lifecycle_event: restart_or_reopen
+    continuity_level_expectation: no_restore
+    fixture_ref: fixtures/ux/shell_layout_classes/multi_window_desktop_split_heavy.json
+  - scenario_id: display_detach_dock_safe_bounds
+    adaptive_class_refs: [multi_window_desktop]
+    lifecycle_event: display_reconnect
+    continuity_level_expectation: no_restore_with_topology_adjustment_note
+    fixture_ref: fixtures/ux/shell_layout_classes/offscreen_restore_recentre.json
+  - scenario_id: mixed_dpi_cross_monitor_reflow
+    adaptive_class_refs: [standard_desktop, multi_window_desktop]
+    lifecycle_event: display_reconnect
+    continuity_level_expectation: no_restore_with_topology_adjustment_note
+    fixture_ref: fixtures/ux/shell_layout_classes/offscreen_restore_recentre.json
+  - scenario_id: fullscreen_snapped_restore_intent
+    adaptive_class_refs: [expanded_desktop]
+    lifecycle_event: restart_or_reopen
+    continuity_level_expectation: compatible_restore
+    fixture_ref: fixtures/ux/shell_layout_classes/expanded_desktop_full_chrome.json
+  - scenario_id: offscreen_dialog_owner_recenter
+    adaptive_class_refs: [multi_window_desktop]
+    lifecycle_event: display_reconnect
+    continuity_level_expectation: no_restore_with_topology_adjustment_note
+    fixture_ref: fixtures/ux/shell_layout_classes/offscreen_restore_recentre.json
+  - scenario_id: suspend_resume_remote_rebind
+    adaptive_class_refs: [standard_desktop, multi_window_desktop]
+    lifecycle_event: wake_from_sleep
+    continuity_level_expectation: compatible_restore
+    fixture_ref: fixtures/ux/shell_layout_classes/offscreen_restore_recentre.json
+  - scenario_id: restart_reopen_live_surface_rebind
+    adaptive_class_refs: [standard_desktop]
+    lifecycle_event: restart_or_reopen
+    continuity_level_expectation: compatible_restore
+    fixture_ref: fixtures/ux/shell_layout_classes/standard_desktop_full_chrome.json
+  - scenario_id: restart_reopen_missing_dependency_placeholder
+    adaptive_class_refs: [compact_desktop, standard_desktop]
+    lifecycle_event: restart_or_reopen
+    continuity_level_expectation: layout_only
+    fixture_ref: fixtures/ux/shell_layout_classes/compact_desktop_inspector_sheet.json
+
+# ---------------------------------------------------------------------------
+# Build identity. Reserved for later exact-build-identity wiring.
+# ---------------------------------------------------------------------------
+running_build_identity_ref: build-identity-seed-shell-metrics
+minted_at: "2026-04-23T00:00:00Z"
