@@ -1,0 +1,503 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/checkout_plan.schema.json",
+  "title": "Aureline checkout-plan and trust-stage record",
+  "description": "Seed schema for the checkout-plan record every open / clone / import / template / prebuild / resume flow, first-run policy-guided lane, support export, and CLI / headless entry point reads when it names **what browse-safe actions are available before commit**, **which execution paths are blocked until trust is admitted**, **how an interrupted acquisition can be resumed, discarded, or opened read-only**, **which mirror-freshness and signer-continuity evidence rides with the plan**, **which read-only partial roots are already usable**, and **which seed-level topology markers (sparse workset, partial clone / promisor, submodule init, LFS hydrate) apply**. One record per acquisition; surfaces read the plan by id and never mint a parallel trust-stage, resume-state, or topology vocabulary. Raw absolute paths, raw credentials, raw remote URLs with credentials, raw archive bytes, and raw policy-bundle bytes never appear. Adding a new trust_stage, blocked_execution_path_class, browse_safe_action_class, acquisition_resume_state, mirror_freshness_evidence_class, read_only_partial_root_class, or topology_marker_class is additive-minor and bumps checkout_plan_schema_version; repurposing an existing value is breaking and requires a new decision row. Companion contracts: /schemas/workspace/source_locator.schema.json (the locator the plan acquires) and /schemas/workspace/bootstrap_queue_item.schema.json (the typed setup work the plan enqueues). Trust-state vocabulary is re-exported unchanged from /schemas/workspace/entry_and_restore_result.schema.json (M00-28); this schema does not redefine it.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/checkout_plan_record" }
+  ],
+  "$defs": {
+    "checkout_plan_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the checkout-plan payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["checkout_plan_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"],
+      "description": "Re-exported unchanged from /schemas/workspace/entry_and_restore_result.schema.json#/$defs/trust_state. Never redefined."
+    },
+
+    "trust_stage": {
+      "type": "string",
+      "enum": [
+        "not_evaluated",
+        "pre_fetch_inspection",
+        "post_fetch_content_review",
+        "admitted_restricted",
+        "admitted_trusted",
+        "quarantined",
+        "policy_blocked",
+        "signer_review_required",
+        "reauth_required",
+        "reconnect_required"
+      ],
+      "description": "Closed trust-stage set the checkout plan moves through. 'not_evaluated' is the initial stage before any inspection; 'pre_fetch_inspection' permits browse-safe actions on manifest / metadata only; 'post_fetch_content_review' permits browse-safe actions on acquired content with execution still blocked; 'admitted_restricted' and 'admitted_trusted' reuse ADR-0001 identity-mode admission; the remaining stages route to typed repair / review hooks and never silently admit execution. A surface that advances trust_stage without a typed admission record is non-conforming."
+    },
+
+    "browse_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_manifest",
+        "inspect_history",
+        "inspect_contributors",
+        "inspect_readme",
+        "inspect_license",
+        "inspect_workflows_ci_config",
+        "inspect_dependency_manifest",
+        "inspect_scripts_catalog",
+        "inspect_entry_points",
+        "diff_before_commit",
+        "render_diff_readonly",
+        "show_signer_identity",
+        "show_mirror_metadata",
+        "show_upstream_delta",
+        "show_partial_or_sparse_scope",
+        "export_evidence_only"
+      ],
+      "description": "Closed browse-safe action set the plan advertises during trust review. Every action is read-only, non-executing, and MUST NOT trigger hooks, generators, LFS smudge filters, or post-checkout scripts. Surfaces render these verbatim; free-form browse labels are non-conforming."
+    },
+
+    "blocked_execution_path_class": {
+      "type": "string",
+      "enum": [
+        "post_checkout_hook",
+        "pre_commit_hook",
+        "git_filter_driver",
+        "lfs_smudge_filter",
+        "submodule_recursive_init",
+        "submodule_update_command",
+        "generator_install",
+        "generator_run",
+        "package_manager_restore",
+        "package_manager_postinstall_script",
+        "toolchain_bootstrap",
+        "devcontainer_bootstrap",
+        "prebuild_attach_side_effects",
+        "remote_attach_handshake",
+        "index_warmup_with_workers",
+        "docs_import_fetch",
+        "ai_context_warmup",
+        "extension_activation",
+        "workspace_auto_task",
+        "deep_link_side_effect"
+      ],
+      "description": "Closed blocked-execution-path set. Each entry names a concrete execution path the plan refuses until trust_stage reaches admitted_* (possibly admitted_restricted only for a subset). A surface that claims a path is blocked without naming one of these classes is non-conforming."
+    },
+
+    "acquisition_resume_state": {
+      "type": "string",
+      "enum": [
+        "never_started",
+        "in_progress",
+        "interrupted_resumable",
+        "interrupted_discard_required",
+        "interrupted_open_read_only_available",
+        "completed",
+        "aborted"
+      ],
+      "description": "Closed acquisition-resume-state set covering the explicit resume / discard / open-read-only branches interrupted acquisition MUST expose. 'interrupted_open_read_only_available' is distinct from 'interrupted_resumable': the former names read-only partial roots the plan already made safe to inspect; the latter names a resumable acquisition whose partial bytes are not yet review-ready. A surface that collapses any two of these states into a generic 'failed setup' banner is non-conforming."
+    },
+
+    "discard_posture": {
+      "type": "string",
+      "enum": [
+        "no_discard_required",
+        "discard_staging_only",
+        "discard_with_compensation",
+        "discard_blocked_require_admin",
+        "discard_unavailable_manual_only"
+      ],
+      "description": "Closed discard-posture set. Names what 'discard' costs for an interrupted acquisition. 'discard_staging_only' means the acquisition never wrote outside the labelled staging area; 'discard_with_compensation' means a compensating action is required; 'discard_blocked_require_admin' and 'discard_unavailable_manual_only' route to typed repair hooks."
+    },
+
+    "resumable_acquisition_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resume_state", "discard_posture"],
+      "properties": {
+        "resume_state": { "$ref": "#/$defs/acquisition_resume_state" },
+        "discard_posture": { "$ref": "#/$defs/discard_posture" },
+        "resume_checkpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when resume_state is 'interrupted_resumable' or 'in_progress'. Points at the durable resume checkpoint."
+        },
+        "open_read_only_available": {
+          "type": "boolean",
+          "description": "True when the plan already exposes at least one read_only_partial_root the user may inspect without committing further acquisition."
+        },
+        "failure_reason_class": {
+          "type": "string",
+          "enum": [
+            "network_interruption",
+            "auth_expired",
+            "authority_revoked",
+            "signer_mismatch",
+            "mirror_unreachable",
+            "disk_pressure",
+            "policy_blocked",
+            "user_cancelled",
+            "schema_version_unsupported",
+            "unknown"
+          ],
+          "description": "Required when resume_state is 'interrupted_resumable', 'interrupted_discard_required', or 'interrupted_open_read_only_available'. Typed, not free text."
+        },
+        "user_visible_reason": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Typed resumable-acquisition block. Every interrupted checkout plan MUST render explicit resume / discard / open-read-only branches."
+    },
+
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ],
+      "description": "Closed mirror-freshness class. Re-exported from the source-locator vocabulary. Mirror and offline-bundle acquisition surfaces MUST NOT collapse lagged / stale into fresh."
+    },
+
+    "upstream_delta_class": {
+      "type": "string",
+      "enum": [
+        "no_delta",
+        "delta_within_declared_skew",
+        "delta_outside_declared_skew",
+        "delta_unmeasured",
+        "delta_unknown"
+      ],
+      "description": "Closed upstream-delta class. Names how far the mirror is from its upstream at acquisition time. Surfaces with a chip SHOULD render 'delta_outside_declared_skew' distinctly so the user does not mistake a stale mirror for live origin."
+    },
+
+    "mirror_freshness_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "upstream_delta_class": { "$ref": "#/$defs/upstream_delta_class" },
+        "upstream_delta_summary": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short human-readable summary of the delta (e.g., 'mirror N commits behind upstream default branch'). No raw refs."
+        },
+        "mirror_attestation_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to a mirror-freshness attestation packet."
+        },
+        "upstream_origin_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "mirror_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "measured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed mirror / proxy freshness evidence. Absent only when the locator's transport is neither mirror nor proxy (and the plan still MAY carry 'live_origin' for inspectability)."
+    },
+
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "new_signer_first_seen",
+        "signer_changed_trust_on_first_use",
+        "signer_changed_review_required",
+        "signer_rotation_preauthorized",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable"
+      ],
+      "description": "Closed signer-continuity class. Re-exported from the source-locator vocabulary."
+    },
+
+    "signer_continuity_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuity_class"],
+      "properties": {
+        "continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+        "signer_identity_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "previous_signer_identity_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "previous_acquisition_ref": { "$ref": "#/$defs/opaque_id" },
+        "rotation_policy_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to a signer-rotation policy. Required when continuity_class is 'signer_rotation_preauthorized'."
+        },
+        "review_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the typed review ticket opened on 'signer_changed_review_required'."
+        }
+      },
+      "description": "Typed signer-continuity evidence. Every plan MUST name a continuity class; 'not_applicable' is allowed only when the locator never rides through a signer."
+    },
+
+    "read_only_partial_root_class": {
+      "type": "string",
+      "enum": [
+        "sparse_checkout_root",
+        "partial_clone_filter_root",
+        "promisor_pack_root",
+        "shallow_history_root",
+        "lfs_pointer_only_root",
+        "submodule_placeholder_root",
+        "archive_extracted_read_only",
+        "template_materialized_read_only",
+        "prebuild_attached_read_only",
+        "remote_virtual_root",
+        "portable_bundle_extracted_read_only"
+      ],
+      "description": "Closed read-only partial-root class. Names a root the plan has already made safe to inspect without committing further acquisition. A surface that silently treats any of these as 'fully_present' is non-conforming."
+    },
+
+    "read_only_partial_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_class", "root_label"],
+      "properties": {
+        "root_class": { "$ref": "#/$defs/read_only_partial_root_class" },
+        "root_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "local_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque reference to a filesystem_identity_record (see /schemas/filesystem/save_target_token.schema.json). Required for roots that already materialized on disk."
+        },
+        "include_glob_count": { "type": "integer", "minimum": 0 },
+        "exclude_glob_count": { "type": "integer", "minimum": 0 },
+        "browse_safe_only": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One read-only partial root. The plan MAY name zero or more. Browse-safe actions from §3 apply to these roots even when trust_stage is still pre-admitted."
+    },
+
+    "topology_marker_class": {
+      "type": "string",
+      "enum": [
+        "sparse_workset_present",
+        "partial_clone_filter_present",
+        "promisor_remote_required",
+        "shallow_history_present",
+        "submodule_init_pending",
+        "submodule_init_partial",
+        "submodule_init_complete",
+        "submodule_init_failed",
+        "lfs_pointer_only",
+        "lfs_hydrate_pending",
+        "lfs_hydrate_partial",
+        "lfs_hydrate_complete",
+        "lfs_hydrate_failed",
+        "none"
+      ],
+      "description": "Closed seed-level topology marker class. These markers let acquisition and bootstrap fixtures distinguish sparse, partial-clone / promisor, submodule-init, and LFS-hydrate state from generic 'setting up workspace' opacity — before the deeper repository-edge contracts land. A plan that reports 'none' MUST explicitly set topology_markers[] to [{ marker_class: 'none' }] rather than omit the field."
+    },
+
+    "topology_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["marker_class"],
+      "properties": {
+        "marker_class": { "$ref": "#/$defs/topology_marker_class" },
+        "detail_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "pending_count": { "type": "integer", "minimum": 0 },
+        "completed_count": { "type": "integer", "minimum": 0 },
+        "failed_count": { "type": "integer", "minimum": 0 },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One seed-level topology marker row. Count fields are optional but help support / CLI surfaces render a 'N of M' chip without minting a parallel vocabulary."
+    },
+
+    "policy_narrowing_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_source_class"],
+      "properties": {
+        "policy_source_class": {
+          "type": "string",
+          "enum": [
+            "workspace_trust_policy",
+            "admin_policy",
+            "fleet_policy",
+            "connected_provider_policy",
+            "extension_effective_permission",
+            "signature_policy",
+            "mirror_or_airgap_policy"
+          ]
+        },
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "narrowed_execution_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_execution_path_class" }
+        },
+        "rationale_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Typed policy-narrowing reference. Policy-guided deployments quote these to explain why a given execution path is blocked beyond the plan's default trust_stage posture."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items",
+        "resume_acquisition",
+        "discard_and_restart",
+        "open_read_only_partial",
+        "review_signer_change",
+        "refresh_mirror",
+        "switch_to_live_origin"
+      ],
+      "description": "Closed next-step decision hook. Re-exports the entry-restore hook set (M00-28) and adds the acquisition-specific hooks 'resume_acquisition', 'discard_and_restart', 'open_read_only_partial', 'review_signer_change', 'refresh_mirror', and 'switch_to_live_origin' so interrupted and mirror-served acquisition flows remain typed. Free-form action labels are non-conforming."
+    },
+
+    "checkout_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "checkout_plan_schema_version",
+        "checkout_plan_id",
+        "source_locator_ref",
+        "trust_state",
+        "trust_stage",
+        "browse_safe_actions",
+        "blocked_execution_paths",
+        "resumable_acquisition",
+        "signer_continuity",
+        "topology_markers",
+        "next_step_decision_hooks",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "checkout_plan_record" },
+        "checkout_plan_schema_version": { "$ref": "#/$defs/checkout_plan_schema_version" },
+        "checkout_plan_id": { "$ref": "#/$defs/opaque_id" },
+
+        "source_locator_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the companion source_locator_record (see /schemas/workspace/source_locator.schema.json)."
+        },
+        "entry_action_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the project_entry_action_record the plan resolves against (see /schemas/workspace/entry_and_restore_result.schema.json)."
+        },
+
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "trust_stage": { "$ref": "#/$defs/trust_stage" },
+
+        "browse_safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/browse_safe_action_class" },
+          "description": "Every plan MUST advertise at least one browse-safe action (even 'inspect_manifest' / 'inspect_readme' on the thinnest pre-fetch inspection)."
+        },
+        "blocked_execution_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/blocked_execution_path_class" },
+          "description": "Every plan MUST enumerate at least one blocked execution path; admission upgrades narrow this list rather than widen it opaquely."
+        },
+
+        "resumable_acquisition": { "$ref": "#/$defs/resumable_acquisition_state" },
+
+        "mirror_freshness": { "$ref": "#/$defs/mirror_freshness_evidence" },
+        "signer_continuity": { "$ref": "#/$defs/signer_continuity_evidence" },
+
+        "read_only_partial_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/read_only_partial_root" },
+          "description": "Zero or more read-only partial roots the plan has already made safe to inspect."
+        },
+
+        "topology_markers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/topology_marker" },
+          "description": "Seed-level topology markers for sparse worksets, partial clone / promisor state, submodule init state, and LFS hydrate state. MUST contain at least one entry; a plan with no applicable topology uses [{ marker_class: 'none' }] rather than omit the field."
+        },
+
+        "policy_narrowing_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_narrowing_ref" },
+          "description": "Zero or more typed policy-narrowing refs explaining why blocked_execution_paths include entries beyond the plan's default trust_stage posture."
+        },
+
+        "bootstrap_queue_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the companion bootstrap queue (see /schemas/workspace/bootstrap_queue_item.schema.json). Absent only when the plan enqueues no bootstrap work."
+        },
+
+        "next_step_decision_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "description": "Typed next-step decisions the shell may offer on this plan. Every interrupted plan MUST expose at least one of 'resume_acquisition', 'discard_and_restart', or 'open_read_only_partial'."
+        },
+
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One checkout plan. Read by Start Center trust-review sheets, open / clone / import / resume / template / prebuild entry flows, first-run policy-guided deployment lanes, interrupted-acquisition recovery surfaces, support-bundle exporters, and CLI / headless entry points. Every surface reads the plan by id; downstream surfaces never mint a parallel trust-stage, resume-state, or topology vocabulary."
+    }
+  }
+}

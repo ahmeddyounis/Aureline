@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/source_locator.schema.json",
+  "title": "Aureline source-locator record",
+  "description": "Seed schema for the cross-surface source-locator record every Start Center, open / clone / import / template / prebuild / resume entry surface, first-run importer, policy-guided deployment lane, support export, and CLI / headless entry point reads when it names **what kind of source is being acquired**, **where the source lives**, **which fetch / attach posture the source requires**, and **which declared-freshness and signer-continuity hooks downstream checkout / bootstrap flows will quote**. One record per locator; surfaces read the record by id and never mint a parallel stable id for the same source. Raw absolute paths, raw credentials, raw remote URLs with embedded credentials, and raw artifact bytes never appear. Adding a new locator_class, transport_class, declared_freshness_class, signer_continuity_class, or acquisition_posture is additive-minor and bumps source_locator_schema_version; repurposing an existing value is breaking and requires a new decision row. Companion contracts: /schemas/workspace/checkout_plan.schema.json (the plan that acquires the locator) and /schemas/workspace/bootstrap_queue_item.schema.json (the typed setup work the plan enqueues). Entry-verb, target-kind, and trust-state vocabulary are re-exported unchanged from /schemas/workspace/entry_and_restore_result.schema.json (M00-28); this schema does not redefine them.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/source_locator_record" }
+  ],
+  "$defs": {
+    "source_locator_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the source-locator payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["source_locator_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; the exporter does not require any specific clock source."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Ignored by the boundary contract."
+    },
+
+    "locator_class": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "local_file",
+        "workspace_file_manifest",
+        "workset_manifest",
+        "repo_url",
+        "mirror_or_proxy_repo",
+        "snapshot_archive",
+        "template",
+        "prebuild_snapshot",
+        "live_resume_target",
+        "handoff_packet",
+        "portable_state_package",
+        "recovery_checkpoint",
+        "review_or_work_item_deep_link"
+      ],
+      "description": "Closed locator-class set. Names the kind of source being acquired. Surfaces MUST render these classes distinctly; collapsing any two into a generic 'source' label is non-conforming. A surface that cannot resolve locator_class denies with locator_class_unresolved rather than silently classify."
+    },
+
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "local_filesystem",
+        "https",
+        "ssh",
+        "git_protocol",
+        "sftp",
+        "mirror",
+        "proxy",
+        "air_gapped_media",
+        "aureline_remote",
+        "managed_cloud",
+        "devcontainer_runtime",
+        "container_runtime",
+        "file_upload",
+        "deep_link_handoff",
+        "other"
+      ],
+      "description": "Closed transport-class set. Names how the source is reached on acquisition. Separate from locator_class so a 'repo_url' served by a 'mirror' or an 'air_gapped_media' import is inspectable without minting a new locator class."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "ssh_agent",
+        "pat_handle",
+        "oauth_handle",
+        "device_code_handle",
+        "managed_session_ticket",
+        "connected_provider_ticket",
+        "anonymous",
+        "inherit_local_identity",
+        "none",
+        "other"
+      ],
+      "description": "Closed auth-mode set. Typed handle class only; raw credentials never cross this boundary. A locator that names a remote transport MUST name an auth mode (including anonymous / none) so the checkout plan can disclose credential posture before commit."
+    },
+
+    "acquisition_posture": {
+      "type": "string",
+      "enum": [
+        "already_on_disk",
+        "not_yet_acquired",
+        "partially_acquired",
+        "filtered_or_sparse",
+        "hydrated_stale",
+        "live_session_attached",
+        "unreachable",
+        "policy_blocked",
+        "unknown"
+      ],
+      "description": "Closed acquisition-posture set. Names how materialized the source is at locator mint time. 'partially_acquired' and 'filtered_or_sparse' are distinct from 'unreachable': the first is a deliberate partial state the checkout plan tracks; the second is a transient reachability failure. 'unknown' is allowed only on locators whose canonical owner has not been re-reached for verification."
+    },
+
+    "declared_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ],
+      "description": "Closed freshness-class set the locator carries forward for downstream checkout and bootstrap review. Mirrors and offline-bundle acquisition surfaces MUST not collapse lagged / stale into 'fresh'; the chip and plan read this verbatim."
+    },
+
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "new_signer_first_seen",
+        "signer_changed_trust_on_first_use",
+        "signer_changed_review_required",
+        "signer_rotation_preauthorized",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable"
+      ],
+      "description": "Closed signer-continuity set. Names whether the producer / mirror / bundle signer identity is continuous with what the user or fleet has previously accepted. 'not_applicable' is allowed only for locators that never ride through a signer (e.g., local_folder with no ADR-0010 ticket). A surface that quietly admits 'signer_changed_review_required' without routing to a typed review hook is non-conforming."
+    },
+
+    "host_endpoint_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_label", "transport_class", "auth_mode"],
+      "properties": {
+        "host_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode_class" },
+        "credential_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque handle into the credential store. Raw secrets never cross this boundary."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ADR-0010 connected-provider / browser-handoff approval-ticket reference."
+        },
+        "branch_or_ref": { "$ref": "#/$defs/redaction_aware_text" },
+        "mirror_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Mirror / proxy presentation label. Non-empty only when transport_class is 'mirror' or 'proxy'."
+        },
+        "upstream_origin_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "The upstream origin a mirror / proxy fronts. Enables the checkout plan to compute upstream-delta class without minting a parallel descriptor."
+        }
+      },
+      "description": "Typed descriptor for a remote / mirror / proxy / air-gapped endpoint. Carries no raw credentials and no raw URLs with embedded credentials."
+    },
+
+    "local_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque reference to a filesystem_identity_record (see /schemas/filesystem/save_target_token.schema.json). Required on local_folder / local_file / workspace_file_manifest / workset_manifest / recovery_checkpoint locators. Raw absolute paths never appear."
+    },
+
+    "artifact_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class"],
+      "properties": {
+        "artifact_class": {
+          "type": "string",
+          "enum": [
+            "snapshot_archive",
+            "template",
+            "prebuild_snapshot",
+            "handoff_packet",
+            "portable_state_package",
+            "competitor_config_root",
+            "recovery_checkpoint",
+            "support_bundle_replay"
+          ]
+        },
+        "artifact_schema_version": { "type": "string" },
+        "producer_identity": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_build": { "$ref": "#/$defs/redaction_aware_text" },
+        "signature_state": {
+          "type": "string",
+          "enum": [
+            "signed_verified",
+            "signed_unverified",
+            "unsigned",
+            "signature_missing",
+            "signature_mismatch"
+          ]
+        },
+        "machine_local_exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" },
+          "description": "Typed list of machine-local exclusion classes already scrubbed (live auth tokens removed, machine-unique trust anchors dropped, etc.). The list is semantic, not raw."
+        }
+      },
+      "description": "Typed artifact descriptor for a transferred / portable / template / handoff / snapshot locator. Raw bytes never appear; the acquisition flow references the descriptor by id."
+    },
+
+    "live_session_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_class", "attach_authority_class"],
+      "properties": {
+        "session_class": {
+          "type": "string",
+          "enum": [
+            "managed_cloud_workspace_session",
+            "remote_agent_session",
+            "devcontainer_session",
+            "container_session",
+            "shared_control_session",
+            "notebook_kernel_session",
+            "companion_handoff_session"
+          ]
+        },
+        "attach_authority_class": {
+          "type": "string",
+          "enum": [
+            "authority_live",
+            "authority_expired",
+            "authority_revoked",
+            "authority_pending_reauth",
+            "authority_never_established"
+          ]
+        },
+        "session_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "host_endpoint": { "$ref": "#/$defs/host_endpoint_descriptor" }
+      },
+      "description": "Typed descriptor for a live-resume locator. A surface that emits 'authority_live' without verifiable liveness is non-conforming."
+    },
+
+    "deep_link_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "link_class"],
+      "properties": {
+        "origin": { "$ref": "#/$defs/redaction_aware_text" },
+        "link_class": {
+          "type": "string",
+          "enum": [
+            "review_deep_link",
+            "work_item_deep_link",
+            "incident_deep_link",
+            "notification_reopen",
+            "auth_callback_reopen",
+            "other"
+          ]
+        },
+        "referenced_object_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed descriptor for review / work-item / notification / auth-callback deep links that resolve to a concrete locator. Deep links never elevate trust."
+    },
+
+    "source_locator_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_locator_schema_version",
+        "source_locator_id",
+        "locator_class",
+        "acquisition_posture",
+        "declared_freshness_class",
+        "signer_continuity_class",
+        "observed_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "source_locator_record" },
+        "source_locator_schema_version": { "$ref": "#/$defs/source_locator_schema_version" },
+        "source_locator_id": { "$ref": "#/$defs/opaque_id" },
+
+        "locator_class": { "$ref": "#/$defs/locator_class" },
+        "acquisition_posture": { "$ref": "#/$defs/acquisition_posture" },
+        "declared_freshness_class": { "$ref": "#/$defs/declared_freshness_class" },
+        "signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+
+        "local_identity_ref": { "$ref": "#/$defs/local_identity_ref" },
+        "host_endpoint": { "$ref": "#/$defs/host_endpoint_descriptor" },
+        "artifact_descriptor": { "$ref": "#/$defs/artifact_descriptor" },
+        "live_session_descriptor": { "$ref": "#/$defs/live_session_descriptor" },
+        "deep_link_descriptor": { "$ref": "#/$defs/deep_link_descriptor" },
+
+        "entry_verb_hint": {
+          "type": "string",
+          "enum": [
+            "open",
+            "clone",
+            "import",
+            "add_root",
+            "restore",
+            "resume",
+            "start_from_snapshot"
+          ],
+          "description": "Optional hint re-exported from /schemas/workspace/entry_and_restore_result.schema.json#/$defs/entry_verb. Lets a Start Center / CLI row pre-resolve which entry verb the locator will pair with; the authoritative entry verb lands on the project_entry_action_record at commit."
+        },
+        "target_kind_hint": {
+          "type": "string",
+          "enum": [
+            "local_file",
+            "local_folder",
+            "local_repo_root",
+            "workspace_manifest",
+            "workset_manifest",
+            "remote_repository",
+            "ssh_workspace",
+            "container_workspace",
+            "devcontainer_workspace",
+            "managed_cloud_workspace",
+            "portable_state_package",
+            "handoff_packet",
+            "competitor_config_root",
+            "template_or_prebuild_snapshot",
+            "review_or_work_item_deep_link",
+            "recovery_checkpoint"
+          ],
+          "description": "Optional hint re-exported from /schemas/workspace/entry_and_restore_result.schema.json#/$defs/target_kind. Pre-resolves target_kind for surfaces (recent-work, palette, CLI) that want to render the chip before commit."
+        },
+        "previous_acquisition_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional reference to the prior source_locator_record for the same source, enabling signer-continuity and freshness comparisons without minting a parallel continuity id."
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One source-locator record. Emitted by every surface that identifies a source before commit: Start Center rows, command-palette open/clone/import rows, OS file association, drag-and-drop handler, deep-link resolver, CLI / headless entry points, template / prebuild cards, recent-work activation, migration-center imports, and companion-handoff returns. Surfaces read the record by id; they do not re-derive classification."
+    }
+  }
+}

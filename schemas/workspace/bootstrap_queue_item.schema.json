@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/bootstrap_queue_item.schema.json",
+  "title": "Aureline bootstrap-queue item record",
+  "description": "Seed schema for the typed bootstrap-queue-item record every open / clone / import / template / prebuild / resume flow, first-run policy-guided deployment lane, support export, and CLI / headless entry point reads when it names **which setup work is enqueued** (submodule init, LFS hydrate, package restore, generator install, index warm-up, docs import, toolchain install, devcontainer attach, prebuild attach, extension restore, secret-handle request, cache warm, and similar), **which attributable evidence rides with the item** (producer, manifest, policy narrowing, trust review ticket, mirror attestation), **which execution class applies** (browse-safe, side-effect-declared, network-required, privileged, blocked), **which state the item is currently in**, and — crucially — **which absence class applies** so bootstrap packets distinguish not-yet-fetched or not-yet-hydrated content from genuine absence or user misconfiguration. One record per queue item; surfaces read the item by id and never collapse all missing content into one generic 'setting up workspace' spinner. Raw absolute paths, raw credentials, raw archive bytes, raw package manifests beyond typed digests, and raw generator scripts never appear. Adding a new bootstrap_item_class, bootstrap_execution_class, bootstrap_item_state, absence_class, or attributable_evidence_class is additive-minor and bumps bootstrap_queue_item_schema_version; repurposing an existing value is breaking and requires a new decision row. Companion contracts: /schemas/workspace/source_locator.schema.json (the source being acquired) and /schemas/workspace/checkout_plan.schema.json (the plan that enqueues bootstrap items).",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/bootstrap_queue_item_record" }
+  ],
+  "$defs": {
+    "bootstrap_queue_item_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the bootstrap-queue-item payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["bootstrap_queue_item_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with credentials, and raw artifact bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "bootstrap_item_class": {
+      "type": "string",
+      "enum": [
+        "submodule_init",
+        "lfs_hydrate",
+        "partial_clone_hydrate",
+        "shallow_history_deepen",
+        "package_restore",
+        "package_audit",
+        "generator_install",
+        "generator_run",
+        "toolchain_install",
+        "toolchain_detect",
+        "devcontainer_attach",
+        "prebuild_attach",
+        "extension_restore",
+        "extension_activation",
+        "index_warm_up",
+        "docs_import",
+        "ai_context_warm_up",
+        "secret_handle_request",
+        "cache_warm",
+        "settings_materialize",
+        "profile_materialize",
+        "credential_provisioning",
+        "mirror_refresh",
+        "other"
+      ],
+      "description": "Closed bootstrap-item class. A surface that emits an item without a resolved class denies with bootstrap_item_class_unresolved rather than silently classify. Additional classes are added additive-minor."
+    },
+
+    "bootstrap_execution_class": {
+      "type": "string",
+      "enum": [
+        "browse_safe",
+        "side_effect_declared",
+        "network_required",
+        "privileged",
+        "blocked",
+        "deferred_until_trust_admitted",
+        "manual_user_action_required"
+      ],
+      "description": "Closed execution-class set. 'browse_safe' items may run before trust admission; 'side_effect_declared' items name their side-effect envelope; 'network_required' items MUST declare connectivity; 'privileged' items require elevation or admin acknowledgement; 'blocked' items do not run until their precondition clears; 'deferred_until_trust_admitted' names items the plan withholds until trust_stage reaches admitted_*; 'manual_user_action_required' names items that cannot proceed without a typed user action."
+    },
+
+    "bootstrap_item_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed_recoverable",
+        "failed_blocking",
+        "skipped",
+        "cancelled",
+        "awaiting_admission",
+        "awaiting_network",
+        "awaiting_user_action",
+        "awaiting_policy_decision"
+      ],
+      "description": "Closed bootstrap-item state set. 'awaiting_*' states are distinct from 'pending' so the bootstrap packet can say 'this item is blocked on network' rather than 'setup failed'."
+    },
+
+    "absence_class": {
+      "type": "string",
+      "enum": [
+        "present",
+        "not_yet_fetched",
+        "not_yet_hydrated",
+        "partially_hydrated",
+        "genuinely_absent",
+        "user_misconfigured",
+        "policy_blocked",
+        "trust_blocked",
+        "mirror_unreachable",
+        "authority_expired",
+        "schema_version_unsupported",
+        "unknown"
+      ],
+      "description": "Closed absence-class set. Every bootstrap item that resolves to absent / missing content MUST carry one of these values so bootstrap packets distinguish not-yet-fetched / not-yet-hydrated content from genuine absence or user misconfiguration. 'present' applies when the item's content is already materialized; 'unknown' is allowed only on items whose canonical owner has not been re-reached for verification. A surface that collapses 'not_yet_fetched' or 'not_yet_hydrated' into 'genuinely_absent' is non-conforming."
+    },
+
+    "skip_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_deselected",
+        "policy_excludes",
+        "trust_excludes",
+        "unsupported_on_target",
+        "redundant_with_existing",
+        "source_missing",
+        "offline_bundle_excludes",
+        "lossy_step_refused",
+        "other"
+      ],
+      "description": "Closed skip-reason class. Required whenever bootstrap_item_state is 'skipped'."
+    },
+
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "network_interruption",
+        "auth_expired",
+        "authority_revoked",
+        "signer_mismatch",
+        "mirror_unreachable",
+        "disk_pressure",
+        "quota_exceeded",
+        "policy_blocked",
+        "trust_blocked",
+        "schema_version_unsupported",
+        "dependency_item_failed",
+        "user_cancelled",
+        "unknown"
+      ],
+      "description": "Closed blocker class. Required whenever bootstrap_item_state is 'failed_recoverable', 'failed_blocking', 'awaiting_network', 'awaiting_policy_decision', or 'awaiting_user_action'."
+    },
+
+    "attributable_evidence_class": {
+      "type": "string",
+      "enum": [
+        "source_producer_identity",
+        "checkout_plan_reference",
+        "source_locator_reference",
+        "package_manifest_ref",
+        "lockfile_digest_ref",
+        "generator_manifest_ref",
+        "toolchain_manifest_ref",
+        "extension_manifest_ref",
+        "docs_pack_manifest_ref",
+        "policy_bundle_ref",
+        "trust_review_ticket_ref",
+        "signer_continuity_ref",
+        "mirror_freshness_ref",
+        "previous_bootstrap_run_ref",
+        "recovery_checkpoint_ref",
+        "user_action_ref"
+      ],
+      "description": "Closed attributable-evidence class. Every bootstrap item carries at least one typed evidence entry so support / CLI / policy surfaces can explain why the item was enqueued and whose manifest / policy / ticket authorized it. Free-form evidence strings are non-conforming."
+    },
+
+    "attributable_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_class"],
+      "properties": {
+        "evidence_class": { "$ref": "#/$defs/attributable_evidence_class" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One typed attributable-evidence entry. 'evidence_ref' is optional because some evidence (e.g., 'source_producer_identity') may be rendered from the companion source_locator_record alone; 'summary_label' is a redaction-aware short presentation label."
+    },
+
+    "side_effect_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setup_actions_class", "time_class", "connectivity_class", "cleanup_class", "bypass_path"],
+      "properties": {
+        "setup_actions_class": {
+          "type": "string",
+          "enum": [
+            "no_setup_actions",
+            "toolchain_detect_only",
+            "dependency_install",
+            "containerized_bootstrap",
+            "devcontainer_bootstrap",
+            "remote_attach",
+            "browser_auth_handshake",
+            "secret_handle_request",
+            "mixed_setup"
+          ]
+        },
+        "time_class": {
+          "type": "string",
+          "enum": ["instant", "fast", "moderate", "long_running", "network_dependent"]
+        },
+        "connectivity_class": {
+          "type": "string",
+          "enum": ["local_only", "local_with_registry", "remote_required", "mirror_or_air_gapped", "unknown"]
+        },
+        "cleanup_class": {
+          "type": "string",
+          "enum": ["no_cleanup_required", "cleanup_on_failure", "rollback_checkpoint_retained", "manual_cleanup_required"]
+        },
+        "bypass_path": {
+          "type": "string",
+          "enum": ["open_prebuild_minimal", "open_plain_folder", "set_up_later", "no_bypass_available"]
+        }
+      },
+      "description": "Typed side-effect envelope for side-effect-declared items. Re-exported unchanged from /schemas/workspace/entry_and_restore_result.schema.json#/$defs/side_effect_envelope; never redefined."
+    },
+
+    "repair_hook_class": {
+      "type": "string",
+      "enum": [
+        "retry_with_backoff",
+        "retry_after_network_restored",
+        "retry_after_reauth",
+        "retry_after_policy_refresh",
+        "refresh_mirror_then_retry",
+        "switch_to_live_origin_then_retry",
+        "deepen_history_then_retry",
+        "skip_and_continue",
+        "skip_and_open_read_only",
+        "discard_and_restart",
+        "open_read_only_partial",
+        "request_admin_help",
+        "open_minimal",
+        "set_up_later"
+      ],
+      "description": "Closed repair-hook class. Every failed, awaiting, or blocked bootstrap item MUST advertise at least one typed repair hook; free-form retry labels are non-conforming."
+    },
+
+    "topology_marker_class": {
+      "type": "string",
+      "enum": [
+        "sparse_workset_present",
+        "partial_clone_filter_present",
+        "promisor_remote_required",
+        "shallow_history_present",
+        "submodule_init_pending",
+        "submodule_init_partial",
+        "submodule_init_complete",
+        "submodule_init_failed",
+        "lfs_pointer_only",
+        "lfs_hydrate_pending",
+        "lfs_hydrate_partial",
+        "lfs_hydrate_complete",
+        "lfs_hydrate_failed",
+        "none"
+      ],
+      "description": "Closed seed-level topology marker class. Re-exported from /schemas/workspace/checkout_plan.schema.json#/$defs/topology_marker_class; never redefined. Items MAY cite markers when the item resolves a specific topology state (e.g., a submodule_init item whose state becomes 'succeeded' flips submodule_init_pending to submodule_init_complete)."
+    },
+
+    "bootstrap_queue_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "bootstrap_queue_item_schema_version",
+        "bootstrap_item_id",
+        "checkout_plan_ref",
+        "source_locator_ref",
+        "queue_position",
+        "item_class",
+        "execution_class",
+        "state",
+        "absence_class",
+        "attributable_evidence",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "bootstrap_queue_item_record" },
+        "bootstrap_queue_item_schema_version": { "$ref": "#/$defs/bootstrap_queue_item_schema_version" },
+        "bootstrap_item_id": { "$ref": "#/$defs/opaque_id" },
+
+        "checkout_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "queue_position": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position in the bootstrap queue. Lower numbers run earlier. 'parallel_group_id' is the mechanism for concurrent items; queue_position still orders within a group for deterministic replay."
+        },
+        "parallel_group_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional grouping id. Items sharing a parallel_group_id MAY execute concurrently."
+        },
+        "depends_on_item_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Zero or more predecessor bootstrap_item_id refs. A failed predecessor is a typed 'dependency_item_failed' blocker on the dependent item, not a generic setup failure."
+        },
+
+        "item_class": { "$ref": "#/$defs/bootstrap_item_class" },
+        "execution_class": { "$ref": "#/$defs/bootstrap_execution_class" },
+        "state": { "$ref": "#/$defs/bootstrap_item_state" },
+        "absence_class": { "$ref": "#/$defs/absence_class" },
+
+        "skip_reason": { "$ref": "#/$defs/skip_reason_class" },
+        "blocker": { "$ref": "#/$defs/blocker_class" },
+
+        "side_effect_envelope": { "$ref": "#/$defs/side_effect_envelope" },
+
+        "attributable_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/attributable_evidence" },
+          "description": "Every item MUST carry at least one typed attributable-evidence entry. A bootstrap item with no evidence denies with attributable_evidence_missing."
+        },
+
+        "topology_marker_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_marker_class" },
+          "description": "Optional list of topology marker classes this item resolves. Lets a support surface read 'submodule_init_pending -> submodule_init_complete' without inventing a parallel transition vocabulary."
+        },
+
+        "repair_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repair_hook_class" },
+          "description": "Required when state is 'failed_recoverable', 'failed_blocking', 'awaiting_network', 'awaiting_user_action', or 'awaiting_policy_decision'."
+        },
+
+        "user_visible_reason": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One typed bootstrap-queue-item record. Read by the Start Center setup sheet, open / clone / import / resume trust review surfaces, first-run policy-guided deployment lanes, interrupted-acquisition recovery flows, support-bundle exporters, and CLI / headless entry points. Surfaces read the item by id; they do not re-derive item class, execution class, state, absence class, or evidence."
+    }
+  }
+}
