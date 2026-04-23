@@ -1,0 +1,722 @@
+# Warm-path budget ledger.
+#
+# Machine-readable register of the per-stage warm-start budgets the
+# shell spike, the benchmark lab, trace-harness exports, and release-
+# evidence packets resolve against by stable id.
+#
+# The goal of this file is to protect per-stage budgets rather than a
+# single aggregate warm-start number. A run whose total warm first
+# paint stays under 150 ms MAY still breach this ledger if one stage
+# overruns its allocation and another underruns to compensate. The
+# performance review surface MUST be able to name which stage moved.
+#
+# This file owns stage identity, allocations, critical-path posture,
+# reconciliation joins to trace spans / benchmark rows / waivers, and
+# the closed exception-reason taxonomy. The latency-budget ledger
+# (artifacts/perf/latency_budget_ledger.yaml) continues to own path-
+# level budgets such as path.shell.launch and path.shell.first_useful_chrome.
+# The two ledgers cross-reference by id; neither replaces the other.
+
+schema_version: 1
+ledger_id: aureline.warm_path_budget_ledger
+ledger_revision: 1
+status: seeded
+
+overview_document: docs/perf/startup_budget_breakdown.md
+latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+fitness_function_catalog_source: artifacts/bench/fitness_function_catalog.yaml
+protected_metrics_source: artifacts/bench/protected_metrics.yaml
+spike_timing_schema_source: schemas/traces/spike_timing.schema.json
+journey_trace_schema_source: schemas/traces/journey_trace.schema.json
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+reconciliation_example_dir: fixtures/perf/budget_reconciliation_examples/
+
+# -----------------------------------------------------------------------------
+# Budget and reconciliation vocabularies.
+#
+# All closed; adding values requires a named change record through the
+# same performance-council path that governs the latency-budget ledger.
+# -----------------------------------------------------------------------------
+
+stage_status_vocabulary:
+  - seeded
+  - provisional
+
+stage_role_vocabulary:
+  - process_startup_and_config_load
+  - renderer_bootstrap_and_font_atlas
+  - workspace_snapshot_restore
+  - file_tree_and_git_status_async_kick
+  - built_in_activation
+  - project_detection_and_task_sniffing
+  - cache_hydration
+  - first_paint_aggregate
+  - interactive_aggregate
+
+critical_path_posture_vocabulary:
+  - on_warm_first_paint_critical_path
+  - on_warm_interactive_critical_path_after_first_paint
+  - off_critical_path_async_after_first_paint
+  - aggregate_budget_not_an_individual_stage
+
+allocation_kind_vocabulary:
+  - fixed_ms_allocation
+  - aggregate_ceiling_ms
+  - must_be_zero_on_critical_path
+  - provisional_engineering_allocation
+
+reconciliation_kind_vocabulary:
+  - trace_span_to_stage_total
+  - benchmark_row_to_stage_total
+  - aggregate_sum_to_aggregate_ceiling
+  - single_stage_regression_vs_aggregate_green
+  - waiver_or_exception_to_stage_budget
+  - provisional_unmeasured_stage
+
+exception_reason_vocabulary:
+  - provisional_unmeasured
+  - hardware_class_pending_calibration
+  - build_identity_pending
+  - approved_waiver_active
+  - degraded_posture_fallback
+  - span_family_not_yet_emitted
+  - stage_merged_into_another_span_under_review
+
+waiver_authority_forum: performance_council
+escalation_forums:
+  - architecture_council
+  - shiproom_executive_scope_review
+
+# -----------------------------------------------------------------------------
+# Source of truth for the per-stage numbers.
+#
+# The allocations below are lifted from the PRD §8.3 "Performance budget
+# allocation" table and the milestones-document "Warm-path budget
+# allocation" table. These documents agree on the per-stage values and
+# on the aggregate caps (warm first paint <= 150 ms, warm interactive
+# <= 700 ms). If they ever disagree, the PRD wins and this file updates
+# in the same change.
+#
+# The per-stage allocations are not additive. Several stages run in
+# parallel off the first-paint critical path (e.g. project detection,
+# cache hydration) so the sum of per-stage budgets deliberately exceeds
+# the first-paint aggregate ceiling. Reconciliation rows below carry
+# that rule explicitly.
+# -----------------------------------------------------------------------------
+source_documents:
+  - ref: .t2/docs/Aureline_PRD.md
+    section: §8.3 Performance budget allocation
+    note: Per-stage warm-start allocations and aggregate ceilings.
+  - ref: .t2/docs/Aureline_Milestones_Document.md
+    section: Warm-path budget allocation
+    note: Milestone-level restatement of the same table.
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    section: §8 Latency and responsiveness allocations
+    note: Architecture context for the warm-start envelope.
+
+# -----------------------------------------------------------------------------
+# Stage rows.
+#
+# Each row MUST carry a stage_id, one stage_role, one critical-path
+# posture, one allocation kind, an allocation value, the trace spans
+# and benchmark rows it reconciles against, and an exception posture.
+# A stage with no wired span yet carries `exception_reason:
+# span_family_not_yet_emitted` and a provisional row status.
+#
+# Reconciliation consumers (performance review, benchmark dashboard,
+# waiver packets) MUST cite the stage_id, not the free-text stage
+# label. Labels change with documentation revisions; ids do not.
+# -----------------------------------------------------------------------------
+stages:
+  - stage_id: budget.warm_path.process_startup_and_config_load
+    stage_role: process_startup_and_config_load
+    status: seeded
+    critical_path_posture: on_warm_first_paint_critical_path
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 80
+    allocation_note: >
+      Binary launch, config parse, trust policy init. Runs once per
+      warm start and cannot be deferred; every millisecond here lands
+      directly in the warm first paint aggregate.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+      - .t2/docs/Aureline_Milestones_Document.md Warm-path budget allocation
+    latency_budget_ledger_links:
+      - budget.path.shell.launch
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.shell.launch
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          span_role: warm_start_to_first_paint_entry_to_process_ready
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: reserved_until_process_ready_hook_lands
+          exception_reason: span_family_not_yet_emitted
+      benchmark_row_refs:
+        - fitness_function_ref: ff.warm_start_to_first_paint
+          contributes_to: warm_start_marker_to_first_paint_total
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+      aggregate_links:
+        - aggregate_id: budget.warm_path.first_paint_aggregate
+          contribution_kind: serial_on_critical_path
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 90
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.renderer_bootstrap_and_font_atlas
+    stage_role: renderer_bootstrap_and_font_atlas
+    status: seeded
+    critical_path_posture: on_warm_first_paint_critical_path
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 120
+    allocation_note: >
+      Renderer bringup, font atlas warm-up, and shell first paint path
+      only. This is the stage that usually dominates the warm first
+      paint aggregate on the reference hardware classes; it shares
+      critical-path posture with process startup and runs before the
+      shell can emit a readable frame.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+      - .t2/docs/Aureline_Milestones_Document.md Warm-path budget allocation
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    latency_budget_ledger_links:
+      - budget.path.shell.launch
+    protected_path_links:
+      - path.shell.launch
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          hook_name: warm_start_to_first_paint
+          span_role: warm_start_to_first_paint
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: seeded
+        - family: spike_timing_trace
+          hook_name: first_paint
+          span_role: first_paint_per_surface
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: seeded
+      benchmark_row_refs:
+        - fitness_function_ref: ff.warm_start_to_first_paint
+          contributes_to: warm_start_marker_to_first_paint_total
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+        - fitness_function_ref: ff.first_paint
+          contributes_to: first_paint_per_surface
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+      aggregate_links:
+        - aggregate_id: budget.warm_path.first_paint_aggregate
+          contribution_kind: serial_on_critical_path
+    owner_refs:
+      - lane:benchmark_lab
+      - package:aureline-render
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - package:aureline-render
+      default_expiry_window_days: 90
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.workspace_snapshot_restore
+    stage_role: workspace_snapshot_restore
+    status: seeded
+    critical_path_posture: on_warm_interactive_critical_path_after_first_paint
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 120
+    allocation_note: >
+      Layout, recent editors, last session state. Snapshot restore runs
+      after shell first paint and before the warm interactive budget
+      closes; it is protected by the same restore-fidelity contract the
+      workspace restore path carries so latency here cannot be traded
+      for under-delivered restore level.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+      - .t2/docs/Aureline_Milestones_Document.md Warm-path budget allocation
+    latency_budget_ledger_links:
+      - budget.path.workspace.restore
+    protected_path_links:
+      - path.workspace.restore
+    reconciliation:
+      trace_span_refs:
+        - family: journey_trace
+          journey_ref: journey.restore_adjacent.restore_last_session_compatible
+          span_role: recovery_journal_restore_and_boundary_truth
+          source_ref: fixtures/journeys/restore_adjacent__restore_last_session_compatible.json
+          status: seeded
+      benchmark_row_refs:
+        - fitness_function_ref: ff.restore_fidelity
+          contributes_to: restore_path_fidelity_gate
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+      aggregate_links:
+        - aggregate_id: budget.warm_path.interactive_aggregate
+          contribution_kind: serial_after_first_paint
+    owner_refs:
+      - lane:benchmark_lab
+      - package:aureline-buffer
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - package:aureline-buffer
+      default_expiry_window_days: 90
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.file_tree_and_git_status_async_kick
+    stage_role: file_tree_and_git_status_async_kick
+    status: seeded
+    critical_path_posture: off_critical_path_async_after_first_paint
+    allocation_kind: must_be_zero_on_critical_path
+    allocation_ms: 0
+    allocation_note: >
+      File tree and Git status initial fetch MUST NOT land on the
+      first-paint critical path. The shell paints first and fills the
+      tree and VCS state immediately after. Any non-zero blocking time
+      here counts as a stage regression even if the aggregate stays
+      green.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+    latency_budget_ledger_links:
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          span_role: file_tree_and_git_status_async_kick
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: reserved_until_shell_chrome_trace_family_lands
+          exception_reason: span_family_not_yet_emitted
+      benchmark_row_refs: []
+      aggregate_links:
+        - aggregate_id: budget.warm_path.first_paint_aggregate
+          contribution_kind: must_not_block_first_paint
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 30
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.built_in_activation
+    stage_role: built_in_activation
+    status: seeded
+    critical_path_posture: on_warm_interactive_critical_path_after_first_paint
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 40
+    allocation_note: >
+      Activation of built-in extensions only. Strictly lazy where
+      possible; any built-in that loads on the first-paint critical
+      path MUST be declared startup-essential in its manifest and
+      cited in the waiver record. Third-party extensions are governed
+      by Appendix BQ budgets, not this stage.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+      - .t2/docs/Aureline_Technical_Architecture_Document.md Appendix BQ
+    latency_budget_ledger_links:
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          span_role: built_in_extension_activation_total
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: reserved_until_activation_hook_lands
+          exception_reason: span_family_not_yet_emitted
+      benchmark_row_refs:
+        - fitness_function_ref: ff.command_parity
+          contributes_to: built_in_command_availability_on_warm_start
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+          status: reserved_until_activation_gate_is_calibrated
+      aggregate_links:
+        - aggregate_id: budget.warm_path.interactive_aggregate
+          contribution_kind: parallelisable_after_first_paint
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 60
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.project_detection_and_task_sniffing
+    stage_role: project_detection_and_task_sniffing
+    status: seeded
+    critical_path_posture: off_critical_path_async_after_first_paint
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 80
+    allocation_note: >
+      Project-kind detection, language-family detection, and task
+      sniffing. Must not block shell paint. The allocation bounds how
+      long this work may run before the warm interactive budget
+      closes; any cycle spent on the first-paint critical path is a
+      stage regression even if the total stays green.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+    latency_budget_ledger_links:
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          span_role: project_detection_and_task_sniffing_total
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: reserved_until_detection_hook_lands
+          exception_reason: span_family_not_yet_emitted
+      benchmark_row_refs: []
+      aggregate_links:
+        - aggregate_id: budget.warm_path.interactive_aggregate
+          contribution_kind: parallelisable_after_first_paint
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 60
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.cache_hydration
+    stage_role: cache_hydration
+    status: seeded
+    critical_path_posture: off_critical_path_async_after_first_paint
+    allocation_kind: fixed_ms_allocation
+    allocation_ms: 80
+    allocation_note: >
+      Command registry, symbol index, and search-path cache
+      hydration. May continue after the warm interactive budget
+      closes so long as user-visible commands remain attributable and
+      the partial-readiness surface is truthful. The allocation caps
+      the window in which hydration is permitted to contend with
+      first-useful-chrome work.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3
+      - .t2/docs/Aureline_Milestones_Document.md Warm-path budget allocation
+    latency_budget_ledger_links:
+      - budget.path.command_palette.open
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.command_palette.open
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          span_role: cache_hydration_total
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: reserved_until_hydration_hook_lands
+          exception_reason: span_family_not_yet_emitted
+      benchmark_row_refs:
+        - fitness_function_ref: ff.command_parity
+          contributes_to: command_availability_during_hydration
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+          status: reserved_until_hydration_gate_is_calibrated
+      aggregate_links:
+        - aggregate_id: budget.warm_path.interactive_aggregate
+          contribution_kind: parallelisable_after_first_paint
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 60
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.first_paint_aggregate
+    stage_role: first_paint_aggregate
+    status: seeded
+    critical_path_posture: aggregate_budget_not_an_individual_stage
+    allocation_kind: aggregate_ceiling_ms
+    allocation_ms: 150
+    allocation_note: >
+      Total warm first paint budget. Composed of the critical-path
+      stages (process startup and config load, renderer bootstrap and
+      font atlas) and of any background stage that breaches its
+      must-not-block posture. A run MAY pass this aggregate and still
+      fail the ledger if an individual stage above overran. See
+      reconciliation rule `aggregate_green_with_stage_regression`.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3 "Total warm first paint budget"
+      - .t2/docs/Aureline_PRD.md §8.2 first_paint_warm_ms
+    latency_budget_ledger_links:
+      - budget.path.shell.launch
+    protected_path_links:
+      - path.shell.launch
+    reconciliation:
+      trace_span_refs:
+        - family: spike_timing_trace
+          hook_name: warm_start_to_first_paint
+          span_role: warm_start_marker_to_first_paint
+          source_ref: schemas/traces/spike_timing.schema.json
+          status: seeded
+      benchmark_row_refs:
+        - fitness_function_ref: ff.warm_start_to_first_paint
+          contributes_to: warm_first_paint_aggregate
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+        - fitness_function_ref: ff.first_paint
+          contributes_to: first_paint_per_surface
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+      aggregate_links: []
+      component_stage_refs:
+        - budget.warm_path.process_startup_and_config_load
+        - budget.warm_path.renderer_bootstrap_and_font_atlas
+        - budget.warm_path.file_tree_and_git_status_async_kick
+    owner_refs:
+      - lane:benchmark_lab
+      - package:aureline-render
+      - lane:shell_command_system
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - package:aureline-render
+        - lane:shell_command_system
+      default_expiry_window_days: 90
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+  - stage_id: budget.warm_path.interactive_aggregate
+    stage_role: interactive_aggregate
+    status: seeded
+    critical_path_posture: aggregate_budget_not_an_individual_stage
+    allocation_kind: aggregate_ceiling_ms
+    allocation_ms: 700
+    allocation_note: >
+      Total warm interactive budget. Closes when the shell is ready
+      for a first user command on the typical-project reference row.
+      Composed of the critical-path first-paint budget plus the
+      post-paint stages (snapshot restore, built-in activation,
+      project detection, cache hydration). A single-stage regression
+      here must still surface in review even when the aggregate
+      stays under 700 ms.
+    source_document_refs:
+      - .t2/docs/Aureline_PRD.md §8.3 "Total warm interactive budget"
+      - .t2/docs/Aureline_PRD.md §8.2 palette_available_warm_ms
+    latency_budget_ledger_links:
+      - budget.path.shell.first_useful_chrome
+    protected_path_links:
+      - path.shell.first_useful_chrome
+    reconciliation:
+      trace_span_refs:
+        - family: journey_trace
+          journey_ref: journey.startup_to_first_useful_chrome.micro_local_folder
+          span_role: warm_start_marker_to_first_useful_chrome
+          source_ref: fixtures/journeys/startup_to_first_useful_chrome__micro_local_folder.json
+          status: seeded
+      benchmark_row_refs:
+        - fitness_function_ref: ff.warm_start_to_first_paint
+          contributes_to: warm_first_paint_component_of_interactive
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+        - fitness_function_ref: ff.command_parity
+          contributes_to: first_useful_chrome_palette_readiness
+          source_ref: artifacts/bench/fitness_function_catalog.yaml
+          status: reserved_until_gate_is_calibrated
+      aggregate_links: []
+      component_stage_refs:
+        - budget.warm_path.first_paint_aggregate
+        - budget.warm_path.workspace_snapshot_restore
+        - budget.warm_path.built_in_activation
+        - budget.warm_path.project_detection_and_task_sniffing
+        - budget.warm_path.cache_hydration
+    owner_refs:
+      - lane:benchmark_lab
+      - lane:shell_command_system
+      - package:aureline-buffer
+    waiver:
+      forum_ref: performance_council
+      co_signer_refs:
+        - lane:shell_command_system
+      default_expiry_window_days: 90
+      escalation_forum_refs:
+        - architecture_council
+        - shiproom_executive_scope_review
+
+# -----------------------------------------------------------------------------
+# Reconciliation rules.
+#
+# These rules tell a review surface how to join trace spans, benchmark
+# rows, and waivers back to stage ids, and how to decide whether a run
+# is within budget or not. They are intentionally explicit so future
+# breadth work cannot hide a regression by rearranging which span or
+# row a stage reads from.
+# -----------------------------------------------------------------------------
+reconciliation_rules:
+  - rule_id: rule.reconciliation.trace_span_to_stage_total
+    rule_kind: trace_span_to_stage_total
+    summary: >
+      Each stage MUST expose exactly one canonical span (or named sum
+      of spans) whose duration is compared against `allocation_ms`. A
+      stage that has no wired span yet carries `status: provisional`
+      and `exception_reason: span_family_not_yet_emitted`. It never
+      silently reads from an unrelated span.
+    applies_to_stages: all
+    required_inputs:
+      - stage_id
+      - span_family
+      - span_role
+      - measured_duration_ms
+    required_outputs:
+      - within_stage_budget_boolean
+      - per_stage_breach_ms
+
+  - rule_id: rule.reconciliation.benchmark_row_to_stage_total
+    rule_kind: benchmark_row_to_stage_total
+    summary: >
+      Each benchmark row cited under a stage MUST resolve through the
+      fitness-function catalog. The row supplies the distribution
+      (p50 / p95 / release bar) against which the stage's allocation
+      is interpreted on the claimed hardware class. A row listed as
+      `status: reserved_until_*` is a placeholder, not a measurement.
+    applies_to_stages: all
+    required_inputs:
+      - stage_id
+      - fitness_function_ref
+      - measurement_run_id
+    required_outputs:
+      - stage_vs_row_comparison
+      - row_status_at_measurement
+
+  - rule_id: rule.reconciliation.aggregate_sum_to_aggregate_ceiling
+    rule_kind: aggregate_sum_to_aggregate_ceiling
+    summary: >
+      An aggregate stage (first_paint_aggregate, interactive_aggregate)
+      compares its measured total against its `allocation_ms` ceiling.
+      The sum of the component stages' individual allocations is
+      intentionally larger than the aggregate ceiling because
+      post-paint stages are allowed to run in parallel; the aggregate
+      check does not require componentwise addition, only that the
+      measured aggregate total does not exceed the ceiling.
+    applies_to_stages:
+      - budget.warm_path.first_paint_aggregate
+      - budget.warm_path.interactive_aggregate
+    required_inputs:
+      - aggregate_stage_id
+      - measured_aggregate_ms
+    required_outputs:
+      - within_aggregate_budget_boolean
+      - aggregate_breach_ms
+
+  - rule_id: rule.reconciliation.single_stage_regression_vs_aggregate_green
+    rule_kind: single_stage_regression_vs_aggregate_green
+    summary: >
+      A run that passes `first_paint_aggregate` or
+      `interactive_aggregate` MUST still be reported as a stage
+      regression if any component stage's measured duration exceeds
+      its `allocation_ms`. This is the rule that stops a breadth PR
+      from hiding renderer-bootstrap regression behind an
+      underrunning process-startup stage. The review surface MUST
+      name the regressing stage_id; it MAY NOT report `green`.
+    applies_to_stages: all_component_stages
+    required_inputs:
+      - aggregate_stage_id
+      - measured_aggregate_ms
+      - component_stage_results
+    required_outputs:
+      - aggregate_verdict
+      - per_stage_verdicts
+      - offending_stage_ids
+    example_fixture_ref: fixtures/perf/budget_reconciliation_examples/single_stage_regression_aggregate_green.json
+
+  - rule_id: rule.reconciliation.waiver_or_exception_to_stage_budget
+    rule_kind: waiver_or_exception_to_stage_budget
+    summary: >
+      A stage whose measured duration exceeds `allocation_ms` MAY be
+      reported as non-blocking only if an approved waiver or
+      exception record is cited. The waiver record MUST resolve
+      through `waiver_authority_forum` and MUST carry one reason
+      from `exception_reason_vocabulary`. An unsourced breach is
+      always a regression.
+    applies_to_stages: all
+    required_inputs:
+      - stage_id
+      - waiver_ref_or_null
+      - exception_reason
+    required_outputs:
+      - stage_verdict
+      - waiver_resolution_status
+
+  - rule_id: rule.reconciliation.provisional_unmeasured_stage
+    rule_kind: provisional_unmeasured_stage
+    summary: >
+      A stage with `status: provisional` or whose trace spans are not
+      yet wired MUST be reported with verdict `not_measured` and the
+      exception reason `span_family_not_yet_emitted` or
+      `provisional_unmeasured`. Downstream packets MAY NOT silently
+      treat a provisional stage as green.
+    applies_to_stages: all_provisional_stages
+    required_inputs:
+      - stage_id
+      - stage_status
+    required_outputs:
+      - stage_verdict_not_measured
+      - exception_reason_cited
+
+# -----------------------------------------------------------------------------
+# Example index.
+#
+# Seed runs that exercise the reconciliation rules above. The fixtures
+# themselves live in fixtures/perf/budget_reconciliation_examples/.
+# -----------------------------------------------------------------------------
+reconciliation_examples:
+  - example_id: example.warm_path.within_budget
+    file_ref: fixtures/perf/budget_reconciliation_examples/within_budget_reference_capture.json
+    exercises_rules:
+      - rule.reconciliation.trace_span_to_stage_total
+      - rule.reconciliation.aggregate_sum_to_aggregate_ceiling
+      - rule.reconciliation.provisional_unmeasured_stage
+    summary: >
+      Reference-capture run in which every wired stage lands inside
+      its allocation, both aggregates land inside their ceilings, and
+      unmeasured stages are surfaced as `not_measured`, not green.
+
+  - example_id: example.warm_path.aggregate_miss
+    file_ref: fixtures/perf/budget_reconciliation_examples/aggregate_miss_first_paint_over_ceiling.json
+    exercises_rules:
+      - rule.reconciliation.aggregate_sum_to_aggregate_ceiling
+      - rule.reconciliation.trace_span_to_stage_total
+      - rule.reconciliation.waiver_or_exception_to_stage_budget
+    summary: >
+      Run where the warm first paint aggregate exceeds its ceiling
+      and the offending critical-path stages are individually flagged.
+
+  - example_id: example.warm_path.single_stage_regression_aggregate_green
+    file_ref: fixtures/perf/budget_reconciliation_examples/single_stage_regression_aggregate_green.json
+    exercises_rules:
+      - rule.reconciliation.single_stage_regression_vs_aggregate_green
+      - rule.reconciliation.trace_span_to_stage_total
+    summary: >
+      Run where the warm interactive aggregate stays under 700 ms but
+      the renderer-bootstrap stage has regressed past its 120 ms
+      allocation. The review surface MUST name
+      `budget.warm_path.renderer_bootstrap_and_font_atlas` as the
+      offending stage even though the aggregate looks green.
