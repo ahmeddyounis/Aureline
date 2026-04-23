@@ -27,6 +27,9 @@ Coverage in this seed:
 - `notebook_output_structured_viewer_fallback.json`
   structured viewer remains useful, but edit round-trip is not proven so
   raw fallback and canonical-source paths remain visible.
+- `build_output_release_binary.json`
+  release binary produced from the source tree plus manifests; stays
+  read-only with a rebuild path rather than a direct-edit affordance.
 
 Rules:
 
@@ -36,3 +39,8 @@ Rules:
 2. Any non-canonical row keeps `do_not_imply_canonical_source = true`.
 3. A row in `diverged_from_generator` state carries active override
    provenance rather than hiding the override in prose.
+
+Row-level projection of these posture records (the `row_lineage_hint_record` shape explorer, quick-open, full-search, symbol-jump, docs-search, cross-repo, graph-overlay, AI-citation, and support / export row surfaces carry) lives in
+[`../explorer_search_rows/`](../explorer_search_rows/).
+Each row example joins to one of the posture records above via
+`artifact_posture_ref`.

@@ -30,6 +30,12 @@ Companion artifacts:
   [`/docs/support/object_handoff_packet.md`](../support/object_handoff_packet.md)
   — support/export packet families that must carry the same
   provenance/edit-posture fields.
+- [`/docs/generated/lineage_hint_packet.md`](../generated/lineage_hint_packet.md)
+  and
+  [`/artifacts/generated/explorer_search_rows/`](../../artifacts/generated/explorer_search_rows/)
+  — row-level projection of this posture record for explorer, quick-
+  open, search, docs-search, cross-repo, graph-overlay, AI-citation,
+  and support / export row surfaces.
 
 If this document disagrees with the PRD, TAD, or UX spec, those sources
 win and this document plus the schema update in the same change.
@@ -248,6 +254,14 @@ Search must not collapse `mirrored_artifact + mirror_drift` into a
 generic "generated" chip, and it must not label
 `diverged_from_generator` rows with the same token used for
 `stale_inputs`.
+
+The row-level projection that explorer, quick-open, full-search,
+symbol-jump, docs-search, cross-repo, graph-overlay, AI-citation, and
+support / export row surfaces carry alongside a search-result packet
+is frozen in
+[`/docs/generated/lineage_hint_packet.md`](../generated/lineage_hint_packet.md).
+The row hint uses the same posture tokens as this policy; it does not
+introduce a parallel provenance vocabulary.
 
 ### Open / editor / structured viewer
 

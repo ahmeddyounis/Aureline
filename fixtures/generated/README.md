@@ -2,7 +2,7 @@
 
 This directory seeds the reviewer-facing corpus for generated-artifact
 safe-edit posture, drift/regeneration states, divergence, mirror drift,
-and structured-viewer fallback.
+structured-viewer fallback, and row-level lineage hints.
 
 The corpus is intentionally split:
 
@@ -11,6 +11,12 @@ The corpus is intentionally split:
 - `../../artifacts/generated/viewer_fallback_examples/`
   Concrete posture records showing how search/open/AI/export/support
   projections preserve the same tokens.
+- `lineage_hint_examples/`
+  Row-level corpus projecting the posture record onto explorer, quick-
+  open, full-search, symbol-jump, docs-search, cross-repo, graph-
+  overlay, AI-citation, and support / export rows. Concrete row
+  examples live under
+  `../../artifacts/generated/explorer_search_rows/`.
 
 Rules:
 
