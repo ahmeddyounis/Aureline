@@ -1,0 +1,1093 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/auth_callback_state.schema.json",
+  "title": "Aureline system-browser callback, credential-store lock-state, and account-boundary vocabulary",
+  "description": "Boundary schema for the system-browser auth callback, credential-store lock state, and local/self-hosted/managed account-boundary packet frozen in docs/auth/system_browser_callback_packet.md. Three record kinds are exported: auth_callback_packet_record (outbound handoff + pending session + return route + callback correlation + preserved-local-work note + recovery path), credential_store_lock_state_record (available / locked / denied / unavailable / degraded / policy_blocked plus export-safe copy and retry-path labels), and account_boundary_record (local / self-hosted / managed posture plus the passkey-capable, reauth-required, seat-loss, and deprovision-preserves-local-work rows later managed-auth work extends rather than replaces). Raw tokens, raw provider URLs, raw provider codes, raw session cookies, raw client-certificate bytes, raw callback query strings, and raw passkey material never cross this boundary; every record carries opaque refs, typed vocabulary, and export-safe summary labels only. Live OAuth implementation and provider-specific integrations are out of scope at this revision. Adding a new auth-flow class, callback-failure reason, credential-store lock state, retry path, account-boundary class, reserved-row kind, browser-launch policy class, or audit-event id is additive-minor and requires an auth_callback_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and the owning lane.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/auth_callback_packet_record" },
+    { "$ref": "#/$defs/credential_store_lock_state_record" },
+    { "$ref": "#/$defs/account_boundary_record" }
+  ],
+  "$defs": {
+    "auth_callback_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this auth callback, credential-store lock-state, and account-boundary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "auth_callback_packet_record",
+        "credential_store_lock_state_record",
+        "account_boundary_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional $schema pointer carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets. Raw tokens, raw provider URLs, raw cookies, raw codes, and raw callback query strings never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable label safe to render on banners, support exports, release evidence, and audit streams. Raw secret material, raw URLs, raw query strings, raw codes, and raw cookies MUST NOT appear."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001. account_free_local is the default; self_hosted_org speaks OIDC/SCIM against a customer-run IdP over the system browser; managed_workspace is the vendor-hosted convenience layer."
+    },
+
+    "account_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "self_hosted",
+        "managed",
+        "restricted_managed_only",
+        "grace_degraded_managed",
+        "unknown_boundary"
+      ],
+      "description": "Closed account-boundary vocabulary. local_only never requires an account or network. self_hosted uses a customer-run IdP. managed is vendor-hosted convenience. restricted_managed_only is a managed posture where a particular org policy narrows the surface to managed-sign-in-required. grace_degraded_managed is a bounded posture where managed services are unreachable but local and self-hosted capability stay truthful. unknown_boundary is admissible only as a fail-closed state routed to repair."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ],
+      "description": "Frozen deployment-profile vocabulary reused across auth boundary, credential store, and support/export surfaces."
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ],
+      "description": "Workspace trust state re-exported from ADR-0001. Auth boundary rows never silently widen trust on callback return."
+    },
+
+    "auth_flow_class": {
+      "type": "string",
+      "enum": [
+        "system_browser",
+        "device_code",
+        "platform_authenticator_native",
+        "embedded_session_refresh",
+        "embedded_password_exception",
+        "not_applicable"
+      ],
+      "description": "Closed auth flow-class vocabulary re-exported from ADR-0015. system_browser is the default and only primary path; embedded_password_exception is never the default happy path and requires an active exception-register row."
+    },
+
+    "browser_launch_policy_class": {
+      "type": "string",
+      "enum": [
+        "system_default_browser_required",
+        "managed_approved_browser_allowed",
+        "separately_approved_boundary_contract",
+        "browser_launch_policy_blocked"
+      ],
+      "description": "Closed browser-launch policy vocabulary. system_default_browser_required is the default; embedded webviews are never a silent fallback. managed_approved_browser_allowed is the narrow case where a managed policy pins a specific approved browser binary over the system default. separately_approved_boundary_contract is admissible only when a co-signed boundary contract replaces the system-browser default. browser_launch_policy_blocked names the visible-recovery fail-closed state."
+    },
+
+    "callback_return_mode_class": {
+      "type": "string",
+      "enum": [
+        "loopback_http_return",
+        "platform_deep_link_return",
+        "device_code_poll_return",
+        "manual_return_resume",
+        "not_applicable"
+      ],
+      "description": "Closed callback return-mode vocabulary. Loopback and deep link return are typed paths with origin/tenant/workspace validation; device_code_poll_return is the return channel for the device-code fallback; manual_return_resume is the last-resort path when no automated return path exists. not_applicable is used by non-callback auth rows such as pure passkey step-up."
+    },
+
+    "callback_correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correlation_id",
+        "pending_session_id",
+        "state_token_alias",
+        "nonce_alias",
+        "pkce_challenge_alias",
+        "bound_workspace_ref",
+        "bound_tenant_or_org_ref",
+        "bound_actor_subject_ref",
+        "issued_at",
+        "expires_at",
+        "replay_posture",
+        "redeemed_at",
+        "callback_receipt_ref"
+      ],
+      "properties": {
+        "correlation_id": { "$ref": "#/$defs/opaque_id" },
+        "pending_session_id": { "$ref": "#/$defs/opaque_id" },
+        "state_token_alias": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Alias for the state-token the host minted. Raw state-token bytes never appear here; the alias is the export-safe projection."
+        },
+        "nonce_alias": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Alias for the nonce bound into the outbound request. Raw nonce bytes never appear here."
+        },
+        "pkce_challenge_alias": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Alias for the PKCE challenge / verifier pair when the flow used PKCE. Null when the flow did not use PKCE (for example, device-code poll return)."
+        },
+        "bound_workspace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the originating Aureline workspace the pending session is bound to. Null only for pre-workspace sign-in flows."
+        },
+        "bound_tenant_or_org_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the tenant or org scope the pending session is bound to. Null when the identity mode is account_free_local or when the surface does not pin a tenant."
+        },
+        "bound_actor_subject_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the acting actor subject the pending session is bound to. Null when the flow does not pre-bind a subject."
+        },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "replay_posture": {
+          "type": "string",
+          "enum": ["single_use", "denied_on_any_replay"],
+          "description": "Replay posture of the correlation envelope. Callback replay is denied on any replay."
+        },
+        "redeemed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the callback was successfully redeemed. Null while pending, denied, or failed."
+        },
+        "callback_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the callback-redemption receipt that the support/export, release-evidence, and mutation-journal surfaces quote by stable id."
+        }
+      },
+      "description": "Correlation envelope binding an outbound browser handoff to the pending sign-in session, the originating workspace/tenant/subject scope, and a single-use redemption receipt. Raw tokens, raw nonces, and raw PKCE verifiers never appear here; only typed aliases the broker resolves at use time."
+    },
+
+    "return_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_mode_class",
+        "return_anchor_ref",
+        "return_target_label",
+        "return_origin_validation_class",
+        "return_tenant_or_workspace_match_rule",
+        "return_policy_check_refs"
+      ],
+      "properties": {
+        "return_mode_class": {
+          "$ref": "#/$defs/callback_return_mode_class"
+        },
+        "return_anchor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the stable anchor the user returns to after the browser hop. Round-trips independently of provider query-string behavior."
+        },
+        "return_target_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Export-safe label naming where the user returns (for example, 'Aureline desktop – payments-prod workspace'). Raw URLs MUST NOT appear."
+        },
+        "return_origin_validation_class": {
+          "type": "string",
+          "enum": [
+            "strict_origin_match_required",
+            "loopback_port_pinned",
+            "deep_link_scheme_pinned",
+            "device_code_poll_only",
+            "manual_resume_only"
+          ],
+          "description": "Closed origin-validation vocabulary for the return path. strict_origin_match_required is the default for any HTTPS loopback or platform deep-link return; device_code_poll_only and manual_resume_only name the return channels without a browser-originated callback."
+        },
+        "return_tenant_or_workspace_match_rule": {
+          "type": "string",
+          "enum": [
+            "must_match_bound_workspace_and_tenant",
+            "must_match_bound_tenant",
+            "must_match_bound_workspace",
+            "no_tenant_or_workspace_binding"
+          ],
+          "description": "Typed rule describing which binding a returning browser state must match before the callback mutates state. no_tenant_or_workspace_binding is only admissible for pre-workspace account_free_local sign-in."
+        },
+        "return_policy_check_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the policy-check rows the return path must satisfy before the callback redeems. Empty is admissible for account_free_local."
+        }
+      },
+      "description": "Return-route envelope naming the mode, anchor, target label, origin-validation class, tenant/workspace match rule, and referenced policy checks the callback must satisfy. Raw URLs, raw query strings, and raw cookies never appear here."
+    },
+
+    "preserved_local_work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "note",
+        "retained_capabilities",
+        "blocked_capabilities"
+      ],
+      "properties": {
+        "posture_class": {
+          "type": "string",
+          "enum": [
+            "local_work_intact",
+            "local_work_intact_with_managed_narrowed",
+            "local_work_intact_with_self_hosted_narrowed",
+            "local_work_narrowed_by_workspace_trust",
+            "local_work_blocked_by_policy"
+          ],
+          "description": "Closed posture vocabulary naming what happens to local editing, save, undo, search, Git, tasks, local model execution, and BYOK AI while sign-in is incomplete, failed, or paused. local_work_blocked_by_policy is admissible only as a visibly-degraded fail-closed state with a typed repair hook; it is never a silent default."
+        },
+        "note": { "$ref": "#/$defs/export_safe_label" },
+        "retained_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "description": "What still works locally while the browser hop is pending, failed, or returning. Editing / save / undo / search / local Git / local tasks / local AI remain representable without implying network or account."
+        },
+        "blocked_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "description": "What is narrowed while sign-in is incomplete. Empty is admissible for account_free_local."
+        }
+      },
+      "description": "Required preserved-local-work block. Copy-only shadow versions of this block on surfaces are forbidden; banners, activity center, support packets, and admin exports quote this block by reference."
+    },
+
+    "recovery_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_recovery_action",
+        "fallback_recovery_actions",
+        "visible_recovery_required",
+        "recovery_copy_label",
+        "repair_hook_ref"
+      ],
+      "properties": {
+        "primary_recovery_action": {
+          "$ref": "#/$defs/retry_path_class"
+        },
+        "fallback_recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retry_path_class" },
+          "uniqueItems": true
+        },
+        "visible_recovery_required": {
+          "type": "boolean",
+          "description": "True when callback failure, pending-session mismatch, or credential-store locked state MUST surface a visible recovery path. False is admissible only when the auth lane has no pending browser hop (for example, pre-sign-in account_free_local)."
+        },
+        "recovery_copy_label": { "$ref": "#/$defs/export_safe_label" },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a typed repair hook row a support/diagnostics surface can quote. Null when the recovery action is self-contained."
+        }
+      },
+      "description": "Required recovery-path envelope naming the primary and fallback actions, visibility requirement, reviewable copy, and optional typed repair hook. Surfaces never invent their own retry vocabulary."
+    },
+
+    "retry_path_class": {
+      "type": "string",
+      "enum": [
+        "retry_in_system_browser",
+        "switch_to_device_code",
+        "resume_after_step_up",
+        "resume_after_credential_store_unlock",
+        "request_admin_policy_change",
+        "continue_local_without_sign_in",
+        "import_signed_session_snapshot",
+        "return_to_account_free_local",
+        "contact_support_with_export",
+        "no_recovery_without_superseding_action"
+      ],
+      "description": "Closed retry-path vocabulary for callback failures and credential-store denials."
+    },
+
+    "credential_store_class": {
+      "type": "string",
+      "enum": [
+        "os_keychain",
+        "enterprise_vault_adapter",
+        "platform_agent",
+        "hsm_or_kms_backed",
+        "session_memory_cache",
+        "managed_policy_injector"
+      ],
+      "description": "Credential-store class vocabulary re-exported from ADR-0007."
+    },
+
+    "credential_store_lock_state_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "locked",
+        "denied",
+        "unavailable",
+        "degraded",
+        "policy_blocked"
+      ],
+      "description": "Closed credential-store lock-state vocabulary for the boundary packet. available means the preferred store is unlocked and usable. locked means the store is known and present but not currently unlocked. denied means a typed broker denial refused the request (class rule, consumer capability mismatch, tool-reveal denial, remote scope mismatch, approval ticket missing). unavailable means the store is reachable-but-broken, corrupted, or missing. degraded corresponds to the ADR-0007 degraded_session_only posture. policy_blocked means a policy bundle or profile enforcement denies the class, store, or operation at this policy epoch."
+    },
+
+    "credential_store_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "trust_store_locked",
+        "trust_store_unavailable",
+        "step_up_required",
+        "approval_ticket_missing",
+        "policy_denied_projection",
+        "projection_denied_class_rule",
+        "consumer_capability_mismatch",
+        "remote_broker_scope_mismatch",
+        "ai_tool_reveal_denied",
+        "session_fallback_class_forbidden",
+        "secret_handle_unknown",
+        "secret_handle_revoked",
+        "secret_handle_expired"
+      ],
+      "description": "Closed denial-reason vocabulary re-exported from the ADR-0007 secret-broker denial-reason set."
+    },
+
+    "credential_store_copy_catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_headline_label",
+        "plain_language_summary",
+        "retry_action_label",
+        "secondary_action_label",
+        "export_safe_status_label"
+      ],
+      "properties": {
+        "primary_headline_label": { "$ref": "#/$defs/export_safe_label" },
+        "plain_language_summary": { "$ref": "#/$defs/export_safe_label" },
+        "retry_action_label": { "$ref": "#/$defs/export_safe_label" },
+        "secondary_action_label": { "$ref": "#/$defs/export_safe_label" },
+        "export_safe_status_label": { "$ref": "#/$defs/export_safe_label" }
+      },
+      "description": "Required copy catalog naming the banner headline, plain-language summary, retry action, secondary action, and export-safe status label the support/export, release-evidence, and admin-export surfaces quote by id."
+    },
+
+    "reserved_row_kind": {
+      "type": "string",
+      "enum": [
+        "passkey_capable",
+        "reauth_required",
+        "seat_loss",
+        "deprovision_preserves_local_work"
+      ],
+      "description": "Closed reserved-row vocabulary so later managed-auth work extends the boundary packet instead of replacing it. passkey_capable names that the flow can step up with a platform authenticator without leaving the system-browser-first posture. reauth_required is the state after session expiry, password reset, policy epoch roll, or trust downgrade. seat_loss is the state when managed entitlement is lost (license seat removed, org membership lost). deprovision_preserves_local_work is the durable state guaranteeing that local workspace, local Git, local tasks, and BYOK AI keep working after managed deprovision."
+    },
+
+    "reserved_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_kind",
+        "row_state",
+        "applies_to_boundary_class",
+        "note"
+      ],
+      "properties": {
+        "row_kind": { "$ref": "#/$defs/reserved_row_kind" },
+        "row_state": {
+          "type": "string",
+          "enum": [
+            "reserved_for_future_row",
+            "supported_capability_declared",
+            "active_state",
+            "not_applicable_in_this_posture"
+          ],
+          "description": "Closed state vocabulary for reserved rows. reserved_for_future_row is the seed posture before managed-auth work lands; supported_capability_declared marks the capability as available; active_state marks the row as currently in effect; not_applicable_in_this_posture is admissible for local-only boundary rows."
+        },
+        "applies_to_boundary_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/account_boundary_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "preserves_local_work": {
+          "type": "boolean",
+          "description": "Explicit preserves-local-work assertion for this row. True is required for deprovision_preserves_local_work."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a typed repair hook for active or expiring row states."
+        },
+        "note": { "$ref": "#/$defs/export_safe_label" }
+      },
+      "description": "One reserved-row entry. Present so later managed-auth work extends the same boundary packet instead of minting a parallel contract."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "auth_handoff_started",
+        "auth_handoff_return_validated",
+        "auth_handoff_return_denied",
+        "auth_callback_replay_denied",
+        "auth_callback_origin_mismatch_denied",
+        "auth_callback_tenant_or_workspace_mismatch_denied",
+        "auth_callback_embedded_fallback_denied",
+        "auth_pending_session_expired",
+        "auth_pending_session_superseded",
+        "credential_store_state_rendered",
+        "credential_store_unlock_attempted",
+        "credential_store_unlock_succeeded",
+        "credential_store_unlock_failed",
+        "credential_store_policy_denial_rendered",
+        "credential_store_degraded_posture_entered",
+        "credential_store_degraded_posture_exited",
+        "account_boundary_declared",
+        "account_boundary_downgraded",
+        "account_boundary_reserved_row_rendered"
+      ],
+      "description": "Closed audit-event id vocabulary for the system-browser auth, credential-store, and account-boundary lane. Audit rows carry typed vocabulary only; raw tokens, raw URLs, raw cookies, raw codes, raw passkey material, and raw provider query strings are forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy, identity-mode, and trust-state context the record was minted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle/support/release vocabulary."
+    },
+
+    "pending_session_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_outbound_handoff",
+        "awaiting_browser_return",
+        "awaiting_device_code_poll",
+        "awaiting_native_step_up",
+        "return_validated",
+        "return_denied_origin",
+        "return_denied_tenant_or_workspace_mismatch",
+        "return_denied_replay",
+        "return_denied_embedded_fallback",
+        "return_denied_policy",
+        "session_expired",
+        "session_superseded",
+        "completed",
+        "cancelled_by_user"
+      ],
+      "description": "Closed pending-session state vocabulary. return_denied_* states fail closed; silent fallback to an embedded webview or to a wrong tenant/workspace context is forbidden."
+    },
+
+    "auth_callback_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "auth_callback_state_schema_version",
+        "packet_id",
+        "auth_flow_class",
+        "browser_launch_policy_class",
+        "pending_session_state",
+        "account_boundary_class",
+        "identity_mode",
+        "deployment_profile_scope",
+        "provider_domain_label",
+        "destination_class_label",
+        "callback_correlation",
+        "return_route",
+        "preserved_local_work",
+        "recovery_path",
+        "reserved_rows",
+        "browser_handoff_packet_ref",
+        "origin_disclosure_ref",
+        "embedded_fallback_posture",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "auth_callback_packet_record" },
+        "auth_callback_state_schema_version": {
+          "$ref": "#/$defs/auth_callback_state_schema_version"
+        },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "auth_flow_class": { "$ref": "#/$defs/auth_flow_class" },
+        "browser_launch_policy_class": {
+          "$ref": "#/$defs/browser_launch_policy_class"
+        },
+        "pending_session_state": {
+          "$ref": "#/$defs/pending_session_state_class"
+        },
+        "account_boundary_class": {
+          "$ref": "#/$defs/account_boundary_class"
+        },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "provider_domain_label": { "$ref": "#/$defs/export_safe_label" },
+        "destination_class_label": { "$ref": "#/$defs/export_safe_label" },
+        "callback_correlation": { "$ref": "#/$defs/callback_correlation" },
+        "return_route": { "$ref": "#/$defs/return_route" },
+        "preserved_local_work": { "$ref": "#/$defs/preserved_local_work" },
+        "recovery_path": { "$ref": "#/$defs/recovery_path" },
+        "reserved_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reserved_row" },
+          "minItems": 4,
+          "uniqueItems": true,
+          "description": "Reserved rows for passkey_capable, reauth_required, seat_loss, and deprovision_preserves_local_work. At least one entry for each row_kind MUST be present so later managed-auth work extends the same packet instead of replacing it."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ADR-0010 browser_handoff_packet that carries the outbound handoff. Null is admissible only for not_applicable and device_code_poll_return variants."
+        },
+        "origin_disclosure_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the canonical Aureline origin the pending session was minted from. Consumers validate this ref on every callback redemption."
+        },
+        "embedded_fallback_posture": {
+          "type": "string",
+          "enum": [
+            "embedded_fallback_forbidden",
+            "embedded_session_refresh_allowed_if_declared",
+            "embedded_password_exception_allowed_if_declared"
+          ],
+          "description": "Embedded-fallback posture. embedded_fallback_forbidden is the default and required value for system_browser, device_code, and platform_authenticator_native rows. embedded_session_refresh_allowed_if_declared and embedded_password_exception_allowed_if_declared are admissible only with an active exception-register row."
+        },
+        "pending_session_denied_reason": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "callback_replay_denied",
+                "callback_origin_mismatch",
+                "callback_tenant_or_workspace_mismatch",
+                "callback_embedded_fallback_denied",
+                "callback_policy_denied",
+                "callback_expired",
+                "callback_superseded"
+              ]
+            }
+          ],
+          "description": "Typed denial reason when pending_session_state is one of the return_denied_* / session_expired / session_superseded states. Null while pending or completed."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "system_browser auth flow requires system_default_browser_required or managed_approved_browser_allowed launch policy unless a separately_approved_boundary_contract is named.",
+          "if": {
+            "properties": {
+              "auth_flow_class": { "const": "system_browser" }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_launch_policy_class": {
+                "enum": [
+                  "system_default_browser_required",
+                  "managed_approved_browser_allowed",
+                  "separately_approved_boundary_contract",
+                  "browser_launch_policy_blocked"
+                ]
+              },
+              "embedded_fallback_posture": {
+                "const": "embedded_fallback_forbidden"
+              }
+            }
+          }
+        },
+        {
+          "description": "device_code auth flow MUST use device_code_poll_return and forbids embedded fallback.",
+          "if": {
+            "properties": {
+              "auth_flow_class": { "const": "device_code" }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "embedded_fallback_posture": {
+                "const": "embedded_fallback_forbidden"
+              },
+              "return_route": {
+                "properties": {
+                  "return_mode_class": { "const": "device_code_poll_return" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "platform_authenticator_native is host-native or browser/platform-owned; never an embedded auth page.",
+          "if": {
+            "properties": {
+              "auth_flow_class": {
+                "const": "platform_authenticator_native"
+              }
+            },
+            "required": ["auth_flow_class"]
+          },
+          "then": {
+            "properties": {
+              "embedded_fallback_posture": {
+                "const": "embedded_fallback_forbidden"
+              }
+            }
+          }
+        },
+        {
+          "description": "account_free_local identity mode requires local_only boundary and MUST NOT name a bound tenant subject.",
+          "if": {
+            "properties": {
+              "identity_mode": { "const": "account_free_local" }
+            },
+            "required": ["identity_mode"]
+          },
+          "then": {
+            "properties": {
+              "account_boundary_class": {
+                "enum": ["local_only", "unknown_boundary"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Pending-session denied states must name a typed denial reason.",
+          "if": {
+            "properties": {
+              "pending_session_state": {
+                "enum": [
+                  "return_denied_origin",
+                  "return_denied_tenant_or_workspace_mismatch",
+                  "return_denied_replay",
+                  "return_denied_embedded_fallback",
+                  "return_denied_policy",
+                  "session_expired",
+                  "session_superseded"
+                ]
+              }
+            },
+            "required": ["pending_session_state"]
+          },
+          "then": {
+            "properties": {
+              "pending_session_denied_reason": {
+                "type": "string"
+              },
+              "recovery_path": {
+                "properties": {
+                  "visible_recovery_required": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Reserved rows MUST cover each of the four reserved row kinds at least once.",
+          "properties": {
+            "reserved_rows": {
+              "allOf": [
+                { "contains": { "properties": { "row_kind": { "const": "passkey_capable" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "reauth_required" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "seat_loss" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "deprovision_preserves_local_work" } }, "required": ["row_kind"] } }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Auth callback packet record. One record per pending or returning sign-in session. Carries the outbound handoff class, the return-route and origin/tenant/workspace match rule, the callback-correlation envelope (state alias, nonce alias, PKCE alias, bound workspace/tenant/subject), the preserved-local-work block, the recovery path, the system-browser / device-code launch posture, and the four reserved rows later managed-auth work extends. Raw tokens, raw codes, raw cookies, raw provider URLs, and raw query strings never appear."
+    },
+
+    "credential_store_lock_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "auth_callback_state_schema_version",
+        "lock_state_id",
+        "credential_store_class",
+        "lock_state_class",
+        "account_boundary_class",
+        "identity_mode",
+        "deployment_profile_scope",
+        "export_safe_status_label",
+        "copy_catalog",
+        "recovery_path",
+        "retained_local_capabilities",
+        "blocked_local_capabilities",
+        "affects_pending_callback_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "credential_store_lock_state_record" },
+        "auth_callback_state_schema_version": {
+          "$ref": "#/$defs/auth_callback_state_schema_version"
+        },
+        "lock_state_id": { "$ref": "#/$defs/opaque_id" },
+        "credential_store_class": {
+          "$ref": "#/$defs/credential_store_class"
+        },
+        "lock_state_class": {
+          "$ref": "#/$defs/credential_store_lock_state_class"
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/credential_store_denial_reason_class" }
+          ],
+          "description": "Typed denial reason when lock_state_class is denied or policy_blocked. Null otherwise."
+        },
+        "account_boundary_class": {
+          "$ref": "#/$defs/account_boundary_class"
+        },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "export_safe_status_label": {
+          "$ref": "#/$defs/export_safe_label"
+        },
+        "copy_catalog": {
+          "$ref": "#/$defs/credential_store_copy_catalog"
+        },
+        "recovery_path": { "$ref": "#/$defs/recovery_path" },
+        "retained_local_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" },
+          "description": "What still works locally while the credential store is locked, denied, unavailable, degraded, or policy-blocked. Editing, save, undo, search, local Git, local tasks, local model execution, and BYOK AI MUST remain representable without implying credential access."
+        },
+        "blocked_local_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" }
+        },
+        "affects_pending_callback_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to pending auth_callback_packet_record ids this lock state narrows or invalidates. Empty when no pending session is affected."
+        },
+        "session_fallback_posture": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "session_memory_cache_allowed_non_signing",
+                "session_memory_cache_forbidden_signing_class",
+                "no_session_fallback"
+              ]
+            }
+          ],
+          "description": "Session-fallback posture re-exported from ADR-0007 when lock_state_class is degraded. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denied and policy_blocked states require a typed denial reason.",
+          "if": {
+            "properties": {
+              "lock_state_class": {
+                "enum": ["denied", "policy_blocked"]
+              }
+            },
+            "required": ["lock_state_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "degraded state requires a declared session-fallback posture.",
+          "if": {
+            "properties": {
+              "lock_state_class": { "const": "degraded" }
+            },
+            "required": ["lock_state_class"]
+          },
+          "then": {
+            "properties": {
+              "session_fallback_posture": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "Non-available lock states require visible recovery.",
+          "if": {
+            "properties": {
+              "lock_state_class": {
+                "enum": [
+                  "locked",
+                  "denied",
+                  "unavailable",
+                  "degraded",
+                  "policy_blocked"
+                ]
+              }
+            },
+            "required": ["lock_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_path": {
+                "properties": {
+                  "visible_recovery_required": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Credential-store lock-state record. One record per store-class posture, carrying the closed lock-state vocabulary (available, locked, denied, unavailable, degraded, policy_blocked), the ADR-0007 denial-reason and session-fallback refs, an export-safe copy catalog, a typed recovery path, and the retained/blocked local capabilities so support / release-evidence / admin-export surfaces resolve one shared object instead of inventing copy."
+    },
+
+    "account_boundary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "auth_callback_state_schema_version",
+        "boundary_id",
+        "boundary_class",
+        "identity_mode",
+        "deployment_profile_scope",
+        "boundary_label",
+        "plain_language_summary",
+        "visible_downgrade_path",
+        "preserved_local_work",
+        "reserved_rows",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "account_boundary_record" },
+        "auth_callback_state_schema_version": {
+          "$ref": "#/$defs/auth_callback_state_schema_version"
+        },
+        "boundary_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_class": { "$ref": "#/$defs/account_boundary_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "boundary_label": { "$ref": "#/$defs/export_safe_label" },
+        "plain_language_summary": { "$ref": "#/$defs/export_safe_label" },
+        "visible_downgrade_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "downgrade_to_boundary_class",
+            "downgrade_trigger_class",
+            "downgrade_note",
+            "preserves_local_work"
+          ],
+          "properties": {
+            "downgrade_to_boundary_class": {
+              "$ref": "#/$defs/account_boundary_class"
+            },
+            "downgrade_trigger_class": {
+              "type": "string",
+              "enum": [
+                "managed_service_unreachable",
+                "self_hosted_idp_unreachable",
+                "seat_removed",
+                "org_membership_lost",
+                "policy_narrowed",
+                "credential_store_locked",
+                "callback_failure",
+                "not_applicable"
+              ]
+            },
+            "downgrade_note": { "$ref": "#/$defs/export_safe_label" },
+            "preserves_local_work": { "type": "boolean" }
+          },
+          "description": "Required visible-downgrade path naming which boundary class the posture narrows to when org or credential state narrows capability, and whether local work is preserved."
+        },
+        "preserved_local_work": { "$ref": "#/$defs/preserved_local_work" },
+        "reserved_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reserved_row" },
+          "minItems": 4,
+          "uniqueItems": true,
+          "description": "Reserved rows for passkey_capable, reauth_required, seat_loss, and deprovision_preserves_local_work. At least one entry for each row_kind MUST be present."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "account_free_local identity mode requires local_only boundary and preserves_local_work on the downgrade path.",
+          "if": {
+            "properties": {
+              "identity_mode": { "const": "account_free_local" }
+            },
+            "required": ["identity_mode"]
+          },
+          "then": {
+            "properties": {
+              "boundary_class": { "const": "local_only" },
+              "visible_downgrade_path": {
+                "properties": {
+                  "preserves_local_work": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Reserved rows MUST cover each of the four reserved row kinds at least once.",
+          "properties": {
+            "reserved_rows": {
+              "allOf": [
+                { "contains": { "properties": { "row_kind": { "const": "passkey_capable" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "reauth_required" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "seat_loss" } }, "required": ["row_kind"] } },
+                { "contains": { "properties": { "row_kind": { "const": "deprovision_preserves_local_work" } }, "required": ["row_kind"] } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "deprovision_preserves_local_work reserved row MUST assert preserves_local_work=true.",
+          "properties": {
+            "reserved_rows": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "row_kind": { "const": "deprovision_preserves_local_work" }
+                  },
+                  "required": ["row_kind"]
+                },
+                "then": {
+                  "properties": {
+                    "preserves_local_work": { "const": true }
+                  },
+                  "required": ["preserves_local_work"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Account-boundary record. One record per boundary posture (local_only, self_hosted, managed, restricted_managed_only, grace_degraded_managed, unknown_boundary). Carries the identity-mode binding, deployment-profile scope, export-safe boundary label, plain-language summary, the visible downgrade path, the preserved-local-work block, and the four reserved rows (passkey_capable, reauth_required, seat_loss, deprovision_preserves_local_work) later managed-auth work extends."
+    }
+  }
+}
