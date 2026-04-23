@@ -1,0 +1,228 @@
+# Policy waiver-expiry and remembered-decision dashboard contract.
+#
+# Stable field registry for dashboards that surface waiver lifecycle,
+# remembered-decision expiry, narrowing carry-forward, and drift from
+# packet data. Admin surfaces, support/export packets, and future
+# policy-engine integrations should cite these fields rather than
+# inventing one-off counters or prose-only chips.
+
+schema_version: 1
+contract_id: policy.waiver_expiry_dashboard_contract.v1
+status: seeded
+
+overview_page: docs/verification/policy_simulation_packet.md
+manifest_source: fixtures/policy/simulation_diff_manifest.yaml
+record_state_model_source: docs/governance/record_state_and_policy_simulation_models.md
+record_state_schema_source: schemas/governance/record_state.schema.json
+waiver_expiry_schema_source: schemas/governance/waiver_expiry.schema.json
+
+dashboard_scope_vocabulary:
+  - workspace
+  - root
+  - tenant
+  - fleet
+
+subject_lane_vocabulary:
+  - waivers
+  - remembered_decisions
+  - combined_drift
+
+dashboard_bucket_vocabulary:
+  - healthy
+  - expiring_soon
+  - future_effective_pending
+  - narrowed_carry_forward
+  - expired_reprompt_due
+  - blocked_by_hold
+  - force_retired_by_policy
+  - superseded_pending_cleanup
+  - drift_detected
+
+drift_reason_vocabulary:
+  - remembered_decision_expired
+  - waiver_expiry_elapsed
+  - carry_forward_scope_broader_than_result
+  - missing_linked_governed_record
+  - policy_epoch_mismatch
+
+required_join_keys:
+  - waiver_id
+  - remembered_decision_id
+  - subject_ref.subject_kind
+  - subject_ref.subject_id
+  - linked_governed_record_refs
+  - policy_epoch
+  - applicable_scope
+  - chronology_bar_case_ref
+  - dashboard_bucket
+
+required_count_fields:
+  - active_waiver_count
+  - expiring_soon_waiver_count
+  - expired_waiver_count
+  - force_retired_waiver_count
+  - active_remembered_decision_count
+  - narrowed_carry_forward_count
+  - expired_remembered_decision_count
+  - blocked_by_hold_count
+  - drift_detected_count
+
+ageing_fields:
+  - declared_age_days
+  - days_until_expiry
+  - days_since_expiry
+  - last_replay_age_days
+  - future_effective_in_days
+
+expiry_windows:
+  expiring_soon_days: 7
+  review_window_days: 30
+  overdue_reprompt_days: 0
+  carry_forward_reaudit_days: 1
+  future_effective_visibility_days: 30
+
+row_contracts:
+  waivers:
+    required_fields:
+      - waiver_id
+      - waiver_kind
+      - status
+      - expiry_kind
+      - dashboard_bucket
+      - declared_age_days
+      - days_until_expiry
+      - days_since_expiry
+      - linked_governed_record_refs
+      - drift_reason_codes
+  remembered_decisions:
+    required_fields:
+      - remembered_decision_id
+      - decision_posture
+      - applicable_scope
+      - memory_state
+      - last_replay_age_days
+      - carry_forward_scope
+      - related_waiver_ref
+      - dashboard_bucket
+      - drift_reason_codes
+
+calculation_rules:
+  - rule_id: waiver.expiring_soon
+    subject_lane: waivers
+    detect_when:
+      all_of:
+        - status = active
+        - days_until_expiry >= 0
+        - days_until_expiry <= expiring_soon_days
+    set_dashboard_bucket: expiring_soon
+  - rule_id: waiver.expired_without_cleanup
+    subject_lane: waivers
+    detect_when:
+      all_of:
+        - days_since_expiry > overdue_reprompt_days
+        - status in [active, renewed]
+    set_dashboard_bucket: drift_detected
+    add_drift_reason: waiver_expiry_elapsed
+  - rule_id: remembered.expired_or_epoch_mismatch
+    subject_lane: remembered_decisions
+    detect_when:
+      any_of:
+        - memory_state = expired
+        - policy_epoch_matches_current = false
+    set_dashboard_bucket: drift_detected
+    add_drift_reason: remembered_decision_expired
+  - rule_id: remembered.narrowed_carry_forward
+    subject_lane: remembered_decisions
+    detect_when:
+      all_of:
+        - memory_state = narrowed
+        - carry_forward_scope != none
+    set_dashboard_bucket: narrowed_carry_forward
+  - rule_id: remembered.carry_forward_broader_than_result
+    subject_lane: remembered_decisions
+    detect_when:
+      carry_forward_scope_broader_than_result = true
+    set_dashboard_bucket: drift_detected
+    add_drift_reason: carry_forward_scope_broader_than_result
+  - rule_id: combined.blocked_by_hold
+    subject_lane: combined_drift
+    detect_when:
+      blocked_by_hold_detected = true
+    set_dashboard_bucket: blocked_by_hold
+
+visibility_rules:
+  - surface_class: internal_admin_dashboard
+    allowed_fields:
+      - all required_count_fields
+      - waiver_id
+      - remembered_decision_id
+      - subject_ref
+      - linked_governed_record_refs
+      - applicable_scope
+      - dashboard_bucket
+      - drift_reason_codes
+      - declared_age_days
+      - days_until_expiry
+      - days_since_expiry
+      - last_replay_age_days
+      - chronology_bar_case_ref
+    forbidden_fields: []
+  - surface_class: support_export_packet
+    allowed_fields:
+      - waiver_id
+      - remembered_decision_id
+      - subject_ref
+      - linked_governed_record_refs
+      - applicable_scope
+      - dashboard_bucket
+      - drift_reason_codes
+      - chronology_bar_case_ref
+      - declared_age_days
+      - days_until_expiry
+      - days_since_expiry
+      - last_replay_age_days
+    forbidden_fields:
+      - raw_justification
+  - surface_class: public_or_release_summary
+    allowed_fields:
+      - active_waiver_count
+      - expiring_soon_waiver_count
+      - expired_waiver_count
+      - active_remembered_decision_count
+      - expired_remembered_decision_count
+      - blocked_by_hold_count
+      - drift_detected_count
+    forbidden_fields:
+      - waiver_id
+      - remembered_decision_id
+      - subject_ref.subject_id
+      - linked_governed_record_refs
+      - chronology_bar_case_ref
+      - drift_reason_codes
+
+panel_contract:
+  summary_panel_order:
+    - waiver_status
+    - remembered_decision_status
+    - blocked_or_future_effective
+    - drift_backlog
+  required_panel_rows:
+    waiver_status:
+      - active_waiver_count
+      - expiring_soon_waiver_count
+      - expired_waiver_count
+      - force_retired_waiver_count
+    remembered_decision_status:
+      - active_remembered_decision_count
+      - narrowed_carry_forward_count
+      - expired_remembered_decision_count
+    blocked_or_future_effective:
+      - blocked_by_hold_count
+    drift_backlog:
+      - drift_detected_count
+
+contract_rule: >
+  A dashboard row is conforming only when counts, row buckets, ageing
+  fields, and visibility posture can all be derived from packet fields
+  already present in the diff manifest or the base waiver-expiry and
+  record-state vocabulary. Prose-only summary chips are non-conforming.

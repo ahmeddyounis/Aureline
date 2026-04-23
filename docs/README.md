@@ -110,6 +110,11 @@ code.
   worked fixtures (including the required mixed-chronology admin
   timeline) in
   [`/fixtures/governance/record_state_examples/`](../fixtures/governance/record_state_examples/).
+  The policy-diff verification seed, chronology-bar corpus, and
+  waiver-expiry dashboard contract now extend this base vocabulary in
+  [`/docs/verification/policy_simulation_packet.md`](./verification/policy_simulation_packet.md),
+  [`/fixtures/policy/`](../fixtures/policy/), and
+  [`/artifacts/policy/`](../artifacts/policy/).
 - [`governance/record_class_governance.md`](./governance/record_class_governance.md)
   — record-class registry seed for telemetry schemas, crash and support
   evidence, collaboration evidence, AI retained evidence, entitlement
@@ -422,6 +427,16 @@ code.
   [`/artifacts/ux/focus_return_examples/`](../artifacts/ux/focus_return_examples/),
   and the assistive-tech cases in
   [`/artifacts/accessibility/range_selection_at_cases/`](../artifacts/accessibility/range_selection_at_cases/).
+- [`verification/policy_simulation_packet.md`](./verification/policy_simulation_packet.md)
+  — seed verification packet for policy-simulation diffs,
+  remembered-decision narrowing, waiver-expiry dashboard joins, and
+  timezone-aware chronology-bar export truth. Pairs with the machine-
+  readable diff corpus in
+  [`/fixtures/policy/simulation_diff_manifest.yaml`](../fixtures/policy/simulation_diff_manifest.yaml),
+  the chronology-bar cases in
+  [`/fixtures/policy/chronology_bar_cases/`](../fixtures/policy/chronology_bar_cases/),
+  and the dashboard field contract in
+  [`/artifacts/policy/waiver_expiry_dashboard_contract.yaml`](../artifacts/policy/waiver_expiry_dashboard_contract.yaml).
 - [`architecture/generated_artifact_safe_edit_policy.md`](./architecture/generated_artifact_safe_edit_policy.md)
   — shared safe-edit posture for generated, mirrored, imported, and
   preview artifacts. Freezes the compact cross-surface posture record

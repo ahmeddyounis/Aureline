@@ -1,0 +1,512 @@
+# Policy-simulation diff and chronology corpus.
+#
+# Stable ids for diffable policy outcomes, remembered-decision
+# narrowing, waiver-expiry drift, and chronology-bar export truth.
+# Admin previews, support/export packets, and later policy-engine
+# integrations should cite these ids rather than inventing prose-only
+# exception language.
+
+schema_version: 1
+manifest_id: policy.simulation_diff_manifest.v1
+status: seeded
+
+overview_page: docs/verification/policy_simulation_packet.md
+record_state_model_source: docs/governance/record_state_and_policy_simulation_models.md
+record_state_schema_source: schemas/governance/record_state.schema.json
+waiver_expiry_schema_source: schemas/governance/waiver_expiry.schema.json
+waiver_expiry_dashboard_contract_source: artifacts/policy/waiver_expiry_dashboard_contract.yaml
+chronology_bar_cases_dir: fixtures/policy/chronology_bar_cases
+
+reference_fixture_refs:
+  - fixtures/governance/record_state_examples/deletion_policy_simulation.json
+  - fixtures/governance/record_state_examples/remembered_decision_policy_epoch_bound.json
+  - fixtures/governance/record_state_examples/waiver_expiry_policy_epoch_bound.json
+  - fixtures/governance/record_state_examples/mixed_chronology_admin_timeline.json
+
+simulation_input_fields:
+  - case_id
+  - baseline_policy_ref
+  - proposed_policy_ref
+  - subject_ref
+  - scope_ref
+  - actor_ref
+  - evaluation_utc_instant
+  - effective_from_utc_instant
+  - remembered_decision_refs
+  - waiver_refs
+  - chronology_bar_case_ref
+
+simulation_output_fields:
+  - primary_result_class
+  - secondary_result_flags
+  - decision_delta_class
+  - diff_severity
+  - resulting_posture
+  - projected_effect_codes
+  - blocked_by_refs
+  - remembered_decision_audit
+  - waiver_expiry_projection
+  - chronology_bar_case_ref
+  - audit_export_required_fields
+
+primary_result_class_vocabulary:
+  - exact_change
+  - narrower_result
+  - expired_memory
+  - future_effective_pending
+  - blocked_by_hold
+
+secondary_result_flag_vocabulary:
+  - exact_change_detected
+  - narrower_result_detected
+  - expired_memory_detected
+  - future_effective_detected
+  - blocked_by_hold_detected
+
+decision_delta_class_vocabulary:
+  - grant_to_deny
+  - scope_narrowed_carry_forward
+  - remembered_decision_expired
+  - future_effective_policy_change
+  - blocked_by_legal_hold
+  - chronology_export_projection
+
+diff_severity_vocabulary:
+  - informational
+  - review_required
+  - warning
+  - blocking
+
+resulting_posture_vocabulary:
+  - allow
+  - deny
+  - allow_narrowed_scope
+  - reprompt_required
+  - scheduled_policy_change
+  - blocked_by_hold
+
+carry_forward_reason_vocabulary:
+  - unchanged_subject_and_scope
+  - narrowed_scope_with_same_policy_epoch
+  - policy_changed
+  - policy_epoch_changed
+  - expiry_elapsed
+  - hold_intercepted
+
+memory_state_vocabulary:
+  - none
+  - active
+  - narrowed
+  - expiring_soon
+  - expired
+  - superseded
+  - force_retired_by_policy
+
+waiver_dashboard_bucket_vocabulary:
+  - healthy
+  - expiring_soon
+  - future_effective_pending
+  - narrowed_carry_forward
+  - expired_reprompt_due
+  - blocked_by_hold
+  - force_retired_by_policy
+  - superseded_pending_cleanup
+  - drift_detected
+
+waiver_state_projection_vocabulary:
+  - none
+  - active
+  - expired_silent
+  - expired_with_reprompt
+  - renewed
+  - superseded
+  - retired
+  - force_retired_by_policy
+
+drift_reason_vocabulary:
+  - remembered_decision_expired
+  - waiver_expiry_elapsed
+  - carry_forward_scope_broader_than_result
+  - missing_linked_governed_record
+  - policy_epoch_mismatch
+
+audit_export_required_field_vocabulary:
+  - effective_utc_instant
+  - display_local_time
+  - display_timezone_id
+  - offset_at_instant
+  - actor_ref
+  - event_kind
+  - event_order_key
+  - source_clock_class
+  - skew_flag
+  - ordering_relation
+
+cases:
+  - case_id: policy.diff.grant_to_deny.connected_provider
+    title: Workspace allow becomes deny on the same connected provider
+    simulation_class: policy_upgrade_simulation
+    baseline_policy_ref: policy.connected_provider.workspace.allow.v1
+    proposed_policy_ref: policy.connected_provider.workspace.deny.v2
+    subject_ref:
+      subject_kind: connected_provider_record
+      subject_id: cpr-provider-alpha-0019
+    scope_ref:
+      scope_kind: workspace
+      scope_id: ws-aureline
+    actor_ref:
+      stable_id: admin-policy-review
+      display_name: policy admin
+      role: admin
+    evaluation_utc_instant: 2026-04-23T17:15:00Z
+    effective_from_utc_instant: 2026-04-23T17:30:00Z
+    remembered_decision_refs:
+      - rd-connected-provider-grant-0019
+    waiver_refs:
+      - we-remembered-decision-pe-bound-0019
+    chronology_bar_case_ref: chronology_bar.policy_change_immediate_denial
+    simulation_output:
+      primary_result_class: exact_change
+      secondary_result_flags:
+        - exact_change_detected
+      decision_delta_class: grant_to_deny
+      diff_severity: blocking
+      resulting_posture: deny
+      projected_effect_codes:
+        - would_be_refused_by_policy
+        - would_supersede_remembered_decision
+      blocked_by_refs: []
+      remembered_decision_audit:
+        remembered_decision_ref: rd-connected-provider-grant-0019
+        baseline_scope: workspace
+        proposed_scope: workspace
+        carry_forward_scope: none
+        carry_forward_reason_class: policy_changed
+        memory_state_before: active
+        memory_state_after: superseded
+      waiver_expiry_projection:
+        waiver_ref: we-remembered-decision-pe-bound-0019
+        waiver_state_before: active
+        waiver_state_after: force_retired_by_policy
+        dashboard_bucket: force_retired_by_policy
+        drift_reason_codes: []
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - actor_ref
+        - event_kind
+        - event_order_key
+    source_fixture_refs:
+      - fixtures/governance/record_state_examples/remembered_decision_policy_epoch_bound.json
+      - fixtures/governance/record_state_examples/waiver_expiry_policy_epoch_bound.json
+
+  - case_id: policy.diff.narrower_scope_carry_forward.connected_provider_root
+    title: Global remembered allow narrows to one root-scoped carry-forward
+    simulation_class: policy_upgrade_simulation
+    baseline_policy_ref: policy.connected_provider.global.allow.v1
+    proposed_policy_ref: policy.connected_provider.root.allow.v2
+    subject_ref:
+      subject_kind: connected_provider_record
+      subject_id: cpr-provider-root-0021
+    scope_ref:
+      scope_kind: root
+      scope_id: root-finance
+    actor_ref:
+      stable_id: policy-engine
+      display_name: policy engine
+      role: system
+    evaluation_utc_instant: 2026-04-23T18:00:00Z
+    effective_from_utc_instant: 2026-04-23T18:05:00Z
+    remembered_decision_refs:
+      - rd-connected-provider-global-0021
+    waiver_refs:
+      - we-remembered-decision-root-0021
+    chronology_bar_case_ref: chronology_bar.narrower_scope_carry_forward
+    simulation_output:
+      primary_result_class: narrower_result
+      secondary_result_flags:
+        - narrower_result_detected
+      decision_delta_class: scope_narrowed_carry_forward
+      diff_severity: review_required
+      resulting_posture: allow_narrowed_scope
+      projected_effect_codes:
+        - would_supersede_remembered_decision
+      blocked_by_refs: []
+      remembered_decision_audit:
+        remembered_decision_ref: rd-connected-provider-global-0021
+        baseline_scope: global
+        proposed_scope: root
+        carry_forward_scope: root
+        carry_forward_reason_class: narrowed_scope_with_same_policy_epoch
+        memory_state_before: active
+        memory_state_after: narrowed
+      waiver_expiry_projection:
+        waiver_ref: we-remembered-decision-root-0021
+        waiver_state_before: active
+        waiver_state_after: active
+        dashboard_bucket: narrowed_carry_forward
+        drift_reason_codes: []
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - actor_ref
+        - event_kind
+        - event_order_key
+    source_fixture_refs: []
+
+  - case_id: policy.diff.expired_remembered_decision.policy_epoch_rollover
+    title: Policy epoch rollover expires remembered memory
+    simulation_class: remembered_decision_expiry_simulation
+    baseline_policy_ref: policy.connected_provider.workspace.allow.v2
+    proposed_policy_ref: policy.connected_provider.workspace.allow.v3
+    subject_ref:
+      subject_kind: connected_provider_record
+      subject_id: cpr-provider-alpha-0019
+    scope_ref:
+      scope_kind: workspace
+      scope_id: ws-aureline
+    actor_ref:
+      stable_id: policy-engine
+      display_name: policy engine
+      role: system
+    evaluation_utc_instant: 2026-04-23T19:10:00Z
+    effective_from_utc_instant: 2026-04-23T19:15:00Z
+    remembered_decision_refs:
+      - rd-connected-provider-grant-0019
+    waiver_refs:
+      - we-remembered-decision-pe-bound-0019
+    chronology_bar_case_ref: chronology_bar.expired_remembered_decision_reprompt
+    simulation_output:
+      primary_result_class: expired_memory
+      secondary_result_flags:
+        - expired_memory_detected
+      decision_delta_class: remembered_decision_expired
+      diff_severity: warning
+      resulting_posture: reprompt_required
+      projected_effect_codes:
+        - would_require_reprompt
+      blocked_by_refs: []
+      remembered_decision_audit:
+        remembered_decision_ref: rd-connected-provider-grant-0019
+        baseline_scope: workspace
+        proposed_scope: workspace
+        carry_forward_scope: none
+        carry_forward_reason_class: policy_epoch_changed
+        memory_state_before: active
+        memory_state_after: expired
+      waiver_expiry_projection:
+        waiver_ref: we-remembered-decision-pe-bound-0019
+        waiver_state_before: active
+        waiver_state_after: expired_with_reprompt
+        dashboard_bucket: drift_detected
+        drift_reason_codes:
+          - remembered_decision_expired
+          - policy_epoch_mismatch
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - actor_ref
+        - event_kind
+        - event_order_key
+    source_fixture_refs:
+      - fixtures/governance/record_state_examples/remembered_decision_policy_epoch_bound.json
+      - fixtures/governance/record_state_examples/waiver_expiry_policy_epoch_bound.json
+
+  - case_id: policy.diff.future_effective_policy.connected_provider
+    title: Deny becomes active tomorrow in Europe/Berlin civil time
+    simulation_class: policy_upgrade_simulation
+    baseline_policy_ref: policy.connected_provider.workspace.allow.v2
+    proposed_policy_ref: policy.connected_provider.workspace.deny.v3
+    subject_ref:
+      subject_kind: connected_provider_record
+      subject_id: cpr-provider-berlin-0007
+    scope_ref:
+      scope_kind: workspace
+      scope_id: ws-berlin
+    actor_ref:
+      stable_id: policy-engine
+      display_name: policy engine
+      role: system
+    evaluation_utc_instant: 2026-04-23T20:00:00Z
+    effective_from_utc_instant: 2026-04-24T07:00:00Z
+    remembered_decision_refs:
+      - rd-connected-provider-berlin-0007
+    waiver_refs:
+      - we-remembered-decision-berlin-0007
+    chronology_bar_case_ref: chronology_bar.future_effective_policy_activation
+    simulation_output:
+      primary_result_class: future_effective_pending
+      secondary_result_flags:
+        - future_effective_detected
+      decision_delta_class: future_effective_policy_change
+      diff_severity: review_required
+      resulting_posture: scheduled_policy_change
+      projected_effect_codes:
+        - would_be_refused_by_policy
+      blocked_by_refs: []
+      remembered_decision_audit:
+        remembered_decision_ref: rd-connected-provider-berlin-0007
+        baseline_scope: workspace
+        proposed_scope: workspace
+        carry_forward_scope: none
+        carry_forward_reason_class: policy_changed
+        memory_state_before: expiring_soon
+        memory_state_after: expiring_soon
+      waiver_expiry_projection:
+        waiver_ref: we-remembered-decision-berlin-0007
+        waiver_state_before: active
+        waiver_state_after: active
+        dashboard_bucket: future_effective_pending
+        drift_reason_codes: []
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - offset_at_instant
+        - actor_ref
+        - event_kind
+        - event_order_key
+    source_fixture_refs: []
+
+  - case_id: policy.diff.legal_hold_interaction.retention_delete
+    title: Retention delete remains blocked by an active legal hold
+    simulation_class: deletion_simulation
+    baseline_policy_ref: retention.telemetry.90d.v1
+    proposed_policy_ref: retention.telemetry.30d.v2
+    subject_ref:
+      subject_kind: telemetry_bundle
+      subject_id: tb-2026-03-01-0000
+    scope_ref:
+      scope_kind: workspace
+      scope_id: ws-aureline
+    actor_ref:
+      stable_id: retention-engine
+      display_name: retention engine
+      role: system
+    evaluation_utc_instant: 2026-04-23T20:25:00Z
+    effective_from_utc_instant: 2026-04-24T00:00:00Z
+    remembered_decision_refs: []
+    waiver_refs: []
+    chronology_bar_case_ref: chronology_bar.legal_hold_delete_block
+    simulation_output:
+      primary_result_class: blocked_by_hold
+      secondary_result_flags:
+        - blocked_by_hold_detected
+      decision_delta_class: blocked_by_legal_hold
+      diff_severity: blocking
+      resulting_posture: blocked_by_hold
+      projected_effect_codes:
+        - would_be_blocked_by_hold
+      blocked_by_refs:
+        - hold-legal-review-0044
+      remembered_decision_audit:
+        remembered_decision_ref: none
+        baseline_scope: none
+        proposed_scope: workspace
+        carry_forward_scope: none
+        carry_forward_reason_class: hold_intercepted
+        memory_state_before: none
+        memory_state_after: none
+      waiver_expiry_projection:
+        waiver_ref: none
+        waiver_state_before: none
+        waiver_state_after: none
+        dashboard_bucket: blocked_by_hold
+        drift_reason_codes: []
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - actor_ref
+        - event_kind
+        - event_order_key
+        - ordering_relation
+    source_fixture_refs:
+      - fixtures/governance/record_state_examples/deletion_policy_simulation.json
+
+  - case_id: policy.diff.audit_export_chronology.support_bundle
+    title: Export chronology preserves actor and mixed-timezone ordering
+    simulation_class: export_eligibility_simulation
+    baseline_policy_ref: support.audit_export.disabled.v1
+    proposed_policy_ref: support.audit_export.enabled.v2
+    subject_ref:
+      subject_kind: support_bundle
+      subject_id: sb-audit-0042
+    scope_ref:
+      scope_kind: workspace
+      scope_id: ws-aureline
+    actor_ref:
+      stable_id: support-export-service
+      display_name: support export service
+      role: system
+    evaluation_utc_instant: 2026-04-24T07:30:00Z
+    effective_from_utc_instant: 2026-04-24T07:40:00Z
+    remembered_decision_refs: []
+    waiver_refs: []
+    chronology_bar_case_ref: chronology_bar.audit_export_mixed_timezones
+    simulation_output:
+      primary_result_class: exact_change
+      secondary_result_flags:
+        - exact_change_detected
+      decision_delta_class: chronology_export_projection
+      diff_severity: informational
+      resulting_posture: allow
+      projected_effect_codes:
+        - would_make_export_available
+      blocked_by_refs: []
+      remembered_decision_audit:
+        remembered_decision_ref: none
+        baseline_scope: none
+        proposed_scope: workspace
+        carry_forward_scope: none
+        carry_forward_reason_class: unchanged_subject_and_scope
+        memory_state_before: none
+        memory_state_after: none
+      waiver_expiry_projection:
+        waiver_ref: none
+        waiver_state_before: none
+        waiver_state_after: none
+        dashboard_bucket: healthy
+        drift_reason_codes: []
+      audit_export_required_fields:
+        - effective_utc_instant
+        - display_local_time
+        - display_timezone_id
+        - offset_at_instant
+        - actor_ref
+        - event_kind
+        - event_order_key
+        - source_clock_class
+        - skew_flag
+        - ordering_relation
+    source_fixture_refs:
+      - fixtures/governance/record_state_examples/mixed_chronology_admin_timeline.json
+
+coverage_contract:
+  required_cases:
+    - policy.diff.grant_to_deny.connected_provider
+    - policy.diff.narrower_scope_carry_forward.connected_provider_root
+    - policy.diff.expired_remembered_decision.policy_epoch_rollover
+    - policy.diff.future_effective_policy.connected_provider
+    - policy.diff.legal_hold_interaction.retention_delete
+    - policy.diff.audit_export_chronology.support_bundle
+  required_primary_result_classes:
+    - exact_change
+    - narrower_result
+    - expired_memory
+    - future_effective_pending
+    - blocked_by_hold
+  required_diff_severities:
+    - informational
+    - review_required
+    - warning
+    - blocking
+  policy_rule: >
+    Policy previews, remembered-decision explainability views, waiver-
+    expiry dashboards, and support/export packets must preserve the same
+    primary_result_class, diff_severity, blocker ids, remembered-
+    decision audit row, dashboard bucket, and chronology-bar case ref
+    rather than substituting prose-only summaries.
