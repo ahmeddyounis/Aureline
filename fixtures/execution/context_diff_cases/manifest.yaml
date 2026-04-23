@@ -1,0 +1,117 @@
+# Execution-context diff case manifest.
+#
+# Machine-readable index of the fixtures in this directory. Reviewers
+# and tooling MAY cite cases by case_id rather than re-deriving the
+# scenario prose. Companion to
+# /schemas/execution/context_snapshot.schema.json and
+# /docs/execution/context_inspector_packet.md.
+#
+# Rules:
+#   - Every row MUST name a case_id, a fixture path, the frozen result
+#     tokens exercised, the two snapshot source surfaces, and the
+#     redaction class.
+#   - If this file and the snapshot schema disagree on vocabulary, the
+#     schema wins and this file must be updated in the same change.
+#   - Adding a new case is additive; removing a case already listed
+#     here is a breaking change.
+
+schema_version: 1
+
+schema_source: schemas/execution/context_snapshot.schema.json
+doc_source: docs/execution/context_inspector_packet.md
+
+diff_status_vocabulary:
+  - preserved
+  - changed
+  - added_on_b
+  - removed_on_b
+  - degraded_on_a
+  - degraded_on_b
+  - unknown_on_a
+  - unknown_on_b
+  - redaction_limited
+
+snapshot_source_surface_vocabulary:
+  - task_launch
+  - terminal_session_seed
+  - debug_prep_seed
+  - notebook_kernel_seed
+  - ai_tool_call_seed
+  - doctor_explain
+  - env_inspect_cli
+  - replay_probe
+  - import_probe
+  - support_export
+
+cases:
+  - case_id: exact_match
+    fixture: fixtures/execution/context_diff_cases/exact_match.json
+    snapshot_a_source_surface: task_launch
+    snapshot_b_source_surface: task_launch
+    redaction_class: metadata_and_hashes_only
+    result_headline: >
+      Two runs of the same task launch match on every frozen layer;
+      no drift detected.
+    preserved_layer_count: 14
+    changed_layer_count: 0
+    degraded_layer_count: 0
+    redaction_limited_layer_count: 0
+
+  - case_id: environment_drift
+    fixture: fixtures/execution/context_diff_cases/environment_drift.json
+    snapshot_a_source_surface: task_launch
+    snapshot_b_source_surface: task_launch
+    redaction_class: metadata_and_hashes_only
+    result_headline: >
+      Capsule regenerated between runs; environment_capsule_ref and
+      cache_disposition changed; target and toolchain preserved.
+    preserved_layer_count: 12
+    changed_layer_count: 2
+    degraded_layer_count: 0
+    redaction_limited_layer_count: 0
+
+  - case_id: wrong_target
+    fixture: fixtures/execution/context_diff_cases/wrong_target.json
+    snapshot_a_source_surface: task_launch
+    snapshot_b_source_surface: terminal_session_seed
+    redaction_class: metadata_and_hashes_only
+    result_headline: >
+      Target class moved from local_host to ssh_remote over a tunneled
+      route; secret posture adds ssh_key_material; reachability degraded
+      on side B.
+    preserved_layer_count: 4
+    changed_layer_count: 9
+    degraded_layer_count: 1
+    redaction_limited_layer_count: 0
+
+  - case_id: policy_limited_context
+    fixture: fixtures/execution/context_diff_cases/policy_limited_context.json
+    snapshot_a_source_surface: task_launch
+    snapshot_b_source_surface: debug_prep_seed
+    redaction_class: metadata_and_hashes_only
+    result_headline: >
+      Scope narrowed by admin policy to policy_limited_view with a
+      hidden_member_count of 3; exact hidden list is not exposed.
+    preserved_layer_count: 9
+    changed_layer_count: 5
+    degraded_layer_count: 0
+    redaction_limited_layer_count: 0
+
+  - case_id: degraded_unknown_fields
+    fixture: fixtures/execution/context_diff_cases/degraded_unknown_fields.json
+    snapshot_a_source_surface: task_launch
+    snapshot_b_source_surface: task_launch
+    redaction_class: metadata_and_hashes_only
+    result_headline: >
+      Side B ran under restricted trust; toolchain_identity degraded to
+      ambient_path fallback, activator blocked, override_delta
+      comparison limited by redaction class.
+    preserved_layer_count: 7
+    changed_layer_count: 3
+    degraded_layer_count: 3
+    redaction_limited_layer_count: 1
+
+# Coverage contract: removing a row is breaking; adding a row is
+# additive. The set MUST always include at least one exact-match,
+# one environment-drift, one wrong-target, one policy-limited, and
+# one degraded/unknown/redaction-limited case.

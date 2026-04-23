@@ -1,0 +1,605 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/context_snapshot.schema.json",
+  "title": "Aureline execution-context snapshot, provenance-diff, and inspector-view record",
+  "description": "Boundary schema for the shared execution-context snapshot, the structured snapshot-to-snapshot diff, and the compact inspector-view projection every task launch, terminal session seed, debug-prep seed, and doctor/explain surface emits. One record shape flows between the execution-context resolver and every consumer that wants to compare two executions across runs or across surfaces. This schema re-exports the frozen vocabulary already landed in schemas/runtime/execution_context.schema.json (target_class, toolchain_class, scope_class, activator_class, activator_disposition, cache_disposition, authority_envelope_tag, degraded_field_reason, surface_class). It does not mint new authority classes, new target classes, new toolchain classes, or new scope classes. Raw environment bodies, raw command lines, and raw secret values never appear unless an explicit broadened_capture opt-in is recorded on the snapshot's redaction_class; credential_alias handles and secret-class labels cross the boundary, never raw bytes. Adding a new diff_layer, a new diff_status, a new inspector_view_field, or a new snapshot_source_surface is additive-minor and bumps context_snapshot_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/context_snapshot_record" },
+    { "$ref": "#/$defs/context_snapshot_diff_record" },
+    { "$ref": "#/$defs/context_inspector_view_record" }
+  ],
+  "$defs": {
+    "context_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this snapshot/diff/inspector-view contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "context_snapshot_record",
+        "context_snapshot_diff_record",
+        "context_inspector_view_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at snapshot / diff / view assembly."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, and raw content bodies never appear here."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short reviewer-facing sentence safe to show in preview and export review surfaces. Raw secret values, raw env bodies, and raw command lines never appear here."
+    },
+
+    "snapshot_source_surface": {
+      "type": "string",
+      "enum": [
+        "task_launch",
+        "terminal_session_seed",
+        "debug_prep_seed",
+        "notebook_kernel_seed",
+        "ai_tool_call_seed",
+        "doctor_explain",
+        "env_inspect_cli",
+        "replay_probe",
+        "import_probe",
+        "support_export"
+      ],
+      "description": "Surface that emitted the snapshot. Projects the ADR-0009 surface_class vocabulary from schemas/runtime/execution_context.schema.json plus the dev-only inspector surfaces this packet names."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "broadened_capture",
+        "none"
+      ],
+      "description": "Default export redaction class. metadata_and_hashes_only is the default; broadened_capture requires an explicit opt-in recorded alongside an approval_ticket_ref. Re-export of the ADR-0007 redaction vocabulary from the runtime schema."
+    },
+
+    "authority_envelope_tag": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "projected_from_workspace_vfs",
+        "projected_from_buffer_editor",
+        "projected_from_derived_knowledge",
+        "projected_from_execution",
+        "projected_from_policy_entitlement",
+        "projected_from_provider_overlay",
+        "stale"
+      ],
+      "description": "Frozen per-field authority-envelope tag, re-exported from schemas/runtime/execution_context.schema.json."
+    },
+
+    "context_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "context_snapshot_schema_version",
+        "snapshot_id",
+        "captured_at",
+        "source_surface",
+        "execution_context_id",
+        "execution_context_record_ref",
+        "provenance_record_ref",
+        "redaction_class",
+        "snapshot_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "context_snapshot_record" },
+        "context_snapshot_schema_version": { "$ref": "#/$defs/context_snapshot_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_surface": { "$ref": "#/$defs/snapshot_source_surface" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the execution_context_record the snapshot was assembled from. The referenced record lives in schemas/runtime/execution_context.schema.json and MUST carry the same execution_context_id."
+        },
+        "provenance_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the execution_context_provenance_record powering why-this-context explainers."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when redaction_class is broadened_capture. Null otherwise."
+        },
+        "snapshot_summary": { "$ref": "#/$defs/snapshot_summary" },
+        "secret_posture_summary": { "$ref": "#/$defs/secret_posture_summary" },
+        "degraded_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshot_degraded_field_ref" },
+          "description": "Pass-through of the execution-context record's degraded-field list. Empty means fully resolved; non-empty forces every surface that renders this snapshot to show a visible honesty marker."
+        },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "One inspectable execution-context snapshot emitted by a task launch, terminal session seed, debug-prep seed, or inspector surface. Carries only stable ids, class labels, hashes, and counts; raw env bodies, raw command lines, and raw secret values never cross this boundary."
+    },
+
+    "snapshot_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "canonical_target_id",
+        "reachability_state",
+        "toolchain_class",
+        "toolchain_id",
+        "resolved_version",
+        "activation_strategy",
+        "environment_capsule_id",
+        "capsule_hash",
+        "capsule_drift_state",
+        "scope_class",
+        "lens_class",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "cache_disposition",
+        "workspace_id"
+      ],
+      "properties": {
+        "target_class": {
+          "type": "string",
+          "enum": [
+            "local_host",
+            "ssh_remote",
+            "container_local",
+            "devcontainer",
+            "remote_workspace_vm",
+            "prebuild_runtime",
+            "managed_workspace",
+            "notebook_kernel_local",
+            "notebook_kernel_remote",
+            "ai_sandbox"
+          ]
+        },
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "requested_target_ref": { "type": ["string", "null"] },
+        "materialised_instance_ref": { "type": ["string", "null"] },
+        "route_dependency": {
+          "type": ["string", "null"],
+          "enum": ["direct", "tunneled", "managed_proxy", "policy_mirror", null]
+        },
+        "reachability_state": {
+          "type": "string",
+          "enum": ["reachable", "warming", "degraded", "unreachable", "policy_blocked"]
+        },
+        "toolchain_class": {
+          "type": "string",
+          "enum": [
+            "interpreter",
+            "compiler_toolchain",
+            "package_manager_runner",
+            "containerised_runtime",
+            "notebook_kernel_runtime",
+            "language_server_process",
+            "debug_adapter_runtime",
+            "test_runner_runtime",
+            "build_driver_runtime",
+            "ai_tool_runtime"
+          ]
+        },
+        "toolchain_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "resolved_version": { "$ref": "#/$defs/opaque_id" },
+        "activation_strategy": {
+          "type": "string",
+          "enum": [
+            "ambient_path",
+            "env_manager_shim",
+            "venv_activation",
+            "nix_shell",
+            "nix_flake",
+            "direnv",
+            "devcontainer_build",
+            "oci_image_ref",
+            "explicit_override",
+            "fallback_resolution"
+          ]
+        },
+        "degraded_fallback_flag": { "type": "boolean" },
+        "environment_capsule_id": { "$ref": "#/$defs/opaque_id" },
+        "capsule_hash": { "$ref": "#/$defs/opaque_id" },
+        "capsule_drift_state": {
+          "type": "string",
+          "enum": [
+            "in_sync",
+            "stale_inputs",
+            "generator_changed",
+            "manually_diverged",
+            "unknown_lineage"
+          ]
+        },
+        "scope_class": {
+          "type": "string",
+          "enum": [
+            "current_root",
+            "named_workset",
+            "sparse_slice",
+            "full_workspace",
+            "policy_limited_view",
+            "review_workspace",
+            "companion_surface"
+          ]
+        },
+        "scope_member_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Number of members declared by the scope at snapshot time. Null when the scope does not carry an explicit member list."
+        },
+        "hidden_member_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Hidden-member count for policy_limited_view scopes. Null otherwise. The exact hidden list never projects."
+        },
+        "lens_class": {
+          "type": "string",
+          "enum": [
+            "search_result_lens",
+            "graph_neighbourhood_lens",
+            "review_overlay_lens",
+            "ai_context_lens",
+            "companion_focus_lens",
+            "none"
+          ]
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["restricted", "trusted"]
+        },
+        "identity_mode": {
+          "type": "string",
+          "enum": ["account_free_local", "self_hosted_org", "managed_convenience"]
+        },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "cache_disposition": {
+          "type": "string",
+          "enum": [
+            "cold",
+            "warm",
+            "prebuild_reused",
+            "capsule_reused",
+            "rejected_drift",
+            "rejected_policy",
+            "rejected_trust"
+          ]
+        },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_id": { "type": ["string", "null"] },
+        "env_var_delta_class_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of env-var delta classes recorded on the execution's override_delta. Counts a class, not the underlying env names or values."
+        },
+        "activator_disposition_counts": { "$ref": "#/$defs/activator_disposition_counts" },
+        "authority_envelope_tags_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_envelope_tag" },
+          "description": "Distinct authority_envelope tags present on the underlying execution-context record. Lets a reviewer see at a glance whether any fields are stale or projected."
+        }
+      },
+      "description": "Flat, machine-readable summary of the execution-context record the snapshot references. Every value is a frozen token or an opaque id / hash / count; no raw paths, raw commands, raw env bodies, or raw secret values. The summary is the stable key-to-value shape compared in the diff record and rendered in the inspector view."
+    },
+
+    "activator_disposition_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "blocked", "ignored", "unsupported", "degraded"],
+      "properties": {
+        "applied": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "ignored": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "degraded": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Count of activator decisions by disposition. Dispositions are frozen by schemas/runtime/execution_context.schema.json."
+    },
+
+    "secret_posture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temporary_secret_handle_class_count",
+        "temporary_secret_handle_classes",
+        "credential_alias_count",
+        "raw_secret_values_present"
+      ],
+      "properties": {
+        "temporary_secret_handle_class_count": { "type": "integer", "minimum": 0 },
+        "temporary_secret_handle_classes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ai_provider_token",
+              "code_host_token",
+              "package_registry_token",
+              "database_credential",
+              "ssh_key_material",
+              "client_certificate",
+              "signing_key_material",
+              "provider_session",
+              "device_secret",
+              "ephemeral_operation_token"
+            ]
+          },
+          "description": "Class labels for temporary secret handles bound for the lifetime of this execution. Re-export of the ADR-0007 secret-class vocabulary."
+        },
+        "credential_alias_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of credential-alias handles referenced. Raw secret material is never included."
+        },
+        "raw_secret_values_present": {
+          "type": "boolean",
+          "description": "Always false unless redaction_class is broadened_capture on the enclosing snapshot and an approval_ticket_ref is recorded."
+        }
+      },
+      "description": "Redaction-aware summary of the secret/credential posture for this execution. Carries class labels and counts only."
+    },
+
+    "snapshot_degraded_field_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "reason"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted JSON path into the execution-context record for the degraded field (for example, target_identity.reachability_state)."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "toolchain_fallback",
+            "activator_blocked_by_trust",
+            "activator_blocked_by_policy",
+            "activator_unsupported_on_target",
+            "capsule_unresolved",
+            "capsule_drift_detected",
+            "target_unreachable",
+            "policy_epoch_stale",
+            "trust_state_unresolved",
+            "workset_member_unavailable",
+            "provenance_gap",
+            "confidence_low",
+            "remote_agent_scope_mismatch"
+          ],
+          "description": "Re-export of the frozen degraded_field_reason vocabulary."
+        },
+        "repair_hook_ref": { "type": ["string", "null"] }
+      }
+    },
+
+    "diff_layer": {
+      "type": "string",
+      "enum": [
+        "invocation_subject",
+        "target_identity",
+        "toolchain_identity",
+        "environment_capsule_ref",
+        "workset_scope",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "activator_decisions",
+        "override_delta",
+        "cache_disposition",
+        "secret_posture",
+        "authority_envelope",
+        "degraded_fields"
+      ],
+      "description": "Closed list of diff layers. Mirrors the frozen execution-context record's top-level field groups plus the secret-posture and authority-envelope projections the snapshot already exports."
+    },
+
+    "diff_status": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "changed",
+        "added_on_b",
+        "removed_on_b",
+        "degraded_on_a",
+        "degraded_on_b",
+        "unknown_on_a",
+        "unknown_on_b",
+        "redaction_limited"
+      ],
+      "description": "Per-layer diff status. 'preserved' means both snapshots carry the same token / hash / count for the layer; 'changed' names a visible difference. 'degraded_on_<side>' and 'unknown_on_<side>' allow the diff to express that a field was unresolved on one side without silently re-asserting it on the other. 'redaction_limited' records that a broader capture would be required to explain the difference; this MUST NOT be used to hide a visible token change."
+    },
+
+    "diff_layer_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "status", "canonical_owner_tag"],
+      "properties": {
+        "layer": { "$ref": "#/$defs/diff_layer" },
+        "status": { "$ref": "#/$defs/diff_status" },
+        "canonical_owner_tag": { "$ref": "#/$defs/authority_envelope_tag" },
+        "a_value_summary": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Class labels, frozen tokens, opaque ids, hashes, or counts drawn from snapshot A. Raw env bodies, raw command lines, and raw secret values MUST NOT appear."
+        },
+        "b_value_summary": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Same as a_value_summary, drawn from snapshot B."
+        },
+        "degraded_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "toolchain_fallback",
+            "activator_blocked_by_trust",
+            "activator_blocked_by_policy",
+            "activator_unsupported_on_target",
+            "capsule_unresolved",
+            "capsule_drift_detected",
+            "target_unreachable",
+            "policy_epoch_stale",
+            "trust_state_unresolved",
+            "workset_member_unavailable",
+            "provenance_gap",
+            "confidence_low",
+            "remote_agent_scope_mismatch",
+            null
+          ]
+        },
+        "redaction_limited_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "raw_env_body_not_captured",
+            "raw_command_line_not_captured",
+            "raw_secret_value_not_captured",
+            "broadened_capture_required",
+            null
+          ]
+        },
+        "notes": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "context_snapshot_diff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "context_snapshot_schema_version",
+        "diff_id",
+        "captured_at",
+        "snapshot_a_ref",
+        "snapshot_b_ref",
+        "snapshot_a_source_surface",
+        "snapshot_b_source_surface",
+        "redaction_class",
+        "layer_entries",
+        "preserved_layer_count",
+        "changed_layer_count"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "context_snapshot_diff_record" },
+        "context_snapshot_schema_version": { "$ref": "#/$defs/context_snapshot_schema_version" },
+        "diff_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snapshot_a_ref": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_b_ref": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_a_source_surface": { "$ref": "#/$defs/snapshot_source_surface" },
+        "snapshot_b_source_surface": { "$ref": "#/$defs/snapshot_source_surface" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "type": ["string", "null"] },
+        "layer_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/diff_layer_entry" }
+        },
+        "preserved_layer_count": { "type": "integer", "minimum": 0 },
+        "changed_layer_count": { "type": "integer", "minimum": 0 },
+        "redaction_limited_layer_count": { "type": "integer", "minimum": 0 },
+        "summary_headline": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Structured diff between two context_snapshot_records. The diff names every layer that changed and every layer that was preserved so later support-export, doctor-explain, and provenance-review flows can cite one machine-readable object instead of reassembling per-surface prose. Raw env bodies, raw command lines, and raw secret values never appear; a diff that cannot be explained without them records a redaction_limited status and a typed reason."
+    },
+
+    "inspector_view_field": {
+      "type": "string",
+      "enum": [
+        "execution_context_id",
+        "source_surface",
+        "target_class",
+        "canonical_target_id",
+        "reachability_state",
+        "toolchain_class",
+        "toolchain_id",
+        "resolved_version",
+        "activation_strategy",
+        "environment_capsule_id",
+        "capsule_drift_state",
+        "scope_class",
+        "scope_member_count",
+        "hidden_member_count",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "cache_disposition",
+        "activator_disposition_counts",
+        "degraded_fields",
+        "secret_posture",
+        "authority_envelope_tags_present"
+      ],
+      "description": "Closed list of fields a dev-only inspector view renders. The view is a projection of the snapshot's summary plus its secret_posture and degraded-field lists; no field outside this list projects."
+    },
+
+    "inspector_view_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "authority_envelope_tag", "value_summary"],
+      "properties": {
+        "field": { "$ref": "#/$defs/inspector_view_field" },
+        "authority_envelope_tag": { "$ref": "#/$defs/authority_envelope_tag" },
+        "value_summary": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Class label, frozen token, opaque id, hash, or count. Raw env bodies, raw command lines, and raw secret values MUST NOT appear."
+        },
+        "degraded_reason": {
+          "type": ["string", "null"],
+          "description": "Optional typed reason from the frozen degraded_field_reason vocabulary when the field is unresolved."
+        },
+        "redaction_limited": {
+          "type": "boolean",
+          "description": "True when the row could not be expanded without broadened_capture. Projecting surfaces MUST render the redaction posture rather than silently hiding the field."
+        }
+      }
+    },
+
+    "context_inspector_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "context_snapshot_schema_version",
+        "view_id",
+        "captured_at",
+        "snapshot_ref",
+        "source_surface",
+        "redaction_class",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "context_inspector_view_record" },
+        "context_snapshot_schema_version": { "$ref": "#/$defs/context_snapshot_schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_surface": { "$ref": "#/$defs/snapshot_source_surface" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": { "type": ["string", "null"] },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inspector_view_row" }
+        },
+        "headline": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Compact inspector-view projection of one snapshot. A CLI or dev-only panel reads this record shape; it is not a replacement for the full execution-context record, and consumers that need the canonical record MUST read the referenced snapshot."
+    }
+  }
+}
