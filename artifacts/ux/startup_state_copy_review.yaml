@@ -1,0 +1,953 @@
+# Startup-state copy review.
+#
+# Machine-readable copy-review matrix binding every audited
+# placeholder startup state (per docs/ux/entry_restore_truth_
+# audit.md §6) to its truthful cause, user impact, next-safe
+# action hooks, blocked-capability tokens, recovery-ladder /
+# support-packet linkage, and measurement hooks. Designers,
+# docs writers, and implementation owners all read this file by
+# id (startup_state_row_id); surfaces MUST NOT mint private
+# state tokens or free-form placeholder labels.
+#
+# Companion to docs/ux/entry_restore_truth_audit.md and the
+# fixture corpus under fixtures/ux/entry_restore_states/.
+# Every row validates against the vocabularies re-exported
+# from:
+#   - schemas/workspace/entry_and_restore_result.schema.json
+#     (entry_verb, target_kind, resulting_mode, admission_class,
+#     restore_level, missing_target_state, session_execution_
+#     posture, checkpoint_linked_recovery_class, next_step_
+#     decision_hook, target_state, portability_class,
+#     restore_availability, safe_recovery_action).
+#   - docs/product/onboarding_measurement_plan.md (entry_route,
+#     readiness_bucket, measurement_surface, failure_category).
+#   - schemas/traces/journey_trace.schema.json (journey_class,
+#     checkpoint_class, segment_class, degraded_posture_class,
+#     fallback_posture_class).
+#   - docs/support/recovery_ladder_packet.md (recovery_rung_ids).
+#
+# Rules (frozen):
+#   1. Every row names at least one next_safe_action_hook from
+#      the frozen next_step_decision_hook set. A row that offers
+#      free-form action text is non-conforming.
+#   2. Every row names at least one blocked_capability_token
+#      from the closed set below; over-claiming a capability the
+#      state does not support, or over-blocking a capability the
+#      state still admits, is non-conforming.
+#   3. Every row asserts overclaims_readiness = false. A row
+#      whose audited placeholder implies "ready" while the
+#      underlying state is warming / partial / degraded /
+#      skipped / failed is non-conforming and denies with
+#      startup_state_overclaims_readiness.
+#   4. Every row cites at least one recovery_ladder_rung_ref
+#      (or rung.none_required) and at least one support_packet_
+#      family_ref so support / recovery / handoff surfaces
+#      resolve by id, not by free-text guess.
+#   5. Every row cites at least one journey_class and at least
+#      one protected_metric_ref the future dogfood telemetry or
+#      journey-trace lane will fire against, with a fixture_ref
+#      pinning the seeded fixture.
+#   6. Every row names the shell / docs / implementation
+#      copy-responsibility owners so the three audiences share
+#      the same audited state names; copy-only shadow
+#      registries are non-conforming.
+#   7. Adding a startup_state_row is additive-minor and lands
+#      here, in the audit doc, and as a fixture in the same
+#      change. Repurposing an existing row is breaking and
+#      opens a new decision row.
+#
+# If this file and docs/ux/entry_restore_truth_audit.md disagree,
+# the audit doc wins and this file updates in the same change.
+
+startup_state_copy_review_schema_version: 1
+
+sources:
+  audit_doc_ref: docs/ux/entry_restore_truth_audit.md
+  fixture_corpus_dir: fixtures/ux/entry_restore_states/
+  entry_restore_object_model_ref: docs/workspace/entry_restore_object_model.md
+  entry_restore_schema_ref: schemas/workspace/entry_and_restore_result.schema.json
+  onboarding_measurement_plan_ref: docs/product/onboarding_measurement_plan.md
+  journey_trace_schema_ref: schemas/traces/journey_trace.schema.json
+  recovery_ladder_packet_ref: docs/support/recovery_ladder_packet.md
+  protected_metrics_ref: artifacts/bench/protected_metrics.yaml
+  attention_activity_taxonomy_ref: docs/ux/attention_activity_taxonomy.md
+  shell_interaction_safety_contract_ref: docs/ux/shell_interaction_safety_contract.md
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.10
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.1
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.4
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.11
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#19.4
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies re-exported for tooling discovery. Rows below MUST
+# quote exactly one value (or the listed subset) from each vocabulary.
+# ---------------------------------------------------------------------------
+
+startup_state_token_vocabulary:
+  - startup_state:first_run
+  - startup_state:reopen_with_pending_restore
+  - startup_state:restore_failed
+  - startup_state:restore_skipped
+  - startup_state:open_without_restore
+  - startup_state:warming_startup
+  - startup_state:partial_startup
+  - startup_state:offline_startup
+  - startup_state:unsupported_startup
+  - startup_state:empty_state_or_placeholder_transition
+
+user_impact_label_class_vocabulary:
+  - no_durable_work_yet
+  - pending_user_review
+  - work_continues_with_narrowed_capability
+  - prior_work_preserved_but_not_rerun
+  - prior_work_not_recoverable_by_automation
+  - no_recovery_on_irreversible_path
+
+blocked_capability_token_vocabulary:
+  - no_blocking_capability
+  - no_durable_edits_yet
+  - index_not_authoritative
+  - semantic_lookups_pending
+  - extensions_not_yet_activated
+  - extension_host_offline
+  - language_server_unattached
+  - managed_workspace_not_ready
+  - provider_paths_offline
+  - remote_target_unreachable
+  - terminal_transcripts_not_rerun
+  - debug_session_ended
+  - prior_work_preserved_as_evidence_only
+  - prior_work_requires_manual_recovery
+  - placeholder_surface_no_capability
+  - policy_restricted_mode
+  - unsupported_platform_feature
+  - schema_migration_required
+  - migration_rollback_pending
+  - start_from_snapshot_setup_pending
+
+recovery_ladder_rung_ref_vocabulary:
+  - rung.safe_mode
+  - rung.extension_quarantine
+  - rung.open_without_restore
+  - rung.cache_index_repair
+  - rung.restricted_mode_fallback
+  - rung.none_required
+
+support_packet_family_ref_vocabulary:
+  - first_run_evidence
+  - restore_prompt_evidence
+  - crash_recovery_evidence
+  - recovery_ladder_packet
+  - object_issue_handoff
+  - performance_evidence_packet
+  - managed_workspace_evidence
+  - auth_evidence_packet
+  - policy_audit_evidence
+  - empty_state_audit_evidence
+
+# Next-step decision hooks quoted verbatim from the frozen
+# next_step_decision_hook set in docs/workspace/entry_restore_
+# object_model.md §1.7. Rows MUST NOT quote values outside this
+# set.
+next_step_decision_hook_vocabulary:
+  - continue_in_restricted_mode
+  - review_trust_and_open
+  - open_minimal
+  - set_up_later
+  - review_archetype_match
+  - compare_before_restore
+  - open_without_restore
+  - safe_mode
+  - reconnect_required
+  - reauth_required
+  - locate_missing_target
+  - remove_from_recents
+  - review_migration_report
+  - roll_back_import
+  - keep_imported_state
+  - adopt_recommended_bundle
+  - review_unsupported_items
+
+# Journey-trace journey_class values the audit rows cite. Re-exported
+# from schemas/traces/journey_trace.schema.json.
+journey_class_vocabulary:
+  - startup_to_first_useful_chrome
+  - startup_to_first_paint
+  - shell_open
+  - placeholder_open
+  - placeholder_edit
+  - placeholder_save
+  - open_edit_save
+  - restore_adjacent
+  - recovery_journal_restore_flow
+  - boundary_truth_contract_replay
+
+# Entry routes re-exported from docs/product/onboarding_
+# measurement_plan.md §4.
+entry_route_id_vocabulary:
+  - er.start_center
+  - er.recent_work_reopen
+  - er.restore_prompt
+  - er.protocol_handler_reentry
+  - er.clone_or_import
+  - er.plain_open
+  - er.workspace_switch
+  - er.warm_start
+
+# Copy-responsibility owners. A row names exactly one
+# shell_owner, one docs_owner, and one implementation_owner so
+# designers, docs, and implementation all read the same state
+# names.
+copy_responsibility_owner_vocabulary:
+  - shell:product-writer
+  - shell:ux-designer
+  - docs:docs-writer
+  - impl:aureline-shell
+  - impl:aureline-buffer
+  - impl:aureline-vfs
+  - impl:aureline-recovery-journal
+  - impl:aureline-support-export
+  - impl:aureline-migration-center
+
+# ---------------------------------------------------------------------------
+# Copy-review rows. One row per startup_state_token.
+# ---------------------------------------------------------------------------
+copy_review_rows:
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:first_run
+    startup_state_token: startup_state:first_run
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.1
+    fixture_ref: fixtures/ux/entry_restore_states/first_run.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open, clone, import, start_from_snapshot]
+      target_kind_candidate: null
+      admission_class: admitted
+      authority_reevaluation_required: false
+    user_impact_label_class: no_durable_work_yet
+    next_safe_action_hooks:
+      - review_archetype_match
+      - set_up_later
+      - open_minimal
+    blocked_capability_tokens:
+      - no_durable_edits_yet
+    recovery_ladder_rung_refs:
+      - rung.restricted_mode_fallback
+    support_packet_family_refs:
+      - first_run_evidence
+    measurement_hooks:
+      journey_classes:
+        - startup_to_first_useful_chrome
+        - startup_to_first_paint
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+        - ff.first_paint
+      entry_route_id: er.start_center
+      measurement_surface: surface_first_run
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: start_center_entry_verbs_distinct
+        notes: >
+          Start Center MUST render Open / Clone / Import /
+          Restore / Recent work distinctly. No Get-started
+          collapse.
+      - label_class: no_account_required_affordance
+        notes: >
+          The no-account local-first path is advertised with
+          set_up_later / open_minimal hooks; declining opt-in
+          never blocks reaching a useful local state.
+    forbidden_labels:
+      - "Workspace ready"
+      - "All extensions loaded"
+      - "Index complete"
+      - "Get started"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: pending_evaluation
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:reopen_with_pending_restore
+    startup_state_token: startup_state:reopen_with_pending_restore
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.2
+    fixture_ref: fixtures/ux/entry_restore_states/reopen_with_pending_restore.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [restore, open]
+      restore_level_advertised: compatible_restore
+      restore_level_committed_yet: false
+      missing_target_states:
+        - binary_or_extension_version_changed
+        - missing_extension_host
+      session_execution_postures:
+        - transcript_restored_not_rerun
+        - rerun_required
+    user_impact_label_class: pending_user_review
+    next_safe_action_hooks:
+      - compare_before_restore
+      - open_without_restore
+      - safe_mode
+    blocked_capability_tokens:
+      - index_not_authoritative
+      - terminal_transcripts_not_rerun
+      - debug_session_ended
+    recovery_ladder_rung_refs:
+      - rung.open_without_restore
+      - rung.safe_mode
+    support_packet_family_refs:
+      - restore_prompt_evidence
+      - recovery_ladder_packet
+    measurement_hooks:
+      journey_classes:
+        - restore_adjacent
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_id: er.restore_prompt
+      measurement_surface: surface_restore_success
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: restore_level_advertised_verbatim
+        notes: >
+          The advertised restore_level value renders verbatim
+          in the prompt header; Compatible restore / Layout
+          only / Recovered drafts / Evidence only are the
+          frozen controlled terms.
+      - label_class: session_execution_posture_per_pane
+        notes: >
+          Each restored pane names its posture
+          (transcript_restored_not_rerun / rerun_required /
+          session_ended / reconnect_available) so users see
+          what did not rerun.
+    forbidden_labels:
+      - "Session restored"
+      - "Welcome back — everything is ready"
+      - "Exact restore complete"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:restore_failed
+    startup_state_token: startup_state:restore_failed
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.3
+    fixture_ref: fixtures/ux/entry_restore_states/restore_failed.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [restore, open]
+      restore_level_advertised: compatible_restore
+      restore_level_delivered: no_restore
+      missing_target_states:
+        - corrupt_restorable_state
+        - schema_migrated
+      checkpoint_linked_recovery_classes:
+        - restore_from_recovery_journal
+        - manual_recovery_required
+    user_impact_label_class: prior_work_not_recoverable_by_automation
+    next_safe_action_hooks:
+      - open_without_restore
+      - safe_mode
+      - locate_missing_target
+      - compare_before_restore
+    blocked_capability_tokens:
+      - index_not_authoritative
+      - prior_work_requires_manual_recovery
+    recovery_ladder_rung_refs:
+      - rung.open_without_restore
+      - rung.cache_index_repair
+      - rung.safe_mode
+    support_packet_family_refs:
+      - crash_recovery_evidence
+      - recovery_ladder_packet
+      - object_issue_handoff
+    measurement_hooks:
+      journey_classes:
+        - restore_adjacent
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_id: er.restore_prompt
+      measurement_surface: surface_restore_success
+      degraded_posture_class: missing_target_recovered_to_layout_only
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-recovery-journal
+    required_labels:
+      - label_class: delivered_less_than_advertised_disclosed
+        notes: >
+          The prompt MUST name the delivered restore level when
+          it falls short of the advertised level; promising a
+          higher level than delivered is non-conforming per
+          entry-restore object model §7.4.
+      - label_class: recovery_class_verb_verbatim
+        notes: >
+          Restore-from-recovery-journal renders as Restore
+          (journal); manual_recovery_required renders as
+          Manual recovery. Undo is forbidden on these classes.
+    forbidden_labels:
+      - "Session restored"
+      - "Everything is back to where you left it"
+      - "Automatic recovery complete"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:restore_skipped
+    startup_state_token: startup_state:restore_skipped
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.4
+    fixture_ref: fixtures/ux/entry_restore_states/restore_skipped.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open]
+      missing_target_states:
+        - policy_blocked_restore
+      restore_level_delivered: no_restore
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - open_without_restore
+      - review_trust_and_open
+      - set_up_later
+      - continue_in_restricted_mode
+    blocked_capability_tokens:
+      - prior_work_preserved_as_evidence_only
+      - terminal_transcripts_not_rerun
+      - debug_session_ended
+    recovery_ladder_rung_refs:
+      - rung.open_without_restore
+      - rung.restricted_mode_fallback
+    support_packet_family_refs:
+      - restore_prompt_evidence
+      - policy_audit_evidence
+    measurement_hooks:
+      journey_classes:
+        - restore_adjacent
+        - shell_open
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_id: er.plain_open
+      measurement_surface: surface_restore_success
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-support-export
+    required_labels:
+      - label_class: policy_source_named_when_policy_blocked_restore
+        notes: >
+          When policy blocks restore, the policy source label
+          is visible (admin policy vs user preference) and the
+          user can still continue with continue_in_restricted_
+          mode / set_up_later.
+      - label_class: recovery_journal_still_available
+        notes: >
+          The recovery journal remains available for compare /
+          discard / open-journal review even when restore was
+          skipped.
+    forbidden_labels:
+      - "Session restored"
+      - "Last session loaded automatically"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:open_without_restore
+    startup_state_token: startup_state:open_without_restore
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.5
+    fixture_ref: fixtures/ux/entry_restore_states/open_without_restore.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open]
+      next_step_decision_hook_fired: open_without_restore
+      restore_level_delivered: no_restore
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - open_without_restore
+      - compare_before_restore
+    blocked_capability_tokens:
+      - prior_work_preserved_as_evidence_only
+      - index_not_authoritative
+    recovery_ladder_rung_refs:
+      - rung.open_without_restore
+      - rung.cache_index_repair
+    support_packet_family_refs:
+      - restore_prompt_evidence
+      - recovery_ladder_packet
+    measurement_hooks:
+      journey_classes:
+        - restore_adjacent
+        - startup_to_first_useful_chrome
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+        - ff.first_paint
+      entry_route_id: er.restore_prompt
+      measurement_surface: surface_restore_success
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-support-export
+    required_labels:
+      - label_class: user_decision_named_verbatim_on_support_export
+        notes: >
+          The support export and evidence packet name the
+          user's open_without_restore decision verbatim so the
+          choice is auditable, not reconstructed.
+      - label_class: prior_prompt_retained_by_reference
+        notes: >
+          The prior restore_prompt_record is retained by id;
+          the decision is evidence, not a silent discard.
+    forbidden_labels:
+      - "Session restored"
+      - "Recovered drafts applied"
+      - "Last session loaded"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:warming_startup
+    startup_state_token: startup_state:warming_startup
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.6
+    fixture_ref: fixtures/ux/entry_restore_states/warming_startup.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open]
+      first_useful_navigation_reached: true
+      semantic_warmup_completed: false
+      recent_work_target_state_candidate: stale_metadata
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - open_minimal
+      - set_up_later
+      - continue_in_restricted_mode
+    blocked_capability_tokens:
+      - index_not_authoritative
+      - semantic_lookups_pending
+      - extensions_not_yet_activated
+    recovery_ladder_rung_refs:
+      - rung.cache_index_repair
+    support_packet_family_refs:
+      - performance_evidence_packet
+    measurement_hooks:
+      journey_classes:
+        - startup_to_first_useful_chrome
+        - open_edit_save
+      segment_classes:
+        - first_useful_chrome
+        - placeholder_open
+        - placeholder_edit
+        - placeholder_save
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+        - ff.first_paint
+      entry_route_id: er.warm_start
+      measurement_surface: surface_first_useful_edit
+    copy_responsibility_owners:
+      shell_owner: shell:ux-designer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: warming_posture_explicit
+        notes: >
+          The shell renders the warming posture explicitly
+          (chip / status item). Editor interactivity, buffer
+          editability, and save pipeline durability are
+          preserved per onboarding plan §3.3.
+      - label_class: index_not_authoritative_disclosed
+        notes: >
+          Search / semantic-lookup surfaces name the partial_
+          index / stale_index truth per the search-readiness
+          vocabulary; quick open does not silently imply full
+          truth.
+    forbidden_labels:
+      - "Index complete"
+      - "All extensions loaded"
+      - "Workspace ready"
+      - "Semantic search ready"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:partial_startup
+    startup_state_token: startup_state:partial_startup
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.7
+    fixture_ref: fixtures/ux/entry_restore_states/partial_startup.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [resume, open]
+      missing_target_states:
+        - missing_extension_host
+        - quarantined_extension
+        - missing_managed_workspace
+        - missing_devcontainer
+      recent_work_target_state_candidate: mode_downgraded
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - safe_mode
+      - continue_in_restricted_mode
+      - locate_missing_target
+      - open_minimal
+    blocked_capability_tokens:
+      - extension_host_offline
+      - language_server_unattached
+      - managed_workspace_not_ready
+    recovery_ladder_rung_refs:
+      - rung.extension_quarantine
+      - rung.cache_index_repair
+      - rung.restricted_mode_fallback
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - object_issue_handoff
+      - managed_workspace_evidence
+    measurement_hooks:
+      journey_classes:
+        - shell_open
+        - startup_to_first_useful_chrome
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_id: er.recent_work_reopen
+      measurement_surface: surface_first_open
+      degraded_posture_class: reduced_chrome_only
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: missing_target_enumerated
+        notes: >
+          Every missing_target_state (missing_extension_host,
+          quarantined_extension, missing_managed_workspace,
+          missing_devcontainer) is named on its own row; a
+          generic "Something failed" label is non-conforming.
+      - label_class: durable_edits_preserved_disclosed
+        notes: >
+          Copy names that the editor, buffer, save pipeline,
+          and recovery journal remain durable so the user
+          keeps working locally.
+    forbidden_labels:
+      - "Workspace ready"
+      - "All extensions loaded"
+      - "Managed workspace is running"
+      - "Ready to edit"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:offline_startup
+    startup_state_token: startup_state:offline_startup
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.8
+    fixture_ref: fixtures/ux/entry_restore_states/offline_startup.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open, resume, restore]
+      target_kind_candidate:
+        - remote_repository
+        - managed_cloud_workspace
+        - ssh_workspace
+        - local_folder
+      recent_work_target_states:
+        - remote_unreachable
+        - authority_expired
+        - reachable
+      admission_classes:
+        - needs_reconnect
+        - needs_reauth
+        - admitted
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - reconnect_required
+      - reauth_required
+      - continue_in_restricted_mode
+      - set_up_later
+    blocked_capability_tokens:
+      - remote_target_unreachable
+      - managed_workspace_not_ready
+      - provider_paths_offline
+    recovery_ladder_rung_refs:
+      - rung.restricted_mode_fallback
+      - rung.open_without_restore
+    support_packet_family_refs:
+      - auth_evidence_packet
+      - recovery_ladder_packet
+    measurement_hooks:
+      journey_classes:
+        - shell_open
+        - startup_to_first_useful_chrome
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_ids:
+        - er.warm_start
+        - er.recent_work_reopen
+      measurement_surface: surface_first_open
+      measurement_surface_secondary: surface_opt_in_boundary
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: local_only_rows_remain_reachable
+        notes: >
+          Local-only recent-work rows keep target_state =
+          reachable and full safe_recovery_actions (open /
+          open_in_new_window / reveal_in_explorer). The
+          offline banner does not narrow local capability.
+      - label_class: remote_unreachable_named_per_row
+        notes: >
+          Remote rows render remote_unreachable or
+          authority_expired verbatim with reconnect / reauth
+          recovery actions; an undifferentiated "Offline"
+          banner that hides which rows are affected is non-
+          conforming.
+    forbidden_labels:
+      - "All remotes connected"
+      - "Ready"
+      - "Online"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:unsupported_startup
+    startup_state_token: startup_state:unsupported_startup
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.9
+    fixture_ref: fixtures/ux/entry_restore_states/unsupported_startup.yaml
+    truthful_cause_tokens:
+      entry_verb_candidate: [open, restore, resume]
+      admission_classes:
+        - policy_blocked
+        - needs_repair
+      missing_target_states:
+        - policy_blocked_restore
+        - binary_or_extension_version_changed
+        - schema_migrated
+      recent_work_target_states:
+        - policy_blocked
+        - mode_downgraded
+      archetype_detection_outcome_candidate: unrecognised_archetype
+    user_impact_label_class: work_continues_with_narrowed_capability
+    next_safe_action_hooks:
+      - continue_in_restricted_mode
+      - review_trust_and_open
+      - set_up_later
+      - safe_mode
+    blocked_capability_tokens:
+      - policy_restricted_mode
+      - unsupported_platform_feature
+      - schema_migration_required
+    recovery_ladder_rung_refs:
+      - rung.restricted_mode_fallback
+      - rung.safe_mode
+    support_packet_family_refs:
+      - policy_audit_evidence
+      - recovery_ladder_packet
+    measurement_hooks:
+      journey_classes:
+        - shell_open
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_id: er.plain_open
+      measurement_surface: surface_first_run
+      measurement_surface_secondary: surface_first_open
+      degraded_posture_class: reduced_chrome_only
+    copy_responsibility_owners:
+      shell_owner: shell:product-writer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: policy_source_label_visible
+        notes: >
+          Policy-managed admission names policy_source_label
+          (policy bundle / admin policy / managed profile) so
+          the user understands why the path is restricted.
+      - label_class: restricted_mode_explicit
+        notes: >
+          The restricted mode renders as a first-class state
+          with continue_in_restricted_mode / review_trust_and_
+          open / set_up_later / safe_mode hooks. No banner
+          claims the workspace is supported when it is not.
+    forbidden_labels:
+      - "Workspace ready"
+      - "Supported"
+      - "Ready to edit"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: restricted
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: startup_state_copy_review_row
+    startup_state_copy_review_schema_version: 1
+    startup_state_row_id: ux:startup-state:empty_state_or_placeholder_transition
+    startup_state_token: startup_state:empty_state_or_placeholder_transition
+    doc_section_ref: docs/ux/entry_restore_truth_audit.md#6.10
+    fixture_ref: fixtures/ux/entry_restore_states/empty_state_or_placeholder_transition.yaml
+    truthful_cause_tokens:
+      responsive_fallback_mode_candidates:
+        - missing_extension_placeholder
+      focus_return_state_candidates:
+        - returned_placeholder_announced
+      target_kind_resolved_yet: false
+      missing_target_states:
+        - missing_extension_host
+    user_impact_label_class: pending_user_review
+    next_safe_action_hooks:
+      - locate_missing_target
+      - review_archetype_match
+      - open_minimal
+      - set_up_later
+      - remove_from_recents
+    blocked_capability_tokens:
+      - no_durable_edits_yet
+      - placeholder_surface_no_capability
+      - extension_host_offline
+    recovery_ladder_rung_refs:
+      - rung.extension_quarantine
+    support_packet_family_refs:
+      - empty_state_audit_evidence
+      - recovery_ladder_packet
+    measurement_hooks:
+      journey_classes:
+        - startup_to_first_useful_chrome
+      checkpoint_class_candidate: provisional_segment_boundary
+      segment_class_candidate: provisional_segment
+      protected_metric_refs:
+        - ff.warm_start_to_first_paint
+      entry_route_ids:
+        - er.protocol_handler_reentry
+        - er.start_center
+      measurement_surface: surface_first_run
+    copy_responsibility_owners:
+      shell_owner: shell:ux-designer
+      docs_owner: docs:docs-writer
+      implementation_owner: impl:aureline-shell
+    required_labels:
+      - label_class: placeholder_zone_slot_named
+        notes: >
+          The missing-extension zone slot renders Locate /
+          Recover draft / Open without / Export evidence
+          affordances per the shell-interaction-safety
+          contract §Responsive-fallback mode rules; silent
+          disappearance of the zone is non-conforming.
+      - label_class: focus_return_placeholder_announced
+        notes: >
+          The returned_placeholder_announced focus-return
+          state carries an announcement_label explaining why
+          focus could not return to the missing surface;
+          silent focus loss is non-conforming.
+      - label_class: protocol_handler_card_names_pending_target
+        notes: >
+          The protocol-handler-reentry card names that the
+          target_kind has not resolved; no placeholder implies
+          the target is ready.
+    forbidden_labels:
+      - "Nothing to worry about"
+      - "Ready"
+      - "All surfaces available"
+    overclaims_readiness: false
+    policy_context:
+      policy_epoch: "pe:2026-04-23:01"
+      trust_state: trusted
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: no_row_overclaims_readiness
+    description: >
+      Every startup_state_copy_review_row asserts
+      overclaims_readiness = false. A row whose audited
+      placeholder implies readiness while the underlying state
+      is warming, partial, degraded, skipped, or failed is
+      non-conforming and denies with
+      startup_state_overclaims_readiness.
+    failure_denial_reason: startup_state_overclaims_readiness
+
+  - id: every_row_has_next_safe_action
+    description: >
+      Every row cites at least one value from
+      next_step_decision_hook_vocabulary. Free-form action
+      labels are non-conforming and deny with
+      startup_state_next_safe_action_missing.
+    failure_denial_reason: startup_state_next_safe_action_missing
+
+  - id: every_row_has_blocked_capability
+    description: >
+      Every non-first_run row cites at least one value from
+      blocked_capability_token_vocabulary naming what the
+      placeholder blocks. Rows that imply full capability
+      under a narrowed state deny with
+      startup_state_blocked_capability_missing.
+    failure_denial_reason: startup_state_blocked_capability_missing
+
+  - id: every_row_links_recovery_and_support
+    description: >
+      Every row cites at least one recovery_ladder_rung_ref
+      and at least one support_packet_family_ref so support /
+      recovery / handoff surfaces resolve by id. Rows that
+      omit either side deny with
+      startup_state_recovery_or_support_ref_missing.
+    failure_denial_reason: startup_state_recovery_or_support_ref_missing
+
+  - id: every_row_pins_measurement_hook
+    description: >
+      Every row cites at least one journey_class and at least
+      one protected_metric_ref and a concrete fixture_ref so
+      the future telemetry / journey-trace lane fires without
+      inventing names. Rows that omit the hook deny with
+      startup_state_measurement_hook_missing.
+    failure_denial_reason: startup_state_measurement_hook_missing
+
+  - id: every_row_names_copy_owners
+    description: >
+      Every row names exactly one shell_owner, one docs_owner,
+      and one implementation_owner so designers, docs, and
+      implementation share audited state names. Rows missing
+      any owner deny with
+      startup_state_copy_owner_missing.
+    failure_denial_reason: startup_state_copy_owner_missing
+
+  - id: forbidden_labels_block_overclaim
+    description: >
+      Every row enumerates at least one forbidden_label
+      pattern ("Workspace ready", "Session restored", "All
+      extensions loaded", etc.) so reviewers can spot
+      regressions against truth at copy-review time. Rows that
+      omit forbidden labels deny with
+      startup_state_forbidden_label_enumeration_missing.
+    failure_denial_reason: startup_state_forbidden_label_enumeration_missing
+
+  - id: schema_version_alignment
+    description: >
+      All emitted startup_state_copy_review_row instances share
+      startup_state_copy_review_schema_version with the
+      registry. Rows lagging behind a schema bump are denied
+      with startup_state_copy_review_schema_version_lagging.
+    failure_denial_reason: startup_state_copy_review_schema_version_lagging
