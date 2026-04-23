@@ -14,6 +14,9 @@ Related control artifacts:
 - artifacts/release/qualification_schedule.yaml
 - artifacts/release/evidence_ownership_map.yaml
 - artifacts/release/promotion_gate_map.yaml
+- docs/release/build_farm_and_remote_cache_policy.md
+- artifacts/release/pipeline_lane_rules.yaml
+- artifacts/release/cache_trust_classes.yaml
 - docs/release/ring_progression_policy.md
 - artifacts/release/ring_matrix.yaml
 - artifacts/governance/signing_quorum.yaml

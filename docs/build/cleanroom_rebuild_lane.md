@@ -24,6 +24,14 @@ Companion artifacts:
   — checked-in seed of the emitted input-manifest shape.
 - [`/artifacts/release/provenance_capture_seed.json`](../../artifacts/release/provenance_capture_seed.json)
   — checked-in seed of the emitted provenance-capture shape.
+- [`/docs/release/build_farm_and_remote_cache_policy.md`](../release/build_farm_and_remote_cache_policy.md),
+  [`/artifacts/release/pipeline_lane_rules.yaml`](../../artifacts/release/pipeline_lane_rules.yaml),
+  and
+  [`/artifacts/release/cache_trust_classes.yaml`](../../artifacts/release/cache_trust_classes.yaml)
+  — build-farm trust-domain rules and remote-cache non-dependence
+  policy. This lane is the protected reproducibility floor those rules
+  fall back to whenever release-bearing cache fast paths are bypassed
+  or invalidated.
 
 ## Command
 

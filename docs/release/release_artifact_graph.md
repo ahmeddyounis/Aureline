@@ -83,6 +83,14 @@ Companion artifacts:
   and
   [`/artifacts/support/deployment_drill_catalog_seed.yaml`](../../artifacts/support/deployment_drill_catalog_seed.yaml)
   — promotion and continuity evidence anchors.
+- [`/docs/release/build_farm_and_remote_cache_policy.md`](./build_farm_and_remote_cache_policy.md),
+  [`/artifacts/release/pipeline_lane_rules.yaml`](../../artifacts/release/pipeline_lane_rules.yaml),
+  and
+  [`/artifacts/release/cache_trust_classes.yaml`](../../artifacts/release/cache_trust_classes.yaml)
+  — build-farm trust-domain rules, remote-cache non-dependence rules,
+  and release-lane provenance policy. Caches accelerate the
+  materialization of node-bearing inputs but never become a node
+  family in this graph.
 
 Normative sources this graph projects from:
 

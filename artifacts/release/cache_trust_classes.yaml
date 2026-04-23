@@ -1,0 +1,416 @@
+# Cache trust classes.
+#
+# Machine-readable companion to
+# docs/release/build_farm_and_remote_cache_policy.md. Each cache class
+# declares its verified posture, write/read policy, content-addressing
+# rules, allowed transports (including OCI-compatible mirrors where
+# appropriate), authority for release evidence, and the response when
+# cache comparability is lost or cache poisoning is suspected.
+#
+# These rules are deliberately conservative: no cache class is ever
+# authoritative for release evidence. Caches accelerate; clean-room
+# rebuild inputs and exact-build identities authorize.
+
+schema_version: 1
+map_id: aureline.cache_trust_classes
+status: seeded
+
+policy_doc_ref: docs/release/build_farm_and_remote_cache_policy.md
+pipeline_lane_rules_ref: artifacts/release/pipeline_lane_rules.yaml
+governing_adr_ref: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+release_artifact_graph_ref: artifacts/release/artifact_graph_rules.yaml
+exact_build_identity_model_ref: docs/build/exact_build_identity_model.md
+exact_build_identity_schema_ref: schemas/build/exact_build_identity.schema.json
+cleanroom_rebuild_lane_doc_ref: docs/build/cleanroom_rebuild_lane.md
+cleanroom_rebuild_command_ref: ci/cleanroom_rebuild.sh
+provenance_baseline_ref: docs/governance/provenance_and_compliance_baseline.md
+emergency_action_model_ref: docs/security/emergency_action_model.md
+severity_matrix_ref: docs/security/severity_matrix.md
+signing_quorum_ref: artifacts/governance/signing_quorum.yaml
+
+verified_posture_vocabulary:
+  - verified_by_upstream_signing_root_and_content_addressed_mirror_manifest
+  - content_addressed_by_input_digest_under_protected_engineering_credentials
+  - content_addressed_by_input_digest_under_release_lane_credentials
+  - untrusted_by_definition
+  - content_addressed_by_upstream_digest_plus_signed_mirror_manifest
+  - local_to_one_developer_machine
+
+write_policy_vocabulary:
+  - upstream_signing_root_only
+  - protected_merge_lane_only
+  - owning_release_lane_only
+  - contributor_pr_lane_only
+  - mirror_or_offline_promotion_lane_only
+  - developer_local_machine_only
+
+read_policy_vocabulary:
+  - admissible_on_every_lane
+  - admissible_inside_protected_engineering_only
+  - admissible_inside_owning_release_lane_only
+  - admissible_inside_originating_pr_only
+  - admissible_on_mirror_or_offline_lane_only
+  - admissible_on_developer_local_machine_only
+
+cross_lane_consumption_rule_vocabulary:
+  - re_verify_input_digest_against_destination_lane_recorded_manifest
+  - never
+  - mirror_lane_only_with_signed_manifest
+  - not_applicable
+
+content_addressing_storage_vocabulary:
+  - sha256_input_digest_required
+  - sha256_artifact_digest_required
+  - sha256_input_and_artifact_digests_required
+  - mirror_manifest_signed_digest_set_required
+  - none_required_outside_local_machine
+
+allowed_transports_vocabulary:
+  - upstream_signed_mirror
+  - in_repo_pinned_input
+  - protected_engineering_storage
+  - release_lane_storage
+  - oci_compatible_registry_for_content_addressed_artifacts
+  - air_gap_bundle_with_signed_mirror_manifest
+  - ephemeral_pr_runner_storage
+  - developer_machine_local_storage
+
+release_evidence_authority_vocabulary:
+  - never_authoritative
+  - never_authoritative_internal_acceleration_only
+  - never_authoritative_local_acceleration_only
+  - never_authoritative_mirror_acceleration_only
+
+cache_classes:
+  - cache_class: verified_baseline_cache
+    title: Verified baseline (toolchain) cache
+    verified_posture: verified_by_upstream_signing_root_and_content_addressed_mirror_manifest
+    write_policy: upstream_signing_root_only
+    read_policy: admissible_on_every_lane
+    content_addressing_storage: sha256_input_and_artifact_digests_required
+    allowed_transports:
+      - upstream_signed_mirror
+      - in_repo_pinned_input
+      - oci_compatible_registry_for_content_addressed_artifacts
+      - air_gap_bundle_with_signed_mirror_manifest
+    release_evidence_authority: never_authoritative
+    cross_lane_consumption_rule: re_verify_input_digest_against_destination_lane_recorded_manifest
+    consumed_by_lanes:
+      - contributor_pr_lane
+      - protected_merge_lane
+      - nightly_release_lane
+      - preview_release_lane
+      - beta_release_lane
+      - stable_release_lane
+      - lts_release_lane
+      - emergency_hotfix_lane
+      - cleanroom_rebuild_lane
+    produced_by_lanes: []
+    rotation_policy_ref: docs/build/reproducible_build_baseline.md
+    cache_poisoning_blocker_class: signing_root_or_mirror_integrity
+    cache_comparability_loss_response: fall_back_to_cleanroom_rebuild_lane
+    notes: >
+      Mirrors the pinned toolchain inputs declared by the reproducible
+      build baseline. Authority lives in the upstream signing root and
+      the in-repo pinned files; this cache is only an acceleration of
+      that authority.
+
+  - cache_class: protected_merge_cache
+    title: Protected-merge engineering cache
+    verified_posture: content_addressed_by_input_digest_under_protected_engineering_credentials
+    write_policy: protected_merge_lane_only
+    read_policy: admissible_inside_protected_engineering_only
+    content_addressing_storage: sha256_input_and_artifact_digests_required
+    allowed_transports:
+      - protected_engineering_storage
+      - oci_compatible_registry_for_content_addressed_artifacts
+    release_evidence_authority: never_authoritative_internal_acceleration_only
+    cross_lane_consumption_rule: re_verify_input_digest_against_destination_lane_recorded_manifest
+    consumed_by_lanes:
+      - protected_merge_lane
+      - nightly_release_lane
+      - preview_release_lane
+      - beta_release_lane
+      - stable_release_lane
+    produced_by_lanes:
+      - protected_merge_lane
+    rotation_policy_ref: artifacts/governance/evidence_rerun_triggers.yaml
+    cache_poisoning_blocker_class: protected_engineering_integrity
+    cache_comparability_loss_response: fall_back_to_cleanroom_rebuild_lane
+    re_verification_required_when_consumed_outside_origin_lane: true
+    notes: >
+      Outputs of the protected merge lane. Release lanes consume only
+      after content-addressed re-verification against the recorded
+      input digest. LTS and hotfix lanes do not consume this class.
+
+  - cache_class: release_lane_cache
+    title: Release-lane cache
+    verified_posture: content_addressed_by_input_digest_under_release_lane_credentials
+    write_policy: owning_release_lane_only
+    read_policy: admissible_inside_owning_release_lane_only
+    content_addressing_storage: sha256_input_and_artifact_digests_required
+    allowed_transports:
+      - release_lane_storage
+      - oci_compatible_registry_for_content_addressed_artifacts
+    release_evidence_authority: never_authoritative
+    cross_lane_consumption_rule: re_verify_input_digest_against_destination_lane_recorded_manifest
+    consumed_by_lanes:
+      - nightly_release_lane
+      - preview_release_lane
+      - beta_release_lane
+      - stable_release_lane
+      - lts_release_lane
+      - emergency_hotfix_lane
+    produced_by_lanes:
+      - nightly_release_lane
+      - preview_release_lane
+      - beta_release_lane
+      - stable_release_lane
+      - lts_release_lane
+      - emergency_hotfix_lane
+    rotation_policy_ref: artifacts/governance/evidence_freshness_slos.yaml
+    cache_poisoning_blocker_class: release_lane_integrity
+    cache_comparability_loss_response: fall_back_to_cleanroom_rebuild_lane
+    re_verification_required_when_consumed_outside_origin_lane: true
+    retention_must_cover_support_window_for_lanes:
+      - lts_release_lane
+    notes: >
+      Bound to the producing release lane's trust domain. Cross-lane
+      consumption requires content-addressed re-verification. LTS lanes
+      additionally require retention to cover the LTS support window.
+
+  - cache_class: pr_local_cache
+    title: PR-local ephemeral cache
+    verified_posture: untrusted_by_definition
+    write_policy: contributor_pr_lane_only
+    read_policy: admissible_inside_originating_pr_only
+    content_addressing_storage: none_required_outside_local_machine
+    allowed_transports:
+      - ephemeral_pr_runner_storage
+    release_evidence_authority: never_authoritative_local_acceleration_only
+    cross_lane_consumption_rule: never
+    consumed_by_lanes:
+      - contributor_pr_lane
+    produced_by_lanes:
+      - contributor_pr_lane
+    rotation_policy_ref: artifacts/governance/evidence_rerun_triggers.yaml
+    cache_poisoning_blocker_class: pr_local_only
+    cache_comparability_loss_response: discard_and_rebuild_in_pr_runner
+    notes: >
+      Scoped to one PR run. Never admissible outside the contributor
+      lane and never recorded inside a release-evidence packet.
+
+  - cache_class: verified_mirror_cache
+    title: Verified mirror cache
+    verified_posture: content_addressed_by_upstream_digest_plus_signed_mirror_manifest
+    write_policy: mirror_or_offline_promotion_lane_only
+    read_policy: admissible_on_mirror_or_offline_lane_only
+    content_addressing_storage: mirror_manifest_signed_digest_set_required
+    allowed_transports:
+      - oci_compatible_registry_for_content_addressed_artifacts
+      - air_gap_bundle_with_signed_mirror_manifest
+    release_evidence_authority: never_authoritative_mirror_acceleration_only
+    cross_lane_consumption_rule: mirror_lane_only_with_signed_manifest
+    consumed_by_lanes:
+      - mirror_or_offline_promotion_lane
+    produced_by_lanes:
+      - mirror_or_offline_promotion_lane
+    rotation_policy_ref: docs/security/emergency_action_model.md
+    cache_poisoning_blocker_class: mirror_signer_continuity_or_integrity
+    cache_comparability_loss_response: route_to_mirror_only_response
+    cache_comparability_loss_response_route_source_ref: artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+    notes: >
+      Mirror inputs are content-addressed by upstream digest and
+      verified against a signed mirror manifest. The mirror lane never
+      depends on opaque mirror-local cache state.
+
+  - cache_class: developer_local_cache
+    title: Developer local cache
+    verified_posture: local_to_one_developer_machine
+    write_policy: developer_local_machine_only
+    read_policy: admissible_on_developer_local_machine_only
+    content_addressing_storage: none_required_outside_local_machine
+    allowed_transports:
+      - developer_machine_local_storage
+    release_evidence_authority: never_authoritative_local_acceleration_only
+    cross_lane_consumption_rule: never
+    consumed_by_lanes: []
+    produced_by_lanes: []
+    rotation_policy_ref: docs/governance/provenance_and_compliance_baseline.md
+    cache_poisoning_blocker_class: developer_local_only
+    cache_comparability_loss_response: developer_local_rebuild
+    support_bundle_recording_rule: record_cache_identity_only_no_contents
+    notes: >
+      Declared for completeness. Never admissible on a release lane.
+      Support bundles record only the cache identity ref, never the
+      cache contents.
+
+content_addressed_artifact_rules:
+  rule_id: artifacts.content_addressed_release_publication
+  rule: >
+    Release-bearing artifacts (binaries, debug sidecars, docs packs,
+    schemas, SBOMs, attestations, source bundles, reproducibility
+    packs) are addressed by digest, never by mutable name alone.
+    Channel manifests carry the digest set, and downstream consumers
+    verify by digest before use. The exact-build identity model is the
+    canonical source for which digests belong to which artifact family.
+  authority_source_refs:
+    - docs/build/exact_build_identity_model.md
+    - schemas/build/exact_build_identity.schema.json
+    - artifacts/release/artifact_family_map.yaml
+
+oci_compatible_mirror_rules:
+  rule_id: mirrors.oci_is_transport_not_authority
+  rule: >
+    Mirror and air-gap distribution may use OCI-compatible registries
+    to host the same content-addressed artifacts. An OCI mirror is a
+    transport optimization for content-addressed bytes; it is not a
+    separate authority. A mirror that loses signer continuity, fails
+    integrity checks, or cannot resolve a published digest is treated
+    as untrusted under verified_mirror_cache rules and routes to the
+    mirror_only_response emergency-transport flow.
+  applicable_to_cache_classes:
+    - verified_baseline_cache
+    - protected_merge_cache
+    - release_lane_cache
+    - verified_mirror_cache
+  authority_source_refs:
+    - docs/security/emergency_action_model.md
+    - artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+
+cleanroom_input_relationship:
+  rule_id: cleanroom.proves_release_artifact_existence
+  rule: >
+    The clean-room lane re-materializes the inputs (pinned commit,
+    lockfiles, toolchain image references, environment manifest) and
+    emits the artifact digest manifest, the build identity, and the
+    provenance capture summary. The clean-room lane's outputs are how
+    a release packet proves that the content-addressed artifacts could
+    be produced from reviewable inputs without a particular cache
+    layer being present. Cache hits during the clean-room run are
+    acceptable only when the cache content is content-addressed and
+    the recovered bytes match the input digest.
+  authority_source_refs:
+    - docs/build/cleanroom_rebuild_lane.md
+    - ci/cleanroom_rebuild.sh
+    - artifacts/release/provenance_capture_seed.json
+
+cache_authority_invariants:
+  - invariant_id: invariant.no_cache_in_exact_build_identity
+    invariant: cache hits are never inputs to the exact-build identity
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - pr_local_cache
+      - verified_mirror_cache
+      - developer_local_cache
+  - invariant_id: invariant.no_cache_in_promotion_gate_satisfaction
+    invariant: cache hits never satisfy promotion gates
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - pr_local_cache
+      - verified_mirror_cache
+      - developer_local_cache
+  - invariant_id: invariant.no_cache_substitutes_for_input_manifest
+    invariant: cache hits never substitute for a reviewable input manifest
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+  - invariant_id: invariant.cache_bypass_must_not_change_published_identity
+    invariant: bypassing every remote cache MUST NOT change the published exact-build identity set
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+    rehearsal_ref: artifacts/release/qualification_schedule.yaml
+  - invariant_id: invariant.cache_comparability_loss_falls_back_to_cleanroom
+    invariant: cache-comparability loss falls back to the clean-room rebuild lane
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+  - invariant_id: invariant.cache_poisoning_is_release_blocker
+    invariant: confirmed or suspected cache poisoning of any release-bearing class is a release blocker
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+    response_action_refs:
+      - docs/security/emergency_action_model.md
+      - artifacts/release/promotion_gate_map.yaml#advisory_and_revocation_scope_policy
+  - invariant_id: invariant.no_silent_cross_domain_promotion
+    invariant: no silent cross-domain cache promotion; re-verification is always content-addressed
+    enforced_against_classes:
+      - verified_baseline_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+  - invariant_id: invariant.mirror_lanes_do_not_depend_on_opaque_cache_state
+    invariant: mirror or offline promotion lanes do not depend on opaque cache state
+    enforced_against_classes:
+      - verified_mirror_cache
+
+cache_poisoning_release_blockers:
+  - blocker_id: blocker.signing_root_compromise
+    triggering_classes:
+      - verified_baseline_cache
+      - verified_mirror_cache
+    triggering_condition: signed_update_metadata_or_signing_root_compromised
+    response_packet_state: blocked
+    widened_advisory_scope: channel_manifest_or_signing_root
+    response_action_refs:
+      - docs/security/emergency_action_model.md
+      - artifacts/release/promotion_gate_map.yaml#advisory_and_revocation_scope_policy
+  - blocker_id: blocker.protected_merge_integrity_loss
+    triggering_classes:
+      - protected_merge_cache
+    triggering_condition: integrity_check_failure_or_unknown_writer
+    response_packet_state: blocked
+    widened_advisory_scope: affected_release_family
+    response_action_refs:
+      - docs/security/emergency_action_model.md
+      - artifacts/governance/evidence_rerun_triggers.yaml
+  - blocker_id: blocker.release_lane_integrity_loss
+    triggering_classes:
+      - release_lane_cache
+    triggering_condition: integrity_check_failure_or_unknown_writer
+    response_packet_state: blocked
+    widened_advisory_scope: coordinated_release_family
+    response_action_refs:
+      - docs/security/emergency_action_model.md
+      - artifacts/release/promotion_gate_map.yaml#rollback_atom_policy
+  - blocker_id: blocker.mirror_signer_continuity_break
+    triggering_classes:
+      - verified_mirror_cache
+    triggering_condition: signer_continuity_break_or_mirror_desynchronization
+    response_packet_state: blocked
+    widened_advisory_scope: affected_mirror_profile
+    response_action_refs:
+      - docs/security/emergency_action_model.md
+      - artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+
+cache_comparability_loss_handling:
+  default_response: fall_back_to_cleanroom_rebuild_lane
+  packet_state_on_loss: blocked
+  required_steps:
+    - drop the affected cache class for the affected entries
+    - mark the entries cache_comparability_lost in the lane's provenance capture
+    - resume only after the clean-room rebuild lane reproduces the same exact-build identity set
+  per_class_overrides:
+    - cache_class: verified_mirror_cache
+      response_route: route_to_mirror_only_response
+      response_route_source_ref: artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+    - cache_class: pr_local_cache
+      response_route: discard_and_rebuild_in_pr_runner
+    - cache_class: developer_local_cache
+      response_route: developer_local_rebuild

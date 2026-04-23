@@ -38,6 +38,13 @@ Companion artifacts:
   — first clean-room rebuild lane that records mirrors, trust
   assumptions, digest comparisons, and provenance-capture outputs
   explicitly.
+- [`/docs/release/build_farm_and_remote_cache_policy.md`](../release/build_farm_and_remote_cache_policy.md),
+  [`/artifacts/release/pipeline_lane_rules.yaml`](../../artifacts/release/pipeline_lane_rules.yaml),
+  and
+  [`/artifacts/release/cache_trust_classes.yaml`](../../artifacts/release/cache_trust_classes.yaml)
+  — build-farm trust-domain rules, remote-cache non-dependence rules,
+  and release-lane provenance policy that compose with this baseline
+  whenever a build farm is brought online.
 - [`/ci/sbom_provenance.sh`](../../ci/sbom_provenance.sh) — placeholder
   CI command that the provenance lane will replace incrementally.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)

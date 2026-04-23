@@ -1,0 +1,532 @@
+# Pipeline lane rules.
+#
+# Machine-readable companion to
+# docs/release/build_farm_and_remote_cache_policy.md. Each lane declares
+# one trust domain, one credential boundary, one allowed cache posture,
+# one publishing-rights class, one branch/channel mapping, and the
+# re-materialized-input requirement that release proof must survive
+# even when remote-cache fast paths are bypassed or invalidated.
+#
+# These rules do not stand up a build farm. They state what every lane
+# must do whenever a build farm is brought online so that later
+# release-engineering work extends rows here rather than minting a
+# parallel trust story per pipeline.
+
+schema_version: 1
+map_id: aureline.pipeline_lane_rules
+status: seeded
+
+policy_doc_ref: docs/release/build_farm_and_remote_cache_policy.md
+cache_trust_classes_ref: artifacts/release/cache_trust_classes.yaml
+governing_adr_ref: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+release_artifact_graph_ref: artifacts/release/artifact_graph_rules.yaml
+exact_build_identity_model_ref: docs/build/exact_build_identity_model.md
+exact_build_identity_schema_ref: schemas/build/exact_build_identity.schema.json
+cleanroom_rebuild_lane_doc_ref: docs/build/cleanroom_rebuild_lane.md
+cleanroom_rebuild_command_ref: ci/cleanroom_rebuild.sh
+cleanroom_rebuild_workflow_ref: .github/workflows/cleanroom_rebuild.yml
+provenance_baseline_ref: docs/governance/provenance_and_compliance_baseline.md
+emergency_action_model_ref: docs/security/emergency_action_model.md
+severity_matrix_ref: docs/security/severity_matrix.md
+qualification_schedule_ref: artifacts/release/qualification_schedule.yaml
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+signing_quorum_ref: artifacts/governance/signing_quorum.yaml
+
+trust_domain_vocabulary:
+  - untrusted_contributor
+  - protected_engineering
+  - release_nightly
+  - release_preview
+  - release_beta
+  - release_stable
+  - release_lts
+  - release_hotfix
+  - cleanroom_protected
+  - release_mirror_or_offline
+
+credential_boundary_vocabulary:
+  - none
+  - mainline_ci_only
+  - nightly_publishing_only
+  - preview_publishing_only
+  - beta_publishing_only
+  - stable_publishing_only
+  - lts_publishing_only
+  - hotfix_publishing_only
+  - cleanroom_runner_only
+  - mirror_publishing_only
+
+publishing_rights_vocabulary:
+  - none
+  - internal_artifacts_only
+  - nightly_channel_only
+  - preview_channel_only
+  - beta_channel_only
+  - stable_channel_only
+  - lts_channel_only
+  - hotfix_channel_only
+  - internal_control_artifacts_only
+  - mirror_or_offline_publication_only
+
+channel_binding_vocabulary:
+  - none
+  - protected_merge_ref
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+  - mirror_or_offline_path
+
+cache_consumption_mode_vocabulary:
+  - read_only
+  - read_write
+  - write_only
+  - none
+
+rematerialization_requirement_vocabulary:
+  - not_applicable
+  - record_input_manifest_only
+  - record_input_manifest_plus_periodic_cleanroom_reference
+  - cleanroom_proof_current_for_coordinated_release_family
+  - cleanroom_proof_bound_to_artifact_family_map_row
+  - cleanroom_proof_bound_to_published_exact_build_identity_set
+  - cleanroom_proof_plus_mirror_offline_parity_proof_for_support_window
+  - mandatory_cleanroom_proof_with_minimized_cache_surface
+  - definitionally_satisfied
+  - mirror_reconstructable_from_manifest_plus_cleanroom
+
+cross_lane_cache_promotion_policy:
+  default_rule: forbidden_unless_re_verified
+  re_verification_requirements:
+    - compute the input digest of the cached entry
+    - compare the digest to the recorded input digest of the destination lane
+    - record the comparison in the destination lane's provenance capture
+  notes: >
+    Name-match alone is never sufficient to promote a cache entry
+    across trust domains. A cache entry produced under one trust domain
+    may only be consumed by another lane after content-addressed
+    re-verification.
+
+cache_bypass_rehearsal_policy:
+  rehearsal_id_ref: rehearsal.release_center_publish_and_rollback
+  cadence_source_ref: artifacts/release/qualification_schedule.yaml
+  required_for_lanes:
+    - preview_release_lane
+    - beta_release_lane
+    - stable_release_lane
+    - lts_release_lane
+    - emergency_hotfix_lane
+  rehearsal_rule: >
+    Periodically rebuild the lane's coordinated release family with
+    every consumable remote cache class disabled. A drift in the
+    exact-build identity set or the artifact digest manifest between
+    cached and bypassed builds is a release blocker, not a curiosity.
+
+cache_comparability_loss_policy:
+  default_response: fall_back_to_cleanroom_rebuild_lane
+  packet_state_on_loss: blocked
+  required_steps:
+    - drop the affected cache class for the affected entries
+    - mark the entries cache_comparability_lost in the lane's provenance capture
+    - resume only after the cleanroom rebuild lane reproduces the same exact-build identity set
+  signing_root_escalation_condition: signed_update_metadata_or_signing_root_compromised
+  signing_root_escalation_widened_scope: channel_manifest_or_signing_root
+  signing_root_escalation_source_ref: artifacts/release/promotion_gate_map.yaml#advisory_and_revocation_scope_policy
+  mirror_loss_response_flow_ref: mirror_only_response
+
+lanes:
+  - lane_id: contributor_pr_lane
+    trust_domain: untrusted_contributor
+    credential_boundary: none
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+    produces_cache_classes:
+      - cache_class: pr_local_cache
+        mode: write_only
+    forbidden_cache_classes:
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+    publishing_rights: none
+    channel_binding: none
+    rematerialization_requirement: not_applicable
+    promotes_to_lanes: []
+    failure_response: merge_block
+    failure_response_source_ref: artifacts/release/qualification_schedule.yaml
+    notes: >
+      Contributor and fork PRs are presumed untrusted regardless of
+      contributor reputation. The lane never holds release-bearing
+      credentials and never publishes a channel manifest.
+
+  - lane_id: protected_merge_lane
+    trust_domain: protected_engineering
+    credential_boundary: mainline_ci_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: protected_merge_cache
+        mode: read_write
+    produces_cache_classes:
+      - cache_class: protected_merge_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - release_lane_cache
+      - verified_mirror_cache
+    publishing_rights: internal_artifacts_only
+    channel_binding: protected_merge_ref
+    rematerialization_requirement: record_input_manifest_only
+    promotes_to_lanes:
+      - nightly_release_lane
+      - preview_release_lane
+    failure_response: open_regression_triage
+    failure_response_source_ref: artifacts/governance/evidence_rerun_triggers.yaml
+    notes: >
+      Protected-merge outputs are content-addressed by input digest so
+      release lanes can re-verify entries before consumption. Cached
+      bytes never silently leak into release publication.
+
+  - lane_id: nightly_release_lane
+    trust_domain: release_nightly
+    credential_boundary: nightly_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: protected_merge_cache
+        mode: read_only
+        re_verification_required: true
+      - cache_class: release_lane_cache
+        mode: read_write
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - verified_mirror_cache
+    publishing_rights: nightly_channel_only
+    channel_binding: nightly
+    rematerialization_requirement: record_input_manifest_plus_periodic_cleanroom_reference
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+    promotes_to_lanes:
+      - preview_release_lane
+    failure_response: hold_for_refresh
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.preview_candidate
+    notes: >
+      Nightly publication may consume protected_merge_cache only after
+      content-addressed re-verification against the recorded input
+      digest. Cache hits never satisfy the candidate envelope gate.
+
+  - lane_id: preview_release_lane
+    trust_domain: release_preview
+    credential_boundary: preview_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: protected_merge_cache
+        mode: read_only
+        re_verification_required: true
+      - cache_class: release_lane_cache
+        mode: read_write
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - verified_mirror_cache
+    publishing_rights: preview_channel_only
+    channel_binding: preview
+    rematerialization_requirement: cleanroom_proof_current_for_coordinated_release_family
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+      - gate.docs_command_route_and_reproducible_release
+    promotes_to_lanes:
+      - beta_release_lane
+    cache_bypass_rehearsal_required: true
+    failure_response: hold_for_refresh
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.preview_candidate
+    notes: >
+      A preview promotion that depends on a cache hit without a
+      re-materializable input set fails closed at the
+      docs_command_route_and_reproducible_release gate.
+
+  - lane_id: beta_release_lane
+    trust_domain: release_beta
+    credential_boundary: beta_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: protected_merge_cache
+        mode: read_only
+        re_verification_required: true
+      - cache_class: release_lane_cache
+        mode: read_write
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - verified_mirror_cache
+    publishing_rights: beta_channel_only
+    channel_binding: beta
+    rematerialization_requirement: cleanroom_proof_bound_to_artifact_family_map_row
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.docs_command_route_and_reproducible_release
+    promotes_to_lanes:
+      - stable_release_lane
+    cache_bypass_rehearsal_required: true
+    failure_response: hold_for_refresh
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.beta_candidate
+    notes: >
+      Cached toolchain images, dependency artifacts, and intermediate
+      build outputs are admissible only when they resolve through
+      content-addressed inputs whose digests appear in the lane's
+      recorded input manifest.
+
+  - lane_id: stable_release_lane
+    trust_domain: release_stable
+    credential_boundary: stable_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: release_lane_cache
+        mode: read_write
+      - cache_class: protected_merge_cache
+        mode: read_only
+        re_verification_required: true
+        provenance_row_required: true
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - verified_mirror_cache
+    publishing_rights: stable_channel_only
+    channel_binding: stable
+    rematerialization_requirement: cleanroom_proof_bound_to_published_exact_build_identity_set
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+      - gate.lifecycle_and_dependency_markers
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.qualification_provider_authority_and_dependency
+      - gate.configuration_execution_context_and_continuity
+      - gate.docs_command_route_and_reproducible_release
+    promotes_to_lanes:
+      - lts_release_lane
+    cache_bypass_rehearsal_required: true
+    failure_response: no_go
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.rc_or_stable_candidate
+    notes: >
+      Stable promotion requires a current clean-room rebuild proof that
+      does not depend on any release-lane or protected-merge cache.
+      pr_local_cache is never admissible under any condition.
+
+  - lane_id: lts_release_lane
+    trust_domain: release_lts
+    credential_boundary: lts_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: release_lane_cache
+        mode: read_write
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - protected_merge_cache
+      - verified_mirror_cache
+    publishing_rights: lts_channel_only
+    channel_binding: lts
+    rematerialization_requirement: cleanroom_proof_plus_mirror_offline_parity_proof_for_support_window
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+      - gate.lifecycle_and_dependency_markers
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.qualification_provider_authority_and_dependency
+      - gate.configuration_execution_context_and_continuity
+      - gate.identity_admin_auditability_and_secret_handling
+      - gate.docs_command_route_and_reproducible_release
+    promotes_to_lanes: []
+    cache_bypass_rehearsal_required: true
+    cache_retention_must_cover_support_window: true
+    failure_response: no_go
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.lts_candidate
+    notes: >
+      LTS lanes MUST NOT depend on caches whose retention is shorter
+      than the LTS support window. If a cache class cannot cover the
+      window, the lane re-materializes inputs from the source bundle or
+      reproducibility pack.
+
+  - lane_id: emergency_hotfix_lane
+    trust_domain: release_hotfix
+    credential_boundary: hotfix_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+      - cache_class: release_lane_cache
+        mode: read_only
+        re_verification_required: true
+        signing_quorum_required: true
+    produces_cache_classes:
+      - cache_class: release_lane_cache
+        mode: write_only
+    forbidden_cache_classes:
+      - pr_local_cache
+      - protected_merge_cache
+      - verified_mirror_cache
+    publishing_rights: hotfix_channel_only
+    channel_binding: hotfix
+    rematerialization_requirement: mandatory_cleanroom_proof_with_minimized_cache_surface
+    required_promotion_gate_refs:
+      - gate.candidate_envelope
+      - gate.public_interface_provenance_and_durability
+      - gate.ecosystem_install_fleet_and_response
+      - gate.docs_command_route_and_reproducible_release
+    extra_human_approvals_required: true
+    extra_human_approvals_source_ref: artifacts/governance/signing_quorum.yaml
+    failure_response: no_go
+    failure_response_source_ref: artifacts/release/promotion_gate_map.yaml#stale_evidence_policy.hotfix_candidate
+    cache_poisoning_response_routes_to: mirror_only_response
+    cache_poisoning_response_route_source_ref: artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+    notes: >
+      Emergency hotfixes minimize the dependency surface, re-materialize
+      every input from pinned content-addressed sources, and add extra
+      human approvals per the signing-quorum policy. Break-glass actions
+      are recorded as emergency-action records.
+
+  - lane_id: cleanroom_rebuild_lane
+    trust_domain: cleanroom_protected
+    credential_boundary: cleanroom_runner_only
+    consumes_cache_classes:
+      - cache_class: verified_baseline_cache
+        mode: read_only
+    produces_cache_classes: []
+    forbidden_cache_classes:
+      - pr_local_cache
+      - protected_merge_cache
+      - release_lane_cache
+      - verified_mirror_cache
+      - developer_local_cache
+    publishing_rights: internal_control_artifacts_only
+    channel_binding: none
+    rematerialization_requirement: definitionally_satisfied
+    documented_command_ref: ci/cleanroom_rebuild.sh
+    workflow_ref: .github/workflows/cleanroom_rebuild.yml
+    capture_seed_ref: artifacts/release/provenance_capture_seed.json
+    notes: >
+      Reference re-materialization lane. Outputs feed release-evidence
+      packets by stable ref. The lane never holds release signing keys
+      and never consumes opaque CI-built cache state.
+
+  - lane_id: mirror_or_offline_promotion_lane
+    trust_domain: release_mirror_or_offline
+    credential_boundary: mirror_publishing_only
+    consumes_cache_classes:
+      - cache_class: verified_mirror_cache
+        mode: read_only
+        re_verification_required: true
+    produces_cache_classes:
+      - cache_class: verified_mirror_cache
+        mode: read_write
+    forbidden_cache_classes:
+      - pr_local_cache
+      - protected_merge_cache
+      - release_lane_cache
+    publishing_rights: mirror_or_offline_publication_only
+    channel_binding: mirror_or_offline_path
+    rematerialization_requirement: mirror_reconstructable_from_manifest_plus_cleanroom
+    emergency_transport_flow_ref: artifacts/release/promotion_gate_map.yaml#manual_import_and_mirror_only_emergency_flows
+    signer_continuity_model_ref: docs/security/emergency_action_model.md
+    notes: >
+      Mirror inputs are content-addressed against the upstream release
+      packet and verified by signer continuity. The mirror lane never
+      depends on opaque mirror-local cache state and never invents a new
+      channel id.
+
+publishing_rights_protection_rules:
+  - rule_id: pr.no_release_publication
+    rule: contributor_pr_lane MUST NOT hold any release-bearing publishing right
+    enforced_against_lanes: [contributor_pr_lane]
+  - rule_id: protected_merge.no_channel_publication
+    rule: protected_merge_lane MUST NOT publish a channel manifest
+    enforced_against_lanes: [protected_merge_lane]
+  - rule_id: release.no_cross_channel_publication
+    rule: each release lane MUST publish only to the channel declared in its channel_binding
+    enforced_against_lanes:
+      - nightly_release_lane
+      - preview_release_lane
+      - beta_release_lane
+      - stable_release_lane
+      - lts_release_lane
+      - emergency_hotfix_lane
+  - rule_id: cleanroom.no_channel_publication
+    rule: cleanroom_rebuild_lane MUST NOT publish to any channel and only emits internal control artifacts
+    enforced_against_lanes: [cleanroom_rebuild_lane]
+  - rule_id: mirror.no_new_channel_id
+    rule: mirror_or_offline_promotion_lane MUST NOT mint a new channel id and only republishes upstream content-addressed bytes
+    enforced_against_lanes: [mirror_or_offline_promotion_lane]
+
+branch_to_channel_mapping_notes:
+  - mapping_id: contributor_to_pr_ref
+    branch_class: pr_or_fork_ref
+    lane_id: contributor_pr_lane
+    channel_binding: none
+  - mapping_id: protected_merge_to_protected_ref
+    branch_class: protected_merge_ref
+    lane_id: protected_merge_lane
+    channel_binding: protected_merge_ref
+  - mapping_id: protected_merge_to_nightly
+    branch_class: protected_merge_ref
+    lane_id: nightly_release_lane
+    channel_binding: nightly
+  - mapping_id: nightly_to_preview
+    branch_class: protected_merge_ref_or_preview_train_ref
+    lane_id: preview_release_lane
+    channel_binding: preview
+  - mapping_id: preview_to_beta
+    branch_class: preview_train_ref_or_beta_train_ref
+    lane_id: beta_release_lane
+    channel_binding: beta
+  - mapping_id: beta_to_stable
+    branch_class: stable_train_ref
+    lane_id: stable_release_lane
+    channel_binding: stable
+  - mapping_id: stable_to_lts
+    branch_class: lts_train_ref
+    lane_id: lts_release_lane
+    channel_binding: lts
+  - mapping_id: stable_or_lts_to_hotfix
+    branch_class: stable_train_ref_or_lts_train_ref
+    lane_id: emergency_hotfix_lane
+    channel_binding: hotfix
+  - mapping_id: cleanroom_to_internal_control
+    branch_class: pinned_commit_ref
+    lane_id: cleanroom_rebuild_lane
+    channel_binding: none
+  - mapping_id: mirror_to_mirror_path
+    branch_class: upstream_release_packet_ref
+    lane_id: mirror_or_offline_promotion_lane
+    channel_binding: mirror_or_offline_path
+
+provenance_capture_required_fields:
+  - recorded_input_manifest
+  - exact_build_identity_set
+  - artifact_digest_manifest
+  - consumed_cache_classes_with_recorded_input_digests
+  - cleanroom_rebuild_reference
+  - cache_event_refs_for_poisoning_or_comparability_loss
+  - signing_quorum_action_ids
+  - publishing_rights_class
+  - channel_binding
+provenance_capture_compose_with_seed_ref: artifacts/release/provenance_capture_seed.json
