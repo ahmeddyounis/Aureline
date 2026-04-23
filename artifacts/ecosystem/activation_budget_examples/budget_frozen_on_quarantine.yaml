@@ -1,0 +1,110 @@
+__example__:
+  name: budget_frozen_on_quarantine
+  scenario: >
+    Managed workspace mw:alpha-0305 was quarantined after an
+    emergency-disable policy-pack constraint tripped. Budget slices
+    freeze at last-observed values; every slice carries a
+    frozen_at_utc_instant. Install-review MUST deny commit with the
+    appropriate ADR-0012 denial reason.
+  activation_budget_class: budget_frozen_on_quarantine
+  install_review_case_ref: null
+
+record_kind: activation_budget_example_record
+activation_budget_class: budget_frozen_on_quarantine
+example_id: activation_budget.example.budget_frozen_on_quarantine
+schema_version: 1
+
+managed_workspace_instance_ref: mw:alpha-0305
+managed_workspace_lifecycle_state: quarantined
+managed_workspace_reviewer_label: expired
+expiry_reason_class: kill_switch_tripped
+budget_window:
+  window_kind: instance_lifetime
+  window_start: 2026-01-01T00:00:00Z
+  window_end: null
+budget_slices:
+  cold_start_seconds:
+    budgeted: 600
+    consumed: 400
+    remaining: 200
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  warming_seconds:
+    budgeted: 1800
+    consumed: 1680
+    remaining: 120
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  ready_seconds:
+    budgeted: 28800
+    consumed: 25200
+    remaining: 3600
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  idle_suspend_events:
+    budgeted: 40
+    consumed: 28
+    remaining: 12
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  hibernation_reactivation_events:
+    budgeted: 4
+    consumed: 1
+    remaining: 3
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  recovery_seconds:
+    budgeted: 600
+    consumed: 60
+    remaining: 540
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+  snapshot_minutes:
+    budgeted: 120
+    consumed: 45
+    remaining: 75
+    frozen_at_utc_instant: 2026-04-23T09:00:00Z
+degradation_markers:
+  - reason: kill_switch_tripped
+    since: 2026-04-23T09:00:00Z
+    slice: null
+    severity: absorbing_terminal
+threshold_breach_markers: []
+host_boundary_cue: managed_workspace_boundary
+freshness_class: warm_cached
+redaction_class: metadata_and_hashes_only
+repair_hook_ref: repair:managed-workspace:mw-alpha-0305:request-lift
+
+rollback_posture_interaction:
+  admissible_rollback_posture_classes:
+    - rollback_pending_admin_confirmation
+    - rollback_in_flight
+    - rollback_completed_verified
+  notes: >
+    Quarantine may trigger admin-directed rollback of recent
+    binding installs to restore the last-known-good state; the
+    posture MUST cite the repair hook ref.
+
+quarantine_posture_interaction:
+  admissible_quarantine_posture_classes:
+    - quarantined_by_kill_switch
+    - quarantined_by_policy_pack
+  notes: >
+    budget_frozen_on_quarantine pairs with an active quarantine
+    posture; no_quarantine_active is non-conforming in this class.
+
+install_review_disposition_projection:
+  admissible_install_review_disposition_classes:
+    - denied
+  notes: >
+    An active quarantine denies install commit. The review MUST
+    cite ADR-0012 denial reasons such as kill_switch_tripped,
+    publisher_quarantined, or policy_pack_denies_extension.
+
+conformance_tests:
+  - id: quarantine_freezes_all_slices
+    description: >
+      budget_frozen_on_quarantine MUST carry a non-null
+      frozen_at_utc_instant on every budget slice.
+  - id: quarantine_denies_install
+    description: >
+      budget_frozen_on_quarantine MUST pair with
+      install_review_disposition_class = denied.
+  - id: quarantine_requires_repair_hook
+    description: >
+      budget_frozen_on_quarantine MUST carry a non-null
+      repair_hook_ref.

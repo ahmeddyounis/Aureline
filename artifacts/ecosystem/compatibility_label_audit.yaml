@@ -1,0 +1,545 @@
+# Compatibility-label accuracy-audit matrix.
+#
+# Machine-readable matrix binding observed runtime state
+# (target-discovery confidence class, capability-lifecycle axes,
+# host-boundary cue stack, managed-workspace lifecycle state, freshness
+# class, signature-reverify state, and adapter-confidence class) to the
+# set of admissible compatibility_label_state tokens a review surface
+# MAY render. The matrix names the downgrade reason tokens a review
+# MUST cite when evidence is stale, incomplete, or unreachable, and
+# enforces the "explicit downgrade" rule from the install-review seed
+# packet.
+#
+# Companion to docs/verification/install_review_packet.md and
+# fixtures/ecosystem/install_review_manifest.yaml. If this file and the
+# packet doc disagree, the packet doc wins for reviewer language and
+# the frozen taxonomies
+# (docs/runtime/target_discovery_and_install_review_taxonomy.md and
+# docs/adr/0012-extension-manifest-permission-publisher-policy.md) win
+# for tooling.
+#
+# Rules:
+#   - Every row MUST quote tokens from the frozen vocabularies; no new
+#     tokens. Extending the matrix with additional combinations is
+#     additive-minor. Repurposing a row is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml.
+#   - A compatibility-label state projected outside this matrix for a
+#     given observed state is non-conforming. The review MUST deny
+#     commit with review_disclosure_incomplete until the matrix is
+#     extended.
+#   - Every downgrade row MUST name at least one downgrade reason from
+#     the frozen vocabulary. Silent downgrade is non-conforming.
+
+compatibility_label_audit_schema_version: 1
+
+sources:
+  packet_doc: docs/verification/install_review_packet.md
+  install_review_manifest: fixtures/ecosystem/install_review_manifest.yaml
+  activation_budget_examples: artifacts/ecosystem/activation_budget_examples
+  target_discovery_taxonomy: docs/runtime/target_discovery_and_install_review_taxonomy.md
+  extension_manifest_adr: docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  capability_lifecycle_adr: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  managed_workspace_lifecycle: artifacts/runtime/managed_workspace_lifecycle.yaml
+  effective_permission_schema: schemas/extensions/effective_permission.schema.json
+
+# Frozen vocabularies re-exported for tooling discovery.
+compatibility_label_state_vocabulary:
+  - fully_supported
+  - best_effort_supported
+  - beta_supported
+  - degraded_compatible
+  - compatibility_bridge_required
+  - unsupported_on_target
+  - unclaimed_ecosystem_row
+  - compatibility_unknown_pending_probe
+
+target_discovery_confidence_class_vocabulary:
+  - canonical_declared
+  - canonical_materialised
+  - probed_consistent
+  - probed_divergent
+  - inferred_from_ambient
+  - unresolved_requires_user
+  - resolver_unavailable
+
+capability_lifecycle_state_vocabulary:
+  - experimental
+  - alpha
+  - beta
+  - preview
+  - generally_available
+  - deprecated
+  - retired
+
+capability_support_class_vocabulary:
+  - fully_supported
+  - best_effort
+  - untested
+  - provisional
+  - unsupported
+
+freshness_class_vocabulary:
+  - authoritative_live
+  - warm_cached
+  - stale
+  - unreachable
+
+adapter_confidence_class_vocabulary:
+  - adapter_authoritative_match
+  - adapter_probed_consistent
+  - adapter_probed_divergent
+  - adapter_inferred_from_session
+  - adapter_unreachable
+
+managed_workspace_lifecycle_state_vocabulary:
+  - undeclared
+  - provisioning
+  - warming
+  - ready
+  - idle_suspended
+  - snapshot_paused
+  - hibernated
+  - recovering
+  - quarantined
+  - retiring
+  - retired
+
+signature_reverify_state_vocabulary:
+  - reverify_passed_authoritative
+  - reverify_passed_warm_cached
+  - reverify_pending
+  - reverify_failed
+  - reverify_unavailable
+
+downgrade_reason_vocabulary:
+  - observed_target_class_mismatch
+  - observed_platform_arch_mismatch
+  - observed_host_contract_family_mismatch
+  - observed_artifact_transport_mismatch
+  - observed_toolchain_version_out_of_range
+  - observed_capability_lifecycle_row_not_generally_available
+  - observed_freshness_floor_unmet
+  - observed_freshness_class_below_declared
+  - observed_resolver_unavailable
+  - observed_adapter_unreachable
+  - observed_managed_workspace_not_ready
+  - observed_evidence_stale_beyond_freshness_window
+  - observed_evidence_incomplete_missing_axis
+
+# Audit rows map one observed-state bundle to the admissible label
+# set. Reviewers pick the label whose admissible row most tightly
+# matches the observed state; rendering any other label is
+# non-conforming.
+
+rows:
+
+  - id: row.observed.fully_live_and_generally_available
+    observed:
+      target_discovery_confidence_class: canonical_declared
+      capability_lifecycle_state: generally_available
+      capability_support_class: fully_supported
+      freshness_class: authoritative_live
+      signature_reverify_state: reverify_passed_authoritative
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+      managed_workspace_lifecycle_state:
+        - undeclared
+        - ready
+      declared_axis_mismatches: []
+    admissible_labels:
+      - fully_supported
+    required_downgrade_reasons_when_downgraded: []
+    notes: >
+      Canonical declared identity plus live authoritative evidence
+      with no axis mismatch is the only state that admits the
+      fully_supported label.
+
+  - id: row.observed.warm_cached_materialised
+    observed:
+      target_discovery_confidence_class:
+        - canonical_materialised
+        - probed_consistent
+      capability_lifecycle_state: generally_available
+      capability_support_class:
+        - fully_supported
+        - best_effort
+      freshness_class: warm_cached
+      signature_reverify_state:
+        - reverify_passed_authoritative
+        - reverify_passed_warm_cached
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+        - adapter_inferred_from_session
+      managed_workspace_lifecycle_state:
+        - undeclared
+        - ready
+      declared_axis_mismatches: []
+    admissible_labels:
+      - best_effort_supported
+    required_downgrade_reasons_when_downgraded:
+      - observed_freshness_class_below_declared
+    notes: >
+      Warm-cached or materialised evidence cannot claim
+      fully_supported. best_effort_supported MUST cite
+      observed_freshness_class_below_declared.
+
+  - id: row.observed.beta_or_preview_lifecycle
+    observed:
+      target_discovery_confidence_class:
+        - canonical_declared
+        - canonical_materialised
+        - probed_consistent
+      capability_lifecycle_state:
+        - beta
+        - preview
+      capability_support_class:
+        - best_effort
+        - provisional
+      freshness_class:
+        - authoritative_live
+        - warm_cached
+      signature_reverify_state:
+        - reverify_passed_authoritative
+        - reverify_passed_warm_cached
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+      managed_workspace_lifecycle_state:
+        - undeclared
+        - ready
+      declared_axis_mismatches: []
+    admissible_labels:
+      - beta_supported
+      - best_effort_supported
+    required_downgrade_reasons_when_downgraded:
+      - observed_capability_lifecycle_row_not_generally_available
+    notes: >
+      Beta or preview lifecycle narrows the label to beta_supported
+      or best_effort_supported and MUST cite the lifecycle reason.
+
+  - id: row.observed.bridged_host_with_arch_or_host_contract_mismatch
+    observed:
+      target_discovery_confidence_class:
+        - canonical_declared
+        - canonical_materialised
+        - probed_consistent
+      capability_lifecycle_state: generally_available
+      capability_support_class:
+        - best_effort
+        - provisional
+      freshness_class:
+        - authoritative_live
+        - warm_cached
+      signature_reverify_state:
+        - reverify_passed_authoritative
+        - reverify_passed_warm_cached
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+      managed_workspace_lifecycle_state:
+        - undeclared
+        - ready
+      declared_axis_mismatches:
+        - observed_platform_arch_mismatch
+        - observed_host_contract_family_mismatch
+      host_boundary_cue_required:
+        - bridged_host_boundary
+    admissible_labels:
+      - compatibility_bridge_required
+      - degraded_compatible
+    required_downgrade_reasons_when_downgraded:
+      - observed_platform_arch_mismatch
+      - observed_host_contract_family_mismatch
+    notes: >
+      Platform or host-contract mismatch absorbed by a bridge
+      profile. The bridged_host_boundary cue MUST be present.
+
+  - id: row.observed.toolchain_version_out_of_range
+    observed:
+      target_discovery_confidence_class:
+        - canonical_declared
+        - canonical_materialised
+        - probed_consistent
+      capability_lifecycle_state: generally_available
+      capability_support_class:
+        - best_effort
+      freshness_class:
+        - authoritative_live
+        - warm_cached
+      signature_reverify_state:
+        - reverify_passed_authoritative
+        - reverify_passed_warm_cached
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+      managed_workspace_lifecycle_state:
+        - undeclared
+        - ready
+      declared_axis_mismatches:
+        - observed_toolchain_version_out_of_range
+    admissible_labels:
+      - degraded_compatible
+    required_downgrade_reasons_when_downgraded:
+      - observed_toolchain_version_out_of_range
+    notes: >
+      Toolchain version outside the declared range admits only
+      degraded_compatible with the toolchain reason.
+
+  - id: row.observed.managed_workspace_not_ready
+    observed:
+      target_discovery_confidence_class:
+        - canonical_materialised
+        - probed_consistent
+      capability_lifecycle_state: generally_available
+      capability_support_class:
+        - best_effort
+      freshness_class:
+        - warm_cached
+      signature_reverify_state:
+        - reverify_passed_authoritative
+        - reverify_passed_warm_cached
+      adapter_confidence_class:
+        - adapter_authoritative_match
+        - adapter_probed_consistent
+      managed_workspace_lifecycle_state:
+        - warming
+        - recovering
+      declared_axis_mismatches: []
+    admissible_labels:
+      - best_effort_supported
+      - degraded_compatible
+    required_downgrade_reasons_when_downgraded:
+      - observed_managed_workspace_not_ready
+    notes: >
+      Warming or recovering managed workspaces admit only
+      best_effort or degraded labels until the lifecycle reaches
+      ready.
+
+  - id: row.observed.resolver_unavailable
+    observed:
+      target_discovery_confidence_class:
+        - resolver_unavailable
+      freshness_class:
+        - unreachable
+        - stale
+    admissible_labels:
+      - compatibility_unknown_pending_probe
+    required_downgrade_reasons_when_downgraded:
+      - observed_resolver_unavailable
+    notes: >
+      resolver_unavailable forces the label to
+      compatibility_unknown_pending_probe; the review defers commit.
+
+  - id: row.observed.adapter_unreachable
+    observed:
+      target_discovery_confidence_class:
+        - canonical_materialised
+        - probed_consistent
+        - probed_divergent
+      adapter_confidence_class:
+        - adapter_unreachable
+    admissible_labels:
+      - compatibility_unknown_pending_probe
+    required_downgrade_reasons_when_downgraded:
+      - observed_adapter_unreachable
+    notes: >
+      adapter_unreachable forces the label to
+      compatibility_unknown_pending_probe regardless of other
+      target-discovery evidence.
+
+  - id: row.observed.unresolved_requires_user
+    observed:
+      target_discovery_confidence_class:
+        - unresolved_requires_user
+    admissible_labels:
+      - compatibility_unknown_pending_probe
+    required_downgrade_reasons_when_downgraded:
+      - observed_evidence_incomplete_missing_axis
+    notes: >
+      unresolved_requires_user defers the label to
+      compatibility_unknown_pending_probe and prompts the user to
+      pick the target.
+
+  - id: row.observed.probed_divergent_mandatory_axis
+    observed:
+      target_discovery_confidence_class: probed_divergent
+      declared_axis_mismatches:
+        - observed_target_class_mismatch
+        - observed_host_contract_family_mismatch
+        - observed_artifact_transport_mismatch
+    admissible_labels:
+      - unsupported_on_target
+    required_downgrade_reasons_when_downgraded:
+      - observed_target_class_mismatch
+      - observed_host_contract_family_mismatch
+      - observed_artifact_transport_mismatch
+    notes: >
+      Divergence on a mandatory axis admits only
+      unsupported_on_target and denies commit with an ADR-0012
+      denial reason.
+
+  - id: row.observed.stale_evidence_beyond_freshness_window
+    observed:
+      freshness_class:
+        - stale
+      signature_reverify_state:
+        - reverify_passed_warm_cached
+        - reverify_pending
+    admissible_labels:
+      - compatibility_unknown_pending_probe
+    required_downgrade_reasons_when_downgraded:
+      - observed_evidence_stale_beyond_freshness_window
+    notes: >
+      Stale evidence beyond the declared freshness window denies
+      fully_supported and best_effort labels; the review defers.
+
+  - id: row.observed.signature_reverify_failed
+    observed:
+      signature_reverify_state:
+        - reverify_failed
+    admissible_labels:
+      - unsupported_on_target
+    required_downgrade_reasons_when_downgraded:
+      - observed_evidence_incomplete_missing_axis
+    notes: >
+      Signature reverify failures MUST raise
+      mirror_continuity_broken or
+      extension_signature_verification_failed and deny install.
+
+  - id: row.observed.managed_workspace_quarantined_or_retired
+    observed:
+      managed_workspace_lifecycle_state:
+        - quarantined
+        - retiring
+        - retired
+    admissible_labels:
+      - unsupported_on_target
+    required_downgrade_reasons_when_downgraded:
+      - observed_managed_workspace_not_ready
+    notes: >
+      Quarantined, retiring, and retired managed workspaces are not
+      admissible install targets; label renders unsupported_on_target
+      and install denies.
+
+  - id: row.observed.no_declared_compatibility_packet
+    observed:
+      declared_axis_mismatches:
+        - observed_evidence_incomplete_missing_axis
+      compatibility_label_packet_ref_required: false
+    admissible_labels:
+      - unclaimed_ecosystem_row
+    required_downgrade_reasons_when_downgraded:
+      - observed_evidence_incomplete_missing_axis
+      - observed_host_contract_family_mismatch
+    notes: >
+      Subjects whose target class or host-contract family has no
+      compatibility-label packet claim render as
+      unclaimed_ecosystem_row and deny install.
+
+# Downgrade rule: when the observed state matches two rows, the more
+# restrictive row wins. Silent upgrade from a restrictive row to a
+# permissive one is non-conforming.
+downgrade_rule_ordering:
+  restrictive_first:
+    - row.observed.signature_reverify_failed
+    - row.observed.managed_workspace_quarantined_or_retired
+    - row.observed.probed_divergent_mandatory_axis
+    - row.observed.resolver_unavailable
+    - row.observed.adapter_unreachable
+    - row.observed.unresolved_requires_user
+    - row.observed.stale_evidence_beyond_freshness_window
+    - row.observed.no_declared_compatibility_packet
+    - row.observed.bridged_host_with_arch_or_host_contract_mismatch
+    - row.observed.toolchain_version_out_of_range
+    - row.observed.managed_workspace_not_ready
+    - row.observed.beta_or_preview_lifecycle
+    - row.observed.warm_cached_materialised
+    - row.observed.fully_live_and_generally_available
+
+# Cross-walk from label to admissible install_review_disposition_class
+# tokens. The install-review sheet MUST keep these aligned.
+label_to_disposition_matrix:
+  - label: fully_supported
+    admissible_dispositions:
+      - proposed
+      - awaiting_user_confirmation
+      - awaiting_admin_confirmation
+      - approved
+  - label: best_effort_supported
+    admissible_dispositions:
+      - proposed
+      - awaiting_user_confirmation
+      - awaiting_admin_confirmation
+      - approved
+  - label: beta_supported
+    admissible_dispositions:
+      - proposed
+      - awaiting_user_confirmation
+      - awaiting_admin_confirmation
+      - approved
+  - label: degraded_compatible
+    admissible_dispositions:
+      - proposed
+      - awaiting_user_confirmation
+      - awaiting_admin_confirmation
+      - approved
+      - deferred_pending_freshness
+  - label: compatibility_bridge_required
+    admissible_dispositions:
+      - proposed
+      - awaiting_user_confirmation
+      - awaiting_admin_confirmation
+      - approved
+  - label: unsupported_on_target
+    admissible_dispositions:
+      - denied
+      - expired_superseded
+  - label: unclaimed_ecosystem_row
+    admissible_dispositions:
+      - denied
+      - deferred_pending_freshness
+  - label: compatibility_unknown_pending_probe
+    admissible_dispositions:
+      - deferred_pending_freshness
+      - deferred_pending_provider_link
+
+# Conformance tests every review surface's rendering MUST pass.
+conformance_tests:
+  - id: no_silent_downgrade
+    description: >
+      A review that renders any label other than fully_supported or
+      beta_supported MUST carry at least one downgrade reason
+      drawn from the frozen downgrade_reason_vocabulary.
+  - id: resolver_unavailable_forces_unknown_label
+    description: >
+      A target-discovery confidence class of resolver_unavailable
+      MUST force compatibility_label_state =
+      compatibility_unknown_pending_probe regardless of other
+      evidence.
+  - id: adapter_unreachable_forces_unknown_label
+    description: >
+      An adapter_confidence_class of adapter_unreachable MUST force
+      compatibility_label_state =
+      compatibility_unknown_pending_probe.
+  - id: quarantined_or_retired_forces_unsupported
+    description: >
+      managed_workspace_lifecycle_state in {quarantined, retiring,
+      retired} MUST force compatibility_label_state =
+      unsupported_on_target.
+  - id: unclaimed_row_denies_commit
+    description: >
+      compatibility_label_state = unclaimed_ecosystem_row MUST pair
+      with install_review_disposition_class in {denied,
+      deferred_pending_freshness}.
+  - id: fully_supported_requires_authoritative_live
+    description: >
+      compatibility_label_state = fully_supported MUST pair with
+      freshness_class = authoritative_live and
+      signature_reverify_state = reverify_passed_authoritative.
+  - id: bridge_label_requires_bridged_host_cue
+    description: >
+      compatibility_label_state = compatibility_bridge_required
+      MUST carry bridged_host_boundary in the install-review
+      record's host_boundary_cue_stack.

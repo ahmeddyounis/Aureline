@@ -1,0 +1,110 @@
+__example__:
+  name: budget_frozen_on_retiring_or_retired
+  scenario: >
+    Managed workspace mw:alpha-0306 is retiring; the managed image
+    has been superseded and the control plane is draining sessions
+    in the retirement window. Budget slices freeze at last-observed
+    values; every slice carries a frozen_at_utc_instant. The review
+    MUST deny new binding installs and surface a typed migration
+    hint to the successor image.
+  activation_budget_class: budget_frozen_on_retiring_or_retired
+  install_review_case_ref: null
+
+record_kind: activation_budget_example_record
+activation_budget_class: budget_frozen_on_retiring_or_retired
+example_id: activation_budget.example.budget_frozen_on_retiring_or_retired
+schema_version: 1
+
+managed_workspace_instance_ref: mw:alpha-0306
+managed_workspace_lifecycle_state: retiring
+managed_workspace_reviewer_label: expired
+expiry_reason_class: successor_image_available
+budget_window:
+  window_kind: instance_lifetime
+  window_start: 2026-01-01T00:00:00Z
+  window_end: 2026-05-01T00:00:00Z
+budget_slices:
+  cold_start_seconds:
+    budgeted: 600
+    consumed: 520
+    remaining: 80
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  warming_seconds:
+    budgeted: 1800
+    consumed: 1420
+    remaining: 380
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  ready_seconds:
+    budgeted: 28800
+    consumed: 22000
+    remaining: 6800
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  idle_suspend_events:
+    budgeted: 40
+    consumed: 22
+    remaining: 18
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  hibernation_reactivation_events:
+    budgeted: 4
+    consumed: 1
+    remaining: 3
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  recovery_seconds:
+    budgeted: 600
+    consumed: 40
+    remaining: 560
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+  snapshot_minutes:
+    budgeted: 120
+    consumed: 30
+    remaining: 90
+    frozen_at_utc_instant: 2026-04-22T18:00:00Z
+degradation_markers:
+  - reason: retirement_drain_window_active
+    since: 2026-04-22T18:00:00Z
+    slice: null
+    severity: absorbing_drain
+threshold_breach_markers: []
+host_boundary_cue: managed_workspace_boundary
+freshness_class: warm_cached
+redaction_class: metadata_and_hashes_only
+migration_hint_ref: migration:managed-workspace:mw-alpha-successor-0307
+
+rollback_posture_interaction:
+  admissible_rollback_posture_classes:
+    - no_rollback_required
+    - rollback_pending_admin_confirmation
+  notes: >
+    Retirement does not by itself require rollback; admin may
+    direct rollback of recent installs before the drain window
+    closes. The posture MUST cite the migration hint when rollback
+    crosses the retirement boundary.
+
+quarantine_posture_interaction:
+  admissible_quarantine_posture_classes:
+    - no_quarantine_active
+  notes: >
+    A retiring instance does not carry an active quarantine. If a
+    quarantine event fires, the class moves to
+    budget_frozen_on_quarantine.
+
+install_review_disposition_projection:
+  admissible_install_review_disposition_classes:
+    - denied
+  notes: >
+    A retiring or retired instance denies new binding installs.
+    Migration to the successor image is the admissible path.
+
+conformance_tests:
+  - id: retiring_freezes_all_slices
+    description: >
+      budget_frozen_on_retiring_or_retired MUST carry a non-null
+      frozen_at_utc_instant on every budget slice.
+  - id: retiring_requires_migration_hint
+    description: >
+      budget_frozen_on_retiring_or_retired MUST carry a non-null
+      migration_hint_ref.
+  - id: retiring_denies_binding_install
+    description: >
+      A retiring or retired instance MUST deny
+      managed_workspace_binding_install commit.

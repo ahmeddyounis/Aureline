@@ -1,0 +1,124 @@
+__example__:
+  name: multi_slice_exhausted_admin_confirmation
+  scenario: >
+    Managed workspace mw:alpha-0304 has crossed budget on both the
+    ready_seconds and idle_suspend_events slices within the same
+    rolling window. Admin intervention is required before any
+    further install proceeds; the review MUST deny or defer to
+    admin confirmation.
+  activation_budget_class: multi_slice_exhausted
+  install_review_case_ref: null
+
+record_kind: activation_budget_example_record
+activation_budget_class: multi_slice_exhausted
+example_id: activation_budget.example.multi_slice_exhausted_admin_confirmation
+schema_version: 1
+
+managed_workspace_instance_ref: mw:alpha-0304
+managed_workspace_lifecycle_state: ready
+managed_workspace_reviewer_label: ready
+budget_window:
+  window_kind: billing_cycle
+  window_start: 2026-04-01T00:00:00Z
+  window_end: 2026-04-30T00:00:00Z
+budget_slices:
+  cold_start_seconds:
+    budgeted: 600
+    consumed: 360
+    remaining: 240
+    frozen_at_utc_instant: null
+  warming_seconds:
+    budgeted: 1800
+    consumed: 1100
+    remaining: 700
+    frozen_at_utc_instant: null
+  ready_seconds:
+    budgeted: 28800
+    consumed: 32400
+    remaining: -3600
+    frozen_at_utc_instant: null
+  idle_suspend_events:
+    budgeted: 40
+    consumed: 46
+    remaining: -6
+    frozen_at_utc_instant: null
+  hibernation_reactivation_events:
+    budgeted: 4
+    consumed: 1
+    remaining: 3
+    frozen_at_utc_instant: null
+  recovery_seconds:
+    budgeted: 600
+    consumed: 120
+    remaining: 480
+    frozen_at_utc_instant: null
+  snapshot_minutes:
+    budgeted: 120
+    consumed: 80
+    remaining: 40
+    frozen_at_utc_instant: null
+degradation_markers:
+  - reason: ready_slice_exceeded
+    since: 2026-04-20T09:10:00Z
+    slice: ready_seconds
+    severity: blocking_admin_review
+  - reason: idle_suspend_event_budget_exceeded
+    since: 2026-04-22T14:05:00Z
+    slice: idle_suspend_events
+    severity: blocking_admin_review
+threshold_breach_markers:
+  - slice: ready_seconds
+    threshold_fraction: 0.80
+    observed_fraction: 1.1250
+    since: 2026-04-19T22:30:00Z
+    reason: ready_slice_approaching_ceiling_superseded_by_exceeded
+  - slice: idle_suspend_events
+    threshold_fraction: 0.80
+    observed_fraction: 1.1500
+    since: 2026-04-22T10:00:00Z
+    reason: idle_suspend_events_approaching_ceiling_superseded_by_exceeded
+admin_intervention_ref: ticket:admin-budget-review:mw-alpha-0304-202604
+host_boundary_cue: managed_workspace_boundary
+freshness_class: authoritative_live
+redaction_class: metadata_and_hashes_only
+
+rollback_posture_interaction:
+  admissible_rollback_posture_classes:
+    - no_rollback_required
+    - rollback_pending_admin_confirmation
+  notes: >
+    Multi-slice exhaustion may trigger admin-directed rollback of
+    recent binding installs; the posture MUST cite the admin
+    intervention ref.
+
+quarantine_posture_interaction:
+  admissible_quarantine_posture_classes:
+    - no_quarantine_active
+    - quarantined_by_policy_pack
+  notes: >
+    An admin policy pack MAY move the instance to
+    quarantined_by_policy_pack to cap further consumption; in that
+    case the class moves to budget_frozen_on_quarantine.
+
+install_review_disposition_projection:
+  admissible_install_review_disposition_classes:
+    - awaiting_admin_confirmation
+    - denied
+  notes: >
+    Admin confirmation or denial are the only admissible
+    dispositions; silent approval is non-conforming.
+
+conformance_tests:
+  - id: multi_slice_requires_two_or_more_markers
+    description: >
+      multi_slice_exhausted MUST carry two or more entries in
+      degradation_markers.
+  - id: multi_slice_requires_admin_intervention_ref
+    description: >
+      multi_slice_exhausted MUST carry a non-null
+      admin_intervention_ref.
+  - id: multi_slice_blocks_approval_without_admin_review
+    description: >
+      Disposition MAY be approved only after the admin-intervention
+      ticket records a positive decision; silent approval is non-
+      conforming.

@@ -1,0 +1,69 @@
+__example__:
+  name: budget_unknown_pending_refresh
+  scenario: >
+    Managed workspace mw:alpha-0307 binding is recent; the managed
+    control plane is unreachable. The install-review sheet cannot
+    quote budget slices with authoritative freshness. Budget slices
+    are null; the class is budget_unknown_pending_refresh and the
+    disposition defers commit.
+  activation_budget_class: budget_unknown_pending_refresh
+  install_review_case_ref: null
+
+record_kind: activation_budget_example_record
+activation_budget_class: budget_unknown_pending_refresh
+example_id: activation_budget.example.budget_unknown_pending_refresh
+schema_version: 1
+
+managed_workspace_instance_ref: mw:alpha-0307
+managed_workspace_lifecycle_state: recovering
+managed_workspace_reviewer_label: degraded
+budget_window: null
+budget_slices: null
+degradation_markers:
+  - reason: control_plane_unreachable
+    since: 2026-04-23T11:55:00Z
+    slice: null
+    severity: absorbing_refresh_pending
+threshold_breach_markers: []
+host_boundary_cue: managed_workspace_boundary
+freshness_class: stale
+redaction_class: metadata_and_hashes_only
+last_refresh_attempt_utc_instant: 2026-04-23T11:55:00Z
+next_refresh_attempt_utc_instant: 2026-04-23T12:05:00Z
+
+rollback_posture_interaction:
+  admissible_rollback_posture_classes:
+    - no_rollback_required
+  notes: >
+    An unknown budget state does not force rollback; the review
+    simply defers commit until the refresh completes.
+
+quarantine_posture_interaction:
+  admissible_quarantine_posture_classes:
+    - no_quarantine_active
+  notes: >
+    If quarantine fires during the refresh, the class moves to
+    budget_frozen_on_quarantine.
+
+install_review_disposition_projection:
+  admissible_install_review_disposition_classes:
+    - deferred_pending_freshness
+  notes: >
+    Silent approval is non-conforming; the review MUST defer until
+    the next refresh attempt produces authoritative evidence.
+
+conformance_tests:
+  - id: unknown_requires_null_slices
+    description: >
+      budget_unknown_pending_refresh MUST carry budget_slices =
+      null and budget_window = null.
+  - id: unknown_forces_deferred_disposition
+    description: >
+      budget_unknown_pending_refresh MUST pair with
+      install_review_disposition_class =
+      deferred_pending_freshness.
+  - id: unknown_carries_freshness_below_authoritative
+    description: >
+      budget_unknown_pending_refresh MUST carry freshness_class in
+      {warm_cached, stale, unreachable}; authoritative_live is
+      non-conforming in this class.

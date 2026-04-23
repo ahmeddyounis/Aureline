@@ -1,0 +1,115 @@
+__example__:
+  name: slice_exceeded_with_degradation_marker_warming
+  scenario: >
+    Managed workspace mw:alpha-0303 is warming; the warming_seconds
+    slice has crossed budget and the control plane has emitted a
+    typed degradation marker. The install-review sheet MUST defer
+    commit to admin confirmation.
+  activation_budget_class: slice_exceeded_with_degradation_marker
+  install_review_case_ref: install_review.activation_budget_overage.managed_workspace_binding
+
+record_kind: activation_budget_example_record
+activation_budget_class: slice_exceeded_with_degradation_marker
+example_id: activation_budget.example.slice_exceeded_with_degradation_marker_warming
+schema_version: 1
+
+managed_workspace_instance_ref: mw:alpha-0303
+managed_workspace_lifecycle_state: warming
+managed_workspace_reviewer_label: warming
+budget_window:
+  window_kind: rolling_seven_day
+  window_start: 2026-04-16T00:00:00Z
+  window_end: 2026-04-23T00:00:00Z
+budget_slices:
+  cold_start_seconds:
+    budgeted: 600
+    consumed: 320
+    remaining: 280
+    frozen_at_utc_instant: null
+  warming_seconds:
+    budgeted: 1800
+    consumed: 2160
+    remaining: -360
+    frozen_at_utc_instant: null
+  ready_seconds:
+    budgeted: 28800
+    consumed: 900
+    remaining: 27900
+    frozen_at_utc_instant: null
+  idle_suspend_events:
+    budgeted: 40
+    consumed: 2
+    remaining: 38
+    frozen_at_utc_instant: null
+  hibernation_reactivation_events:
+    budgeted: 4
+    consumed: 0
+    remaining: 4
+    frozen_at_utc_instant: null
+  recovery_seconds:
+    budgeted: 600
+    consumed: 0
+    remaining: 600
+    frozen_at_utc_instant: null
+  snapshot_minutes:
+    budgeted: 120
+    consumed: 0
+    remaining: 120
+    frozen_at_utc_instant: null
+degradation_markers:
+  - reason: warming_slice_exceeded
+    since: 2026-04-23T11:22:00Z
+    slice: warming_seconds
+    severity: blocking_admin_review
+threshold_breach_markers:
+  - slice: warming_seconds
+    threshold_fraction: 0.80
+    observed_fraction: 1.2000
+    since: 2026-04-23T10:45:00Z
+    reason: warming_slice_approaching_ceiling_superseded_by_exceeded
+host_boundary_cue: managed_workspace_boundary
+freshness_class: warm_cached
+redaction_class: metadata_and_hashes_only
+
+rollback_posture_interaction:
+  admissible_rollback_posture_classes:
+    - no_rollback_required
+    - rollback_pending_admin_confirmation
+  notes: >
+    A slice overage does not itself require rollback, but a
+    concurrent admin-revoke of the binding may set
+    rollback_pending_admin_confirmation.
+
+quarantine_posture_interaction:
+  admissible_quarantine_posture_classes:
+    - no_quarantine_active
+  notes: >
+    If quarantine fires, the class moves to
+    budget_frozen_on_quarantine rather than remaining in
+    slice_exceeded_with_degradation_marker.
+
+install_review_disposition_projection:
+  admissible_install_review_disposition_classes:
+    - awaiting_admin_confirmation
+    - denied
+  notes: >
+    slice_exceeded MUST set disposition to
+    awaiting_admin_confirmation unless an admin-exemption policy-
+    pack row is applied.
+
+conformance_tests:
+  - id: exceeded_requires_non_empty_degradation_markers
+    description: >
+      slice_exceeded_with_degradation_marker MUST carry at least
+      one entry in degradation_markers; empty lists are non-
+      conforming.
+  - id: exceeded_forces_admin_confirmation
+    description: >
+      slice_exceeded_with_degradation_marker MUST set
+      install_review_disposition_class =
+      awaiting_admin_confirmation unless an admin-exemption policy-
+      pack row is applied.
+  - id: exceeded_names_affected_slice
+    description: >
+      Every degradation_markers entry MUST name the affected
+      slice token.
