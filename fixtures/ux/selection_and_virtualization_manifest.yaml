@@ -1,0 +1,380 @@
+# Selection, virtualization, and focus-return corpus.
+#
+# Stable ids for dense collection review across virtualized tables and
+# lists, filtered collections, hidden-selected disclosure, resize/reflow,
+# detached panels, multi-window transfers, and range-select/clear/extend
+# flows. Later accessibility packets, support exports, and collection UX
+# reviews should cite these ids rather than inventing per-surface scope
+# labels.
+
+schema_version: 1
+manifest_id: ux.selection_and_virtualization_manifest.v1
+status: seeded
+
+overview_page: docs/verification/focus_and_batch_scope_packet.md
+interaction_safety_contract_source: docs/ux/shell_interaction_safety_contract.md
+live_review_contract_source: docs/ux/live_update_review_contract.md
+accessibility_review_source: docs/accessibility/review_charter.md
+focus_return_examples_readme: artifacts/ux/focus_return_examples/README.md
+range_selection_at_readme: artifacts/accessibility/range_selection_at_cases/README.md
+
+selection_scope_class_vocabulary:
+  - current_item_only
+  - visible_range
+  - loaded_set
+  - all_matching_query
+  - explicit_custom_set
+
+count_term_vocabulary:
+  - selected
+  - visible
+  - loaded
+  - matching
+  - hidden_selected
+  - blocked
+  - skipped
+  - not_loaded
+
+focus_return_state_vocabulary:
+  - returned_exact
+  - returned_nearest_safe_ancestor
+  - returned_current_batch_or_detail_owner
+  - returned_placeholder_announced
+  - focus_loss_denied
+
+range_anchor_state_vocabulary:
+  - stable
+  - reset_after_clear
+  - stale_after_dataset_change
+
+verdict_vocabulary:
+  - passed
+  - degraded
+  - failed
+
+cases:
+  - case_id: selection_scope.virtualized_table.select_visible_then_matching
+    collection_shape: virtualized_table
+    surface_group: dense_collection_batch_review
+    title: Virtualized table escalates from visible rows to all matching query
+    summary: >
+      A query-backed result grid begins with a visible-row selection,
+      then offers an explicit second step to all matching results while
+      keeping selected, visible, loaded, matching, and blocked counts
+      distinct.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - ARCH-SLICE-007
+      - A11Y-CORE-002
+      - A11Y-SR-003
+    selection_scope_progression:
+      - visible_range
+      - all_matching_query
+    required_count_terms:
+      - selected
+      - visible
+      - loaded
+      - matching
+      - blocked
+    optional_count_terms:
+      - hidden_selected
+      - not_loaded
+    expected_focus_return_state: returned_exact
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - select-all-visible label remains explicit
+      - select-all-matching is a second deliberate step
+      - selection bar names selected count and scope class
+      - batch review sheet separates included and blocked members
+    evidence_refs:
+      - fixtures/accessibility/ime_and_text_cases/virtualized_selection_scope.yaml
+      - fixtures/ux/live_review_examples/result_grid_frozen_buffered_reorder.json
+      - artifacts/ux/focus_return_examples/batch_review_sheet_return_exact.yaml
+      - artifacts/accessibility/range_selection_at_cases/current_row_selection.yaml
+      - artifacts/accessibility/range_selection_at_cases/batch_review_keyboard_only_open.yaml
+    verdict_examples:
+      passed: >
+        The surface says "23 visible selected", then "2,341 matching
+        selected", and closes batch review back onto the invoking row.
+      degraded: >
+        Matching total is approximate or some selected identities are
+        not yet loaded, but the approximation and not-loaded posture
+        remain visible before commit.
+      failed: >
+        One ambiguous "2,341 selected" label replaces visible, loaded,
+        and matching truth, or the surface silently widens from visible
+        to all matching.
+
+  - case_id: selection_scope.virtualized_list.hidden_selected_after_filter
+    collection_shape: virtualized_list
+    surface_group: dense_collection_batch_review
+    title: Filtered virtualized list keeps hidden-selected and not-loaded truth separate
+    summary: >
+      A durable custom selection survives filter changes, keeps hidden
+      selected items inspectable, and distinguishes identities that are
+      selected but not currently loaded from those merely hidden by the
+      filter.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - ARCH-SLICE-007
+      - A11Y-CORE-002
+      - A11Y-SR-003
+    selection_scope_progression:
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - hidden_selected
+      - matching
+      - not_loaded
+    optional_count_terms:
+      - blocked
+      - skipped
+    expected_focus_return_state: returned_nearest_safe_ancestor
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - hidden-selected summary remains inspectable from keyboard
+      - not-loaded selected members remain a separate count
+      - clearing the filter or clearing the selection is explicit
+    evidence_refs:
+      - artifacts/accessibility/range_selection_at_cases/hidden_selected_count_inspection.yaml
+      - artifacts/ux/focus_return_examples/filtered_row_return_nearest_safe_ancestor.yaml
+    verdict_examples:
+      passed: >
+        The surface says "17 selected, 5 outside current filter, 2 not
+        loaded" and returns focus to the collection summary because the
+        originating row is filtered out.
+      degraded: >
+        The surface can only give an approximate matching total, but it
+        still separates hidden-selected from not-loaded identities.
+      failed: >
+        Hidden-selected items disappear from both the selection bar and
+        the batch review sheet, or not-loaded members are collapsed into
+        hidden-selected with no distinction.
+
+  - case_id: selection_scope.filtered_collection.blocked_vs_skipped_breakout
+    collection_shape: virtualized_table
+    surface_group: dense_collection_batch_review
+    title: Blocked and skipped members remain separate stories
+    summary: >
+      A dense collection batch action distinguishes objects that cannot
+      be acted on before commit from objects intentionally skipped during
+      or after the action because they were already compliant or no-op.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - TOOL-EVT-001
+      - A11Y-CORE-002
+    selection_scope_progression:
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - blocked
+      - skipped
+    optional_count_terms:
+      - hidden_selected
+      - matching
+    expected_focus_return_state: returned_exact
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - blocked count appears before commit
+      - skipped count appears in aftermath without rewriting blocked history
+    evidence_refs:
+      - fixtures/ux/interaction_safety_cases/destructive_bulk_rename_apply.yaml
+    verdict_examples:
+      passed: >
+        The review sheet says "3 blocked" before commit and the
+        aftermath says "4 skipped as already compliant" without changing
+        the blocked count.
+      degraded: >
+        The skipped count is only available after commit, but the
+        surface still keeps it distinct from the pre-commit blocked
+        count.
+      failed: >
+        Blocked and skipped collapse into one "7 unavailable" label or
+        the aftermath rewrites pre-commit blocked members into skipped.
+
+  - case_id: selection_scope.resize_reflow.selection_bar_survives_compact_shell
+    collection_shape: responsive_reflow
+    surface_group: dense_collection_batch_review
+    title: Resize and reflow preserve selection-bar truth
+    summary: >
+      A dense collection narrows into compact shell or mixed-DPI reflow
+      without dropping selected count, scope label, hidden-selected
+      disclosure, or the safe route back into batch review.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - A11Y-CORE-002
+      - A11Y-SR-003
+    selection_scope_progression:
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - hidden_selected
+      - blocked
+    optional_count_terms:
+      - matching
+      - skipped
+    expected_focus_return_state: returned_nearest_safe_ancestor
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - selection bar fields survive compact shell
+      - focus remains keyboard reachable after reflow
+      - the recovery route stays in the same window
+    evidence_refs:
+      - fixtures/ux/interaction_safety_cases/destructive_bulk_rename_apply.yaml
+      - fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+      - artifacts/ux/focus_return_examples/filtered_row_return_nearest_safe_ancestor.yaml
+    verdict_examples:
+      passed: >
+        Compact shell preserves selected count, scope label, blocked or
+        hidden summary, and the next useful focus target.
+      degraded: >
+        Focus returns to the collection summary instead of the exact row
+        because the reflow hid the original row, but the announcement
+        explains the move.
+      failed: >
+        Reflow hides the scope summary or drops focus onto collapsed
+        chrome with no re-entry affordance.
+
+  - case_id: selection_scope.detached_panel.review_focus_owner
+    collection_shape: detached_panel_review
+    surface_group: dense_collection_batch_review
+    title: Detached review panel returns focus to the current batch owner
+    summary: >
+      A review or detail pane detaches from the primary collection, owns
+      the current batch, and closes focus back to the current
+      batch/detail owner rather than a stale hidden row.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - A11Y-CORE-002
+    selection_scope_progression:
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - hidden_selected
+      - blocked
+    optional_count_terms:
+      - matching
+      - skipped
+    expected_focus_return_state: returned_current_batch_or_detail_owner
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - detached panel names its owner explicitly
+      - close returns focus to the current batch/detail owner
+    evidence_refs:
+      - artifacts/ux/focus_return_examples/detached_panel_return_current_batch_owner.yaml
+    verdict_examples:
+      passed: >
+        The detached panel closes back to the selection bar or detail
+        owner that now governs the batch, and the owner still names the
+        hidden-selected or blocked summary.
+      degraded: >
+        The owner remains explicit, but the exact row no longer exists
+        and focus returns to the detail header instead.
+      failed: >
+        Closing the detached panel warps focus to a background window or
+        loses the batch owner entirely.
+
+  - case_id: selection_scope.multi_window_transfer.focus_locality
+    collection_shape: multi_window_transfer
+    surface_group: dense_collection_batch_review
+    title: Multi-window transfers keep focus history local and scope truth explicit
+    summary: >
+      A selected batch moves through a second window, owner dialog, or
+      off-screen recovery path without stealing focus from the original
+      window or losing the ability to explain where the batch now lives.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - ARCH-SLICE-007
+      - A11Y-CORE-002
+    selection_scope_progression:
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - hidden_selected
+      - blocked
+      - not_loaded
+    optional_count_terms:
+      - matching
+      - skipped
+    expected_focus_return_state: returned_placeholder_announced
+    expected_range_anchor_state: stable
+    required_disclosures:
+      - focus history remains window-local
+      - moved batch owner is named explicitly
+      - placeholder-announced return explains why exact return is impossible
+    evidence_refs:
+      - artifacts/ux/focus_return_examples/multi_window_transfer_placeholder_announced.yaml
+      - fixtures/platform/window_display_cases/offscreen_dialog_owner_recenter.json
+      - fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+    verdict_examples:
+      passed: >
+        Moving the owner window or recentering an off-screen dialog
+        keeps focus local to the active window and preserves the batch
+        owner label.
+      degraded: >
+        Exact return is impossible after a transfer, but a visible
+        placeholder in the owning window explains the move and preserves
+        the selection summary.
+      failed: >
+        Background events in another window steal focus, or the batch
+        owner changes windows with no disclosure.
+
+  - case_id: selection_scope.range_select_clear_extend.identity_anchor
+    collection_shape: virtualized_list
+    surface_group: dense_collection_batch_review
+    title: Range select, clear, and extend preserve anchor honesty
+    summary: >
+      A range selection extends across virtualized rows, clears
+      intentionally, then establishes a new anchor before the next
+      extend step.
+    covered_requirement_ids:
+      - ARCH-UX-005
+      - A11Y-CORE-002
+      - A11Y-SR-003
+    selection_scope_progression:
+      - current_item_only
+      - visible_range
+      - explicit_custom_set
+    required_count_terms:
+      - selected
+      - visible
+    optional_count_terms:
+      - hidden_selected
+      - not_loaded
+    expected_focus_return_state: returned_exact
+    expected_range_anchor_state: reset_after_clear
+    required_disclosures:
+      - anchor remains stable through extension
+      - clear-selection resets the anchor explicitly
+      - the next extend step establishes a new anchor, not a stale one
+    evidence_refs:
+      - fixtures/accessibility/ime_and_text_cases/range_selection_anchor_stability.yaml
+      - artifacts/accessibility/range_selection_at_cases/range_extension_across_virtualized_rows.yaml
+    verdict_examples:
+      passed: >
+        The anchor stays at row 5 while the range extends, clear
+        selection resets it, and the next extend begins from the new
+        current row.
+      degraded: >
+        The surface needs an explicit summary command to announce the new
+        anchor after clear, but it still does not drift silently.
+      failed: >
+        Sorting, filtering, or virtualization silently moves the anchor,
+        or clear selection keeps using the previous anchor without
+        telling the user.
+
+coverage_contract:
+  required_cases:
+    - selection_scope.virtualized_table.select_visible_then_matching
+    - selection_scope.virtualized_list.hidden_selected_after_filter
+    - selection_scope.filtered_collection.blocked_vs_skipped_breakout
+    - selection_scope.resize_reflow.selection_bar_survives_compact_shell
+    - selection_scope.detached_panel.review_focus_owner
+    - selection_scope.multi_window_transfer.focus_locality
+    - selection_scope.range_select_clear_extend.identity_anchor
+  packet_rule: >
+    Dense-collection packets, support exports, and accessibility reviews
+    must preserve the selection_scope_class, count terms, focus-return
+    state, range-anchor state, and reviewer verdict without substituting
+    per-surface synonyms.

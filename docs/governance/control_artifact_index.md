@@ -383,6 +383,17 @@ and scopes.
   [`/artifacts/io/save_rewrite_classes.yaml`](../../artifacts/io/save_rewrite_classes.yaml).
   Save-truth, whole-file-rewrite, and recovery-label evidence should
   cite those ids rather than inventing per-surface save banners.
+- The focus-return and batch-scope verification seed now lives under
+  [`/fixtures/ux/selection_and_virtualization_manifest.yaml`](../../fixtures/ux/selection_and_virtualization_manifest.yaml)
+  with narrative guidance in
+  [`/docs/verification/focus_and_batch_scope_packet.md`](../verification/focus_and_batch_scope_packet.md),
+  reviewer-facing focus-return examples in
+  [`/artifacts/ux/focus_return_examples/`](../../artifacts/ux/focus_return_examples/),
+  and assistive-tech range-selection cases in
+  [`/artifacts/accessibility/range_selection_at_cases/`](../../artifacts/accessibility/range_selection_at_cases/).
+  Dense-collection scope truth, focus return, and range-selection
+  accessibility evidence should cite those ids rather than inventing
+  per-surface selection vocabulary.
 - Release completeness is no longer implicit. The canonical graph and
   machine-readable rules now live in
   [`docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)

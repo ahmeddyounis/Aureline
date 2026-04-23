@@ -412,6 +412,16 @@ code.
   [`/artifacts/state/query_family_examples/`](../artifacts/state/query_family_examples/),
   and the condensed order audits in
   [`/artifacts/state/invalidation_order_trace_examples/`](../artifacts/state/invalidation_order_trace_examples/).
+- [`verification/focus_and_batch_scope_packet.md`](./verification/focus_and_batch_scope_packet.md)
+  — seed verification packet for dense-collection focus return,
+  selected/visible/loaded/matching truth, hidden-selected disclosure,
+  blocked-versus-skipped separation, and range-selection accessibility.
+  Pairs with the machine-readable corpus in
+  [`/fixtures/ux/selection_and_virtualization_manifest.yaml`](../fixtures/ux/selection_and_virtualization_manifest.yaml),
+  the focus-return examples in
+  [`/artifacts/ux/focus_return_examples/`](../artifacts/ux/focus_return_examples/),
+  and the assistive-tech cases in
+  [`/artifacts/accessibility/range_selection_at_cases/`](../artifacts/accessibility/range_selection_at_cases/).
 - [`architecture/generated_artifact_safe_edit_policy.md`](./architecture/generated_artifact_safe_edit_policy.md)
   — shared safe-edit posture for generated, mirrored, imported, and
   preview artifacts. Freezes the compact cross-surface posture record
