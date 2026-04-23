@@ -41,3 +41,5 @@ Index:
 | [`remote_attach_approval_host.json`](./remote_attach_approval_host.json) | `approval_surface`; remote-attach approval row with invisible formatting in the host label and approval-scope visibility requirements |
 | [`support_export_sanitized_snapshot.json`](./support_export_sanitized_snapshot.json) | `support_export_surface`; sanitized support-export snapshot that preserves representation labels and suspicious-content summaries |
 | [`delete_review_metadata_only.json`](./delete_review_metadata_only.json) | `delete_review_surface`; last-visible-evidence review after origin loss, narrowed to metadata-only export |
+| [`embedded_webview_isolated_remote.json`](./embedded_webview_isolated_remote.json) | `rich_preview`; embedded remote webview held at `IsolatedRemoteActive` under verified origin, connectivity, and permissions, with sanitized-snapshot and metadata-only fallbacks |
+| [`browser_handoff_blocked_execution.json`](./browser_handoff_blocked_execution.json) | `docs_help_page`; confusable link where in-product execution is blocked and the path forward is a system-browser handoff after raw-target inspection |

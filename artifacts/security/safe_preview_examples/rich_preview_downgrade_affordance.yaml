@@ -1,0 +1,69 @@
+example_id: security.safe_preview.rich_preview_notebook_downgrade
+schema_version: 1
+title: Rich preview downgrades from active to sanitized snapshot on trust loss
+surface_family: rich_preview
+detector_outcome: sanitize
+prior_detector_outcome: isolate
+current_trust_class: SanitizedRich
+downgrade_posture: deny_active_and_reopen_sanitized
+downgrade_triggers_observed:
+  - workspace_trust_revoked
+  - runtime_unhealthy
+related_case_id: case:preview:notebook_downgrade
+related_fixture: fixtures/security/suspicious_content_cases/rich_preview_notebook_downgrade.json
+related_refs:
+  - docs/security/suspicious_content_packet.md
+  - docs/security/safe_preview_trust_classes.md
+context:
+  finding_classes:
+    - raw_rendered_divergence
+  location_kind: rendered_preview_markup
+  annotation_mode: standard_inline
+affordance:
+  badge_label: Sanitized preview
+  warning_label: Active output downgraded to static snapshot
+  primary_surface_text: >
+    The notebook output previously qualified as active. Trust loss reopens
+    it as a static sanitized snapshot; the active badge is removed and the
+    snapshot_age is shown so the user does not mistake the view for live.
+  primary_action:
+    action_id: copy_rendered
+    representation_label: Copy rendered notebook output
+    body_posture: rendered_view
+    representation_class: rendered
+  secondary_actions:
+    - action_id: export_sanitized_snapshot
+      representation_label: Export sanitized notebook snapshot
+      body_posture: sanitized_static_snapshot
+      representation_class: sanitized
+      fallback_action_id: export_metadata_only
+      fallback_reason: active_content_not_exportable
+  disabled_actions:
+    - action: reactivate_widget
+      reason: >
+        The runtime or workspace trust required to re-enter the isolate
+        outcome is not currently held.
+    - action: copy_as_active_view
+      reason: >
+        Active content never leaves the product as active. The exported
+        representation is a sanitized static snapshot or metadata-only.
+  required_chrome:
+    - trust_class_badge
+    - owner_identity
+    - origin_identity
+    - capability_summary
+    - snapshot_age
+    - representation_label
+reveal_affordances:
+  - warning_badge_in_summary
+  - raw_toggle
+  - owner_origin_chip
+pass_condition: >
+  The "Active" chrome is gone after downgrade, the snapshot_age is
+  visible, and the rendered copy and sanitized export both name the
+  representation explicitly. The user cannot silently re-upgrade back
+  into the isolate outcome.
+fail_conditions:
+  - The active/trusted badge persists after trust loss.
+  - snapshot_age is missing from the downgraded view.
+  - A generic "Export" appears on the support/export path.

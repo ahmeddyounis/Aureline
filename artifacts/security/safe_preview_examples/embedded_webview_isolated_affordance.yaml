@@ -1,0 +1,81 @@
+example_id: security.safe_preview.embedded_webview_isolated_remote
+schema_version: 1
+title: Embedded webview stays IsolatedRemoteActive only under verified origin and live connectivity
+surface_family: rich_preview
+detector_outcome: isolate
+current_trust_class: IsolatedRemoteActive
+connectivity_state: connected_verified
+downgrade_posture_on_drift: downgrade_to_static_snapshot
+downgrade_triggers_possible:
+  - origin_changed
+  - connectivity_lost
+  - sandbox_unavailable
+related_case_id: case:preview:embedded_webview_isolated_remote
+related_fixture: fixtures/security/suspicious_content_cases/embedded_webview_isolated_remote.json
+related_refs:
+  - docs/security/suspicious_content_packet.md
+  - docs/security/safe_preview_trust_classes.md
+context:
+  finding_classes:
+    - raw_rendered_divergence
+  location_kind: rendered_preview_markup
+  annotation_mode: standard_inline
+affordance:
+  badge_label: Isolated remote preview
+  warning_label: Rendered preview differs from source
+  primary_surface_text: >
+    The embedded webview is active inside its declared isolation boundary
+    while origin is verified, connectivity is live, and the declared
+    permissions still hold. Publisher, host, origin, and connectivity
+    chrome stay visible; the rendered view is not equivalent to a raw
+    copy of the remote body.
+  primary_action:
+    action_id: copy_rendered
+    representation_label: Copy rendered preview
+    body_posture: rendered_view
+    representation_class: rendered
+  secondary_actions:
+    - action_id: export_sanitized_snapshot
+      representation_label: Export sanitized snapshot
+      body_posture: sanitized_static_snapshot
+      representation_class: sanitized
+      fallback_action_id: export_metadata_only
+      fallback_reason: active_content_not_exportable
+    - action_id: export_metadata_only
+      representation_label: Export metadata only
+      body_posture: metadata_only_envelope
+      representation_class: blocked_metadata_only
+      fallback_reason: snapshot_only_after_disconnect
+  disabled_actions:
+    - action: copy_raw_remote_body
+      reason: >
+        The remote body is not locally present under a verified source
+        contract; raw copy would be dishonest about what is being
+        transferred.
+    - action: treat_as_trusted_local
+      reason: >
+        Isolated remote content never inherits trusted-local chrome or
+        labels, even while active.
+  required_chrome:
+    - trust_class_badge
+    - owner_identity
+    - origin_identity
+    - publisher_or_host
+    - connectivity_state
+    - representation_label
+    - snapshot_age
+    - suspicious_content_badge
+reveal_affordances:
+  - warning_badge_in_summary
+  - owner_origin_chip
+  - raw_toggle
+pass_condition: >
+  The isolate chrome - publisher/host, verified origin, connectivity,
+  representation labels - stays visible while active, and any drift in
+  origin, connectivity, or sandbox narrows the surface to a static
+  sanitized snapshot or metadata-only. The rendered view is never
+  represented as a raw local copy.
+fail_conditions:
+  - An "Active" badge appears alone with no publisher/host or origin chrome.
+  - Connectivity loss leaves the active chrome in place.
+  - A "Copy rendered" action is offered from a metadata-only fallback view.

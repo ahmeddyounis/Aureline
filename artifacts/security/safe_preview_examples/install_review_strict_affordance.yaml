@@ -1,0 +1,82 @@
+example_id: security.safe_preview.install_review_confusable_publisher
+schema_version: 1
+title: Install review keeps the publisher in strict RawText mode and blocks in-product active execution
+surface_family: install_review
+detector_outcome: block
+current_trust_class: RawText
+annotation_mode: strict_trust_decision
+related_case_id: case:install:confusable_publisher
+related_fixture: fixtures/security/suspicious_content_cases/install_review_confusable_publisher.json
+related_refs:
+  - docs/security/suspicious_content_packet.md
+  - docs/security/safe_preview_trust_classes.md
+context:
+  finding_classes:
+    - mixed_script_confusable
+    - whole_script_confusable
+  location_kinds:
+    - publisher_name
+    - namespace_label
+stricter_annotation_requirements:
+  - warning_inline_on_primary_surface
+  - raw_identifier_visible_before_confirm
+  - owner_and_origin_visible_before_confirm
+  - export_summary_preserves_warning
+affordance:
+  badge_label: Raw text
+  warning_label: Mixed-script confusable publisher name
+  primary_surface_text: >
+    The install review shows the signed publisher and namespace in
+    raw-text mode with suspicious-content markers inline. The user can
+    read, copy, or escape the raw identifier before deciding. The
+    bundle body itself is not rendered actively anywhere in the
+    product.
+  primary_action:
+    action_id: copy_raw
+    representation_label: Copy raw publisher id
+    body_posture: exact_source_bytes
+    representation_class: raw
+  secondary_actions:
+    - action_id: copy_escaped
+      representation_label: Copy escaped publisher id
+      body_posture: escaped_source_text
+      representation_class: escaped
+    - action_id: export_metadata_only
+      representation_label: Export metadata only
+      body_posture: metadata_only_envelope
+      representation_class: blocked_metadata_only
+      fallback_reason: policy_requires_metadata_only
+  disabled_actions:
+    - action: render_bundle_contents_actively
+      reason: >
+        The install review never runs the bundle or renders it as active
+        content. Any execution is deferred until after the install is
+        explicitly approved and a capability sandbox is declared.
+    - action: approve_from_tooltip_or_secondary_inspector
+      reason: >
+        Trust-decision mode requires raw identifier, owner, and origin to
+        be visible on the primary surface before confirm. Hover-only or
+        inspector-only disclosure is non-conforming.
+  required_chrome:
+    - trust_class_badge
+    - owner_identity
+    - origin_identity
+    - publisher_or_host
+    - representation_label
+    - suspicious_content_badge
+reveal_affordances:
+  - inline_marker
+  - raw_toggle
+  - escaped_toggle
+  - warning_badge_in_summary
+  - owner_origin_chip
+pass_condition: >
+  The raw publisher and namespace are visible on the primary surface
+  before confirm, raw and escaped copy are both reachable, and the
+  export summary preserves the confusable warning alongside the signed
+  owner/origin chrome. No active rendering path is offered for the
+  bundle body.
+fail_conditions:
+  - The confusable warning is only available on hover.
+  - Confirm is reachable without the raw publisher label in view.
+  - A generic "Install" action skips the raw-target inspection path.

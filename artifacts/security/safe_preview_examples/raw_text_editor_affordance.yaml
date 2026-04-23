@@ -1,0 +1,66 @@
+example_id: security.safe_preview.raw_text_editor_bidi_identifier
+schema_version: 1
+title: Editor keeps bidi identifier in RawText with inline suspicious-content marker
+surface_family: editor_content
+detector_outcome: sanitize
+current_trust_class: RawText
+related_case_id: case:editor:bidi_identifier
+related_fixture: fixtures/security/suspicious_content_cases/editor_bidi_identifier.json
+related_refs:
+  - docs/security/suspicious_content_packet.md
+  - docs/security/safe_preview_trust_classes.md
+  - schemas/security/trust_class.schema.json
+  - schemas/security/text_representation_policy.schema.json
+context:
+  finding_classes:
+    - bidi_control
+    - invisible_formatting
+  location_kind: identifier
+  annotation_mode: standard_inline
+affordance:
+  badge_label: Raw text
+  warning_label: Bidi control present
+  primary_surface_text: >
+    The identifier contains reordering controls and invisible formatting.
+    Raw bytes stay visible; the marker is inline on the token.
+  primary_action:
+    action_id: copy_raw
+    representation_label: Copy raw identifier
+    body_posture: exact_source_bytes
+    representation_class: raw
+  secondary_actions:
+    - action_id: copy_escaped
+      representation_label: Copy escaped identifier
+      body_posture: escaped_source_text
+      representation_class: escaped
+    - action_id: export_metadata_only
+      representation_label: Export metadata only
+      body_posture: metadata_only_envelope
+      representation_class: blocked_metadata_only
+      fallback_reason: policy_requires_metadata_only
+  disabled_actions:
+    - action: render_sanitized_substitute
+      reason: >
+        The editor never silently normalizes or substitutes the identifier;
+        the user is the one who decides whether to rewrite the token.
+  required_chrome:
+    - trust_class_badge
+    - owner_identity
+    - origin_identity
+    - representation_label
+    - suspicious_content_badge
+reveal_affordances:
+  - inline_marker
+  - codepoint_inspector
+  - raw_toggle
+  - escaped_toggle
+  - copy_safe_representation
+pass_condition: >
+  The suspicious-content marker stays attached to the exact identifier
+  token, raw and escaped copy paths are both reachable on the primary
+  surface, and no copy or export action uses a generic "Copy" or
+  "Export" label.
+fail_conditions:
+  - The editor silently normalizes the bidi or invisible-formatting bytes.
+  - A bare "Copy" button appears without a representation label beside it.
+  - The suspicious-content badge is moved behind a tooltip or secondary inspector.
