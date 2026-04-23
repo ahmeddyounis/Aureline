@@ -1,0 +1,371 @@
+# Unicode position and protocol-coordinate corpus.
+#
+# Stable ids for the reviewer-facing cases that verify the internal
+# position model (UTF-8 bytes, line starts, grapheme clusters) and its
+# projections onto external protocol coordinates (UTF-8 byte offsets,
+# UTF-16 code units, UTF-32 code points, grapheme indices, visual
+# columns). Future buffer, VFS, LSP/DAP/notebook adapter, search, and
+# clipboard work should cite these ids instead of inventing per-surface
+# position language.
+
+schema_version: 1
+manifest_id: text.unicode_position_manifest.v1
+manifest_revision: 1
+status: seeded
+
+overview_page: docs/verification/text_fidelity_packet.md
+buffer_contract_source: docs/adr/0003-buffer-undo-large-file.md
+renderer_contract_source: docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+prd_source_anchor: ".t2/docs/Aureline_PRD.md#529-text-model-unicode-correctness-and-source-fidelity"
+uxspec_source_anchor: ".t2/docs/Aureline_UI_UX_Spec_Document.md#1111-text-fidelity-unicode-and-decode-recovery"
+
+case_class_vocabulary:
+  - position_model_required_case
+  - protocol_coordinate_required_case
+  - bidi_and_invisible_required_case
+
+internal_unit_vocabulary:
+  - utf8_byte_offset
+
+cluster_unit_vocabulary:
+  - grapheme_cluster
+
+external_projection_vocabulary:
+  - utf8_byte_offset
+  - utf16_code_unit
+  - utf32_code_point
+  - grapheme_index
+  - visual_column
+
+coordinate_adapter_class_vocabulary:
+  - lsp_adapter
+  - dap_adapter
+  - notebook_adapter
+  - search_result_adapter
+  - clipboard_exchange
+  - support_export
+
+translation_confidence_vocabulary:
+  - exact
+  - exact_for_bmp_only
+  - lossy_surrogate_split_blocked
+  - lossy_replacement_used
+  - unavailable_in_decode_recovery
+
+bidi_posture_vocabulary:
+  - logical_order_preserved
+  - reveal_controls_available
+  - suspicious_controls_flagged
+
+cases:
+  - case_id: corpus.text.position.ascii_ltr_baseline
+    case_class: position_model_required_case
+    title: ASCII LTR baseline has identical unit counts
+    summary: >
+      An ASCII-only single-line buffer is the baseline. UTF-8 byte
+      offsets, UTF-16 code units, UTF-32 code points, and grapheme
+      indices all coincide; no projection is lossy.
+    sample:
+      text: "hello"
+      utf8_byte_length: 5
+      grapheme_count: 5
+    expected_projection:
+      internal_unit: utf8_byte_offset
+      cluster_unit: grapheme_cluster
+      utf8_byte_offset:
+        count: 5
+      utf16_code_unit:
+        count: 5
+        translation_confidence: exact
+      utf32_code_point:
+        count: 5
+        translation_confidence: exact
+      grapheme_index:
+        count: 5
+        translation_confidence: exact
+
+  - case_id: corpus.text.position.bmp_cjk_mixed
+    case_class: position_model_required_case
+    title: BMP CJK mixed with Latin keeps one UTF-16 unit per code point
+    summary: >
+      A mix of ASCII and BMP CJK keeps UTF-16 code units equal to code
+      points but diverges from UTF-8 byte offsets. Grapheme count still
+      equals code-point count.
+    sample:
+      text: "ab中文"
+      utf8_byte_length: 8
+      grapheme_count: 4
+    expected_projection:
+      internal_unit: utf8_byte_offset
+      cluster_unit: grapheme_cluster
+      utf8_byte_offset:
+        count: 8
+      utf16_code_unit:
+        count: 4
+        translation_confidence: exact
+      utf32_code_point:
+        count: 4
+        translation_confidence: exact
+      grapheme_index:
+        count: 4
+        translation_confidence: exact
+
+  - case_id: corpus.text.position.supplementary_emoji
+    case_class: position_model_required_case
+    title: Supplementary-plane emoji is one grapheme, one code point, two UTF-16 units
+    summary: >
+      A single supplementary-plane emoji requires a UTF-16 surrogate
+      pair. The grapheme cluster and code point count remain one; the
+      surrogate pair MUST NOT be split by a protocol projection.
+    sample:
+      text: "\U0001F600"
+      utf8_byte_length: 4
+      grapheme_count: 1
+      code_points:
+        - "U+1F600"
+    expected_projection:
+      internal_unit: utf8_byte_offset
+      cluster_unit: grapheme_cluster
+      utf8_byte_offset:
+        count: 4
+      utf16_code_unit:
+        count: 2
+        translation_confidence: exact_for_bmp_only
+        surrogate_split_rule: lossy_surrogate_split_blocked
+      utf32_code_point:
+        count: 1
+        translation_confidence: exact
+      grapheme_index:
+        count: 1
+        translation_confidence: exact
+
+  - case_id: corpus.text.position.combining_marks_nfc_nfd
+    case_class: position_model_required_case
+    title: NFC and NFD of the same string preserve grapheme count
+    summary: >
+      The visible "é" may be represented as a precomposed code
+      point (NFC) or as base + combining acute (NFD). Grapheme count
+      stays 1; code-point and UTF-16 unit counts differ.
+    sample:
+      nfc:
+        text: "é"
+        code_points:
+          - "U+00E9"
+        grapheme_count: 1
+      nfd:
+        text: "é"
+        code_points:
+          - "U+0065"
+          - "U+0301"
+        grapheme_count: 1
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      grapheme_index:
+        nfc_count: 1
+        nfd_count: 1
+        translation_confidence: exact
+      utf16_code_unit:
+        nfc_count: 1
+        nfd_count: 2
+        translation_confidence: exact
+
+  - case_id: corpus.text.position.zwj_emoji_cluster
+    case_class: position_model_required_case
+    title: ZWJ emoji family is one grapheme, many code points
+    summary: >
+      A family emoji joined by zero-width joiners (e.g.
+      person + ZWJ + person + ZWJ + girl) is a single grapheme
+      cluster. Caret movement, deletion, and multi-cursor ops may not
+      split the sequence.
+    sample:
+      text: "\U0001F468‍\U0001F469‍\U0001F467"
+      code_points:
+        - "U+1F468"
+        - "U+200D"
+        - "U+1F469"
+        - "U+200D"
+        - "U+1F467"
+      grapheme_count: 1
+      utf8_byte_length: 18
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      grapheme_index:
+        count: 1
+        translation_confidence: exact
+      utf16_code_unit:
+        count: 8
+        translation_confidence: exact
+        surrogate_split_rule: lossy_surrogate_split_blocked
+      editing_invariants:
+        - grapheme_aware_caret_movement
+        - grapheme_aware_deletion
+        - grapheme_aware_multi_cursor
+
+  - case_id: corpus.text.position.regional_indicator_flag
+    case_class: position_model_required_case
+    title: Regional-indicator pair is one flag grapheme
+    summary: >
+      A pair of regional-indicator symbols forms one flag grapheme.
+      Splitting the pair would render two letters rather than a flag
+      and is forbidden for caret, selection, and clipboard operations.
+    sample:
+      text: "\U0001F1EF\U0001F1F5"
+      code_points:
+        - "U+1F1EF"
+        - "U+1F1F5"
+      grapheme_count: 1
+      utf8_byte_length: 8
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      grapheme_index:
+        count: 1
+        translation_confidence: exact
+      utf16_code_unit:
+        count: 4
+        surrogate_split_rule: lossy_surrogate_split_blocked
+
+  - case_id: corpus.text.position.variation_selector
+    case_class: position_model_required_case
+    title: Variation selector stays bound to its base code point
+    summary: >
+      A base code point followed by a text-style or emoji-style
+      variation selector is one grapheme. The selector may not migrate
+      to a neighboring cluster during edits.
+    sample:
+      text_style:
+        text: "❤︎"
+        code_points:
+          - "U+2764"
+          - "U+FE0E"
+        grapheme_count: 1
+      emoji_style:
+        text: "❤️"
+        code_points:
+          - "U+2764"
+          - "U+FE0F"
+        grapheme_count: 1
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      grapheme_index:
+        count: 1
+        translation_confidence: exact
+      editing_invariants:
+        - variation_selector_travels_with_base
+
+  - case_id: corpus.text.position.bidi_mixed_segment
+    case_class: bidi_and_invisible_required_case
+    title: Mixed Latin and Arabic preserves logical order
+    summary: >
+      A line mixing Latin tokens, Arabic words, and digits is stored
+      in logical order. The rendered visual order depends on the
+      Unicode Bidirectional Algorithm; editing still operates on
+      logical order, and bidi controls are available for inspection.
+    sample:
+      text: "path = مرحبا 2026"
+      grapheme_count: 14
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      bidi_posture: reveal_controls_available
+      editing_invariants:
+        - logical_order_preserved
+        - rtl_segment_editable_without_flip
+
+  - case_id: corpus.text.position.invisible_controls
+    case_class: bidi_and_invisible_required_case
+    title: Invisible controls are inspectable and flaggable
+    summary: >
+      A line that carries NBSP, zero-width space, and a right-to-left
+      override must be inspectable (character class, count, exact
+      codepoint) and surfaces may flag suspicious bidi controls
+      without silently stripping them.
+    sample:
+      text: "x y​‮z"
+      code_points:
+        - "U+0078"
+        - "U+00A0"
+        - "U+0079"
+        - "U+200B"
+        - "U+202E"
+        - "U+007A"
+      grapheme_count: 5
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      bidi_posture: suspicious_controls_flagged
+      inspector_fields:
+        - character_class
+        - count
+        - codepoint
+        - safe_copy_actions
+      reveal_modes_available:
+        - nbsp
+        - zero_width_space
+        - bidi_controls
+
+  - case_id: corpus.text.position.protocol_coordinate_lsp_utf16
+    case_class: protocol_coordinate_required_case
+    title: LSP UTF-16 projection is exact for BMP, surrogate-safe for supplementary
+    summary: >
+      An LSP adapter negotiates UTF-16 code units by default. A buffer
+      byte offset projects exactly to a UTF-16 unit for BMP content
+      and to the leading surrogate for a supplementary code point; the
+      projection MUST refuse to produce a range that splits a surrogate
+      pair.
+    sample:
+      text: "ab\U0001F600cd"
+      code_points:
+        - "U+0061"
+        - "U+0062"
+        - "U+1F600"
+        - "U+0063"
+        - "U+0064"
+    expected_projection:
+      internal_unit: utf8_byte_offset
+      coordinate_adapter_class: lsp_adapter
+      external_projection: utf16_code_unit
+      translation_confidence: exact_for_bmp_only
+      surrogate_split_rule: lossy_surrogate_split_blocked
+      invariants:
+        - buffer_is_authoritative_source
+        - adapter_translates_outward_only
+        - no_cached_second_coordinate_system
+
+  - case_id: corpus.text.position.protocol_coordinate_dap_utf8
+    case_class: protocol_coordinate_required_case
+    title: DAP UTF-8 byte projection is identity
+    summary: >
+      A DAP adapter negotiating UTF-8 byte offsets projects buffer
+      coordinates identically. This case pins the invariant that the
+      editor never converts to a foreign encoding for native consumers.
+    sample:
+      text: "line-1\nline-2\n"
+    expected_projection:
+      internal_unit: utf8_byte_offset
+      coordinate_adapter_class: dap_adapter
+      external_projection: utf8_byte_offset
+      translation_confidence: exact
+      invariants:
+        - buffer_is_authoritative_source
+        - identity_projection_for_utf8_consumers
+
+  - case_id: corpus.text.position.visual_column_tab_expanded
+    case_class: protocol_coordinate_required_case
+    title: Visual column depends on tab width, not buffer unit
+    summary: >
+      A line containing leading tabs has a visual column that depends
+      on the active tab width. Column-selection and rectangle-paste
+      actions MUST declare whether the rectangle is visual-column or
+      buffer-unit based.
+    sample:
+      text: "\tname\tvalue\n"
+      tab_width_variants:
+        - tab_width: 2
+          visual_columns: [0, 2, 6, 8, 13]
+        - tab_width: 4
+          visual_columns: [0, 4, 8, 12, 17]
+    expected_projection:
+      cluster_unit: grapheme_cluster
+      external_projection: visual_column
+      translation_confidence: lossy_replacement_used
+      invariants:
+        - visual_column_is_not_buffer_unit
+        - column_selection_declares_basis

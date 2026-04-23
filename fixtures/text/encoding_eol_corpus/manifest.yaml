@@ -1,0 +1,359 @@
+# Encoding / BOM / EOL corpus.
+#
+# Reviewer-facing cases that verify Aureline's open-time detection and
+# save-time fidelity projections for encoding, BOM, newline mode, and
+# final-newline state. Each row names the bytes that must be preserved,
+# the expected detection, and the expected save projection when no
+# further user intent is declared.
+#
+# Byte sequences are written as space-separated hexadecimal ("0xNN")
+# tokens so the corpus does not depend on checked-in binary artifacts.
+# Future text and VFS work may generate physical fixture files from
+# these rows; the corpus itself is authoritative.
+
+schema_version: 1
+manifest_id: text.encoding_eol_corpus.v1
+manifest_revision: 1
+status: seeded
+
+overview_page: docs/verification/text_fidelity_packet.md
+save_fidelity_packet: docs/verification/source_fidelity_and_undo_packet.md
+rewrite_class_source: artifacts/io/save_rewrite_classes.yaml
+buffer_contract_source: docs/adr/0003-buffer-undo-large-file.md
+save_contract_source: docs/adr/0006-vfs-save-cache-identity.md
+
+case_class_vocabulary:
+  - clean_detect_and_preserve_case
+  - explicit_conversion_case
+  - decode_recovery_case
+
+detected_encoding_vocabulary:
+  - utf8
+  - utf8_bom
+  - utf16le_bom
+  - utf16be_bom
+  - utf32le_bom
+  - utf32be_bom
+  - declared_override
+  - legacy_8bit_fallback
+  - unknown_binary_like
+
+detection_source_vocabulary:
+  - bom
+  - declared_metadata
+  - utf8_heuristic
+  - platform_default_with_threshold
+  - user_override
+  - workspace_policy
+  - decode_failed_no_choice
+
+bom_state_detected_vocabulary:
+  - present
+  - absent
+  - unknown_or_degraded
+
+newline_mode_detected_vocabulary:
+  - lf
+  - crlf
+  - cr_only
+  - mixed
+  - unknown_or_degraded
+
+final_newline_detected_vocabulary:
+  - present
+  - absent
+  - unknown_or_degraded
+
+save_consequence_class_vocabulary:
+  - preserve_untouched
+  - rewrite_with_warning
+  - block_pending_review
+
+cases:
+  - case_id: corpus.text.encoding.utf8_lf_no_bom_no_finalnl
+    case_class: clean_detect_and_preserve_case
+    title: UTF-8, LF, no BOM, no final newline
+    summary: >
+      Baseline UTF-8 text file with LF line endings and no final
+      newline. Open-time detection is heuristic and save-time fidelity
+      is preserve_untouched.
+    bytes_hex: "0x68 0x65 0x6C 0x6C 0x6F 0x0A 0x77 0x6F 0x72 0x6C 0x64"
+    byte_length: 11
+    expected_detection:
+      detected_encoding: utf8
+      detection_source: utf8_heuristic
+      bom_state_detected: absent
+      newline_mode_detected: lf
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.utf8_bom_crlf_finalnl
+    case_class: clean_detect_and_preserve_case
+    title: UTF-8 BOM, CRLF, final newline present
+    summary: >
+      UTF-8 file opened with BOM and CRLF line endings. BOM and CRLF
+      must survive an ordinary edit and save.
+    bytes_hex: "0xEF 0xBB 0xBF 0x61 0x0D 0x0A 0x62 0x0D 0x0A"
+    byte_length: 9
+    expected_detection:
+      detected_encoding: utf8_bom
+      detection_source: bom
+      bom_state_detected: present
+      newline_mode_detected: crlf
+      final_newline_detected: present
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.utf16le_bom_lf
+    case_class: clean_detect_and_preserve_case
+    title: UTF-16LE BOM, LF
+    summary: >
+      UTF-16LE-encoded file with BOM (FF FE) and LF line endings
+      (0x0A 0x00). Detection via BOM; save re-encodes back to UTF-16LE
+      with BOM.
+    bytes_hex: "0xFF 0xFE 0x61 0x00 0x0A 0x00 0x62 0x00"
+    byte_length: 8
+    expected_detection:
+      detected_encoding: utf16le_bom
+      detection_source: bom
+      bom_state_detected: present
+      newline_mode_detected: lf
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.utf16be_bom_crlf
+    case_class: clean_detect_and_preserve_case
+    title: UTF-16BE BOM, CRLF
+    summary: >
+      UTF-16BE file with BOM (FE FF) and CRLF line endings
+      (0x00 0x0D 0x00 0x0A). Covers the big-endian path at the
+      encode / decode boundary.
+    bytes_hex: "0xFE 0xFF 0x00 0x61 0x00 0x0D 0x00 0x0A 0x00 0x62"
+    byte_length: 10
+    expected_detection:
+      detected_encoding: utf16be_bom
+      detection_source: bom
+      bom_state_detected: present
+      newline_mode_detected: crlf
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.utf32le_bom_lf
+    case_class: clean_detect_and_preserve_case
+    title: UTF-32LE BOM, LF
+    summary: >
+      UTF-32LE file with BOM (FF FE 00 00) and LF line endings
+      (0x0A 0x00 0x00 0x00). Verifies four-byte code-unit handling in
+      the detection and save paths.
+    bytes_hex: "0xFF 0xFE 0x00 0x00 0x61 0x00 0x00 0x00 0x0A 0x00 0x00 0x00 0x62 0x00 0x00 0x00"
+    byte_length: 16
+    expected_detection:
+      detected_encoding: utf32le_bom
+      detection_source: bom
+      bom_state_detected: present
+      newline_mode_detected: lf
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.mixed_crlf_lf_dominant_lf
+    case_class: clean_detect_and_preserve_case
+    title: Mixed CRLF and LF lines, LF dominant
+    summary: >
+      A UTF-8 file with three LF lines and one CRLF line. Dominant
+      mode is LF; detection surfaces the mixed state and save
+      preserves the dominant mode without normalizing the CRLF line.
+    bytes_hex: "0x61 0x0A 0x62 0x0D 0x0A 0x63 0x0A 0x64 0x0A"
+    byte_length: 9
+    expected_detection:
+      detected_encoding: utf8
+      detection_source: utf8_heuristic
+      bom_state_detected: absent
+      newline_mode_detected: mixed
+      final_newline_detected: present
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: mixed_input_preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+    status_surface_cue: mixed_newlines_disclosed
+
+  - case_id: corpus.text.encoding.cr_only_classic
+    case_class: clean_detect_and_preserve_case
+    title: Lone-CR classic-Mac line endings
+    summary: >
+      A UTF-8 file with only CR as a line separator. Detection picks
+      cr_only; save preserves the mode unless the user explicitly
+      converts.
+    bytes_hex: "0x61 0x0D 0x62 0x0D 0x63"
+    byte_length: 5
+    expected_detection:
+      detected_encoding: utf8
+      detection_source: utf8_heuristic
+      bom_state_detected: absent
+      newline_mode_detected: cr_only
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+
+  - case_id: corpus.text.encoding.legacy_8bit_fallback
+    case_class: clean_detect_and_preserve_case
+    title: Legacy 8-bit fallback after UTF-8 heuristic rejects
+    summary: >
+      Bytes > 0x7F that do not form valid UTF-8 and have no BOM fall
+      through to the platform-default 8-bit fallback. Detection
+      records the fallback and its confidence threshold; save
+      preserves the adopted encoding unless the user converts.
+    bytes_hex: "0x41 0x42 0xE9 0x0A 0x43 0x44"
+    byte_length: 6
+    expected_detection:
+      detected_encoding: legacy_8bit_fallback
+      detection_source: platform_default_with_threshold
+      bom_state_detected: absent
+      newline_mode_detected: lf
+      final_newline_detected: absent
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: preserve_untouched
+      rewrite_class_hint: targeted_content_patch
+    status_surface_cue: detection_confidence_fallback
+
+  - case_id: corpus.text.encoding.invalid_utf8_bytes
+    case_class: decode_recovery_case
+    title: Truncated multi-byte UTF-8 sequence
+    summary: >
+      A truncated UTF-8 sequence (lead byte 0xE4 followed by only one
+      continuation byte) is invalid. The buffer enters decode-recovery
+      with raw bytes preserved; save is blocked until the user decides.
+    bytes_hex: "0x61 0x62 0xE4 0xB8 0x63"
+    byte_length: 5
+    expected_detection:
+      detected_encoding: utf8
+      detection_source: utf8_heuristic
+      bom_state_detected: absent
+      newline_mode_detected: unknown_or_degraded
+      final_newline_detected: unknown_or_degraded
+    expected_decode_recovery:
+      decode_recovery_class: invalid_byte_sequence_detected
+      raw_bytes_posture: preserved_in_recovery_journal
+    expected_save_projection:
+      encoding_state: unknown_or_degraded
+      bom_state: unknown_or_degraded
+      newline_mode_state: unknown_or_degraded
+      final_newline_state: unknown_or_degraded
+      save_consequence_class: block_pending_review
+      rewrite_class_hint: blocked_no_write
+
+  - case_id: corpus.text.encoding.unknown_encoding_ambiguous
+    case_class: decode_recovery_case
+    title: Ambiguous sniff is a decode-recovery unknown-encoding case
+    summary: >
+      Bytes that sniff as neither confident UTF-8 nor a confident
+      legacy 8-bit encoding trigger unknown-encoding fallback. The
+      user is prompted to choose; save is blocked in the meantime.
+    bytes_hex: "0x82 0xA0 0x82 0xA2 0x82 0xA4"
+    byte_length: 6
+    expected_detection:
+      detected_encoding: unknown_binary_like
+      detection_source: decode_failed_no_choice
+      bom_state_detected: absent
+      newline_mode_detected: unknown_or_degraded
+      final_newline_detected: unknown_or_degraded
+    expected_decode_recovery:
+      decode_recovery_class: unknown_encoding_fallback
+      raw_bytes_posture: preserved_in_recovery_journal
+    expected_save_projection:
+      encoding_state: unknown_or_degraded
+      bom_state: unknown_or_degraded
+      newline_mode_state: unknown_or_degraded
+      final_newline_state: unknown_or_degraded
+      save_consequence_class: block_pending_review
+      rewrite_class_hint: blocked_no_write
+
+  - case_id: corpus.text.encoding.binary_like_nul_dense
+    case_class: decode_recovery_case
+    title: NUL-dense content is classified as binary-like
+    summary: >
+      Content that contains NUL bytes outside a declared UTF-16 /
+      UTF-32 context is treated as binary-like. The buffer opens in
+      binary or large-file mode; text-edit and save are blocked.
+    bytes_hex: "0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A 0x00 0x00 0x00 0x0D 0x49 0x48 0x44 0x52"
+    byte_length: 16
+    expected_detection:
+      detected_encoding: unknown_binary_like
+      detection_source: decode_failed_no_choice
+      bom_state_detected: absent
+      newline_mode_detected: unknown_or_degraded
+      final_newline_detected: unknown_or_degraded
+    expected_decode_recovery:
+      decode_recovery_class: binary_like_blocked
+      raw_bytes_posture: preserved_unchanged
+    expected_save_projection:
+      encoding_state: unknown_or_degraded
+      bom_state: unknown_or_degraded
+      newline_mode_state: unknown_or_degraded
+      final_newline_state: unknown_or_degraded
+      save_consequence_class: block_pending_review
+      rewrite_class_hint: blocked_no_write
+
+  - case_id: corpus.text.encoding.bom_correction_added
+    case_class: explicit_conversion_case
+    title: User explicitly adds a BOM to a BOM-less UTF-8 file
+    summary: >
+      A file opened without a BOM is modified by an explicit command
+      to carry a BOM. Save must project bom_state = added_explicitly
+      and the save consequence must be rewrite_with_warning.
+    bytes_hex_before: "0x61 0x0A 0x62 0x0A"
+    bytes_hex_after: "0xEF 0xBB 0xBF 0x61 0x0A 0x62 0x0A"
+    expected_detection:
+      detected_encoding: utf8
+      detection_source: utf8_heuristic
+      bom_state_detected: absent
+      newline_mode_detected: lf
+      final_newline_detected: present
+    expected_save_projection:
+      encoding_state: preserved
+      bom_state: added_explicitly
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      save_consequence_class: rewrite_with_warning
+      rewrite_class_hint: targeted_content_patch
+    status_surface_cue: bom_state_changed_explicitly
