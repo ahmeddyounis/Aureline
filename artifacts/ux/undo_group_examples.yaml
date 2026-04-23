@@ -1,0 +1,827 @@
+# Undo-group lineage examples.
+#
+# Machine-readable companion to
+#   docs/ux/clipboard_history_contract.md
+#
+# This file pins worked examples for undo-group lineage across
+# the high-frequency editing and navigation surfaces. Every row
+# cites an undo class from artifacts/architecture/undo_class_rows.yaml,
+# a recovery class from artifacts/io/save_rewrite_classes.yaml /
+# docs/verification/source_fidelity_and_undo_packet.md, and the
+# failure-tier / lifecycle / delivery-surface vocabularies
+# already frozen elsewhere. The examples seed the contract's
+# acceptance expectations:
+#
+#   - grouped multi-file actions expose attribution and
+#     workspace-scoped lineage;
+#   - AI / extension apply rows name agent + invocation ids;
+#   - no-undo paths (only_revertible) take a preview +
+#     checkpoint before commit;
+#   - reopen-history rows cite the same mutation_journal_entry_ref
+#     as the undo-history row and the local-history compare row
+#     (the lineage-cross-link invariants in §7.6);
+#   - at least one example exercises undo, reopen-history, and
+#     local-history checkpoint truth for the same mutating
+#     operation (see row 'ai_apply_multi_file_with_reopen_and_checkpoint').
+#
+# Conformance:
+#   - Every row below conforms to this file's structural shape;
+#     there is no separate JSON schema yet. Adding a row is
+#     additive-minor and lands here, in the contract doc, and
+#     in the fixture corpus in the same change. Repurposing a
+#     row id, an undo_class_id, a recovery_class, or an
+#     invariant id is breaking and opens a new decision row.
+#
+# If this file and docs/ux/clipboard_history_contract.md
+# disagree, the contract doc wins and this file updates in the
+# same change.
+
+undo_group_examples_schema_version: 1
+
+sources:
+  contract_doc_ref: docs/ux/clipboard_history_contract.md
+  shell_interaction_safety_contract_ref: docs/ux/shell_interaction_safety_contract.md
+  buffer_undo_adr_ref: docs/adr/0003-buffer-undo-large-file.md
+  undo_class_rows_ref: artifacts/architecture/undo_class_rows.yaml
+  save_rewrite_classes_ref: artifacts/io/save_rewrite_classes.yaml
+  source_fidelity_and_undo_packet_ref: docs/verification/source_fidelity_and_undo_packet.md
+  text_fidelity_packet_ref: docs/verification/text_fidelity_packet.md
+  state_and_recovery_taxonomy_ref: docs/ux/state_and_recovery_taxonomy.md
+  failure_tier_matrix_ref: artifacts/ux/failure_tier_matrix.yaml
+  navigation_and_escalation_contract_ref: docs/ux/navigation_and_escalation_contract.md
+  attention_activity_taxonomy_ref: docs/ux/attention_activity_taxonomy.md
+  suspicious_content_packet_ref: docs/security/suspicious_content_packet.md
+  browser_handoff_adr_ref: docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  a11y_ime_packet_template_ref: docs/accessibility/a11y_ime_packet_template.md
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.4
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.5
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.6
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.8
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.11
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.12
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#19.4
+
+# ---------------------------------------------------------------------------
+# Re-exported vocabularies. Rows below MUST quote exactly one value from
+# each where applicable. Minting a value outside these sets is
+# non-conforming and opens a new decision row.
+# ---------------------------------------------------------------------------
+
+undo_class_id_vocabulary:
+  - text_edit
+  - multi_cursor_text_edit
+  - structural_edit
+  - refactor_single_file
+  - refactor_multi_file
+  - formatter_run
+  - save_participant_group
+  - imported_change
+  - machine_generated_change
+  - migration_change
+  - external_reload
+  - decode_recovery_change
+
+compensation_posture_vocabulary:
+  - compensatable
+  - only_revertible
+
+recovery_class_vocabulary:
+  - exact_undo
+  - compensating_rollback
+  - regenerate_from_canonical_source
+  - restore_from_checkpoint
+  - evidence_only_no_rerun
+  - no_recovery_available
+
+authority_class_vocabulary:
+  - user_initiated_local
+  - user_initiated_shared
+  - ai_initiated
+  - extension_initiated
+  - automation_recipe_initiated
+  - collaboration_remote_initiated
+  - admin_policy_initiated
+
+consequence_class_vocabulary:
+  - reversible_local
+  - recoverable_durable
+  - external_shared
+  - irreversible_high_blast
+
+preview_apply_revert_phase_vocabulary:
+  - propose
+  - preview
+  - apply
+  - validate
+  - keep_or_revert
+
+representation_class_vocabulary:
+  - raw
+  - rendered
+  - escaped
+  - sanitized
+  - sandboxed
+  - generated
+  - blocked_metadata_only
+
+failure_tier_vocabulary:
+  - tier.inline_issue
+  - tier.contextual_degraded
+  - tier.workflow_block
+  - tier.session_recovery
+  - tier.escalation_surface
+
+delivery_surface_class_vocabulary:
+  - inline_row_chrome
+  - contextual_banner
+  - status_item
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - panel
+  - window_attached_sheet
+  - dialog_modal
+  - full_surface_takeover
+
+lineage_cross_link_invariant_vocabulary:
+  - one_mutation_journal_entry_per_operation
+  - same_id_on_every_derived_row
+  - checkpoint_identity_follows_the_same_id
+  - recovery_class_agreement_across_surfaces
+
+controlled_label_vocabulary:
+  - "Partially ready"
+  - "Degraded"
+  - "Read-only degraded"
+
+# ---------------------------------------------------------------------------
+# Rows.
+# ---------------------------------------------------------------------------
+undo_group_examples:
+
+  # -------------------------------------------------------------------------
+  # 1. Single-cursor typing coalesces into one undo group.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:text_edit:single_cursor_typing
+    scenario_summary: >
+      The user types into a single buffer across a few seconds.
+      Keystrokes coalesce into one undo group per the text_edit
+      coalescing rule (word boundary, caret jump, selection
+      change, or configurable idle window). Undo reverses the
+      entire coalesced group atomically.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#7.1
+    surfaces:
+      - editor_canvas
+    authority_class: user_initiated_local
+    consequence_class: reversible_local
+    undo_class_id: text_edit
+    compensation_posture: compensatable
+    recovery_class: exact_undo
+    originator: user_keystroke
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: null
+      checkpoint_ref: null
+      review_artifact_ref: null
+    preview_and_checkpoint_required: false
+    preview_phase_required: false
+    checkpoint_required: false
+    mutation_journal_entry_ref: mutation:example:text_edit:01
+    workspace_group_id_ref: null
+    per_buffer_undo_group_id_ref: ug:buffer:editor-01:42
+    preview_apply_revert_phases_emitted:
+      - apply
+      - keep_or_revert
+    history_rows:
+      - surface: editor_canvas
+        row_kind: undo_history_row
+        label_rule: >
+          Labelled by the originator; when the originator is
+          user_keystroke the row renders as "Undo typing" (the
+          UX Style Guide owns final wording) and reveals the
+          coalesced byte range on focus.
+        mutation_journal_entry_ref: mutation:example:text_edit:01
+      - surface: activity_center
+        row_kind: reopen_history_row
+        label_rule: >
+          Activity-centre digest card cites the same
+          mutation_journal_entry_ref; reopen restores focus to
+          the originating editor pane (returned_exact).
+        mutation_journal_entry_ref: mutation:example:text_edit:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping: []
+    forbidden_rendering:
+      - "Flat 'Undo' label on a coalesced group that spans a selection replacement without disclosing the structural edit on focus"
+    journey_trace_class: open_edit_save
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 2. Workspace-scope refactor with preview + checkpoint.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:refactor_multi_file:rename_symbol_workspace
+    scenario_summary: >
+      The user invokes a workspace-scope rename that touches 42
+      buffers. The review surface renders a preview against a
+      basis snapshot; the user approves; a checkpoint is taken
+      before apply. A divergent edit in any member buffer after
+      the apply drops the redo stack for the workspace group;
+      the surface labels redo as invalidated rather than
+      silently dropping it. Rollback resolves via
+      restore_from_checkpoint, NOT exact_undo.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#7.2
+    surfaces:
+      - review_and_diff_canvas
+      - editor_canvas
+    authority_class: user_initiated_local
+    consequence_class: recoverable_durable
+    undo_class_id: refactor_multi_file
+    compensation_posture: only_revertible
+    recovery_class: restore_from_checkpoint
+    originator: "command:rename_symbol_workspace"
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: preview:rename-symbol:01
+      checkpoint_ref: checkpoint:rename-symbol:01
+      review_artifact_ref: review:rename-symbol:01
+    preview_and_checkpoint_required: true
+    preview_phase_required: true
+    checkpoint_required: true
+    mutation_journal_entry_ref: mutation:example:refactor_multi_file:01
+    workspace_group_id_ref: ws-group:rename-symbol:01
+    per_buffer_undo_group_id_ref: null
+    preview_apply_revert_phases_emitted:
+      - propose
+      - preview
+      - apply
+      - validate
+      - keep_or_revert
+    history_rows:
+      - surface: editor_canvas
+        row_kind: undo_history_row
+        label_rule: >
+          Per-buffer undo rows label the change as "Roll back
+          rename across workspace" (UX Style Guide owns final
+          wording). Flat 'Undo' is forbidden on
+          only_revertible groups.
+        mutation_journal_entry_ref: mutation:example:refactor_multi_file:01
+      - surface: review_and_diff_canvas
+        row_kind: durable_job_row
+        label_rule: >
+          Durable job row in the activity centre cites the
+          preview_handle, checkpoint handle, review artifact,
+          and the workspace_group_id.
+        mutation_journal_entry_ref: mutation:example:refactor_multi_file:01
+      - surface: activity_center
+        row_kind: reopen_history_row
+        label_rule: >
+          Reopen-history row surfaces "Compare with local
+          history" and "Restore from checkpoint" affordances;
+          both resolve back to the same mutation journal entry.
+        mutation_journal_entry_ref: mutation:example:refactor_multi_file:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - checkpoint_identity_follows_the_same_id
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: refactor.partial_apply
+        failure_tier_id: tier.contextual_degraded
+        delivery_surface_class: contextual_banner
+        rationale: >
+          Partial apply on a multi-file refactor renders a
+          surface-level banner plus the partial-outcome row on
+          the review surface; never a toast.
+    forbidden_rendering:
+      - "'Undo' label on an only_revertible group without recovery class disclosure"
+      - "silent redo-stack drop after a divergent edit in any member buffer"
+      - "toast-only progress rendering for the broad apply"
+    journey_trace_class: open_refactor_review
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 3. AI apply — canonical full-coverage example:
+  #    demonstrates undo + reopen-history + local-history
+  #    checkpoint truth for the SAME mutating operation.
+  #    Satisfies contract acceptance §7.6 / §13.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:machine_generated_change:ai_apply_multi_file_with_reopen_and_checkpoint
+    scenario_summary: >
+      The user approves an AI apply that mutates 14 buffers
+      (extract a shared helper across tests and production
+      code). The apply takes a preview, a checkpoint, and a
+      review artifact before commit. After apply, the user
+      closes the review surface. Reopening the apply from the
+      activity centre MUST resolve to the same mutation
+      journal entry; the editor's undo-history row for each
+      buffer MUST cite the same entry; the local-history
+      compare / restore surface MUST cite the same checkpoint
+      and the same entry. Rollback resolves via
+      restore_from_checkpoint.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#7.6
+    surfaces:
+      - ai_apply_canvas
+      - review_and_diff_canvas
+      - editor_canvas
+    authority_class: ai_initiated
+    consequence_class: recoverable_durable
+    undo_class_id: machine_generated_change
+    compensation_posture: only_revertible
+    recovery_class: restore_from_checkpoint
+    originator: "ai_apply"
+    attribution:
+      originator_identity_ref: is:actor:agent:coding-assist
+      agent_id: "agent:coding-assist"
+      invocation_id: "inv:2026-04-23:ai-apply:01"
+      preview_handle_ref: preview:ai-apply:01
+      checkpoint_ref: checkpoint:ai-apply:01
+      review_artifact_ref: review:ai-apply:01
+      citation_anchor_refs:
+        - anchor:docs:refactor-guide:helper-extraction
+    preview_and_checkpoint_required: true
+    preview_phase_required: true
+    checkpoint_required: true
+    mutation_journal_entry_ref: mutation:example:ai_apply:01
+    workspace_group_id_ref: ws-group:ai-apply:01
+    per_buffer_undo_group_id_ref: null
+    preview_apply_revert_phases_emitted:
+      - propose
+      - preview
+      - apply
+      - validate
+      - keep_or_revert
+    history_rows:
+      - surface: editor_canvas
+        row_kind: undo_history_row
+        label_rule: >
+          Per-buffer history rows label the change as "Roll
+          back AI apply" with agent id + invocation id on
+          reveal. Flat 'Undo' on the machine group denies
+          with undo_label_hides_recovery_class.
+        mutation_journal_entry_ref: mutation:example:ai_apply:01
+      - surface: activity_center
+        row_kind: reopen_history_row
+        label_rule: >
+          Reopen-history row pins agent + invocation + preview
+          handle. Reopening returns focus to the AI apply
+          canvas (returned_exact) and re-attaches to the same
+          workspace_group_id; a reopen that mints a fresh id
+          denies with reopen_history_lineage_forked_per_surface.
+        mutation_journal_entry_ref: mutation:example:ai_apply:01
+      - surface: local_history_inspector
+        row_kind: local_history_compare_row
+        label_rule: >
+          "Compare with local history" and "Restore from
+          checkpoint" render the same checkpoint_ref and the
+          same mutation_journal_entry_ref; compare surfaces
+          display the invoker / agent / invocation ids from
+          the shared entry.
+        mutation_journal_entry_ref: mutation:example:ai_apply:01
+      - surface: support_export_canvas
+        row_kind: evidence_packet_row
+        label_rule: >
+          Support bundle cites mutation_journal_entry_ref,
+          checkpoint handle, agent id, invocation id; raw
+          prompt text is redacted per
+          secret-broker / redaction contract.
+        mutation_journal_entry_ref: mutation:example:ai_apply:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - checkpoint_identity_follows_the_same_id
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: ai.partial_results
+        failure_tier_id: tier.inline_issue
+        delivery_surface_class: inline_row_chrome
+        rationale: >
+          Per-buffer apply failures render inline on the
+          failing row; cross-buffer partials promote to
+          contextual_degraded per the lifecycle:ai_action
+          mapping.
+      - state_token_ref: ai.rolled_back
+        failure_tier_id: tier.contextual_degraded
+        delivery_surface_class: activity_center_digest_card
+        rationale: >
+          Rolled-back apply preserves the evidence on the
+          digest card; label resolves to
+          prior_work_preserved_but_not_rerun user-impact
+          class.
+    forbidden_rendering:
+      - "reopen-history row that mints a fresh invocation id rather than re-citing the same mutation_journal_entry_ref"
+      - "undo row rendered as 'Undo' without agent attribution"
+      - "local-history compare row that cites a different checkpoint than the one the mutation journal entry references"
+      - "AI-generated copy without citation_anchor_refs when quoting authoritative material"
+    journey_trace_class: ai_apply_review
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 4. Save participant group — format-on-save + organise-imports.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:save_participant_group:format_and_organize_imports
+    scenario_summary: >
+      The user saves a buffer. The save pipeline runs
+      format-on-save and organise-imports as participants; both
+      complete under the same save group id. Any participant
+      rebase or abort (on-disk bytes changed mid-flight) rolls
+      the buffer back to the pre-pipeline snapshot rather than
+      committing a partial save; the history row labels the
+      outcome as compensating_rollback when a rebase happened.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#7.4
+    surfaces:
+      - editor_canvas
+    authority_class: user_initiated_local
+    consequence_class: recoverable_durable
+    undo_class_id: save_participant_group
+    compensation_posture: only_revertible
+    recovery_class: restore_from_checkpoint
+    originator: "command:save (format_on_save + organise_imports)"
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: null
+      checkpoint_ref: checkpoint:save:01
+      review_artifact_ref: null
+      participants:
+        - save_participant:format_on_save
+        - save_participant:organise_imports
+      save_mode: atomic_rename
+      rebased_or_aborted: false
+    preview_and_checkpoint_required: true
+    preview_phase_required: false
+    checkpoint_required: true
+    mutation_journal_entry_ref: mutation:example:save_participant_group:01
+    workspace_group_id_ref: null
+    per_buffer_undo_group_id_ref: ug:buffer:editor-03:101
+    preview_apply_revert_phases_emitted:
+      - apply
+      - validate
+      - keep_or_revert
+    history_rows:
+      - surface: editor_canvas
+        row_kind: undo_history_row
+        label_rule: >
+          "Roll back save (format + organize imports)" names
+          both participants; rebase / abort outcomes surface as
+          partial_outcome rows rather than 'Failed' banners.
+        mutation_journal_entry_ref: mutation:example:save_participant_group:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - checkpoint_identity_follows_the_same_id
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: save.participant_rebased
+        failure_tier_id: tier.inline_issue
+        delivery_surface_class: inline_row_chrome
+        rationale: >
+          Participant rebase renders inline on the failing
+          file's row with Retry this / Reveal last failure;
+          repeats promote per the save-pipeline escalation
+          rules.
+    forbidden_rendering:
+      - "partial save committed to disk without rollback when a participant aborted"
+      - "'Undo' label on the save group without naming participants"
+    journey_trace_class: open_edit_save
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 5. Settings import — only_revertible imported change.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:imported_change:settings_import
+    scenario_summary: >
+      The user imports a settings bundle. The settings-import
+      surface renders a preview (the migration report) and
+      takes a checkpoint before apply. The history row labels
+      the outcome as restore_from_checkpoint; reopen surfaces
+      a migration report row with review_migration_report /
+      roll_back_import / keep_imported_state hooks from the
+      frozen next-step decision set.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#7.4
+    surfaces:
+      - settings_import_canvas
+    authority_class: user_initiated_local
+    consequence_class: recoverable_durable
+    undo_class_id: imported_change
+    compensation_posture: only_revertible
+    recovery_class: restore_from_checkpoint
+    originator: "settings_import"
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: preview:settings-import:01
+      checkpoint_ref: checkpoint:settings-import:01
+      review_artifact_ref: review:settings-import:01
+      import_source: "settings-bundle-ref:01"
+      import_kind: "workspace_settings_bundle"
+    preview_and_checkpoint_required: true
+    preview_phase_required: true
+    checkpoint_required: true
+    mutation_journal_entry_ref: mutation:example:imported_change:01
+    workspace_group_id_ref: ws-group:settings-import:01
+    per_buffer_undo_group_id_ref: null
+    preview_apply_revert_phases_emitted:
+      - propose
+      - preview
+      - apply
+      - validate
+      - keep_or_revert
+    history_rows:
+      - surface: settings_import_canvas
+        row_kind: migration_report_row
+        label_rule: >
+          Migration-report row names the import source, the
+          review artifact, and the checkpoint; reveals
+          review_migration_report / roll_back_import /
+          keep_imported_state hooks on keyboard focus.
+        mutation_journal_entry_ref: mutation:example:imported_change:01
+      - surface: activity_center
+        row_kind: reopen_history_row
+        label_rule: >
+          Reopen-history digest card re-cites the same
+          mutation_journal_entry_ref; reopening resolves back
+          to the migration report with focus returned to the
+          invoker.
+        mutation_journal_entry_ref: mutation:example:imported_change:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - checkpoint_identity_follows_the_same_id
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: import.partial_apply
+        failure_tier_id: tier.contextual_degraded
+        delivery_surface_class: contextual_banner
+        rationale: >
+          Partial apply on settings import renders a surface-
+          level banner naming which rows imported and which
+          were rolled back.
+    forbidden_rendering:
+      - "silent import without a preview or checkpoint"
+      - "'Undo' label hiding that rollback resolves via checkpoint restore"
+    journey_trace_class: settings_import
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 6. Terminal multiline paste — evidence_only_no_rerun lineage.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:terminal_multiline_paste_then_run
+    scenario_summary: >
+      The user pastes a 120-line payload into a terminal
+      connected to a production host. The paste-classification
+      surface renders the multiline_terminal_paste +
+      paste_then_run preview; the host identity is visible in
+      the required-visible-field set. On commit the paste
+      emits no mutation journal entry (terminal output is
+      evidence_only_no_rerun); a silent re-run on session
+      restore denies with overclaiming reversibility.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#8
+    surfaces:
+      - terminal_canvas
+    authority_class: user_initiated_local
+    consequence_class: external_shared
+    undo_class_id: null
+    compensation_posture: null
+    recovery_class: evidence_only_no_rerun
+    originator: "terminal_paste"
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: preview:terminal-paste:01
+      checkpoint_ref: null
+      review_artifact_ref: null
+      high_risk_preview_classes:
+        - multiline_terminal_paste
+        - paste_then_run
+    preview_and_checkpoint_required: false
+    preview_phase_required: true
+    checkpoint_required: false
+    mutation_journal_entry_ref: null
+    workspace_group_id_ref: null
+    per_buffer_undo_group_id_ref: null
+    preview_apply_revert_phases_emitted:
+      - preview
+      - apply
+    history_rows:
+      - surface: terminal_canvas
+        row_kind: terminal_transcript_row
+        label_rule: >
+          Terminal transcript row marks the paste as
+          evidence-only; the row cannot be silently replayed
+          on a restored session. A surface that replays
+          transcript rows without user consent denies per the
+          interaction-safety contract.
+        mutation_journal_entry_ref: null
+    lineage_cross_link_invariants:
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: terminal.paste_refused
+        failure_tier_id: tier.workflow_block
+        delivery_surface_class: window_attached_sheet
+        rationale: >
+          A refused paste (policy / host boundary mismatch)
+          renders a workflow-block sheet with safe-abandon
+          and focus-return on dismiss.
+    forbidden_rendering:
+      - "tooltip-only disclosure of multiline terminal paste"
+      - "silent re-run of a restored transcript row"
+    journey_trace_class: terminal_paste_run
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  # -------------------------------------------------------------------------
+  # 7. Large paste into editor — durable mirror, basis-drift refusal.
+  # -------------------------------------------------------------------------
+  - record_kind: undo_group_example_row
+    undo_group_examples_schema_version: 1
+    row_id: undo_group:editor_large_paste_with_durable_mirror
+    scenario_summary: >
+      The user pastes 180,000 lines into an editor buffer.
+      The paste is above the tier_durable threshold; the
+      editor renders a top-of-pane progress indicator and
+      mirrors progress to a durable job row in the activity
+      centre. Cancellation resolves to cancelled_by_user; a
+      basis drift on the destination (external edit landed
+      mid-paste) refuses to silently widen and reopens
+      preview.
+    contract_section_ref: docs/ux/clipboard_history_contract.md#8
+    surfaces:
+      - editor_canvas
+    authority_class: user_initiated_local
+    consequence_class: recoverable_durable
+    undo_class_id: text_edit
+    compensation_posture: compensatable
+    recovery_class: exact_undo
+    originator: "editor_paste"
+    attribution:
+      originator_identity_ref: is:actor:user:me
+      agent_id: null
+      invocation_id: null
+      preview_handle_ref: preview:editor-paste:01
+      checkpoint_ref: null
+      review_artifact_ref: null
+      high_risk_preview_classes:
+        - oversized_generated_artifact
+    preview_and_checkpoint_required: false
+    preview_phase_required: false
+    checkpoint_required: false
+    mutation_journal_entry_ref: mutation:example:editor_paste:01
+    workspace_group_id_ref: null
+    per_buffer_undo_group_id_ref: ug:buffer:editor-04:512
+    preview_apply_revert_phases_emitted:
+      - apply
+      - validate
+      - keep_or_revert
+    history_rows:
+      - surface: editor_canvas
+        row_kind: undo_history_row
+        label_rule: >
+          "Undo paste" coalesces into one group per the
+          text_edit rule (no word-boundary coalescing within
+          the single paste operation).
+        mutation_journal_entry_ref: mutation:example:editor_paste:01
+      - surface: activity_center
+        row_kind: durable_job_row
+        label_rule: >
+          Durable job row names the item count and byte
+          estimate, the resolved consequence class
+          (recoverable_durable), and the typed cancel route.
+          Closing the editor tab MUST NOT cancel the transfer.
+        mutation_journal_entry_ref: mutation:example:editor_paste:01
+    lineage_cross_link_invariants:
+      - one_mutation_journal_entry_per_operation
+      - same_id_on_every_derived_row
+      - recovery_class_agreement_across_surfaces
+    failure_tier_mapping:
+      - state_token_ref: paste.basis_drifted
+        failure_tier_id: tier.workflow_block
+        delivery_surface_class: window_attached_sheet
+        rationale: >
+          Basis drift between preview and apply opens a
+          window-attached sheet to reopen review; silent
+          widen denies with apply_basis_drifted.
+      - state_token_ref: paste.cancelled_by_user
+        failure_tier_id: tier.inline_issue
+        delivery_surface_class: inline_row_chrome
+        rationale: >
+          Cancel resolves inline; the durable mirror records
+          the cancelled outcome for export.
+    forbidden_rendering:
+      - "toast-only rendering of a multi-minute paste"
+      - "closing the origin tab cancels the transfer silently"
+    journey_trace_class: open_edit_save
+    overclaims_reversibility: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: one_mutation_journal_entry_per_operation
+    description: >
+      Every mutating clipboard / drop / apply operation writes
+      exactly one mutation journal entry whose mutation_id is
+      the canonical lineage id. A surface that mints parallel
+      ids for the same operation denies with
+      reopen_history_lineage_forked_per_surface.
+    failure_denial_reason: reopen_history_lineage_forked_per_surface
+
+  - id: same_id_on_every_derived_row
+    description: >
+      The undo-history row, the reopen-history row, the
+      durable job row, the local-history compare row, and the
+      support-bundle / evidence-packet export all cite the
+      same mutation_journal_entry_ref.
+    failure_denial_reason: reopen_history_lineage_forked_per_surface
+
+  - id: checkpoint_identity_follows_the_same_id
+    description: >
+      Every checkpoint created for an operation cites the
+      same mutation_id through its checkpoint_ref.mutation_id
+      binding. A reopen that restores from the checkpoint
+      resolves back to the same entry.
+    failure_denial_reason: reopen_history_lineage_forked_per_surface
+
+  - id: recovery_class_agreement_across_surfaces
+    description: >
+      The recovery class on the mutation journal entry, on
+      the undo-history row, on the reopen-history row, and
+      on the local-history compare row MUST match. A
+      mismatch denies with
+      recovery_class_disagreement_across_surfaces.
+    failure_denial_reason: recovery_class_disagreement_across_surfaces
+
+  - id: only_revertible_paths_require_preview_and_checkpoint
+    description: >
+      Every row whose undo_class_id falls in the
+      only_revertible set (refactor_multi_file,
+      save_participant_group, imported_change,
+      machine_generated_change, migration_change,
+      external_reload, decode_recovery_change) sets
+      preview_phase_required and checkpoint_required to true
+      (save_participant_group skips preview but keeps
+      checkpoint). Rows that violate the rule deny with
+      no_undo_path_missing_preview_or_checkpoint.
+    failure_denial_reason: no_undo_path_missing_preview_or_checkpoint
+
+  - id: machine_generated_rows_carry_attribution
+    description: >
+      Every row with undo_class_id = machine_generated_change
+      names agent_id and invocation_id; rows without deny
+      with agent_attribution_lost.
+    failure_denial_reason: agent_attribution_lost
+
+  - id: undo_label_names_recovery_class_on_only_revertible
+    description: >
+      History rows for only_revertible groups MUST name the
+      recovery class (restore_from_checkpoint,
+      compensating_rollback,
+      regenerate_from_canonical_source,
+      evidence_only_no_rerun, no_recovery_available) rather
+      than rendering a flat 'Undo' label. Rows that flatten
+      deny with undo_label_hides_recovery_class.
+    failure_denial_reason: undo_label_hides_recovery_class
+
+  - id: terminal_transcript_is_evidence_only_no_rerun
+    description: >
+      Terminal transcript rows resolve to
+      recovery_class = evidence_only_no_rerun; a surface that
+      replays them on session restore denies per the
+      interaction-safety contract.
+    failure_denial_reason: evidence_only_no_rerun_replay_forbidden
+
+  - id: schema_version_alignment
+    description: >
+      All rows share undo_group_examples_schema_version with
+      this registry. Rows lagging behind a schema bump deny
+      with undo_group_examples_schema_version_lagging.
+    failure_denial_reason: undo_group_examples_schema_version_lagging
