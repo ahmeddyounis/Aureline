@@ -5,6 +5,15 @@ Machine-emitted save-plan records for every scenario in
 scenario, plus an `aggregate.json` that carries the full harness report
 (schema version, corpus id, aggregate counters, every scenario inlined).
 
+Every emitted scenario should include:
+
+- `corpus_case_id` — the stable case id from
+  `fixtures/fs/identity_corpus_manifest.yaml`;
+- `related_fixture_ids` — any alias/symlink supplement rows that explain the
+  same scenario;
+- `rename_matrix_row_refs` — any case-only rename rows relevant to the same
+  root semantics.
+
 These are the reviewable counterpart to the human-authored fixtures under
 `fixtures/fs/save_truth_cases/`. A reader comparing both sides sees:
 
@@ -13,6 +22,9 @@ These are the reviewable counterpart to the human-authored fixtures under
 - **Artifacts** — the byte-stable save plan the prototype actually produced,
   covering layers 1–5 of the filesystem-identity model plus the save
   manifest, watcher frames, reviewer notes, and hook-counter snapshot.
+
+See `artifacts/fs/save_coordination_examples/` for the smaller reviewer-facing
+rows that condense the same corpus into exact/degraded/unsupported judgments.
 
 ## How to regenerate
 

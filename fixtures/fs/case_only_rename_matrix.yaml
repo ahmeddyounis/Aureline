@@ -1,0 +1,208 @@
+# Case-only rename matrix.
+#
+# Explicit claimed, degraded, and unsupported rows for case-only rename
+# behavior. The architecture doc couples case-only and normalization-only
+# spelling changes under the same capability-check + preview rule, so a
+# few rows also call out the normalization companion posture where it
+# materially differs.
+
+schema_version: 1
+matrix_id: aureline.fs.case_only_rename_matrix
+matrix_revision: 1
+status: seeded
+
+overview_page: docs/adr/0006-vfs-save-cache-identity.md
+root_capability_source: artifacts/io/root_capability_matrix.yaml
+corpus_manifest_source: fixtures/fs/identity_corpus_manifest.yaml
+
+support_state_vocabulary:
+  - claimed
+  - degraded
+  - unsupported
+
+rename_execution_vocabulary:
+  - atomic_commit
+  - preview_then_atomic_commit
+  - preview_then_conditional_remote_commit
+  - preview_only_blocked
+  - inspect_only_blocked
+
+canonical_identity_state_vocabulary:
+  - exact
+  - degraded
+  - unsupported
+
+rows:
+  - row_id: rename_matrix.local_posix_sensitive_exact
+    root_class: local_posix_like
+    representative_profile: ext4_or_case_sensitive_apfs
+    case_sensitivity: sensitive
+    unicode_normalization: mixed_observed
+    support_state: claimed
+    rename_execution: atomic_commit
+    requires_preview: false
+    canonical_identity_state: exact
+    normalization_only_companion_state: claimed
+    client_can_assert:
+      - A case-only rename is a distinct directory-entry change on this root.
+      - One canonical object remains authoritative before and after commit.
+      - No case-fold collision scan is required to avoid fake success.
+    client_must_not_assert:
+      - The same rules apply to insensitive roots.
+    related_fixture_ids:
+      - corpus.fs.identity.local_atomic_save_happy_path
+
+  - row_id: rename_matrix.local_apfs_insensitive_preview_required
+    root_class: local_posix_like
+    representative_profile: apfs_case_insensitive_case_preserving
+    case_sensitivity: insensitive_preserving
+    unicode_normalization: mixed_observed
+    support_state: claimed
+    rename_execution: preview_then_atomic_commit
+    requires_preview: true
+    canonical_identity_state: exact
+    normalization_only_companion_state: claimed_with_preview
+    client_can_assert:
+      - The root can preserve the canonical object across a case-only rename.
+      - The client can preview the spelling change before commit.
+      - Alias convergence remains exact after the rename lands.
+    client_must_not_assert:
+      - A case-only rename may commit without an explicit capability check.
+      - The old and new spellings may be treated as separate dirty buffers.
+    related_fixture_ids:
+      - corpus.fs.identity.case_only_difference
+      - corpus.fs.alias.case_fold_collision_insensitive_root
+
+  - row_id: rename_matrix.local_apfs_unicode_preview_required
+    root_class: local_posix_like
+    representative_profile: apfs_nfd_nfc_boundary
+    case_sensitivity: insensitive_preserving
+    unicode_normalization: mixed_observed
+    support_state: claimed
+    rename_execution: preview_then_atomic_commit
+    requires_preview: true
+    canonical_identity_state: exact
+    normalization_only_companion_state: claimed_with_preview
+    client_can_assert:
+      - Normalization-only spelling changes share the same preview gate as case-only renames.
+      - The canonical object remains stable when the root attests to the capability.
+    client_must_not_assert:
+      - Unicode spelling changes can be simulated safely on a root that has not attested to them.
+    related_fixture_ids:
+      - corpus.fs.identity.unicode_normalization_variant
+      - corpus.fs.alias.unicode_normalization_variant
+
+  - row_id: rename_matrix.local_windows_insensitive_preview_required
+    root_class: local_windows_like
+    representative_profile: ntfs_case_preserving_insensitive
+    case_sensitivity: insensitive_preserving
+    unicode_normalization: none
+    support_state: claimed
+    rename_execution: preview_then_atomic_commit
+    requires_preview: true
+    canonical_identity_state: exact
+    normalization_only_companion_state: unsupported
+    client_can_assert:
+      - The root can preserve one file-ID authority across a case-only rename.
+      - Junction and 8.3 alias hazards can be previewed before commit.
+    client_must_not_assert:
+      - Unicode-normalization-only rename behavior matches APFS.
+      - The rename may bypass collision or alias checks.
+    related_fixture_ids:
+      - corpus.fs.identity.case_only_difference
+
+  - row_id: rename_matrix.local_windows_collision_blocked
+    root_class: local_windows_like
+    representative_profile: ntfs_case_fold_collision_present
+    case_sensitivity: insensitive_preserving
+    unicode_normalization: none
+    support_state: degraded
+    rename_execution: preview_only_blocked
+    requires_preview: true
+    canonical_identity_state: exact
+    normalization_only_companion_state: unsupported
+    client_can_assert:
+      - The requested spelling collides under the root's case-fold rules.
+      - Wrong-target prevention and dirty-buffer convergence remain intact.
+    client_must_not_assert:
+      - The client can fake success and repair the collision later.
+    related_fixture_ids:
+      - corpus.fs.alias.case_fold_collision_insensitive_root
+
+  - row_id: rename_matrix.remote_agent_attested_degraded
+    root_class: remote_agent_mount
+    representative_profile: remote_agent_reports_case_only_capability
+    case_sensitivity: sensitive_or_agent_declared
+    unicode_normalization: mixed_observed
+    support_state: degraded
+    rename_execution: preview_then_conditional_remote_commit
+    requires_preview: true
+    canonical_identity_state: degraded
+    normalization_only_companion_state: degraded
+    client_can_assert:
+      - The agent attested to a case-only rename path for this root.
+      - Commit still depends on a remote revision token or provider object id.
+      - The client can preview the change and detect precondition drift.
+    client_must_not_assert:
+      - Local atomic-rename semantics apply.
+      - Canonical path spelling is stable if the mount graph rebases.
+    related_fixture_ids:
+      - corpus.fs.identity.remote_conditional_conflict
+      - corpus.fs.alias.remote_alias_degraded_root
+
+  - row_id: rename_matrix.remote_agent_unattested_unsupported
+    root_class: remote_agent_mount
+    representative_profile: remote_agent_missing_case_only_attestation
+    case_sensitivity: agent_unspecified
+    unicode_normalization: mixed_observed
+    support_state: unsupported
+    rename_execution: preview_only_blocked
+    requires_preview: true
+    canonical_identity_state: degraded
+    normalization_only_companion_state: unsupported
+    client_can_assert:
+      - The current remote root can identify the target object only for compare-before-write.
+      - The rename request should stop at preview or save-as guidance.
+    client_must_not_assert:
+      - A case-only rename is available on this mount.
+      - Canonical path normalization is stable enough for a blind rename.
+    related_fixture_ids:
+      - corpus.fs.identity.remote_conditional_conflict
+      - corpus.fs.alias.remote_alias_degraded_root
+
+  - row_id: rename_matrix.container_mount_host_dependent_degraded
+    root_class: container_mount
+    representative_profile: bind_mount_case_semantics_inherited_from_host
+    case_sensitivity: host_declared
+    unicode_normalization: host_declared
+    support_state: degraded
+    rename_execution: preview_then_conditional_remote_commit
+    requires_preview: true
+    canonical_identity_state: degraded
+    normalization_only_companion_state: degraded
+    client_can_assert:
+      - Rename legality depends on the host-side mount and agent envelope.
+      - The client may preview the plan and disclose weakened guarantees.
+    client_must_not_assert:
+      - Container roots are interchangeable with local POSIX roots for spelling-only renames.
+    related_fixture_ids:
+      - corpus.fs.alias.remote_alias_degraded_root
+
+  - row_id: rename_matrix.archive_like_unsupported
+    root_class: archive_like_view
+    representative_profile: inspect_only_archive_or_capture
+    case_sensitivity: none
+    unicode_normalization: none
+    support_state: unsupported
+    rename_execution: inspect_only_blocked
+    requires_preview: false
+    canonical_identity_state: unsupported
+    normalization_only_companion_state: unsupported
+    client_can_assert:
+      - The document is inspect-only and may be extracted or saved elsewhere.
+      - No in-place rename or save claim should be made.
+    client_must_not_assert:
+      - The archive entry supports case-only rename.
+      - A save token can target this path as an exact writable object.
+    related_fixture_ids:
+      - corpus.fs.identity.read_only_root_blocked

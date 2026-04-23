@@ -29,8 +29,11 @@ one byte-stable save-plan record per scenario.
 | Smoke harness (frozen scenario table + JSON renderer) | [`crates/aureline-vfs/src/harness.rs`](../../crates/aureline-vfs/src/harness.rs) |
 | Bench binary | [`crates/aureline-vfs/src/bin/vfs_proto.rs`](../../crates/aureline-vfs/src/bin/vfs_proto.rs) |
 | Public re-exports (crate surface) | [`crates/aureline-vfs/src/lib.rs`](../../crates/aureline-vfs/src/lib.rs) |
+| Corpus manifest + rename matrix | [`fixtures/fs/identity_corpus_manifest.yaml`](../../fixtures/fs/identity_corpus_manifest.yaml), [`fixtures/fs/case_only_rename_matrix.yaml`](../../fixtures/fs/case_only_rename_matrix.yaml) |
 | Human-reviewable fixtures | [`fixtures/fs/save_truth_cases/`](../../fixtures/fs/save_truth_cases/) |
+| Alias/symlink supplements | [`fixtures/fs/alias_and_symlink_cases/`](../../fixtures/fs/alias_and_symlink_cases/) |
 | Machine-emitted save plans | [`artifacts/fs/save_plan_examples/`](../../artifacts/fs/save_plan_examples/) |
+| Reviewer-facing coordination rows | [`artifacts/fs/save_coordination_examples/`](../../artifacts/fs/save_coordination_examples/) |
 | Smoke wrapper | [`tools/vfs_proto.sh`](../../tools/vfs_proto.sh) |
 
 ## What the prototype models
@@ -68,7 +71,9 @@ one byte-stable save-plan record per scenario.
   mode + failure detail), the watcher frames captured in the window, and
   a reviewer-notes list. The renderer is hand-rolled JSON: one record
   explains opened path vs. actual write target vs. rewrite class vs.
-  degraded / unsupported conditions.
+  degraded / unsupported conditions, and each exported scenario also
+  carries the stable `corpus_case_id`, any `related_fixture_ids`, and
+  any `rename_matrix_row_refs`.
 - **Structural metrics only.** Counts, labels, synthetic monotonic tokens.
   No wall-clock latencies, no process IDs, no inode numbers from the host
   filesystem. The benchmark lab layers timing on top of these counts when
@@ -77,7 +82,8 @@ one byte-stable save-plan record per scenario.
 ## Scenario table
 
 One row per ADR 0006 failure case the pipeline must name with its own
-vocabulary. See `fixtures/fs/save_truth_cases/README.md` for the index.
+vocabulary. See `fixtures/fs/save_truth_cases/README.md` for the index and
+`fixtures/fs/identity_corpus_manifest.yaml` for the stable case ids.
 
 | Label | Outcome |
 |---|---|

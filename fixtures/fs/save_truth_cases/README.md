@@ -6,6 +6,10 @@ its own vocabulary — "opened path vs. actual write target vs. rewrite class
 vs. degraded / unsupported conditions" — so the pipeline behaviour is
 auditable without running Rust code.
 
+The stable corpus ids for these fixtures live in
+`fixtures/fs/identity_corpus_manifest.yaml`. Prototype exports should quote
+those ids instead of inventing scenario-local labels.
+
 These fixtures are the human-reviewable counterpart to the machine-emitted
 save-plan records under `artifacts/fs/save_plan_examples/`. Both sides use
 the frozen vocabulary from:
@@ -16,7 +20,9 @@ the frozen vocabulary from:
 
 Every fixture in this directory MUST correspond to exactly one scenario label
 in `crates/aureline-vfs/src/harness.rs::SCENARIOS`. The harness asserts that
-alignment in its byte-stability tests.
+alignment in its byte-stability tests, and exported scenario JSON should also
+carry the matching `corpus_case_id`, any `related_fixture_ids`, and any
+`rename_matrix_row_refs`.
 
 ## Index
 

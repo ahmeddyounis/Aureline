@@ -37,15 +37,18 @@ use crate::watcher::{WatcherHealth, WatcherHealthFrame, WatcherRegistry, Watcher
 
 /// Frozen corpus identifier. Bumped only when the harness's output
 /// schema itself changes (not on scenario additions).
-pub const CORPUS_ID: &str = "aureline.vfs_save_plan_examples.v1";
+pub const CORPUS_ID: &str = "aureline.vfs_save_plan_examples.v2";
 
 /// Schema version for the emitted save-plan JSON.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// One row of the frozen scenario table.
 #[derive(Debug, Clone, Copy)]
 pub struct ScenarioSpec {
     pub label: &'static str,
+    pub corpus_case_id: &'static str,
+    pub related_fixture_ids: &'static [&'static str],
+    pub rename_matrix_row_refs: &'static [&'static str],
     pub scenario_summary: &'static str,
     pub builder: fn() -> ScenarioFixture,
     pub expected_outcome: SaveOutcome,
@@ -84,6 +87,10 @@ pub struct WatcherScriptedStep {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScenarioReport {
     pub label: &'static str,
+    pub corpus_case_id: &'static str,
+    pub related_fixture_ids: Vec<&'static str>,
+    pub rename_matrix_row_refs: Vec<&'static str>,
+    pub root_class: RootClass,
     pub scenario_summary: &'static str,
     pub expected_outcome: SaveOutcome,
     pub plan: SavePlan,
@@ -165,6 +172,8 @@ fn run_scenario(spec: &ScenarioSpec) -> ScenarioReport {
         reviewer_prologue,
     } = (spec.builder)();
 
+    let root_class = root.envelope().root_class;
+
     let mut counters = HookCounters::default();
     counters.vfs_root_attach += 1;
 
@@ -217,6 +226,10 @@ fn run_scenario(spec: &ScenarioSpec) -> ScenarioReport {
             };
             return ScenarioReport {
                 label: spec.label,
+                corpus_case_id: spec.corpus_case_id,
+                related_fixture_ids: spec.related_fixture_ids.to_vec(),
+                rename_matrix_row_refs: spec.rename_matrix_row_refs.to_vec(),
+                root_class,
                 scenario_summary: spec.scenario_summary,
                 expected_outcome: spec.expected_outcome,
                 plan,
@@ -280,6 +293,10 @@ fn run_scenario(spec: &ScenarioSpec) -> ScenarioReport {
 
     ScenarioReport {
         label: spec.label,
+        corpus_case_id: spec.corpus_case_id,
+        related_fixture_ids: spec.related_fixture_ids.to_vec(),
+        rename_matrix_row_refs: spec.rename_matrix_row_refs.to_vec(),
+        root_class,
         scenario_summary: spec.scenario_summary,
         expected_outcome: spec.expected_outcome,
         plan,
@@ -400,6 +417,9 @@ fn degenerate_flags() -> CapabilityFlags {
 pub const SCENARIOS: &[ScenarioSpec] = &[
     ScenarioSpec {
         label: "local_atomic_save_happy_path",
+        corpus_case_id: "corpus.fs.identity.local_atomic_save_happy_path",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Local POSIX-like root; atomic_replace preferred; compare-before-write holds; commits.",
         builder: scenarios::local_atomic_save_happy_path,
@@ -407,6 +427,12 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "case_only_difference",
+        corpus_case_id: "corpus.fs.identity.case_only_difference",
+        related_fixture_ids: &["corpus.fs.alias.case_fold_collision_insensitive_root"],
+        rename_matrix_row_refs: &[
+            "rename_matrix.local_apfs_insensitive_preview_required",
+            "rename_matrix.local_windows_insensitive_preview_required",
+        ],
         scenario_summary:
             "Presentation uri differs from canonical by case only; alias convergence fires; atomic commit proceeds.",
         builder: scenarios::case_only_difference,
@@ -414,6 +440,12 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "symlink_alias",
+        corpus_case_id: "corpus.fs.identity.symlink_alias",
+        related_fixture_ids: &[
+            "corpus.fs.alias.presentation_vs_canonical_symlink",
+            "corpus.fs.alias.symlink_escape_review",
+        ],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Presentation uri is a symlink into the workspace; resolution chain disclosed; atomic commit proceeds on canonical.",
         builder: scenarios::symlink_alias,
@@ -421,6 +453,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "hardlink_sibling",
+        corpus_case_id: "corpus.fs.identity.hardlink_sibling",
+        related_fixture_ids: &["corpus.fs.alias.hardlink_sibling_shared_authority"],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Canonical object has a hardlink sibling; alias disclosed; atomic commit on canonical warns the reviewer that the sibling receives the same bytes.",
         builder: scenarios::hardlink_sibling,
@@ -428,6 +463,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "unicode_normalization_variant",
+        corpus_case_id: "corpus.fs.identity.unicode_normalization_variant",
+        related_fixture_ids: &["corpus.fs.alias.unicode_normalization_variant"],
+        rename_matrix_row_refs: &["rename_matrix.local_apfs_unicode_preview_required"],
         scenario_summary:
             "Presentation uri uses NFD; canonical uses NFC; normalization-variant alias disclosed; atomic commit proceeds on canonical.",
         builder: scenarios::unicode_normalization_variant,
@@ -435,6 +473,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "external_change_detected",
+        corpus_case_id: "corpus.fs.identity.external_change_detected",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Sibling writer bumped the generation between open and save; compare-before-write catches the mismatch and blocks the commit.",
         builder: scenarios::external_change_detected,
@@ -442,6 +483,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "review_required_before_save",
+        corpus_case_id: "corpus.fs.identity.review_required_before_save",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Policy-scoped workspace advertises review_required_before_save; pipeline halts before any bytes move.",
         builder: scenarios::review_required_before_save,
@@ -449,6 +493,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "read_only_root_blocked",
+        corpus_case_id: "corpus.fs.identity.read_only_root_blocked",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &["rename_matrix.archive_like_unsupported"],
         scenario_summary:
             "Read-only overlay (archive-like view); select_save_mode returns blocked; save fails closed with read_only_or_policy_blocked.",
         builder: scenarios::read_only_root_blocked,
@@ -456,6 +503,12 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "remote_conditional_conflict",
+        corpus_case_id: "corpus.fs.identity.remote_conditional_conflict",
+        related_fixture_ids: &["corpus.fs.alias.remote_alias_degraded_root"],
+        rename_matrix_row_refs: &[
+            "rename_matrix.remote_agent_attested_degraded",
+            "rename_matrix.remote_agent_unattested_unsupported",
+        ],
         scenario_summary:
             "Remote-agent root; conditional_remote_write preferred; sibling writer bumped the revision token; pipeline returns save_conflict.",
         builder: scenarios::remote_conditional_conflict,
@@ -463,6 +516,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "watcher_degradation",
+        corpus_case_id: "corpus.fs.identity.watcher_degradation",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Local root's OS watcher drops into fallback_polling mid-session; watcher-health frames emitted; compare-before-write is still the correctness floor and the commit proceeds.",
         builder: scenarios::watcher_degradation,
@@ -470,6 +526,9 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
     },
     ScenarioSpec {
         label: "save_participant_failed",
+        corpus_case_id: "corpus.fs.identity.save_participant_failed",
+        related_fixture_ids: &[],
+        rename_matrix_row_refs: &[],
         scenario_summary:
             "Save participant (text-normalisation) raises; pipeline records save_participant_failed and never runs compare-before-write.",
         builder: scenarios::save_participant_failed,
@@ -1160,6 +1219,22 @@ pub fn scenario_to_json(report: &ScenarioReport) -> String {
     kv_u64(&mut out, 1, "schema_version", u64::from(SCHEMA_VERSION), false);
     kv_str(&mut out, 1, "corpus_id", CORPUS_ID, false);
     kv_str(&mut out, 1, "label", report.label, false);
+    kv_str(&mut out, 1, "corpus_case_id", report.corpus_case_id, false);
+    kv_str(&mut out, 1, "root_class", report.root_class.as_str(), false);
+    write_string_slice(
+        &mut out,
+        1,
+        "related_fixture_ids",
+        &report.related_fixture_ids,
+        false,
+    );
+    write_string_slice(
+        &mut out,
+        1,
+        "rename_matrix_row_refs",
+        &report.rename_matrix_row_refs,
+        false,
+    );
     kv_str(&mut out, 1, "scenario_summary", report.scenario_summary, false);
     kv_str(
         &mut out,
@@ -1250,6 +1325,22 @@ fn write_scenario(out: &mut String, depth: usize, s: &ScenarioReport, last: bool
     indent(out, depth);
     out.push_str("{\n");
     kv_str(out, depth + 1, "label", s.label, false);
+    kv_str(out, depth + 1, "corpus_case_id", s.corpus_case_id, false);
+    kv_str(out, depth + 1, "root_class", s.root_class.as_str(), false);
+    write_string_slice(
+        out,
+        depth + 1,
+        "related_fixture_ids",
+        &s.related_fixture_ids,
+        false,
+    );
+    write_string_slice(
+        out,
+        depth + 1,
+        "rename_matrix_row_refs",
+        &s.rename_matrix_row_refs,
+        false,
+    );
     kv_str(out, depth + 1, "scenario_summary", s.scenario_summary, false);
     kv_str(
         out,
@@ -1785,6 +1876,34 @@ fn kv_str_opt(out: &mut String, depth: usize, key: &str, value: Option<&str>, la
     }
 }
 
+fn write_string_slice(
+    out: &mut String,
+    depth: usize,
+    field_name: &str,
+    values: &[&str],
+    last: bool,
+) {
+    key(out, depth, field_name);
+    out.push_str(" [\n");
+    for (idx, value) in values.iter().enumerate() {
+        let entry_last = idx + 1 == values.len();
+        indent(out, depth + 1);
+        out.push_str(&json_quote(value));
+        if entry_last {
+            out.push('\n');
+        } else {
+            out.push_str(",\n");
+        }
+    }
+    indent(out, depth);
+    out.push(']');
+    if last {
+        out.push('\n');
+    } else {
+        out.push_str(",\n");
+    }
+}
+
 fn json_quote(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 2);
     out.push('"');
@@ -1945,6 +2064,16 @@ mod tests {
     fn scenario_labels_are_unique() {
         let labels: BTreeSet<&'static str> = SCENARIOS.iter().map(|s| s.label).collect();
         assert_eq!(labels.len(), SCENARIOS.len(), "scenario labels must be unique");
+    }
+
+    #[test]
+    fn scenario_corpus_case_ids_are_unique() {
+        let ids: BTreeSet<&'static str> = SCENARIOS.iter().map(|s| s.corpus_case_id).collect();
+        assert_eq!(
+            ids.len(),
+            SCENARIOS.len(),
+            "scenario corpus_case_id values must be unique"
+        );
     }
 
     #[test]

@@ -1,0 +1,27 @@
+# Filesystem identity corpus
+
+This directory is the fixture corpus for canonical path truth, alias-set
+disclosure, case-only rename behavior, and save-coordination review.
+
+The corpus is split into four parts:
+
+- `identity_corpus_manifest.yaml`
+  Stable case ids and the join table across save-truth fixtures,
+  alias/symlink supplements, rename-matrix rows, and reviewer-facing
+  artifacts.
+- `save_truth_cases/`
+  Input-heavy save scenarios consumed by the VFS prototype.
+- `alias_and_symlink_cases/`
+  Smaller, reviewer-facing identity cases that focus on alias
+  convergence, boundary disclosure, and degraded remote-root behavior.
+- `case_only_rename_matrix.yaml`
+  Explicit claimed, degraded, and unsupported rows for case-only rename
+  behavior across root profiles.
+
+Rules:
+
+1. Consumers join on `case_id` or `row_id`, never by guessing filenames.
+2. Exact, degraded, and unsupported states stay explicit; a row may not
+   collapse them into a generic "save failed" or "rename failed" label.
+3. If the VFS prototype exports a scenario, that JSON should carry the
+   `corpus_case_id` declared in `identity_corpus_manifest.yaml`.

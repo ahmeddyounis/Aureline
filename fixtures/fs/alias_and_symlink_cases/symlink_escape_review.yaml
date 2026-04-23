@@ -1,0 +1,52 @@
+schema_version: 1
+case_id: corpus.fs.alias.symlink_escape_review
+case_family: alias_symlink_case
+title: Symlink escape preserves original path and resolved boundary
+summary: >
+  The opened path is inside the trusted root, but the resolved canonical
+  target escapes to a policy-sensitive location. The client keeps both
+  boundaries visible and requires explicit review before offering a mutating
+  action as safe.
+identity_assertion_state: exact
+save_assertion_state: degraded
+watcher_assertion_state: exact
+presentation_path:
+  uri: file:///ws/vendor/approved.lock
+  display_label: approved.lock
+  root_badge: local
+canonical_filesystem_object:
+  canonical_uri: file:///secure/locks/approved.lock
+  normalization_form: nfc
+  strongest_identity_token_kind: device_inode_generation
+  strongest_identity_token_value: dev:9/ino:733/gen:11
+alias_set:
+  alias_kinds:
+    - symlink
+  aliases:
+    - alias_uri: file:///ws/vendor/approved.lock
+      alias_kind: symlink
+      resolution_chain:
+        - opened inside trusted root: file:///ws/vendor/approved.lock
+        - symlink escape -> /secure/locks/approved.lock
+        - canonical: file:///secure/locks/approved.lock
+save_target_review:
+  required: true
+  reason_codes:
+    - presentation_path_differs_from_canonical
+    - symlink_escape_requires_policy
+    - review_required_before_save
+  compare_before_write_required: true
+  primary_action: review_and_approve
+  secondary_actions:
+    - open_alias_details
+    - cancel
+client_can_still_assert:
+  - The resolved target is known exactly enough for review and compare-before-write.
+  - The user-opened path and the escaped canonical path can be shown together.
+client_must_not_assert:
+  - The write is safe to offer without boundary review.
+  - The trusted-root badge alone is sufficient to explain the target.
+related_fixture_ids:
+  - corpus.fs.identity.symlink_alias
+  - corpus.fs.identity.review_required_before_save
+
