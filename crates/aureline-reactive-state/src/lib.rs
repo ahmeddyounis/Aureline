@@ -38,6 +38,10 @@
 //!   isolation, imported read-only, terminal unavailable, and
 //!   backpressure switch. Each scenario emits one per-scenario
 //!   artifact plus contributes to an aggregate.
+//! - [`verification`] — snapshot-vs-delta parity helpers and
+//!   invalidation-order audits extracted from the same scenario
+//!   reports. These feed the verification packet and state
+//!   artifact directories without forking the scenario table.
 //!
 //! Known holes (no real transport, no real producer crates, no
 //! scope-permission lattice, no ADR-0004 event wire, no signed
@@ -54,6 +58,7 @@ pub mod hooks;
 pub mod producers;
 pub mod store;
 pub mod trace;
+pub mod verification;
 
 pub use envelope::{
     AuthorityClass, BackpressureMode, CausedBy, Completeness, DerivationClass, FrameClass,
@@ -70,3 +75,10 @@ pub use store::{
     StoreError,
 };
 pub use trace::{trace_event_to_json, trace_to_json, ConsumerObservation, TraceEvent};
+pub use verification::{
+    invalidation_order_audit_to_json, invalidation_order_audits_to_json,
+    run_invalidation_order_audits, run_snapshot_delta_parity_cases, DiagnosticsSummaryView,
+    InvalidationOrderAudit, InvalidationOrderStep, SnapshotDeltaParityCase,
+    SnapshotDeltaParityStep, INVALIDATION_ORDER_AUDIT_SCHEMA_VERSION,
+    SNAPSHOT_DELTA_PARITY_SCHEMA_VERSION,
+};

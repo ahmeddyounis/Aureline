@@ -25,6 +25,9 @@ both sides sees:
   prototype produced, covering every hook fire, every envelope, every
   consumer observation, and the aggregate counter snapshot.
 
+For the shorter ordering-specific companion, see
+`artifacts/state/invalidation_order_trace_examples/`.
+
 ## How to regenerate
 
 From the repo root:

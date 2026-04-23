@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "audit_id": "state.invalidation_order.delta_gap_requires_resync",
+  "scenario_label": "file_identity_delta_gap_triggers_resync",
+  "summary": "A detected delta gap must surface as an explicit stale transition before the replacement snapshot lands.",
+  "query_families": [
+    "vfs.file_identity"
+  ],
+  "order_contract": [
+    {
+      "ordinal": 1,
+      "tick": 5,
+      "event_kind": "note",
+      "hook_id": "delta_gap_detected",
+      "query_family": null,
+      "frame_class": null,
+      "snapshot_epoch": null,
+      "delta_seq": null,
+      "freshness": null,
+      "completeness": null,
+      "stale_reason": null,
+      "message": "consumer observed delta_seq=4, expected 3; escalating",
+      "expectation": "consumer records the causality break before any replacement state is trusted"
+    },
+    {
+      "ordinal": 2,
+      "tick": 6,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_resync_required_emit",
+      "query_family": "vfs.file_identity",
+      "frame_class": "resync_required",
+      "snapshot_epoch": 1,
+      "delta_seq": 2,
+      "freshness": "stale",
+      "completeness": "partial",
+      "stale_reason": "causality_lost",
+      "message": null,
+      "expectation": "stale labeling is emitted immediately after the gap is detected"
+    },
+    {
+      "ordinal": 3,
+      "tick": 7,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_snapshot_emit",
+      "query_family": "vfs.file_identity",
+      "frame_class": "snapshot",
+      "snapshot_epoch": 2,
+      "delta_seq": 0,
+      "freshness": "authoritative",
+      "completeness": "full",
+      "stale_reason": null,
+      "message": null,
+      "expectation": "fresh snapshot_epoch=2 replaces the stale lineage only after resync_required was observed"
+    }
+  ],
+  "drift_detected_if": [
+    "snapshot_epoch=2 arrives without a preceding delta_gap_detected note and resync_required frame",
+    "consumer continues to accept epoch-1 deltas after the resync_required frame"
+  ],
+  "recovery_behavior": "Discard epoch-1 deltas, preserve the stale snapshot only for review, and wait for the replacement snapshot before resuming exact actions."
+}

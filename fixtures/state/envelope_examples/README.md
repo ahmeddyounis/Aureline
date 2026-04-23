@@ -12,7 +12,9 @@ decision surface (ready / partial / stale / failed / imported / replayed);
 this newer set pins the specific frames the reactive-state prototype
 emits so reviewers can diff a frozen human expectation against the
 auto-emitted artifacts under
-`artifacts/state/invalidation_trace_examples/`.
+`artifacts/state/invalidation_trace_examples/`. Snapshot-vs-delta parity
+for one derived view is tracked separately in
+`fixtures/state/snapshot_delta_parity_manifest.yaml`.
 
 ## Contract for readers
 

@@ -402,6 +402,16 @@ code.
   [`/artifacts/io/save_rewrite_classes.yaml`](../artifacts/io/save_rewrite_classes.yaml),
   and the worked records in
   [`/artifacts/io/undo_recovery_examples/`](../artifacts/io/undo_recovery_examples/).
+- [`verification/reactive_state_packet.md`](./verification/reactive_state_packet.md)
+  — seed verification packet for reactive-state parity,
+  stale/partial/replayed/failed-refresh labeling, cross-surface
+  query-family identifiers, and invalidation-order audits. Pairs with
+  the parity corpus in
+  [`/fixtures/state/snapshot_delta_parity_manifest.yaml`](../fixtures/state/snapshot_delta_parity_manifest.yaml),
+  the query-family examples in
+  [`/artifacts/state/query_family_examples/`](../artifacts/state/query_family_examples/),
+  and the condensed order audits in
+  [`/artifacts/state/invalidation_order_trace_examples/`](../artifacts/state/invalidation_order_trace_examples/).
 - [`workspace/layout_serialization_contract.md`](./workspace/layout_serialization_contract.md)
   — workspace-layout serialization boundary covering workspace
   authority versus window topology, portable profile defaults,

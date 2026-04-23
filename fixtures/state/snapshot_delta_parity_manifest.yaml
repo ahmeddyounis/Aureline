@@ -1,0 +1,84 @@
+schema_version: 1
+corpus_id: state.snapshot_delta_parity_manifest.v1
+summary: >
+  Seed parity corpus proving one derived/materialized view reaches the same
+  summary through snapshot replay and delta replay.
+cases:
+  - case_id: state.snapshot_delta_parity.language_diagnostics_summary
+    query_family: language.diagnostics
+    upstream_query_family: vfs.file_identity
+    authority_class: derived_knowledge
+    derivation_class: derived
+    view_class: durable_local_materialization
+    scope_ref:
+      class: workspace
+      id: ws-aureline-primary
+    compare_fields:
+      - freshness
+      - completeness
+      - upstream_digest
+      - total_files_with_diagnostics
+      - total_errors
+      - total_warnings
+      - affected_files
+    equivalence_expectation: identical_at_each_step
+    steps:
+      - step_id: base_snapshot
+        revision_ref: diag_rev_1
+        delta_ops: []
+        snapshot_view:
+          freshness: cached
+          completeness: full
+          upstream_digest: sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+          total_files_with_diagnostics: 2
+          total_errors: 1
+          total_warnings: 1
+          affected_files:
+            - src/lib.rs
+            - src/store.rs
+      - step_id: delta_batch_1
+        revision_ref: diag_rev_2
+        delta_ops:
+          - op: upsert_file
+            file: src/store.rs
+            errors: 2
+            warnings: 0
+          - op: upsert_file
+            file: src/harness.rs
+            errors: 0
+            warnings: 1
+          - op: advance_upstream_digest
+            digest: sha256:111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000
+        snapshot_view:
+          freshness: cached
+          completeness: full
+          upstream_digest: sha256:111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000
+          total_files_with_diagnostics: 3
+          total_errors: 2
+          total_warnings: 2
+          affected_files:
+            - src/harness.rs
+            - src/lib.rs
+            - src/store.rs
+      - step_id: delta_batch_2
+        revision_ref: diag_rev_3
+        delta_ops:
+          - op: remove_file
+            file: src/lib.rs
+          - op: upsert_file
+            file: src/bin/reactive_proto.rs
+            errors: 1
+            warnings: 0
+          - op: advance_upstream_digest
+            digest: sha256:9999aaaabbbbccccddddeeeeffff000011112222333344445555666677778888
+        snapshot_view:
+          freshness: cached
+          completeness: full
+          upstream_digest: sha256:9999aaaabbbbccccddddeeeeffff000011112222333344445555666677778888
+          total_files_with_diagnostics: 3
+          total_errors: 3
+          total_warnings: 1
+          affected_files:
+            - src/bin/reactive_proto.rs
+            - src/harness.rs
+            - src/store.rs

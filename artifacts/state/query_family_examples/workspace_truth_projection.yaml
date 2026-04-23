@@ -1,0 +1,46 @@
+schema_version: 1
+example_id: state.query_family.workspace_truth_projection
+summary: >
+  Shared workspace-truth projection for shell/editor/CLI surfaces. One
+  authoritative family defines file identity; one derived family defines
+  diagnostics against that identity.
+families:
+  - query_family: vfs.file_identity
+    scope_classes:
+      - workspace
+    authority_class: workspace_vfs
+    derivation_class: authoritative
+    view_class: durable_local_materialization
+    surfaces:
+      - file_tree
+      - breadcrumbs
+      - tabs
+      - cli_workspace_status
+    support_export_tag: state.query_family.vfs.file_identity
+    benchmark_tag: reactive_state.query_family.vfs.file_identity
+    required_labels:
+      authoritative: current workspace identity
+      stale: refresh file identity before exact file or trust actions
+  - query_family: language.diagnostics
+    scope_classes:
+      - workspace
+    authority_class: derived_knowledge
+    derivation_class: derived
+    view_class: durable_local_materialization
+    upstream_query_families:
+      - vfs.file_identity
+    surfaces:
+      - problems_panel
+      - editor_gutter
+      - cli_diagnostics_summary
+      - support_export
+    support_export_tag: state.query_family.language.diagnostics
+    benchmark_tag: reactive_state.query_family.language.diagnostics
+    required_labels:
+      cached: diagnostics current against the named upstream digest
+      stale: exact derived actions blocked until the diagnostics snapshot refreshes
+cross_surface_contract:
+  - Logs, support bundles, benchmark packets, and surface chrome quote the
+    same query-family ids shown above.
+  - Derived diagnostics never replace file-identity authority; they only
+    cite it through producer refs and upstream digests.

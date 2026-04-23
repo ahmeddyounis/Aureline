@@ -18,7 +18,9 @@ The crate lives at `crates/aureline-reactive-state/`.
 
 Nine scenarios — one per ADR 0005 acceptance sub-case — drive a
 deterministic in-process store, emit a byte-stable per-scenario
-invalidation-trace record, and produce a single aggregate report.
+invalidation-trace record, produce condensed invalidation-order audits,
+and seed one snapshot-vs-delta parity corpus for a derived/materialized
+view.
 
 | Scenario label | Exercises |
 | -------------- | --------- |
@@ -32,7 +34,7 @@ invalidation-trace record, and produce a single aggregate report.
 | `provider_terminal_unavailable` | Terminal frame with `terminal_reason = unavailable`, `watcher_dropped`. |
 | `backpressure_snapshot_required_switch` | `coalesced` → `snapshot_required` forces `causality_lost` resync. |
 
-## Six modules
+## Seven modules
 
 | Module | Role |
 | ------ | ---- |
@@ -42,11 +44,13 @@ invalidation-trace record, and produce a single aggregate report.
 | `trace` | `TraceEvent` lifecycle rows + consumer observation. |
 | `producers` | Sample producer factories for the four families the spec requires (shell health, workspace readiness, file identity, derived / graph) plus provider overlay. |
 | `harness` | Scenario table + per-scenario and aggregate JSON emission. |
+| `verification` | Snapshot-vs-delta parity reducer plus condensed invalidation-order audit emission. |
 
 ## Byte-stable artifacts
 
 ```
 ./tools/reactive_proto.sh --emit-scenarios artifacts/state/invalidation_trace_examples
+./tools/reactive_proto.sh --emit-order-audits artifacts/state/invalidation_order_trace_examples
 ```
 
 The wrapper pins `SOURCE_DATE_EPOCH`, `TZ=UTC`, `LC_ALL=C`. Synthetic
@@ -56,7 +60,11 @@ bytes.
 
 Human-authored single-envelope fixtures live at
 `fixtures/state/envelope_examples/` and validate against the boundary
-schema.
+schema. The snapshot-vs-delta seed corpus lives at
+`fixtures/state/snapshot_delta_parity_manifest.yaml`. The verification
+packet that joins those artifacts to query-family examples and
+invalidation-order audits lives at
+`docs/verification/reactive_state_packet.md`.
 
 ## Known holes (explicit — carry forward, not silent capabilities)
 

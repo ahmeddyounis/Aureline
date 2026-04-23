@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "audit_id": "state.invalidation_order.snapshot_required_switch",
+  "scenario_label": "backpressure_snapshot_required_switch",
+  "summary": "Coalesced delivery that can no longer preserve parity must escalate to snapshot_required before the replacement snapshot is trusted.",
+  "query_families": [
+    "vfs.workspace_readiness"
+  ],
+  "order_contract": [
+    {
+      "ordinal": 1,
+      "tick": 4,
+      "event_kind": "note",
+      "hook_id": "subscription_backpressure_coalesce",
+      "query_family": null,
+      "frame_class": null,
+      "snapshot_epoch": null,
+      "delta_seq": null,
+      "freshness": null,
+      "completeness": null,
+      "stale_reason": null,
+      "message": "producer coalesced 2 pending deltas",
+      "expectation": "producer discloses the coalesced backlog instead of silently pretending no lag exists"
+    },
+    {
+      "ordinal": 2,
+      "tick": 6,
+      "event_kind": "note",
+      "hook_id": "subscription_snapshot_required_switch",
+      "query_family": null,
+      "frame_class": null,
+      "snapshot_epoch": null,
+      "delta_seq": null,
+      "freshness": null,
+      "completeness": null,
+      "stale_reason": null,
+      "message": "consumer requested backpressure_mode = snapshot_required",
+      "expectation": "consumer escalation to snapshot_required is durable and reviewable"
+    },
+    {
+      "ordinal": 3,
+      "tick": 7,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_resync_required_emit",
+      "query_family": "vfs.workspace_readiness",
+      "frame_class": "resync_required",
+      "snapshot_epoch": 1,
+      "delta_seq": 2,
+      "freshness": "stale",
+      "completeness": "partial",
+      "stale_reason": "causality_lost",
+      "message": null,
+      "expectation": "causal continuity is explicitly abandoned before the next fresh snapshot"
+    },
+    {
+      "ordinal": 4,
+      "tick": 8,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_snapshot_emit",
+      "query_family": "vfs.workspace_readiness",
+      "frame_class": "snapshot",
+      "snapshot_epoch": 2,
+      "delta_seq": 0,
+      "freshness": "authoritative",
+      "completeness": "full",
+      "stale_reason": null,
+      "message": null,
+      "expectation": "the replacement snapshot is trusted only after the snapshot_required resync has already landed"
+    }
+  ],
+  "drift_detected_if": [
+    "coalesced delivery switches to snapshot_required without recording the switch note",
+    "a new snapshot lands before the stale resync_required frame for the same subscription"
+  ],
+  "recovery_behavior": "Surface coalesced backlog, label the projection stale, and replace it with a new snapshot lineage under backpressure_mode=snapshot_required."
+}

@@ -12,12 +12,14 @@
 # Usage:
 #   ./tools/reactive_proto.sh [--release] \
 #                             [--emit PATH] \
-#                             [--emit-scenarios DIR]
+#                             [--emit-scenarios DIR] \
+#                             [--emit-order-audits DIR]
 #
 # Defaults:
 #   --release           (off; dev profile)
 #   --emit              <stdout> when --emit-scenarios is unset
 #   --emit-scenarios    off (aggregate-only emission)
+#   --emit-order-audits off (no condensed order-audit emission)
 #
 # See prototypes/reactive_state/README.md for the prototype's
 # recorded holes, carry-forward items, and how this output feeds the
@@ -33,6 +35,7 @@ cd "${REPO_ROOT}"
 PROFILE_FLAG=""
 EMIT=""
 EMIT_SCENARIOS=""
+EMIT_ORDER_AUDITS=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,6 +44,8 @@ while [[ $# -gt 0 ]]; do
     --emit=*) EMIT="${1#--emit=}"; shift ;;
     --emit-scenarios) EMIT_SCENARIOS="${2:-}"; shift 2 ;;
     --emit-scenarios=*) EMIT_SCENARIOS="${1#--emit-scenarios=}"; shift ;;
+    --emit-order-audits) EMIT_ORDER_AUDITS="${2:-}"; shift 2 ;;
+    --emit-order-audits=*) EMIT_ORDER_AUDITS="${1#--emit-order-audits=}"; shift ;;
     -h|--help)
       sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
@@ -75,6 +80,9 @@ fi
 if [[ -n "${EMIT_SCENARIOS}" ]]; then
   RUN_ARGS+=(--emit-scenarios "${EMIT_SCENARIOS}")
 fi
+if [[ -n "${EMIT_ORDER_AUDITS}" ]]; then
+  RUN_ARGS+=(--emit-order-audits "${EMIT_ORDER_AUDITS}")
+fi
 
 log "reactive_proto ${RUN_ARGS[*]}"
 cargo run --quiet "${BUILD_ARGS[@]}" -- "${RUN_ARGS[@]}"
@@ -84,4 +92,7 @@ if [[ -n "${EMIT}" ]]; then
 fi
 if [[ -n "${EMIT_SCENARIOS}" ]]; then
   log "scenarios: ${EMIT_SCENARIOS}"
+fi
+if [[ -n "${EMIT_ORDER_AUDITS}" ]]; then
+  log "order audits: ${EMIT_ORDER_AUDITS}"
 fi

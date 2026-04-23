@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "audit_id": "state.invalidation_order.authority_before_derived_refresh",
+  "scenario_label": "refresh_ordering_authority_before_derived",
+  "summary": "Authority refresh must land before the derived view invalidates and republishes.",
+  "query_families": [
+    "vfs.file_identity",
+    "language.diagnostics"
+  ],
+  "order_contract": [
+    {
+      "ordinal": 1,
+      "tick": 5,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_snapshot_emit",
+      "query_family": "vfs.file_identity",
+      "frame_class": "snapshot",
+      "snapshot_epoch": 2,
+      "delta_seq": 0,
+      "freshness": "authoritative",
+      "completeness": "full",
+      "stale_reason": null,
+      "message": null,
+      "expectation": "authoritative workspace truth republishes before any derived stale or refresh frame"
+    },
+    {
+      "ordinal": 2,
+      "tick": 6,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_resync_required_emit",
+      "query_family": "language.diagnostics",
+      "frame_class": "resync_required",
+      "snapshot_epoch": 1,
+      "delta_seq": 0,
+      "freshness": "stale",
+      "completeness": "partial",
+      "stale_reason": "upstream_input_stale",
+      "message": null,
+      "expectation": "derived consumer marks itself stale only after authority state has advanced"
+    },
+    {
+      "ordinal": 3,
+      "tick": 7,
+      "event_kind": "frame_emit",
+      "hook_id": "subscription_snapshot_emit",
+      "query_family": "language.diagnostics",
+      "frame_class": "snapshot",
+      "snapshot_epoch": 2,
+      "delta_seq": 0,
+      "freshness": "cached",
+      "completeness": "full",
+      "stale_reason": "cache_served",
+      "message": null,
+      "expectation": "derived refresh completes only after stale labeling has already been made explicit"
+    }
+  ],
+  "drift_detected_if": [
+    "language.diagnostics emits resync_required before vfs.file_identity publishes snapshot_epoch=2",
+    "language.diagnostics emits its fresh snapshot before the stale resync_required frame"
+  ],
+  "recovery_behavior": "Keep exact derived actions disabled until the authoritative refresh and the post-resync derived snapshot both land."
+}
