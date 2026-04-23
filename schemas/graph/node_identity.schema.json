@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/node_identity.schema.json",
+  "title": "Aureline semantic-workspace-graph public node-identity boundary schema",
+  "description": "Boundary schema for the public node-identity surface of the shared semantic-workspace-graph. This schema publishes one stable node-identity vocabulary every non-owning surface reads — search, docs, AI context assembly, review packs, support bundles, the public graph query family, and cited-explainer overlays — so no consumer mints a private node class, a private identity token, a private durable-versus-derived classification, or a private freshness / confidence vocabulary. The canonical internal shapes (graph_node_record, node_class, node_body, provenance_stamp, freshness_frame, confidence_level, confidence_rollup, source_anchor, workset_scope_ref, impact_reason_slot, explainer_citation_slot) are owned by schemas/graph/workspace_graph_seed.schema.json; this file is the public contract surface that references those canonical types and adds the publish-level rules: durable-versus-derived source-class partitioning, an authoritative-anchor requirement for durable identity, a published freshness-confidence rule aligned with the truth-class vocabulary in schemas/search/search_result_truth.schema.json, and a published audit-event vocabulary for node-identity lifecycle. Raw source bodies, raw symbol definitions, raw document bodies, and raw provider URLs never cross this boundary. Adding a new published node-identity-audit-event id, a new durable source-class entry, a new derived source-class entry, a new freshness-confidence compatibility pair, or a new published-identity-constraint id is additive-minor and bumps node_identity_schema_version. Repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/node_identity_record" },
+    { "$ref": "#/$defs/node_identity_audit_event_record" }
+  ],
+  "$defs": {
+    "node_identity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this node-identity export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "node_identity_record",
+        "node_identity_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id"
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "node_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/node_id"
+    },
+
+    "workspace_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id"
+    },
+
+    "node_class": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/node_class",
+      "description": "Frozen node-class vocabulary. Public identity reuses the canonical list owned by workspace_graph_seed.schema.json. file_node, directory_node, symbol_node, doc_node, ownership_node, topology_node, provider_resource_node, generated_artifact_node cover the canonical identity families spelled out in the M00-149 spec. imported_root_node, workset_scope_node, policy_view_node, and missing_anchor_node are also published so scope narrowing, imported content, policy projection, and unresolved references remain honest on the public surface rather than silently folded into local roots."
+    },
+
+    "durable_source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_filesystem",
+        "buffer_editor",
+        "symbol_resolver",
+        "docs_pack",
+        "codeowners_resolver",
+        "build_toolchain",
+        "codegen_tool",
+        "package_resolver",
+        "notebook_kernel",
+        "preview_runtime",
+        "connected_provider",
+        "remote_agent",
+        "imported_bundle",
+        "replay_capture"
+      ],
+      "description": "Public subset of source_class that produces durable graph facts. A durable fact has a canonical producer the consumer can re-observe; public queries MAY render these rows without a derived-state disclosure. A node whose provenance_stamp.source_class is in this subset is a durable identity row."
+    },
+
+    "derived_source_class": {
+      "type": "string",
+      "enum": [
+        "ai_inference",
+        "policy_projection",
+        "manual_annotation"
+      ],
+      "description": "Public subset of source_class that produces derived graph facts. A derived fact is inferred, projected, or annotated; consumers MUST render a derived-state disclosure and MUST NOT upgrade the row to durable authority. A node whose provenance_stamp.source_class is in this subset is a derived identity row."
+    },
+
+    "identity_durability_class": {
+      "type": "string",
+      "enum": [
+        "durable_identity",
+        "derived_identity",
+        "synthetic_identity"
+      ],
+      "description": "Published durability class. durable_identity: the node was emitted by a durable_source_class producer and MUST carry at least one source_anchor pointing at an authoritative anchor (filesystem_identity, symbol_definition_site, docs_pack_entry, mutation_journal_entry, generated_artifact_lineage, provider_resource_handle, imported_bundle_entry, replay_capture_entry, codeowners_rule). derived_identity: the node was emitted by a derived_source_class producer and surfaces the derived chip on every render. synthetic_identity: missing_anchor_node, policy_view_node, or workset_scope_node classes that stand in for honest absence or scope projection; synthetic identity MUST NOT be rendered as either durable or derived without its typed body badge."
+    },
+
+    "freshness_confidence_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "live_medium_confidence",
+        "live_low_confidence",
+        "warming_partial",
+        "cached_authoritative_snapshot",
+        "stale_last_known_good",
+        "replayed_bundle_snapshot",
+        "imported_bundle_snapshot",
+        "derived_inference",
+        "synthetic_honesty_row"
+      ],
+      "description": "Published freshness-confidence compatibility class. Maps every legal combination of freshness_frame.freshness, confidence_level, and identity_durability_class onto a named public row-render posture. The posture names are the contract consumers read when deciding which truth-class badge to show. live_authoritative: freshness=authoritative, confidence=high, durable identity; renders the plain row. live_medium_confidence / live_low_confidence: freshness=authoritative, durable identity, confidence ≤ medium; renders a confidence chip. warming_partial: freshness=warming; renders the warming chip with the partial-truth disclosure contract from schemas/search/search_result_truth.schema.json. cached_authoritative_snapshot / stale_last_known_good / replayed_bundle_snapshot / imported_bundle_snapshot: non-live freshness frames; each MUST carry a stale_reason and render the matching chip. derived_inference: derived identity; renders the derived chip regardless of confidence. synthetic_honesty_row: synthetic identity; renders the missing-anchor, policy-hidden, or scope-projection badge."
+    },
+
+    "published_identity_constraint_id": {
+      "type": "string",
+      "enum": [
+        "node_id_stable_and_opaque",
+        "node_class_in_frozen_vocabulary",
+        "durable_identity_requires_authoritative_anchor",
+        "derived_identity_renders_derived_chip",
+        "generated_artifact_identity_requires_lineage_ref",
+        "missing_anchor_identity_requires_typed_reason",
+        "policy_view_identity_hides_member_list",
+        "workset_scope_identity_first_class",
+        "freshness_confidence_class_matches_frame",
+        "explainer_citation_ref_reuses_graph_ids",
+        "no_raw_body_crosses_boundary"
+      ],
+      "description": "Published identity-contract constraint ids. Consumers, test packets, and support bundles cite these verbatim so a contract violation is named with one vocabulary rather than a surface-local synonym. node_id_stable_and_opaque: every record carries an opaque, stable node_id; retired ids are never reused. node_class_in_frozen_vocabulary: node_class matches the frozen list in workspace_graph_seed.schema.json#/$defs/node_class. durable_identity_requires_authoritative_anchor: a durable_identity row carries at least one source_anchor with an anchor_kind in the authoritative anchor set (filesystem_identity, symbol_definition_site, docs_pack_entry, mutation_journal_entry, generated_artifact_lineage, provider_resource_handle, imported_bundle_entry, replay_capture_entry, codeowners_rule). derived_identity_renders_derived_chip: a derived_identity row carries confidence_level ≤ medium unless the producer is an explicitly-authoritative inference owner (in which case the derived chip still renders). generated_artifact_identity_requires_lineage_ref: a generated_artifact_node carries a lineage_record_ref into schemas/workspace/generated_artifact_lineage.schema.json. missing_anchor_identity_requires_typed_reason: a missing_anchor_node carries a typed missing_reason. policy_view_identity_hides_member_list: a policy_view_node exposes only hidden_member_count. workset_scope_identity_first_class: a workset_scope_node is itself a graph node rather than a side-channel tag. freshness_confidence_class_matches_frame: the published freshness_confidence_compatibility_class matches the record's freshness_frame + confidence_level + identity_durability_class triple. explainer_citation_ref_reuses_graph_ids: explainer_citation_slot.citation_ref resolves to a graph node_id or edge_id (or a non-graph citation class). no_raw_body_crosses_boundary: raw source bytes, raw symbol definitions, raw document bodies, raw provider URLs, and raw credentials never appear in any field of a published node-identity record."
+    },
+
+    "node_body": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/node_body"
+    },
+
+    "provenance_stamp": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/provenance_stamp"
+    },
+
+    "freshness_frame": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/freshness_frame"
+    },
+
+    "confidence_level": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/confidence_level"
+    },
+
+    "confidence_rollup": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/confidence_rollup"
+    },
+
+    "source_anchor": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/source_anchor"
+    },
+
+    "workset_scope_ref": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workset_scope_ref"
+    },
+
+    "impact_reason_slot": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/impact_reason_slot"
+    },
+
+    "explainer_citation_slot": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/explainer_citation_slot"
+    },
+
+    "node_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "node_identity_schema_version",
+        "node_id",
+        "node_class",
+        "workspace_id",
+        "node_body",
+        "provenance_stamp",
+        "freshness_frame",
+        "confidence_level",
+        "identity_durability_class",
+        "freshness_confidence_compatibility_class",
+        "scope_refs",
+        "source_anchors"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "node_identity_record" },
+        "node_identity_schema_version": { "$ref": "#/$defs/node_identity_schema_version" },
+        "node_id": { "$ref": "#/$defs/node_id" },
+        "node_class": { "$ref": "#/$defs/node_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "node_body": { "$ref": "#/$defs/node_body" },
+        "display_label": {
+          "type": ["string", "null"],
+          "description": "Redaction-aware display label surfaces render alongside the node id. Never substituted for node_id on links, citations, or deep-link anchors."
+        },
+        "provenance_stamp": { "$ref": "#/$defs/provenance_stamp" },
+        "freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "confidence_rollup": { "$ref": "#/$defs/confidence_rollup" },
+        "identity_durability_class": { "$ref": "#/$defs/identity_durability_class" },
+        "freshness_confidence_compatibility_class": {
+          "$ref": "#/$defs/freshness_confidence_compatibility_class",
+          "description": "Published compatibility class for this row. MUST align with the record's freshness_frame, confidence_level, and identity_durability_class; a mismatch is a contract violation (constraint id freshness_confidence_class_matches_frame)."
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" },
+          "description": "One or more workset / scope refs the node is published under. A row invisible in the current scope carries visibility = missing_in_scope so consumers render an honesty badge rather than hiding the node."
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" },
+          "description": "Published source anchors. For identity_durability_class = durable_identity, at least one anchor MUST use an authoritative anchor_kind (filesystem_identity, symbol_definition_site, docs_pack_entry, mutation_journal_entry, generated_artifact_lineage, provider_resource_handle, imported_bundle_entry, replay_capture_entry, codeowners_rule). For derived_identity, anchors MAY be empty (the producer is the anchor, named in provenance_stamp). For synthetic_identity, anchors MUST be empty."
+        },
+        "impact_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_reason_slot" }
+        },
+        "explainer_citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/explainer_citation_slot" },
+          "description": "Published explainer citations reusing graph node and edge ids. Overlays MUST NOT mint a private citation pointer."
+        },
+        "published_notes": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 240 },
+          "description": "Redaction-aware reviewer notes carried on the published identity row. Never embeds raw source bodies, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One published node-identity record. Mirrors schemas/graph/workspace_graph_seed.schema.json#/$defs/graph_node_record with one additional rule: every published row carries an identity_durability_class and a freshness_confidence_compatibility_class so consumers render durable, derived, synthetic, cached, stale, replayed, imported, and warming states with one vocabulary rather than a local synonym."
+    },
+
+    "node_identity_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "node_identity_published",
+        "node_identity_revised",
+        "node_identity_retired",
+        "node_identity_durability_changed",
+        "node_identity_freshness_downgraded",
+        "node_identity_confidence_downgraded",
+        "node_identity_constraint_violated",
+        "node_identity_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary for the published node-identity surface. Support bundles, replay captures, and AI evidence packets cite these verbatim. node_identity_constraint_violated MUST carry a violated_constraint_id."
+    },
+
+    "node_identity_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "node_identity_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "workspace_id",
+        "subject_node_id"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "node_identity_audit_event_record" },
+        "node_identity_schema_version": { "$ref": "#/$defs/node_identity_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/node_identity_audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "subject_node_id": { "$ref": "#/$defs/node_id" },
+        "violated_constraint_id": { "$ref": "#/$defs/published_identity_constraint_id" },
+        "durability_before": { "$ref": "#/$defs/identity_durability_class" },
+        "durability_after": { "$ref": "#/$defs/identity_durability_class" },
+        "freshness_after": { "$ref": "#/$defs/freshness_confidence_compatibility_class" },
+        "notes_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into structured notes. MUST NOT embed raw source bodies, raw provider URLs, or raw credentials."
+        }
+      }
+    }
+  }
+}

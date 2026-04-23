@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/query_family.schema.json",
+  "title": "Aureline semantic-workspace-graph public query-family and result-envelope boundary schema",
+  "description": "Boundary schema for the public query-family and result-envelope surface of the shared semantic-workspace-graph. This schema publishes one stable query-family vocabulary and one versioned result-envelope shape every consumer reuses — search, docs, AI context assembly, review packs, support bundles, and the eventual public graph query API — so no surface leaks an ad hoc internal query shape into a future public contract. A query family is a named safe inspect / read / query group with frozen rules: which scope classes it may read, which identity durability classes it may emit, which edge durability classes it may emit, which readiness states it tolerates, which result-truth classes it renders, whether it may assemble AI context, whether it is publishable on the public graph query API, and whether its result envelope is support-export safe. The canonical node / edge / provenance / freshness / confidence / scope / anchor / citation vocabularies are owned by schemas/graph/workspace_graph_seed.schema.json; the published identity and edge boundary contracts are owned by schemas/graph/node_identity.schema.json and schemas/graph/edge_family.schema.json; the result-truth / readiness / ranking-reason vocabulary is owned by schemas/search/search_result_truth.schema.json. This schema references those canonical types and adds the query-family descriptor, the result-envelope record, the query-invocation record, and the query-family audit-event record. Raw query bodies, raw source bytes, raw symbol definitions, raw document bodies, and raw provider URLs never cross this boundary. Adding a new query_family_id, a new query_safety_class, a new query_intent_class, a new result_row_class, a new published query-family constraint id, or a new query-family audit-event id is additive-minor and bumps query_family_schema_version. Repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/query_family_descriptor_record" },
+    { "$ref": "#/$defs/query_invocation_record" },
+    { "$ref": "#/$defs/result_envelope_record" },
+    { "$ref": "#/$defs/query_family_audit_event_record" }
+  ],
+  "$defs": {
+    "query_family_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this query-family export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "result_envelope_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer version on the result_envelope_record payload shape. A consumer MUST refuse a result envelope whose result_envelope_version is greater than the consumer's supported max. Bumped on breaking envelope-shape changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "query_family_descriptor_record",
+        "query_invocation_record",
+        "result_envelope_record",
+        "query_family_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id"
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "node_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/node_id"
+    },
+
+    "edge_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/edge_id"
+    },
+
+    "workspace_id": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id"
+    },
+
+    "workset_scope_ref": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/workset_scope_ref"
+    },
+
+    "provenance_stamp": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/provenance_stamp"
+    },
+
+    "freshness_frame": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/freshness_frame"
+    },
+
+    "confidence_level": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/confidence_level"
+    },
+
+    "explainer_citation_slot": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/explainer_citation_slot"
+    },
+
+    "impact_reason_slot": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/impact_reason_slot"
+    },
+
+    "identity_durability_class": {
+      "$ref": "node_identity.schema.json#/$defs/identity_durability_class"
+    },
+
+    "edge_durability_class": {
+      "$ref": "edge_family.schema.json#/$defs/edge_durability_class"
+    },
+
+    "freshness_confidence_compatibility_class": {
+      "$ref": "node_identity.schema.json#/$defs/freshness_confidence_compatibility_class"
+    },
+
+    "query_family_id": {
+      "type": "string",
+      "enum": [
+        "lexical_text_search",
+        "symbol_jump",
+        "semantic_code_search",
+        "docs_search",
+        "ownership_lookup",
+        "topology_walk",
+        "impact_explorer",
+        "dependency_walk",
+        "generated_artifact_lineage_walk",
+        "provider_resource_lookup",
+        "cited_explainer_walk",
+        "ai_context_assembly",
+        "public_graph_query",
+        "review_impact_walk",
+        "support_export_walk"
+      ],
+      "description": "Frozen public query-family id vocabulary. Mirrors workspace_graph_seed.schema.json#/$defs/query_family_tag so a node or edge's query_family_tags list directly names the query families it is intended to serve."
+    },
+
+    "query_safety_class": {
+      "type": "string",
+      "enum": [
+        "inspect_read_only",
+        "read_durable_only",
+        "read_derived_permitted",
+        "walk_scope_bounded",
+        "ai_context_restricted",
+        "support_export_bundle",
+        "public_api_safe"
+      ],
+      "description": "Published query-safety class naming the 'safe inspect / read / query group' a family belongs to. inspect_read_only: the query never mutates state and never materializes derived rows. read_durable_only: the query may render rows only when identity_durability_class = durable_identity and edge_durability_class = durable_edge. read_derived_permitted: the query may render derived, inferred, or annotated rows but MUST mark them with the derived chip. walk_scope_bounded: the query walks edges but MUST stop at workset_scope boundaries and MUST render policy_view_node projections instead of revealing hidden members. ai_context_restricted: the query assembles AI context and MUST obey the redaction / no-raw-body rule and MUST cite via explainer_citation_slot. support_export_bundle: the query produces a support-export-safe envelope (no raw credentials, no raw provider URLs, no raw source bytes). public_api_safe: the query is publishable on the public graph API; result shape MUST remain versioned."
+    },
+
+    "query_intent_class": {
+      "type": "string",
+      "enum": [
+        "lookup_by_identity",
+        "lookup_by_label",
+        "walk_neighbors",
+        "walk_typed_edges",
+        "collect_impact_set",
+        "collect_context_set",
+        "enumerate_scope_members",
+        "enumerate_citations",
+        "export_support_bundle_slice"
+      ],
+      "description": "Published query-intent class. Pairs with query_family_id to describe what the query is actually trying to do. lookup_by_identity: resolve a specific node_id or edge_id. lookup_by_label: find rows whose display_label or qualified_path matches a token (labels only, never raw bodies). walk_neighbors: return directly connected nodes. walk_typed_edges: return edges of a given edge_class or edge_family_group. collect_impact_set: return the impacts set for a subject node. collect_context_set: gather an AI context set with explainer citations. enumerate_scope_members: list nodes inside a workset_scope_node or policy_view_node. enumerate_citations: list explainer_citation_slot targets for a subject node. export_support_bundle_slice: emit the support-export envelope for a subject set."
+    },
+
+    "result_row_class": {
+      "type": "string",
+      "enum": [
+        "node_identity_row",
+        "edge_family_row",
+        "missing_anchor_row",
+        "policy_hidden_row",
+        "scope_partial_row",
+        "warming_row",
+        "stale_row"
+      ],
+      "description": "Published result-row class. node_identity_row: the row projects a node_identity_record. edge_family_row: the row projects an edge_family_record. missing_anchor_row: the row projects an honest-absence row pointing at a missing_anchor_node. policy_hidden_row: the row projects a policy_view_node with hidden_member_count only. scope_partial_row: the row projects a node or edge whose scope visibility is partial_visible. warming_row: the row projects a warming freshness frame with a warming_progress_hint. stale_row: the row projects a non-authoritative freshness frame with a typed stale_reason."
+    },
+
+    "readiness_state": {
+      "$ref": "../search/search_result_truth.schema.json#/$defs/readiness_state",
+      "description": "Published readiness-state vocabulary. Re-exported from schemas/search/search_result_truth.schema.json so the result envelope shares one readiness vocabulary with every search surface; hot_set_ready, partial_index, warm_index, stale_index, reindexing, and index_unavailable envelopes MUST carry a partial-truth disclosure."
+    },
+
+    "result_truth_class": {
+      "$ref": "../search/search_result_truth.schema.json#/$defs/result_truth_class",
+      "description": "Published result-truth vocabulary. Re-exported from schemas/search/search_result_truth.schema.json. heuristic and hybrid envelopes MUST carry a partial-truth disclosure and MUST NOT render alone as authoritative."
+    },
+
+    "partial_truth_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disclosure_class", "reader_copy"],
+      "properties": {
+        "disclosure_class": {
+          "type": "string",
+          "enum": [
+            "warming_index_disclosed",
+            "partial_index_disclosed",
+            "stale_index_disclosed",
+            "reindexing_disclosed",
+            "index_unavailable_disclosed",
+            "imported_results_disclosed",
+            "heuristic_results_disclosed",
+            "hybrid_results_disclosed",
+            "scope_narrowed_disclosed",
+            "policy_hidden_disclosed",
+            "derived_inference_disclosed"
+          ],
+          "description": "Frozen partial-truth disclosure classes the consumer renders as copy. Consumers MUST NOT hide the disclosure when the envelope carries one."
+        },
+        "reader_copy": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware reader copy the consumer renders verbatim. Never embeds raw query bodies, raw source bytes, or raw provider URLs."
+        }
+      },
+      "description": "One partial-truth disclosure. Required on every result envelope whose readiness_state is not fully_indexed or whose result_truth_class is heuristic or hybrid."
+    },
+
+    "query_family_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "query_family_schema_version",
+        "query_family_id",
+        "safety_classes",
+        "allowed_intent_classes",
+        "allowed_node_classes",
+        "allowed_edge_family_groups",
+        "allowed_readiness_states",
+        "allowed_result_truth_classes",
+        "allowed_result_row_classes"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "query_family_descriptor_record" },
+        "query_family_schema_version": { "$ref": "#/$defs/query_family_schema_version" },
+        "query_family_id": { "$ref": "#/$defs/query_family_id" },
+        "safety_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_safety_class" },
+          "description": "One or more safety classes this family belongs to. A family's safety classes constrain the envelopes it may emit."
+        },
+        "allowed_intent_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query_intent_class" }
+        },
+        "allowed_node_classes": {
+          "type": "array",
+          "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/node_class" },
+          "description": "Published allow-list of node classes this family may render. A row outside the allow-list MUST NOT appear in an envelope from this family."
+        },
+        "allowed_edge_family_groups": {
+          "type": "array",
+          "items": { "$ref": "edge_family.schema.json#/$defs/edge_family_group" }
+        },
+        "allowed_readiness_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_state" }
+        },
+        "allowed_result_truth_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result_truth_class" }
+        },
+        "allowed_result_row_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result_row_class" }
+        },
+        "emits_ai_context": {
+          "type": "boolean",
+          "description": "True when the family is allowed to assemble AI context; such families MUST belong to safety class ai_context_restricted and MUST emit explainer_citation_slot refs rather than raw bodies."
+        },
+        "public_api_publishable": {
+          "type": "boolean",
+          "description": "True when the family is publishable on the public graph query API; such families MUST belong to safety class public_api_safe and MUST lock the result_envelope_version."
+        },
+        "support_export_safe": {
+          "type": "boolean",
+          "description": "True when the family may produce support-export envelopes; such families MUST belong to safety class support_export_bundle and MUST preserve redaction."
+        },
+        "description_note": {
+          "type": "string",
+          "maxLength": 480,
+          "description": "Redaction-aware reviewer note describing what the family is for. Never embeds raw source bytes, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One query-family descriptor. Consumers read this record to decide whether a given query family may emit a given row, render a given truth class, or publish on a given boundary."
+    },
+
+    "query_invocation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "query_family_schema_version",
+        "query_invocation_id",
+        "query_family_id",
+        "query_intent_class",
+        "issued_at",
+        "workspace_id",
+        "scope_refs"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "query_invocation_record" },
+        "query_family_schema_version": { "$ref": "#/$defs/query_family_schema_version" },
+        "query_invocation_id": { "$ref": "#/$defs/opaque_id" },
+        "query_family_id": { "$ref": "#/$defs/query_family_id" },
+        "query_intent_class": { "$ref": "#/$defs/query_intent_class" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "subject_node_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node_id" },
+          "description": "Opaque graph-node ids the query is about. Never a raw query body; never a raw source or URL."
+        },
+        "subject_edge_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge_id" }
+        },
+        "label_token": {
+          "type": ["string", "null"],
+          "maxLength": 240,
+          "description": "Optional redaction-aware label token when the intent is lookup_by_label. Consumers MUST NOT render raw user input here; label tokens are the producer's normalized form."
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" },
+          "description": "The workset / scope the query is bounded by. A walk_scope_bounded family stops at these boundaries."
+        },
+        "safety_class_assumed": { "$ref": "#/$defs/query_safety_class" }
+      },
+      "description": "One query invocation. Envelopes cite the invocation id so readers can reconstruct 'which query produced this envelope' without inventing a private request shape."
+    },
+
+    "result_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_class", "row_index"],
+      "properties": {
+        "row_class": { "$ref": "#/$defs/result_row_class" },
+        "row_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Stable zero-based index inside the envelope. Consumers cite (envelope_id, row_index) to anchor a row without inventing a private row handle."
+        },
+        "node_identity_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque node_id when row_class = node_identity_row, missing_anchor_row, policy_hidden_row, scope_partial_row, warming_row, or stale_row. The consumer resolves the full node_identity_record against schemas/graph/node_identity.schema.json."
+        },
+        "edge_family_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque edge_id when row_class = edge_family_row. The consumer resolves the full edge_family_record against schemas/graph/edge_family.schema.json."
+        },
+        "identity_durability_class": { "$ref": "#/$defs/identity_durability_class" },
+        "edge_durability_class": { "$ref": "#/$defs/edge_durability_class" },
+        "freshness_confidence_compatibility_class": { "$ref": "#/$defs/freshness_confidence_compatibility_class" },
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "row_freshness_frame": { "$ref": "#/$defs/freshness_frame" },
+        "row_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "row_explainer_citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/explainer_citation_slot" }
+        },
+        "row_impact_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_reason_slot" }
+        },
+        "row_note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware reviewer note for this row. Never embeds raw source bodies, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One published result row. Rows reference full node_identity and edge_family records by id rather than re-carrying the full record; the consumer joins against the published identity / family records for full fields."
+    },
+
+    "result_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "query_family_schema_version",
+        "result_envelope_version",
+        "envelope_id",
+        "query_invocation_id",
+        "query_family_id",
+        "query_intent_class",
+        "workspace_id",
+        "emitted_at",
+        "readiness_state",
+        "result_truth_class",
+        "envelope_scope_refs",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "result_envelope_record" },
+        "query_family_schema_version": { "$ref": "#/$defs/query_family_schema_version" },
+        "result_envelope_version": { "$ref": "#/$defs/result_envelope_version" },
+        "envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "query_invocation_id": { "$ref": "#/$defs/opaque_id" },
+        "query_family_id": { "$ref": "#/$defs/query_family_id" },
+        "query_intent_class": { "$ref": "#/$defs/query_intent_class" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "envelope_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_ref" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result_row" },
+          "description": "Ordered result rows. Row indexing is stable inside the envelope; consumers cite (envelope_id, row_index) as the public anchor."
+        },
+        "partial_truth_disclosure": {
+          "$ref": "#/$defs/partial_truth_disclosure",
+          "description": "Required when readiness_state is not fully_indexed or result_truth_class is heuristic or hybrid."
+        },
+        "envelope_provenance": { "$ref": "#/$defs/provenance_stamp" },
+        "envelope_freshness": { "$ref": "#/$defs/freshness_frame" },
+        "envelope_confidence": { "$ref": "#/$defs/confidence_level" },
+        "envelope_note": {
+          "type": "string",
+          "maxLength": 480,
+          "description": "Redaction-aware envelope-level note. Never embeds raw query bodies, raw source bytes, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One published result envelope. Every surface that renders, logs, exports, or replays a graph-query result reads this shape. The envelope is versioned (query_family_schema_version + result_envelope_version) so consumers refuse a newer envelope rather than guessing, and the row anchor is (envelope_id, row_index) so no ad hoc internal query row shape leaks into the public contract."
+    },
+
+    "published_query_family_constraint_id": {
+      "type": "string",
+      "enum": [
+        "envelope_version_pinned",
+        "row_anchor_stable",
+        "rows_within_allowed_node_classes",
+        "rows_within_allowed_edge_family_groups",
+        "readiness_state_allowed_for_family",
+        "result_truth_class_allowed_for_family",
+        "partial_truth_disclosure_required_when_not_fully_indexed",
+        "partial_truth_disclosure_required_when_heuristic_or_hybrid",
+        "ai_context_family_uses_citations",
+        "public_api_family_locks_envelope_version",
+        "support_export_family_preserves_redaction",
+        "walk_scope_bounded_stops_at_scope_boundary",
+        "derived_rows_render_derived_chip",
+        "missing_anchor_row_points_at_missing_anchor_node",
+        "no_raw_body_crosses_boundary"
+      ],
+      "description": "Published query-family / envelope constraint ids consumers cite verbatim when reporting a contract violation."
+    },
+
+    "query_family_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "query_family_descriptor_published",
+        "query_family_descriptor_revised",
+        "query_family_descriptor_retired",
+        "result_envelope_emitted",
+        "result_envelope_refused_newer_version",
+        "result_envelope_truncated",
+        "query_family_constraint_violated",
+        "query_family_schema_version_bumped",
+        "result_envelope_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary for the query-family / result-envelope surface. Support bundles, replay captures, and AI evidence packets cite these verbatim."
+    },
+
+    "query_family_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "query_family_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "workspace_id"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "query_family_audit_event_record" },
+        "query_family_schema_version": { "$ref": "#/$defs/query_family_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/query_family_audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "subject_family_id": { "$ref": "#/$defs/query_family_id" },
+        "subject_envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_invocation_id": { "$ref": "#/$defs/opaque_id" },
+        "violated_constraint_id": { "$ref": "#/$defs/published_query_family_constraint_id" },
+        "notes_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into structured notes. MUST NOT embed raw source bodies, raw query bodies, raw provider URLs, or raw credentials."
+        }
+      }
+    }
+  }
+}
