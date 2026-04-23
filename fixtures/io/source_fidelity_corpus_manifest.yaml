@@ -1,0 +1,276 @@
+# Source-fidelity and undo corpus manifest.
+#
+# Stable ids for the worked save and mutation records that verify
+# source-fidelity fields, rewrite disclosure, and recovery-label honesty.
+# Future release, support, and apply/revert packets should cite these ids
+# instead of inventing per-feature save-truth labels.
+
+schema_version: 1
+manifest_id: aureline.source_fidelity_corpus
+manifest_revision: 1
+status: seeded
+
+overview_page: docs/verification/source_fidelity_and_undo_packet.md
+rewrite_class_source: artifacts/io/save_rewrite_classes.yaml
+save_manifest_schema_source: schemas/runtime/vfs_save_envelope.schema.json
+mutation_journal_schema_source: schemas/workspace/mutation_journal.schema.json
+mutation_lineage_source: docs/workspace/mutation_lineage_model.md
+
+case_class_vocabulary:
+  - source_fidelity_required_case
+  - recovery_reference_case
+
+record_family_vocabulary:
+  - save_manifest
+  - mutation_journal_entry
+  - mutation_group_record
+
+packet_projection_vocabulary:
+  encoding_state:
+    - preserved
+    - explicit_conversion
+    - decode_recovery_override
+    - unknown_or_degraded
+  bom_state:
+    - preserved
+    - added_explicitly
+    - removed_explicitly
+    - unknown_or_degraded
+  newline_mode_state:
+    - preserved
+    - converted_explicitly
+    - mixed_input_preserved
+    - unknown_or_degraded
+  final_newline_state:
+    - preserved
+    - added_explicitly
+    - removed_explicitly
+    - unknown_or_degraded
+  permission_state:
+    - preserved
+    - explicit_permission_change
+    - write_blocked
+    - metadata_guarantee_degraded
+  conflict_state:
+    - clean
+    - no_write_needed
+    - merge_required
+    - merge_committed
+    - generated_boundary_blocked
+    - unsupported_or_degraded
+  recovery_class:
+    - exact_undo
+    - compensating_undo
+    - regenerate_or_recompute
+    - restore_from_checkpoint
+    - audit_only
+    - no_state_change
+
+cases:
+  - case_id: corpus.io.no_op_save
+    case_class: source_fidelity_required_case
+    title: No-op save records no durable rewrite
+    summary: >
+      Save is invoked against a target that already matches the staged
+      snapshot. The packet must report preserved fidelity and no state
+      change to undo.
+    record_family: save_manifest
+    primary_artifact: artifacts/io/undo_recovery_examples/no_op_save.json
+    covered_requirement_ids:
+      - FR-EDIT-001
+      - REL-IO-004
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: no_write_needed
+      rewrite_class: no_write_needed
+      recovery_class: no_state_change
+      required_labels:
+        - Preserved source fidelity
+        - No state change to undo
+
+  - case_id: corpus.io.line_ending_preserved_save
+    case_class: source_fidelity_required_case
+    title: Line-ending preservation survives edit and save
+    summary: >
+      A CRLF-authored file is edited and saved without newline
+      normalization.
+    record_family: save_manifest
+    primary_artifact: artifacts/io/undo_recovery_examples/line_ending_preserved_save.json
+    covered_requirement_ids:
+      - FR-EDIT-001
+      - REL-IO-004
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: clean
+      rewrite_class: targeted_content_patch
+      recovery_class: exact_undo
+      required_labels:
+        - Preserved source fidelity
+        - Undo exactly
+
+  - case_id: corpus.io.encoding_preserving_edit_save
+    case_class: source_fidelity_required_case
+    title: Non-default encoding survives ordinary edit and save
+    summary: >
+      A UTF-16LE file with a BOM stays in that encoding after a text
+      edit and save boundary.
+    record_family: mutation_journal_entry
+    primary_artifact: artifacts/io/undo_recovery_examples/encoding_preserving_edit_save.json
+    covered_requirement_ids:
+      - FR-EDIT-001
+      - REL-IO-004
+      - REL-MUT-014
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: clean
+      rewrite_class: targeted_content_patch
+      recovery_class: exact_undo
+      required_labels:
+        - Preserved source fidelity
+        - Undo exactly
+
+  - case_id: corpus.io.permission_preserving_save
+    case_class: source_fidelity_required_case
+    title: Permission-preserving save keeps executable posture
+    summary: >
+      An executable script is edited and saved without losing the mode
+      the durable target had at open time.
+    record_family: save_manifest
+    primary_artifact: artifacts/io/undo_recovery_examples/permission_preserving_save.json
+    covered_requirement_ids:
+      - REL-IO-004
+      - REL-FS-013
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: clean
+      rewrite_class: targeted_content_patch
+      recovery_class: exact_undo
+      required_labels:
+        - Preserved source fidelity
+        - Undo exactly
+
+  - case_id: corpus.io.whole_file_rewrite_fallback
+    case_class: source_fidelity_required_case
+    title: Whole-file rewrite fallback is disclosed explicitly
+    summary: >
+      A save-participant path widens from targeted patching to a
+      full-file rewrite and must carry both the rewrite disclosure and
+      the weaker recovery label.
+    record_family: mutation_group_record
+    primary_artifact: artifacts/io/undo_recovery_examples/whole_file_rewrite_fallback.json
+    covered_requirement_ids:
+      - REL-IO-004
+      - REL-MUT-014
+      - TOOL-FMT-014
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: clean
+      rewrite_class: whole_file_rewrite_fallback
+      recovery_class: compensating_undo
+      required_labels:
+        - Whole-file rewrite fallback
+        - Revert with a compensating action
+
+  - case_id: corpus.io.external_change_merge_conflict
+    case_class: source_fidelity_required_case
+    title: External change blocks write and opens merge review
+    summary: >
+      Compare-before-write detects drift. The packet must say that no
+      durable write landed and that the current buffer remains intact
+      until the user chooses a resolution.
+    record_family: save_manifest
+    primary_artifact: artifacts/io/undo_recovery_examples/external_change_merge_conflict.json
+    covered_requirement_ids:
+      - REL-IO-004
+      - REL-FS-013
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: preserved
+      conflict_state: merge_required
+      rewrite_class: blocked_no_write
+      recovery_class: no_state_change
+      required_labels:
+        - No durable write
+        - No state change to undo
+
+  - case_id: corpus.io.generated_file_regeneration
+    case_class: source_fidelity_required_case
+    title: Generated output save is regeneration, not exact undo
+    summary: >
+      Canonical inputs remain authoritative and the durable output is
+      refreshed by a generator path rather than by direct text inversion.
+    record_family: mutation_journal_entry
+    primary_artifact: artifacts/io/undo_recovery_examples/generated_file_regeneration.json
+    covered_requirement_ids:
+      - REL-IO-004
+      - REL-MUT-014
+    expected_projection:
+      conflict_state: clean
+      rewrite_class: generator_regeneration_write
+      recovery_class: regenerate_or_recompute
+      required_labels:
+        - Generated output regenerated
+        - Restore by regeneration
+
+  - case_id: corpus.io.degraded_unsupported_save
+    case_class: source_fidelity_required_case
+    title: Unsupported save path is blocked rather than overclaimed
+    summary: >
+      The durable target cannot be written safely from the current
+      surface. The packet must say that no durable write occurred.
+    record_family: save_manifest
+    primary_artifact: artifacts/io/undo_recovery_examples/degraded_unsupported_save.json
+    covered_requirement_ids:
+      - REL-IO-004
+      - REL-FS-013
+    expected_projection:
+      encoding_state: preserved
+      bom_state: preserved
+      newline_mode_state: preserved
+      final_newline_state: preserved
+      permission_state: write_blocked
+      conflict_state: unsupported_or_degraded
+      rewrite_class: blocked_no_write
+      recovery_class: no_state_change
+      required_labels:
+        - No durable write
+        - No state change to undo
+
+  - case_id: corpus.io.checkpoint_restore_decode_recovery
+    case_class: recovery_reference_case
+    title: Decode recovery resolves by checkpoint, not inverse edit
+    summary: >
+      Raw bytes survive in the recovery journal, so the honest recovery
+      promise is checkpoint restore rather than exact undo.
+    record_family: mutation_journal_entry
+    primary_artifact: artifacts/io/undo_recovery_examples/checkpoint_restore_decode_recovery.json
+    covered_requirement_ids:
+      - REL-MUT-014
+      - REL-IO-004
+    expected_projection:
+      recovery_class: restore_from_checkpoint
+      required_labels:
+        - Restore checkpoint

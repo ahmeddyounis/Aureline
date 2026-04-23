@@ -17,7 +17,7 @@ to change, update this map in the same change.
 | `fixtures/`    | Reusable test inputs and golden artifacts. Subtrees grow per protected-path corpus.                  |
 | `tools/`       | Repository-local tooling (lint helpers, codegen scripts, governance checkers).                       |
 | `ci/`          | CI configuration shared across pipelines (job definitions, gate scripts).                            |
-| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `architecture/`, `governance/`, `compat/`, `evidence/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`.  |
+| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `architecture/`, `governance/`, `compat/`, `evidence/`, `io/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`.  |
 
 ## Reserved subtrees inside `artifacts/`
 
@@ -27,6 +27,7 @@ to change, update this map in the same change.
 | `artifacts/architecture/` | Service-topology maps, protected-path dependency rules, process-placement seeds, and tradeoff registers. |
 | `artifacts/compat/`    | Compatibility qualification matrix, version-skew register, and boundary-row seeds.   |
 | `artifacts/evidence/`  | Shared evidence metadata catalogs and freshness field vocabularies used by release-facing packets. |
+| `artifacts/io/`        | Save-path, source-fidelity, rewrite-class, and root-capability artifacts for editor and VFS truth contracts. |
 | `artifacts/release/`   | Release-artifact graph rules, provenance, SBOMs, compatibility reports, claim manifests, rollback packets. |
 | `artifacts/platform/`  | Claimed desktop profile registry and platform-owned primitive matrices that bind desktop claims to named OS/profile rows. |
 | `artifacts/qa/`        | Seed QA verification matrices and claimed-profile continuity drill vocabularies. |
@@ -39,9 +40,8 @@ home. Later release-time compatibility reports still land under
 `artifacts/release/`; they extend the seeded row ids rather than
 replacing them.
 
-Other M0 tasks land additional subtrees (release engineering, UX,
-accessibility, support); they extend this map rather than relocating
-it.
+Other tasks may land additional subtrees; they extend this map rather
+than relocating it.
 
 ## Seeded crates
 

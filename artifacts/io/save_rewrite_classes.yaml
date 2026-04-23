@@ -1,0 +1,157 @@
+# Save rewrite classes.
+#
+# Machine-readable vocabulary for how much of a durable target Aureline
+# rewrote during save or regeneration. The packet-level field set and
+# disclosure labels live in docs/verification/source_fidelity_and_undo_packet.md;
+# ADR 0003 and ADR 0006 remain the normative implementation contracts.
+
+schema_version: 1
+
+packet_source: docs/verification/source_fidelity_and_undo_packet.md
+adr_sources:
+  - docs/adr/0003-buffer-undo-large-file.md
+  - docs/adr/0006-vfs-save-cache-identity.md
+mutation_lineage_source: docs/workspace/mutation_lineage_model.md
+
+rewrite_classes:
+  - no_write_needed
+  - targeted_content_patch
+  - whole_file_rewrite_declared
+  - whole_file_rewrite_fallback
+  - merge_resolution_write
+  - generator_regeneration_write
+  - blocked_no_write
+
+bytes_outside_declared_ranges_states:
+  - unchanged
+  - preserved
+  - rewritten
+  - regenerated
+  - not_written
+
+compatible_recovery_classes:
+  - exact_undo
+  - compensating_undo
+  - regenerate_or_recompute
+  - restore_from_checkpoint
+  - audit_only
+  - no_state_change
+
+rows:
+  - class_id: no_write_needed
+    packet_label: No write needed
+    disclosure_label: null
+    disclosure_required: false
+    whole_file_scope: none
+    bytes_outside_declared_ranges: unchanged
+    typical_save_outcomes:
+      - committed
+    compatible_recovery_classes:
+      - no_state_change
+      - exact_undo
+    notes: >
+      The staged snapshot already matched the durable target. A save
+      boundary may still be recorded, but the packet must not imply that
+      bytes were rewritten.
+
+  - class_id: targeted_content_patch
+    packet_label: Preserved source fidelity
+    disclosure_label: null
+    disclosure_required: false
+    whole_file_scope: targeted_ranges_only
+    bytes_outside_declared_ranges: preserved
+    typical_save_outcomes:
+      - committed
+    compatible_recovery_classes:
+      - exact_undo
+    notes: >
+      The committed path preserved encoding, BOM, newline, and
+      permission posture while limiting the durable change to the
+      intended edit ranges.
+
+  - class_id: whole_file_rewrite_declared
+    packet_label: Whole-file rewrite
+    disclosure_label: Whole-file rewrite
+    disclosure_required: true
+    whole_file_scope: declared_whole_file
+    bytes_outside_declared_ranges: rewritten
+    typical_save_outcomes:
+      - committed
+      - degraded_guarantee_declared
+    compatible_recovery_classes:
+      - compensating_undo
+      - exact_undo
+    notes: >
+      A formatter, serializer, or other participant rewrote the full
+      file on its supported path. The UI may not collapse this to a
+      generic Saved state without the whole-file disclosure.
+
+  - class_id: whole_file_rewrite_fallback
+    packet_label: Whole-file rewrite fallback
+    disclosure_label: Whole-file rewrite fallback
+    disclosure_required: true
+    whole_file_scope: fallback_whole_file
+    bytes_outside_declared_ranges: rewritten
+    typical_save_outcomes:
+      - committed
+      - degraded_guarantee_declared
+    compatible_recovery_classes:
+      - compensating_undo
+      - restore_from_checkpoint
+    notes: >
+      The narrower patch-preserving path was unavailable or unsafe, so
+      Aureline widened to a full-file rewrite. This is the release-
+      bearing disclosure the save-participant strip and packet rows must
+      carry verbatim.
+
+  - class_id: merge_resolution_write
+    packet_label: Merge result after external change
+    disclosure_label: Merge result after external change
+    disclosure_required: true
+    whole_file_scope: merge_result
+    bytes_outside_declared_ranges: rewritten
+    typical_save_outcomes:
+      - committed
+    compatible_recovery_classes:
+      - restore_from_checkpoint
+      - compensating_undo
+    notes: >
+      A reviewed merge or choose flow produced a new whole-file durable
+      result after external drift. The packet must not present this as a
+      routine clean save.
+
+  - class_id: generator_regeneration_write
+    packet_label: Generated output regenerated
+    disclosure_label: Generated output regenerated
+    disclosure_required: true
+    whole_file_scope: generator_regeneration
+    bytes_outside_declared_ranges: regenerated
+    typical_save_outcomes:
+      - committed
+    compatible_recovery_classes:
+      - regenerate_or_recompute
+    notes: >
+      Canonical inputs or a generator, not direct byte inversion, remain
+      authoritative. Recovery copy must point to regeneration, not to
+      exact undo.
+
+  - class_id: blocked_no_write
+    packet_label: No durable write
+    disclosure_label: No durable write
+    disclosure_required: true
+    whole_file_scope: blocked_no_write
+    bytes_outside_declared_ranges: not_written
+    typical_save_outcomes:
+      - external_change_detected
+      - save_conflict
+      - generated_or_managed_write_blocked
+      - read_only_or_policy_blocked
+      - review_required_before_save
+      - review_required_before_rename
+    compatible_recovery_classes:
+      - no_state_change
+      - audit_only
+    notes: >
+      The save pipeline stopped before a durable write landed. Packet
+      and UI copy should explain why, but may not imply that there is a
+      committed state change to undo.

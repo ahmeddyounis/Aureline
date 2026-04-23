@@ -393,6 +393,15 @@ code.
   [`/schemas/search/search_result_truth.schema.json`](../schemas/search/search_result_truth.schema.json);
   worked fixtures in
   [`/fixtures/search/result_truth_examples/`](../fixtures/search/result_truth_examples/).
+- [`verification/source_fidelity_and_undo_packet.md`](./verification/source_fidelity_and_undo_packet.md)
+  — seed verification packet for save/source-fidelity fields,
+  whole-file-rewrite disclosure, and undo-honesty copy. Pairs with the
+  machine-readable corpus in
+  [`/fixtures/io/source_fidelity_corpus_manifest.yaml`](../fixtures/io/source_fidelity_corpus_manifest.yaml),
+  the rewrite-class vocabulary in
+  [`/artifacts/io/save_rewrite_classes.yaml`](../artifacts/io/save_rewrite_classes.yaml),
+  and the worked records in
+  [`/artifacts/io/undo_recovery_examples/`](../artifacts/io/undo_recovery_examples/).
 - [`workspace/layout_serialization_contract.md`](./workspace/layout_serialization_contract.md)
   — workspace-layout serialization boundary covering workspace
   authority versus window topology, portable profile defaults,

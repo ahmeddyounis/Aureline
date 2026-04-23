@@ -374,6 +374,15 @@ and scopes.
   [`/docs/qa/multi_window_verification.md`](../qa/multi_window_verification.md).
   Claimed window/session continuity evidence should cite those scenario
   and drill ids rather than shipping a per-release topology checklist.
+- The source-fidelity and undo-honesty verification seed now lives
+  under
+  [`/fixtures/io/source_fidelity_corpus_manifest.yaml`](../../fixtures/io/source_fidelity_corpus_manifest.yaml)
+  with narrative guidance in
+  [`/docs/verification/source_fidelity_and_undo_packet.md`](../verification/source_fidelity_and_undo_packet.md)
+  and the rewrite vocabulary in
+  [`/artifacts/io/save_rewrite_classes.yaml`](../../artifacts/io/save_rewrite_classes.yaml).
+  Save-truth, whole-file-rewrite, and recovery-label evidence should
+  cite those ids rather than inventing per-surface save banners.
 - Release completeness is no longer implicit. The canonical graph and
   machine-readable rules now live in
   [`docs/release/release_artifact_graph.md`](../release/release_artifact_graph.md)
