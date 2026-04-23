@@ -412,6 +412,17 @@ code.
   [`/artifacts/state/query_family_examples/`](../artifacts/state/query_family_examples/),
   and the condensed order audits in
   [`/artifacts/state/invalidation_order_trace_examples/`](../artifacts/state/invalidation_order_trace_examples/).
+- [`architecture/generated_artifact_safe_edit_policy.md`](./architecture/generated_artifact_safe_edit_policy.md)
+  — shared safe-edit posture for generated, mirrored, imported, and
+  preview artifacts. Freezes the compact cross-surface posture record
+  naming artifact origin, provenance/drift state, default edit posture,
+  rebuild intent, override review/provenance requirements, and
+  structured-viewer fallback. Boundary schema in
+  [`/schemas/generated/artifact_edit_posture.schema.json`](../schemas/generated/artifact_edit_posture.schema.json);
+  reviewer corpus in
+  [`/fixtures/generated/drift_regeneration_manifest.yaml`](../fixtures/generated/drift_regeneration_manifest.yaml);
+  worked posture examples in
+  [`/artifacts/generated/viewer_fallback_examples/`](../artifacts/generated/viewer_fallback_examples/).
 - [`workspace/layout_serialization_contract.md`](./workspace/layout_serialization_contract.md)
   — workspace-layout serialization boundary covering workspace
   authority versus window topology, portable profile defaults,

@@ -1,0 +1,778 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json",
+  "title": "Aureline generated, mirrored, imported, and preview artifact edit-posture record",
+  "description": "Boundary schema for the artifact_edit_posture_record frozen in docs/architecture/generated_artifact_safe_edit_policy.md. The record is the compact projection every search, open, review, AI-context, export, and support surface reads when it needs one stable answer to three questions: what kind of artifact is this, what is its current provenance/drift state, and what is the safest default mutation or inspection path? It does not replace the full generated_artifact_lineage schema; it projects that richer record into one cross-surface vocabulary naming artifact origin, provenance state, default edit posture, rebuild intent, override requirements, active override provenance, and structured-viewer fallback. Raw artifact bytes, raw paths, raw mirror payloads, raw prompt text, and raw support bodies never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/artifact_edit_posture_record"
+    }
+  ],
+  "$defs": {
+    "artifact_edit_posture_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the artifact-edit-posture projection. Current value is 1. Bumped only on breaking payload changes; additive optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "artifact_edit_posture_record"
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "codegen_source_sibling",
+        "structured_lockfile",
+        "notebook_output",
+        "preview_render_snapshot",
+        "mirrored_pack_artifact"
+      ],
+      "description": "Artifact-class vocabulary aligned with the generated-artifact lineage model and TAD Appendix DE."
+    },
+
+    "artifact_origin_class": {
+      "type": "string",
+      "enum": [
+        "canonical_source",
+        "generated_artifact",
+        "mirrored_artifact",
+        "imported_artifact",
+        "preview_projection"
+      ],
+      "description": "Coarse source-of-truth family. canonical_source is the only class that may clear do_not_imply_canonical_source."
+    },
+
+    "provenance_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "diverged_from_generator",
+        "unknown_lineage",
+        "mock_provenance",
+        "mirror_drift"
+      ],
+      "description": "Shared drift/divergence vocabulary projected from generated-artifact lineage, mirror continuity, and preview/runtime provenance."
+    },
+
+    "default_edit_posture": {
+      "type": "string",
+      "enum": [
+        "edit_here",
+        "edit_canonical_source",
+        "regenerate_from_source",
+        "structured_safe_edit",
+        "inspect_read_only",
+        "replace_by_mirror_promotion",
+        "clear_or_reexecute"
+      ],
+      "description": "The safest default action Aureline should recommend for this artifact on search/open/review/export/support surfaces."
+    },
+
+    "rebuild_intent_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "regenerate_recommended",
+        "regenerate_required_before_authoritative_claims",
+        "rebuild_required_before_authoritative_claims",
+        "reexecute_required_for_fresh_output",
+        "mirror_refresh_required",
+        "manual_recovery_required"
+      ],
+      "description": "Shared answer to 'what would make this artifact authoritative again?'"
+    },
+
+    "cost_class": {
+      "type": "string",
+      "enum": [
+        "instant",
+        "fast",
+        "moderate",
+        "expensive",
+        "network_dependent"
+      ]
+    },
+
+    "canonical_source_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_state"
+      ],
+      "properties": {
+        "resolution_state": {
+          "type": "string",
+          "enum": [
+            "known",
+            "multiple_known",
+            "external_known",
+            "unknown"
+          ]
+        },
+        "display_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Redaction-safe refs or labels naming the canonical source(s)."
+        },
+        "lineage_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to a richer generated-artifact lineage or mirror provenance record."
+        }
+      },
+      "description": "How well the current artifact can still point back to its canonical source."
+    },
+
+    "generator_or_upstream_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_class",
+        "display_label"
+      ],
+      "properties": {
+        "owner_class": {
+          "type": "string",
+          "enum": [
+            "generator",
+            "resolver",
+            "kernel",
+            "preview_runtime",
+            "mirror_source",
+            "import_source",
+            "unknown"
+          ]
+        },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "version_or_revision": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "description": "Compact generator, resolver, kernel, preview-runtime, mirror, or imported-source identity."
+    },
+
+    "rebuild_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_class"
+      ],
+      "properties": {
+        "intent_class": {
+          "$ref": "#/$defs/rebuild_intent_class"
+        },
+        "action_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Command id, docs ref, or packet ref the UI/support/export surface points at."
+        },
+        "cost_class": {
+          "$ref": "#/$defs/cost_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_summary"
+        }
+      }
+    },
+
+    "safe_override_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_requirement"
+      ],
+      "properties": {
+        "review_requirement": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "required_before_first_override",
+            "required_per_override",
+            "required_on_reopen_after_drift"
+          ]
+        },
+        "review_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reviewer_summary": {
+          "$ref": "#/$defs/short_summary"
+        }
+      }
+    },
+
+    "override_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_class",
+        "safe_override_review",
+        "override_provenance_required"
+      ],
+      "properties": {
+        "policy_class": {
+          "type": "string",
+          "enum": [
+            "not_available",
+            "declared_safe_ranges_only",
+            "declared_full_override_with_divergence",
+            "mirror_promotion_only"
+          ]
+        },
+        "allowed_edit_region_summaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Human-reviewable summaries of the only direct-edit regions that remain round-trip-safe."
+        },
+        "safe_override_review": {
+          "$ref": "#/$defs/safe_override_review"
+        },
+        "override_provenance_required": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "active_override_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_by",
+        "declared_at",
+        "reason_class",
+        "review_ref",
+        "rebuild_acknowledgement_class"
+      ],
+      "properties": {
+        "declared_by": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "declared_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "user_declared_override",
+            "resolver_emergency_fix",
+            "guided_manual_patch",
+            "mirror_repair",
+            "support_advised_hotfix"
+          ]
+        },
+        "review_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "rebuild_acknowledgement_class": {
+          "type": "string",
+          "enum": [
+            "declared_rebuild_after_edit",
+            "declared_relink_after_edit",
+            "declared_no_rebuild_available"
+          ]
+        },
+        "command_or_doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "description": "Required when the artifact is already in diverged_from_generator state."
+    },
+
+    "alternative_view": {
+      "type": "string",
+      "enum": [
+        "structured_view",
+        "rendered_compare",
+        "raw_text",
+        "raw_bytes",
+        "canonical_source",
+        "provenance_only_export"
+      ]
+    },
+
+    "default_open_mode": {
+      "type": "string",
+      "enum": [
+        "editor_editable",
+        "editor_read_only",
+        "structured_viewer",
+        "rendered_compare",
+        "support_reference_only"
+      ]
+    },
+
+    "viewer_fallback_state": {
+      "type": "string",
+      "enum": [
+        "not_needed",
+        "compare_only",
+        "structured_viewer_with_raw_text_fallback",
+        "structured_viewer_with_raw_bytes_fallback",
+        "canonical_source_redirect",
+        "read_only_viewer_only"
+      ]
+    },
+
+    "viewer_fallback_reason": {
+      "type": "string",
+      "enum": [
+        "round_trip_not_proven",
+        "mapping_uncertain",
+        "mock_or_preview_data_only",
+        "lineage_unknown",
+        "performance_or_size_limit",
+        "policy_read_only"
+      ]
+    },
+
+    "structured_viewer_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_state",
+        "alternative_views",
+        "default_open_mode"
+      ],
+      "properties": {
+        "fallback_state": {
+          "$ref": "#/$defs/viewer_fallback_state"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/viewer_fallback_reason"
+        },
+        "alternative_views": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/alternative_view"
+          }
+        },
+        "default_open_mode": {
+          "$ref": "#/$defs/default_open_mode"
+        }
+      }
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "search_result",
+        "open_view",
+        "review_diff",
+        "ai_context",
+        "support_export",
+        "export_packet"
+      ]
+    },
+
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "read_only",
+        "regenerate_action_only",
+        "structured_safe_edit_only",
+        "support_reference_only"
+      ]
+    },
+
+    "required_field": {
+      "type": "string",
+      "enum": [
+        "artifact_class",
+        "artifact_origin_class",
+        "provenance_state",
+        "canonical_source",
+        "generator_or_upstream",
+        "rebuild_intent",
+        "override_policy",
+        "active_override_provenance",
+        "viewer_fallback"
+      ]
+    },
+
+    "forbidden_implication": {
+      "type": "string",
+      "enum": [
+        "imply_canonical_source",
+        "offer_unreviewed_direct_edit",
+        "omit_provenance_state",
+        "export_body_without_provenance",
+        "hide_fallback_reason",
+        "hide_regeneration_path"
+      ]
+    },
+
+    "surface_projection_example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "required_origin_token",
+        "required_provenance_state_token",
+        "required_edit_posture_token",
+        "availability_class",
+        "required_fields",
+        "forbidden_implications",
+        "summary"
+      ],
+      "properties": {
+        "surface_class": {
+          "$ref": "#/$defs/surface_class"
+        },
+        "required_origin_token": {
+          "$ref": "#/$defs/artifact_origin_class"
+        },
+        "required_provenance_state_token": {
+          "$ref": "#/$defs/provenance_state"
+        },
+        "required_edit_posture_token": {
+          "$ref": "#/$defs/default_edit_posture"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/availability_class"
+        },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/required_field"
+          }
+        },
+        "forbidden_implications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/forbidden_implication"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/short_summary"
+        }
+      }
+    },
+
+    "artifact_edit_posture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "artifact_edit_posture_schema_version",
+        "artifact_posture_id",
+        "artifact_label",
+        "artifact_class",
+        "artifact_origin_class",
+        "provenance_state",
+        "do_not_imply_canonical_source",
+        "summary",
+        "canonical_source_resolution",
+        "generator_or_upstream_ref",
+        "default_edit_posture",
+        "rebuild_intent",
+        "override_policy",
+        "structured_viewer_fallback",
+        "surface_projection_examples"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "artifact_edit_posture_schema_version": {
+          "$ref": "#/$defs/artifact_edit_posture_schema_version"
+        },
+        "artifact_posture_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "artifact_label": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "artifact_class": {
+          "$ref": "#/$defs/artifact_class"
+        },
+        "artifact_origin_class": {
+          "$ref": "#/$defs/artifact_origin_class"
+        },
+        "provenance_state": {
+          "$ref": "#/$defs/provenance_state"
+        },
+        "do_not_imply_canonical_source": {
+          "type": "boolean"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_summary"
+        },
+        "generated_artifact_lineage_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "canonical_source_resolution": {
+          "$ref": "#/$defs/canonical_source_resolution"
+        },
+        "generator_or_upstream_ref": {
+          "$ref": "#/$defs/generator_or_upstream_ref"
+        },
+        "default_edit_posture": {
+          "$ref": "#/$defs/default_edit_posture"
+        },
+        "rebuild_intent": {
+          "$ref": "#/$defs/rebuild_intent"
+        },
+        "override_policy": {
+          "$ref": "#/$defs/override_policy"
+        },
+        "active_override_provenance": {
+          "$ref": "#/$defs/active_override_provenance"
+        },
+        "structured_viewer_fallback": {
+          "$ref": "#/$defs/structured_viewer_fallback"
+        },
+        "surface_projection_examples": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/$defs/surface_projection_example"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_origin_class": {
+                "const": "canonical_source"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provenance_state": {
+                "const": "not_applicable"
+              },
+              "default_edit_posture": {
+                "const": "edit_here"
+              },
+              "do_not_imply_canonical_source": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifact_origin_class": {
+                "enum": [
+                  "generated_artifact",
+                  "mirrored_artifact",
+                  "imported_artifact",
+                  "preview_projection"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "do_not_imply_canonical_source": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provenance_state": {
+                "const": "diverged_from_generator"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "active_override_provenance"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "artifact_origin_class": {
+                "const": "mirrored_artifact"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "default_edit_posture": {
+                "const": "replace_by_mirror_promotion"
+              },
+              "provenance_state": {
+                "enum": [
+                  "in_sync",
+                  "mirror_drift"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provenance_state": {
+                "const": "mock_provenance"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "artifact_origin_class": {
+                "const": "preview_projection"
+              },
+              "default_edit_posture": {
+                "const": "inspect_read_only"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provenance_state": {
+                "const": "unknown_lineage"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "default_edit_posture": {
+                "const": "inspect_read_only"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "default_edit_posture": {
+                "const": "structured_safe_edit"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "override_policy": {
+                "properties": {
+                  "policy_class": {
+                    "const": "declared_safe_ranges_only"
+                  },
+                  "override_provenance_required": {
+                    "const": true
+                  },
+                  "allowed_edit_region_summaries": {
+                    "minItems": 1
+                  },
+                  "safe_override_review": {
+                    "properties": {
+                      "review_requirement": {
+                        "enum": [
+                          "required_before_first_override",
+                          "required_per_override",
+                          "required_on_reopen_after_drift"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "override_policy": {
+                "properties": {
+                  "policy_class": {
+                    "const": "declared_full_override_with_divergence"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "override_policy": {
+                "properties": {
+                  "override_provenance_required": {
+                    "const": true
+                  },
+                  "safe_override_review": {
+                    "properties": {
+                      "review_requirement": {
+                        "enum": [
+                          "required_before_first_override",
+                          "required_per_override",
+                          "required_on_reopen_after_drift"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "structured_viewer_fallback": {
+                "properties": {
+                  "fallback_state": {
+                    "enum": [
+                      "compare_only",
+                      "structured_viewer_with_raw_text_fallback",
+                      "structured_viewer_with_raw_bytes_fallback",
+                      "canonical_source_redirect",
+                      "read_only_viewer_only"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "do_not_imply_canonical_source": {
+                "const": true
+              },
+              "structured_viewer_fallback": {
+                "required": [
+                  "reason_class"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
