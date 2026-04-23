@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/citation_anchor.schema.json",
+  "title": "Aureline docs citation-anchor object model",
+  "description": "Boundary schema for the docs_citation_anchor_record frozen in docs/docs_integrity/citation_and_reference_contract.md. Every docs-search hit, guided-tour step, glossary card, onboarding step, docs-pane footer, AI-explanation overlay citation, hosted-review evidence row, repair-packet citation, and portability / offline export citation that needs to reconstruct 'what was cited, from which source class, against which pack revision, under which locale, at which freshness and version-match posture, with which browser-handoff reason if any' resolves to exactly one docs_citation_anchor_record. The record is a strict superset of the minimal citation_anchor_record reserved in schemas/docs/help_status_badge.schema.json (ADR 0013) for badge-inline use: help_status_badge_record.citation_anchor_refs point into anchor ids that resolve against this richer shape. Raw page bodies, raw symbol definitions, raw runbook bodies, and raw URLs never cross this boundary; this schema carries opaque ids, typed vocabulary, and locale / freshness / version-match / browser-handoff-reason metadata only. The eventual docs-integrity crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new anchor kind, target-ref kind, reuse-surface class, derivation class, or export-posture value is additive-minor and requires a docs_citation_contract_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/docs_citation_anchor_record",
+  "$defs": {
+    "docs_citation_contract_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the docs citation and symbol-linked-reference family. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version. The same version integer gates schemas/docs/symbol_linked_reference.schema.json so citation-anchor and symbol-linked-reference records evolve lock-step."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "docs_citation_anchor_record",
+      "description": "Discriminator for the concrete payload shape. Every record carries this kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / portability exports. Raw URLs, raw page bodies, raw runbook bodies, and raw symbol definitions never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag (e.g. en, en-US, pt-BR, zh-Hant-HK). Re-exported from schemas/docs/docs_pack_manifest.schema.json without modification."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification (ADR-0013). Citation-anchor records whose source_class = derived_explanation MUST declare derivation = derived or derived_with_upstream_anchors and MUST point upstream_citation_anchor_refs at least one anchor whose source_class is one of project_docs, generated_reference, mirrored_official_docs, curated_knowledge_pack, support_runbook, or release_note (via release_note_anchor). external_status_feed and vendor_provider_docs anchors alone are insufficient backing for a derived explanation."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "docs_page_anchor",
+        "generated_reference_anchor",
+        "symbol_reference_anchor",
+        "code_span_anchor",
+        "runbook_step_anchor",
+        "release_note_anchor",
+        "service_health_event_anchor",
+        "mirrored_docs_anchor",
+        "curated_pack_anchor",
+        "vendor_provider_anchor",
+        "external_status_feed_anchor",
+        "glossary_term_anchor",
+        "onboarding_step_anchor"
+      ],
+      "description": "Frozen citation-anchor-kind vocabulary. Superset of the ADR-0013 anchor_kind vocabulary with the glossary_term_anchor and onboarding_step_anchor additions reserved for the docs-integrity lane so glossary cards and guided tours carry one typed anchor class instead of minting parallel reference shapes. A derived-explanation record MUST cite at least one upstream anchor in the authoritative subset (docs_page_anchor, generated_reference_anchor, symbol_reference_anchor, runbook_step_anchor, release_note_anchor, mirrored_docs_anchor, curated_pack_anchor)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification (ADR-0011 / ADR-0013). Captured at mint time so exports and support handoffs can reconstruct the posture the user saw, even when live refresh is unavailable."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification (ADR-0013). Captured at mint time against the running build identity (D-0011) so a later reviewer can recompute whether the cited revision was authoritative when the citation was produced."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011 / ADR-0007). The broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "browser_handoff_reason": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification (ADR-0010 subset). Required (non-null) when the anchor's target resolves via an out-of-product browser handoff (vendor_provider_anchor, external_status_feed_anchor, or a mirrored_docs_anchor whose canonical owner is a web portal). Null otherwise. Raw URLs MUST NOT live on the anchor; the rendering surface quotes the frozen schemas/integration/browser_handoff_packet.schema.json envelope by packet id."
+    },
+
+    "browser_handoff_packet_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "reason_code"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "$ref": "#/$defs/browser_handoff_reason" }
+      },
+      "description": "Inline reference to the ADR-0010 browser_handoff_packet that the anchor exposes for an out-of-product action. Required (non-null) when browser_handoff_reason is non-null. Null otherwise."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the anchor was minted under (ADR-0001 trust state, ADR-0008 policy epoch, ADR-0009 execution-context id)."
+    },
+
+    "derivation": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "derived",
+        "derived_with_upstream_anchors"
+      ],
+      "description": "Frozen derivation taxonomy. primary means the anchor is the authoritative reference (the row is the canonical source). derived means the anchor is synthesized from other anchors (e.g. an AI-explanation paragraph) and MUST carry at least one upstream_citation_anchor_refs entry with an authoritative source_class. derived_with_upstream_anchors is a composite used when a derived explanation spans multiple authoritative anchors (multi-pack quotes, cross-locale paraphrase). A derived / derived_with_upstream_anchors anchor with an empty upstream_citation_anchor_refs array is non-conforming and MUST be denied by the publisher with the ADR-0013 derived_explanation_uncited degraded-state cause."
+    },
+
+    "reuse_surface": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "support_summary",
+        "onboarding",
+        "ai_explanation_overlay",
+        "glossary_card",
+        "hosted_review_evidence",
+        "repair_packet_evidence",
+        "portability_export",
+        "offboarding_export"
+      ],
+      "description": "Frozen reuse-surface vocabulary naming the protected surfaces this anchor may be reused on. Superset of schemas/docs/help_status_badge.schema.json surface_class with glossary_card, hosted_review_evidence, repair_packet_evidence, portability_export, and offboarding_export added so the docs-integrity lane can enumerate which surfaces copied / quoted an anchor without inventing parallel vocabularies. Surfaces not named in reuse_surfaces MUST NOT project the anchor into a user-visible row; the anchor is carried through as an opaque id for audit and reconstruction only."
+    },
+
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "retain_full",
+        "retain_opaque_only",
+        "strip_for_redaction_class"
+      ],
+      "description": "Frozen export posture naming what a portability / offboarding / support-bundle export does with the anchor. retain_full carries every field through. retain_opaque_only carries only anchor_id, pack_revision_ref, and target_build_identity_ref so a later reviewer can reconstruct the row without locale or wording leakage. strip_for_redaction_class removes the anchor entirely from the export and renders a typed 'anchor redacted under <redaction_class>' disclosure in its place. A redaction_class of signing_evidence_only or internal_support_restricted MUST raise the posture to strip_for_redaction_class on metadata_safe_default exports; surfaces MAY widen the posture only when the operator / admin has opted into a broader-capture export."
+    },
+
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["target_kind", "docs_page_ref"] },
+        { "required": ["target_kind", "symbol_ref"] },
+        { "required": ["target_kind", "code_span_ref"] },
+        { "required": ["target_kind", "runbook_step_ref"] },
+        { "required": ["target_kind", "release_note_ref"] },
+        { "required": ["target_kind", "service_health_event_ref"] },
+        { "required": ["target_kind", "glossary_term_ref"] },
+        { "required": ["target_kind", "onboarding_step_ref"] }
+      ],
+      "properties": {
+        "target_kind": {
+          "type": "string",
+          "enum": [
+            "docs_page",
+            "symbol",
+            "code_span",
+            "runbook_step",
+            "release_note",
+            "service_health_event",
+            "glossary_term",
+            "onboarding_step"
+          ],
+          "description": "Discriminator naming which typed ref the anchor resolves. MUST agree with the sibling *_ref field carried on this record."
+        },
+        "docs_page_ref": { "$ref": "#/$defs/opaque_id" },
+        "symbol_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the symbol id (fully-qualified symbol identity in the project's symbol graph). Raw source-file bytes are never carried here."
+        },
+        "code_span_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a code span (file / symbol + span id). The anchor carries only the opaque span id; raw buffer bytes are fetched from the canonical owner on demand."
+        },
+        "runbook_step_ref": { "$ref": "#/$defs/opaque_id" },
+        "release_note_ref": { "$ref": "#/$defs/opaque_id" },
+        "service_health_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "glossary_term_ref": { "$ref": "#/$defs/opaque_id" },
+        "onboarding_step_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed target reference. Exactly one typed *_ref field is populated; the anchor_kind MUST agree with the target_kind (e.g. anchor_kind=symbol_reference_anchor pairs with target_kind=symbol). Raw paths, raw URLs, and raw source bytes never appear here."
+    },
+
+    "docs_citation_anchor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "docs_citation_contract_schema_version",
+        "anchor_id",
+        "anchor_kind",
+        "source_class",
+        "pack_id",
+        "pack_revision_ref",
+        "target_ref",
+        "locale",
+        "target_build_identity_ref",
+        "freshness_class_at_mint",
+        "version_match_state_at_mint",
+        "client_scopes",
+        "derivation",
+        "upstream_citation_anchor_refs",
+        "reuse_surfaces",
+        "export_posture",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "docs_citation_contract_schema_version": {
+          "$ref": "#/$defs/docs_citation_contract_schema_version"
+        },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "pack_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque stable id of the docs pack this anchor resolves into, matching docs_pack_manifest_record.pack_id. Lets a reviewer recover the canonical owner even when pack_revision_ref has been withdrawn or superseded."
+        },
+        "pack_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the docs-pack revision the anchor was minted against (matches docs_pack_manifest_record.pack_revision_ref)."
+        },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "locale": {
+          "$ref": "#/$defs/bcp47_locale_tag",
+          "description": "Locale the cited content was rendered in at mint time. Exports and support handoffs preserve this so a reviewer knows which locale row to reconstruct; a later parity audit can compare the anchor's locale against the pack's locale_coverage row."
+        },
+        "target_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the running build identity (D-0011) the anchor was minted under. Paired with pack_revision_ref and target_ref this is sufficient to reconstruct 'what row the user saw' offline."
+        },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Client classes the anchor was minted for. Re-exported from ADR-0011. An anchor whose client_scopes exclude the rendering surface MUST NOT render as authoritative there; the surface denies with the ADR-0013 client_scope_excludes_surface degraded-state cause."
+        },
+        "derivation": { "$ref": "#/$defs/derivation" },
+        "upstream_citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Upstream anchor ids this citation derives from. MUST be empty for derivation = primary. MUST be non-empty for derivation = derived or derived_with_upstream_anchors; at least one upstream anchor MUST resolve to an authoritative source_class (project_docs, generated_reference, mirrored_official_docs, curated_knowledge_pack, support_runbook) or a release_note_anchor; citing only vendor_provider_anchor or external_status_feed_anchor is non-conforming and the publisher MUST deny with derived_explanation_uncited."
+        },
+        "reuse_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reuse_surface" },
+          "description": "Surfaces the anchor is authorised to project into. A rendering surface that is not named here MUST NOT render the anchor as a user-visible row; it may still carry anchor_id through as opaque audit metadata."
+        },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason" }
+          ],
+          "description": "Required (non-null) when the anchor's canonical owner resolves via an out-of-product browser handoff. Null otherwise."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_packet_ref" }
+          ],
+          "description": "Required (non-null) when browser_handoff_reason is non-null. Null otherwise."
+        },
+        "superseded_by_anchor_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a later anchor that supersedes this one (typically after a pack revision bump or a rename-refactor). When set, surfaces that reuse this anchor MUST render the typed 'superseded' disclosure and offer the migrate_to_replacement repair hook. Reviewers can still reconstruct the superseded row for historical audit."
+        },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "derivation = derived and derived_with_upstream_anchors MUST name at least one upstream_citation_anchor_refs entry; primary MUST have none.",
+          "if": {
+            "properties": {
+              "derivation": {
+                "enum": ["derived", "derived_with_upstream_anchors"]
+              }
+            },
+            "required": ["derivation"]
+          },
+          "then": {
+            "properties": {
+              "upstream_citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["upstream_citation_anchor_refs"]
+          },
+          "else": {
+            "properties": {
+              "upstream_citation_anchor_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "browser_handoff_packet_ref MUST be non-null when browser_handoff_reason is non-null.",
+          "if": {
+            "properties": {
+              "browser_handoff_reason": {
+                "type": "string"
+              }
+            },
+            "required": ["browser_handoff_reason"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_packet_ref": {
+                "$ref": "#/$defs/browser_handoff_packet_ref"
+              }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "source_class = derived_explanation MUST declare derivation = derived or derived_with_upstream_anchors.",
+          "if": {
+            "properties": { "source_class": { "const": "derived_explanation" } },
+            "required": ["source_class"]
+          },
+          "then": {
+            "properties": {
+              "derivation": {
+                "enum": ["derived", "derived_with_upstream_anchors"]
+              }
+            }
+          }
+        },
+        {
+          "description": "anchor_kind and target_ref.target_kind MUST agree: a symbol_reference_anchor MUST resolve to a symbol target; a docs_page_anchor to a docs_page target; a code_span_anchor to a code_span target; a runbook_step_anchor to a runbook_step target; a release_note_anchor to a release_note target; a service_health_event_anchor to a service_health_event target; a glossary_term_anchor to a glossary_term target; an onboarding_step_anchor to an onboarding_step target. mirrored_docs_anchor / curated_pack_anchor / vendor_provider_anchor / external_status_feed_anchor / generated_reference_anchor accept docs_page, symbol, code_span, or release_note targets.",
+          "oneOf": [
+            {
+              "properties": {
+                "anchor_kind": { "const": "docs_page_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "docs_page" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "symbol_reference_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "symbol" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "code_span_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "code_span" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "runbook_step_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "runbook_step" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "release_note_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "release_note" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "service_health_event_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "service_health_event" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "glossary_term_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "glossary_term" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": { "const": "onboarding_step_anchor" },
+                "target_ref": {
+                  "properties": { "target_kind": { "const": "onboarding_step" } }
+                }
+              }
+            },
+            {
+              "properties": {
+                "anchor_kind": {
+                  "enum": [
+                    "generated_reference_anchor",
+                    "mirrored_docs_anchor",
+                    "curated_pack_anchor",
+                    "vendor_provider_anchor",
+                    "external_status_feed_anchor"
+                  ]
+                },
+                "target_ref": {
+                  "properties": {
+                    "target_kind": {
+                      "enum": ["docs_page", "symbol", "code_span", "release_note"]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Docs citation anchor projecting one citation across docs panes, the docs browser, Help / About, service-health rows, support summaries, onboarding steps, AI-explanation overlays, glossary cards, hosted-review evidence, repair packets, and portability / offboarding exports. Reviewers reconstruct what was cited by pairing pack_id + pack_revision_ref + target_ref + target_build_identity_ref with the anchor's locale and freshness_class_at_mint. A derived explanation MUST retain upstream anchors; flattening an AI or glossary paragraph to prose-only authority is non-conforming."
+    }
+  }
+}

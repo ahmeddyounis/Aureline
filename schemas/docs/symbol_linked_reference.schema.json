@@ -1,0 +1,442 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/symbol_linked_reference.schema.json",
+  "title": "Aureline docs symbol-linked reference packet",
+  "description": "Boundary schema for the symbol_linked_reference_record frozen in docs/docs_integrity/citation_and_reference_contract.md. A symbol-linked reference is the typed envelope that binds a project symbol, file ref, setting id, command id, or lifecycle id to one or more docs_citation_anchor_record entries (schemas/docs/citation_anchor.schema.json). Docs search result rows, glossary cards, onboarding / guided-tour steps, hover cards, AI-explanation 'cited evidence' rows, hosted-review evidence rows, repair packets, and portability / offboarding exports all reuse this one shape so a reviewer can reconstruct 'which symbol / file / setting the citation bound to, from which pack revision, at which resolution class, under which locale and version-match posture, with which browser-handoff reason if any'. Raw page bodies, raw runbook bodies, raw symbol source, and raw URLs never cross this boundary; the packet carries opaque ids and typed vocabulary only. The eventual docs-integrity crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new resolution class, subject-kind, binding-kind, or reuse-surface class is additive-minor and requires a docs_citation_contract_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/symbol_linked_reference_record",
+  "$defs": {
+    "docs_citation_contract_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Shared schema version with schemas/docs/citation_anchor.schema.json. Citation-anchor and symbol-linked-reference records evolve lock-step; a bump here MUST bump the sibling schema."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "symbol_linked_reference_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+
+    "display_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-legible label (e.g. 'workspace_trust::WorkspaceTrustState', 'editor.format_on_save', 'refactor.rename-symbol'). MUST NOT contain raw source bytes, raw comment bodies, raw URLs, or raw file paths; operator-supplied labels for air-gapped origins are admissible. The label is rendered verbatim by docs search, glossary cards, onboarding steps, and support exports."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "project_docs",
+        "generated_reference",
+        "mirrored_official_docs",
+        "curated_knowledge_pack",
+        "derived_explanation",
+        "vendor_provider_docs",
+        "support_runbook",
+        "external_status_feed"
+      ],
+      "description": "Re-exported from schemas/docs/help_status_badge.schema.json without modification (ADR-0013)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "browser_handoff_reason": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ]
+    },
+
+    "browser_handoff_packet_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "reason_code"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "$ref": "#/$defs/browser_handoff_reason" }
+      }
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": { "type": "string" }
+      },
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Required (non-null) when symbol_link_resolution_class is unresolved_requires_refresh or no_claim_yet_support_routed."
+    },
+
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "symbol",
+        "file",
+        "setting",
+        "command",
+        "capability_lifecycle",
+        "keybinding",
+        "runbook_step",
+        "release_note",
+        "glossary_term",
+        "onboarding_step",
+        "service_health_event"
+      ],
+      "description": "What kind of product subject this reference binds to. symbol / file / setting / command / capability_lifecycle / keybinding cover the in-product surfaces docs search and the AI-explanation overlay anchor to; runbook_step / release_note / glossary_term / onboarding_step / service_health_event cover the cross-surface reuse cases named in the contract (hosted review, repair packets, guided tours)."
+    },
+
+    "binding_kind": {
+      "type": "string",
+      "enum": [
+        "authoritative_docs_entry",
+        "generated_reference_entry",
+        "mirrored_docs_entry",
+        "curated_pack_entry",
+        "vendor_overlay_inspect_only",
+        "runbook_step_entry",
+        "release_note_entry",
+        "glossary_card_entry",
+        "onboarding_step_entry",
+        "ai_derived_explanation_entry"
+      ],
+      "description": "The kind of docs-side entry the subject binds to. vendor_overlay_inspect_only MUST carry a browser_handoff_reason and packet ref and MUST NOT be projected into AI derived explanations as primary authority. ai_derived_explanation_entry MUST carry at least one citation_anchor_ref whose docs_citation_anchor_record declares derivation = derived or derived_with_upstream_anchors."
+    },
+
+    "symbol_link_resolution_class": {
+      "type": "string",
+      "enum": [
+        "exact_symbol_match",
+        "nearby_version_fallback",
+        "package_level_guide_fallback",
+        "project_docs_outranks_vendor_match",
+        "vendor_overrides_project_disclosed",
+        "unresolved_requires_refresh",
+        "no_claim_yet_support_routed"
+      ],
+      "description": "Re-exported from fixtures/docs/symbol_link_validation_manifest.yaml without modification. Every reference carries exactly one resolution class and, when the resolution traversed fallback rungs, a non-empty symbol_link_resolution_fallback_chain."
+    },
+
+    "reuse_surface": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "support_summary",
+        "onboarding",
+        "ai_explanation_overlay",
+        "glossary_card",
+        "hosted_review_evidence",
+        "repair_packet_evidence",
+        "portability_export",
+        "offboarding_export"
+      ],
+      "description": "Re-exported from schemas/docs/citation_anchor.schema.json without modification. Surfaces that are not named here MUST NOT render this reference as an authoritative row."
+    },
+
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "retain_full",
+        "retain_opaque_only",
+        "strip_for_redaction_class"
+      ]
+    },
+
+    "project_vs_vendor_truth_cue": {
+      "type": "string",
+      "enum": [
+        "project_authoritative_only",
+        "project_outranks_vendor_default",
+        "vendor_overrides_project_by_policy",
+        "vendor_provider_overlay_inspect_only",
+        "no_project_claim_vendor_available"
+      ],
+      "description": "Re-exported from fixtures/docs/symbol_link_validation_manifest.yaml without modification."
+    },
+
+    "derived_explanation_reuse_state": {
+      "type": "string",
+      "enum": [
+        "reusable_with_citation_anchor",
+        "refused_uncited",
+        "refused_signature_unverified",
+        "refused_mirror_continuity_broken",
+        "refused_vendor_overlay_requires_higher_trust",
+        "refused_external_status_feed"
+      ],
+      "description": "Re-exported from fixtures/docs/symbol_link_validation_manifest.yaml without modification. refused_uncited is the typed denial a derived-explanation surface renders when the symbol-linked reference carries a binding_kind = ai_derived_explanation_entry but no upstream citation anchor resolves; silent fallback to a generic answer is forbidden."
+    },
+
+    "symbol_linked_reference_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "docs_citation_contract_schema_version",
+        "reference_id",
+        "subject_kind",
+        "subject_ref",
+        "display_label",
+        "binding_kind",
+        "symbol_link_resolution_class",
+        "symbol_link_resolution_fallback_chain",
+        "pack_id",
+        "pack_revision_ref",
+        "source_class",
+        "locale",
+        "target_build_identity_ref",
+        "freshness_class_at_mint",
+        "version_match_state_at_mint",
+        "client_scopes",
+        "project_vs_vendor_truth_cue",
+        "derived_explanation_reuse_state",
+        "citation_anchor_refs",
+        "reuse_surfaces",
+        "export_posture",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "docs_citation_contract_schema_version": {
+          "$ref": "#/$defs/docs_citation_contract_schema_version"
+        },
+        "reference_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the product subject the reference binds to (symbol id, file id, setting id, command id, etc.). Raw source bytes and raw paths never appear here."
+        },
+        "display_label": { "$ref": "#/$defs/display_label" },
+        "binding_kind": { "$ref": "#/$defs/binding_kind" },
+        "symbol_link_resolution_class": { "$ref": "#/$defs/symbol_link_resolution_class" },
+        "symbol_link_resolution_fallback_chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/symbol_link_resolution_class" },
+          "description": "Ordered list of the resolution rungs the resolver traversed before settling on symbol_link_resolution_class. Empty when symbol_link_resolution_class = exact_symbol_match and no fallback was needed. Non-empty when the resolver walked nearby_version_fallback / package_level_guide_fallback / project_docs_outranks_vendor_match / vendor_overrides_project_disclosed / unresolved_requires_refresh / no_claim_yet_support_routed before settling."
+        },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "target_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "project_vs_vendor_truth_cue": { "$ref": "#/$defs/project_vs_vendor_truth_cue" },
+        "derived_explanation_reuse_state": { "$ref": "#/$defs/derived_explanation_reuse_state" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Docs_citation_anchor_record anchor_ids backing this reference. MUST be non-empty when binding_kind = ai_derived_explanation_entry or when derived_explanation_reuse_state = reusable_with_citation_anchor. MAY be empty for unresolved_requires_refresh / no_claim_yet_support_routed resolution classes; in that case, repair_hook_ref MUST be non-null."
+        },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason" }
+          ],
+          "description": "Required (non-null) when the reference resolves via an out-of-product browser handoff (vendor_overlay_inspect_only, mirrored portal, external_status_feed)."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_packet_ref" }
+          ],
+          "description": "Required (non-null) when browser_handoff_reason is non-null."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ],
+          "description": "Required (non-null) when symbol_link_resolution_class is unresolved_requires_refresh or no_claim_yet_support_routed, or when derived_explanation_reuse_state is any of the refused_* values."
+        },
+        "superseded_by_reference_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a later symbol-linked-reference that supersedes this one after a pack revision bump, rename-refactor, or symbol removal. Surfaces render the typed 'superseded' disclosure and route to migrate_to_replacement when set."
+        },
+        "reuse_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reuse_surface" }
+        },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "browser_handoff_packet_ref MUST be non-null when browser_handoff_reason is non-null.",
+          "if": {
+            "properties": { "browser_handoff_reason": { "type": "string" } },
+            "required": ["browser_handoff_reason"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/browser_handoff_packet_ref" }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "repair_hook_ref MUST be non-null when symbol_link_resolution_class is unresolved_requires_refresh or no_claim_yet_support_routed.",
+          "if": {
+            "properties": {
+              "symbol_link_resolution_class": {
+                "enum": ["unresolved_requires_refresh", "no_claim_yet_support_routed"]
+              }
+            },
+            "required": ["symbol_link_resolution_class"]
+          },
+          "then": {
+            "properties": { "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" } },
+            "required": ["repair_hook_ref"]
+          }
+        },
+        {
+          "description": "binding_kind = vendor_overlay_inspect_only MUST carry a browser_handoff_reason + packet ref.",
+          "if": {
+            "properties": { "binding_kind": { "const": "vendor_overlay_inspect_only" } },
+            "required": ["binding_kind"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_reason": { "$ref": "#/$defs/browser_handoff_reason" },
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/browser_handoff_packet_ref" }
+            },
+            "required": ["browser_handoff_reason", "browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "binding_kind = ai_derived_explanation_entry MUST carry at least one citation_anchor_ref.",
+          "if": {
+            "properties": { "binding_kind": { "const": "ai_derived_explanation_entry" } },
+            "required": ["binding_kind"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": { "type": "array", "minItems": 1 }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        },
+        {
+          "description": "derived_explanation_reuse_state = reusable_with_citation_anchor MUST carry at least one citation_anchor_ref.",
+          "if": {
+            "properties": {
+              "derived_explanation_reuse_state": { "const": "reusable_with_citation_anchor" }
+            },
+            "required": ["derived_explanation_reuse_state"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": { "type": "array", "minItems": 1 }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Symbol-linked reference packet binding a product subject (symbol, file, setting, command, capability lifecycle, keybinding, runbook step, release note, glossary term, onboarding step, or service-health event) to one or more docs_citation_anchor_record entries. Docs search, glossary cards, guided tours, hover cards, AI-explanation overlays, hosted-review evidence, repair packets, and portability / offboarding exports reuse this one record so the 'what symbol / file the citation bound to, from which pack revision, at which resolution class, under which locale, with which browser-handoff reason if any' chain survives export and support handoff without flattening into prose-only authority."
+    }
+  }
+}
