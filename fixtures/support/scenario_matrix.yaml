@@ -1,0 +1,862 @@
+# Project Doctor support-scenario matrix.
+#
+# Stable case ids for every seeded Project Doctor finding. Rows cover
+# the eight scenario families required by the milestone spec: missing
+# toolchain, blocked trust state, broken watcher, incompatible
+# cache/profile, extension regression, wrong target/environment,
+# failed helper attach, and degraded docs/mirror. Each finding row
+# classifies its probe family, suggested recovery rung, repair class,
+# preview/rollback expectations, and the explicit no-touch boundary
+# so Doctor never invents case-by-case semantics for scenarios that
+# are already governed elsewhere.
+#
+# This file is the companion roster for
+# docs/support/project_doctor_packet.md. If the two disagree, the
+# packet doc wins for reviewer language and the frozen vocabularies
+# in schemas/support/support_bundle.schema.json and
+# schemas/support/object_handoff_packet.schema.json win for tooling.
+#
+# Rules:
+#   - Every finding row MUST cite one probe_family_class, one
+#     suggested_repair_class, and one recovery_rung_class from the
+#     frozen vocabularies defined in the packet doc.
+#   - Every finding row MUST name at least one no_touch_boundary.
+#     Trust store, managed-policy overrides, remote-helper authorization,
+#     managed-workspace control plane, and credential store appear in
+#     the no-touch set of every row that touches a managed or remote
+#     boundary even when the repair class is narrower.
+#   - Every scenario family MUST include at least one row whose
+#     suggested_repair_class = observe_only_no_repair so diagnosis-
+#     only outcomes exist alongside repair-candidate outcomes.
+#   - Every finding row MUST cite at least one escalation_packet_case_ref
+#     OR explicitly declare escalation_packet_case_ref: null with
+#     reason_when_absent populated.
+#   - Adding a finding code is additive-minor. Repurposing a
+#     finding_code, probe_family_class, repair_class, or
+#     recovery_rung_class token is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+manifest_id: support.project_doctor.scenario_matrix.v1
+status: seeded
+
+overview_page: docs/support/project_doctor_packet.md
+scoreboard_source: artifacts/support/diagnosis_latency_scoreboard.yaml
+escalation_cases_dir: fixtures/support/escalation_packet_completeness_cases
+
+support_bundle_schema_source: schemas/support/support_bundle.schema.json
+object_handoff_schema_source: schemas/support/object_handoff_packet.schema.json
+support_center_concept_source: docs/support/support_center_concept.md
+dogfood_taxonomy_source: docs/governance/dogfood_issue_taxonomy.md
+target_discovery_taxonomy_source: docs/runtime/target_discovery_and_install_review_taxonomy.md
+
+probe_family_vocabulary:
+  - toolchain_probe
+  - trust_state_probe
+  - filesystem_watcher_probe
+  - cache_profile_probe
+  - extension_host_probe
+  - target_and_route_probe
+  - helper_attach_probe
+  - docs_mirror_probe
+
+repair_class_vocabulary:
+  # Ordered narrowest-safe-first; see docs/support/project_doctor_packet.md
+  - observe_only_no_repair
+  - reacquire_trust_approval
+  - restart_watcher_with_reseed
+  - reset_ephemeral_cache
+  - install_or_repair_toolchain
+  - quarantine_and_bisect_extension
+  - reapprove_target_or_route
+  - reattach_helper_with_new_approval
+  - refresh_docs_or_mirror_pack
+  - defer_to_escalation_packet
+
+recovery_rung_vocabulary:
+  # From schemas/support/support_bundle.schema.json$.defs.recovery_rung_class
+  - safe_mode
+  - extension_bisect
+  - extension_quarantine
+  - open_without_restore
+  - cache_reset_candidate
+  - restricted_reopen
+  - rollback_reinstall_candidate
+  - typed_repair_flow
+
+confidence_vocabulary:
+  - observed_authoritative
+  - observed_with_gap
+  - inferred_from_evidence
+  - unknown_requires_probe
+
+severity_vocabulary:
+  # From docs/governance/dogfood_issue_taxonomy.md severity rubric.
+  - daily_blocker
+  - major
+  - scoped
+  - clarity_gap
+
+scope_vocabulary:
+  - workspace
+  - user
+  - device
+  - target
+  - extension_host
+  - helper_attach
+  - docs_pack
+
+rollback_expectation_vocabulary:
+  - exact_rollback_available
+  - compensating_action_available
+  - no_exact_rollback_prefer_export
+  - not_applicable_read_only_finding
+
+redaction_default_vocabulary:
+  - metadata_only_embedded
+  - support_bundle_by_reference
+  - review_required_before_export
+  - exclude_always
+
+no_touch_boundary_vocabulary:
+  - workspace_trust_store
+  - user_authored_files
+  - managed_policy_overrides
+  - remote_helper_authorization
+  - managed_workspace_control_plane
+  - installed_extension_marketplace_state
+  - docs_pack_authoring
+  - credential_store
+
+remaining_unknowns_vocabulary:
+  - toolchain_version_unreadable
+  - trust_store_not_inspectable_without_unlock
+  - watcher_backlog_depth_not_observable
+  - cache_schema_version_drift_indeterminate
+  - extension_crash_lineage_incomplete
+  - target_identity_unresolved_requires_user
+  - helper_adapter_confidence_below_floor
+  - docs_pack_revision_not_matched_to_build
+  - mirror_snapshot_revision_unknown
+  - remote_route_reachability_intermittent
+
+# -----------------------------------------------------------------------------
+# Scenario 1: missing toolchain.
+# -----------------------------------------------------------------------------
+scenarios:
+
+  - scenario_row_id: scenario_row:missing_toolchain
+    scenario_family: missing_toolchain
+    summary: >
+      The declared target requires a toolchain component (interpreter,
+      compiler, language server, or package manager) that Doctor cannot
+      find, cannot read, or finds pinned to an incompatible version.
+    default_probe_family_class: toolchain_probe
+    default_recovery_rung_class: typed_repair_flow
+    default_redaction_choice_class: metadata_only_embedded
+    findings:
+
+      - finding_code: doctor.finding.toolchain_missing_required_component
+        probe_family_class: toolchain_probe
+        severity_class: major
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - route_context.command_id
+          - support_bundle_ref
+        suggested_repair_class: install_or_repair_toolchain
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+          - workspace_trust_store
+          - credential_store
+          - installed_extension_marketplace_state
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:missing_toolchain.required_component
+        notes: >
+          The target's toolchain manifest resolves to a component that
+          is not present on the device. Doctor proposes install/repair
+          behind a reviewed preview; authored files are never touched.
+
+      - finding_code: doctor.finding.toolchain_version_out_of_range
+        probe_family_class: toolchain_probe
+        severity_class: scoped
+        confidence_class: observed_with_gap
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: install_or_repair_toolchain
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+          - workspace_trust_store
+        remaining_unknowns:
+          - toolchain_version_unreadable
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Covered by the missing_toolchain escalation case because the
+          exported fields are identical.
+
+      - finding_code: doctor.finding.toolchain_observe_only_baseline
+        probe_family_class: toolchain_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+          - workspace_trust_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; no escalation packet unless a repair-
+          candidate finding fires alongside it.
+
+# -----------------------------------------------------------------------------
+# Scenario 2: blocked trust state.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:blocked_trust_state
+    scenario_family: blocked_trust_state
+    summary: >
+      Workspace trust, approval ticket, or policy epoch has drifted
+      and is blocking a route or capability the user expects to be
+      available. Doctor MUST NOT silently widen trust.
+    default_probe_family_class: trust_state_probe
+    default_recovery_rung_class: restricted_reopen
+    default_redaction_choice_class: support_bundle_by_reference
+    findings:
+
+      - finding_code: doctor.finding.trust_state_approval_expired
+        probe_family_class: trust_state_probe
+        severity_class: major
+        confidence_class: observed_authoritative
+        scope_class: user
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - route_context.invocation_session_id
+          - support_bundle_ref
+        suggested_repair_class: reacquire_trust_approval
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - workspace_trust_store
+          - managed_policy_overrides
+          - credential_store
+          - remote_helper_authorization
+          - managed_workspace_control_plane
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:blocked_trust_state.approval_expired
+        notes: >
+          Approval ticket has expired. Doctor proposes a reacquire
+          flow; it does not flip trust, does not mint a new ticket,
+          and does not bypass the policy epoch.
+
+      - finding_code: doctor.finding.trust_state_policy_floor_blocked
+        probe_family_class: trust_state_probe
+        severity_class: daily_blocker
+        confidence_class: observed_with_gap
+        scope_class: user
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: defer_to_escalation_packet
+        preview_required: false
+        rollback_expectation_class: no_exact_rollback_prefer_export
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - workspace_trust_store
+          - managed_policy_overrides
+          - credential_store
+          - remote_helper_authorization
+          - managed_workspace_control_plane
+        remaining_unknowns:
+          - trust_store_not_inspectable_without_unlock
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the blocked_trust_state escalation case; policy-floor
+          denial adds no new exported fields over approval_expired.
+
+      - finding_code: doctor.finding.trust_state_observe_only_baseline
+        probe_family_class: trust_state_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: user
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - workspace_trust_store
+          - managed_policy_overrides
+          - credential_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline for a healthy trust posture.
+
+# -----------------------------------------------------------------------------
+# Scenario 3: broken watcher.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:broken_watcher
+    scenario_family: broken_watcher
+    summary: >
+      Filesystem watcher is stalled, backlogged beyond its budget, or
+      lost its inode anchoring. Doctor may restart and reseed the
+      watcher without touching user files.
+    default_probe_family_class: filesystem_watcher_probe
+    default_recovery_rung_class: typed_repair_flow
+    default_redaction_choice_class: metadata_only_embedded
+    findings:
+
+      - finding_code: doctor.finding.watcher_stalled_no_events
+        probe_family_class: filesystem_watcher_probe
+        severity_class: major
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: restart_watcher_with_reseed
+        preview_required: true
+        rollback_expectation_class: exact_rollback_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+          - credential_store
+          - workspace_trust_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:broken_watcher.stalled_no_events
+        notes: >
+          Watcher heartbeat missed more than the liveness budget.
+          Restart-with-reseed is exact-rollback because the watcher
+          owns no user-authored state.
+
+      - finding_code: doctor.finding.watcher_backlog_exceeds_budget
+        probe_family_class: filesystem_watcher_probe
+        severity_class: scoped
+        confidence_class: observed_with_gap
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: restart_watcher_with_reseed
+        preview_required: true
+        rollback_expectation_class: exact_rollback_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+          - credential_store
+        remaining_unknowns:
+          - watcher_backlog_depth_not_observable
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the broken_watcher escalation case.
+
+      - finding_code: doctor.finding.watcher_observe_only_baseline
+        probe_family_class: filesystem_watcher_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - user_authored_files
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; watcher healthy.
+
+# -----------------------------------------------------------------------------
+# Scenario 4: incompatible cache/profile.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:incompatible_cache_profile
+    scenario_family: incompatible_cache_profile
+    summary: >
+      A derived cache or portable/support profile has a schema-version
+      or provenance mismatch with the current build. Doctor may reset
+      the ephemeral cache; authoritative profile data is never auto-
+      reset.
+    default_probe_family_class: cache_profile_probe
+    default_recovery_rung_class: cache_reset_candidate
+    default_redaction_choice_class: metadata_only_embedded
+    findings:
+
+      - finding_code: doctor.finding.cache_schema_version_drift
+        probe_family_class: cache_profile_probe
+        severity_class: scoped
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: reset_ephemeral_cache
+        preview_required: true
+        rollback_expectation_class: exact_rollback_available
+        recovery_rung_class: cache_reset_candidate
+        no_touch_boundary_set:
+          - user_authored_files
+          - workspace_trust_store
+          - credential_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:incompatible_cache_profile.schema_drift
+        notes: >
+          Cache schema version does not match the loaded build.
+          Reset is scoped to the disposable derived cache class named
+          in the evidence.
+
+      - finding_code: doctor.finding.profile_portability_schema_mismatch
+        probe_family_class: cache_profile_probe
+        severity_class: major
+        confidence_class: observed_with_gap
+        scope_class: user
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: defer_to_escalation_packet
+        preview_required: false
+        rollback_expectation_class: no_exact_rollback_prefer_export
+        recovery_rung_class: cache_reset_candidate
+        no_touch_boundary_set:
+          - user_authored_files
+          - managed_policy_overrides
+          - credential_store
+          - workspace_trust_store
+        remaining_unknowns:
+          - cache_schema_version_drift_indeterminate
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the incompatible_cache_profile escalation case; the
+          authoritative profile is never auto-reset.
+        notes: >
+          Authoritative profile schema drift is escalation-only because
+          there is no safe exact rollback for user-owned profile state.
+
+      - finding_code: doctor.finding.cache_profile_observe_only_baseline
+        probe_family_class: cache_profile_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: workspace
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: cache_reset_candidate
+        no_touch_boundary_set:
+          - user_authored_files
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; caches and profile healthy.
+
+# -----------------------------------------------------------------------------
+# Scenario 5: extension regression.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:extension_regression
+    scenario_family: extension_regression
+    summary: >
+      An extension or runtime host regressed: crash loop, quarantined
+      by the supervisor, exceeded activation budget, or triggered a
+      compatibility-label downgrade. Doctor quarantines and offers
+      bisect; never silently reenables.
+    default_probe_family_class: extension_host_probe
+    default_recovery_rung_class: extension_quarantine
+    default_redaction_choice_class: metadata_only_embedded
+    findings:
+
+      - finding_code: doctor.finding.extension_host_crash_loop_quarantined
+        probe_family_class: extension_host_probe
+        severity_class: daily_blocker
+        confidence_class: observed_authoritative
+        scope_class: extension_host
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+          - route_context.command_id
+        suggested_repair_class: quarantine_and_bisect_extension
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: extension_quarantine
+        no_touch_boundary_set:
+          - installed_extension_marketplace_state
+          - user_authored_files
+          - workspace_trust_store
+          - credential_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:extension_regression.crash_loop_quarantined
+        notes: >
+          The host exceeded its restart budget. Bisect produces a
+          narrower quarantine candidate; marketplace state is never
+          mutated.
+
+      - finding_code: doctor.finding.extension_activation_budget_exceeded
+        probe_family_class: extension_host_probe
+        severity_class: major
+        confidence_class: observed_with_gap
+        scope_class: extension_host
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: quarantine_and_bisect_extension
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: extension_bisect
+        no_touch_boundary_set:
+          - installed_extension_marketplace_state
+          - user_authored_files
+          - workspace_trust_store
+        remaining_unknowns:
+          - extension_crash_lineage_incomplete
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the extension_regression escalation case.
+
+      - finding_code: doctor.finding.extension_observe_only_baseline
+        probe_family_class: extension_host_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: extension_host
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: extension_quarantine
+        no_touch_boundary_set:
+          - installed_extension_marketplace_state
+          - user_authored_files
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; host healthy.
+
+# -----------------------------------------------------------------------------
+# Scenario 6: wrong target / environment.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:wrong_target_environment
+    scenario_family: wrong_target_environment
+    summary: >
+      Target discovery resolved to a different managed workspace,
+      remote target, or environment capsule than the user expected.
+      Doctor requires renewed approval; it never auto-retargets.
+    default_probe_family_class: target_and_route_probe
+    default_recovery_rung_class: restricted_reopen
+    default_redaction_choice_class: support_bundle_by_reference
+    findings:
+
+      - finding_code: doctor.finding.wrong_target_detected_requires_reapproval
+        probe_family_class: target_and_route_probe
+        severity_class: daily_blocker
+        confidence_class: observed_authoritative
+        scope_class: target
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - route_context.command_id
+          - route_context.invocation_session_id
+          - route_context.action_target_class
+          - support_bundle_ref
+        suggested_repair_class: reapprove_target_or_route
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - managed_workspace_control_plane
+          - remote_helper_authorization
+          - workspace_trust_store
+          - managed_policy_overrides
+          - credential_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:wrong_target_environment.requires_reapproval
+        notes: >
+          The route packet recorded a wrong-target correction. Doctor
+          hands off to the approval flow; managed control plane state
+          is never mutated.
+
+      - finding_code: doctor.finding.target_identity_unresolved
+        probe_family_class: target_and_route_probe
+        severity_class: major
+        confidence_class: unknown_requires_probe
+        scope_class: target
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: defer_to_escalation_packet
+        preview_required: false
+        rollback_expectation_class: no_exact_rollback_prefer_export
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - managed_workspace_control_plane
+          - remote_helper_authorization
+          - workspace_trust_store
+          - credential_store
+        remaining_unknowns:
+          - target_identity_unresolved_requires_user
+          - remote_route_reachability_intermittent
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the wrong_target_environment escalation case.
+
+      - finding_code: doctor.finding.target_observe_only_baseline
+        probe_family_class: target_and_route_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: target
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - managed_workspace_control_plane
+          - remote_helper_authorization
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; target truth agrees with expectation.
+
+# -----------------------------------------------------------------------------
+# Scenario 7: failed helper attach.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:failed_helper_attach
+    scenario_family: failed_helper_attach
+    summary: >
+      Remote helper, language-service helper, or debug-adapter attach
+      failed: adapter confidence below floor, approval expired, or
+      session suspended without a safe resume path. Doctor never
+      reattaches without explicit reapproval.
+    default_probe_family_class: helper_attach_probe
+    default_recovery_rung_class: restricted_reopen
+    default_redaction_choice_class: support_bundle_by_reference
+    findings:
+
+      - finding_code: doctor.finding.helper_attach_approval_required
+        probe_family_class: helper_attach_probe
+        severity_class: major
+        confidence_class: observed_authoritative
+        scope_class: helper_attach
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - route_context.invocation_session_id
+          - support_bundle_ref
+        suggested_repair_class: reattach_helper_with_new_approval
+        preview_required: true
+        rollback_expectation_class: compensating_action_available
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - remote_helper_authorization
+          - managed_workspace_control_plane
+          - workspace_trust_store
+          - credential_store
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:failed_helper_attach.approval_required
+        notes: >
+          Helper session expired or adapter rotated. Doctor opens a
+          reapproval flow; it never silently rebinds the session.
+
+      - finding_code: doctor.finding.helper_adapter_confidence_below_floor
+        probe_family_class: helper_attach_probe
+        severity_class: scoped
+        confidence_class: inferred_from_evidence
+        scope_class: helper_attach
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: defer_to_escalation_packet
+        preview_required: false
+        rollback_expectation_class: no_exact_rollback_prefer_export
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - remote_helper_authorization
+          - managed_workspace_control_plane
+          - credential_store
+        remaining_unknowns:
+          - helper_adapter_confidence_below_floor
+          - remote_route_reachability_intermittent
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the failed_helper_attach escalation case.
+
+      - finding_code: doctor.finding.helper_attach_observe_only_baseline
+        probe_family_class: helper_attach_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: helper_attach
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: restricted_reopen
+        no_touch_boundary_set:
+          - remote_helper_authorization
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; helper posture healthy.
+
+# -----------------------------------------------------------------------------
+# Scenario 8: degraded docs / mirror.
+# -----------------------------------------------------------------------------
+  - scenario_row_id: scenario_row:degraded_docs_mirror
+    scenario_family: degraded_docs_mirror
+    summary: >
+      Docs pack, help manifest, or extension-mirror snapshot is stale,
+      version-mismatched, or offline. Doctor refreshes governed
+      mirror copies only; authored docs content is never edited.
+    default_probe_family_class: docs_mirror_probe
+    default_recovery_rung_class: typed_repair_flow
+    default_redaction_choice_class: metadata_only_embedded
+    findings:
+
+      - finding_code: doctor.finding.docs_pack_version_mismatch
+        probe_family_class: docs_mirror_probe
+        severity_class: scoped
+        confidence_class: observed_authoritative
+        scope_class: docs_pack
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: refresh_docs_or_mirror_pack
+        preview_required: true
+        rollback_expectation_class: exact_rollback_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - docs_pack_authoring
+          - user_authored_files
+          - managed_policy_overrides
+        remaining_unknowns: []
+        escalation_packet_case_ref: escalation_case:degraded_docs_mirror.version_mismatch
+        notes: >
+          Docs pack revision does not match the loaded build. Refresh
+          swaps to the governed mirror copy the release packet names;
+          docs authoring is untouched.
+
+      - finding_code: doctor.finding.mirror_snapshot_unknown_revision
+        probe_family_class: docs_mirror_probe
+        severity_class: major
+        confidence_class: observed_with_gap
+        scope_class: docs_pack
+        evidence_ref_fields:
+          - exact_build_identity_ref
+          - support_bundle_ref
+        suggested_repair_class: refresh_docs_or_mirror_pack
+        preview_required: true
+        rollback_expectation_class: exact_rollback_available
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - docs_pack_authoring
+          - managed_policy_overrides
+        remaining_unknowns:
+          - mirror_snapshot_revision_unknown
+          - docs_pack_revision_not_matched_to_build
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Shares the degraded_docs_mirror escalation case.
+
+      - finding_code: doctor.finding.docs_mirror_observe_only_baseline
+        probe_family_class: docs_mirror_probe
+        severity_class: clarity_gap
+        confidence_class: observed_authoritative
+        scope_class: docs_pack
+        evidence_ref_fields:
+          - exact_build_identity_ref
+        suggested_repair_class: observe_only_no_repair
+        preview_required: false
+        rollback_expectation_class: not_applicable_read_only_finding
+        recovery_rung_class: typed_repair_flow
+        no_touch_boundary_set:
+          - docs_pack_authoring
+        remaining_unknowns: []
+        escalation_packet_case_ref: null
+        reason_when_absent: >
+          Read-only baseline; docs pack and mirror healthy.
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+# -----------------------------------------------------------------------------
+coverage:
+  by_scenario_family:
+    missing_toolchain:
+      - doctor.finding.toolchain_missing_required_component
+      - doctor.finding.toolchain_version_out_of_range
+      - doctor.finding.toolchain_observe_only_baseline
+    blocked_trust_state:
+      - doctor.finding.trust_state_approval_expired
+      - doctor.finding.trust_state_policy_floor_blocked
+      - doctor.finding.trust_state_observe_only_baseline
+    broken_watcher:
+      - doctor.finding.watcher_stalled_no_events
+      - doctor.finding.watcher_backlog_exceeds_budget
+      - doctor.finding.watcher_observe_only_baseline
+    incompatible_cache_profile:
+      - doctor.finding.cache_schema_version_drift
+      - doctor.finding.profile_portability_schema_mismatch
+      - doctor.finding.cache_profile_observe_only_baseline
+    extension_regression:
+      - doctor.finding.extension_host_crash_loop_quarantined
+      - doctor.finding.extension_activation_budget_exceeded
+      - doctor.finding.extension_observe_only_baseline
+    wrong_target_environment:
+      - doctor.finding.wrong_target_detected_requires_reapproval
+      - doctor.finding.target_identity_unresolved
+      - doctor.finding.target_observe_only_baseline
+    failed_helper_attach:
+      - doctor.finding.helper_attach_approval_required
+      - doctor.finding.helper_adapter_confidence_below_floor
+      - doctor.finding.helper_attach_observe_only_baseline
+    degraded_docs_mirror:
+      - doctor.finding.docs_pack_version_mismatch
+      - doctor.finding.mirror_snapshot_unknown_revision
+      - doctor.finding.docs_mirror_observe_only_baseline
+
+  escalation_case_coverage:
+    # Each case id in this map MUST have a fixture file in
+    # fixtures/support/escalation_packet_completeness_cases/.
+    - escalation_case:missing_toolchain.required_component
+    - escalation_case:blocked_trust_state.approval_expired
+    - escalation_case:broken_watcher.stalled_no_events
+    - escalation_case:incompatible_cache_profile.schema_drift
+    - escalation_case:extension_regression.crash_loop_quarantined
+    - escalation_case:wrong_target_environment.requires_reapproval
+    - escalation_case:failed_helper_attach.approval_required
+    - escalation_case:degraded_docs_mirror.version_mismatch
+
+# -----------------------------------------------------------------------------
+# Promotion.
+# -----------------------------------------------------------------------------
+promotion_process:
+  seed_milestone: foundations
+  promotion_forum: support_review
+  promotion_rule: >
+    Moving a finding_code off status "seeded" or adding a non-observe-
+    only repair class outside the frozen vocabulary requires the
+    support-review forum. Repurposing an existing finding_code is
+    breaking and requires a new decision row in
+    artifacts/governance/decision_index.yaml.
+  additive_minor_rule: >
+    Adding a new finding row under an existing scenario family is
+    additive-minor provided the new row reuses existing
+    probe_family_class, repair_class, and recovery_rung_class tokens
+    and either cites an existing escalation_packet_case_ref or
+    explicitly declares null with reason_when_absent.
+
+emitted_at: 2026-04-23T00:00:00Z

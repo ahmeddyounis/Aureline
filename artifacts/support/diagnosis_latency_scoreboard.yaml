@@ -1,0 +1,645 @@
+# Project Doctor diagnosis-latency, finding-accuracy, false-safe-repair,
+# and escalation-packet-completeness scoreboard seed.
+#
+# Companion to docs/support/project_doctor_packet.md and the scenario
+# matrix at fixtures/support/scenario_matrix.yaml. The scoreboard
+# qualifies four row families:
+#
+#   1. diagnosis_latency                 — time-to-first-diagnosis for
+#      each scenario across the probe surfaces Doctor emits to.
+#   2. finding_accuracy                  — confusion-matrix shape per
+#      probe family with false-positive and false-negative rates.
+#   3. false_safe_repair_rate            — rate at which Doctor
+#      suggested a repair class whose advertised rollback expectation
+#      was not available on the observed system (safety_overclaim)
+#      versus the under-claim rate (repair_undersold).
+#   4. escalation_packet_completeness    — pass rate of the
+#      completeness check defined by the packet doc on each seeded
+#      escalation case.
+#
+# This file is a SEED. Threshold values are deliberately left as
+# "to_be_set_by_benchmark_council" at this milestone; numeric budgets
+# are ratified by the benchmark-council charter. Reviewers can still
+# read the row shape and see HOW diagnosis latency, accuracy, repair
+# honesty, and escalation-packet completeness will be qualified later
+# instead of treating them as narrative-only supportability truth.
+#
+# Rules (frozen):
+#   1. Every row cites exactly one scenario_row_id from
+#      fixtures/support/scenario_matrix.yaml. Rows without a scenario
+#      citation are non-conforming.
+#   2. Every row cites exactly one measurement_surface_class drawn
+#      from the closed vocabulary below. Cross-surface aggregation
+#      happens in the evidence packet, not here.
+#   3. Every row names a primary_dri_lane resolving to an id in
+#      artifacts/governance/ownership_matrix.yaml
+#      scorecard_lane_index.
+#   4. threshold_state values are drawn from the closed set below;
+#      free-form thresholds are non-conforming. Widening a threshold
+#      is not done here; it opens a new decision row in
+#      artifacts/governance/decision_index.yaml.
+#   5. A false_safe_repair_rate row MAY NOT move sideways into a
+#      latency or completeness threshold state.
+#   6. Milestone slugs MUST NOT appear in any id, metric name,
+#      threshold, or surface label.
+
+schema_version: 1
+scoreboard_id: support.project_doctor.diagnosis_latency_scoreboard.v1
+status: seeded
+
+scenario_matrix_source: fixtures/support/scenario_matrix.yaml
+packet_source: docs/support/project_doctor_packet.md
+escalation_cases_source: fixtures/support/escalation_packet_completeness_cases
+support_bundle_schema_source: schemas/support/support_bundle.schema.json
+object_handoff_schema_source: schemas/support/object_handoff_packet.schema.json
+benchmark_council_charter: docs/governance/benchmark_council_charter.md
+
+threshold_state_vocabulary:
+  - to_be_set_by_benchmark_council
+  - must_complete_under_diagnosis_latency_budget
+  - must_not_exceed_false_positive_budget
+  - must_not_claim_exact_rollback_without_evidence
+  - must_export_complete_escalation_packet
+
+measurement_surface_vocabulary:
+  - doctor_probe_run_local
+  - doctor_probe_run_headless
+  - doctor_probe_run_inspector
+  - doctor_probe_run_managed
+
+metric_family_vocabulary:
+  - diagnosis_latency
+  - finding_accuracy
+  - false_safe_repair_rate
+  - escalation_packet_completeness
+
+qualifying_event_vocabulary:
+  - probe_run_started
+  - probe_first_finding_emitted
+  - probe_all_findings_emitted
+  - finding_matched_seeded_ground_truth
+  - finding_produced_repair_candidate
+  - repair_candidate_preview_opened
+  - repair_rollback_evidence_confirmed
+  - escalation_packet_exported_complete
+  - escalation_packet_refused_export
+
+disqualifying_event_vocabulary:
+  - probe_timeout_before_first_finding
+  - finding_disagreed_with_seeded_ground_truth
+  - repair_rollback_evidence_missing
+  - repair_applied_without_preview
+  - escalation_packet_missing_required_field
+  - escalation_packet_widened_redaction_without_consent
+
+# -----------------------------------------------------------------------------
+# Family 1: diagnosis latency.
+# Measures time from probe_run_started to probe_first_finding_emitted.
+# -----------------------------------------------------------------------------
+diagnosis_latency:
+  rows:
+
+    - row_id: scoreboard_row:diagnosis_latency.missing_toolchain
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:missing_toolchain
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+      co_review_lanes:
+        - product_scope_review
+      notes: >
+        Time-to-first-diagnosis for a missing-toolchain probe on a
+        local workspace. Threshold reserved to the benchmark council.
+
+    - row_id: scoreboard_row:diagnosis_latency.blocked_trust_state
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:blocked_trust_state
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+      co_review_lanes:
+        - support_export
+
+    - row_id: scoreboard_row:diagnosis_latency.broken_watcher
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:broken_watcher
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-vfs
+      co_review_lanes:
+        - support_export
+
+    - row_id: scoreboard_row:diagnosis_latency.incompatible_cache_profile
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:incompatible_cache_profile
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+      co_review_lanes:
+        - product_scope_review
+
+    - row_id: scoreboard_row:diagnosis_latency.extension_regression
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:extension_regression
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: compatibility_ecosystem_review
+      co_review_lanes:
+        - support_export
+
+    - row_id: scoreboard_row:diagnosis_latency.wrong_target_environment
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:wrong_target_environment
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+      co_review_lanes:
+        - support_export
+        - product_scope_review
+
+    - row_id: scoreboard_row:diagnosis_latency.failed_helper_attach
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:failed_helper_attach
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+      co_review_lanes:
+        - support_export
+
+    - row_id: scoreboard_row:diagnosis_latency.degraded_docs_mirror
+      metric_family: diagnosis_latency
+      scenario_row_id: scenario_row:degraded_docs_mirror
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - probe_run_started
+        - probe_first_finding_emitted
+      disqualifying_events:
+        - probe_timeout_before_first_finding
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: docs_public_truth
+      co_review_lanes:
+        - support_export
+
+# -----------------------------------------------------------------------------
+# Family 2: finding accuracy.
+# Confusion-matrix shape; each probe family keeps false-positive and
+# false-negative budgets separate.
+# -----------------------------------------------------------------------------
+finding_accuracy:
+  rows:
+
+    - row_id: scoreboard_row:finding_accuracy.toolchain_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:missing_toolchain
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+
+    - row_id: scoreboard_row:finding_accuracy.trust_state_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:blocked_trust_state
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:finding_accuracy.filesystem_watcher_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:broken_watcher
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-vfs
+
+    - row_id: scoreboard_row:finding_accuracy.cache_profile_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:incompatible_cache_profile
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+
+    - row_id: scoreboard_row:finding_accuracy.extension_host_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:extension_regression
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: compatibility_ecosystem_review
+
+    - row_id: scoreboard_row:finding_accuracy.target_and_route_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:wrong_target_environment
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:finding_accuracy.helper_attach_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:failed_helper_attach
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:finding_accuracy.docs_mirror_probe
+      metric_family: finding_accuracy
+      scenario_row_id: scenario_row:degraded_docs_mirror
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_matched_seeded_ground_truth
+      disqualifying_events:
+        - finding_disagreed_with_seeded_ground_truth
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: docs_public_truth
+
+# -----------------------------------------------------------------------------
+# Family 3: false-safe-repair rate.
+# safety_overclaim = Doctor advertised a rollback class the system
+# could not honor. repair_undersold = Doctor refused a repair class
+# that was safely available. Both are measured; they are NOT the same
+# failure mode.
+# -----------------------------------------------------------------------------
+false_safe_repair_rate:
+  rows:
+
+    - row_id: scoreboard_row:false_safe_repair.missing_toolchain.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:missing_toolchain
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+      co_review_lanes:
+        - product_scope_review
+
+    - row_id: scoreboard_row:false_safe_repair.blocked_trust_state.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:blocked_trust_state
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+      co_review_lanes:
+        - support_export
+
+    - row_id: scoreboard_row:false_safe_repair.broken_watcher.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:broken_watcher
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-vfs
+
+    - row_id: scoreboard_row:false_safe_repair.incompatible_cache_profile.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:incompatible_cache_profile
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+
+    - row_id: scoreboard_row:false_safe_repair.extension_regression.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:extension_regression
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: compatibility_ecosystem_review
+
+    - row_id: scoreboard_row:false_safe_repair.wrong_target_environment.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:wrong_target_environment
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:false_safe_repair.failed_helper_attach.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:failed_helper_attach
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:false_safe_repair.degraded_docs_mirror.safety_overclaim
+      metric_family: false_safe_repair_rate
+      failure_mode_class: safety_overclaim
+      scenario_row_id: scenario_row:degraded_docs_mirror
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+        - repair_candidate_preview_opened
+        - repair_rollback_evidence_confirmed
+      disqualifying_events:
+        - repair_rollback_evidence_missing
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: docs_public_truth
+
+    - row_id: scoreboard_row:false_safe_repair.aggregate.repair_undersold
+      metric_family: false_safe_repair_rate
+      failure_mode_class: repair_undersold
+      scenario_row_id: scenario_row:missing_toolchain
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - finding_produced_repair_candidate
+      disqualifying_events:
+        - repair_applied_without_preview
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+      notes: >
+        Reserved under-claim row so the scoreboard can distinguish
+        "Doctor refused a safe repair" from "Doctor overstated safety".
+        The row binds missing_toolchain for shape only; additional
+        under-claim rows are additive-minor once council budgets land.
+
+# -----------------------------------------------------------------------------
+# Family 4: escalation packet completeness.
+# Each row binds one seeded escalation case file to the completeness
+# check defined by docs/support/project_doctor_packet.md §Escalation-
+# packet completeness.
+# -----------------------------------------------------------------------------
+escalation_packet_completeness:
+  rows:
+
+    - row_id: scoreboard_row:escalation_completeness.missing_toolchain
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:missing_toolchain
+      escalation_case_ref: escalation_case:missing_toolchain.required_component
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+        - escalation_packet_widened_redaction_without_consent
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+
+    - row_id: scoreboard_row:escalation_completeness.blocked_trust_state
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:blocked_trust_state
+      escalation_case_ref: escalation_case:blocked_trust_state.approval_expired
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+        - escalation_packet_widened_redaction_without_consent
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:escalation_completeness.broken_watcher
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:broken_watcher
+      escalation_case_ref: escalation_case:broken_watcher.stalled_no_events
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-vfs
+
+    - row_id: scoreboard_row:escalation_completeness.incompatible_cache_profile
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:incompatible_cache_profile
+      escalation_case_ref: escalation_case:incompatible_cache_profile.schema_drift
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: support_export
+
+    - row_id: scoreboard_row:escalation_completeness.extension_regression
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:extension_regression
+      escalation_case_ref: escalation_case:extension_regression.crash_loop_quarantined
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: compatibility_ecosystem_review
+
+    - row_id: scoreboard_row:escalation_completeness.wrong_target_environment
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:wrong_target_environment
+      escalation_case_ref: escalation_case:wrong_target_environment.requires_reapproval
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+        - escalation_packet_widened_redaction_without_consent
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:escalation_completeness.failed_helper_attach
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:failed_helper_attach
+      escalation_case_ref: escalation_case:failed_helper_attach.approval_required
+      measurement_surface_class: doctor_probe_run_managed
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+        - escalation_packet_widened_redaction_without_consent
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: security_trust_review
+
+    - row_id: scoreboard_row:escalation_completeness.degraded_docs_mirror
+      metric_family: escalation_packet_completeness
+      scenario_row_id: scenario_row:degraded_docs_mirror
+      escalation_case_ref: escalation_case:degraded_docs_mirror.version_mismatch
+      measurement_surface_class: doctor_probe_run_local
+      qualifying_events:
+        - escalation_packet_exported_complete
+      disqualifying_events:
+        - escalation_packet_missing_required_field
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: docs_public_truth
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+# -----------------------------------------------------------------------------
+coverage:
+  by_scenario_row:
+    scenario_row:missing_toolchain:
+      - scoreboard_row:diagnosis_latency.missing_toolchain
+      - scoreboard_row:finding_accuracy.toolchain_probe
+      - scoreboard_row:false_safe_repair.missing_toolchain.safety_overclaim
+      - scoreboard_row:false_safe_repair.aggregate.repair_undersold
+      - scoreboard_row:escalation_completeness.missing_toolchain
+    scenario_row:blocked_trust_state:
+      - scoreboard_row:diagnosis_latency.blocked_trust_state
+      - scoreboard_row:finding_accuracy.trust_state_probe
+      - scoreboard_row:false_safe_repair.blocked_trust_state.safety_overclaim
+      - scoreboard_row:escalation_completeness.blocked_trust_state
+    scenario_row:broken_watcher:
+      - scoreboard_row:diagnosis_latency.broken_watcher
+      - scoreboard_row:finding_accuracy.filesystem_watcher_probe
+      - scoreboard_row:false_safe_repair.broken_watcher.safety_overclaim
+      - scoreboard_row:escalation_completeness.broken_watcher
+    scenario_row:incompatible_cache_profile:
+      - scoreboard_row:diagnosis_latency.incompatible_cache_profile
+      - scoreboard_row:finding_accuracy.cache_profile_probe
+      - scoreboard_row:false_safe_repair.incompatible_cache_profile.safety_overclaim
+      - scoreboard_row:escalation_completeness.incompatible_cache_profile
+    scenario_row:extension_regression:
+      - scoreboard_row:diagnosis_latency.extension_regression
+      - scoreboard_row:finding_accuracy.extension_host_probe
+      - scoreboard_row:false_safe_repair.extension_regression.safety_overclaim
+      - scoreboard_row:escalation_completeness.extension_regression
+    scenario_row:wrong_target_environment:
+      - scoreboard_row:diagnosis_latency.wrong_target_environment
+      - scoreboard_row:finding_accuracy.target_and_route_probe
+      - scoreboard_row:false_safe_repair.wrong_target_environment.safety_overclaim
+      - scoreboard_row:escalation_completeness.wrong_target_environment
+    scenario_row:failed_helper_attach:
+      - scoreboard_row:diagnosis_latency.failed_helper_attach
+      - scoreboard_row:finding_accuracy.helper_attach_probe
+      - scoreboard_row:false_safe_repair.failed_helper_attach.safety_overclaim
+      - scoreboard_row:escalation_completeness.failed_helper_attach
+    scenario_row:degraded_docs_mirror:
+      - scoreboard_row:diagnosis_latency.degraded_docs_mirror
+      - scoreboard_row:finding_accuracy.docs_mirror_probe
+      - scoreboard_row:false_safe_repair.degraded_docs_mirror.safety_overclaim
+      - scoreboard_row:escalation_completeness.degraded_docs_mirror
+
+  by_metric_family:
+    diagnosis_latency: 8
+    finding_accuracy: 8
+    false_safe_repair_rate: 9
+    escalation_packet_completeness: 8
+
+# -----------------------------------------------------------------------------
+# Promotion.
+# -----------------------------------------------------------------------------
+promotion_process:
+  seed_milestone: foundations
+  promotion_forum: benchmark_council
+  promotion_rule: >
+    Moving a row's threshold_state off "to_be_set_by_benchmark_council"
+    requires the benchmark-council charter promotion path. Widening a
+    claim on an existing row requires a new decision row in
+    artifacts/governance/decision_index.yaml. A false-safe-repair row
+    MAY NOT move sideways to a latency or completeness threshold.
+  reserved_row_policy: >
+    Rows are reviewable in shape only at this milestone. No threshold
+    is committed. Under-claim rows are additive-minor once the council
+    defines a numeric budget for safety_overclaim; they reuse existing
+    scenario ids rather than mint new ones.
+
+emitted_at: 2026-04-23T00:00:00Z
