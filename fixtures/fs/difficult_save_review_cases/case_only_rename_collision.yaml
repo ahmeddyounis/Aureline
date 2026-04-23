@@ -1,0 +1,72 @@
+schema_version: 1
+case_id: corpus.fs.difficult.case_only_rename_with_collision
+case_family: save_target_review_case
+title: Case-only rename on an insensitive root with a neighbour inode
+summary: >
+  The user attempts to rename `README.md` to `Readme.md` on an
+  insensitive-preserving root. A case-fold neighbour `Readme.md`
+  already exists on the same root for a different inode. The chip
+  must keep both inodes distinct, flag the collision, and route
+  through the rename preview; the rename must not silently succeed
+  as a no-op or silently clobber the neighbour.
+difficulty_axis: case_only_rename
+root_profile: local_posix_like_insensitive_preserving
+presentation_path:
+  uri: file:///ws/README.md
+  display_label: README.md
+  root_badge: local
+canonical_filesystem_object:
+  canonical_uri: file:///ws/README.md
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: device_inode_generation
+    value: dev:1/ino:808/gen:4
+alias_set:
+  alias_kinds:
+    - case_only_variant
+  aliases:
+    - alias_uri: file:///ws/Readme.md
+      alias_kind: case_only_variant
+      resolution_chain:
+        - opened: file:///ws/README.md (ino:808)
+        - case-fold neighbour observed on insensitive_preserving root
+        - neighbour: file:///ws/Readme.md (ino:811, different inode)
+row_truth_state: exact
+row_truth_reason: canonical_resolved_from_root
+degraded_save_hints:
+  identity_assertion_state: exact
+  save_assertion_state: degraded
+  watcher_assertion_state: exact
+  atomic_write_mode: atomic_replace
+  save_hint_codes:
+    - case_only_rename_requires_preview
+    - alias_set_non_empty
+save_target_review:
+  required: true
+  reason_codes:
+    - case_only_rename_requires_preview
+    - alias_set_non_empty
+  primary_action: open_rename_preview
+  secondary_actions:
+    - open_alias_details
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/case_only_rename_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/case_only_rename_alias_view.json
+client_can_still_assert:
+  - The opened object (ino:808) and the case-fold neighbour (ino:811) remain distinct inodes.
+  - A rename preview can surface the collision before any directory-entry change commits.
+  - Compare-before-write still targets the opened canonical object, not the neighbour.
+client_must_not_assert:
+  - A case-only rename is safe to commit without an explicit capability check on this root.
+  - The neighbour spelling and the opened spelling may be merged into one mutable buffer.
+  - A no-op rename outcome is acceptable without disclosing the collision.
+related_fixture_ids:
+  - corpus.fs.identity.case_only_difference
+  - corpus.fs.alias.case_fold_collision_insensitive_root
+rename_matrix_row_refs:
+  - rename_matrix.local_apfs_insensitive_preview_required
+  - rename_matrix.local_windows_insensitive_preview_required
+topics:
+  - case_only_rename
+  - case_fold_collision
+  - save_target_review

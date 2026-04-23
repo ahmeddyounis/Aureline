@@ -1,0 +1,86 @@
+schema_version: 1
+case_id: corpus.fs.difficult.bind_mount_canonical_drift
+case_family: save_target_review_case
+title: Bind-mount re-attached to a foreign root mid-session
+summary: >
+  The user opens `mnt/shared/policies.yaml` through a bind mount
+  pointing at `/foreign/policies-v1`. The bind is re-attached to
+  `/foreign/policies-v2` before save. The canonical target now
+  lives on a different device (`dev:2`) than the workspace root
+  (`dev:1`); atomic replace cannot cross the device boundary. The
+  chip must mark the row `stale`, the inspector must show both
+  canonical targets, and save must land in the review sheet.
+difficulty_axis: bind_mount_canonical_drift
+root_profile: local_posix_like_with_bind_mount
+presentation_path:
+  uri: file:///ws/mnt/shared/policies.yaml
+  display_label: policies.yaml
+  root_badge: local
+canonical_filesystem_object:
+  canonical_uri: file:///foreign/policies-v2/policies.yaml
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: device_inode_generation
+    value: dev:2/ino:1177/gen:2
+  open_time_identity_token:
+    kind: device_inode_generation
+    value: dev:2/ino:1088/gen:5
+  fallback_identity_tokens:
+    - kind: device_inode
+      value: dev:2/ino:1177
+alias_set:
+  alias_kinds:
+    - bind_mount_alias
+  aliases:
+    - alias_uri: file:///ws/mnt/shared/policies.yaml
+      alias_kind: bind_mount_alias
+      resolution_chain:
+        - opened through bind mount: /ws/mnt/shared
+        - bind target at open: /foreign/policies-v1 (dev:2/ino:1088)
+        - bind re-attached to /foreign/policies-v2 at mono:5011:00:05:30
+        - canonical at save: /foreign/policies-v2/policies.yaml (dev:2/ino:1177)
+row_truth_state: stale
+row_truth_reason: canonical_overlay_remapped
+overlay_context:
+  overlay_kind: bind_mount_overlay
+  provider_class: bind_mount_host
+  provider_ref: bind:/ws/mnt/shared
+  writeback_policy: review_then_write
+  visible_layer_readonly: false
+degraded_save_hints:
+  identity_assertion_state: degraded
+  save_assertion_state: degraded
+  watcher_assertion_state: degraded
+  atomic_write_mode: in_place_write
+  save_hint_codes:
+    - bind_mount_canonical_drift
+    - presentation_differs_from_canonical
+    - watcher_degraded
+save_target_review:
+  required: true
+  reason_codes:
+    - bind_mount_canonical_drift
+    - presentation_differs_from_canonical
+  primary_action: review_and_approve
+  secondary_actions:
+    - open_alias_details
+    - save_as
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/bind_mount_drift_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/bind_mount_alias_view.json
+client_can_still_assert:
+  - "The open-time and save-time canonical targets are separately addressable (different inodes)."
+  - "The review sheet discloses that save would cross a device boundary."
+  - "`save_as` keeps the buffer on the original workspace root if the user refuses the drift."
+client_must_not_assert:
+  - A bind-mount remap is an atomic-replace-equivalent event.
+  - Open and save may silently resolve to different objects without review.
+  - Watcher fidelity survives the bind remap without being flagged degraded.
+related_fixture_ids:
+  - corpus.fs.identity.watcher_degradation
+rename_matrix_row_refs: []
+topics:
+  - bind_mount_canonical_drift
+  - cross_device_save
+  - overlay_remap
+  - save_target_review

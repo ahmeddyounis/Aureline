@@ -1,0 +1,80 @@
+schema_version: 1
+case_id: corpus.fs.difficult.whole_file_rewrite_fallback
+case_family: save_target_review_case
+title: Container overlay forces save to whole-file rewrite fallback
+summary: >
+  The user opens `app/config.json` inside a container-overlay root.
+  The adapter does not expose atomic_replace; the save must degrade
+  to a whole-file rewrite that the watcher cannot observe as a
+  single inode swap. The chip is `heuristic` because the canonical
+  identity is a content-hash token rather than a strong
+  inode/generation pair. Compare-before-write still protects against
+  external changes via the content-hash token.
+difficulty_axis: whole_file_rewrite_fallback
+root_profile: container_overlay
+presentation_path:
+  uri: container://devbox-7/app/config.json
+  display_label: config.json
+  root_badge: container
+canonical_filesystem_object:
+  canonical_uri: container://devbox-7/app/config.json
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: content_hash_only
+    value: sha256:18f4c20c
+  fallback_identity_tokens:
+    - kind: inode_mtime_size
+      value: ino:2042/mtime:mono:5011:00:04:15.0000/size:748
+alias_set:
+  alias_kinds:
+    - container_mount_alias
+  aliases:
+    - alias_uri: container://devbox-7/app/config.json
+      alias_kind: container_mount_alias
+      resolution_chain:
+        - opened through container overlay
+        - overlay does not expose atomic_replace
+        - save writes temp + rename; overlay flattens to whole-file rewrite
+        - content-hash token is the strongest identity the adapter returns
+row_truth_state: heuristic
+row_truth_reason: canonical_inferred_heuristic
+overlay_context:
+  overlay_kind: container_overlay
+  provider_class: container_runtime
+  provider_ref: devbox-7
+  writeback_policy: whole_file_rewrite_fallback
+  visible_layer_readonly: false
+degraded_save_hints:
+  identity_assertion_state: degraded
+  save_assertion_state: degraded
+  watcher_assertion_state: degraded
+  atomic_write_mode: whole_file_rewrite_fallback
+  save_hint_codes:
+    - overlay_rewrite_only
+    - watcher_degraded
+save_target_review:
+  required: false
+  reason_codes: []
+  primary_action: save_with_compare_before_write
+  secondary_actions:
+    - open_alias_details
+    - open_save_target_review
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/whole_file_rewrite_fallback_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/whole_file_rewrite_fallback_alias_view.json
+client_can_still_assert:
+  - Compare-before-write leans on the content-hash token and catches external rewrites.
+  - The save affordance discloses the whole-file rewrite fallback on the chip.
+  - One canonical object remains authoritative for the editor buffer.
+client_must_not_assert:
+  - The adapter supports atomic_replace on this root.
+  - The watcher can observe the save as a single inode swap.
+  - The save affordance may render `Atomic save` without disclosing the rewrite fallback.
+related_fixture_ids:
+  - corpus.fs.identity.watcher_degradation
+rename_matrix_row_refs: []
+topics:
+  - whole_file_rewrite_fallback
+  - overlay_rewrite_only
+  - content_hash_identity
+  - compare_before_write_still_required

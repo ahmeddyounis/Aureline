@@ -1,0 +1,77 @@
+schema_version: 1
+case_id: corpus.fs.difficult.archive_inner_alias_inspect_only
+case_family: save_target_review_case
+title: Archive inner alias — tree looks editable, writes are blocked
+summary: >
+  The user opens `release.zip!/manifest.json` through an archive
+  mount. The preview opens cleanly and the buffer becomes dirty,
+  but the archive reader is inspect-only; no write primitive exists
+  for inner members. The chip must surface `atomic_write_mode =
+  blocked`, the inspector must explain why, and the only honest
+  write affordance is `save_as` into a writable root.
+difficulty_axis: archive_inner_alias
+root_profile: archive_mount_inspect_only
+presentation_path:
+  uri: archive:///ws/release.zip!/manifest.json
+  display_label: manifest.json
+  root_badge: archive
+canonical_filesystem_object:
+  canonical_uri: archive:///ws/release.zip!/manifest.json
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: content_hash_only
+    value: sha256:9a2b0f6d
+alias_set:
+  alias_kinds:
+    - archive_inner_alias
+  aliases:
+    - alias_uri: archive:///ws/release.zip!/manifest.json
+      alias_kind: archive_inner_alias
+      resolution_chain:
+        - opened archive mount: /ws/release.zip
+        - inner member resolved: !/manifest.json
+        - archive reader is inspect-only
+        - no writable canonical object exists for this inner member
+row_truth_state: exact
+row_truth_reason: canonical_resolved_from_root
+overlay_context:
+  overlay_kind: archive_overlay
+  provider_class: archive_reader
+  provider_ref: zip-archive:///ws/release.zip
+  writeback_policy: inspect_only
+  visible_layer_readonly: true
+degraded_save_hints:
+  identity_assertion_state: exact
+  save_assertion_state: unsupported
+  watcher_assertion_state: unsupported
+  atomic_write_mode: blocked
+  save_hint_codes:
+    - archive_inspect_only
+    - save_blocked_by_policy
+save_target_review:
+  required: true
+  reason_codes:
+    - archive_inspect_only
+  primary_action: save_as
+  secondary_actions:
+    - open_alias_details
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/archive_inner_alias_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/archive_inner_alias_view.json
+client_can_still_assert:
+  - "The archive inner member is resolved deterministically; identity is exact."
+  - "`save_as` preserves buffer contents through an explicit export."
+  - "The save affordance discloses that the root is inspect-only."
+client_must_not_assert:
+  - "The archive root supports any write primitive for inner members."
+  - "A save completes inside the archive without `save_as`."
+  - "Watcher events can signal changes to archive inner members."
+related_fixture_ids:
+  - corpus.fs.identity.read_only_root_blocked
+rename_matrix_row_refs:
+  - rename_matrix.archive_like_unsupported
+topics:
+  - archive_inner_alias
+  - inspect_only_root
+  - save_blocked
+  - save_as_fallback

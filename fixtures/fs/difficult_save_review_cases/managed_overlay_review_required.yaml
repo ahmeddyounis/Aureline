@@ -1,0 +1,86 @@
+schema_version: 1
+case_id: corpus.fs.difficult.managed_overlay_review_required
+case_family: save_target_review_case
+title: Managed-provider overlay presents a writable-looking path behind a review gate
+summary: >
+  The user opens `services/billing/policies.yaml` through a
+  managed-provider overlay. The overlay presents the path as
+  writable, but writes are conditional remote writes gated by a
+  provider review step. The chip's identity layers are reconstructed
+  from the provider's last attested probe record (live adapter
+  absent); row truth is `imported`. The save flow must land in the
+  save-target-review sheet with the managed review gate disclosed
+  before any byte write is attempted.
+difficulty_axis: overlay_managed_root
+root_profile: managed_provider_overlay
+presentation_path:
+  uri: overlay://managed-provider-42/services/billing/policies.yaml
+  display_label: policies.yaml
+  root_badge: managed
+canonical_filesystem_object:
+  canonical_uri: provider://managed-provider-42/object/policies.yaml
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: provider_object_id_revision
+    value: managed-provider-42:policies.yaml#rev/gen:93
+alias_set:
+  alias_kinds:
+    - remote_alias
+  aliases:
+    - alias_uri: overlay://managed-provider-42/services/billing/policies.yaml
+      alias_kind: remote_alias
+      resolution_chain:
+        - opened through managed-provider overlay
+        - overlay presents a writable-looking path
+        - canonical: provider://managed-provider-42/object/policies.yaml
+        - save is a conditional remote write gated by provider review
+row_truth_state: imported
+row_truth_reason: canonical_inherited_from_import
+overlay_context:
+  overlay_kind: managed_provider_overlay
+  provider_class: managed_provider
+  provider_ref: managed-provider-42
+  writeback_policy: review_then_write
+  visible_layer_readonly: false
+degraded_save_hints:
+  identity_assertion_state: degraded
+  save_assertion_state: degraded
+  watcher_assertion_state: degraded
+  atomic_write_mode: conditional_remote_write
+  save_hint_codes:
+    - managed_review_required
+    - conditional_remote_write_required
+    - presentation_differs_from_canonical
+    - watcher_degraded
+save_target_review:
+  required: true
+  reason_codes:
+    - managed_review_required
+    - conditional_remote_write_required
+    - presentation_differs_from_canonical
+  primary_action: review_and_approve
+  secondary_actions:
+    - open_alias_details
+    - save_as
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/managed_overlay_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/managed_overlay_alias_view.json
+client_can_still_assert:
+  - The provider object id and revision token identify the write target honestly.
+  - Conditional remote writes prevent blind overwrite on stale revisions.
+  - The save affordance discloses the provider review gate before bytes move.
+client_must_not_assert:
+  - The overlay's writable-looking path implies a direct local write.
+  - The save affordance may render `Save` without a managed review disclosure.
+  - Provider credentials or raw policy bodies may cross the alias-inspector boundary.
+related_fixture_ids:
+  - corpus.fs.identity.remote_conditional_conflict
+  - corpus.fs.alias.remote_alias_degraded_root
+rename_matrix_row_refs:
+  - rename_matrix.remote_agent_attested_degraded
+  - rename_matrix.remote_agent_unattested_unsupported
+topics:
+  - overlay_managed_root
+  - conditional_remote_write
+  - review_gate
+  - save_target_review

@@ -1,0 +1,77 @@
+schema_version: 1
+case_id: corpus.fs.difficult.symlink_target_shift_mid_session
+case_family: save_target_review_case
+title: Symlink target repointed between open and save
+summary: >
+  The user opens `docs/current.md`, which is a symlink pointing at
+  `releases/v1/current.md`. A sibling writer repoints the symlink
+  at `releases/v2/current.md` before the user's save fires. The
+  chip must mark the row `stale`, the inspector must show both
+  canonical targets and the resolution-chain shift, and the save
+  must land in the save-target-review sheet before any byte write.
+difficulty_axis: symlink_target_shift
+root_profile: local_posix_like
+presentation_path:
+  uri: file:///ws/docs/current.md
+  display_label: current.md
+  root_badge: local
+canonical_filesystem_object:
+  canonical_uri: file:///ws/releases/v2/current.md
+  normalization_form: nfc
+  strongest_identity_token:
+    kind: device_inode_generation
+    value: dev:1/ino:919/gen:1
+  open_time_identity_token:
+    kind: device_inode_generation
+    value: dev:1/ino:903/gen:2
+alias_set:
+  alias_kinds:
+    - symlink
+  aliases:
+    - alias_uri: file:///ws/docs/current.md
+      alias_kind: symlink
+      resolution_chain:
+        - opened: file:///ws/docs/current.md
+        - symlink target at open: file:///ws/releases/v1/current.md (ino:903)
+        - sibling writer repointed the symlink at mono:5010:59:50
+        - symlink target at save: file:///ws/releases/v2/current.md (ino:919)
+row_truth_state: stale
+row_truth_reason: canonical_target_shifted
+degraded_save_hints:
+  identity_assertion_state: exact
+  save_assertion_state: degraded
+  watcher_assertion_state: exact
+  atomic_write_mode: atomic_replace
+  save_hint_codes:
+    - symlink_target_shifted_mid_session
+    - presentation_differs_from_canonical
+    - alias_set_non_empty
+save_target_review:
+  required: true
+  reason_codes:
+    - symlink_target_shifted_mid_session
+    - presentation_differs_from_canonical
+  primary_action: review_and_approve
+  secondary_actions:
+    - open_alias_details
+    - save_as
+    - cancel
+expected_chip_artifact: artifacts/fs/path_truth_examples/symlink_target_shift_chip.json
+expected_inspector_artifact: artifacts/fs/alias_inspector_examples/symlink_target_shift_alias_view.json
+client_can_still_assert:
+  - The open-time and save-time canonical targets are separately addressable.
+  - Compare-before-write catches the token drift and blocks a blind overwrite.
+  - The presentation path stays stable; only the resolved canonical target shifted.
+client_must_not_assert:
+  - A symlink whose target shifts mid-session can be saved without review.
+  - The open-time canonical object and the save-time canonical object may be treated as the same file.
+  - The save affordance may render `Save` without the save-target-review sheet.
+related_fixture_ids:
+  - corpus.fs.identity.symlink_alias
+  - corpus.fs.alias.presentation_vs_canonical_symlink
+rename_matrix_row_refs: []
+topics:
+  - symlink_target_shift
+  - presentation_vs_canonical_divergence
+  - compare_before_write_mismatch
+  - save_target_review
