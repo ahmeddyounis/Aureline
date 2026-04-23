@@ -1,0 +1,509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/sync_scope_bundle.schema.json",
+  "title": "Aureline settings sync scope-bundle and session-envelope",
+  "description": "Boundary schema for the optional-sync scope bundle and the sync-session envelope that carries it. See docs/adr/0008-settings-definition-and-effective-configuration-resolver.md and docs/settings/sync_and_device_registry_seed.md. One scope-bundle payload carries a single-scope subset of setting-definition rows from a producer device to the resolver on another device; one sync-session envelope carries zero or more scope bundles plus the local-authoritative degrade posture. Raw secret bytes, trust grants, delegated credentials, machine-local paths, policy caches, and admin bundles never appear; the schema enumerates the omitted classes explicitly so new lanes cannot silently widen the contract. The eventual settings crate's Rust types are the schema of record; this file is the cross-tool boundary that the settings UI, CLI settings sync command, profile import / export, support-bundle exporter, migration center, and optional-sync transport read. Adding a new top-level field, degrade posture, omitted class, or transport state is additive-minor and bumps settings_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/sync_scope_bundle" },
+    { "$ref": "#/$defs/sync_session_envelope" }
+  ],
+  "$defs": {
+    "settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this sync scope-bundle / session-envelope vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "sync_scope_bundle",
+        "sync_session_envelope"
+      ],
+      "description": "Discriminator for the concrete payload shape. A sync_scope_bundle carries a single-scope subset of settings; a sync_session_envelope carries zero or more scope bundles plus the session-level degrade posture."
+    },
+
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id. MUST match a setting-definition row after alias redirection. The resolver denies entries whose id is unknown or retired."
+    },
+
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_or_command_override",
+        "admin_policy_narrowing"
+      ],
+      "description": "Frozen scope id. See schemas/settings/effective_setting.schema.json#/$defs/scope_id."
+    },
+
+    "syncable_scope_id": {
+      "type": "string",
+      "enum": [
+        "user_global",
+        "language_override"
+      ],
+      "description": "Frozen allow-list of scopes the optional-sync lane MAY carry by default. machine_specific, session_or_command_override, admin_policy_narrowing, workspace, folder_or_module_override, imported_profile_default, channel_or_experiment_default, and built_in_default are NEVER carried by the lane; the resolver refuses bundles that claim any other scope."
+    },
+
+    "reason_class": {
+      "type": "string",
+      "const": "sync",
+      "description": "Frozen reason class for bundle entries. Always 'sync' for this payload; the resolver mints a write_intent_packet with reason_class=sync when applying the entry on the pulling device."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "imported_profile",
+        "workspace_migration",
+        "admin_policy_injector",
+        "experiment_rollout",
+        "session_override",
+        "extension_api",
+        "ai_apply"
+      ],
+      "description": "Frozen actor class of the producer-side write that put the value into the bundle. Mirrors the effective-setting record so the conflict packet and mutation journal share one vocabulary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction class applied to value previews inside the bundle. Entries whose declared redaction_class is 'exclude_from_export' MUST NOT appear in any bundle; the resolver drops them with a typed audit event."
+    },
+
+    "value_preview_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_preview_kind"],
+      "properties": {
+        "value_preview_kind": {
+          "type": "string",
+          "enum": [
+            "literal_value",
+            "redacted_shape_preserved",
+            "class_label_only",
+            "credential_alias_only",
+            "absent"
+          ],
+          "description": "How the value preview was produced for carriage in the bundle. 'excluded_from_export' is not reachable here because those entries are filtered out before the bundle is minted. 'credential_alias_only' carries the broker alias; never raw secret bytes."
+        },
+        "value_preview": {
+          "description": "The preview payload, typed per the setting-definition value_type and redacted per the setting's redaction_class. Absent when value_preview_kind is absent."
+        },
+        "class_label": {
+          "type": ["string", "null"],
+          "description": "Class label used when value_preview_kind is class_label_only. Never carries raw secret material."
+        },
+        "credential_alias_ref": {
+          "type": ["string", "null"],
+          "description": "Broker alias handle copied in when value_preview_kind is credential_alias_only. Only the alias crosses the sync boundary; raw secret bytes never do."
+        }
+      },
+      "description": "One value-preview payload. Mirrors schemas/settings/write_intent.schema.json#/$defs/value_preview_shape but with the excluded_from_export variant forbidden."
+    },
+
+    "widening_vector": {
+      "type": "string",
+      "enum": [
+        "none",
+        "workspace_trust",
+        "ai_egress",
+        "network_egress",
+        "extension_permission",
+        "managed_entitlement",
+        "credential_exposure",
+        "allowed_scope_set"
+      ],
+      "description": "Frozen widening-vector vocabulary. Mirrors schemas/settings/write_intent.schema.json#/$defs/widening_vector. Any non-'none' vector on a bundle entry MUST be accompanied by resolver-side denial with scope_broadening_would_widen_trust; a bundle that quietly widens trust is a bug."
+    },
+
+    "scope_broadening_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_widen_trust",
+        "widening_vector"
+      ],
+      "properties": {
+        "would_widen_trust": {
+          "type": "boolean",
+          "description": "True when applying this entry on the receiving device would silently widen workspace trust, AI egress, network egress, extension permissions, managed entitlement, credential exposure, or the declared allowed-scope set. A bundle carrying such an entry MUST be refused; the resolver emits a typed conflict packet with write_intent_verdict=denied."
+        },
+        "widening_vector": { "$ref": "#/$defs/widening_vector" },
+        "narrowing_ceiling_intersected": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the entry would be capped by an active admin-policy narrowing ceiling on the receiving device. Informational; never flips the verdict on its own but lets the 'Explain why' affordance render one trace."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note on the scope-broadening outcome. Redacted per ADR-0007."
+        }
+      },
+      "description": "No-silent-scope-broadening verdict copied onto each bundle entry. Mirrors schemas/settings/write_intent.schema.json#/$defs/scope_broadening_verdict."
+    },
+
+    "last_written_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "actor_class"],
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp of the producer-side write that put the value into the bundle."
+        },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "mutation_journal_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal on the producer device for the write. Lets the receiving device quote the producer lineage without re-deriving it."
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal on the producer device for the rollback checkpoint produced before the write. Present when the entry's preview_class required one; null otherwise."
+        }
+      },
+      "description": "Producer-side provenance for a bundle entry."
+    },
+
+    "sync_scope_bundle_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setting_id",
+        "value_preview",
+        "redaction_class",
+        "scope_broadening_verdict",
+        "last_written"
+      ],
+      "properties": {
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "alias_redirected_from": {
+          "type": ["string", "null"],
+          "description": "Legacy id the producer-side write arrived on when a redirect fired; null if the producer wrote to the canonical id directly."
+        },
+        "value_preview": { "$ref": "#/$defs/value_preview_shape" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "schema_version": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "The setting-definition schema version the producer wrote against. Null means the producer did not record a version; the receiver treats that as a stale payload and routes to local-authoritative."
+        },
+        "migration_applied": {
+          "type": ["string", "null"],
+          "description": "from_version of the migration row the producer applied when normalising the value, if any. Null when no migration ran."
+        },
+        "scope_broadening_verdict": { "$ref": "#/$defs/scope_broadening_verdict" },
+        "last_written": { "$ref": "#/$defs/last_written_block" },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material."
+        }
+      },
+      "description": "One entry in a scope bundle. Carries exactly one setting at exactly one scope, along with the redaction class and the scope-broadening verdict the receiver evaluates before apply."
+    },
+
+    "omitted_record_class": {
+      "type": "string",
+      "enum": [
+        "secret_bytes",
+        "credential_raw",
+        "trust_grants",
+        "delegated_credentials",
+        "machine_local_paths",
+        "policy_caches",
+        "admin_policy_bundles",
+        "session_or_command_override_values",
+        "approval_tickets",
+        "rollback_checkpoints",
+        "support_bundles",
+        "crash_dumps",
+        "mutation_journal_raw",
+        "workspace_specific_overrides",
+        "device_secret_raw",
+        "ephemeral_operation_tokens"
+      ],
+      "description": "Frozen enumeration of record classes that the optional-sync lane MUST NOT carry. Every scope bundle explicitly lists these as omitted so a new lane cannot quietly widen the contract. The resolver refuses a bundle whose omitted_classes list does not fully cover this set."
+    },
+
+    "local_authoritative_degrade_reason": {
+      "type": "string",
+      "enum": [
+        "transport_unavailable",
+        "transport_degraded",
+        "stale_payload",
+        "encryption_failure",
+        "missing_capability",
+        "policy_block",
+        "manual_export_import",
+        "device_paused",
+        "device_revoked",
+        "identity_mode_mismatch",
+        "schema_version_incompatible"
+      ],
+      "description": "Frozen degrade-reason vocabulary. Names why the session is running in local-authoritative mode. 'manual_export_import' is the user-initiated continuity path: export from one device, import on another; the envelope records it so support and audit can distinguish continuity from a live session."
+    },
+
+    "session_state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "reconciling",
+        "local_authoritative_degraded",
+        "paused",
+        "closed",
+        "refused"
+      ],
+      "description": "Frozen session-state vocabulary. 'local_authoritative_degraded' is the default posture whenever any degrade_reason fires; the receiver keeps serving local values and NEVER replays stale, encrypted-failed, or capability-missing data silently. 'refused' is a terminal state the resolver sets when a bundle violates omitted_classes, widens trust, or targets a disallowed scope."
+    },
+
+    "transport_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "degraded",
+        "unavailable"
+      ],
+      "description": "Transport-level state. 'degraded' fires when the transport is up but round-trips are slow enough that the resolver has moved to local-authoritative until a fresh, signed payload arrives."
+    },
+
+    "omitted_classes_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classes", "non_widening_affirmed"],
+      "properties": {
+        "classes": {
+          "type": "array",
+          "minItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/omitted_record_class" },
+          "description": "List of omitted record classes. Every producer MUST include the full frozen set; the resolver refuses bundles missing any class as a safety measure against silent widening."
+        },
+        "non_widening_affirmed": {
+          "type": "boolean",
+          "description": "Producer-side affirmation that the bundle honours the non-widening rule (mirrors ADR 0008 Section 'Scope-broadening rule (frozen)'). MUST be true on every emitted bundle; a false or missing affirmation is refused with session_state=refused."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note on the omitted-classes block. Redacted per ADR-0007."
+        }
+      },
+      "description": "Frozen omitted-classes block. The only path to declare what the bundle will NOT carry. Surfaces render this list verbatim; they do not mint parallel 'excluded' lists."
+    },
+
+    "sync_scope_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "bundle_id",
+        "producer_device_id",
+        "scope",
+        "entries",
+        "omitted_classes",
+        "emitted_at",
+        "bundle_epoch",
+        "schema_version",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "sync_scope_bundle"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "bundle_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable id for this scope bundle. Reused by the session envelope that carries it and by conflict packets the receiver emits while reconciling the bundle."
+        },
+        "producer_device_id": {
+          "type": "string",
+          "pattern": "^dev-[A-Za-z0-9_-]{8,}$",
+          "description": "Device id that produced this bundle. MUST match a sync_device_record whose revocation_state is active or paused; revoked and forgotten device ids are refused."
+        },
+        "producer_lineage_cursor": {
+          "type": ["string", "null"],
+          "description": "Opaque monotonic cursor copied from the producer's device record at emit time. Lets the receiver order and dedupe bundles from the same device without re-deriving lineage."
+        },
+        "scope": { "$ref": "#/$defs/syncable_scope_id" },
+        "reason_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Reason class for the entries. Always 'sync' when present; null is equivalent."
+        },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sync_scope_bundle_entry" },
+          "description": "Zero or more setting entries carried in this bundle. Every entry shares the same producer_device_id and the same declared scope. An empty entries list is legal (for example, a heartbeat bundle establishing lineage without carrying a value)."
+        },
+        "omitted_classes": { "$ref": "#/$defs/omitted_classes_block" },
+        "emitted_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the producer minted the bundle."
+        },
+        "bundle_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic per-device bundle epoch. The receiver refuses bundles whose epoch is not strictly greater than the last accepted epoch from the same device (stale-payload protection)."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the bundle is no longer acceptable to the receiver; stale bundles route to local-authoritative. Null means no bound."
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The sync scope-bundle schema version. Distinct from settings_schema_version, which versions the envelope."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "record_class_id": {
+          "type": ["string", "null"],
+          "description": "Stable handle into artifacts/governance/record_class_registry.yaml naming the retention / export posture for the bundle when carried into a support bundle or offboarding packet."
+        },
+        "policy_epoch": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Policy epoch observed on the producer at emit time. Lets the receiver evaluate admin-policy narrowing against a stable baseline."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007."
+        }
+      },
+      "description": "One scope bundle. A single-scope subset of settings flowing between two devices through the optional-sync lane."
+    },
+
+    "sync_session_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "session_id",
+        "local_device_id",
+        "session_state",
+        "transport_state",
+        "opened_at",
+        "schema_version"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "sync_session_envelope"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable id for this sync session. Reused by conflict packets emitted inside the session, by audit events, and by the migration-center renderer."
+        },
+        "local_device_id": {
+          "type": "string",
+          "pattern": "^dev-[A-Za-z0-9_-]{8,}$",
+          "description": "Device id of the local (receiving / initiating) device. MUST match a sync_device_record."
+        },
+        "remote_device_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^dev-[A-Za-z0-9_-]{8,}$"
+          },
+          "uniqueItems": true,
+          "description": "Device ids of remote peers participating in this session. Empty when the session is local-authoritative with no live transport."
+        },
+        "session_state": { "$ref": "#/$defs/session_state" },
+        "transport_state": { "$ref": "#/$defs/transport_state" },
+        "degrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_authoritative_degrade_reason" },
+          "uniqueItems": true,
+          "description": "Active degrade reasons. Empty when session_state=open or reconciling. Every non-'open' session that is not 'refused' MUST list at least one reason; a degraded session with no named reason is a bug."
+        },
+        "bundles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sync_scope_bundle" },
+          "description": "Zero or more scope bundles carried inside this session. Empty for pure session-control envelopes (for example, degrade announcements)."
+        },
+        "opened_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the session was opened."
+        },
+        "last_reconciled_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp the session most recently completed a reconciliation round. Null before the first reconciliation."
+        },
+        "closed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp the session was closed. Null while session_state is open, reconciling, local_authoritative_degraded, or paused."
+        },
+        "manual_continuity": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["source_device_id", "target_device_id", "carried_at"],
+          "properties": {
+            "source_device_id": {
+              "type": "string",
+              "pattern": "^dev-[A-Za-z0-9_-]{8,}$"
+            },
+            "target_device_id": {
+              "type": "string",
+              "pattern": "^dev-[A-Za-z0-9_-]{8,}$"
+            },
+            "carried_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Monotonic stamp the user-initiated export was carried into the target device."
+            },
+            "export_artifact_ref": {
+              "type": ["string", "null"],
+              "description": "Opaque handle pointing at the profile-export artifact that carried continuity. Never a raw filesystem path."
+            }
+          },
+          "description": "Present when the session represents a manual export/import continuity path rather than a live transport. Null for live sessions."
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The sync session-envelope schema version. Distinct from settings_schema_version."
+        },
+        "record_class_id": {
+          "type": ["string", "null"],
+          "description": "Stable handle into artifacts/governance/record_class_registry.yaml naming the retention / export posture for the session envelope."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007."
+        }
+      },
+      "description": "One sync-session envelope. Carries zero or more scope bundles plus the session-level degrade posture so receivers never have to infer local-authoritative state."
+    }
+  }
+}

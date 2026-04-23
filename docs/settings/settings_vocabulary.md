@@ -41,6 +41,14 @@ must be updated in the same change.
   explain state, reset / diff affordance, deep-link and
   search-highlight behaviour), and the release-diff rules the
   eventual distribution service reads.
+- [`/docs/settings/sync_and_device_registry_seed.md`](./sync_and_device_registry_seed.md)
+  — optional-sync scope bundle and device-registry publishing
+  contract. Names the device-record lifecycle (active / paused /
+  revoked / forgotten), the scope-bundle shape and its
+  omitted-classes denylist, the sync-session envelope, the
+  field-aware sync-conflict packet, the local-authoritative degrade
+  reasons, and the support / diagnostics projection rules every
+  sync-aware surface reads.
 - [`/artifacts/architecture/settings_tradeoff_rows.yaml`](../../artifacts/architecture/settings_tradeoff_rows.yaml)
   — machine-readable tradeoff register (nine axes, per-row reopen
   triggers) backing the ADR.

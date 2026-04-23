@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/sync_device_record.schema.json",
+  "title": "Aureline settings sync device-record",
+  "description": "Boundary schema for the optional-sync device record. See docs/adr/0008-settings-definition-and-effective-configuration-resolver.md and docs/settings/sync_and_device_registry_seed.md. One record per device that ever participated in the settings optional-sync lane. The record names the device identity, user-chosen label, device class, os-family class, identity mode (ADR-0001), trust state, registration and last-seen timestamps, revocation lifecycle, revocation actor, typed capability posture, export-safe lineage cursor, and redaction class applied on every exportable surface. Raw device secrets never appear; the record references a device-secret class label (ADR-0007) and a broker alias only. The eventual settings crate's Rust types are the schema of record; this file is the cross-tool boundary that the settings UI, CLI settings device command, audit stream, support-bundle exporter, migration center, and optional-sync transport read. Adding a new top-level field, device class, os-family class, revocation state, revocation reason, or capability-state kind is additive-minor and bumps settings_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/sync_device_record",
+  "$defs": {
+    "settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this sync device-record vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "device_id": {
+      "type": "string",
+      "pattern": "^dev-[A-Za-z0-9_-]{8,}$",
+      "description": "Opaque stable device id minted by the resolver on first registration. Never a raw hostname, MAC address, serial, or user id. The support exporter and audit stream may quote this value; UI surfaces render the user-chosen device_label instead."
+    },
+
+    "device_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "description": "User-chosen friendly label for the device (for example, 'Home Mac mini', 'Dev laptop'). Redacted per ADR-0007 when the device record appears in a support bundle that crosses an org boundary."
+    },
+
+    "device_class": {
+      "type": "string",
+      "enum": [
+        "personal_workstation",
+        "corp_workstation",
+        "personal_laptop",
+        "corp_laptop",
+        "remote_dev_vm",
+        "ci_worker",
+        "ephemeral_sandbox",
+        "embedded_device",
+        "unknown"
+      ],
+      "description": "Frozen device-class vocabulary. 'unknown' is reserved for records imported from legacy tools that did not declare a class; a normal registration MUST declare a concrete class."
+    },
+
+    "os_family_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux",
+        "windows",
+        "remote_container",
+        "web_runtime",
+        "unknown"
+      ],
+      "description": "Coarse os-family class used on export. The raw os version, kernel build, and hostname never cross the sync boundary; only the class travels. Adding a class is additive-minor and bumps settings_schema_version."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "ADR-0001 identity mode at the moment of registration. A record whose identity_mode later changes mints a new device_id; the old record is carried through the revocation lifecycle rather than rewritten in place."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["restricted", "trusted"],
+      "description": "ADR-0001 workspace-trust state observed on the device at last_seen_at. Informational only; sync never elevates trust."
+    },
+
+    "revocation_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "revoked",
+        "forgotten"
+      ],
+      "description": "Frozen revocation-state vocabulary. 'active' is the normal participating state. 'paused' is a user-initiated freeze: the device keeps its lineage cursor but neither pushes nor pulls. 'revoked' is a durable refusal: the device rejects all sync traffic and its scope bundles are never consumed; the record stays in the registry for audit. 'forgotten' is the terminal state: the device label and lineage cursor are purged modulo the retention window declared by the record_class_registry; device_id and revocation stamps remain so the audit stream stays complete."
+    },
+
+    "revocation_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "user_paused",
+        "user_revoked",
+        "user_forgot",
+        "admin_revoked",
+        "capability_lost",
+        "policy_revoked",
+        "stale_expired",
+        "migration_superseded"
+      ],
+      "description": "Frozen revocation-reason vocabulary. 'none' pairs with revocation_state=active. 'migration_superseded' fires when a migration mints a replacement device_id for the same hardware under a new identity_mode or a new secret class."
+    },
+
+    "revocation_actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "admin_policy_injector",
+        "workspace_migration",
+        "extension_api",
+        "automation_harness",
+        "resolver_auto"
+      ],
+      "description": "Actor class that produced the most recent revocation transition. 'resolver_auto' fires for typed auto-revocations (stale_expired, capability_lost)."
+    },
+
+    "capability_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "satisfied"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "device_secret_present",
+            "sync_transport_reachable",
+            "policy_epoch_minimum",
+            "identity_mode_required",
+            "encryption_key_available",
+            "workspace_capability"
+          ],
+          "description": "Frozen capability-state kind for the optional-sync lane. Mirrors the setting-definition capability_dependency vocabulary where applicable; names the sync-only kinds (transport reachable, encryption key available, device secret present) the resolver evaluates before letting the device participate."
+        },
+        "satisfied": {
+          "type": "boolean",
+          "description": "True when the capability is currently satisfied; false locks the device out of the push / pull cycle until the capability recovers."
+        },
+        "observed_state": {
+          "type": ["string", "null"],
+          "description": "Diagnostic label for the capability's current state (for example, 'encryption_key=missing', 'transport=unreachable', 'policy_epoch=14'). Redacted per ADR-0007."
+        }
+      },
+      "description": "One capability-state row. Sync lanes evaluate the full set on every reconciliation tick; any unsatisfied row drives the sync session into local_authoritative_degraded."
+    },
+
+    "device_secret_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_secret_class"],
+      "properties": {
+        "credential_secret_class": {
+          "type": "string",
+          "const": "device_secret",
+          "description": "ADR-0007 secret class for the device-specific key the sync transport uses to authenticate. Only the class label and the broker alias ever cross a boundary; raw key material never appears."
+        },
+        "credential_alias_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque broker alias handle the resolver resolves through the ADR-0007 secret broker. Absent when the device is operating in account_free_local without any sync transport."
+        },
+        "last_refreshed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp of the most recent successful refresh of the device secret binding. Null when the binding has never been refreshed (for example, just-registered account_free_local devices)."
+        }
+      },
+      "description": "Device-secret binding. Records the class, the broker alias, and the last refresh stamp; never the raw secret."
+    },
+
+    "export_safe_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineage_cursor", "registered_at"],
+      "properties": {
+        "lineage_cursor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque monotonic cursor naming the device's position in the mutation-journal lineage. Stable across pauses; reset only on 'forgotten'. The support exporter, migration center, and conflict packet reuse this cursor to name lineage in a way that does not expose hostnames, IPs, or serials."
+        },
+        "registered_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the device first registered with the registry."
+        },
+        "last_seen_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp the resolver most recently observed the device (push, pull, or heartbeat)."
+        },
+        "last_seen_source": {
+          "type": ["string", "null"],
+          "enum": [
+            "local_heartbeat",
+            "push",
+            "pull",
+            "manual_export_import",
+            "policy_probe",
+            null
+          ],
+          "description": "Named surface that last observed the device. 'manual_export_import' fires when continuity is carried by a user-initiated export/import rather than a live transport."
+        }
+      },
+      "description": "Export-safe lineage block. Every field is safe to quote in a support bundle; none of the fields expose raw hostnames, IPs, serials, paths, or secrets."
+    },
+
+    "sync_device_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "device_id",
+        "device_label",
+        "device_class",
+        "os_family_class",
+        "identity_mode",
+        "revocation_state",
+        "revocation_reason",
+        "export_safe_lineage",
+        "capability_states",
+        "redaction_class",
+        "schema_version"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "sync_device_record",
+          "description": "Discriminator. Always 'sync_device_record' for this schema."
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "device_id": { "$ref": "#/$defs/device_id" },
+        "device_label": { "$ref": "#/$defs/device_label" },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "os_family_class": { "$ref": "#/$defs/os_family_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "trust_state": {
+          "anyOf": [
+            { "$ref": "#/$defs/trust_state" },
+            { "type": "null" }
+          ],
+          "description": "Observed trust state at last_seen_at. Null when the device has not been seen under a concrete workspace (for example, just-registered devices before any workspace is opened)."
+        },
+        "revocation_state": { "$ref": "#/$defs/revocation_state" },
+        "revocation_reason": { "$ref": "#/$defs/revocation_reason" },
+        "revoked_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp of the most recent revocation_state transition away from 'active'. Null when the record is currently active and has never been revoked."
+        },
+        "revoked_by_actor_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/revocation_actor_class" },
+            { "type": "null" }
+          ],
+          "description": "Actor class that produced the most recent revocation transition. Null pairs with revocation_state=active and revoked_at=null."
+        },
+        "capability_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_state" },
+          "description": "Observed capability-state rows. Empty when the device has no sync-specific capability dependencies (for example, an account_free_local device with no optional-sync binding)."
+        },
+        "device_secret_binding": {
+          "anyOf": [
+            { "$ref": "#/$defs/device_secret_binding" },
+            { "type": "null" }
+          ],
+          "description": "Device-secret binding. Null for devices operating without a sync transport binding."
+        },
+        "export_safe_lineage": { "$ref": "#/$defs/export_safe_lineage" },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "none",
+            "ui_string_only",
+            "redact_value_preserve_shape",
+            "redact_to_class_label",
+            "exclude_from_export"
+          ],
+          "description": "ADR-0007 redaction class applied to this record when it reaches an exportable surface (support bundle, audit stream, migration-center export). Device labels outside a private device's owner bundle resolve under 'redact_to_class_label'."
+        },
+        "record_class_id": {
+          "type": ["string", "null"],
+          "description": "Stable handle into artifacts/governance/record_class_registry.yaml naming the retention / export posture for this record. Populated when the record is carried into a support bundle or offboarding packet."
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The sync device-record schema version the record conforms to. Distinct from settings_schema_version, which versions this envelope."
+        },
+        "superseded_by_device_id": {
+          "anyOf": [
+            { "$ref": "#/$defs/device_id" },
+            { "type": "null" }
+          ],
+          "description": "When revocation_reason is migration_superseded, names the device_id that replaced this record (for example, a re-registered device after an identity_mode change). Null otherwise."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material, hostnames, IPs, serials, or machine-local paths."
+        }
+      },
+      "description": "One sync device record. Names a device that ever participated in optional sync. The record follows the revocation lifecycle durably; pause, resume, revoke, and forget are typed state transitions, not hidden side effects."
+    }
+  }
+}

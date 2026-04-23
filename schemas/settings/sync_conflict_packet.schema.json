@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/sync_conflict_packet.schema.json",
+  "title": "Aureline settings sync conflict-packet",
+  "description": "Boundary schema for the optional-sync conflict packet. See docs/adr/0008-settings-definition-and-effective-configuration-resolver.md and docs/settings/sync_and_device_registry_seed.md. One packet per setting-scope pair where the local effective value and an arriving scope-bundle entry disagree, or where the arriving entry is otherwise refused. The packet names the setting, the target scope, the local and remote device ids (as lineage, not hostnames), the typed conflict class, the field-aware delta, the widening verdict, the offered resolution paths (keep-local, keep-synced, merge-preview, rollback-friendly-review, decline), the resolution state, the rollback-checkpoint and approval refs, and the redaction class applied on every exportable surface. Raw secret bytes never appear; credential_alias values carry aliases only (ADR-0007). The eventual settings crate's Rust types are the schema of record; this file is the cross-tool boundary that the settings UI sync-conflict lane, CLI settings sync command, profile import / export preview, audit stream, mutation-journal renderer, migration center, and support-bundle exporter read. Adding a new top-level field, conflict class, resolution path, or resolution state is additive-minor and bumps settings_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/sync_conflict_packet",
+  "$defs": {
+    "settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this sync conflict-packet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id."
+    },
+
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_or_command_override",
+        "admin_policy_narrowing"
+      ],
+      "description": "Frozen scope id. See schemas/settings/effective_setting.schema.json#/$defs/scope_id."
+    },
+
+    "device_id": {
+      "type": "string",
+      "pattern": "^dev-[A-Za-z0-9_-]{8,}$",
+      "description": "Opaque stable device id; see schemas/settings/sync_device_record.schema.json#/$defs/device_id."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction class applied to the value previews in this packet."
+    },
+
+    "value_preview_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_preview_kind"],
+      "properties": {
+        "value_preview_kind": {
+          "type": "string",
+          "enum": [
+            "literal_value",
+            "redacted_shape_preserved",
+            "class_label_only",
+            "excluded_from_export",
+            "credential_alias_only",
+            "absent"
+          ],
+          "description": "How the value preview was produced. 'absent' pairs with no value at the named scope. 'credential_alias_only' carries the broker alias; never raw secret bytes."
+        },
+        "value_preview": {
+          "description": "The preview payload, typed per the setting-definition value_type and redacted per the setting's redaction_class. Absent when value_preview_kind is absent or excluded_from_export."
+        },
+        "class_label": {
+          "type": ["string", "null"],
+          "description": "Class label used when value_preview_kind is class_label_only. Never carries raw secret material."
+        },
+        "credential_alias_ref": {
+          "type": ["string", "null"],
+          "description": "Broker alias handle copied in when value_preview_kind is credential_alias_only."
+        }
+      },
+      "description": "One value-preview payload. Mirrors schemas/settings/write_intent.schema.json#/$defs/value_preview_shape."
+    },
+
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "value_equal_no_op",
+        "scalar_divergence",
+        "enum_divergence",
+        "array_divergence",
+        "object_field_divergence",
+        "tagged_union_variant_divergence",
+        "credential_alias_divergence",
+        "redaction_class_mismatch",
+        "schema_version_mismatch",
+        "capability_mismatch",
+        "allowed_scope_mismatch",
+        "scope_broadening_refusal",
+        "stale_payload",
+        "out_of_retention_window",
+        "device_paused",
+        "device_revoked",
+        "encryption_failure",
+        "policy_block",
+        "manual_continuity_divergence"
+      ],
+      "description": "Frozen conflict-class vocabulary. 'value_equal_no_op' is retained so a packet that reports 'no divergence' is still field-aware rather than a silent discard. 'scope_broadening_refusal' pairs with a denied resolution; the resolver never silently drops a widening entry. 'manual_continuity_divergence' fires when a user-initiated export/import carries a value that disagrees with the current local effective value."
+    },
+
+    "resolution_path": {
+      "type": "string",
+      "enum": [
+        "keep_local",
+        "keep_synced",
+        "merge_preview",
+        "rollback_friendly_review",
+        "decline"
+      ],
+      "description": "Frozen resolution-path vocabulary. 'keep_local' retains the local value and records the refusal of the synced value in the audit stream. 'keep_synced' adopts the synced value through a write_intent_packet with reason_class=sync. 'merge_preview' is offered only for merge-safe value shapes (append-only arrays, object adds, redacted_structural) and is gated by a change_preview_packet. 'rollback_friendly_review' creates a rollback checkpoint before any apply and is the default for preview_required / rollback_checkpoint_required / rollback_checkpoint_and_approval_required settings. 'decline' is terminal: the packet is recorded, neither value is applied, and the device rejects further arrivals for this setting/scope pair until the user chooses another path."
+    },
+
+    "resolution_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "previewed",
+        "acknowledged",
+        "resolved",
+        "declined",
+        "expired",
+        "withdrawn"
+      ],
+      "description": "Lifecycle state of the conflict packet. 'pending' is the first state; 'previewed' fires once the change-preview packet has been minted; 'acknowledged' fires when the user acknowledges the preview; 'resolved' pairs with a mutation_journal_ref or a recorded refusal; 'declined' pairs with resolution_path=decline and is terminal; 'expired' fires when an acknowledgement times out; 'withdrawn' fires when the producer device is paused, revoked, or forgotten before apply."
+    },
+
+    "widening_vector": {
+      "type": "string",
+      "enum": [
+        "none",
+        "workspace_trust",
+        "ai_egress",
+        "network_egress",
+        "extension_permission",
+        "managed_entitlement",
+        "credential_exposure",
+        "allowed_scope_set"
+      ],
+      "description": "Frozen widening-vector vocabulary. Mirrors schemas/settings/write_intent.schema.json#/$defs/widening_vector."
+    },
+
+    "scope_broadening_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_widen_trust",
+        "widening_vector"
+      ],
+      "properties": {
+        "would_widen_trust": {
+          "type": "boolean",
+          "description": "True when adopting the synced value would silently widen workspace trust, AI egress, network egress, extension permissions, managed entitlement, credential exposure, or the declared allowed-scope set. A true verdict MUST pair with conflict_class=scope_broadening_refusal and resolution_path in {keep_local, decline}."
+        },
+        "widening_vector": { "$ref": "#/$defs/widening_vector" },
+        "narrowing_ceiling_intersected": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when an active admin-policy narrowing ceiling intersects the synced value. Informational."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007."
+        }
+      },
+      "description": "No-silent-scope-broadening verdict evaluated at conflict time. Mirrors schemas/settings/write_intent.schema.json#/$defs/scope_broadening_verdict."
+    },
+
+    "field_diff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "change_kind"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted path into the value for object/tagged_union settings. Empty string is not valid here; top-level scalar divergences use field_path='$' by convention so every row is unambiguously named."
+        },
+        "change_kind": {
+          "type": "string",
+          "enum": ["added", "removed", "replaced", "reordered", "redacted"]
+        },
+        "local_preview": {
+          "anyOf": [
+            { "$ref": "#/$defs/value_preview_shape" },
+            { "type": "null" }
+          ]
+        },
+        "remote_preview": {
+          "anyOf": [
+            { "$ref": "#/$defs/value_preview_shape" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One field-level diff row. A conflict packet carries zero or more rows; scalar settings typically carry exactly one row with field_path='$'."
+    },
+
+    "conflict_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delta_kind"],
+      "properties": {
+        "delta_kind": {
+          "type": "string",
+          "enum": [
+            "no_change",
+            "scalar_replace",
+            "enum_reselect",
+            "array_append_only",
+            "array_remove_only",
+            "array_reorder_only",
+            "array_mixed",
+            "object_field_replace",
+            "object_field_add",
+            "object_field_remove",
+            "object_mixed",
+            "credential_alias_swap",
+            "redacted_structural"
+          ],
+          "description": "Frozen delta-kind vocabulary. Mirrors schemas/settings/write_intent.schema.json#/$defs/change_preview_delta.delta_kind. 'redacted_structural' fires when the setting's redaction_class prevents a field-level diff; the packet still names the structural shape so surfaces render 'N fields changed (redacted)' without inventing a parallel format."
+        },
+        "field_diff_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field_diff_row" },
+          "description": "Per-field diff rows. Empty for delta_kind=no_change."
+        },
+        "summary": {
+          "type": ["string", "null"],
+          "description": "One-sentence summary. Redacted per ADR-0007."
+        }
+      },
+      "description": "Structured field-aware delta describing how the local value and the arriving synced value disagree. Surfaces render this block into the sync-conflict review affordance; they do not mint a parallel diff format."
+    },
+
+    "remote_origin_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_device_id", "emitted_at"],
+      "properties": {
+        "producer_device_id": { "$ref": "#/$defs/device_id" },
+        "producer_lineage_cursor": {
+          "type": ["string", "null"],
+          "description": "Opaque lineage cursor copied from the producer's device record. Lets the migration center render the lineage without re-deriving it."
+        },
+        "bundle_id": {
+          "type": ["string", "null"],
+          "description": "sync_scope_bundle bundle_id that carried the arriving entry. Null when the conflict arose from a manual export/import continuity path."
+        },
+        "session_id": {
+          "type": ["string", "null"],
+          "description": "sync_session_envelope session_id the arriving entry travelled inside. Null for manual continuity."
+        },
+        "emitted_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the producer emitted the arriving entry."
+        },
+        "producer_actor_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "user_keystroke",
+            "user_command",
+            "imported_profile",
+            "workspace_migration",
+            "admin_policy_injector",
+            "experiment_rollout",
+            "session_override",
+            "extension_api",
+            "ai_apply",
+            null
+          ],
+          "description": "Actor class of the producer-side write that placed the value in the bundle."
+        }
+      },
+      "description": "Origin block naming the producer device and the session/bundle that carried the arriving entry. Never carries hostnames, IPs, paths, or serials; only lineage cursors and opaque ids."
+    },
+
+    "sync_conflict_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "packet_id",
+        "setting_id",
+        "target_scope",
+        "local_device_id",
+        "remote_origin",
+        "local_value",
+        "remote_value",
+        "conflict_class",
+        "conflict_delta",
+        "scope_broadening_verdict",
+        "offered_resolution_paths",
+        "resolution_state",
+        "redaction_class",
+        "detected_at",
+        "schema_version"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "sync_conflict_packet",
+          "description": "Discriminator. Always 'sync_conflict_packet' for this schema."
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "packet_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable id for this conflict packet. Reused by audit events, by the matching change_preview_packet (when merge_preview or rollback_friendly_review fires), and by the mutation-journal entry produced on apply."
+        },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "alias_redirected_from": {
+          "type": ["string", "null"],
+          "description": "Legacy id the arriving entry referenced when a redirect fired; null if the arrival used the canonical id directly."
+        },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "local_device_id": { "$ref": "#/$defs/device_id" },
+        "remote_origin": { "$ref": "#/$defs/remote_origin_block" },
+        "local_value": {
+          "$ref": "#/$defs/value_preview_shape",
+          "description": "Local effective value at detection time, typed per the setting-definition row and redacted per the setting's redaction_class."
+        },
+        "remote_value": {
+          "$ref": "#/$defs/value_preview_shape",
+          "description": "Arriving synced value, typed per the setting-definition row and redacted per the setting's redaction_class."
+        },
+        "local_last_written": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["at", "actor_class"],
+          "properties": {
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "actor_class": {
+              "type": "string",
+              "enum": [
+                "user_keystroke",
+                "user_command",
+                "imported_profile",
+                "workspace_migration",
+                "admin_policy_injector",
+                "experiment_rollout",
+                "session_override",
+                "extension_api",
+                "ai_apply"
+              ]
+            },
+            "mutation_journal_ref": {
+              "type": ["string", "null"]
+            }
+          },
+          "description": "Local-side provenance for the value the arriving entry would replace. Null when the local scope had no prior value."
+        },
+        "conflict_class": { "$ref": "#/$defs/conflict_class" },
+        "conflict_delta": { "$ref": "#/$defs/conflict_delta" },
+        "scope_broadening_verdict": { "$ref": "#/$defs/scope_broadening_verdict" },
+        "offered_resolution_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/resolution_path" },
+          "description": "Resolution paths the resolver is willing to accept for this packet. 'keep_local' MUST always appear so the user always has a safe out. 'merge_preview' appears only when the delta_kind is merge-safe. 'rollback_friendly_review' appears whenever the setting's preview_class requires a checkpoint."
+        },
+        "chosen_resolution_path": {
+          "anyOf": [
+            { "$ref": "#/$defs/resolution_path" },
+            { "type": "null" }
+          ],
+          "description": "Resolution path the user / resolver ultimately chose. Null while resolution_state is pending or previewed."
+        },
+        "resolution_state": { "$ref": "#/$defs/resolution_state" },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the rollback checkpoint created before apply. MUST be non-null when chosen_resolution_path is rollback_friendly_review and resolution_state is acknowledged or resolved."
+        },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into an ADR-0007 approval ticket bound to this resolution. MUST be non-null when the setting's preview_class is rollback_checkpoint_and_approval_required and chosen_resolution_path is not keep_local / decline."
+        },
+        "mutation_journal_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the applied resolution. MUST be non-null when resolution_state=resolved and chosen_resolution_path is not decline / keep_local (keep_local records the refusal rather than a write)."
+        },
+        "change_preview_ref": {
+          "type": ["string", "null"],
+          "description": "packet_id of the change_preview_packet presented to the user. Null when the chosen_resolution_path did not require a preview (keep_local, decline)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "record_class_id": {
+          "type": ["string", "null"],
+          "description": "Stable handle into artifacts/governance/record_class_registry.yaml naming the retention / export posture for this packet when carried into a support bundle or offboarding packet."
+        },
+        "detected_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the resolver detected the conflict."
+        },
+        "resolved_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp the packet reached resolved / declined / expired / withdrawn."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the packet's acknowledgement window expires; a lapsed packet transitions to expired and must be re-presented."
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The sync conflict-packet schema version. Distinct from settings_schema_version."
+        },
+        "policy_epoch": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Policy epoch in effect at detection time."
+        },
+        "trust_state": {
+          "type": ["string", "null"],
+          "enum": ["restricted", "trusted", null],
+          "description": "ADR-0001 workspace trust state at detection time."
+        },
+        "identity_mode": {
+          "type": ["string", "null"],
+          "enum": ["account_free_local", "self_hosted_org", "managed_convenience", null],
+          "description": "ADR-0001 identity mode at detection time."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material, hostnames, IPs, serials, or machine-local paths."
+        }
+      },
+      "description": "One sync conflict packet. Emitted whenever an arriving scope-bundle entry disagrees with the local effective value, is refused outright, or is accepted but would widen trust. Every packet is field-aware, scope-aware, and rollback-friendly; surfaces render the typed class and the offered resolution paths rather than minting a parallel conflict model."
+    }
+  }
+}
