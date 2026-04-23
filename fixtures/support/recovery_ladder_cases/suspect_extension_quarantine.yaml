@@ -1,0 +1,81 @@
+# Recovery-ladder seed case: suspect-extension quarantine.
+#
+# Companion to docs/support/recovery_ladder_packet.md and
+# schemas/support/recovery_action.schema.json. Validates against
+# recovery_ladder_seed_case_record.
+
+recovery_action_schema_version: 1
+record_kind: recovery_ladder_seed_case_record
+case_id: recovery_case:extension_quarantine.suspect_host_regression
+scenario_summary: >
+  An extension or runtime host exceeded its restart budget and was
+  quarantined by the supervisor. Bisect narrows the candidate; the
+  marketplace state is never mutated and no extension is silently
+  re-enabled.
+recovery_action_id: recovery_action:extension_quarantine.suspect_host_regression
+rung_class: extension_quarantine
+reversal_class: compensating_action
+
+preconditions:
+  - >
+    Supervisor observed extension_regression_suspected or
+    crash_loop_detected on the extension_and_tool_hosts fault domain.
+  - >
+    Doctor emitted doctor.finding.extension_host_crash_loop_quarantined
+    (or doctor.finding.extension_activation_budget_exceeded) with
+    confidence_class observed_authoritative or observed_with_gap.
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+
+lost_capability_classes:
+  - extension_auto_activation
+  - extension_host_launch
+  - background_rebuild
+  - ai_runtime_access
+
+escalation_trigger_classes:
+  - repeated_entry_within_budget
+  - user_denied_next_rung
+  - lost_capability_blocks_current_task
+
+linkage_refs:
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  project_doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+  repair_transaction_ref: repair:extension-quarantine:seed
+  checkpoint_ref: null
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, open buffers, durable indexes, trust, credentials,
+    managed policy, and the installed extension marketplace state
+    remain untouched. Bisect never auto-reenables a quarantined
+    extension.
+  disabled_capability_summary: >
+    Extension auto-activation, extension host launch, background
+    rebuild, and AI runtime access stay disabled while the suspect
+    extension is quarantined.
+  escalation_summary: >
+    Escalate to an object-issue handoff packet when the same host
+    quarantines within its strike budget, when the user declines
+    bisect, or when a task the user is trying to finish requires a
+    capability this rung has disabled.
+  user_facing_next_step: >
+    Review the bisect candidate, keep the quarantine, or export a
+    recovery-follow-up handoff packet naming the suspect extension id
+    and host class.
+
+default_redaction_choice_class: metadata_only_default
+observe_only_variant_case_ref: recovery_case:extension_quarantine.observe_only_baseline
+notes: >
+  The compensating_action reversal class reflects that removing
+  quarantine restores the prior extension posture semantically; the
+  marketplace state is never rewritten. installed_extension_marketplace_state
+  is protected by the no-touch contract in the Project Doctor packet.
+emitted_at: "2026-04-23T00:00:00Z"

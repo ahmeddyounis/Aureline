@@ -1,0 +1,82 @@
+# Recovery-ladder seed case: open without restore.
+#
+# Companion to docs/support/recovery_ladder_packet.md and
+# schemas/support/recovery_action.schema.json. Validates against
+# recovery_ladder_seed_case_record.
+
+recovery_action_schema_version: 1
+record_kind: recovery_ladder_seed_case_record
+case_id: recovery_case:open_without_restore.session_restore_declined
+scenario_summary: >
+  The user chose to open the workspace without restoring previously
+  open buffers, a pinned terminal session, or the last remote attach.
+  Authored files and durable indexes stay intact; only session-
+  restore state is skipped this launch.
+recovery_action_id: recovery_action:open_without_restore.session_restore_declined
+rung_class: open_without_restore
+reversal_class: exact_undo
+
+preconditions:
+  - >
+    The user expressed explicit_user_choice at launch or declined
+    session restore after a repeated_startup_failure signal.
+  - >
+    The session restore store is readable and intact; this rung does
+    not enter when cache_integrity_failure or policy_blocked is
+    observed.
+
+preserved_state_classes:
+  - user_authored_files
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+
+lost_capability_classes:
+  - session_restore_auto_reopen
+  - remote_helper_attach
+  - background_rebuild
+
+escalation_trigger_classes:
+  - user_denied_next_rung
+  - exact_undo_unavailable
+  - lost_capability_blocks_current_task
+
+linkage_refs:
+  support_bundle_case_ref: null
+  object_handoff_case_ref: null
+  project_doctor_finding_ref: doctor.finding.watcher_observe_only_baseline
+  repair_transaction_ref: null
+  checkpoint_ref: null
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, durable workspace indexes, trust, credentials,
+    managed policy, and the session-restore store itself all remain
+    untouched. Only the auto-reopen action is skipped this launch.
+  disabled_capability_summary: >
+    Session restore auto-reopen, remote helper attach, and background
+    rebuild are skipped for the current launch. Extensions still load
+    normally once the workspace is open.
+  escalation_summary: >
+    Escalate to an object-issue handoff packet when the user needs
+    auto-reopen but the rung keeps blocking it, when exact_undo
+    becomes unavailable (for example because the session restore
+    store is no longer readable), or when a required capability stays
+    disabled across multiple launches.
+  user_facing_next_step: >
+    Reopen the tabs the user needs manually, or relaunch with session
+    restore enabled. No export is required for the default path.
+
+default_redaction_choice_class: metadata_only_default
+observe_only_variant_case_ref: null
+notes: >
+  Exact-undo is honest here: the session restore store is never
+  mutated, so relaunching with restore reenters the prior posture.
+  linkage_refs intentionally leaves support_bundle_case_ref,
+  object_handoff_case_ref, repair_transaction_ref, and checkpoint_ref
+  null because this rung usually completes without emitting a bundle
+  or a transaction; the project_doctor_finding_ref keeps the rung
+  bound to the observe-only baseline Doctor row.
+emitted_at: "2026-04-23T00:00:00Z"

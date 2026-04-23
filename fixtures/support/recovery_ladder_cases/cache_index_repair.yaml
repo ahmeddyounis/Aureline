@@ -1,0 +1,85 @@
+# Recovery-ladder seed case: cache / index repair.
+#
+# Companion to docs/support/recovery_ladder_packet.md and
+# schemas/support/recovery_action.schema.json. Validates against
+# recovery_ladder_seed_case_record.
+
+recovery_action_schema_version: 1
+record_kind: recovery_ladder_seed_case_record
+case_id: recovery_case:cache_reset_candidate.cache_index_repair
+scenario_summary: >
+  A derived cache or search/graph index failed integrity checks or
+  drifted off the loaded build's schema version. The rung rebuilds the
+  disposable derived artifact from authoritative sources; authored
+  files and authoritative profile data are never reset.
+recovery_action_id: recovery_action:cache_reset_candidate.cache_index_repair
+rung_class: cache_reset_candidate
+reversal_class: regeneration
+
+preconditions:
+  - >
+    Supervisor or Doctor observed cache_integrity_failure, a
+    cache_schema_version_drift finding, or a stale derived index
+    reported by workspace_knowledge_workers.
+  - >
+    The affected storage class resolves to a
+    disposable_derived_cache in the support-bundle storage_context;
+    authoritative user-owned state (profile, session_restore_store) is
+    never eligible for this rung.
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+
+lost_capability_classes:
+  - background_rebuild
+  - docs_pack_live_fetch
+  - ai_runtime_access
+
+escalation_trigger_classes:
+  - repeated_entry_within_budget
+  - exact_undo_unavailable
+  - no_local_repair_path_available
+
+linkage_refs:
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/incompatible_cache_profile_schema_drift.yaml
+  project_doctor_finding_ref: doctor.finding.cache_schema_version_drift
+  repair_transaction_ref: repair:cache-reset:seed
+  checkpoint_ref: null
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, open buffers, trust posture, credentials, managed
+    policy, session-restore state, and previously exported support
+    bundles all remain untouched.
+  disabled_capability_summary: >
+    Background rebuild, docs-pack live fetch, and AI runtime access
+    pause while the cache or index regenerates from authoritative
+    sources.
+  escalation_summary: >
+    Escalate to an object-issue handoff packet when the rung has been
+    re-entered beyond its strike budget, when the expected exact-undo
+    semantic is no longer available, or when no local regeneration
+    source exists (for example when the authoritative profile itself
+    is affected).
+  user_facing_next_step: >
+    Watch the reviewed regeneration preview; when regeneration
+    completes, capabilities restore automatically. If the rung refuses
+    to apply because the affected storage class is authoritative,
+    export a recovery-follow-up handoff packet instead.
+
+default_redaction_choice_class: metadata_only_default
+observe_only_variant_case_ref: recovery_case:cache_reset_candidate.observe_only_baseline
+notes: >
+  Regeneration is honest here: the disposable derived cache is rebuilt
+  from the loaded build and the authoritative profile. A rung that
+  finds itself with no regeneration source MUST raise the
+  no_local_repair_path_available escalation trigger instead of trying
+  to rewrite user-owned profile state.
+emitted_at: "2026-04-23T00:00:00Z"

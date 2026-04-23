@@ -1,0 +1,88 @@
+{
+  "$schema": "../../../schemas/support/recovery_action.schema.json",
+  "__fixture__": {
+    "name": "open_without_restore_session_declined",
+    "rung": "open_without_restore",
+    "reversal_class": "exact_undo",
+    "scenario": "User opens the workspace without restoring previously open buffers, a pinned terminal session, or the last remote attach. The session restore store is read intact but the auto-reopen action is skipped this launch."
+  },
+  "recovery_action_schema_version": 1,
+  "record_kind": "recovery_action_record",
+  "recovery_action_id": "recovery_action:open_without_restore.session_restore_declined",
+  "rung_class": "open_without_restore",
+  "title": "Open without restore after user decline",
+  "summary": "User opened the workspace without session auto-reopen. Only the auto-reopen action is skipped; the session restore store itself is untouched, so relaunching with restore reenters the prior posture.",
+  "governance_bindings": {
+    "evidence_packet_header_schema_ref": "schemas/governance/evidence_packet_header.schema.json",
+    "support_bundle_schema_ref": "schemas/support/support_bundle.schema.json",
+    "object_handoff_packet_schema_ref": "schemas/support/object_handoff_packet.schema.json",
+    "support_packet_index_schema_ref": "schemas/support/support_packet_index.schema.json",
+    "evidence_id_conventions_ref": "artifacts/governance/evidence_id_conventions.md",
+    "record_class_registry_ref": "artifacts/governance/record_class_registry.yaml",
+    "project_doctor_packet_ref": "docs/support/project_doctor_packet.md",
+    "scenario_matrix_ref": "fixtures/support/scenario_matrix.yaml"
+  },
+  "preconditions": [
+    "The user expressed explicit_user_choice at launch or declined session restore after a repeated_startup_failure signal.",
+    "The session restore store is readable and intact; this rung does not enter when cache_integrity_failure or policy_blocked is observed."
+  ],
+  "authority_class": "user_opt_in_only",
+  "entry_reason_classes": [
+    "explicit_user_choice",
+    "repeated_startup_failure"
+  ],
+  "preserved_state_classes": [
+    "user_authored_files",
+    "durable_workspace_indexes",
+    "workspace_trust_store",
+    "credential_store",
+    "managed_policy_overrides",
+    "session_restore_store"
+  ],
+  "lost_capability_classes": [
+    "session_restore_auto_reopen",
+    "remote_helper_attach",
+    "background_rebuild"
+  ],
+  "reversal_class": "exact_undo",
+  "exit_reason_classes": [
+    "recovered_successfully",
+    "user_restored_full_mode",
+    "unchanged_session_exit"
+  ],
+  "escalation_trigger_classes": [
+    "user_denied_next_rung",
+    "exact_undo_unavailable",
+    "lost_capability_blocks_current_task"
+  ],
+  "linkage_bindings": [
+    {
+      "linkage_class": "support_bundle_record",
+      "requirement": "advisory",
+      "field_path": "support_bundle_record.recovery_context.current_rung_class",
+      "notes": "A bundle is usually not produced from this rung; if one is, current_rung_class = open_without_restore."
+    },
+    {
+      "linkage_class": "project_doctor_finding",
+      "requirement": "advisory",
+      "field_path": "doctor.finding.watcher_observe_only_baseline",
+      "notes": "Doctor stays in observe_only baseline while this rung is active; no write is proposed."
+    },
+    {
+      "linkage_class": "object_handoff_packet_record",
+      "requirement": "required_when_applicable",
+      "field_path": "object_handoff_packet_record.evidence_and_recovery_context.recovery_rung_class",
+      "notes": "Escalation handoffs cite this rung only when the user needs auto-reopen but the rung keeps blocking it."
+    }
+  ],
+  "default_redaction_choice_class": "metadata_only_default",
+  "preview_required": false,
+  "observe_only_mode_supported": true,
+  "explanation_fields": {
+    "preserved_work_summary": "Authored files, durable workspace indexes, trust, credentials, managed policy, and the session restore store itself all remain untouched.",
+    "disabled_capability_summary": "Session restore auto-reopen, remote helper attach, and background rebuild are skipped for the current launch. Extensions still load normally once the workspace is open.",
+    "escalation_summary": "Escalate when the user needs auto-reopen but the rung keeps blocking it, when exact_undo is no longer available, or when a required capability stays disabled across multiple launches.",
+    "user_facing_next_step": "Reopen the tabs the user needs manually, or relaunch with session restore enabled. No export is required for the default path."
+  },
+  "emitted_at": "2026-04-23T00:00:00Z"
+}

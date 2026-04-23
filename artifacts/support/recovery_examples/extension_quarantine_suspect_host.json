@@ -1,0 +1,96 @@
+{
+  "$schema": "../../../schemas/support/recovery_action.schema.json",
+  "__fixture__": {
+    "name": "extension_quarantine_suspect_host",
+    "rung": "extension_quarantine",
+    "reversal_class": "compensating_action",
+    "scenario": "Extension or runtime host exceeded its restart budget. Supervisor quarantined the suspect host; bisect proposes a narrower candidate without ever silently re-enabling an extension or mutating marketplace state."
+  },
+  "recovery_action_schema_version": 1,
+  "record_kind": "recovery_action_record",
+  "recovery_action_id": "recovery_action:extension_quarantine.suspect_host_regression",
+  "rung_class": "extension_quarantine",
+  "title": "Extension quarantine for suspect host regression",
+  "summary": "Supervisor quarantined a suspect extension host after exceeding its restart budget; bisect narrows the candidate without mutating marketplace state.",
+  "governance_bindings": {
+    "evidence_packet_header_schema_ref": "schemas/governance/evidence_packet_header.schema.json",
+    "support_bundle_schema_ref": "schemas/support/support_bundle.schema.json",
+    "object_handoff_packet_schema_ref": "schemas/support/object_handoff_packet.schema.json",
+    "support_packet_index_schema_ref": "schemas/support/support_packet_index.schema.json",
+    "evidence_id_conventions_ref": "artifacts/governance/evidence_id_conventions.md",
+    "record_class_registry_ref": "artifacts/governance/record_class_registry.yaml",
+    "project_doctor_packet_ref": "docs/support/project_doctor_packet.md",
+    "scenario_matrix_ref": "fixtures/support/scenario_matrix.yaml"
+  },
+  "preconditions": [
+    "Supervisor observed extension_regression_suspected or crash_loop_detected on extension_and_tool_hosts within the strike budget.",
+    "Doctor emitted doctor.finding.extension_host_crash_loop_quarantined or doctor.finding.extension_activation_budget_exceeded with confidence_class observed_authoritative or observed_with_gap."
+  ],
+  "authority_class": "supervisor_auto_enter_bounded",
+  "entry_reason_classes": [
+    "extension_regression_suspected",
+    "crash_loop_detected"
+  ],
+  "preserved_state_classes": [
+    "user_authored_files",
+    "open_buffer_selection",
+    "durable_workspace_indexes",
+    "workspace_trust_store",
+    "credential_store",
+    "managed_policy_overrides"
+  ],
+  "lost_capability_classes": [
+    "extension_auto_activation",
+    "extension_host_launch",
+    "background_rebuild",
+    "ai_runtime_access"
+  ],
+  "reversal_class": "compensating_action",
+  "exit_reason_classes": [
+    "recovered_successfully",
+    "escalated_to_next_rung",
+    "user_restored_full_mode",
+    "unchanged_session_exit"
+  ],
+  "escalation_trigger_classes": [
+    "repeated_entry_within_budget",
+    "user_denied_next_rung",
+    "lost_capability_blocks_current_task"
+  ],
+  "linkage_bindings": [
+    {
+      "linkage_class": "support_bundle_record",
+      "requirement": "required",
+      "field_path": "support_bundle_record.recovery_context.current_rung_class",
+      "notes": "current_rung_class = extension_quarantine when a bundle is exported while this rung is active."
+    },
+    {
+      "linkage_class": "object_handoff_packet_record",
+      "requirement": "required_when_applicable",
+      "field_path": "object_handoff_packet_record.evidence_and_recovery_context.recovery_rung_class",
+      "notes": "Escalation handoffs cite the rung, the repair_transaction_ref, and the suspect extension id."
+    },
+    {
+      "linkage_class": "project_doctor_finding",
+      "requirement": "required",
+      "field_path": "doctor.finding.extension_host_crash_loop_quarantined",
+      "notes": "The rung is the default destination for the crash-loop quarantine and activation-budget findings."
+    },
+    {
+      "linkage_class": "repair_transaction_ref",
+      "requirement": "required_when_applicable",
+      "field_path": "support_bundle_record.recovery_context.repair_transaction_refs",
+      "notes": "The quarantine-and-bisect transaction ref binds here; installed_extension_marketplace_state is never mutated."
+    }
+  ],
+  "default_redaction_choice_class": "metadata_only_default",
+  "preview_required": true,
+  "observe_only_mode_supported": true,
+  "explanation_fields": {
+    "preserved_work_summary": "Authored files, open buffers, durable indexes, trust, credentials, managed policy, and the installed extension marketplace state all remain untouched. Bisect never silently re-enables a quarantined extension.",
+    "disabled_capability_summary": "Extension auto-activation, extension host launch, background rebuild, and AI runtime access stay disabled while the suspect extension is quarantined.",
+    "escalation_summary": "Escalate when the same host quarantines within its strike budget, when the user declines bisect, or when a task the user is trying to finish requires a capability this rung has disabled.",
+    "user_facing_next_step": "Review the bisect candidate, keep the quarantine, or export a recovery-follow-up handoff packet naming the suspect extension id and host class."
+  },
+  "emitted_at": "2026-04-23T00:00:00Z"
+}

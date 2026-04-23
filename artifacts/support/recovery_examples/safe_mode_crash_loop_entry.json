@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../schemas/support/recovery_action.schema.json",
+  "__fixture__": {
+    "name": "safe_mode_crash_loop_entry",
+    "rung": "safe_mode",
+    "reversal_class": "checkpoint_restore",
+    "scenario": "Supervisor observed a crash loop within the strike budget and entered safe mode with a pre-entry checkpoint pinned. Authored files, trust, credentials, managed policy, and session-restore state stay untouched; extension auto-activation, extension host launch, session auto-reopen, remote helper attach, AI runtime access, and background rebuild are all suspended."
+  },
+  "recovery_action_schema_version": 1,
+  "record_kind": "recovery_action_record",
+  "recovery_action_id": "recovery_action:safe_mode.crash_loop_entry",
+  "rung_class": "safe_mode",
+  "title": "Safe mode on crash-loop entry",
+  "summary": "Supervisor-entered safe mode after repeated startup failures, with a pinned pre-entry checkpoint so the rung can exit via checkpoint_restore.",
+  "governance_bindings": {
+    "evidence_packet_header_schema_ref": "schemas/governance/evidence_packet_header.schema.json",
+    "support_bundle_schema_ref": "schemas/support/support_bundle.schema.json",
+    "object_handoff_packet_schema_ref": "schemas/support/object_handoff_packet.schema.json",
+    "support_packet_index_schema_ref": "schemas/support/support_packet_index.schema.json",
+    "evidence_id_conventions_ref": "artifacts/governance/evidence_id_conventions.md",
+    "record_class_registry_ref": "artifacts/governance/record_class_registry.yaml",
+    "project_doctor_packet_ref": "docs/support/project_doctor_packet.md",
+    "scenario_matrix_ref": "fixtures/support/scenario_matrix.yaml"
+  },
+  "preconditions": [
+    "Supervisor observed repeated_startup_failure or crash_loop_detected within the bounded strike budget on shell_interaction_core or extension_and_tool_hosts.",
+    "A pre-entry checkpoint exists and is pinned in the support-bundle recovery_context so the rung can exit via checkpoint_restore without hunting for state later."
+  ],
+  "authority_class": "supervisor_auto_enter_bounded",
+  "entry_reason_classes": [
+    "repeated_startup_failure",
+    "crash_loop_detected",
+    "explicit_user_choice"
+  ],
+  "preserved_state_classes": [
+    "user_authored_files",
+    "open_buffer_selection",
+    "durable_workspace_indexes",
+    "workspace_trust_store",
+    "credential_store",
+    "managed_policy_overrides",
+    "session_restore_store"
+  ],
+  "lost_capability_classes": [
+    "extension_auto_activation",
+    "extension_host_launch",
+    "session_restore_auto_reopen",
+    "remote_helper_attach",
+    "ai_runtime_access",
+    "background_rebuild"
+  ],
+  "reversal_class": "checkpoint_restore",
+  "exit_reason_classes": [
+    "recovered_successfully",
+    "escalated_to_next_rung",
+    "rolled_back",
+    "user_restored_full_mode",
+    "denied_by_policy"
+  ],
+  "escalation_trigger_classes": [
+    "repeated_entry_within_budget",
+    "user_denied_next_rung",
+    "diagnosis_remains_insufficient"
+  ],
+  "linkage_bindings": [
+    {
+      "linkage_class": "support_bundle_record",
+      "requirement": "required",
+      "field_path": "support_bundle_record.recovery_context.current_rung_class",
+      "notes": "Bundle exports produced from this rung pin current_rung_class = safe_mode and record rung_history entries with the matching checkpoint_ref."
+    },
+    {
+      "linkage_class": "object_handoff_packet_record",
+      "requirement": "required_when_applicable",
+      "field_path": "object_handoff_packet_record.evidence_and_recovery_context.recovery_rung_class",
+      "notes": "Escalation handoffs carry recovery_rung_class = safe_mode and cite the rung's repair_transaction_ref and checkpoint_ref."
+    },
+    {
+      "linkage_class": "project_doctor_finding",
+      "requirement": "required_when_applicable",
+      "field_path": "doctor.finding.extension_host_crash_loop_quarantined",
+      "notes": "Doctor findings that drive crash-loop safe-mode entry quote this recovery_action_id rather than free-text advice."
+    },
+    {
+      "linkage_class": "checkpoint_ref",
+      "requirement": "required",
+      "field_path": "support_bundle_record.recovery_context.active_checkpoint_refs",
+      "notes": "checkpoint_restore is the reversal class, so the schema requires a checkpoint_ref linkage."
+    },
+    {
+      "linkage_class": "repair_transaction_ref",
+      "requirement": "required_when_applicable",
+      "field_path": "support_bundle_record.recovery_context.repair_transaction_refs",
+      "notes": "The repair-preview transaction that wrote the checkpoint binds here."
+    }
+  ],
+  "default_redaction_choice_class": "metadata_only_default",
+  "preview_required": true,
+  "observe_only_mode_supported": true,
+  "explanation_fields": {
+    "preserved_work_summary": "Authored files, open buffers, durable workspace indexes, trust posture, credentials, managed policy, and the session-restore store all remain untouched.",
+    "disabled_capability_summary": "Extension auto-activation, the extension host itself, session auto-reopen, remote helper attach, AI runtime access, and background rebuild stay suspended until the user widens out of safe mode.",
+    "escalation_summary": "Escalate when safe mode has been re-entered within its strike budget, when the user declines the next rung, or when Doctor confidence remains unknown_requires_probe after the diagnosis window.",
+    "user_facing_next_step": "Review the pinned pre-entry checkpoint, then choose widen-with-review or export a recovery-follow-up handoff packet."
+  },
+  "emitted_at": "2026-04-23T00:00:00Z"
+}

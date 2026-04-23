@@ -1,0 +1,84 @@
+# Recovery-ladder seed case: crash-loop safe mode.
+#
+# Companion to docs/support/recovery_ladder_packet.md and
+# schemas/support/recovery_action.schema.json. Validates against
+# recovery_ladder_seed_case_record.
+
+recovery_action_schema_version: 1
+record_kind: recovery_ladder_seed_case_record
+case_id: recovery_case:safe_mode.crash_loop_entry
+scenario_summary: >
+  The supervisor observed repeated startup failures within its strike
+  budget and entered safe mode. Extension auto-activation, session
+  restore, and remote helper attach are suspended while the user
+  reviews a pre-entry checkpoint.
+recovery_action_id: recovery_action:safe_mode.crash_loop_entry
+rung_class: safe_mode
+reversal_class: checkpoint_restore
+
+preconditions:
+  - >
+    Supervisor observed repeated_startup_failure or crash_loop_detected
+    within the bounded strike budget on the shell_interaction_core or
+    extension_and_tool_hosts fault domain.
+  - >
+    A pre-entry checkpoint exists and is pinned in the support-bundle
+    recovery_context so the rung can exit via checkpoint_restore
+    without hunting for state later.
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+
+lost_capability_classes:
+  - extension_auto_activation
+  - extension_host_launch
+  - session_restore_auto_reopen
+  - remote_helper_attach
+  - ai_runtime_access
+  - background_rebuild
+
+escalation_trigger_classes:
+  - repeated_entry_within_budget
+  - user_denied_next_rung
+  - diagnosis_remains_insufficient
+
+linkage_refs:
+  support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  project_doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+  repair_transaction_ref: repair:safe-mode:seed
+  checkpoint_ref: checkpoint:safe-mode:seed
+
+explanation_fields:
+  preserved_work_summary: >
+    Authored files, open buffers, durable workspace indexes, trust
+    posture, credentials, managed policy, and the session-restore
+    store remain untouched.
+  disabled_capability_summary: >
+    Extension auto-activation, the extension host, session auto-reopen,
+    remote helper attach, AI runtime access, and background rebuild
+    are suspended until the user widens out of safe mode.
+  escalation_summary: >
+    Escalate to an object-issue handoff packet when safe mode has been
+    re-entered within its strike budget, when the user declines the
+    next rung, or when Project Doctor confidence remains
+    unknown_requires_probe after the diagnosis window.
+  user_facing_next_step: >
+    Review the pinned pre-entry checkpoint, then choose widen-with-
+    review or export a recovery-follow-up handoff packet.
+
+default_redaction_choice_class: metadata_only_default
+observe_only_variant_case_ref: recovery_case:safe_mode.observe_only_baseline
+notes: >
+  The rung binds checkpoint_restore, so the schema requires a
+  checkpoint_ref linkage. Raw dump bytes and full shell history stay
+  excluded regardless of consent; see
+  fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+  for the support-bundle shape this rung populates.
+emitted_at: "2026-04-23T00:00:00Z"

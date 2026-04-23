@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/recovery_action.schema.json",
+  "title": "Aureline recovery-ladder action and seed-case contract",
+  "description": "Boundary schema for the recovery_action_record and recovery_ladder_seed_case_record frozen in docs/support/recovery_ladder_packet.md. Turns recovery into a versioned decision object: every rung carries stable preconditions, authority, preserved state, lost capability, reversal class, escalation triggers, and linkage rules to support bundles, object-issue handoffs, and future Project Doctor findings. Reuses the recovery_rung_class, recovery_entry_reason_class, and recovery_exit_reason_class vocabularies already frozen in schemas/support/support_bundle.schema.json rather than minting a parallel set.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/recovery_action_record"
+    },
+    {
+      "$ref": "#/$defs/recovery_ladder_seed_case_record"
+    }
+  ],
+  "$defs": {
+    "recovery_action_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for this recovery-action contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for support previews, Doctor surfaces, or reviewer tables."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id that permits `:` as a prefix separator in addition to `.` so recovery ids match the `recovery_action:<rung>.<reason>` fixture convention used elsewhere in fixtures/support/."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recovery_rung_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode",
+        "extension_bisect",
+        "extension_quarantine",
+        "open_without_restore",
+        "cache_reset_candidate",
+        "restricted_reopen",
+        "rollback_reinstall_candidate",
+        "typed_repair_flow"
+      ],
+      "description": "Rung token re-exported from schemas/support/support_bundle.schema.json. Adding a rung is breaking and requires a decision row in artifacts/governance/decision_index.yaml."
+    },
+    "recovery_entry_reason_class": {
+      "type": "string",
+      "enum": [
+        "repeated_startup_failure",
+        "explicit_user_choice",
+        "extension_regression_suspected",
+        "crash_loop_detected",
+        "cache_integrity_failure",
+        "route_recovery_required",
+        "policy_blocked",
+        "manual_review_required"
+      ],
+      "description": "Entry-reason token re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "recovery_exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "recovered_successfully",
+        "escalated_to_next_rung",
+        "rolled_back",
+        "user_restored_full_mode",
+        "denied_by_policy",
+        "unchanged_session_exit"
+      ],
+      "description": "Exit-reason token re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regeneration",
+        "checkpoint_restore",
+        "no_undo_export_only"
+      ],
+      "description": "How the user can back out of the rung. The five classes are mutually exclusive: exact_undo means the prior state is bit-identical after exit; compensating_action means the inverse is applied and is semantically equivalent; regeneration means a disposable derived artifact is rebuilt from authoritative sources; checkpoint_restore means an explicit pre-entry checkpoint is restored; no_undo_export_only means the rung has no local reversal path and the only safe next step is an escalation packet."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_opt_in_only",
+        "supervisor_auto_enter_bounded",
+        "policy_forced_entry",
+        "admin_only_entry",
+        "co_signed_user_plus_supervisor"
+      ],
+      "description": "Who is allowed to enter the rung. user_opt_in_only means the rung is never forced. supervisor_auto_enter_bounded means the runtime may enter after a bounded strike budget. policy_forced_entry means managed policy forced a narrower posture. admin_only_entry means a managed-admin surface authored the entry. co_signed_user_plus_supervisor means both the user and the supervisor must agree before entering."
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "remote_helper_authorization",
+        "managed_policy_overrides",
+        "session_restore_store",
+        "support_export_store",
+        "docs_pack_authoring"
+      ],
+      "description": "State classes the rung MUST NOT mutate. Preserved-state tokens overlap intentionally with the no-touch boundary vocabulary in docs/support/project_doctor_packet.md so Doctor findings and recovery actions agree on what stays untouched."
+    },
+    "lost_capability_class": {
+      "type": "string",
+      "enum": [
+        "extension_auto_activation",
+        "extension_host_launch",
+        "session_restore_auto_reopen",
+        "remote_helper_attach",
+        "docs_pack_live_fetch",
+        "background_rebuild",
+        "ai_runtime_access",
+        "telemetry_upload",
+        "managed_control_plane_writes",
+        "workspace_trust_widening"
+      ],
+      "description": "Capabilities the rung disables or narrows while it is active. Lost-capability tokens are closed so Doctor surfaces, bundle previews, and handoff packets describe the same narrowing vocabulary."
+    },
+    "escalation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "repeated_entry_within_budget",
+        "user_denied_next_rung",
+        "exact_undo_unavailable",
+        "policy_forced_narrower_than_user_request",
+        "lost_capability_blocks_current_task",
+        "rung_exit_reason_denied_by_policy",
+        "diagnosis_remains_insufficient",
+        "no_local_repair_path_available"
+      ],
+      "description": "Closed set of triggers that MUST route the user to an escalation packet instead of widening in place. Every rung MUST declare at least one trigger so local recovery never silently absorbs problems that need export."
+    },
+    "linkage_requirement_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle_record",
+        "object_handoff_packet_record",
+        "project_doctor_finding",
+        "repair_transaction_ref",
+        "checkpoint_ref",
+        "crash_envelope_ref",
+        "known_limit_ref"
+      ],
+      "description": "Linkage objects a conforming recovery-action row must point at so recovery is never a free-floating label. At least one linkage is required per rung."
+    },
+    "linkage_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linkage_class",
+        "requirement",
+        "field_path",
+        "notes"
+      ],
+      "properties": {
+        "linkage_class": {
+          "$ref": "#/$defs/linkage_requirement_class"
+        },
+        "requirement": {
+          "type": "string",
+          "enum": [
+            "required",
+            "required_when_applicable",
+            "advisory"
+          ]
+        },
+        "field_path": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable dotted field path on the linked record (for example object_handoff_packet_record.evidence_and_recovery_context.recovery_rung_class)."
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "default_redaction_choice_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "selected_reference_only",
+        "support_bundle_by_reference",
+        "manual_review_required",
+        "broadened_capture_opt_in"
+      ],
+      "description": "Redaction-choice token re-exported from schemas/support/object_handoff_packet.schema.json$.defs.redaction_choice_class."
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_packet_header_schema_ref",
+        "support_bundle_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "support_packet_index_schema_ref",
+        "evidence_id_conventions_ref",
+        "record_class_registry_ref"
+      ],
+      "properties": {
+        "evidence_packet_header_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_bundle_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "object_handoff_packet_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_packet_index_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_id_conventions_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "record_class_registry_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "project_doctor_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        },
+        "scenario_matrix_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ]
+        }
+      }
+    },
+    "recovery_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_action_schema_version",
+        "record_kind",
+        "recovery_action_id",
+        "rung_class",
+        "title",
+        "summary",
+        "governance_bindings",
+        "preconditions",
+        "authority_class",
+        "entry_reason_classes",
+        "preserved_state_classes",
+        "lost_capability_classes",
+        "reversal_class",
+        "exit_reason_classes",
+        "escalation_trigger_classes",
+        "linkage_bindings",
+        "default_redaction_choice_class",
+        "preview_required",
+        "observe_only_mode_supported",
+        "explanation_fields",
+        "emitted_at"
+      ],
+      "properties": {
+        "recovery_action_schema_version": {
+          "$ref": "#/$defs/recovery_action_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "recovery_action_record"
+        },
+        "recovery_action_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id (for example recovery_action:safe_mode.crash_loop_entry). Ids are additive-only; repurposing is breaking."
+        },
+        "rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings"
+        },
+        "preconditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          },
+          "description": "Short reviewable sentences describing what the supervisor or user MUST observe before entering the rung. Each sentence SHOULD quote a frozen condition token (for example crash_loop_detected, cache_integrity_failure)."
+        },
+        "authority_class": {
+          "$ref": "#/$defs/authority_class"
+        },
+        "entry_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_entry_reason_class"
+          }
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "description": "State classes this rung MUST NOT mutate. user_authored_files MUST appear on every rung."
+        },
+        "lost_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/lost_capability_class"
+          }
+        },
+        "reversal_class": {
+          "$ref": "#/$defs/reversal_class"
+        },
+        "exit_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_exit_reason_class"
+          }
+        },
+        "escalation_trigger_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/escalation_trigger_class"
+          }
+        },
+        "linkage_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/linkage_binding"
+          }
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/default_redaction_choice_class"
+        },
+        "preview_required": {
+          "type": "boolean",
+          "description": "Whether the rung MUST run through the review → preview → checkpoint → apply → verify → rollback/compensate transaction grammar before touching state."
+        },
+        "observe_only_mode_supported": {
+          "type": "boolean",
+          "description": "Whether a Doctor surface may cite this rung in observe-only mode without proposing any write."
+        },
+        "explanation_fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "preserved_work_summary",
+            "disabled_capability_summary",
+            "escalation_summary",
+            "user_facing_next_step"
+          ],
+          "properties": {
+            "preserved_work_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "disabled_capability_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "escalation_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "user_facing_next_step": {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          },
+          "description": "Short reviewable sentences Doctor and the Support Center MAY render verbatim. These replace free-text troubleshooting advice: the packet is the source of truth for what a rung preserves, what it disables, when it escalates, and what the user can do next."
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reversal_class": {
+                "const": "no_undo_export_only"
+              }
+            },
+            "required": [
+              "reversal_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "escalation_trigger_classes": {
+                "contains": {
+                  "const": "no_local_repair_path_available"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reversal_class": {
+                "const": "checkpoint_restore"
+              }
+            },
+            "required": [
+              "reversal_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "linkage_bindings": {
+                "contains": {
+                  "properties": {
+                    "linkage_class": {
+                      "const": "checkpoint_ref"
+                    }
+                  },
+                  "required": [
+                    "linkage_class"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "recovery_ladder_seed_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_action_schema_version",
+        "record_kind",
+        "case_id",
+        "scenario_summary",
+        "recovery_action_id",
+        "rung_class",
+        "reversal_class",
+        "preconditions",
+        "preserved_state_classes",
+        "lost_capability_classes",
+        "escalation_trigger_classes",
+        "linkage_refs",
+        "explanation_fields",
+        "default_redaction_choice_class",
+        "observe_only_variant_case_ref",
+        "notes",
+        "emitted_at"
+      ],
+      "properties": {
+        "recovery_action_schema_version": {
+          "$ref": "#/$defs/recovery_action_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "recovery_ladder_seed_case_record"
+        },
+        "case_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "scenario_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "recovery_action_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id of the recovery_action_record this case binds to."
+        },
+        "rung_class": {
+          "$ref": "#/$defs/recovery_rung_class"
+        },
+        "reversal_class": {
+          "$ref": "#/$defs/reversal_class"
+        },
+        "preconditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          }
+        },
+        "lost_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/lost_capability_class"
+          }
+        },
+        "escalation_trigger_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/escalation_trigger_class"
+          }
+        },
+        "linkage_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "support_bundle_case_ref",
+            "object_handoff_case_ref",
+            "project_doctor_finding_ref",
+            "repair_transaction_ref",
+            "checkpoint_ref"
+          ],
+          "properties": {
+            "support_bundle_case_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "object_handoff_case_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "project_doctor_finding_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "repair_transaction_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            },
+            "checkpoint_ref": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              ]
+            }
+          },
+          "description": "Stable refs the case carries so recovery review can pivot in O(1) between the rung, the support bundle, the escalation packet, and Project Doctor findings. Null values are explicit opt-outs, not missing fields; at least one ref must be non-null."
+        },
+        "explanation_fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "preserved_work_summary",
+            "disabled_capability_summary",
+            "escalation_summary",
+            "user_facing_next_step"
+          ],
+          "properties": {
+            "preserved_work_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "disabled_capability_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "escalation_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "user_facing_next_step": {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          }
+        },
+        "default_redaction_choice_class": {
+          "$ref": "#/$defs/default_redaction_choice_class"
+        },
+        "observe_only_variant_case_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ],
+          "description": "Optional ref to a companion case whose recovery_action_record has observe_only_mode_supported = true so Doctor surfaces can cite the rung without proposing a write. Null means the rung has no observe-only variant in this seed."
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

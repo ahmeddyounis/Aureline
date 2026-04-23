@@ -1,0 +1,96 @@
+{
+  "$schema": "../../../schemas/support/recovery_action.schema.json",
+  "__fixture__": {
+    "name": "cache_reset_candidate_cache_index_repair",
+    "rung": "cache_reset_candidate",
+    "reversal_class": "regeneration",
+    "scenario": "A derived cache or search/graph index failed integrity checks or drifted off the loaded build's schema version. The rung rebuilds the disposable derived artifact from authoritative sources; authoritative profile data and user-owned files are never reset."
+  },
+  "recovery_action_schema_version": 1,
+  "record_kind": "recovery_action_record",
+  "recovery_action_id": "recovery_action:cache_reset_candidate.cache_index_repair",
+  "rung_class": "cache_reset_candidate",
+  "title": "Cache / index repair via regeneration",
+  "summary": "Regenerate a disposable derived cache or index after a schema-drift or integrity-failure signal. The reset is scoped to the storage class named in the evidence; authoritative profile data is never eligible.",
+  "governance_bindings": {
+    "evidence_packet_header_schema_ref": "schemas/governance/evidence_packet_header.schema.json",
+    "support_bundle_schema_ref": "schemas/support/support_bundle.schema.json",
+    "object_handoff_packet_schema_ref": "schemas/support/object_handoff_packet.schema.json",
+    "support_packet_index_schema_ref": "schemas/support/support_packet_index.schema.json",
+    "evidence_id_conventions_ref": "artifacts/governance/evidence_id_conventions.md",
+    "record_class_registry_ref": "artifacts/governance/record_class_registry.yaml",
+    "project_doctor_packet_ref": "docs/support/project_doctor_packet.md",
+    "scenario_matrix_ref": "fixtures/support/scenario_matrix.yaml"
+  },
+  "preconditions": [
+    "Supervisor or Doctor observed cache_integrity_failure, a cache_schema_version_drift finding, or a stale derived index reported by workspace_knowledge_workers.",
+    "The affected storage class resolves to a disposable_derived_cache in the support-bundle storage_context; authoritative user-owned state (profile, session_restore_store) is never eligible."
+  ],
+  "authority_class": "user_opt_in_only",
+  "entry_reason_classes": [
+    "cache_integrity_failure",
+    "explicit_user_choice"
+  ],
+  "preserved_state_classes": [
+    "user_authored_files",
+    "open_buffer_selection",
+    "workspace_trust_store",
+    "credential_store",
+    "managed_policy_overrides",
+    "session_restore_store",
+    "support_export_store"
+  ],
+  "lost_capability_classes": [
+    "background_rebuild",
+    "docs_pack_live_fetch",
+    "ai_runtime_access"
+  ],
+  "reversal_class": "regeneration",
+  "exit_reason_classes": [
+    "recovered_successfully",
+    "escalated_to_next_rung",
+    "rolled_back",
+    "denied_by_policy"
+  ],
+  "escalation_trigger_classes": [
+    "repeated_entry_within_budget",
+    "exact_undo_unavailable",
+    "no_local_repair_path_available"
+  ],
+  "linkage_bindings": [
+    {
+      "linkage_class": "support_bundle_record",
+      "requirement": "required",
+      "field_path": "support_bundle_record.storage_context.reset_candidate_storage_class_ids",
+      "notes": "The affected storage class ids appear in reset_candidate_storage_class_ids so bundle review sees the blast radius."
+    },
+    {
+      "linkage_class": "project_doctor_finding",
+      "requirement": "required",
+      "field_path": "doctor.finding.cache_schema_version_drift",
+      "notes": "Doctor's schema-drift finding is the default trigger for this rung."
+    },
+    {
+      "linkage_class": "object_handoff_packet_record",
+      "requirement": "required_when_applicable",
+      "field_path": "object_handoff_packet_record.evidence_and_recovery_context.recovery_rung_class",
+      "notes": "Escalation handoffs cite this rung when the authoritative profile schema drifts (profile_portability_schema_mismatch) rather than a disposable cache."
+    },
+    {
+      "linkage_class": "repair_transaction_ref",
+      "requirement": "required",
+      "field_path": "support_bundle_record.recovery_context.repair_transaction_refs",
+      "notes": "The regeneration transaction ref binds here and names the cache storage class being rebuilt."
+    }
+  ],
+  "default_redaction_choice_class": "metadata_only_default",
+  "preview_required": true,
+  "observe_only_mode_supported": true,
+  "explanation_fields": {
+    "preserved_work_summary": "Authored files, open buffers, trust, credentials, managed policy, session-restore state, and previously exported support bundles all remain untouched.",
+    "disabled_capability_summary": "Background rebuild, docs-pack live fetch, and AI runtime access pause while the cache or index regenerates from authoritative sources.",
+    "escalation_summary": "Escalate when the rung has been re-entered beyond its strike budget, when expected exact-undo semantics no longer hold, or when no local regeneration source exists (for example an authoritative profile drift).",
+    "user_facing_next_step": "Watch the reviewed regeneration preview; capabilities restore automatically after regeneration completes. If the rung refuses to apply because the affected storage class is authoritative, export a recovery-follow-up handoff packet instead."
+  },
+  "emitted_at": "2026-04-23T00:00:00Z"
+}
