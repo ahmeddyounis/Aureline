@@ -1,0 +1,1250 @@
+# Failure-tier matrix.
+#
+# Machine-readable companion to
+#   docs/ux/state_and_recovery_taxonomy.md
+#
+# This file freezes the five-tier failure-placement matrix used by
+# every protected shell surface to decide where a failure-bearing
+# row lives, what delivery surfaces it may inhabit, what minimum
+# recovery affordance it MUST offer, and how promotion between
+# tiers resolves. Designers, docs writers, implementation owners,
+# support, diagnostics, and release-evidence surfaces all read
+# this file by id (failure_tier_id, lifecycle_row_id) so placement
+# is not minted per surface.
+#
+# Conformance:
+#   - Every failure_tier_row and lifecycle_row below conforms to
+#     this file's structural shape. There is no separate JSON
+#     schema yet; this file composes already-frozen vocabularies
+#     from the attention/activity taxonomy, the recovery-ladder
+#     packet, the entry/restore object model, and the truth /
+#     degraded-state vocabulary.
+#   - Adding a lifecycle row or a recovery-surface binding is
+#     additive-minor and lands here, in the taxonomy doc, and as
+#     a fixture in the same change; repurposing a tier id,
+#     controlled label, or lifecycle state token is breaking and
+#     opens a new decision row.
+#
+# Rules (frozen):
+#   1. Every row names exactly one failure_tier_id from the closed
+#      set in failure_tier_vocabulary. Rows that straddle tiers
+#      are non-conforming and deny with failure_tier_unresolved.
+#   2. Every row cites at least one delivery_surface_class from
+#      the frozen attention/activity taxonomy set; rows that mint
+#      new delivery surfaces deny with delivery_surface_unresolved.
+#   3. Every row cites at least one minimum_recovery_affordance
+#      naming what the user can do on the row; rows that omit the
+#      affordance deny with state_row_axis_missing.
+#   4. Every row cites at least one recovery_ladder_rung_ref (or
+#      rung.none_required) and at least one support_packet_family_
+#      ref so support / recovery / handoff resolve by id.
+#   5. Every row cites at least one interruptibility_tier; a row
+#      that cannot resolve its tier denies with
+#      interruptibility_tier_unresolved.
+#   6. Promotion between failure tiers is monotonic; tier skips
+#      require a promotion_trigger_class value. Silent skips deny
+#      with failure_tier_escalated_without_trigger.
+#   7. Every lifecycle row names last_failure_reason_visibility
+#      axes (keyboard_reveal, support_export_field,
+#      export_safe_description). Rows that omit any axis deny
+#      with last_failure_reason_discarded_on_dismiss.
+#   8. Every row cites at least one fixture_ref pinning the seed
+#      fixture under fixtures/ux/state_copy_examples/.
+#
+# If this file and docs/ux/state_and_recovery_taxonomy.md disagree,
+# the taxonomy doc wins and this file updates in the same change.
+
+failure_tier_matrix_schema_version: 1
+
+sources:
+  taxonomy_doc_ref: docs/ux/state_and_recovery_taxonomy.md
+  fixture_corpus_dir: fixtures/ux/state_copy_examples/
+  attention_activity_taxonomy_ref: docs/ux/attention_activity_taxonomy.md
+  shell_interaction_safety_contract_ref: docs/ux/shell_interaction_safety_contract.md
+  navigation_and_escalation_contract_ref: docs/ux/navigation_and_escalation_contract.md
+  entry_restore_truth_audit_ref: docs/ux/entry_restore_truth_audit.md
+  startup_state_copy_review_ref: artifacts/ux/startup_state_copy_review.yaml
+  recovery_ladder_packet_ref: docs/support/recovery_ladder_packet.md
+  truth_and_degraded_state_vocabulary_ref: docs/governance/truth_and_degraded_state_vocabulary.md
+  truth_class_matrix_ref: artifacts/governance/truth_class_matrix.yaml
+  a11y_ime_packet_template_ref: docs/accessibility/a11y_ime_packet_template.md
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.1
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.10
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.4
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.11
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.15
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#22.20
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#23.26
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies re-exported for tooling discovery. Rows below MUST
+# quote exactly one value (or the listed subset) from each vocabulary.
+# ---------------------------------------------------------------------------
+
+failure_tier_vocabulary:
+  - tier.inline_issue
+  - tier.contextual_degraded
+  - tier.workflow_block
+  - tier.session_recovery
+  - tier.escalation_surface
+
+# Re-export of the attention/activity taxonomy delivery-surface classes.
+# Rows may cite any subset; rows that mint new surfaces are non-conforming.
+delivery_surface_class_vocabulary:
+  - toast
+  - contextual_banner
+  - status_item
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - digest_group_row
+  - os_notification
+  - os_badge_app_icon
+  - lock_screen_summary
+  - companion_push
+  - not_delivered_held
+  - window_attached_sheet
+  - dialog_modal
+  - full_surface_takeover
+  - inline_row_chrome
+  - panel
+  - support_center_surface
+  - object_handoff_surface
+
+interruptibility_tier_vocabulary:
+  - tier_ambient
+  - tier_transient
+  - tier_durable
+  - tier_actionable
+  - tier_blocking_trust
+  - tier_critical_safety
+
+# Recovery-ladder rung ids re-exported from
+# docs/support/recovery_ladder_packet.md. Rows cite by id.
+recovery_ladder_rung_ref_vocabulary:
+  - rung.safe_mode
+  - rung.extension_quarantine
+  - rung.open_without_restore
+  - rung.cache_index_repair
+  - rung.restricted_mode_fallback
+  - rung.none_required
+
+# Support-packet family registry re-export.
+support_packet_family_ref_vocabulary:
+  - recovery_ladder_packet
+  - object_issue_handoff
+  - managed_workspace_evidence
+  - auth_evidence_packet
+  - policy_audit_evidence
+  - performance_evidence_packet
+  - crash_recovery_evidence
+  - first_run_evidence
+  - restore_prompt_evidence
+  - empty_state_audit_evidence
+
+# Closed emptiness-cause set per taxonomy §5.1.
+emptiness_cause_vocabulary:
+  - no_work_started
+  - filter_narrowed_to_zero
+  - permission_or_policy_blocked
+  - not_ready_warming
+  - not_ready_partial
+  - offline_local_only_view
+  - unsupported_on_this_surface
+  - failed_last_attempt
+
+# Closed loading-pattern set per taxonomy §6.1.
+loading_pattern_vocabulary:
+  - skeleton_row
+  - progressive_partial_results
+  - top_of_pane_progress_indicator
+  - inline_placeholder
+  - not_delivered_held_placeholder
+
+# Forbidden loading patterns (non-conforming on protected paths).
+forbidden_loading_pattern_vocabulary:
+  - whole_shell_spinner
+  - indeterminate_spinner_in_place_of_cause
+  - bare_vague_loading_copy
+  - content_reflow_during_load
+  - hiding_useful_now_chrome
+
+# Lifecycle subsystems per taxonomy §8.
+lifecycle_subsystem_vocabulary:
+  - workspace
+  - extension
+  - remote_session
+  - ai_action
+  - update_rollback
+
+# Reserved controlled labels per taxonomy §8.6.
+controlled_label_vocabulary:
+  - "Partially ready"
+  - "Degraded"
+  - "Read-only degraded"
+
+# Ten-token cross-surface degraded-state vocabulary, re-exported from
+# docs/governance/truth_and_degraded_state_vocabulary.md.
+degraded_state_token_vocabulary:
+  - Warming
+  - Cached
+  - Partial
+  - Stale
+  - Offline
+  - PolicyBlocked
+  - Limited
+  - Unsupported
+  - Experimental
+  - RetestPending
+
+# Closed promotion-trigger classes per taxonomy §7.6.
+promotion_trigger_class_vocabulary:
+  - severity_change
+  - duration_threshold_crossed
+  - required_authority_change
+  - irreversible_consequence_path_entered
+  - repeated_recovery_failure
+  - user_elected_escalation
+  - subsystem_crash_loop
+  - policy_or_admin_required
+  - rung_failed_across_threshold
+  - workflow_cannot_continue_safely
+
+# User-impact label classes, re-exported from
+# docs/ux/entry_restore_truth_audit.md §5.
+user_impact_label_class_vocabulary:
+  - no_durable_work_yet
+  - pending_user_review
+  - work_continues_with_narrowed_capability
+  - prior_work_preserved_but_not_rerun
+  - prior_work_not_recoverable_by_automation
+  - no_recovery_on_irreversible_path
+
+# Next-step decision hooks, re-exported from entry-restore object model §1.7.
+next_step_decision_hook_vocabulary:
+  - continue_in_restricted_mode
+  - review_trust_and_open
+  - open_minimal
+  - set_up_later
+  - review_archetype_match
+  - compare_before_restore
+  - open_without_restore
+  - safe_mode
+  - reconnect_required
+  - reauth_required
+  - locate_missing_target
+  - remove_from_recents
+  - review_migration_report
+  - roll_back_import
+  - keep_imported_state
+  - adopt_recommended_bundle
+  - review_unsupported_items
+
+# Axes every lifecycle row must pin for last-failure visibility.
+last_failure_reason_visibility_axis_vocabulary:
+  - keyboard_reveal
+  - support_export_field
+  - export_safe_description
+
+# ---------------------------------------------------------------------------
+# Failure-tier rows. One row per value in failure_tier_vocabulary.
+# ---------------------------------------------------------------------------
+failure_tier_rows:
+
+  - record_kind: failure_tier_row
+    failure_tier_matrix_schema_version: 1
+    failure_tier_id: tier.inline_issue
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#7.1
+    scope_description: >
+      One row, cell, or line-range on the owning surface. A
+      single-row failure, a per-field partial, or a
+      per-suggestion apply miss lives here.
+    allowed_delivery_surface_classes:
+      - inline_row_chrome
+      - status_item
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+    minimum_recovery_affordances:
+      - retry_this
+      - reveal_last_failure
+      - locate_alternate_target
+    recovery_ladder_rung_refs:
+      - rung.none_required
+      - rung.cache_index_repair
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - performance_evidence_packet
+    next_tier_on_promotion: tier.contextual_degraded
+    promotion_trigger_classes:
+      - severity_change
+      - duration_threshold_crossed
+      - repeated_recovery_failure
+    forbidden_placements:
+      - "toast-only rendering of a repeated failure"
+      - "silent reflow of the row on recovery"
+    overclaims_readiness: false
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/inline_issue_save_error.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: failure_tier_row
+    failure_tier_matrix_schema_version: 1
+    failure_tier_id: tier.contextual_degraded
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#7.2
+    scope_description: >
+      The surface as a whole is degraded (not just one row).
+      Controlled labels Partially ready / Degraded / Read-only
+      degraded render here.
+    allowed_delivery_surface_classes:
+      - contextual_banner
+      - status_item
+      - activity_center_digest_card
+      - durable_job_row
+    allowed_interruptibility_tiers:
+      - tier_durable
+    minimum_recovery_affordances:
+      - reveal_last_failure
+      - controlled_label_render
+      - named_next_safe_action_hook
+    recovery_ladder_rung_refs:
+      - rung.cache_index_repair
+      - rung.extension_quarantine
+      - rung.open_without_restore
+      - rung.restricted_mode_fallback
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - managed_workspace_evidence
+      - auth_evidence_packet
+      - policy_audit_evidence
+    next_tier_on_promotion: tier.workflow_block
+    promotion_trigger_classes:
+      - workflow_cannot_continue_safely
+      - required_authority_change
+      - irreversible_consequence_path_entered
+      - repeated_recovery_failure
+    forbidden_placements:
+      - "toast-only rendering of workspace-wide degraded state"
+      - "undifferentiated Offline banner hiding which rows are affected"
+    overclaims_readiness: false
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/contextual_degraded_workspace_partially_ready.md
+      - fixtures/ux/state_copy_examples/contextual_degraded_remote_read_only.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: failure_tier_row
+    failure_tier_matrix_schema_version: 1
+    failure_tier_id: tier.workflow_block
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#7.3
+    scope_description: >
+      The user's active workflow cannot safely continue on the
+      current posture. Reached through the navigation/escalation
+      ladder; dialog_modal only when the consequence is
+      irreversible.
+    allowed_delivery_surface_classes:
+      - window_attached_sheet
+      - panel
+      - dialog_modal
+    allowed_interruptibility_tiers:
+      - tier_actionable
+      - tier_blocking_trust
+    minimum_recovery_affordances:
+      - named_cause_token
+      - named_next_safe_action_hook
+      - focus_return_on_dismiss
+      - safe_abandon
+    recovery_ladder_rung_refs:
+      - rung.restricted_mode_fallback
+      - rung.open_without_restore
+      - rung.cache_index_repair
+      - rung.extension_quarantine
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - object_issue_handoff
+    next_tier_on_promotion: tier.session_recovery
+    promotion_trigger_classes:
+      - subsystem_crash_loop
+      - repeated_recovery_failure
+      - user_elected_escalation
+    forbidden_placements:
+      - "surprise dialog_modal that the user did not reach through an explicit affordance"
+      - "sheet that hides the triggering row so focus-return has no anchor"
+    overclaims_readiness: false
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/workflow_block_ai_apply_blocked.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: failure_tier_row
+    failure_tier_matrix_schema_version: 1
+    failure_tier_id: tier.session_recovery
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#7.4
+    scope_description: >
+      The whole session needs a repair pass. Crash-loop safe mode,
+      extension quarantine after repeated crash, corrupt restore,
+      cache/index repair, restricted-mode fallback.
+    allowed_delivery_surface_classes:
+      - dialog_modal
+      - full_surface_takeover
+    allowed_interruptibility_tiers:
+      - tier_blocking_trust
+    minimum_recovery_affordances:
+      - named_rung_id
+      - evidence_packet_family_ref
+      - session_recovery_outcome_token
+      - focus_return_to_startup_surface
+    recovery_ladder_rung_refs:
+      - rung.safe_mode
+      - rung.extension_quarantine
+      - rung.open_without_restore
+      - rung.cache_index_repair
+      - rung.restricted_mode_fallback
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - crash_recovery_evidence
+      - object_issue_handoff
+    next_tier_on_promotion: tier.escalation_surface
+    promotion_trigger_classes:
+      - rung_failed_across_threshold
+      - policy_or_admin_required
+      - user_elected_escalation
+    forbidden_placements:
+      - "toast or contextual_banner as the entry step for session recovery"
+      - "Undo verb on compensating_rollback / regenerate_from_canonical_source rung classes"
+    overclaims_readiness: false
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/session_recovery_crash_loop_safe_mode.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: failure_tier_row
+    failure_tier_matrix_schema_version: 1
+    failure_tier_id: tier.escalation_surface
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#7.5
+    scope_description: >
+      The failure exceeds what the product can resolve
+      autonomously; support, admin policy, platform help, or
+      issue handoff is required.
+    allowed_delivery_surface_classes:
+      - support_center_surface
+      - object_handoff_surface
+      - os_notification
+      - lock_screen_summary
+      - companion_push
+    allowed_interruptibility_tiers:
+      - tier_critical_safety
+    minimum_recovery_affordances:
+      - packet_ref
+      - escalation_outcome_token
+      - recovery_rung_history_by_id
+    recovery_ladder_rung_refs:
+      - rung.none_required
+    support_packet_family_refs:
+      - recovery_ladder_packet
+      - object_issue_handoff
+      - policy_audit_evidence
+    next_tier_on_promotion: null
+    promotion_trigger_classes:
+      - policy_or_admin_required
+      - user_elected_escalation
+    forbidden_placements:
+      - "os_notification carrying raw secret material or raw external content"
+      - "lock_screen_summary violating the privacy-payload class"
+    overclaims_readiness: false
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/escalation_surface_policy_blocked.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Lifecycle rows. One row per lifecycle_subsystem value, with closed state
+# set, minimum recovery actions, last-failure reason visibility, and
+# failure-tier mapping per taxonomy §8.
+# ---------------------------------------------------------------------------
+lifecycle_rows:
+
+  - record_kind: lifecycle_state_row
+    failure_tier_matrix_schema_version: 1
+    lifecycle_row_id: lifecycle:workspace
+    lifecycle_subsystem: workspace
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#8.1
+    state_tokens:
+      - workspace.starting
+      - workspace.ready
+      - workspace.partially_ready
+      - workspace.degraded
+      - workspace.read_only_degraded
+      - workspace.recovering
+      - workspace.quarantined
+      - workspace.stopped
+    minimum_recovery_actions:
+      - action_id: workspace.open_without_restore
+        next_step_decision_hook: open_without_restore
+        recovery_ladder_rung_ref: rung.open_without_restore
+        keyboard_reachable: true
+      - action_id: workspace.enter_safe_mode
+        next_step_decision_hook: safe_mode
+        recovery_ladder_rung_ref: rung.safe_mode
+        keyboard_reachable: true
+      - action_id: workspace.repair_cache_index
+        next_step_decision_hook: continue_in_restricted_mode
+        recovery_ladder_rung_ref: rung.cache_index_repair
+        keyboard_reachable: true
+      - action_id: workspace.continue_in_restricted_mode
+        next_step_decision_hook: continue_in_restricted_mode
+        recovery_ladder_rung_ref: rung.restricted_mode_fallback
+        keyboard_reachable: true
+      - action_id: workspace.locate_missing_target
+        next_step_decision_hook: locate_missing_target
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+    last_failure_reason_visibility:
+      keyboard_reveal: true
+      reveal_surface: status_item
+      support_export_field: true
+      support_packet_family_refs:
+        - recovery_ladder_packet
+        - managed_workspace_evidence
+      export_safe_description: true
+    controlled_labels_allowed:
+      - "Partially ready"
+      - "Degraded"
+      - "Read-only degraded"
+    degraded_state_tokens_allowed:
+      - Warming
+      - Partial
+      - Stale
+      - Offline
+      - PolicyBlocked
+      - Limited
+      - RetestPending
+    failure_tier_mapping:
+      - state_token_ref: workspace.partially_ready
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: workspace.degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: workspace.read_only_degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: workspace.recovering
+        failure_tier_id: tier.session_recovery
+        user_impact_label_class: prior_work_not_recoverable_by_automation
+      - state_token_ref: workspace.quarantined
+        failure_tier_id: tier.session_recovery
+        user_impact_label_class: prior_work_not_recoverable_by_automation
+      - state_token_ref: workspace.stopped
+        failure_tier_id: tier.escalation_surface
+        user_impact_label_class: prior_work_not_recoverable_by_automation
+    startup_state_intersections:
+      - startup_state:partial_startup
+      - startup_state:warming_startup
+      - startup_state:unsupported_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/contextual_degraded_workspace_partially_ready.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: lifecycle_state_row
+    failure_tier_matrix_schema_version: 1
+    lifecycle_row_id: lifecycle:extension
+    lifecycle_subsystem: extension
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#8.2
+    state_tokens:
+      - extension.loading
+      - extension.activated
+      - extension.partially_activated
+      - extension.degraded
+      - extension.read_only_degraded
+      - extension.quarantined
+      - extension.unactivated_by_policy
+      - extension.uninstalled
+    minimum_recovery_actions:
+      - action_id: extension.reload
+        next_step_decision_hook: continue_in_restricted_mode
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: extension.quarantine
+        next_step_decision_hook: safe_mode
+        recovery_ladder_rung_ref: rung.extension_quarantine
+        keyboard_reachable: true
+      - action_id: extension.reveal_last_failure
+        next_step_decision_hook: review_trust_and_open
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: extension.open_details
+        next_step_decision_hook: review_archetype_match
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: extension.continue_without
+        next_step_decision_hook: continue_in_restricted_mode
+        recovery_ladder_rung_ref: rung.restricted_mode_fallback
+        keyboard_reachable: true
+    last_failure_reason_visibility:
+      keyboard_reveal: true
+      reveal_surface: activity_center_digest_card
+      support_export_field: true
+      support_packet_family_refs:
+        - recovery_ladder_packet
+        - object_issue_handoff
+      export_safe_description: true
+    controlled_labels_allowed:
+      - "Partially ready"
+      - "Degraded"
+      - "Read-only degraded"
+    degraded_state_tokens_allowed:
+      - Warming
+      - Partial
+      - PolicyBlocked
+      - Limited
+      - Experimental
+      - RetestPending
+    failure_tier_mapping:
+      - state_token_ref: extension.partially_activated
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: extension.degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: extension.read_only_degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: extension.quarantined
+        failure_tier_id: tier.session_recovery
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: extension.unactivated_by_policy
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+    startup_state_intersections:
+      - startup_state:partial_startup
+      - startup_state:unsupported_startup
+      - startup_state:empty_state_or_placeholder_transition
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/contextual_degraded_extension_quarantined.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: lifecycle_state_row
+    failure_tier_matrix_schema_version: 1
+    lifecycle_row_id: lifecycle:remote_session
+    lifecycle_subsystem: remote_session
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#8.3
+    state_tokens:
+      - remote.reachable
+      - remote.reconnecting
+      - remote.reauth_pending
+      - remote.read_only_degraded
+      - remote.offline
+      - remote.policy_blocked
+    minimum_recovery_actions:
+      - action_id: remote.reconnect
+        next_step_decision_hook: reconnect_required
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: remote.reauthenticate
+        next_step_decision_hook: reauth_required
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: remote.continue_locally
+        next_step_decision_hook: continue_in_restricted_mode
+        recovery_ladder_rung_ref: rung.restricted_mode_fallback
+        keyboard_reachable: true
+      - action_id: remote.open_without_restore
+        next_step_decision_hook: open_without_restore
+        recovery_ladder_rung_ref: rung.open_without_restore
+        keyboard_reachable: true
+      - action_id: remote.reveal_last_failure
+        next_step_decision_hook: review_trust_and_open
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+    last_failure_reason_visibility:
+      keyboard_reveal: true
+      reveal_surface: status_item
+      support_export_field: true
+      support_packet_family_refs:
+        - auth_evidence_packet
+        - recovery_ladder_packet
+      export_safe_description: true
+    controlled_labels_allowed:
+      - "Read-only degraded"
+      - "Degraded"
+    degraded_state_tokens_allowed:
+      - Cached
+      - Offline
+      - PolicyBlocked
+      - Limited
+      - RetestPending
+    failure_tier_mapping:
+      - state_token_ref: remote.reconnecting
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: remote.reauth_pending
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: remote.read_only_degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: remote.offline
+        failure_tier_id: tier.workflow_block
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: remote.policy_blocked
+        failure_tier_id: tier.session_recovery
+        user_impact_label_class: work_continues_with_narrowed_capability
+    startup_state_intersections:
+      - startup_state:offline_startup
+      - startup_state:unsupported_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/contextual_degraded_remote_read_only.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: lifecycle_state_row
+    failure_tier_matrix_schema_version: 1
+    lifecycle_row_id: lifecycle:ai_action
+    lifecycle_subsystem: ai_action
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#8.4
+    state_tokens:
+      - ai.drafting
+      - ai.awaiting_review
+      - ai.partial_results
+      - ai.retest_pending
+      - ai.degraded
+      - ai.rolled_back
+      - ai.blocked_by_policy
+    minimum_recovery_actions:
+      - action_id: ai.reveal_citations
+        next_step_decision_hook: compare_before_restore
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: ai.retry_with_narrower_scope
+        next_step_decision_hook: review_archetype_match
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: ai.discard_draft
+        next_step_decision_hook: open_minimal
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: ai.roll_back_apply
+        next_step_decision_hook: roll_back_import
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: ai.open_support_export
+        next_step_decision_hook: review_trust_and_open
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+    last_failure_reason_visibility:
+      keyboard_reveal: true
+      reveal_surface: attention_item
+      support_export_field: true
+      support_packet_family_refs:
+        - recovery_ladder_packet
+        - object_issue_handoff
+      export_safe_description: true
+    controlled_labels_allowed:
+      - "Partially ready"
+      - "Degraded"
+    degraded_state_tokens_allowed:
+      - Partial
+      - RetestPending
+      - PolicyBlocked
+      - Limited
+      - Experimental
+    failure_tier_mapping:
+      - state_token_ref: ai.partial_results
+        failure_tier_id: tier.inline_issue
+        user_impact_label_class: pending_user_review
+      - state_token_ref: ai.retest_pending
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: pending_user_review
+      - state_token_ref: ai.degraded
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: pending_user_review
+      - state_token_ref: ai.rolled_back
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: prior_work_preserved_but_not_rerun
+      - state_token_ref: ai.blocked_by_policy
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+    startup_state_intersections: []
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/workflow_block_ai_apply_blocked.md
+    overclaims_readiness: false
+    ai_inference_rule: >
+      The last-failure reason MUST name the inference vs. cited
+      evidence boundary. A row that silently promotes inferred
+      content to durable truth denies with
+      ai_inferred_truth_promoted_without_citation.
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: lifecycle_state_row
+    failure_tier_matrix_schema_version: 1
+    lifecycle_row_id: lifecycle:update_rollback
+    lifecycle_subsystem: update_rollback
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#8.5
+    state_tokens:
+      - update.checking
+      - update.available
+      - update.downloading
+      - update.ready_to_restart
+      - update.applying
+      - update.rolled_back
+      - update.partial_apply
+      - update.failed
+    minimum_recovery_actions:
+      - action_id: update.retry
+        next_step_decision_hook: review_archetype_match
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: update.roll_back
+        next_step_decision_hook: roll_back_import
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: update.enter_safe_mode
+        next_step_decision_hook: safe_mode
+        recovery_ladder_rung_ref: rung.safe_mode
+        keyboard_reachable: true
+      - action_id: update.reveal_release_notes
+        next_step_decision_hook: review_migration_report
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+      - action_id: update.reveal_last_failure
+        next_step_decision_hook: review_trust_and_open
+        recovery_ladder_rung_ref: rung.none_required
+        keyboard_reachable: true
+    last_failure_reason_visibility:
+      keyboard_reveal: true
+      reveal_surface: status_item
+      support_export_field: true
+      support_packet_family_refs:
+        - recovery_ladder_packet
+        - object_issue_handoff
+      export_safe_description: true
+    controlled_labels_allowed:
+      - "Partially ready"
+      - "Degraded"
+    degraded_state_tokens_allowed:
+      - Warming
+      - Partial
+      - Stale
+      - RetestPending
+    failure_tier_mapping:
+      - state_token_ref: update.downloading
+        failure_tier_id: tier.inline_issue
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: update.applying
+        failure_tier_id: tier.inline_issue
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: update.partial_apply
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: work_continues_with_narrowed_capability
+      - state_token_ref: update.rolled_back
+        failure_tier_id: tier.contextual_degraded
+        user_impact_label_class: prior_work_preserved_but_not_rerun
+      - state_token_ref: update.failed
+        failure_tier_id: tier.session_recovery
+        user_impact_label_class: prior_work_not_recoverable_by_automation
+    durable_mirror_required: true
+    startup_state_intersections:
+      - startup_state:partial_startup
+      - startup_state:unsupported_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/session_recovery_crash_loop_safe_mode.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Empty-state rows. One row per emptiness_cause token per taxonomy §5.
+# ---------------------------------------------------------------------------
+empty_state_rows:
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:no_work_started
+    emptiness_cause: no_work_started
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Owning surface's primary content plane; keyboard-reachable
+      chrome preserved; next-best-action focus-bearing.
+    next_safe_action_hooks:
+      - review_archetype_match
+      - set_up_later
+      - open_minimal
+    degraded_state_tokens_allowed: []
+    forbidden_copy:
+      - "Nothing here yet"
+      - "Start your journey"
+      - "Get started"
+    startup_state_intersection: startup_state:first_run
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/empty_first_run.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:filter_narrowed_to_zero
+    emptiness_cause: filter_narrowed_to_zero
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Search / filter / scope surface; preserves the filter chip
+      and names the excluded scope; MUST NOT collapse to a
+      spinner when the true state is filter-narrowed zero.
+    next_safe_action_hooks:
+      - remove_from_recents
+      - review_archetype_match
+      - open_minimal
+    degraded_state_tokens_allowed:
+      - Partial
+    forbidden_copy:
+      - "No results"
+      - "Nothing found"
+    startup_state_intersection: null
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/empty_filter_narrowed.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:permission_or_policy_blocked
+    emptiness_cause: permission_or_policy_blocked
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Owning surface renders PolicyBlocked token and the policy
+      source label; the user still sees keyboard-reachable chrome
+      and the explainer / escalation affordance.
+    next_safe_action_hooks:
+      - review_trust_and_open
+      - continue_in_restricted_mode
+      - set_up_later
+    degraded_state_tokens_allowed:
+      - PolicyBlocked
+    forbidden_copy:
+      - "Unavailable"
+      - "Nothing to show"
+    startup_state_intersection: startup_state:unsupported_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/escalation_surface_policy_blocked.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:not_ready_warming
+    emptiness_cause: not_ready_warming
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Top-of-pane progress indicator names what is warming; editor,
+      buffer, and save pipeline remain live. Rows render as
+      skeleton_row or progressive_partial_results below the
+      indicator.
+    next_safe_action_hooks:
+      - open_minimal
+      - set_up_later
+      - continue_in_restricted_mode
+    degraded_state_tokens_allowed:
+      - Warming
+      - Partial
+    forbidden_copy:
+      - "Working..."
+      - "Loading..."
+      - "Please wait"
+    startup_state_intersection: startup_state:warming_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:not_ready_partial
+    emptiness_cause: not_ready_partial
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Surface renders Partial token; covered scope and excluded
+      scope are named; expand-scope or finish-index hook is
+      offered.
+    next_safe_action_hooks:
+      - review_archetype_match
+      - continue_in_restricted_mode
+      - open_minimal
+    degraded_state_tokens_allowed:
+      - Partial
+      - Warming
+    forbidden_copy:
+      - "Loading..."
+      - "Some results"
+    startup_state_intersection: startup_state:partial_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:offline_local_only_view
+    emptiness_cause: offline_local_only_view
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Surface renders Offline token and names the unreachable
+      owner; local-only rows remain reachable; reconnect / reauth
+      hooks offered.
+    next_safe_action_hooks:
+      - reconnect_required
+      - reauth_required
+      - continue_in_restricted_mode
+    degraded_state_tokens_allowed:
+      - Offline
+      - Cached
+    forbidden_copy:
+      - "Offline"
+      - "No connection"
+    startup_state_intersection: startup_state:offline_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/contextual_degraded_remote_read_only.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:unsupported_on_this_surface
+    emptiness_cause: unsupported_on_this_surface
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Surface renders Unsupported token and names the excluding
+      scope; redirects to a supported surface or names the
+      exclusion.
+    next_safe_action_hooks:
+      - review_trust_and_open
+      - set_up_later
+      - continue_in_restricted_mode
+    degraded_state_tokens_allowed:
+      - Unsupported
+    forbidden_copy:
+      - "Not supported"
+      - "Unavailable"
+    startup_state_intersection: startup_state:unsupported_startup
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/escalation_surface_policy_blocked.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: empty_state_row
+    failure_tier_matrix_schema_version: 1
+    empty_state_row_id: empty:failed_last_attempt
+    emptiness_cause: failed_last_attempt
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#5
+    placement_rule: >
+      Surface renders the last-failure reason by reveal affordance
+      on the empty view; retry and escalate hooks offered;
+      last-failure reason preserved on dismiss and on support
+      export.
+    next_safe_action_hooks:
+      - review_archetype_match
+      - review_trust_and_open
+      - continue_in_restricted_mode
+    degraded_state_tokens_allowed:
+      - RetestPending
+      - Stale
+    forbidden_copy:
+      - "Something went wrong"
+      - "Error"
+      - "Try again"
+    startup_state_intersection: startup_state:restore_failed
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/inline_issue_save_error.md
+    overclaims_readiness: false
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Loading-state rows. One row per loading_pattern per taxonomy §6.
+# ---------------------------------------------------------------------------
+loading_state_rows:
+
+  - record_kind: loading_state_row
+    failure_tier_matrix_schema_version: 1
+    loading_state_row_id: loading:skeleton_row
+    loading_pattern: skeleton_row
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#6.1
+    content_stability_rule: >
+      Skeleton shape matches the final row anatomy; MUST NOT
+      reflow on arrival. Reflow denies with
+      skeleton_reflow_on_arrival.
+    mirrored_to_durable_surface: false
+    cancel_route_required: false
+    forbidden_companion_patterns:
+      - whole_shell_spinner
+      - hiding_useful_now_chrome
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: loading_state_row
+    failure_tier_matrix_schema_version: 1
+    loading_state_row_id: loading:progressive_partial_results
+    loading_pattern: progressive_partial_results
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#6.1
+    content_stability_rule: >
+      Partial rows named via Partial / Warming token; authoritative
+      and partial rows typed separately; above-the-fold rows MUST
+      NOT reorder on arrival.
+    mirrored_to_durable_surface: true
+    cancel_route_required: true
+    forbidden_companion_patterns:
+      - indeterminate_spinner_in_place_of_cause
+      - content_reflow_during_load
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: loading_state_row
+    failure_tier_matrix_schema_version: 1
+    loading_state_row_id: loading:top_of_pane_progress_indicator
+    loading_pattern: top_of_pane_progress_indicator
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#6.1
+    content_stability_rule: >
+      Indicator names the warming item and the expected ready
+      signal; unbounded loads expose cancel and (where meaningful)
+      repair routes.
+    mirrored_to_durable_surface: true
+    cancel_route_required: true
+    forbidden_companion_patterns:
+      - whole_shell_spinner
+      - bare_vague_loading_copy
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: loading_state_row
+    failure_tier_matrix_schema_version: 1
+    loading_state_row_id: loading:inline_placeholder
+    loading_pattern: inline_placeholder
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#6.1
+    content_stability_rule: >
+      Placeholder names the missing piece (e.g., "Semantic lookup
+      pending") rather than a generic Loading. Pairs with Warming
+      or RetestPending.
+    mirrored_to_durable_surface: false
+    cancel_route_required: false
+    forbidden_companion_patterns:
+      - bare_vague_loading_copy
+      - indeterminate_spinner_in_place_of_cause
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+  - record_kind: loading_state_row
+    failure_tier_matrix_schema_version: 1
+    loading_state_row_id: loading:not_delivered_held_placeholder
+    loading_pattern: not_delivered_held_placeholder
+    doc_section_ref: docs/ux/state_and_recovery_taxonomy.md#6.1
+    content_stability_rule: >
+      Placeholder names the hold reason and the release condition;
+      durable history preserved per quiet-hours matrix.
+    mirrored_to_durable_surface: true
+    cancel_route_required: false
+    forbidden_companion_patterns:
+      - bare_vague_loading_copy
+      - hiding_useful_now_chrome
+    fixture_refs:
+      - fixtures/ux/state_copy_examples/loading_warming_index.md
+    minted_at: "2026-04-23T00:00:00Z"
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: no_vague_copy_on_protected_paths
+    description: >
+      Every empty_state_row, loading_state_row, failure_tier_row,
+      and lifecycle_state_row avoids vague "Working...",
+      "Loading...", "Something went wrong", "Error", "Failed",
+      "Try again", "Unavailable" copy on protected paths when a
+      precise token is known. Rows that allow vague copy deny
+      with vague_state_copy_on_protected_path.
+    failure_denial_reason: vague_state_copy_on_protected_path
+
+  - id: every_row_names_preserved_narrowed_next_action
+    description: >
+      Every degraded / restricted / paused / failed row names
+      preserved capability, narrowed capability, and at least
+      one next-safe action hook. Rows that omit any leg deny
+      with state_row_axis_missing.
+    failure_denial_reason: state_row_axis_missing
+
+  - id: last_failure_reason_keyboard_reachable
+    description: >
+      Every lifecycle_state_row sets keyboard_reveal = true on
+      its last_failure_reason_visibility block. Rows that render
+      recovery only on hover or only via a pointer affordance
+      deny with state_row_recovery_not_keyboard_reachable.
+    failure_denial_reason: state_row_recovery_not_keyboard_reachable
+
+  - id: last_failure_reason_preserved_on_export
+    description: >
+      Every lifecycle_state_row sets support_export_field = true
+      and names at least one support_packet_family_ref. Rows that
+      discard the last-failure reason on dismiss or export deny
+      with last_failure_reason_discarded_on_dismiss.
+    failure_denial_reason: last_failure_reason_discarded_on_dismiss
+
+  - id: failure_tier_promotion_is_monotonic
+    description: >
+      Every failure_tier_row promotes to the next tier in the
+      frozen order only via a promotion_trigger_class value.
+      Silent skips deny with
+      failure_tier_escalated_without_trigger; silent demotion
+      without a resolution event denies with
+      failure_tier_demoted_without_resolution_event.
+    failure_denial_reason: failure_tier_escalated_without_trigger
+
+  - id: recovery_routes_cited_by_id
+    description: >
+      Every row cites at least one recovery_ladder_rung_ref (or
+      rung.none_required) and at least one support_packet_family_
+      ref. Rows that rely on free-text troubleshooting deny with
+      recovery_route_by_freetext_only.
+    failure_denial_reason: recovery_route_by_freetext_only
+
+  - id: controlled_labels_are_typed
+    description: >
+      The strings "Partially ready", "Degraded", and "Read-only
+      degraded" are reserved for lifecycle_state_rows. Surfaces
+      that render them outside the lifecycle rows deny with
+      controlled_label_misapplied.
+    failure_denial_reason: controlled_label_misapplied
+
+  - id: toast_only_forbidden_for_durable_work
+    description: >
+      Long-running loads (past the tier_durable threshold) MUST
+      mirror to a durable surface. Toast-only rendering denies
+      with toast_only_forbidden_for_durable_work per the
+      attention/activity taxonomy.
+    failure_denial_reason: toast_only_forbidden_for_durable_work
+
+  - id: whole_shell_spinner_forbidden
+    description: >
+      No loading state occludes the activity rail, palette, menu,
+      inspector, or breadcrumbs; the useful-now chrome remains
+      keyboard-reachable. Rows that allow a whole-shell spinner
+      deny with whole_shell_spinner_forbidden.
+    failure_denial_reason: whole_shell_spinner_forbidden
+
+  - id: escalation_language_stable_across_surfaces
+    description: >
+      State-row ids, lifecycle tokens, failure-tier ids, and
+      recovery-rung refs are the stable keys onboarding, docs,
+      support, diagnostics, and release evidence import. A
+      surface that restates the basics in free-form copy or
+      loses a controlled label on export denies with
+      escalation_language_forked_per_surface or
+      controlled_label_lost_on_export.
+    failure_denial_reason: escalation_language_forked_per_surface
+
+  - id: schema_version_alignment
+    description: >
+      All emitted rows share failure_tier_matrix_schema_version
+      with the registry. Rows lagging behind a schema bump deny
+      with failure_tier_matrix_schema_version_lagging.
+    failure_denial_reason: failure_tier_matrix_schema_version_lagging
