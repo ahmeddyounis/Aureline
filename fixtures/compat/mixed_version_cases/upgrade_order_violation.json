@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../schemas/compat/mixed_version_envelope.schema.json",
+  "__fixture__": {
+    "name": "upgrade_order_violation",
+    "scenario": "Launcher-and-local-sidecars boundary starts with a mixed coordinated artifact set: the launcher was updated to a newer build identity while an older helper from the prior coordinated set is still on disk. The boundary is coordinated_artifact_set_only, so any mixed startup is refused rather than warned. Outcome is 'refused_upgrade_order_violation' with fail_closed_state.posture = 'fail_closed' and a rollback repair hint. This is the worked example cited by the acceptance criterion covering 'how a boundary fails closed when the upgrade order is violated'.",
+    "exercised_fields": {
+      "boundary_family": "launcher_and_local_sidecars",
+      "outcome": "refused_upgrade_order_violation",
+      "skew_window_status": "out_of_window_fail_closed",
+      "fail_closed_posture": "fail_closed",
+      "upgrade_order_compliance": "violated_consumer_behind_producer",
+      "repair_hint_kinds": [
+        "rollback_artifact_set",
+        "contact_admin_or_support"
+      ]
+    }
+  },
+  "schema_version": 1,
+  "record_kind": "mixed_version_negotiation_envelope",
+  "envelope_id": "mixed_version_envelope:launcher_and_local_sidecars.upgrade_order_violation.0006",
+  "boundary_family": "launcher_and_local_sidecars",
+  "boundary_row_ref": "compat_row:launcher.local_helper_contracts",
+  "artifact_or_protocol_boundary_label": "boundary.runtime.launcher_local_sidecars",
+  "version_skew_register_ref": "skew_register:launcher.local_helper_contracts",
+  "skew_window_declaration_ref": "skew_window:launcher_and_local_sidecars.coordinated_artifact_set",
+  "claimed_deployment_profiles": [
+    "individual_local",
+    "self_hosted",
+    "enterprise_online",
+    "air_gapped",
+    "managed_cloud"
+  ],
+  "producer": {
+    "role": "producer",
+    "surface_label": "desktop_launcher",
+    "component_family": "launcher",
+    "contract_version": "launcher_contract@2",
+    "schema_epoch": "2",
+    "min_supported_contract_version": "launcher_contract@2",
+    "max_tested_contract_version": "launcher_contract@2",
+    "capability_set": [
+      "spawn_indexer_sidecar",
+      "spawn_diagnostic_sidecar",
+      "spawn_search_sidecar"
+    ],
+    "build_identity_ref": "build_identity:launcher.2026.04-stable",
+    "toolchain_epoch": null,
+    "tenancy_region_epoch": null,
+    "sdk_support_window_ref": null,
+    "permission_vocabulary_version": null,
+    "provider_service_family_ref": null
+  },
+  "consumer": {
+    "role": "consumer",
+    "surface_label": "local_indexer_sidecar",
+    "component_family": "local_sidecar.indexer",
+    "contract_version": "launcher_contract@1",
+    "schema_epoch": "1",
+    "min_supported_contract_version": "launcher_contract@1",
+    "max_tested_contract_version": "launcher_contract@1",
+    "capability_set": [
+      "spawn_indexer_sidecar"
+    ],
+    "build_identity_ref": "build_identity:indexer.2026.02-stable",
+    "toolchain_epoch": null,
+    "tenancy_region_epoch": null,
+    "sdk_support_window_ref": null,
+    "permission_vocabulary_version": null,
+    "provider_service_family_ref": null
+  },
+  "negotiation": {
+    "outcome": "refused_upgrade_order_violation",
+    "negotiated_capability_set": [],
+    "dropped_capabilities": [
+      {
+        "capability": "spawn_indexer_sidecar",
+        "reason_class": "outside_support_window",
+        "reason_note": "Indexer sidecar is from the prior coordinated artifact set (indexer.2026.02) while the launcher was promoted to launcher.2026.04. Mixed startup is outside the coordinated_artifact_set_only window."
+      },
+      {
+        "capability": "spawn_diagnostic_sidecar",
+        "reason_class": "unknown_required_field",
+        "reason_note": "Launcher contract@2 requires a coordinated diagnostic sidecar build that is not present on disk."
+      },
+      {
+        "capability": "spawn_search_sidecar",
+        "reason_class": "unknown_required_field",
+        "reason_note": "Launcher contract@2 requires a coordinated search sidecar build that is not present on disk."
+      }
+    ],
+    "selected_contract_version": "launcher_contract@2",
+    "reason": "Mixed launcher/helper startup is refused. The launcher was promoted ahead of the coordinated artifact set; individual helpers cannot follow on their own on this boundary. Rollback restores the prior coordinated set."
+  },
+  "skew_window": {
+    "skew_window_class": "coordinated_artifact_set_only",
+    "status": "out_of_window_fail_closed",
+    "window_summary": "Launcher and helper binaries come from one coordinated artifact set with shared build identity, contract version, and schema epoch.",
+    "current_skew_case_ref": "skew_case:launcher.local_helper_mixed_startup"
+  },
+  "upgrade_order": {
+    "declared_order": [
+      "coordinated_artifact_set.launcher_and_helpers"
+    ],
+    "compliance": "violated_consumer_behind_producer",
+    "violation_note": "Launcher was promoted to contract@2 while an indexer helper from contract@1 remained on disk; coordinated_artifact_set_only boundaries cannot continue under a mixed set."
+  },
+  "rollback_order": {
+    "declared_order": [
+      "coordinated_artifact_set.launcher_and_helpers"
+    ],
+    "compliance": "rollback_not_attempted",
+    "violation_note": null
+  },
+  "downgrade_behavior": {
+    "support_class": "downgrade_requires_coordinated_artifact_set",
+    "state_preservation_note": "Local-only workspace state is preserved across rollback; mid-flight helper sessions are refused rather than migrated.",
+    "note": "Downgrade is a coordinated rollback; individual helpers cannot downgrade while the launcher stays forward."
+  },
+  "fail_closed_state": {
+    "active": true,
+    "posture": "fail_closed",
+    "visible_reason": "Aureline detected a mixed launcher and helper set. The launcher was updated but at least one helper binary is from the prior coordinated artifact set. This boundary does not run mixed sets; roll back to the prior coordinated artifact set, or finish promoting the full set before launching."
+  },
+  "unsupported_state_behavior": {
+    "state_class": "unsupported",
+    "contract_rule": "Refuse mixed launcher/helper startup with a visible reason; offer rollback to the prior coordinated artifact set."
+  },
+  "repair_hints": [
+    {
+      "kind": "rollback_artifact_set",
+      "target_component": "coordinated_artifact_set.launcher_and_helpers",
+      "instruction": "Roll back to the prior coordinated launcher-and-helpers artifact set. The prior set continues to run all protected paths while you retry the promotion.",
+      "reversible": true,
+      "docs_ref": "docs/compat/upgrade_order_contract.md"
+    },
+    {
+      "kind": "contact_admin_or_support",
+      "target_component": "coordinated_artifact_set.launcher_and_helpers",
+      "instruction": "If rollback does not resolve the mixed set, contact admin or support with this envelope id so the release evidence can be inspected.",
+      "reversible": true,
+      "docs_ref": null
+    }
+  ],
+  "reserved_boundary_fields": {
+    "launcher_and_local_sidecars": {
+      "coordinated_artifact_set_ref": "coordinated_artifact_set:launcher_and_helpers.2026.04-stable",
+      "contract_version": "launcher_contract@2",
+      "schema_epoch": "2"
+    }
+  },
+  "captured_at": "2026-04-23T23:10:00Z",
+  "notes": "Illustrative seed envelope only; this is not a live release packet. This fixture is the worked example cited by the upgrade-order acceptance criterion."
+}

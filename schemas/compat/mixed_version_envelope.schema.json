@@ -1,0 +1,776 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/compat/mixed_version_envelope.schema.json",
+  "title": "Aureline mixed-version negotiation envelope",
+  "description": "Generic negotiation envelope for named distributed or file/schema boundaries (launcher and local sidecars, desktop and CLI talking to a remote agent, desktop/CLI/browser talking to a managed control plane, extension host and SDK, schema or state bundle producer and consumer, provider-linked packet lanes, audit/event producers and consumers, and CLI/export boundaries). A single envelope shape binds capability and version fields for producer and consumer, a named skew-window class, an upgrade-order and rollback-order reference, fail-closed state, repair hints, and per-boundary reserved fields so qualification, compatibility, and release-evidence tooling can consume the same inspectable record instead of inventing prose-only compatibility identity. Later reports extend the envelope by reference; they do not rename boundary rows or collapse mixed-version status into ad hoc spreadsheets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "envelope_id",
+    "boundary_family",
+    "boundary_row_ref",
+    "artifact_or_protocol_boundary_label",
+    "version_skew_register_ref",
+    "skew_window_declaration_ref",
+    "claimed_deployment_profiles",
+    "producer",
+    "consumer",
+    "negotiation",
+    "skew_window",
+    "upgrade_order",
+    "rollback_order",
+    "downgrade_behavior",
+    "fail_closed_state",
+    "unsupported_state_behavior",
+    "repair_hints",
+    "reserved_boundary_fields",
+    "captured_at",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Envelope schema version. Required so downstream consumers can reject unknown envelope epochs mechanically instead of silently widening trust."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "mixed_version_negotiation_envelope",
+      "description": "Discriminator for this envelope family. Must be the literal record_kind above so envelopes cannot be confused with other compat records."
+    },
+    "envelope_id": {
+      "type": "string",
+      "pattern": "^mixed_version_envelope:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable envelope instance id. Cited by compatibility reports, claim manifests, release-evidence packets, and support bundles."
+    },
+    "boundary_family": {
+      "$ref": "#/$defs/boundary_family",
+      "description": "Named boundary family the envelope speaks for. Reserved vocabulary; new families land by extending the enum, not by free-text aliasing."
+    },
+    "boundary_row_ref": {
+      "type": "string",
+      "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable compat_row id from artifacts/compat/qualification_matrix_seed.yaml. The envelope extends one row rather than inventing a parallel identity."
+    },
+    "artifact_or_protocol_boundary_label": {
+      "type": "string",
+      "pattern": "^boundary\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable boundary label copied from the qualification matrix."
+    },
+    "version_skew_register_ref": {
+      "type": "string",
+      "pattern": "^skew_register:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable skew-register ref from artifacts/compat/version_skew_register.yaml."
+    },
+    "skew_window_declaration_ref": {
+      "type": "string",
+      "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable skew-window id from artifacts/compat/skew_windows.yaml. Points at the machine-readable declaration carrying supported window, upgrade order, rollback order, downgrade behavior, and unsupported-state behavior."
+    },
+    "claimed_deployment_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/deployment_profile" },
+      "description": "Deployment profiles the envelope currently claims. Must overlap the claimed profiles of the referenced compat_row."
+    },
+    "producer": {
+      "$ref": "#/$defs/participant",
+      "description": "Producer side of the boundary (launcher, control surface, extension host, producer-side schema emitter, event emitter, CLI export writer, and so on)."
+    },
+    "consumer": {
+      "$ref": "#/$defs/participant",
+      "description": "Consumer side of the boundary (local sidecar, remote agent, managed control plane, extension runtime, schema/state consumer, provider-linked packet reader, audit or event consumer, CLI export reader)."
+    },
+    "negotiation": {
+      "$ref": "#/$defs/negotiation",
+      "description": "Outcome of the capability intersection, not an optimistic superset."
+    },
+    "skew_window": {
+      "$ref": "#/$defs/skew_window_snapshot",
+      "description": "Snapshot of the currently claimed skew window, class, and window status for this envelope instance."
+    },
+    "upgrade_order": {
+      "$ref": "#/$defs/upgrade_order",
+      "description": "Upgrade-order declaration and compliance posture. Violations fail closed or degrade with a visible reason; they are never silent."
+    },
+    "rollback_order": {
+      "$ref": "#/$defs/rollback_order",
+      "description": "Rollback-order declaration and compliance posture so rollback paths stay symmetric with upgrade order."
+    },
+    "downgrade_behavior": {
+      "$ref": "#/$defs/downgrade_behavior",
+      "description": "Declared downgrade behavior, including whether downgrade is supported, required, or explicitly unsupported."
+    },
+    "fail_closed_state": {
+      "$ref": "#/$defs/fail_closed_state",
+      "description": "Fail-closed state when the envelope resolves outside window, outside upgrade order, or against an unsupported combination. Every envelope carries this field so unsupported combinations never render as undefined behavior."
+    },
+    "unsupported_state_behavior": {
+      "$ref": "#/$defs/unsupported_state_behavior",
+      "description": "Declared behavior for unsupported combinations on this boundary. Distinct from fail_closed_state so tooling can distinguish the current instance posture from the boundary's always-on rule."
+    },
+    "repair_hints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/repair_hint" },
+      "description": "Ordered repair hints the client or operator may attempt. Rendered in desktop UI, CLI diagnostics, admin docs, and support exports from the same contract."
+    },
+    "reserved_boundary_fields": {
+      "$ref": "#/$defs/reserved_boundary_fields",
+      "description": "Per-boundary reserved fields so envelopes can carry boundary-specific negotiation detail (for example contract_version for launcher/sidecars, WIT ABI for extension host, tenancy/region epoch for managed control plane) without minting parallel envelope shapes."
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp when this envelope instance was captured."
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short free-form reviewer note. Never the source of truth for support class, skew window, upgrade order, or repair path."
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "boundary_family": {
+      "type": "string",
+      "enum": [
+        "launcher_and_local_sidecars",
+        "desktop_cli_and_remote_agent",
+        "managed_control_plane",
+        "extension_host_and_sdk",
+        "schema_or_state_bundle",
+        "provider_linked_packet",
+        "audit_or_event_producer_consumer",
+        "cli_or_export_boundary",
+        "browser_companion_and_remote_or_review_session"
+      ],
+      "description": "Reserved boundary-family vocabulary. Covers the named distributed and file/schema boundaries called out by the Aureline architecture and design docs."
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary aligned with artifacts/compat/qualification_matrix_seed.yaml."
+    },
+    "participant_role": {
+      "type": "string",
+      "enum": [
+        "producer",
+        "consumer"
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "surface_label",
+        "component_family",
+        "contract_version",
+        "schema_epoch",
+        "min_supported_contract_version",
+        "max_tested_contract_version",
+        "capability_set",
+        "build_identity_ref"
+      ],
+      "properties": {
+        "role": { "$ref": "#/$defs/participant_role" },
+        "surface_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Human-readable surface name (for example 'desktop_launcher', 'remote_agent', 'managed_control_plane', 'extension_host', 'profile_export_consumer', 'cli_export_reader')."
+        },
+        "component_family": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable component family (for example 'launcher', 'local_sidecar.indexer', 'remote_agent', 'managed_control_plane.api', 'extension_host', 'profile_export', 'task_event_consumer', 'cli_export')."
+        },
+        "contract_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Machine-readable contract version. Semver, schema epoch, WIT ABI version, manifest revision, or equivalent stable revision string."
+        },
+        "schema_epoch": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Schema epoch for producers or consumers that version via epoch rather than semver."
+        },
+        "min_supported_contract_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Minimum contract version this participant accepts."
+        },
+        "max_tested_contract_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Maximum contract version this participant has been exercised against. May equal contract_version when only the current version is claimed."
+        },
+        "capability_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Declared capability tokens this participant advertises. Capability negotiation chooses the intersection."
+        },
+        "build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Exact-build identity ref where the participant is a compiled artifact. Null where the participant is a contract (schema, envelope) rather than a binary."
+        },
+        "toolchain_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Toolchain-manifest epoch for participants that carry a toolchain (for example remote agent or extension runtime)."
+        },
+        "tenancy_region_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Tenancy or region epoch for managed-control-plane participants. Null elsewhere."
+        },
+        "sdk_support_window_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Published SDK support window ref for extension-host/SDK participants. Null elsewhere."
+        },
+        "permission_vocabulary_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Permission-vocabulary version for extension-host participants. Null elsewhere."
+        },
+        "provider_service_family_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Provider-service-family ref for provider-linked packet participants. Null elsewhere."
+        }
+      }
+    },
+    "negotiation_outcome": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "compatible_with_partial_feature_narrowing",
+        "downgrade_required",
+        "upgrade_required",
+        "refused_out_of_window",
+        "refused_upgrade_order_violation",
+        "refused_unsupported_combination",
+        "repair_required",
+        "reattach_required"
+      ],
+      "description": "Closed vocabulary for the negotiation outcome. 'compatible' means the intersection covers all claimed capabilities. 'compatible_with_partial_feature_narrowing' means the intersection is non-empty but narrower than either side's advertised set. The refused_* verdicts all render as fail-closed to the user with an attributed reason."
+    },
+    "negotiation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "negotiated_capability_set",
+        "dropped_capabilities",
+        "selected_contract_version",
+        "reason"
+      ],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/negotiation_outcome" },
+        "negotiated_capability_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Capability tokens actually in force for this envelope instance. Empty array is allowed only when outcome is a refused_* verdict."
+        },
+        "dropped_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["capability", "reason_class"],
+            "properties": {
+              "capability": { "$ref": "#/$defs/non_empty_string" },
+              "reason_class": {
+                "type": "string",
+                "enum": [
+                  "outside_support_window",
+                  "not_in_consumer_set",
+                  "not_in_producer_set",
+                  "policy_blocked",
+                  "toolchain_mismatch",
+                  "permission_vocabulary_mismatch",
+                  "unknown_required_field",
+                  "trust_class_mismatch"
+                ]
+              },
+              "reason_note": { "$ref": "#/$defs/non_empty_string" }
+            }
+          },
+          "description": "Capabilities that were advertised by one side but dropped by the intersection. Every drop records a typed reason class."
+        },
+        "selected_contract_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Contract version the intersection settles on. For fail-closed outcomes this is the version the consumer or producer refused."
+        },
+        "reason": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Visible reason. Required for every outcome, including 'compatible', so release evidence and support bundles can render one consistent reason line."
+        }
+      }
+    },
+    "skew_window_class": {
+      "type": "string",
+      "enum": [
+        "coordinated_artifact_set_only",
+        "exact_match",
+        "same_schema_epoch_additive_only",
+        "declared_adjacent_window",
+        "published_sdk_support_window",
+        "current_plus_previous_minor_or_lts",
+        "certified_report_freshness_window"
+      ],
+      "description": "Skew-window taxonomy aligned with artifacts/compat/qualification_matrix_seed.yaml."
+    },
+    "skew_window_status": {
+      "type": "string",
+      "enum": [
+        "in_window_supported",
+        "in_window_best_effort",
+        "in_window_untested",
+        "out_of_window_degraded",
+        "out_of_window_read_only",
+        "out_of_window_fail_closed",
+        "out_of_window_explicitly_unsupported"
+      ],
+      "description": "Current skew-window status. Covers the supported/best_effort/untested/unsupported buckets from the version-skew register plus the outside_window_posture vocabulary."
+    },
+    "skew_window_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skew_window_class",
+        "status",
+        "window_summary",
+        "current_skew_case_ref"
+      ],
+      "properties": {
+        "skew_window_class": { "$ref": "#/$defs/skew_window_class" },
+        "status": { "$ref": "#/$defs/skew_window_status" },
+        "window_summary": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Human-readable summary of the currently claimed skew window."
+        },
+        "current_skew_case_ref": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+            }
+          ],
+          "description": "Matching skew_case_id from the version-skew register when the envelope resolves to a named case."
+        }
+      }
+    },
+    "upgrade_order_compliance": {
+      "type": "string",
+      "enum": [
+        "compliant",
+        "violated_producer_behind_consumer",
+        "violated_consumer_behind_producer",
+        "not_applicable_coordinated_set_only"
+      ],
+      "description": "Upgrade-order compliance verdict. 'not_applicable_coordinated_set_only' is reserved for boundaries that only promote the whole artifact graph together."
+    },
+    "upgrade_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_order",
+        "compliance"
+      ],
+      "properties": {
+        "declared_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Ordered participant component families that must be upgraded in the listed order. A single entry means the boundary promotes one coordinated artifact set."
+        },
+        "compliance": { "$ref": "#/$defs/upgrade_order_compliance" },
+        "violation_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Required note when compliance is a violated_* verdict; null otherwise."
+        }
+      }
+    },
+    "rollback_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_order",
+        "compliance"
+      ],
+      "properties": {
+        "declared_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Ordered participant component families that must roll back in the listed order. Inverse of the upgrade_order where applicable; boundaries that must roll back together keep one entry."
+        },
+        "compliance": {
+          "type": "string",
+          "enum": [
+            "compliant",
+            "violated",
+            "not_applicable_coordinated_set_only",
+            "rollback_not_attempted"
+          ]
+        },
+        "violation_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Required note when compliance is 'violated'; null otherwise."
+        }
+      }
+    },
+    "downgrade_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "note"
+      ],
+      "properties": {
+        "support_class": {
+          "type": "string",
+          "enum": [
+            "downgrade_supported",
+            "downgrade_best_effort",
+            "downgrade_untested",
+            "downgrade_unsupported",
+            "downgrade_requires_coordinated_artifact_set"
+          ],
+          "description": "Declared downgrade behavior class. Must match the declaration in artifacts/compat/skew_windows.yaml."
+        },
+        "state_preservation_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "How durable state is preserved or refused on downgrade. Null when the boundary does not carry durable state."
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Visible reviewer-facing note."
+        }
+      }
+    },
+    "fail_closed_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active",
+        "posture",
+        "visible_reason"
+      ],
+      "properties": {
+        "active": {
+          "type": "boolean",
+          "description": "True when fail-closed is currently in force for this envelope instance."
+        },
+        "posture": {
+          "type": "string",
+          "enum": [
+            "fail_closed",
+            "read_only",
+            "degraded",
+            "explicitly_unsupported",
+            "none"
+          ],
+          "description": "Posture in force. 'none' is valid only when active is false."
+        },
+        "visible_reason": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Attributed reason the boundary is failing closed. Rendered verbatim in desktop UI, CLI output, admin docs, and support exports."
+        }
+      }
+    },
+    "unsupported_state_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "contract_rule"
+      ],
+      "properties": {
+        "state_class": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "best_effort",
+            "untested",
+            "unsupported",
+            "explicitly_unsupported"
+          ],
+          "description": "Current state class for this envelope instance."
+        },
+        "contract_rule": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The contractual rule the boundary applies when the current combination is unsupported. Must match the rule in artifacts/compat/skew_windows.yaml for this boundary."
+        }
+      }
+    },
+    "repair_hint_kind": {
+      "type": "string",
+      "enum": [
+        "upgrade_component",
+        "downgrade_component",
+        "rollback_artifact_set",
+        "reattach_session",
+        "refresh_policy_bundle",
+        "refresh_capability_manifest",
+        "reissue_skew_snapshot",
+        "import_compatible_bundle",
+        "use_file_or_review_only_mode",
+        "use_cached_read_only_mode",
+        "disable_or_quarantine_extension",
+        "wait_for_staged_rollout",
+        "contact_admin_or_support"
+      ],
+      "description": "Closed repair-hint vocabulary. Every hint is one of these classes so repair paths are machine-readable."
+    },
+    "repair_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "target_component",
+        "instruction",
+        "reversible"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/repair_hint_kind" },
+        "target_component": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Component family the hint targets."
+        },
+        "instruction": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewer-facing instruction copy."
+        },
+        "reversible": {
+          "type": "boolean",
+          "description": "True when the hint is safely reversible."
+        },
+        "docs_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Optional docs or runbook ref."
+        }
+      }
+    },
+    "reserved_boundary_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "launcher_and_local_sidecars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["coordinated_artifact_set_ref", "contract_version"],
+          "properties": {
+            "coordinated_artifact_set_ref": { "$ref": "#/$defs/non_empty_string" },
+            "contract_version": { "$ref": "#/$defs/non_empty_string" },
+            "schema_epoch": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "desktop_cli_and_remote_agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "client_version",
+            "agent_version",
+            "min_protocol",
+            "max_protocol",
+            "toolchain_manifest_epoch"
+          ],
+          "properties": {
+            "client_version": { "$ref": "#/$defs/non_empty_string" },
+            "agent_version": { "$ref": "#/$defs/non_empty_string" },
+            "min_protocol": { "$ref": "#/$defs/non_empty_string" },
+            "max_protocol": { "$ref": "#/$defs/non_empty_string" },
+            "toolchain_manifest_epoch": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "managed_control_plane": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "api_version",
+            "tenancy_region_epoch",
+            "capability_policy_ref"
+          ],
+          "properties": {
+            "api_version": { "$ref": "#/$defs/non_empty_string" },
+            "tenancy_region_epoch": { "$ref": "#/$defs/non_empty_string" },
+            "capability_policy_ref": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "extension_host_and_sdk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sdk_range",
+            "wit_abi_version",
+            "permission_vocabulary_version"
+          ],
+          "properties": {
+            "sdk_range": { "$ref": "#/$defs/non_empty_string" },
+            "wit_abi_version": { "$ref": "#/$defs/non_empty_string" },
+            "permission_vocabulary_version": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "schema_or_state_bundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_family",
+            "schema_epoch",
+            "additive_field_posture"
+          ],
+          "properties": {
+            "schema_family": { "$ref": "#/$defs/non_empty_string" },
+            "schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+            "additive_field_posture": {
+              "type": "string",
+              "enum": [
+                "additive_only",
+                "additive_with_reserved_required_field_evolution",
+                "breaking"
+              ]
+            }
+          }
+        },
+        "provider_linked_packet": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider_service_family_ref",
+            "service_api_version",
+            "previous_minor_or_lts_window"
+          ],
+          "properties": {
+            "provider_service_family_ref": { "$ref": "#/$defs/non_empty_string" },
+            "service_api_version": { "$ref": "#/$defs/non_empty_string" },
+            "previous_minor_or_lts_window": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "audit_or_event_producer_consumer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "event_schema_epoch",
+            "required_capability_set",
+            "retention_class"
+          ],
+          "properties": {
+            "event_schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+            "required_capability_set": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "retention_class": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "cli_or_export_boundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "export_schema_family",
+            "export_schema_version",
+            "return_code_family_ref"
+          ],
+          "properties": {
+            "export_schema_family": { "$ref": "#/$defs/non_empty_string" },
+            "export_schema_version": { "$ref": "#/$defs/non_empty_string" },
+            "return_code_family_ref": { "$ref": "#/$defs/non_empty_string" }
+          }
+        },
+        "browser_companion_and_remote_or_review_session": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "session_protocol_version",
+            "scoped_capability_manifest_ref",
+            "previous_service_family_window"
+          ],
+          "properties": {
+            "session_protocol_version": { "$ref": "#/$defs/non_empty_string" },
+            "scoped_capability_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+            "previous_service_family_window": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      },
+      "description": "At most one per-boundary-family block should be populated; the block that matches boundary_family carries the reserved fields for that family. Unpopulated blocks may be omitted."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "boundary_family": { "const": "launcher_and_local_sidecars" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["launcher_and_local_sidecars"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "desktop_cli_and_remote_agent" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["desktop_cli_and_remote_agent"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "managed_control_plane" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["managed_control_plane"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "extension_host_and_sdk" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["extension_host_and_sdk"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "schema_or_state_bundle" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["schema_or_state_bundle"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "provider_linked_packet" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["provider_linked_packet"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "audit_or_event_producer_consumer" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["audit_or_event_producer_consumer"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "cli_or_export_boundary" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["cli_or_export_boundary"] } } }
+    },
+    {
+      "if": { "properties": { "boundary_family": { "const": "browser_companion_and_remote_or_review_session" } }, "required": ["boundary_family"] },
+      "then": { "properties": { "reserved_boundary_fields": { "required": ["browser_companion_and_remote_or_review_session"] } } }
+    }
+  ]
+}
