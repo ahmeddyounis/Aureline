@@ -1,0 +1,748 @@
+# Truth-class matrix.
+#
+# Machine-readable companion to
+#   docs/governance/truth_and_degraded_state_vocabulary.md
+#
+# Every row here freezes one cross-surface truth class: its durability
+# posture, canonical owner family, examples, allowed degraded-state
+# tokens, forbidden degraded-state tokens, allowed downstream
+# projections, and labeling rules. Tools, docs, support templates, and
+# future badges read this file by id (truth_class_id, truth_example_id)
+# so they never invent surface-local truth dialects.
+#
+# Conformance:
+#   - Every truth_class_row conforms to the matrix_schema below; there
+#     is no separate JSON schema yet because ADR 0011, ADR 0013, and
+#     schemas/governance/{capability_lifecycle,claim_manifest}.schema
+#     .json already define the tokens this file composes.
+#   - Adding a new truth class is additive-minor and lands here and in
+#     the vocabulary doc in the same change; repurposing an existing
+#     row is breaking and opens a new decision row.
+#
+# Rules (frozen):
+#   1. A surface that renders a row MUST name its truth_class_id using
+#      a typed field, not surface-local copy. Mixing two classes into a
+#      single "live state" chip is forbidden.
+#   2. Durable classes (user_authored_durable_truth, workspace_vcs_
+#      truth) MUST NOT render Warming, Cached, Stale, or Offline
+#      degraded tokens; those tokens describe derived or observed
+#      state.
+#   3. Derived or observed classes (derived_indexed_truth, runtime_
+#      observed_truth) MUST carry a freshness_class value and, when
+#      below authoritative_live, a typed degraded_state_cause from
+#      schemas/docs/help_status_badge.schema.json.
+#   4. ai_inferred_truth rows MUST cite at least one authoritative
+#      anchor from another truth class or a published claim_row; an
+#      uncited AI answer is non-conforming.
+#   5. session_collaboration_truth MUST NOT be promoted into a claim
+#      row, support-export row, or release-evidence row without first
+#      being projected through a durable or derived owner.
+#   6. Export surfaces MUST preserve the originating truth_class_id;
+#      silently narrowing a derived row to appear durable is forbidden.
+#
+# If this file and docs/governance/truth_and_degraded_state_
+# vocabulary.md disagree, the vocabulary doc wins and this file
+# updates in the same change.
+
+truth_class_matrix_schema_version: 1
+
+overview_doc_ref: docs/governance/truth_and_degraded_state_vocabulary.md
+propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
+source_of_truth_map_ref: artifacts/governance/source_of_truth_map.yaml
+public_surface_truth_map_ref: docs/governance/public_surface_truth_map.md
+drift_rules_ref: docs/governance/drift_blocking_rules.md
+
+upstream_contracts:
+  - contract_id: docs_help_service_health_truth_adr
+    ref: docs/adr/0013-docs-help-service-health-truth.md
+  - contract_id: help_status_badge_schema
+    ref: schemas/docs/help_status_badge.schema.json
+  - contract_id: capability_lifecycle_schema
+    ref: schemas/governance/capability_lifecycle.schema.json
+  - contract_id: claim_manifest_schema
+    ref: schemas/governance/claim_manifest.schema.json
+  - contract_id: claim_manifest_seed
+    ref: artifacts/governance/claim_manifest_seed.yaml
+  - contract_id: search_result_truth_schema
+    ref: schemas/search/search_result_truth.schema.json
+  - contract_id: entry_restore_result_schema
+    ref: schemas/workspace/entry_and_restore_result.schema.json
+  - contract_id: startup_state_copy_review
+    ref: artifacts/ux/startup_state_copy_review.yaml
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies re-exported for tooling discovery. Rows below MUST
+# quote exactly one value from each vocabulary.
+# ---------------------------------------------------------------------------
+
+truth_class_vocabulary:
+  - truth_class:user_authored_durable_truth
+  - truth_class:workspace_vcs_truth
+  - truth_class:runtime_observed_truth
+  - truth_class:derived_indexed_truth
+  - truth_class:session_collaboration_truth
+  - truth_class:ai_inferred_truth
+
+durability_posture_vocabulary:
+  - durable_local_and_opt_in_managed
+  - durable_local_vcs_owned
+  - point_in_time_observation
+  - derived_reproducible_from_inputs
+  - ephemeral_session_scoped
+  - provisional_inference
+
+degraded_state_token_vocabulary:
+  - degraded_state:warming
+  - degraded_state:cached
+  - degraded_state:partial
+  - degraded_state:stale
+  - degraded_state:offline
+  - degraded_state:policy_blocked
+  - degraded_state:limited
+  - degraded_state:unsupported
+  - degraded_state:experimental
+  - degraded_state:retest_pending
+
+required_copy_intent_vocabulary:
+  - name_the_warming_owner_and_expected_ready_signal
+  - name_the_age_class_and_last_known_good_time
+  - name_the_covered_scope_and_the_excluded_scope
+  - name_the_staleness_cause_and_refresh_route
+  - name_the_unreachable_owner_and_local_only_scope
+  - name_the_policy_or_kill_switch_source
+  - name_the_narrowing_reason_and_known_limit
+  - name_the_excluding_client_scope_or_profile
+  - name_the_preview_posture_and_experiment_row
+  - name_the_retrigger_and_refresh_gate
+
+recovery_expectation_vocabulary:
+  - show_progress_or_ready_signal
+  - offer_refresh_or_repair_route
+  - offer_expand_scope_or_finish_index_hook
+  - offer_resync_or_policy_explainer
+  - offer_retry_and_service_health_route
+  - offer_policy_explainer_or_admin_escalation
+  - offer_known_limit_note_or_narrow_repair
+  - offer_supported_surface_redirect
+  - offer_experiment_register_or_flag_policy
+  - offer_retest_trigger_or_reindex_route
+
+allowed_freshness_classes:
+  authoritative_live_allowed: [runtime_observed_truth, derived_indexed_truth]
+  warm_cached_allowed:        [runtime_observed_truth, derived_indexed_truth]
+  degraded_cached_allowed:    [runtime_observed_truth, derived_indexed_truth]
+  stale_allowed:              [runtime_observed_truth, derived_indexed_truth]
+  unverified_allowed:         [ai_inferred_truth]
+
+owner_family_vocabulary:
+  - owner_family:user_workspace_and_buffers
+  - owner_family:settings_and_user_preferences
+  - owner_family:vcs_working_tree_and_refs
+  - owner_family:runtime_probe_or_observer
+  - owner_family:index_or_generated_reference
+  - owner_family:docs_pack_or_mirrored_runbook
+  - owner_family:session_and_presence
+  - owner_family:ai_explanation_or_assistant
+
+# ---------------------------------------------------------------------------
+# Rows.
+# ---------------------------------------------------------------------------
+
+truth_class_rows:
+
+  - truth_class_row_id: truth_class_row:user_authored_durable_truth
+    truth_class_id: truth_class:user_authored_durable_truth
+    title: User-authored durable truth
+    durability_posture: durable_local_and_opt_in_managed
+    canonical_owner_family: owner_family:user_workspace_and_buffers
+    canonical_owner_artifact_refs:
+      - docs/governance/record_class_governance.md
+      - artifacts/governance/record_class_registry.yaml
+      - docs/workspace/entry_restore_object_model.md
+    examples:
+      - truth_example_id: example:user_buffer_contents
+        description: The bytes the user is currently editing in an open buffer.
+      - truth_example_id: example:user_settings_override
+        description: A user-applied setting override stored on local disk.
+      - truth_example_id: example:user_draft_note
+        description: A user-authored note or draft that persists across restarts.
+    labeling_rules:
+      - A surface rendering this class MUST NOT attach Warming, Cached, Stale, or Offline tokens; the row is either present on disk or it is not.
+      - Exports MUST preserve origin (user-authored) and MUST NOT collapse the row into a derived summary that erases authorship.
+      - Claim manifests MAY cite this class only through a governed boundary row; raw user content never becomes a public-facing claim.
+    allowed_degraded_state_tokens:
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+    forbidden_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:cached
+      - degraded_state:stale
+      - degraded_state:offline
+      - degraded_state:retest_pending
+    required_freshness_class: not_applicable
+    allowed_projection_channels:
+      - help_about
+      - support_export
+    forbidden_projection_channels:
+      - public_proof_packet
+      - marketplace_discovery
+    notes: >
+      Durable truth is its own ground; freshness tokens do not apply.
+      When the user's content is withheld (admin policy, boundary,
+      unsupported profile), the row degrades through policy_blocked,
+      limited, or unsupported rather than through a freshness token.
+
+  - truth_class_row_id: truth_class_row:workspace_vcs_truth
+    truth_class_id: truth_class:workspace_vcs_truth
+    title: Workspace and VCS truth
+    durability_posture: durable_local_vcs_owned
+    canonical_owner_family: owner_family:vcs_working_tree_and_refs
+    canonical_owner_artifact_refs:
+      - docs/workspace/entry_restore_object_model.md
+      - schemas/workspace/entry_and_restore_result.schema.json
+    examples:
+      - truth_example_id: example:working_tree_file
+        description: A file on disk in the working tree, whether tracked or untracked.
+      - truth_example_id: example:staged_change
+        description: A change staged in the VCS index awaiting commit.
+      - truth_example_id: example:branch_ref
+        description: A branch, tag, or other named ref on the local VCS.
+      - truth_example_id: example:submodule_pointer
+        description: A submodule pointer recorded in the parent VCS.
+    labeling_rules:
+      - Working-tree and VCS state MUST render with its VCS-owned identity; a surface MUST NOT flatten tracked and untracked rows into a single "file" chip.
+      - VCS state that requires out-of-process operations (fetch, pull, remote ref lookup) renders the Partial, Stale, or Offline tokens only for the network-dependent sub-row, never for the working tree itself.
+      - Claim rows that quote VCS state MUST preserve the ref identity (commit, branch, tag) the claim was evaluated against.
+    allowed_degraded_state_tokens:
+      - degraded_state:partial
+      - degraded_state:offline
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+      - degraded_state:retest_pending
+    forbidden_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:cached
+      - degraded_state:stale
+    required_freshness_class: not_applicable
+    allowed_projection_channels:
+      - help_about
+      - service_health
+      - support_export
+      - release_packet
+    forbidden_projection_channels:
+      - marketplace_discovery
+    notes: >
+      VCS rows are durable; the Stale token applies only to remote-
+      derived views (for example, a cached fetch of remote refs), which
+      should be split into a derived_indexed_truth row rather than
+      smuggled under a VCS label.
+
+  - truth_class_row_id: truth_class_row:runtime_observed_truth
+    truth_class_id: truth_class:runtime_observed_truth
+    title: Runtime-observed truth
+    durability_posture: point_in_time_observation
+    canonical_owner_family: owner_family:runtime_probe_or_observer
+    canonical_owner_artifact_refs:
+      - docs/runtime/
+      - docs/support/project_doctor_packet.md
+      - schemas/execution/context_snapshot.schema.json
+    examples:
+      - truth_example_id: example:process_status
+        description: Whether a named process, task runner, or dev server is running.
+      - truth_example_id: example:port_or_socket_state
+        description: Whether a port is bound or a socket is reachable right now.
+      - truth_example_id: example:filesystem_mount_state
+        description: Whether a mount, bind, or alias target is currently present.
+      - truth_example_id: example:service_health_ping
+        description: A single service-health probe result for one provider or endpoint.
+    labeling_rules:
+      - Every runtime observation MUST carry a capture timestamp and a freshness_class value; the capture timestamp MUST use the help_status_badge monotonic-timestamp format when crossing the RPC boundary.
+      - A degraded observation MUST render the typed degraded_state_cause from schemas/docs/help_status_badge.schema.json; a bare "unavailable" chip is forbidden.
+      - Surfaces that cache an observation (for example, a service-health tile holding a result through a back-off window) MUST render the Cached or Stale token rather than claiming authoritative_live.
+    allowed_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:cached
+      - degraded_state:partial
+      - degraded_state:stale
+      - degraded_state:offline
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+      - degraded_state:retest_pending
+    forbidden_degraded_state_tokens:
+      - degraded_state:experimental
+    required_freshness_class: must_carry_freshness_class
+    allowed_projection_channels:
+      - help_about
+      - service_health
+      - support_export
+      - release_packet
+      - public_proof_packet
+    forbidden_projection_channels:
+      - marketplace_discovery
+    notes: >
+      Runtime observations are the most common home for the Warming,
+      Cached, Stale, and Offline tokens. Because they are point-in-time,
+      the rendering surface MUST NOT promote an observation into a
+      durable claim; public copy should quote the observation together
+      with its capture time.
+
+  - truth_class_row_id: truth_class_row:derived_indexed_truth
+    truth_class_id: truth_class:derived_indexed_truth
+    title: Derived and indexed truth
+    durability_posture: derived_reproducible_from_inputs
+    canonical_owner_family: owner_family:index_or_generated_reference
+    canonical_owner_artifact_refs:
+      - docs/search/search_readiness_vocabulary.md
+      - artifacts/search/result_truth_labels.yaml
+      - docs/adr/0013-docs-help-service-health-truth.md
+    examples:
+      - truth_example_id: example:symbol_index_row
+        description: A symbol jumped to from an index built over the working tree.
+      - truth_example_id: example:search_result_set
+        description: A search result set produced against a possibly partial index.
+      - truth_example_id: example:generated_api_reference
+        description: Generated API reference rendered from compiled type information.
+      - truth_example_id: example:lockfile_derived_graph
+        description: A dependency graph derived from a lockfile or build output.
+      - truth_example_id: example:docs_pack_mirror
+        description: A docs pack mirrored from an upstream authoritative source.
+    labeling_rules:
+      - A derived row MUST carry (a) the owning index or generator identity and (b) a freshness_class token; stale or reindexing rows MUST also carry the typed partial/stale disclosure from search_result_truth where applicable.
+      - A derived row MUST NOT render as authoritative_live when its indexer has not been contacted within the row's refresh window.
+      - Exports MUST NOT relabel a derived row as durable; support bundles preserve the derived class and cite the source input set.
+    allowed_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:cached
+      - degraded_state:partial
+      - degraded_state:stale
+      - degraded_state:offline
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+      - degraded_state:experimental
+      - degraded_state:retest_pending
+    forbidden_degraded_state_tokens: []
+    required_freshness_class: must_carry_freshness_class
+    allowed_projection_channels:
+      - docs_site
+      - help_about
+      - service_health
+      - support_export
+      - release_packet
+      - release_notes
+      - cli_help
+      - evaluation_artifact
+      - public_proof_packet
+    forbidden_projection_channels:
+      - marketplace_discovery
+    notes: >
+      Derived rows are the main load-bearing class for docs, Help/About,
+      and search surfaces. Any time a public or support-facing card
+      reads "from the index", "from the generated reference", or "from
+      the cache", it is quoting this class.
+
+  - truth_class_row_id: truth_class_row:session_collaboration_truth
+    truth_class_id: truth_class:session_collaboration_truth
+    title: Session and collaboration truth
+    durability_posture: ephemeral_session_scoped
+    canonical_owner_family: owner_family:session_and_presence
+    canonical_owner_artifact_refs:
+      - docs/ux/attention_activity_taxonomy.md
+      - docs/ux/shell_interaction_safety_contract.md
+    examples:
+      - truth_example_id: example:focus_and_selection
+        description: Current focus, selection, or cursor position in a buffer or pane.
+      - truth_example_id: example:presence_or_cosession
+        description: Presence, co-edit cursors, and other collaborator-visible ephemeral state.
+      - truth_example_id: example:breadcrumb_trail
+        description: Navigation breadcrumbs and short-lived UI history.
+      - truth_example_id: example:unshared_window_state
+        description: Local pane layout or window state scoped to the current session.
+    labeling_rules:
+      - Session rows MUST NOT be promoted into a claim manifest, release-evidence packet, or support-export row without first being projected through a durable or derived owner.
+      - Surfaces that persist session rows (for example, a workspace restore) MUST re-label the restored row as workspace_vcs_truth or user_authored_durable_truth once the restore completes.
+      - A session row MUST NOT claim authoritative_live; its freshness is implicit in the session lifetime.
+    allowed_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:partial
+      - degraded_state:offline
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+    forbidden_degraded_state_tokens:
+      - degraded_state:cached
+      - degraded_state:stale
+      - degraded_state:experimental
+      - degraded_state:retest_pending
+    required_freshness_class: not_applicable
+    allowed_projection_channels:
+      - help_about
+    forbidden_projection_channels:
+      - docs_site
+      - release_packet
+      - release_notes
+      - evaluation_artifact
+      - public_proof_packet
+      - marketplace_discovery
+    notes: >
+      Session rows almost never appear on public surfaces. They surface
+      on Help/About only as diagnostic counts or as part of the
+      entry/restore copy flow; they never stand alone as a claim.
+
+  - truth_class_row_id: truth_class_row:ai_inferred_truth
+    truth_class_id: truth_class:ai_inferred_truth
+    title: AI-inferred truth
+    durability_posture: provisional_inference
+    canonical_owner_family: owner_family:ai_explanation_or_assistant
+    canonical_owner_artifact_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - schemas/docs/help_status_badge.schema.json
+    examples:
+      - truth_example_id: example:ai_explanation_overlay
+        description: An AI-generated explanation overlaid on a symbol, pane, or error.
+      - truth_example_id: example:assistant_answer
+        description: An answer produced by the assistant against the current workspace.
+      - truth_example_id: example:suggested_edit
+        description: A suggested edit, diff, or auto-fix proposed by a model.
+      - truth_example_id: example:risk_or_severity_estimate
+        description: An estimated severity, risk, or posture produced by a model.
+    labeling_rules:
+      - An AI-inferred row MUST cite at least one authoritative anchor from another truth class (user_authored_durable_truth, workspace_vcs_truth, runtime_observed_truth, or derived_indexed_truth) or a published claim_row; an uncited AI answer is non-conforming.
+      - An AI-inferred row MUST render with freshness_class = unverified unless it directly quotes an authoritative anchor, in which case the rendered freshness matches the anchor.
+      - An AI-inferred row MUST NOT become claim-bearing on its own; if an AI statement becomes public, it propagates through a claim_row whose evidence links include the AI output as packet_reference_only, not as the publication surface.
+    allowed_degraded_state_tokens:
+      - degraded_state:warming
+      - degraded_state:partial
+      - degraded_state:policy_blocked
+      - degraded_state:limited
+      - degraded_state:unsupported
+      - degraded_state:experimental
+      - degraded_state:retest_pending
+    forbidden_degraded_state_tokens:
+      - degraded_state:cached
+      - degraded_state:stale
+      - degraded_state:offline
+    required_freshness_class: must_be_unverified_unless_anchored
+    allowed_projection_channels:
+      - help_about
+      - support_export
+    forbidden_projection_channels:
+      - docs_site
+      - release_packet
+      - release_notes
+      - evaluation_artifact
+      - public_proof_packet
+      - marketplace_discovery
+    notes: >
+      AI-inferred rows are provisional. They are allowed on the AI
+      explanation overlay and, redacted, on support exports; they are
+      forbidden on public-proof and marketplace-facing surfaces unless
+      first published through a claim row whose evidence links include
+      a non-AI anchor.
+
+# ---------------------------------------------------------------------------
+# Degraded-state catalog. One row per frozen degraded_state_token, naming
+# required copy intent, recovery expectation, upstream vocabulary
+# composition, and forbidden generic copy. Surfaces read this catalog by
+# id and MUST NOT invent additional tokens or copy replacements.
+# ---------------------------------------------------------------------------
+
+degraded_state_catalog:
+
+  - degraded_state_row_id: degraded_state_row:warming
+    degraded_state_token: degraded_state:warming
+    title: Warming
+    meaning: Owner is not yet ready; this is the first-reach-for state, not a failure.
+    required_copy_intent: name_the_warming_owner_and_expected_ready_signal
+    recovery_expectation: show_progress_or_ready_signal
+    freshness_composition:
+      freshness_class_when_rendered: warm_cached
+      notes: Warming rows quote warm_cached rather than authoritative_live because the owner has not confirmed readiness.
+    lifecycle_composition:
+      lifecycle_state_allowed:
+        - labs
+        - preview
+        - beta
+        - stable
+        - lts_facing
+      service_contract_state_allowed:
+        - ready
+        - degraded
+        - local_only
+    forbidden_generic_copy:
+      - error
+      - unavailable
+      - temporarily unavailable
+      - loading
+      - having trouble
+    applies_to_truth_classes:
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:cached
+    degraded_state_token: degraded_state:cached
+    title: Cached
+    meaning: A prior successful reach is shown while the owner is unreachable or not yet re-contacted.
+    required_copy_intent: name_the_age_class_and_last_known_good_time
+    recovery_expectation: offer_refresh_or_repair_route
+    freshness_composition:
+      freshness_class_when_rendered: warm_cached_or_degraded_cached
+      notes: The surface picks warm_cached inside the refresh window and degraded_cached beyond it; authoritative_live is forbidden.
+    lifecycle_composition:
+      lifecycle_state_allowed:
+        - labs
+        - preview
+        - beta
+        - stable
+        - lts_facing
+      service_contract_state_allowed:
+        - ready
+        - degraded
+        - local_only
+        - stale
+    forbidden_generic_copy:
+      - error
+      - unavailable
+      - temporarily unavailable
+      - offline
+    applies_to_truth_classes:
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+
+  - degraded_state_row_id: degraded_state_row:partial
+    degraded_state_token: degraded_state:partial
+    title: Partial
+    meaning: Only part of the requested scope is present; the rest is missing or not yet computed.
+    required_copy_intent: name_the_covered_scope_and_the_excluded_scope
+    recovery_expectation: offer_expand_scope_or_finish_index_hook
+    freshness_composition:
+      freshness_class_when_rendered: warm_cached_or_degraded_cached
+      notes: Partial composes with search readiness partial_index and with context_snapshot.stale_inputs disclosures.
+    lifecycle_composition:
+      service_contract_state_allowed:
+        - ready
+        - degraded
+        - local_only
+    forbidden_generic_copy:
+      - error
+      - failed
+      - unavailable
+    applies_to_truth_classes:
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:stale
+    degraded_state_token: degraded_state:stale
+    title: Stale
+    meaning: A prior value is shown past its freshness floor.
+    required_copy_intent: name_the_staleness_cause_and_refresh_route
+    recovery_expectation: offer_resync_or_policy_explainer
+    freshness_composition:
+      freshness_class_when_rendered: stale
+      notes: Stale maps directly onto freshness_class=stale in the badge vocabulary.
+    lifecycle_composition:
+      service_contract_state_allowed:
+        - degraded
+        - stale
+        - local_only
+    forbidden_generic_copy:
+      - error
+      - unavailable
+      - temporarily unavailable
+      - out of date
+    applies_to_truth_classes:
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+
+  - degraded_state_row_id: degraded_state_row:offline
+    degraded_state_token: degraded_state:offline
+    title: Offline
+    meaning: Owner is unreachable and the surface has fallen back to local-only truth.
+    required_copy_intent: name_the_unreachable_owner_and_local_only_scope
+    recovery_expectation: offer_retry_and_service_health_route
+    freshness_composition:
+      freshness_class_when_rendered: degraded_cached_or_stale
+      notes: Offline composes with the local_only and unavailable service-contract states.
+    lifecycle_composition:
+      service_contract_state_allowed:
+        - local_only
+        - degraded
+        - unavailable
+    forbidden_generic_copy:
+      - error
+      - unavailable
+      - temporarily unavailable
+      - try again
+    applies_to_truth_classes:
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+
+  - degraded_state_row_id: degraded_state_row:policy_blocked
+    degraded_state_token: degraded_state:policy_blocked
+    title: PolicyBlocked
+    meaning: Row is withheld by admin policy, kill switch, or deployment-profile rule.
+    required_copy_intent: name_the_policy_or_kill_switch_source
+    recovery_expectation: offer_policy_explainer_or_admin_escalation
+    freshness_composition:
+      freshness_class_when_rendered: not_applicable
+      notes: Policy blocks are orthogonal to freshness; the surface MUST NOT fabricate a freshness token to describe a policy decision.
+    lifecycle_composition:
+      lifecycle_state_allowed:
+        - disabled_by_policy
+      service_contract_state_allowed:
+        - policy_blocked
+    forbidden_generic_copy:
+      - error
+      - failed
+      - unavailable
+      - not allowed
+    applies_to_truth_classes:
+      - truth_class:user_authored_durable_truth
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:limited
+    degraded_state_token: degraded_state:limited
+    title: Limited
+    meaning: Row is narrower than the declared claim for a non-policy reason (evidence narrower, scope reduced, feature gated).
+    required_copy_intent: name_the_narrowing_reason_and_known_limit
+    recovery_expectation: offer_known_limit_note_or_narrow_repair
+    freshness_composition:
+      freshness_class_when_rendered: not_applicable
+      notes: Limited composes with claim_posture=limited and with the required_evidence_narrower_than_claim / known_limit_missing / compatibility_row_degraded downgrade triggers.
+    lifecycle_composition:
+      service_contract_state_allowed:
+        - degraded
+        - local_only
+        - contract_mismatch
+    forbidden_generic_copy:
+      - error
+      - failed
+      - unavailable
+    applies_to_truth_classes:
+      - truth_class:user_authored_durable_truth
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:unsupported
+    degraded_state_token: degraded_state:unsupported
+    title: Unsupported
+    meaning: Row applies to a client-scope, platform, or deployment profile that excludes the rendering surface.
+    required_copy_intent: name_the_excluding_client_scope_or_profile
+    recovery_expectation: offer_supported_surface_redirect
+    freshness_composition:
+      freshness_class_when_rendered: not_applicable
+      notes: Unsupported composes with client_scope_excludes_surface and with the capability lifecycle denial_reason of the same name.
+    lifecycle_composition:
+      lifecycle_state_allowed:
+        - labs
+        - preview
+        - beta
+        - stable
+        - lts_facing
+        - deprecated
+      service_contract_state_allowed:
+        - contract_mismatch
+        - unavailable
+    forbidden_generic_copy:
+      - error
+      - failed
+      - unavailable
+      - not supported
+    applies_to_truth_classes:
+      - truth_class:user_authored_durable_truth
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:experimental
+    degraded_state_token: degraded_state:experimental
+    title: Experimental
+    meaning: Row is behind a preview/labs posture and may narrow further.
+    required_copy_intent: name_the_preview_posture_and_experiment_row
+    recovery_expectation: offer_experiment_register_or_flag_policy
+    freshness_composition:
+      freshness_class_when_rendered: not_applicable
+      notes: Experimental composes with lifecycle_state in {labs, preview} and with claim_posture=experimental.
+    lifecycle_composition:
+      lifecycle_state_allowed:
+        - labs
+        - preview
+      service_contract_state_allowed:
+        - ready
+        - degraded
+        - local_only
+    forbidden_generic_copy:
+      - error
+      - unavailable
+      - beta
+      - work in progress
+    applies_to_truth_classes:
+      - truth_class:derived_indexed_truth
+      - truth_class:ai_inferred_truth
+
+  - degraded_state_row_id: degraded_state_row:retest_pending
+    degraded_state_token: degraded_state:retest_pending
+    title: RetestPending
+    meaning: Prior evidence was invalidated (rebuild, re-index, policy change); row is awaiting re-verification.
+    required_copy_intent: name_the_retrigger_and_refresh_gate
+    recovery_expectation: offer_retest_trigger_or_reindex_route
+    freshness_composition:
+      freshness_class_when_rendered: unverified_or_stale
+      notes: RetestPending rows MUST NOT claim authoritative_live while the retest is still pending.
+    lifecycle_composition:
+      service_contract_state_allowed:
+        - degraded
+        - stale
+        - local_only
+    forbidden_generic_copy:
+      - error
+      - failed
+      - unavailable
+      - retrying
+    applies_to_truth_classes:
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:ai_inferred_truth
+
+# ---------------------------------------------------------------------------
+# Forbidden generic-copy catalog shared across tokens. Protected surfaces
+# render a typed degraded_state_token and the required copy intent; they
+# MUST NOT substitute the strings below when a more precise state is
+# knowable.
+# ---------------------------------------------------------------------------
+
+forbidden_generic_copy_on_protected_paths:
+  - error
+  - failure
+  - failed
+  - unavailable
+  - temporarily unavailable
+  - having trouble
+  - loading
+  - offline
+  - try again
+  - out of date
+  - beta
+  - work in progress
+  - not allowed
+  - not supported
+  - retrying

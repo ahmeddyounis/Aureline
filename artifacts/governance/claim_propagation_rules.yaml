@@ -1,0 +1,492 @@
+# Claim-propagation rules.
+#
+# Machine-readable companion to
+#   docs/governance/truth_and_degraded_state_vocabulary.md
+#   artifacts/governance/truth_class_matrix.yaml
+#
+# This file freezes how a single row's truth class and degraded-state
+# token propagate across Help/About, service health, Start Center,
+# docs, support exports, claim manifests, and release evidence. It is
+# the worst-supporting-truth-wins composition rule expressed as data.
+#
+# Propagation consumers (docs, support-bundle builder, Help/About
+# projection, service-health aggregator, claim-manifest validator,
+# release-evidence gate, Start Center copy-review) read this file by
+# id so none of them invents a private propagation dialect or a
+# generic "error/unavailable" fallback.
+#
+# Conformance:
+#   - Every row conforms to the matrix_schema below.
+#   - Tokens quote the frozen vocabularies in
+#     artifacts/governance/truth_class_matrix.yaml; no new tokens land
+#     here.
+#   - Adding a rule is additive-minor and lands in this file, the
+#     vocabulary doc, and (if a new channel) the claim-manifest
+#     publication-channels list in the same change. Repurposing an
+#     existing rule is breaking and opens a new decision row.
+#
+# If this file and docs/governance/truth_and_degraded_state_
+# vocabulary.md disagree, the vocabulary doc wins and this file
+# updates in the same change.
+
+claim_propagation_rules_schema_version: 1
+
+overview_doc_ref: docs/governance/truth_and_degraded_state_vocabulary.md
+truth_class_matrix_ref: artifacts/governance/truth_class_matrix.yaml
+claim_manifest_schema_ref: schemas/governance/claim_manifest.schema.json
+claim_manifest_seed_ref: artifacts/governance/claim_manifest_seed.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+help_status_badge_schema_ref: schemas/docs/help_status_badge.schema.json
+destination_descriptor_seed_ref: artifacts/docs/destination_descriptor_seed.yaml
+drift_rules_ref: docs/governance/drift_blocking_rules.md
+startup_state_copy_review_ref: artifacts/ux/startup_state_copy_review.yaml
+
+# ---------------------------------------------------------------------------
+# Worst-supporting-truth-wins composition rule.
+#
+# When a visible row composes over several contributing rows (capability
+# lifecycle, docs-pack version-match, service-health ping, claim row,
+# compatibility row, version-skew row), the rendered degraded-state
+# token is the WORST of the contributing tokens under the ordering
+# below. Surfaces MUST render the leftmost token that applies and MUST
+# NOT widen; narrower is admissible.
+#
+# Strength ordering (rightmost = strongest):
+#   authoritative_live <
+#     degraded_state:warming <
+#     degraded_state:cached <
+#     degraded_state:retest_pending <
+#     degraded_state:partial <
+#     degraded_state:stale <
+#     degraded_state:offline <
+#     degraded_state:experimental <
+#     degraded_state:limited <
+#     degraded_state:unsupported <
+#     degraded_state:policy_blocked
+# ---------------------------------------------------------------------------
+
+composition_rule:
+  rule_id: composition_rule:worst_supporting_truth_wins
+  ordering:
+    - authoritative_live
+    - degraded_state:warming
+    - degraded_state:cached
+    - degraded_state:retest_pending
+    - degraded_state:partial
+    - degraded_state:stale
+    - degraded_state:offline
+    - degraded_state:experimental
+    - degraded_state:limited
+    - degraded_state:unsupported
+    - degraded_state:policy_blocked
+  tie_break:
+    - prefer_policy_blocked_over_evidence_downgrade
+    - prefer_unsupported_over_experimental_when_client_scope_excludes_surface
+    - prefer_offline_over_stale_when_owner_unreachable
+  override_rules:
+    - override_id: override:claim_narrower_than_copy
+      trigger: required_evidence_narrower_than_claim
+      enforced_token: degraded_state:limited
+      enforcement: fail_closed
+      notes: >
+        When a claim row's evidence is narrower than the canonical copy,
+        every downstream channel renders Limited regardless of the
+        composed freshness. This mirrors the claim-manifest
+        narrower_than_claim_mode = downgrade_claim posture.
+    - override_id: override:kill_switch_tripped
+      trigger: dependency_kill_switch_tripped
+      enforced_token: degraded_state:policy_blocked
+      enforcement: fail_closed
+      notes: >
+        A tripped kill switch forces PolicyBlocked regardless of any
+        other downgrade; surfaces cite the kill-switch source.
+    - override_id: override:support_window_expired
+      trigger: support_window_expired
+      enforced_token: degraded_state:limited
+      enforcement: fail_closed
+      notes: >
+        Claim posture drops to replacement_grade (mapped to Limited)
+        when the support window ends; channels cite the replacement
+        row.
+
+# ---------------------------------------------------------------------------
+# Channel propagation rules. Each rule binds a surface to the truth
+# classes it may project, the degraded-state tokens it MUST preserve,
+# the required copy intents, and the required route channels when the
+# token is below authoritative_live.
+# ---------------------------------------------------------------------------
+
+channel_rules:
+
+  - channel_rule_id: channel_rule:help_about
+    channel_id: help_about
+    surface_family:
+      - help_about
+    owner_lane: docs_public_truth
+    allowed_truth_classes:
+      - truth_class:user_authored_durable_truth
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+    required_projection_fields:
+      - truth_class_id
+      - degraded_state_token
+      - freshness_class_when_degraded
+      - required_copy_intent
+      - recovery_route_ref
+      - claim_row_id_when_claim_bearing
+    forbidden_generic_copy_on_this_channel:
+      - error
+      - unavailable
+      - temporarily unavailable
+      - having trouble
+      - try again
+    propagation_rule:
+      - All ten degraded-state tokens MUST be renderable on Help/About; no row is allowed to collapse into a generic chip.
+      - Every degraded row MUST name the degraded_state_cause from schemas/docs/help_status_badge.schema.json.
+      - Capability cards render truth_class_id (runtime_observed_truth or derived_indexed_truth) together with the worst-supporting token.
+    upstream_contract_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - schemas/docs/help_status_badge.schema.json
+
+  - channel_rule_id: channel_rule:service_health
+    channel_id: service_health
+    surface_family:
+      - service_health
+    owner_lane: docs_public_truth
+    allowed_truth_classes:
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+    required_projection_fields:
+      - truth_class_id
+      - service_contract_state
+      - degraded_state_token
+      - degraded_state_cause
+      - last_contact_timestamp
+      - recovery_route_ref
+    forbidden_generic_copy_on_this_channel:
+      - error
+      - failure
+      - unavailable
+      - temporarily unavailable
+      - having trouble
+      - try again
+    propagation_rule:
+      - Service health emits service_contract_state from the help_status_badge enum and MUST pair it with the degraded_state_token from this matrix.
+      - A per-feature "available" / "having trouble" chip is forbidden; all rows quote the aggregator.
+      - Warming, Cached, Stale, Offline, PolicyBlocked, and Unsupported are the only tokens service health may render; Experimental, Limited, and RetestPending must route to Help/About or docs for narrative context.
+    upstream_contract_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - schemas/docs/help_status_badge.schema.json
+
+  - channel_rule_id: channel_rule:start_center
+    channel_id: start_center
+    surface_family:
+      - onboarding
+      - help_about
+    owner_lane: docs_public_truth
+    allowed_truth_classes:
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+    required_projection_fields:
+      - truth_class_id
+      - startup_state_row_id
+      - degraded_state_token
+      - required_copy_intent
+      - next_safe_action_hook
+      - blocked_capability_token_refs
+      - recovery_ladder_rung_ref
+    forbidden_generic_copy_on_this_channel:
+      - loading
+      - try again
+      - error
+      - unavailable
+    propagation_rule:
+      - Start Center rows MUST quote startup_state_row_id from artifacts/ux/startup_state_copy_review.yaml together with the degraded_state_token here.
+      - Warming, Partial, Offline, Unsupported, and PolicyBlocked are the most common Start Center tokens; RetestPending applies when a workspace restore is re-verifying.
+      - Rows MUST assert overclaims_readiness=false and MUST cite at least one recovery_ladder_rung_ref.
+    upstream_contract_refs:
+      - docs/ux/entry_restore_truth_audit.md
+      - artifacts/ux/startup_state_copy_review.yaml
+
+  - channel_rule_id: channel_rule:docs
+    channel_id: docs_site
+    surface_family:
+      - docs_pane
+      - docs_browser
+    owner_lane: docs_public_truth
+    allowed_truth_classes:
+      - truth_class:derived_indexed_truth
+    required_projection_fields:
+      - truth_class_id
+      - source_class
+      - version_match_state
+      - freshness_class
+      - degraded_state_token
+      - citation_anchor_refs
+    forbidden_generic_copy_on_this_channel:
+      - out of date
+      - failed
+      - unavailable
+    propagation_rule:
+      - Docs rows project derived_indexed_truth and MUST render source_class + version_match_state + freshness_class from the help_status_badge vocabulary.
+      - A stale, version-mismatched, or partial docs pack MUST render the degraded_state_token here AND the corresponding badge state; it MUST NOT collapse into "out of date".
+      - Mirror-continuity and signature-verification failures project as Stale or RetestPending respectively, not as generic errors.
+    upstream_contract_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - schemas/docs/help_status_badge.schema.json
+
+  - channel_rule_id: channel_rule:support_export
+    channel_id: support_export
+    surface_family:
+      - support_summary
+    owner_lane: support_export
+    allowed_truth_classes:
+      - truth_class:user_authored_durable_truth
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+      - truth_class:session_collaboration_truth
+      - truth_class:ai_inferred_truth
+    required_projection_fields:
+      - truth_class_id
+      - degraded_state_token
+      - degraded_state_cause
+      - claim_row_id_when_claim_bearing
+      - evidence_links
+      - known_limit_refs
+      - exclusion_note_refs
+    forbidden_generic_copy_on_this_channel:
+      - error
+      - failure
+      - unavailable
+      - try again
+    propagation_rule:
+      - Every exported row MUST preserve its originating truth_class_id; derived rows MUST NOT be relabeled as durable.
+      - Every degraded export row MUST preserve the degraded_state_token and the degraded_state_cause that the exporting surface computed at capture time.
+      - AI-inferred rows in support exports MUST carry their cited anchors; uncited AI rows MUST be redacted or dropped.
+      - When a claim row is cited, the support export MUST mirror the effective_claim_posture and MUST NOT widen.
+    upstream_contract_refs:
+      - docs/support/support_bundle_contract.md
+      - schemas/governance/claim_manifest.schema.json
+
+  - channel_rule_id: channel_rule:claim_manifest
+    channel_id: claim_manifest
+    surface_family:
+      - claim_manifest_packet
+    owner_lane: release_evidence
+    allowed_truth_classes:
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+    required_projection_fields:
+      - claim_row_id
+      - effective_claim_posture
+      - active_downgrade_reasons
+      - degraded_state_token
+      - evidence_links
+      - known_limit_refs
+      - exclusion_note_refs
+    forbidden_generic_copy_on_this_channel:
+      - error
+      - temporarily unavailable
+    propagation_rule:
+      - effective_claim_posture maps onto the degraded-state tokens as: claim_bearing->authoritative_live; experimental->Experimental; limited->Limited; policy_disabled->PolicyBlocked; replacement_grade->Limited (with replacement_claim_row_ref cited); seed_only->Limited; withdrawn->PolicyBlocked.
+      - Missing, stale, or narrower evidence MUST drive declared_claim_posture down to the effective posture via active_downgrade_reasons; silent preservation of claim-bearing copy is forbidden.
+      - user_authored_durable_truth MUST NOT be a direct evidence source for a claim row; it must be projected through a boundary manifest or workspace-governance row first.
+      - ai_inferred_truth MUST NOT be a required evidence link; it may appear only as packet_reference_only evidence.
+    upstream_contract_refs:
+      - schemas/governance/claim_manifest.schema.json
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+
+  - channel_rule_id: channel_rule:release_evidence
+    channel_id: release_packet
+    surface_family:
+      - release_packet
+      - release_notes
+      - evaluation_artifact
+      - public_proof_packet
+    owner_lane: release_evidence
+    allowed_truth_classes:
+      - truth_class:workspace_vcs_truth
+      - truth_class:runtime_observed_truth
+      - truth_class:derived_indexed_truth
+    required_projection_fields:
+      - claim_row_id
+      - effective_claim_posture
+      - degraded_state_token
+      - evidence_links
+      - exact_build_identity_refs
+      - known_limit_refs
+    forbidden_generic_copy_on_this_channel:
+      - error
+      - unavailable
+      - temporarily unavailable
+    propagation_rule:
+      - Release packets fail closed when the row-level degraded_state_token is stronger than what the copy admits.
+      - Stale, Partial, Cached, or RetestPending evidence MUST surface on the claim-bearing row with an explicit token; preservation of "current proof" wording is forbidden while the upstream token is stronger than authoritative_live.
+      - Public-proof packets MAY only publish claim_bearing rows whose composed token is authoritative_live or Warming; all other tokens route through release_notes or support_export instead.
+      - Out-of-scope for M0: coverage extends to seeded rows; widening to every future release claim lands as additive work in the claim-manifest seed.
+    upstream_contract_refs:
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/certified_archetype_report_template.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+
+# ---------------------------------------------------------------------------
+# Cross-channel composition examples. These examples are non-normative
+# but illustrate the composition rule for reviewers and are re-used by
+# later fixture corpora. Each example names the contributing tokens,
+# the worst-supporting token, and the resulting copy intent per
+# channel.
+# ---------------------------------------------------------------------------
+
+composition_examples:
+
+  - example_id: composition_example:docs_pack_stale_and_offline_ping
+    contributing_tokens:
+      capability_lifecycle_freshness: warm_cached
+      docs_pack_version_match: compatible_minor_drift
+      service_health_ping: degraded_state:offline
+      claim_row_posture: claim_bearing
+      compatibility_row_posture: not_applicable
+    worst_supporting_token: degraded_state:offline
+    rendered_copy_intent_by_channel:
+      help_about: name_the_unreachable_owner_and_local_only_scope
+      service_health: name_the_unreachable_owner_and_local_only_scope
+      docs_site: name_the_staleness_cause_and_refresh_route
+      support_export: name_the_unreachable_owner_and_local_only_scope
+    notes: >
+      When the service-health ping is Offline while docs are merely
+      warm-cached, the composed token is Offline; docs narrow to a
+      stale-copy disclosure while Help/About and service health name
+      the unreachable owner.
+
+  - example_id: composition_example:claim_row_narrower_than_copy
+    contributing_tokens:
+      capability_lifecycle_freshness: authoritative_live
+      docs_pack_version_match: exact_build_match
+      service_health_ping: degraded_state:warming
+      claim_row_posture: limited
+      compatibility_row_posture: compat_row_degraded
+    worst_supporting_token: degraded_state:limited
+    rendered_copy_intent_by_channel:
+      help_about: name_the_narrowing_reason_and_known_limit
+      service_health: name_the_warming_owner_and_expected_ready_signal
+      docs_site: name_the_narrowing_reason_and_known_limit
+      support_export: name_the_narrowing_reason_and_known_limit
+      claim_manifest: name_the_narrowing_reason_and_known_limit
+      release_packet: name_the_narrowing_reason_and_known_limit
+    notes: >
+      claim_row limited + compatibility row degraded forces Limited on
+      all publication channels, overriding the service-health Warming
+      chip, which remains Warming locally but does not widen the
+      published row.
+
+  - example_id: composition_example:ai_explanation_without_anchor
+    contributing_tokens:
+      capability_lifecycle_freshness: authoritative_live
+      ai_overlay_anchor: none
+      derived_index_freshness: warm_cached
+      claim_row_posture: claim_bearing
+    worst_supporting_token: degraded_state:limited
+    rendered_copy_intent_by_channel:
+      help_about: name_the_narrowing_reason_and_known_limit
+      support_export: name_the_narrowing_reason_and_known_limit
+    notes: >
+      An AI-inferred row without an authoritative anchor forces Limited
+      on any surface where it would otherwise compose into a claim-
+      bearing chip; the AI answer is never claim-bearing on its own
+      and the surface cites the missing anchor as the narrowing
+      reason.
+
+  - example_id: composition_example:policy_blocked_absorbs_all
+    contributing_tokens:
+      capability_lifecycle_freshness: authoritative_live
+      kill_switch_state: tripped
+      docs_pack_version_match: exact_build_match
+      claim_row_posture: claim_bearing
+    worst_supporting_token: degraded_state:policy_blocked
+    rendered_copy_intent_by_channel:
+      help_about: name_the_policy_or_kill_switch_source
+      service_health: name_the_policy_or_kill_switch_source
+      docs_site: name_the_policy_or_kill_switch_source
+      support_export: name_the_policy_or_kill_switch_source
+      claim_manifest: name_the_policy_or_kill_switch_source
+      release_packet: name_the_policy_or_kill_switch_source
+    notes: >
+      Kill-switch trip forces PolicyBlocked on every channel regardless
+      of other tokens; surfaces cite the kill-switch source row.
+
+  - example_id: composition_example:retest_pending_after_reindex
+    contributing_tokens:
+      capability_lifecycle_freshness: warm_cached
+      docs_pack_version_match: exact_build_match
+      index_rebuild_state: in_progress
+      claim_row_posture: claim_bearing
+    worst_supporting_token: degraded_state:retest_pending
+    rendered_copy_intent_by_channel:
+      help_about: name_the_retrigger_and_refresh_gate
+      service_health: name_the_age_class_and_last_known_good_time
+      docs_site: name_the_retrigger_and_refresh_gate
+      support_export: name_the_retrigger_and_refresh_gate
+    notes: >
+      A re-index in progress sets RetestPending; claim rows keep their
+      declared posture but render the retest token until the new
+      evidence lands.
+
+# ---------------------------------------------------------------------------
+# Forbidden generic-copy gate shared by every channel rule above.
+# Protected surfaces MUST quote a typed degraded_state_token and
+# required_copy_intent; substituting the strings below when a more
+# precise state is known is non-conforming.
+# ---------------------------------------------------------------------------
+
+forbidden_generic_copy_gate:
+  enforced_on_channels:
+    - help_about
+    - service_health
+    - start_center
+    - docs_site
+    - support_export
+    - claim_manifest
+    - release_packet
+    - release_notes
+    - evaluation_artifact
+    - public_proof_packet
+  forbidden_strings:
+    - error
+    - failure
+    - failed
+    - unavailable
+    - temporarily unavailable
+    - having trouble
+    - loading
+    - offline
+    - try again
+    - out of date
+    - beta
+    - work in progress
+    - not allowed
+    - not supported
+    - retrying
+  enforcement_notes:
+    - When the more precise state is not yet known (seed gap), the surface renders unresolved_axis and routes to the owning repair hook.
+    - Enforcement consumers read this gate alongside docs/governance/drift_blocking_rules.md; a mismatch between rendered copy and the composed token is a release_blocking_overclaim finding.
+
+# ---------------------------------------------------------------------------
+# Out-of-scope reminder. M0 scope is vocabulary + matrix + propagation
+# rules. Wiring every runtime surface to this propagation rule set is
+# out of scope for M00-138; each surface's own freeze/work item must
+# reference this file and the truth_class_matrix.yaml id set as it
+# lands.
+# ---------------------------------------------------------------------------
+
+out_of_scope_for_m0:
+  - wiring_every_runtime_surface_to_this_vocabulary
+  - generating_rendered_badges_from_the_matrix
+  - auto_deriving_composition_tokens_from_live_capability_rows
