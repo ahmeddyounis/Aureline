@@ -1,0 +1,603 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/write_intent.schema.json",
+  "title": "Aureline settings write-intent and change-preview packet",
+  "description": "Boundary schema for the settings write-intent and change-preview packet every Aureline surface emits when a setting is proposed for write, previewed, approved, applied, or rolled back. See docs/adr/0008-settings-definition-and-effective-configuration-resolver.md and docs/settings/schema_registry_seed.md. One packet shape flows between the resolver and every producer (settings UI, JSONC file save, CLI settings edit/import, command palette, AI apply, extension API, profile import, optional sync, admin policy injector, workspace migration, automation harness) and every consumer (preview UI, approval UI, mutation-journal renderer, support-bundle exporter, audit stream, migration center). The packet names the proposed value, the target scope, the typed reason class, the typed write intent, the typed denial reason, the checkpoint and approval handles, the no-silent-scope-broadening verdict, and the redaction class applied on export. Raw secret material never appears; credential_alias values carry aliases only (ADR-0007). The eventual settings crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new top-level field, a new reason class, or an additional enum value is additive-minor and bumps settings_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/write_intent_packet" },
+    { "$ref": "#/$defs/change_preview_packet" }
+  ],
+  "$defs": {
+    "settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this write-intent/change-preview vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "write_intent_packet",
+        "change_preview_packet"
+      ],
+      "description": "Discriminator for the concrete payload shape. A write_intent_packet states the proposed scope, reason, and verdict; a change_preview_packet pairs a write_intent_packet with a before/after preview and the checkpoint/approval handles it produced."
+    },
+
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id. MUST match a setting-definition row after alias redirection; the resolver denies writes to unknown ids with setting_unknown_at_registry."
+    },
+
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_or_command_override",
+        "admin_policy_narrowing"
+      ],
+      "description": "Frozen scope id. See schemas/settings/effective_setting.schema.json#/$defs/scope_id."
+    },
+
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "user_edit",
+        "profile_apply",
+        "import",
+        "sync",
+        "policy",
+        "automation"
+      ],
+      "description": "Frozen reason class for a settings write intent. 'user_edit' is any interactive user write (keystroke, command, palette, AI 'apply' acknowledged by the user). 'profile_apply' is a profile-switch action. 'import' is a profile import or legacy-tool import. 'sync' is the optional-sync lane pulling or pushing a value. 'policy' is an admin-policy injector write; admin-policy writes MUST target the admin_policy_narrowing scope. 'automation' is an extension-API, CI, or agent write that was not initiated by a direct user keystroke. Adding a reason class is additive-minor and bumps settings_schema_version."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "imported_profile",
+        "workspace_migration",
+        "admin_policy_injector",
+        "experiment_rollout",
+        "session_override",
+        "extension_api",
+        "ai_apply"
+      ],
+      "description": "Frozen actor class. Mirrors the effective-setting record so the mutation journal and audit stream share one vocabulary."
+    },
+
+    "write_intent_verdict": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_restart",
+        "allowed_with_preview",
+        "allowed_with_rollback_checkpoint",
+        "allowed_with_rollback_checkpoint_and_approval",
+        "allowed_requires_approval_ticket",
+        "denied"
+      ],
+      "description": "Frozen write-intent verdict. Mirrors schemas/settings/effective_setting.schema.json#/$defs/write_intent."
+    },
+
+    "write_denial_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "scope_not_allowed_for_setting",
+        "scope_broadening_would_widen_trust",
+        "policy_locked_value",
+        "policy_constrained_value",
+        "capability_dependency_unmet",
+        "preview_required_not_acknowledged",
+        "rollback_checkpoint_not_created",
+        "approval_ticket_missing",
+        "restart_required_not_acknowledged",
+        "validation_failed",
+        "setting_unknown_at_registry",
+        "setting_retired",
+        "managed_mode_only",
+        "read_only_surface"
+      ],
+      "description": "Frozen denial-reason vocabulary. 'none' pairs with verdict != denied."
+    },
+
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "safe_apply",
+        "preview_required",
+        "rollback_checkpoint_required",
+        "rollback_checkpoint_and_approval_required",
+        "managed_action_only"
+      ],
+      "description": "Preview/rollback posture copied from the setting-definition row. The resolver gates the verdict against this class."
+    },
+
+    "restart_posture": {
+      "type": "string",
+      "enum": [
+        "no_restart",
+        "reload_view",
+        "reload_workspace",
+        "restart_extensions",
+        "restart_process",
+        "reopen_workspace"
+      ],
+      "description": "Declared restart posture copied from the setting-definition row."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction class copied from the setting-definition row and applied to value_preview fields."
+    },
+
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "presented",
+        "acknowledged",
+        "dismissed",
+        "expired"
+      ],
+      "description": "Lifecycle state of the preview flow. 'expired' fires when a preview acknowledgement is older than the resolver's preview TTL and must be re-presented."
+    },
+
+    "apply_state": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "awaiting_preview",
+        "awaiting_checkpoint",
+        "awaiting_approval",
+        "ready_to_apply",
+        "applied",
+        "rolled_back",
+        "denied",
+        "withdrawn"
+      ],
+      "description": "Lifecycle state of the write-intent packet itself. 'proposed' is the first state; 'withdrawn' is set when the initiator cancels before apply; 'denied' is set when the resolver refuses; 'applied' pairs with a mutation_journal_ref; 'rolled_back' pairs with a rollback_checkpoint_ref that has been restored."
+    },
+
+    "widening_vector": {
+      "type": "string",
+      "enum": [
+        "none",
+        "workspace_trust",
+        "ai_egress",
+        "network_egress",
+        "extension_permission",
+        "managed_entitlement",
+        "credential_exposure",
+        "allowed_scope_set"
+      ],
+      "description": "Frozen widening-vector vocabulary. Names which dimension a scope-broadening attempt would widen. 'none' pairs with would_widen_trust=false. Any non-'none' value with verdict != denied is a resolver bug; the conformance corpus MUST catch it."
+    },
+
+    "scope_broadening_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_widen_trust",
+        "widening_vector"
+      ],
+      "properties": {
+        "would_widen_trust": {
+          "type": "boolean",
+          "description": "True when the proposed write would silently widen workspace trust, AI egress, network egress, permissions, managed entitlement, credential exposure, or the declared allowed-scope set. Any true verdict MUST pair with write_intent_verdict=denied and write_denial_reason=scope_broadening_would_widen_trust."
+        },
+        "widening_vector": { "$ref": "#/$defs/widening_vector" },
+        "narrowing_ceiling_intersected": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the proposed value would be capped by an active admin-policy narrowing ceiling; the resolver records the interaction so the support lane and AI 'Explain why' affordance can render the full trace without re-deriving it."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note on the scope-broadening outcome. Redacted per ADR-0007; never carries raw secret material."
+        }
+      },
+      "description": "Frozen no-silent-scope-broadening verdict. Mirrors the scope-broadening rule in ADR 0008 Section 'Scope-broadening rule (frozen)'."
+    },
+
+    "value_preview_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_preview_kind"],
+      "properties": {
+        "value_preview_kind": {
+          "type": "string",
+          "enum": [
+            "literal_value",
+            "redacted_shape_preserved",
+            "class_label_only",
+            "excluded_from_export",
+            "credential_alias_only",
+            "absent"
+          ],
+          "description": "How the value preview was produced. 'absent' pairs with value_present=false. 'credential_alias_only' carries the broker alias; never raw secret bytes."
+        },
+        "value_preview": {
+          "description": "The preview payload, typed per the setting-definition value_type and redacted per the setting's redaction_class. Absent when value_preview_kind is absent or excluded_from_export."
+        },
+        "class_label": {
+          "type": ["string", "null"],
+          "description": "Class label used when value_preview_kind is class_label_only (for example, 'secret_present_ai_provider_token'). Never carries raw secret material."
+        },
+        "credential_alias_ref": {
+          "type": ["string", "null"],
+          "description": "Broker alias handle copied in when value_preview_kind is credential_alias_only."
+        }
+      },
+      "description": "One value-preview payload. The write-intent packet uses this shape for the old value, the new value, and (when the setting is array_of or object) the delta preview."
+    },
+
+    "change_preview_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delta_kind"],
+      "properties": {
+        "delta_kind": {
+          "type": "string",
+          "enum": [
+            "no_change",
+            "scalar_replace",
+            "enum_reselect",
+            "array_append_only",
+            "array_remove_only",
+            "array_reorder_only",
+            "array_mixed",
+            "object_field_replace",
+            "object_field_add",
+            "object_field_remove",
+            "object_mixed",
+            "credential_alias_swap",
+            "redacted_structural"
+          ],
+          "description": "Frozen delta-kind vocabulary. 'redacted_structural' fires when the setting's redaction_class prevents a field-level diff; the packet still names the structural shape so the preview UI can render the diff as 'N fields changed (redacted)' without inventing a parallel format."
+        },
+        "field_diff_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field_path", "change_kind"],
+            "properties": {
+              "field_path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Dotted path into the value for object/tagged_union settings. Empty string for top-level scalar settings."
+              },
+              "change_kind": {
+                "type": "string",
+                "enum": ["added", "removed", "replaced", "reordered", "redacted"]
+              },
+              "old_preview": {
+                "anyOf": [
+                  { "$ref": "#/$defs/value_preview_shape" },
+                  { "type": "null" }
+                ]
+              },
+              "new_preview": {
+                "anyOf": [
+                  { "$ref": "#/$defs/value_preview_shape" },
+                  { "type": "null" }
+                ]
+              }
+            }
+          },
+          "description": "Per-field diff rows. Empty for scalar settings whose delta_kind is scalar_replace or no_change."
+        },
+        "summary": {
+          "type": ["string", "null"],
+          "description": "One-sentence summary rendered above the diff affordance. Redacted per ADR-0007."
+        }
+      },
+      "description": "Structured change preview describing the shape of the proposed change. Surfaces render this block into the reset/diff affordance; they do not invent a parallel diff format."
+    },
+
+    "checkpoint_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_required", "approval_required"],
+      "properties": {
+        "checkpoint_required": {
+          "type": "boolean",
+          "description": "True when the setting's preview_class is rollback_checkpoint_required or rollback_checkpoint_and_approval_required."
+        },
+        "approval_required": {
+          "type": "boolean",
+          "description": "True when the setting's preview_class is rollback_checkpoint_and_approval_required or the resolver flagged the intent for managed_action_only under a non-managed identity."
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the rollback checkpoint created before apply. MUST be non-null when checkpoint_required is true and apply_state is ready_to_apply or applied."
+        },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0007 approval ticket bound to this setting, target scope, and operation. MUST be non-null when approval_required is true and apply_state is ready_to_apply or applied."
+        },
+        "approval_ticket_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "workspace_trust_change",
+            "ai_egress_widen",
+            "network_egress_widen",
+            "extension_permission_widen",
+            "managed_entitlement_change",
+            "credential_binding_change",
+            "schema_pin_change",
+            "policy_epoch_change",
+            null
+          ],
+          "description": "ADR-0007 approval-ticket class the ticket matches. The resolver refuses apply when the ticket class does not match the proposed operation."
+        },
+        "restart_required_acknowledged": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the user has acknowledged the declared restart posture. Non-no_restart postures MUST acknowledge before apply_state=ready_to_apply."
+        }
+      },
+      "description": "Frozen checkpoint/approval block. The resolver populates the handles; surfaces never mint their own."
+    },
+
+    "write_intent_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "packet_id",
+        "setting_id",
+        "target_scope",
+        "reason_class",
+        "actor_class",
+        "proposed_value",
+        "write_intent",
+        "write_denial_reason",
+        "preview_class",
+        "restart_posture",
+        "scope_broadening_verdict",
+        "checkpoint",
+        "apply_state",
+        "redaction_class",
+        "proposed_at",
+        "schema_version"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "write_intent_packet"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "packet_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable id for this write-intent packet. Reused by the matching change_preview_packet, by audit events, and by the mutation-journal entry produced on apply."
+        },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "alias_redirected_from": {
+          "type": ["string", "null"],
+          "description": "Legacy id the initiator asked for when a redirect fired; null if the initiator asked for the canonical id directly."
+        },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "initiator_surface": {
+          "type": ["string", "null"],
+          "enum": [
+            "settings_ui",
+            "jsonc_save",
+            "cli_settings_edit",
+            "command_palette",
+            "ai_apply",
+            "extension_api",
+            "profile_import",
+            "optional_sync",
+            "admin_policy_injector",
+            "workspace_migration",
+            "automation_harness",
+            null
+          ],
+          "description": "Named surface that produced the intent. Used by audit events and the mutation-journal renderer; never minted on the fly."
+        },
+        "proposed_value": {
+          "$ref": "#/$defs/value_preview_shape",
+          "description": "Proposed new value, typed per the setting-definition row and redacted per the setting's redaction_class. credential_alias values carry aliases only."
+        },
+        "current_effective_preview": {
+          "anyOf": [
+            { "$ref": "#/$defs/value_preview_shape" },
+            { "type": "null" }
+          ],
+          "description": "Snapshot of the currently effective value at proposal time. Null when the setting had no prior effective value."
+        },
+        "current_resolved_scope": {
+          "anyOf": [
+            { "$ref": "#/$defs/scope_id" },
+            { "type": "null" }
+          ],
+          "description": "Scope that won at proposal time; null when the setting had no prior effective value."
+        },
+        "effective_setting_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle pointing at the effective-setting record read at proposal time. Lets consumers fetch the full shadow chain without re-resolving."
+        },
+        "write_intent": { "$ref": "#/$defs/write_intent_verdict" },
+        "write_denial_reason": { "$ref": "#/$defs/write_denial_reason" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "scope_broadening_verdict": { "$ref": "#/$defs/scope_broadening_verdict" },
+        "checkpoint": { "$ref": "#/$defs/checkpoint_block" },
+        "preview_state": {
+          "anyOf": [
+            { "$ref": "#/$defs/preview_state" },
+            { "type": "null" }
+          ],
+          "description": "Current preview-flow state. Null is equivalent to not_required."
+        },
+        "apply_state": { "$ref": "#/$defs/apply_state" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "proposed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the packet was created."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the packet's preview / approval acknowledgement expires; null if not bounded."
+        },
+        "mutation_journal_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle into the ADR-0006 mutation journal for the applied write. MUST be non-null when apply_state=applied."
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The setting-definition schema version this packet targets (copied from the registry). Distinct from settings_schema_version, which versions this envelope."
+        },
+        "migration_applied": {
+          "type": ["string", "null"],
+          "description": "from_version of the migration row the resolver applied when normalising the proposed value; null when no migration ran."
+        },
+        "policy_epoch": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Policy epoch in effect at proposal time."
+        },
+        "trust_state": {
+          "type": ["string", "null"],
+          "enum": ["restricted", "trusted", null],
+          "description": "ADR-0001 workspace trust state at proposal time."
+        },
+        "identity_mode": {
+          "type": ["string", "null"],
+          "enum": ["account_free_local", "self_hosted_org", "managed_convenience", null],
+          "description": "ADR-0001 identity mode at proposal time."
+        },
+        "workspace_scope_ref": {
+          "type": ["string", "null"],
+          "description": "Stable workspace scope id (ADR-0005) for intents bound to a workspace."
+        },
+        "remote_scope_context": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "remote_session_id": { "type": "string", "minLength": 1 },
+            "remote_source_label": { "type": "string", "minLength": 1 }
+          },
+          "description": "Present when the intent targets a remote-agent workspace; names the remote session and the remote-side source label."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material."
+        }
+      },
+      "description": "One write-intent packet. Emitted when any surface proposes a setting write; carried through preview, approval, apply, and rollback states by the resolver."
+    },
+
+    "change_preview_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_schema_version",
+        "packet_id",
+        "write_intent_ref",
+        "setting_id",
+        "target_scope",
+        "change_preview_delta",
+        "old_value",
+        "new_value",
+        "preview_state",
+        "checkpoint",
+        "preview_class",
+        "restart_posture",
+        "redaction_class",
+        "scope_broadening_verdict",
+        "presented_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "change_preview_packet"
+        },
+        "settings_schema_version": { "$ref": "#/$defs/settings_schema_version" },
+        "packet_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque stable id for this change-preview packet. Distinct from the write-intent packet_id it references so preview re-issues do not collide."
+        },
+        "write_intent_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "packet_id of the write_intent_packet this preview presents."
+        },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "old_value": {
+          "$ref": "#/$defs/value_preview_shape",
+          "description": "Value-preview shape for the currently effective value at preview time."
+        },
+        "new_value": {
+          "$ref": "#/$defs/value_preview_shape",
+          "description": "Value-preview shape for the proposed value."
+        },
+        "change_preview_delta": { "$ref": "#/$defs/change_preview_delta" },
+        "preview_state": { "$ref": "#/$defs/preview_state" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "checkpoint": { "$ref": "#/$defs/checkpoint_block" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "scope_broadening_verdict": { "$ref": "#/$defs/scope_broadening_verdict" },
+        "shadow_chain_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle pointing at the shadow chain the preview was computed against. Lets the preview UI render the 'show source' affordance without re-resolving."
+        },
+        "explain_why_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle the 'Explain why' affordance resolves against the resolver. Mirrors the effective-setting control-stack field."
+        },
+        "presented_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic stamp the preview was presented."
+        },
+        "acknowledged_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Monotonic stamp the preview was acknowledged; null when preview_state is presented, dismissed, expired, or not_required."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the acknowledgement expires and the preview must be re-presented; null if not bounded."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Short human-readable note. Redacted per ADR-0007; never carries raw secret material."
+        }
+      },
+      "description": "One change-preview packet. Pairs with a write_intent_packet and carries the before/after value preview, the structured delta, and the checkpoint/approval handles surfaced before apply."
+    }
+  }
+}

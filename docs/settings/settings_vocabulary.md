@@ -25,6 +25,22 @@ must be updated in the same change.
   — boundary schema for the effective-setting record and the
   structured settings audit event. One record flows between the
   resolver and every consumer surface.
+- [`/schemas/settings/write_intent.schema.json`](../../schemas/settings/write_intent.schema.json)
+  — boundary schema for the write-intent packet and the
+  change-preview packet. Names the typed `reason_class`
+  (`user_edit`, `profile_apply`, `import`, `sync`, `policy`,
+  `automation`), the `scope_broadening_verdict`, the
+  `checkpoint` block (rollback checkpoint and approval ticket
+  refs), and the structured change-preview delta every
+  preview, apply, and rollback surface reads.
+- [`/docs/settings/schema_registry_seed.md`](./schema_registry_seed.md)
+  — schema registry publishing contract. Names `$id` / version URI
+  conventions, the unknown-field policy, the JSONC
+  comment-preservation posture, the migration-alias retention
+  window, the in-product row-anatomy mapping (source pill, lock /
+  explain state, reset / diff affordance, deep-link and
+  search-highlight behaviour), and the release-diff rules the
+  eventual distribution service reads.
 - [`/artifacts/architecture/settings_tradeoff_rows.yaml`](../../artifacts/architecture/settings_tradeoff_rows.yaml)
   — machine-readable tradeoff register (nine axes, per-row reopen
   triggers) backing the ADR.
