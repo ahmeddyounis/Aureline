@@ -1,0 +1,98 @@
+# Skew-smoke seed case: rollback to a prior channel/build on one host.
+#
+# Companion to docs/release/skew_smoke_packet.md. Projects onto
+# schemas/release/compatibility_row.schema.json, the install-topology
+# matrix, and the state-root map via the refs below.
+
+schema_version: 1
+record_kind: skew_smoke_case_record
+skew_case_id: skew_case:release.rollback.prior_channel_build_compatible
+
+surface_class: downgrade_upgrade_rollback
+skew_state_class: compatible
+outcome_label_class: rollback_applied
+blocked_vs_degraded_class: not_applicable_compatible
+promotion_decision_class: promote
+
+scenario_summary: >
+  A user or operator rolls back from a newer build to a previously
+  installed build of the same channel, or pivots across channels via
+  a rollback-reinstall flow. Durable state roots, recent-item
+  registration, and update markers remain owned by the expected
+  channel because the install-topology matrix pinned them disjoint;
+  authored work is preserved and no cross-channel state merge is
+  introduced.
+
+preconditions:
+  - >
+    boundary.build.exact_build_identity_propagation holds: the target
+    build resolves to a coordinated artifact set, not a version-only
+    fallback.
+  - >
+    state_root_map separation rules are honoured: the rolled-back
+    channel owns its original state roots; no other channel silently
+    claims them.
+  - >
+    The rollback transaction is reversible: the prior build remains
+    available for a re-roll-forward if the user requests it.
+
+compatibility_row_ref: compat_row:release_identity.exact_build_propagation
+version_skew_register_ref: skew_case:release_identity.same_artifact_set
+
+install_topology_refs:
+  - artifacts/release/install_topology_matrix.yaml
+  - artifacts/release/state_root_map.yaml
+  - artifacts/release/artifact_family_map.yaml
+  - artifacts/release/promotion_gate_map.yaml
+
+state_migration_refs: []
+helper_agent_refs: []
+
+support_packet_routing_classes:
+  - exact_build_support
+  - rollback_review
+  - compatibility_report
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+
+capability_impact_classes:
+  - background_rebuild
+  - session_restore_auto_reopen
+
+recovery_rung_ref: null
+
+explanation_fields:
+  user_facing_summary: >
+    The prior build is restored. Authored files, trust, credentials,
+    managed policy, and the session-restore store stay untouched;
+    derived indexes and auto-reopen refresh once the rolled-back
+    build is running.
+  compatibility_report_summary: >
+    The compatibility report records a supported rollback against the
+    exact-build-propagation row; the coordinated artifact set keeps
+    binaries, symbols, docs/help, and release-evidence rows resolving
+    through one identity chain.
+  support_summary: >
+    Support exports route through the exact-build support family and
+    the rollback-review family so debug symbols and release-evidence
+    linkage stay available for both the pre-rollback and post-rollback
+    build identities.
+  promotion_summary: >
+    Rollback-compatible is promote-eligible. Release evidence cites
+    the prior and target exact_build_identity refs and the rollback
+    atom reference from the artifact-family map.
+
+notes: >
+  This case pairs with side_by_side_stable_preview_coexist on the
+  install-topology lane and with state_migration_old_to_new_additive
+  on the state-schema lane. Together they cover the happy-path
+  upgrade/downgrade/rollback triangle.
+emitted_at: "2026-04-23T00:00:00Z"

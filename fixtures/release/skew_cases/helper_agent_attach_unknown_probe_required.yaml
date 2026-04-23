@@ -1,0 +1,91 @@
+# Skew-smoke seed case: helper/agent attach with a client outside the declared adjacent window but inside the same major line.
+#
+# Companion to docs/release/skew_smoke_packet.md. Pins the "unknown
+# requires probe" branch of the skew_state_class vocabulary so the
+# packet cannot silently widen support when diagnosis has not
+# converged.
+
+schema_version: 1
+record_kind: skew_smoke_case_record
+skew_case_id: skew_case:release.helper_agent_attach.unknown_probe_required
+
+surface_class: helper_agent_attach
+skew_state_class: unknown_requires_probe
+outcome_label_class: probe_required
+blocked_vs_degraded_class: unknown_requires_probe
+promotion_decision_class: pending_probe
+
+scenario_summary: >
+  A remote agent and client share the same major line but the client
+  sits outside the declared adjacent support window. The packet
+  refuses to label the combination supported, degraded, or blocked
+  until a probe runs; diagnostics, compatibility report, and release
+  evidence all render the combination as unknown rather than
+  guessing.
+
+preconditions:
+  - >
+    boundary.remote.agent_attach_envelope is referenced, but the
+    declared adjacent window is exceeded on at least one axis
+    (protocol floor, WIT version, or permission vocabulary).
+  - >
+    No probe has produced converging diagnostics; Doctor confidence
+    remains unknown_requires_probe.
+  - >
+    The surface MUST NOT advertise a supported or a no-go verdict
+    before the probe lands.
+
+compatibility_row_ref: compat_row:remote.attach_envelope_and_drift
+version_skew_register_ref: skew_case:remote.attach_beyond_adjacent_same_major
+
+install_topology_refs: []
+state_migration_refs: []
+
+helper_agent_refs:
+  - boundary.remote.agent_attach_envelope
+
+support_packet_routing_classes:
+  - exact_build_support
+  - compatibility_report
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+
+capability_impact_classes:
+  - remote_helper_attach
+  - ai_runtime_access
+  - managed_control_plane_writes
+
+recovery_rung_ref: null
+
+explanation_fields:
+  user_facing_summary: >
+    The current client and agent pairing is outside the declared
+    adjacent window but inside the same major line. Attach is not
+    claimed as supported, degraded, or blocked yet; a probe will
+    decide before the surface widens.
+  compatibility_report_summary: >
+    The compatibility report records the combination as untested
+    against the remote attach row; outside-window posture is
+    degraded pending the probe rather than a silent fail_closed or
+    an inferred best_effort.
+  support_summary: >
+    Support exports route through the exact-build support family and
+    carry the agent/client version and capability intersection so the
+    probe has full context; no claim of workable attach is recorded.
+  promotion_summary: >
+    Promotion is held pending probe. Release evidence MUST cite this
+    skew case and MUST NOT promote the combination until a compatible,
+    degraded, or blocked verdict lands.
+
+notes: >
+  This case exists to prove that the skew-smoke packet names unknown
+  requires probe as a first-class state rather than collapsing it
+  into degraded or blocked when diagnostics have not yet converged.
+emitted_at: "2026-04-23T00:00:00Z"

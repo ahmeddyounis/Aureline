@@ -1,0 +1,88 @@
+# Skew-smoke seed case: side-by-side install, stable and preview channels coexist.
+#
+# Companion to docs/release/skew_smoke_packet.md. Projects onto
+# schemas/release/compatibility_row.schema.json via the
+# compatibility_row_ref named below; does not introduce a new schema.
+
+schema_version: 1
+record_kind: skew_smoke_case_record
+skew_case_id: skew_case:release.side_by_side.stable_preview_coexist
+
+surface_class: side_by_side_install
+skew_state_class: compatible
+outcome_label_class: side_by_side_coexist_ok
+blocked_vs_degraded_class: not_applicable_compatible
+promotion_decision_class: promote
+
+scenario_summary: >
+  One host runs the stable channel and the preview channel at the same
+  time. Each channel owns its own durable state roots, update markers,
+  recent-item registration, file associations, and deep-link handlers.
+  No cross-channel state merge is implied; both channels remain
+  claim-bearing on their own install-profile cards.
+
+preconditions:
+  - >
+    boundary.deployment.profile_truth holds: both channels cite one
+    shared install_topology_matrix install_profile_card revision.
+  - >
+    state_root_map pins disjoint owning_channels for every
+    durable_state_root_class touched by both channels, so no state
+    root is co-owned.
+  - >
+    side_by_side_relation_class on both install-profile cards is one
+    of the published non-none values (for example
+    channel_major_coexistence), not silently escalated to none.
+
+compatibility_row_ref: compat_row:deployment_profiles.boundary_manifest_truth
+version_skew_register_ref: skew_case:deployment_profiles.shared_profile_ids_and_drill_refs
+
+install_topology_refs:
+  - artifacts/release/install_topology_matrix.yaml#install_profile_card:stable
+  - artifacts/release/install_topology_matrix.yaml#install_profile_card:preview
+  - artifacts/release/state_root_map.yaml
+
+state_migration_refs: []
+helper_agent_refs: []
+
+support_packet_routing_classes:
+  - exact_build_support
+  - compatibility_report
+
+preserved_state_classes:
+  - user_authored_files
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+
+capability_impact_classes: []
+
+recovery_rung_ref: null
+
+explanation_fields:
+  user_facing_summary: >
+    Stable and preview channels run side by side. Each channel keeps
+    its own settings, layout, session-restore store, and file
+    associations; nothing is merged across channels.
+  compatibility_report_summary: >
+    The compatibility report keeps one row per channel sharing the
+    deployment-profile vocabulary; both channels report compatible
+    skew against the other because state roots and update markers are
+    explicitly disjoint.
+  support_summary: >
+    Support exports stay in the exact-build support family for whichever
+    channel produced the bundle; no cross-channel redaction rewrite is
+    required because no state is shared.
+  promotion_summary: >
+    Side-by-side coexistence is promote-eligible. The release packet
+    cites one install_profile_card per channel and both rows land in
+    the compatibility report without narrowing claims.
+
+notes: >
+  This case is the default smoke posture for install-topology reviews
+  that describe side-by-side channel install. It pins the state-root
+  separation rule rather than re-inventing a cross-channel merge
+  policy.
+emitted_at: "2026-04-23T00:00:00Z"

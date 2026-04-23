@@ -1,0 +1,95 @@
+# Skew-smoke seed case: state migration, newer profile/layout schema presented to an older binary.
+#
+# Companion to docs/release/skew_smoke_packet.md. Projects onto
+# schemas/state/restore_provenance.schema.json and
+# schemas/release/compatibility_row.schema.json via the refs below.
+
+schema_version: 1
+record_kind: skew_smoke_case_record
+skew_case_id: skew_case:release.state_schema.new_to_old_blocked
+
+surface_class: state_schema_migration
+skew_state_class: blocked
+outcome_label_class: downgrade_blocked_newer_schema
+blocked_vs_degraded_class: blocked_hard_stop
+promotion_decision_class: no_go
+
+scenario_summary: >
+  An older binary attempts to read profile and layout state produced
+  by a newer binary outside the additive schema epoch it can
+  interpret. The surface refuses to mutate user truth, prefers an
+  explicit read-only or restore-declined fallback, and hands off to
+  the open-without-restore recovery rung so authored work is
+  preserved.
+
+preconditions:
+  - >
+    boundary.profile.portable_profile_and_layout_restore window is
+    exceeded: the producer's schema epoch is newer than the consumer's
+    additive tolerance.
+  - >
+    restore_provenance_record fidelity_label MUST NOT claim compatible
+    or exact; the surface chooses manual_review or declines restore
+    rather than silently downgrading.
+  - >
+    Excluded authoritative state (secrets, live handles, admin-owned
+    overrides) MUST remain untouched regardless of restore outcome.
+
+compatibility_row_ref: compat_row:state.profile_layout_schema
+version_skew_register_ref: skew_case:state.profile_excluded_or_admin_owned_treated_as_portable
+
+install_topology_refs: []
+
+state_migration_refs:
+  - fixtures/state/migration_cases/support_bundle_manual_review_workspace_conflict.json
+  - fixtures/state/migration_cases/layout_restore_layout_only_missing_dependencies.json
+  - schemas/state/restore_provenance.schema.json
+
+helper_agent_refs: []
+
+support_packet_routing_classes:
+  - exact_build_support
+  - advisory_or_revocation
+
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - workspace_trust_store
+  - credential_store
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+
+capability_impact_classes:
+  - session_restore_auto_reopen
+  - background_rebuild
+  - ai_runtime_access
+
+recovery_rung_ref: recovery_action:open_without_restore.session_restore_declined
+
+explanation_fields:
+  user_facing_summary: >
+    The older build cannot safely read the newer profile and layout
+    state. Authored work is preserved, session restore is declined,
+    and the user is offered an explicit open-without-restore path
+    instead of a silent partial restore.
+  compatibility_report_summary: >
+    The compatibility report marks the combination unsupported under
+    the profile_layout_schema row; outside-window posture is
+    explicitly_unsupported rather than degraded, so the report does
+    not imply a supported downgrade.
+  support_summary: >
+    Support exports route through the exact-build support family and
+    MAY route to advisory/revocation if the older build is still
+    live. The support bundle preserves authored truth and documents
+    the declined restore.
+  promotion_summary: >
+    The case is no-go for any release path that would promote the
+    older build as newer-schema compatible. Release wording and the
+    shiproom packet MUST cite this skew case and route through the
+    advisory or revocation lane described in the release-posture ADR.
+
+notes: >
+  This case is the mirror of old_to_new_additive. It pins the fail-
+  closed direction so downgrade copy does not silently widen.
+emitted_at: "2026-04-23T00:00:00Z"
