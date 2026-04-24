@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=../../../schemas/governance/capability_lifecycle.schema.json
+__fixture__:
+  name: forbidden_stable_with_no_support
+  classification: forbidden
+  scenario: >
+    A rendered badge attempts to claim lifecycle_state = stable
+    while support_class = no_support. Per the capability-axis
+    matrix this is a contradiction. Either the support class
+    MUST narrow (to best_effort or community_supported) and be
+    rendered, or the lifecycle state MUST narrow to deprecated
+    with a populated deprecation_window and a replacement_ref.
+    A conformance checker reading this fixture asserts the
+    expected_denial_reason and routes to the required repair
+    hook.
+  matrix_doc_ref: docs/governance/capability_axis_matrix.md
+  matrix_yaml_ref: artifacts/governance/capability_badge_axes.yaml
+  capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+
+axes:
+  axis:lifecycle_state:
+    declared: stable
+    effective: stable
+  axis:support_class:
+    declared: no_support
+    effective: no_support
+  axis:release_channel:
+    declared: stable_channel
+    effective: stable_channel
+  axis:client_scope:
+    declared:
+      - desktop_product
+    effective:
+      - desktop_product
+  axis:freshness_class:
+    effective: authoritative_live
+  axis:certified_archetype_status:
+    effective: not_applicable
+  axis:dependency_markers:
+    effective:
+      - no_live_markers
+
+forbidden_combinations_exercised:
+  - forbidden_id: forbidden:lifecycle_stable_with_no_support
+    enforcement: fail_closed
+    expected_denial_reason: claim_effective_state_below_declared
+    required_repair_hook_kind:
+      - migrate_to_replacement
+      - request_managed_access
+    reason: >
+      stable + no_support is a contradiction. The renderer
+      MUST either narrow lifecycle to deprecated with a
+      deprecation window and replacement_ref, or narrow
+      support_class to best_effort or community_supported
+      and cite the narrowing marker.
+
+rendered_on_channels:
+  product_surface:
+    expected_outcome: render_refused_and_unresolved_axis_emitted
+  docs:
+    expected_outcome: render_refused_and_unresolved_axis_emitted
+  support_export:
+    expected_outcome: export_emits_denial_reason_without_fabricated_chip
+  claim_manifest:
+    expected_outcome: fail_closed_until_axes_resolve_or_claim_narrows
+  compatibility_report:
+    expected_outcome: row_blocked_pending_support_class_repair
+  about_service_health:
+    expected_outcome: render_refused_and_unresolved_axis_emitted

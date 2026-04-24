@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=../../../schemas/governance/capability_lifecycle.schema.json
+__fixture__:
+  name: client_scope_excluded_on_cli
+  classification: allowed
+  scenario: >
+    A stable capability whose declared_client_scopes is
+    {desktop_product} rendered on the CLI client surface. The
+    rendering surface is NOT in effective_client_scopes, so the
+    surface MUST render a tombstone with typed reason_code =
+    client_scope_excludes_surface and a repair_hook_ref routed
+    through the supported surface. No positive lifecycle chip
+    is admissible on the excluded surface. This fixture
+    exercises downgrade:client_scope_excluded.
+  matrix_doc_ref: docs/governance/capability_axis_matrix.md
+  matrix_yaml_ref: artifacts/governance/capability_badge_axes.yaml
+  capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+
+axes:
+  axis:lifecycle_state:
+    declared: stable
+    effective: stable
+  axis:support_class:
+    declared: standard_support
+    effective: standard_support
+  axis:release_channel:
+    declared: stable_channel
+    effective: stable_channel
+  axis:client_scope:
+    declared:
+      - desktop_product
+    effective:
+      - desktop_product
+    rendering_surface: cli
+    rendering_surface_in_effective_scopes: false
+  axis:freshness_class:
+    effective: authoritative_live
+  axis:certified_archetype_status:
+    effective: not_applicable
+  axis:dependency_markers:
+    effective:
+      - marker_kind: client_scope_restricted_dependency
+        effect_on_parent: narrows_effective_client_scope
+        reason_code: client_scope_excludes_surface
+        repair_hook_kind: request_managed_access
+
+rendered_on_channels:
+  product_surface:
+    axes_rendered:
+      - axis:client_scope
+      - axis:dependency_markers
+    render_posture: tombstone_with_typed_reason
+    worst_supporting_axis: axis:client_scope
+    expected_copy_intent: name_the_excluding_client_scope_or_profile
+  docs:
+    axes_rendered:
+      - axis:client_scope
+      - axis:dependency_markers
+    render_posture: redirect_to_supported_surface
+    worst_supporting_axis: axis:client_scope
+    expected_copy_intent: name_the_excluding_client_scope_or_profile
+  support_export:
+    axes_rendered:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:certified_archetype_status
+      - axis:dependency_markers
+    worst_supporting_axis: axis:client_scope
+    expected_copy_intent: preserve_excluded_scope_and_tombstone_disclosure
+  claim_manifest:
+    effective_claim_posture: claim_refused_on_excluded_surface
+    active_downgrade_reasons:
+      - client_scope_excludes_surface
+  compatibility_report:
+    current_state: unsupported
+    freshness_state: current
+  about_service_health:
+    service_contract_state: contract_mismatch
+    degraded_state_token: degraded_state:unsupported
+
+forbidden_combinations_exercised:
+  - negated_id: forbidden:client_scope_excluded_rendered_as_available
+    assertion: tombstone_rendered_rather_than_positive_lifecycle_token

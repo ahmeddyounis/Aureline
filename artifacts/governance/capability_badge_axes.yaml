@@ -1,0 +1,936 @@
+# Capability / support-class / channel / client-scope / freshness /
+# certified-archetype / dependency-marker axis matrix.
+#
+# Machine-readable companion to
+#   docs/governance/capability_axis_matrix.md
+#
+# Every badge-bearing surface in Aureline (settings rows, bundle cards,
+# command palette and install review entries, provider-linked feature
+# rows, docs / help / service-health panes, support-export lines,
+# claim-manifest entries, compatibility and certified-archetype report
+# rows, About packets) renders SEVEN independent axes. Each axis has
+# its own frozen vocabulary. A generic "available" / "unavailable" or
+# "stable" / "beta" chip that collapses two or more axes into a single
+# label is forbidden; every surface either quotes one value per axis or
+# renders unresolved_axis and routes to the owning repair hook.
+#
+# Upstream contracts (re-exported, not re-minted):
+#   - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+#   - schemas/governance/capability_lifecycle.schema.json
+#     (lifecycle_state, support_class, release_channel,
+#      freshness_class, client_scope, marker_kind,
+#      effect_on_parent, reason_code, denial_reason)
+#   - docs/adr/0013-docs-help-service-health-truth.md
+#   - schemas/docs/help_status_badge.schema.json
+#     (source_class, version_match_state, service_contract_state,
+#      degraded_state_cause, surface_class)
+#   - schemas/release/compatibility_row.schema.json
+#     (current_state: supported / best_effort / untested / degraded /
+#      unsupported; compatibility-row support_class:
+#      certified / supported / community / experimental)
+#   - schemas/governance/claim_manifest.schema.json
+#   - artifacts/governance/truth_class_matrix.yaml
+#   - artifacts/governance/claim_propagation_rules.yaml
+#
+# Conformance:
+#   - Every axis row below names one re-exported vocabulary. Adding a
+#     token to a re-exported vocabulary is an upstream schema bump and
+#     MUST land there first, not here.
+#   - Adding a new axis is additive-minor here, in the companion doc,
+#     and in every badge-propagation consumer in the same change.
+#   - Repurposing an axis value is breaking and opens a new decision row.
+#
+# If this file and docs/governance/capability_axis_matrix.md disagree,
+# the companion doc wins and this file updates in the same change.
+
+capability_badge_axes_schema_version: 1
+
+overview_doc_ref: docs/governance/capability_axis_matrix.md
+capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+capability_lifecycle_adr_ref: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+help_status_badge_schema_ref: schemas/docs/help_status_badge.schema.json
+help_badge_vocabulary_ref: artifacts/docs/help_badge_vocabulary.yaml
+compatibility_row_schema_ref: schemas/release/compatibility_row.schema.json
+compatibility_report_template_ref: docs/release/compatibility_report_template.md
+certified_archetype_template_ref: docs/release/certified_archetype_report_template.md
+claim_manifest_schema_ref: schemas/governance/claim_manifest.schema.json
+claim_manifest_seed_ref: artifacts/governance/claim_manifest_seed.yaml
+claim_propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
+truth_class_matrix_ref: artifacts/governance/truth_class_matrix.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+drift_blocking_rules_ref: docs/governance/drift_blocking_rules.md
+
+# ---------------------------------------------------------------------------
+# The seven frozen axes. Every capability badge renders exactly one value
+# per axis (the dependency-marker axis renders zero or more marker entries
+# plus an explicit no_live_markers sentinel). Collapsing two axes into a
+# single label is forbidden.
+# ---------------------------------------------------------------------------
+
+axes:
+
+  - axis_id: axis:lifecycle_state
+    ordinal: 1
+    short_label: Lifecycle
+    question_answered: >
+      What readiness posture has the owning lane declared for this
+      capability, independent of whether the shipping build carries
+      the declaration on a release channel?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/lifecycle_state
+    values:
+      - labs
+      - preview
+      - beta
+      - stable
+      - lts_facing
+      - deprecated
+      - disabled_by_policy
+      - retired
+    narrowing_rule: >
+      effective_lifecycle_state is the monotonic meet of
+      declared_lifecycle_state and every live dependency marker's
+      contribution (schema: capability_lifecycle_row_record).
+      Surfaces MUST render effective_lifecycle_state when it
+      differs from declared_lifecycle_state and cite the narrowing
+      marker. preview -> labs is admissible when announced on the
+      capability_lifecycle audit stream.
+    unresolved_token: unresolved_axis:lifecycle_state
+    required_copy_when_narrowed: name_the_narrowing_marker_and_effective_state
+    forbidden_collapses:
+      - collapses_onto_release_channel
+      - collapses_onto_support_class
+      - collapses_onto_freshness_class
+
+  - axis_id: axis:support_class
+    ordinal: 2
+    short_label: Support
+    question_answered: >
+      What tier of support does the owning lane commit to for this
+      capability, independent of lifecycle readiness and independent
+      of certified-archetype report posture?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/support_class
+    values:
+      - best_effort
+      - community_supported
+      - standard_support
+      - extended_support
+      - operator_only_support
+      - no_support
+    compatibility_row_support_class_mapping:
+      notes: >
+        The release compatibility-row schema uses a parallel four-
+        value support_class vocabulary
+        (certified / supported / community / experimental). The
+        mapping below is frozen; a compatibility row that quotes a
+        different capability-lifecycle support_class MUST cite the
+        mapping explicitly in the row notes field.
+      mapping:
+        - compatibility_row_support_class: certified
+          capability_lifecycle_support_class_set:
+            - extended_support
+            - standard_support
+        - compatibility_row_support_class: supported
+          capability_lifecycle_support_class_set:
+            - standard_support
+        - compatibility_row_support_class: community
+          capability_lifecycle_support_class_set:
+            - community_supported
+            - best_effort
+        - compatibility_row_support_class: experimental
+          capability_lifecycle_support_class_set:
+            - best_effort
+    narrowing_rule: >
+      effective_support_class is narrowed by live dependency markers
+      whose effect_on_parent is narrows_effective_support_class. The
+      narrowed value MUST NOT be stronger than the declared value;
+      stronger-than-declared overlays are non-conforming.
+    unresolved_token: unresolved_axis:support_class
+    required_copy_when_narrowed: name_the_support_class_narrowing_reason
+    forbidden_collapses:
+      - collapses_onto_lifecycle_state
+      - collapses_onto_certified_archetype_status
+
+  - axis_id: axis:release_channel
+    ordinal: 3
+    short_label: Channel
+    question_answered: >
+      On which release channel does the shipping build carry this
+      capability, independent of its declared lifecycle posture?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/release_channel
+    values:
+      - nightly_channel
+      - experimental_channel
+      - preview_channel
+      - stable_channel
+      - lts_channel
+      - managed_only_channel
+    narrowing_rule: >
+      effective_release_channel narrows when a marker of effect_on_
+      parent = narrows_effective_release_channel is live (for
+      example, managed_only_dependency narrows to managed_only_
+      channel). Widening the rendered channel above the declared
+      value is non-conforming.
+    unresolved_token: unresolved_axis:release_channel
+    required_copy_when_narrowed: name_the_release_channel_narrowing_reason
+    forbidden_collapses:
+      - collapses_onto_lifecycle_state
+      - collapses_onto_client_scope
+
+  - axis_id: axis:client_scope
+    ordinal: 4
+    short_label: Client scope
+    question_answered: >
+      Which rendering clients (desktop product, CLI, companion
+      surface, remote agent, SDK/API, managed-admin surface) is this
+      capability exposed on?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/client_scope
+    values:
+      - desktop_product
+      - cli
+      - companion_surface
+      - remote_agent
+      - sdk_or_api
+      - managed_admin_surface
+    multi_value: true
+    narrowing_rule: >
+      effective_client_scopes is the declared set with any client
+      removed by a live client_scope_restricted_dependency marker.
+      An empty set means the capability is not available on any
+      client and MUST render the disabled_by_policy or retired
+      posture depending on the reason_code.
+    unresolved_token: unresolved_axis:client_scope
+    required_copy_when_narrowed: name_the_excluding_client_scope_or_profile
+    forbidden_collapses:
+      - collapses_onto_lifecycle_state
+      - collapses_onto_release_channel
+
+  - axis_id: axis:freshness_class
+    ordinal: 5
+    short_label: Freshness
+    question_answered: >
+      How current is the evidence the badge is rendered against,
+      relative to the capability's refresh window?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/freshness_class
+    values:
+      - authoritative_live
+      - warm_cached
+      - degraded_cached
+      - stale
+      - unverified
+    narrowing_rule: >
+      Freshness composes with truth_class under the worst-
+      supporting-truth-wins rule (artifacts/governance/claim_
+      propagation_rules.yaml). A surface whose canonical owner has
+      not been contacted within its refresh window MUST NOT render
+      authoritative_live; it renders warm_cached, degraded_cached,
+      stale, or unverified as appropriate.
+    unresolved_token: unresolved_axis:freshness_class
+    required_copy_when_narrowed: name_the_staleness_cause_and_refresh_route
+    forbidden_collapses:
+      - collapses_onto_lifecycle_state
+      - collapses_onto_service_contract_state
+
+  - axis_id: axis:certified_archetype_status
+    ordinal: 6
+    short_label: Certified archetype
+    question_answered: >
+      Does a live certified-archetype or compatibility report back
+      this capability for the claimed hardware, toolchain,
+      workspace, workflow, and platform-profile tuple, and at what
+      state?
+    vocabulary_source_ref: schemas/release/compatibility_row.schema.json#/$defs/current_state
+    values:
+      - not_applicable
+      - supported
+      - best_effort
+      - untested
+      - degraded
+      - unsupported
+    narrowing_rule: >
+      certified_archetype_status is derived from the linked
+      compatibility_row or certified_archetype_report row. When any
+      one of the backing rows (hardware, toolchain, reference-
+      workspace, workflow, platform-profile) goes stale, the badge
+      narrows through supported -> best_effort -> degraded; a row
+      without fresh evidence MUST NOT render as supported. A
+      capability with no compatibility_row coverage renders
+      not_applicable; a product capability that is NOT applicable
+      to certified-archetype language (for example, a
+      session_collaboration_truth row) MUST render not_applicable
+      and MUST NOT invent a synthetic certified posture.
+    unresolved_token: unresolved_axis:certified_archetype_status
+    required_copy_when_narrowed: name_the_stale_backing_row_and_retest_route
+    forbidden_collapses:
+      - collapses_onto_support_class
+      - collapses_onto_lifecycle_state
+      - collapses_onto_freshness_class
+
+  - axis_id: axis:dependency_markers
+    ordinal: 7
+    short_label: Dependency markers
+    question_answered: >
+      Which sub-capability dependencies are currently narrowing or
+      gating the parent capability, and with what effect?
+    vocabulary_source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/marker_kind
+    values:
+      - no_live_markers
+      - non_stable_capability_dependency
+      - disabled_by_policy_dependency
+      - deprecated_dependency
+      - retired_dependency
+      - provider_linked_dependency
+      - client_scope_restricted_dependency
+      - freshness_floor_dependency
+      - kill_switch_dependency
+      - managed_only_dependency
+    multi_value: true
+    narrowing_rule: >
+      Every live dependency marker renders: its marker_kind, its
+      effect_on_parent, its reason_code, and its repair_hook_ref. A
+      generic "has caveats" chip is forbidden. Absence of markers
+      renders the no_live_markers sentinel, not an empty or missing
+      axis. A parent capability whose effective state is absorbed by
+      a gates_entire_capability marker MUST render
+      disabled_by_policy or retired on axis:lifecycle_state
+      regardless of the declared value.
+    unresolved_token: unresolved_axis:dependency_markers
+    required_copy_when_narrowed: name_each_live_marker_effect_and_repair_hook
+    forbidden_collapses:
+      - collapses_onto_lifecycle_state
+      - collapses_onto_support_class
+
+# ---------------------------------------------------------------------------
+# Per-axis downgrade-strength ordering. Each axis has its own ordering
+# because the axes are independent; a single cross-axis ordering is
+# intentionally not defined. When an axis goes red or stale, surfaces
+# narrow *within* that axis and MUST NOT compensate by widening another.
+# ---------------------------------------------------------------------------
+
+per_axis_downgrade_ordering:
+
+  axis:lifecycle_state:
+    ordering_rightmost_is_strongest:
+      - labs
+      - preview
+      - beta
+      - stable
+      - lts_facing
+    overlay_states:
+      - deprecated
+      - disabled_by_policy
+      - retired
+    notes: >
+      Readiness progression is monotonic through
+      labs -> preview -> beta -> stable <= lts_facing; deprecated
+      is reachable from any of those states, retired is reachable
+      from deprecated only, and disabled_by_policy is orthogonal
+      and may overlay any non-retired state.
+
+  axis:support_class:
+    ordering_rightmost_is_strongest:
+      - no_support
+      - best_effort
+      - community_supported
+      - standard_support
+      - extended_support
+    overlay_states:
+      - operator_only_support
+    notes: >
+      A capability may be standard_support in the default fleet
+      while overlay-state operator_only_support narrows the
+      rendered support class for an enterprise surface. Overlay
+      states do not widen; they re-project.
+
+  axis:release_channel:
+    ordering_rightmost_is_stablest:
+      - experimental_channel
+      - nightly_channel
+      - preview_channel
+      - stable_channel
+      - lts_channel
+    overlay_states:
+      - managed_only_channel
+    notes: >
+      Channel narrowing cannot silently widen: a capability that is
+      delivered on managed_only_channel MUST render that overlay
+      rather than claiming stable_channel availability for an
+      unmanaged surface.
+
+  axis:freshness_class:
+    ordering_rightmost_is_strongest:
+      - unverified
+      - stale
+      - degraded_cached
+      - warm_cached
+      - authoritative_live
+    notes: >
+      Composes with the worst-supporting-truth-wins rule in
+      artifacts/governance/claim_propagation_rules.yaml. A badge
+      may not claim authoritative_live when any contributing row
+      is below authoritative_live.
+
+  axis:certified_archetype_status:
+    ordering_rightmost_is_strongest:
+      - unsupported
+      - degraded
+      - untested
+      - best_effort
+      - supported
+    overlay_states:
+      - not_applicable
+    notes: >
+      A stale backing row narrows the archetype badge through
+      supported -> best_effort -> degraded rather than preserving
+      the stronger label with a quiet caveat.
+
+  axis:client_scope:
+    notes: >
+      Client-scope narrowing is a set-subtraction operation rather
+      than an ordered downgrade. Removing every client renders the
+      capability unavailable on every surface; the lifecycle axis
+      absorbs into disabled_by_policy or retired accordingly.
+
+  axis:dependency_markers:
+    notes: >
+      Dependency markers do not have an internal ordering. All live
+      markers render; their effect_on_parent narrows the other six
+      axes and MUST NOT be summarised as a single "has caveats"
+      label.
+
+# ---------------------------------------------------------------------------
+# Badge-propagation rules. Each propagation consumer names the axes it
+# MUST render, the axes it MAY omit, the axes it MUST NOT silently widen,
+# and the surface behaviour when an axis is unresolved. Surfaces MAY be
+# narrower than the upstream row; they MUST NOT be broader.
+# ---------------------------------------------------------------------------
+
+badge_propagation_rules:
+
+  - propagation_rule_id: propagation_rule:product_surface
+    channel_id: product_surface
+    consumer_surfaces:
+      - settings_row
+      - bundle_card
+      - command_palette_entry
+      - install_review_step
+      - provider_linked_feature_card
+      - extension_capability_row
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:dependency_markers
+    conditional_axes:
+      - axis: axis:freshness_class
+        condition: render_when_capability_truth_class_is_runtime_observed_or_derived_indexed
+      - axis: axis:certified_archetype_status
+        condition: render_when_capability_has_linked_compatibility_row
+    forbidden_generic_chip_states:
+      - available
+      - unavailable
+      - temporarily unavailable
+      - having trouble
+      - beta
+      - coming soon
+      - stable
+    worst_supporting_axis_downgrade: >
+      Surfaces render the effective value per axis (monotonic-
+      meet on lifecycle_state, narrowed support_class /
+      release_channel, subtracted client_scopes, composed
+      freshness_class, stale-backed certified_archetype_status,
+      and the full live-marker list). When any supporting axis is
+      red or stale the card keeps the other axes intact and does
+      NOT compensate by widening the lifecycle or support badges.
+    unresolved_handling: >
+      If any required axis is unresolved (no typed value
+      available), the surface renders the axis's unresolved_token
+      and routes to the owning repair hook; a blanket
+      "unavailable" chip is non-conforming.
+
+  - propagation_rule_id: propagation_rule:docs
+    channel_id: docs
+    consumer_surfaces:
+      - docs_pane
+      - docs_browser
+      - generated_reference
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:freshness_class
+      - axis:client_scope
+      - axis:dependency_markers
+    conditional_axes:
+      - axis: axis:certified_archetype_status
+        condition: render_when_page_quotes_a_certified_archetype_or_compatibility_row
+    forbidden_generic_chip_states:
+      - out of date
+      - current
+      - available
+      - unavailable
+    worst_supporting_axis_downgrade: >
+      Docs pages MUST render the worst-supporting truth token from
+      the claim-propagation rules AND the per-axis narrowing from
+      this matrix; a stale docs pack MUST NOT render
+      lifecycle_state=stable alongside a silent freshness_class=
+      stale widening.
+    unresolved_handling: >
+      Any unresolved axis renders unresolved_axis and routes to
+      either the docs-pack registry or the capability-owning lane.
+
+  - propagation_rule_id: propagation_rule:support_export
+    channel_id: support_export
+    consumer_surfaces:
+      - support_summary
+      - support_bundle
+      - project_doctor_packet
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:certified_archetype_status
+      - axis:dependency_markers
+    conditional_axes: []
+    forbidden_generic_chip_states:
+      - error
+      - failed
+      - unavailable
+      - try again
+    worst_supporting_axis_downgrade: >
+      Support exports preserve every narrowed axis from the
+      originating surface. Exporters MUST NOT widen any axis and
+      MUST NOT drop markers; dropped markers become a
+      release_blocking_overclaim finding under drift_blocking_
+      rules.md.
+    unresolved_handling: >
+      Unresolved axes export as unresolved_axis with the typed
+      denial_reason from the capability_lifecycle schema; generic
+      "unknown" strings are non-conforming.
+
+  - propagation_rule_id: propagation_rule:claim_manifest
+    channel_id: claim_manifest
+    consumer_surfaces:
+      - claim_manifest_packet
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:dependency_markers
+    conditional_axes:
+      - axis: axis:certified_archetype_status
+        condition: render_when_claim_row_cites_a_certified_archetype_or_compatibility_row
+    forbidden_generic_chip_states:
+      - error
+      - temporarily unavailable
+    worst_supporting_axis_downgrade: >
+      effective_claim_posture is driven by the narrowest value
+      across the six required axes. A claim row whose backing
+      compatibility_row is narrower than the copy MUST downgrade
+      to limited or experimental via active_downgrade_reasons;
+      silent preservation of claim_bearing is a fail-closed
+      finding.
+    unresolved_handling: >
+      An unresolved required axis fails the manifest closed; the
+      release-evidence gate refuses publication until the axis
+      resolves or the claim posture narrows.
+
+  - propagation_rule_id: propagation_rule:compatibility_report
+    channel_id: compatibility_report
+    consumer_surfaces:
+      - compatibility_report_packet
+      - certified_archetype_report_packet
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:certified_archetype_status
+      - axis:dependency_markers
+    conditional_axes: []
+    forbidden_generic_chip_states:
+      - certified
+      - supported
+      - failing
+      - works
+    worst_supporting_axis_downgrade: >
+      current_state narrows through supported -> best_effort ->
+      untested -> degraded -> unsupported as any of the backing
+      rows goes stale or out of window. The lifecycle_state,
+      support_class, and release_channel axes render their
+      effective values even when current_state stays at supported.
+    unresolved_handling: >
+      An unresolved axis renders unresolved_axis and opens a
+      retest_pending note; the report MUST NOT omit the axis.
+
+  - propagation_rule_id: propagation_rule:about_service_health
+    channel_id: about_service_health
+    consumer_surfaces:
+      - help_about
+      - service_health
+      - about_packet
+    required_axes:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:dependency_markers
+    conditional_axes:
+      - axis: axis:certified_archetype_status
+        condition: render_when_row_is_a_certified_archetype_or_launch_wedge
+    forbidden_generic_chip_states:
+      - error
+      - failure
+      - unavailable
+      - having trouble
+      - try again
+      - healthy
+      - all good
+    worst_supporting_axis_downgrade: >
+      service_contract_state pairs with freshness_class per the
+      help_status_badge vocabulary; surfaces MUST NOT collapse a
+      downgraded freshness_class into a generic "having trouble"
+      chip. Help/About MUST render every live dependency marker.
+    unresolved_handling: >
+      Unresolved axes render unresolved_axis and route via the
+      help_status_badge denial_reason vocabulary; the surface
+      MUST NOT fabricate a synthetic "available" chip while an
+      axis is unresolved.
+
+# ---------------------------------------------------------------------------
+# Forbidden cross-axis combinations. These are the ambiguous pairings that
+# the matrix exists to prevent. Every entry is machine-checkable: a
+# rendered badge that produces the pair in axes_active is non-conforming
+# and fails drift-blocking rules.
+# ---------------------------------------------------------------------------
+
+forbidden_combinations:
+
+  - forbidden_id: forbidden:lifecycle_stable_with_no_support
+    axes_active:
+      axis:lifecycle_state: stable
+      axis:support_class: no_support
+    enforcement: fail_closed
+    reason: >
+      A stable capability with no_support is a contradiction. Either
+      the support class MUST narrow to best_effort or community_
+      supported and be rendered, or the lifecycle state MUST narrow
+      to deprecated with a deprecation_window and replacement_ref.
+    required_repair_hook_kind:
+      - migrate_to_replacement
+      - request_managed_access
+
+  - forbidden_id: forbidden:lifecycle_retired_with_authoritative_live
+    axes_active:
+      axis:lifecycle_state: retired
+      axis:freshness_class: authoritative_live
+    enforcement: fail_closed
+    reason: >
+      A retired capability MUST NOT render freshness
+      authoritative_live; the surface renders the retired badge
+      and cites the replacement_ref. Retired overrides freshness.
+
+  - forbidden_id: forbidden:disabled_by_policy_without_reason
+    axes_active:
+      axis:lifecycle_state: disabled_by_policy
+      axis:dependency_markers: no_live_markers
+    enforcement: fail_closed
+    reason: >
+      A capability in disabled_by_policy MUST carry a typed
+      disabled_by_policy_reason and at least one live dependency
+      marker (or a kill_switch_state=tripped row) citing the
+      source; a silent disabled chip is forbidden.
+    required_repair_hook_kind:
+      - request_admin_policy_change
+      - contact_support
+
+  - forbidden_id: forbidden:preview_certified_as_supported
+    axes_active:
+      axis:lifecycle_state: preview
+      axis:certified_archetype_status: supported
+    enforcement: fail_closed
+    reason: >
+      certified_archetype_status=supported requires
+      lifecycle_state of beta or stronger. A preview capability
+      MUST render certified_archetype_status as best_effort,
+      untested, or not_applicable; rendering supported while the
+      lifecycle is preview overclaims the archetype.
+
+  - forbidden_id: forbidden:labs_certified_above_untested
+    axes_active:
+      axis:lifecycle_state: labs
+      axis:certified_archetype_status_min: best_effort
+    enforcement: fail_closed
+    reason: >
+      A labs capability MUST NOT render certified_archetype_
+      status stronger than untested. Labs is below the certified-
+      archetype floor; overclaiming narrows publication rights.
+
+  - forbidden_id: forbidden:stale_rendered_as_authoritative_live
+    axes_active:
+      axis:freshness_class: authoritative_live
+      axis:dependency_markers_contains: freshness_floor_dependency
+    enforcement: fail_closed
+    reason: >
+      A live freshness_floor_dependency marker narrows
+      effective_freshness_class; the badge MUST render
+      warm_cached, degraded_cached, stale, or unverified, not
+      authoritative_live. This is the worst-supporting-truth-
+      wins rule applied to the freshness axis.
+
+  - forbidden_id: forbidden:client_scope_excluded_rendered_as_available
+    axes_active:
+      axis:client_scope_excludes_rendering_surface: true
+      axis:lifecycle_state_any_of:
+        - labs
+        - preview
+        - beta
+        - stable
+        - lts_facing
+    enforcement: fail_closed
+    reason: >
+      A capability whose effective_client_scopes excludes the
+      rendering surface MUST render a tombstone with the typed
+      client_scope_excludes_surface reason; rendering any
+      positive lifecycle token on the excluded surface overclaims
+      availability.
+
+  - forbidden_id: forbidden:kill_switch_tripped_without_policy_blocked
+    axes_active:
+      kill_switch_state: tripped
+      axis:lifecycle_state_not_in:
+        - disabled_by_policy
+        - retired
+    enforcement: fail_closed
+    reason: >
+      A tripped kill switch MUST absorb effective_lifecycle_state
+      into disabled_by_policy. Leaving the declared state visible
+      while a kill switch is tripped hides the block and violates
+      ADR-0011.
+
+  - forbidden_id: forbidden:retired_dependency_with_live_parent
+    axes_active:
+      axis:dependency_markers_contains: retired_dependency
+      axis:lifecycle_state_not_in:
+        - retired
+        - disabled_by_policy
+        - deprecated
+    enforcement: fail_closed
+    reason: >
+      A retired_dependency marker gates the parent capability;
+      the parent MUST render retired, disabled_by_policy, or at
+      minimum deprecated with a replacement_ref. Live parents
+      over retired dependencies are non-conforming.
+
+  - forbidden_id: forbidden:managed_only_channel_on_unmanaged_surface
+    axes_active:
+      axis:release_channel: managed_only_channel
+      axis:client_scope_any_of:
+        - desktop_product
+        - cli
+      managed_admin_context: false
+    enforcement: fail_closed
+    reason: >
+      managed_only_channel MUST NOT render on unmanaged client
+      scopes without the managed-admin context; if the surface is
+      not a managed-admin surface, the capability renders a
+      tombstone citing managed_only_channel_required.
+
+  - forbidden_id: forbidden:deprecated_without_window
+    axes_active:
+      axis:lifecycle_state: deprecated
+      deprecation_window: null
+    enforcement: fail_closed
+    reason: >
+      A deprecated row without a deprecation_window is non-
+      conforming per schemas/governance/capability_lifecycle.
+      schema.json. The surface MUST render an earliest_removal_at
+      and a replacement_ref when applicable.
+
+  - forbidden_id: forbidden:cached_docs_with_current_chip
+    axes_active:
+      axis:freshness_class_any_of:
+        - warm_cached
+        - degraded_cached
+        - stale
+      rendered_copy_contains_any_of:
+        - current
+        - up to date
+        - live
+    enforcement: fail_closed
+    reason: >
+      Copy asserting currency while the freshness_class is below
+      authoritative_live is an overclaim. Surfaces MUST render
+      the typed freshness token and name the refresh route.
+
+  - forbidden_id: forbidden:ambiguous_single_status_chip
+    axes_active:
+      rendered_as_single_chip: true
+      chip_value_any_of:
+        - available
+        - unavailable
+        - healthy
+        - having trouble
+        - on
+        - off
+        - beta
+        - stable
+    enforcement: fail_closed
+    reason: >
+      A single chip that collapses two or more axes into one
+      undifferentiated label is forbidden. The surface renders
+      either one typed value per axis or renders unresolved_axis
+      for the axis that is not yet known.
+
+# ---------------------------------------------------------------------------
+# Downgrade propagation. These rules fire when one supporting axis goes
+# red or stale. They describe the required effect per propagation channel.
+# ---------------------------------------------------------------------------
+
+downgrade_propagation_rules:
+
+  - rule_id: downgrade:support_class_narrowing
+    trigger_axis: axis:support_class
+    trigger_condition: effective_support_class_narrower_than_declared
+    effect:
+      product_surface: render_effective_support_class_with_repair_hook
+      docs: render_effective_support_class_and_cite_narrowing_marker
+      support_export: preserve_effective_support_class_and_marker_list
+      claim_manifest: downgrade_effective_claim_posture_to_limited_when_support_falls_below_claim_floor
+      compatibility_report: narrow_current_state_toward_best_effort_or_degraded
+      about_service_health: render_effective_support_class_and_name_the_marker
+    citations:
+      - docs/governance/capability_axis_matrix.md
+      - artifacts/governance/claim_propagation_rules.yaml
+
+  - rule_id: downgrade:freshness_falls_to_stale
+    trigger_axis: axis:freshness_class
+    trigger_condition: freshness_class_in:{degraded_cached,stale,unverified}
+    effect:
+      product_surface: render_freshness_badge_and_refresh_hook
+      docs: render_stale_docs_pack_disclosure_and_refresh_route
+      support_export: preserve_captured_freshness_class_and_capture_timestamp
+      claim_manifest: route_active_downgrade_reason_stale_evidence_inputs
+      compatibility_report: set_freshness_state_caveated_or_retest_pending
+      about_service_health: render_degraded_state_token_stale_with_typed_cause
+    citations:
+      - schemas/docs/help_status_badge.schema.json
+      - artifacts/governance/truth_class_matrix.yaml
+
+  - rule_id: downgrade:certified_archetype_backing_row_stale
+    trigger_axis: axis:certified_archetype_status
+    trigger_condition: any_backing_row_stale_or_out_of_window
+    effect:
+      product_surface: narrow_certified_badge_to_best_effort_and_cite_stale_row
+      docs: narrow_certified_wording_and_link_the_stale_backing_row
+      support_export: preserve_narrowed_archetype_status_and_retest_route
+      claim_manifest: downgrade_effective_claim_posture_to_limited_with_compatibility_row_cite
+      compatibility_report: narrow_current_state_through_supported_to_best_effort_to_degraded
+      about_service_health: render_not_applicable_when_surface_does_not_carry_archetype_claims
+    citations:
+      - docs/release/compatibility_report_template.md
+      - docs/release/certified_archetype_report_template.md
+
+  - rule_id: downgrade:dependency_marker_minted
+    trigger_axis: axis:dependency_markers
+    trigger_condition: dependency_marker_minted_or_refreshed
+    effect:
+      product_surface: render_every_live_marker_with_effect_and_repair_hook
+      docs: render_marker_narrative_and_cite_repair_hook
+      support_export: preserve_every_marker_in_export
+      claim_manifest: attach_marker_to_active_downgrade_reasons_when_it_narrows_claim
+      compatibility_report: attach_marker_to_known_deviations_when_it_narrows_the_row
+      about_service_health: render_marker_chip_adjacent_to_service_contract_state
+    citations:
+      - schemas/governance/capability_lifecycle.schema.json
+      - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+
+  - rule_id: downgrade:client_scope_excluded
+    trigger_axis: axis:client_scope
+    trigger_condition: rendering_surface_not_in_effective_client_scopes
+    effect:
+      product_surface: render_tombstone_with_client_scope_excludes_surface_reason
+      docs: render_redirect_to_supported_surface_and_cite_excluded_scope
+      support_export: preserve_excluded_scope_and_tombstone_disclosure
+      claim_manifest: refuse_claim_render_on_excluded_surface
+      compatibility_report: narrow_claimed_deployment_profiles_and_cite_exclusion
+      about_service_health: render_redirect_to_supported_surface_not_generic_unavailable
+    citations:
+      - artifacts/governance/truth_class_matrix.yaml
+      - schemas/docs/help_status_badge.schema.json
+
+  - rule_id: downgrade:kill_switch_tripped
+    trigger_axis: axis:lifecycle_state
+    trigger_condition: kill_switch_state_tripped
+    effect:
+      product_surface: absorb_lifecycle_into_disabled_by_policy_and_cite_kill_switch
+      docs: render_policy_blocked_token_and_cite_kill_switch_source
+      support_export: preserve_kill_switch_source_and_policy_context
+      claim_manifest: force_effective_claim_posture_policy_disabled
+      compatibility_report: narrow_current_state_to_unsupported_for_affected_profile
+      about_service_health: render_policy_blocked_with_explainer_route
+    citations:
+      - schemas/governance/capability_lifecycle.schema.json
+      - artifacts/governance/claim_propagation_rules.yaml
+
+# ---------------------------------------------------------------------------
+# Machine-checkable conformance fields. A badge conformance checker reads
+# this list and asserts each field is typed on the emitted row.
+# ---------------------------------------------------------------------------
+
+required_conformance_fields_per_capability_badge:
+  - capability_lifecycle_row_id
+  - declared_lifecycle_state
+  - effective_lifecycle_state
+  - support_class
+  - effective_support_class_or_null
+  - release_channel
+  - effective_release_channel_or_null
+  - freshness_class
+  - client_scopes
+  - effective_client_scopes
+  - certified_archetype_status
+  - live_dependency_markers
+  - kill_switch_state
+  - policy_context
+  - redaction_class
+  - last_refreshed_at
+
+# ---------------------------------------------------------------------------
+# Seed combination fixtures. Each id below resolves to one file under
+# fixtures/governance/badge_combinations/. The fixture set exists so that
+# conformance checkers, docs, support exports, claim manifests, and
+# compatibility reports can be validated against the same shared corpus.
+# ---------------------------------------------------------------------------
+
+seed_combination_fixture_refs:
+  - fixtures/governance/badge_combinations/stable_capability_authoritative_live.yaml
+  - fixtures/governance/badge_combinations/preview_capability_warm_cached_with_marker.yaml
+  - fixtures/governance/badge_combinations/deprecated_capability_with_replacement.yaml
+  - fixtures/governance/badge_combinations/disabled_by_policy_kill_switch_tripped.yaml
+  - fixtures/governance/badge_combinations/managed_only_channel_on_managed_admin_surface.yaml
+  - fixtures/governance/badge_combinations/client_scope_excluded_on_cli.yaml
+  - fixtures/governance/badge_combinations/certified_archetype_supported_row.yaml
+  - fixtures/governance/badge_combinations/certified_archetype_backing_row_stale.yaml
+  - fixtures/governance/badge_combinations/forbidden_stable_with_no_support.yaml
+  - fixtures/governance/badge_combinations/forbidden_ambiguous_available_chip.yaml
+
+# ---------------------------------------------------------------------------
+# Out-of-scope reminder. This matrix freezes the axis set, the per-axis
+# narrowing rules, the badge-propagation channels, and the forbidden
+# cross-axis combinations. Wiring every live surface to the matrix is
+# pulled forward through each surface's own freeze; public marketing copy
+# generation is explicitly out of scope.
+# ---------------------------------------------------------------------------
+
+out_of_scope:
+  - public_marketing_copy_generation
+  - rendering_axis_badges_from_live_capability_rows
+  - wiring_every_surface_to_the_matrix
+  - automating_claim_manifest_publication_from_this_file

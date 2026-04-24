@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=../../../schemas/governance/capability_lifecycle.schema.json
+__fixture__:
+  name: disabled_by_policy_kill_switch_tripped
+  classification: allowed
+  scenario: >
+    A capability whose declared lifecycle is stable, but whose
+    kill switch has tripped. Per ADR 0011 the tripped kill
+    switch absorbs effective_lifecycle_state into disabled_by_
+    policy regardless of declared value. A live kill_switch_
+    dependency marker cites the kill-switch source. The surface
+    renders the absorbed state, the typed disabled_by_policy_
+    reason (dependency_kill_switch_tripped), and a repair hook
+    routed through contact_support. This fixture exercises the
+    downgrade:kill_switch_tripped propagation rule.
+  matrix_doc_ref: docs/governance/capability_axis_matrix.md
+  matrix_yaml_ref: artifacts/governance/capability_badge_axes.yaml
+  capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+
+axes:
+  axis:lifecycle_state:
+    declared: stable
+    effective: disabled_by_policy
+    kill_switch_state: tripped
+    disabled_by_policy_reason: dependency_kill_switch_tripped
+  axis:support_class:
+    declared: standard_support
+    effective: no_support
+  axis:release_channel:
+    declared: stable_channel
+    effective: stable_channel
+  axis:client_scope:
+    declared:
+      - desktop_product
+      - cli
+    effective:
+      - desktop_product
+      - cli
+  axis:freshness_class:
+    effective: warm_cached
+  axis:certified_archetype_status:
+    effective: not_applicable
+  axis:dependency_markers:
+    effective:
+      - marker_kind: kill_switch_dependency
+        effect_on_parent: gates_entire_capability
+        reason_code: dependency_kill_switch_tripped
+        repair_hook_kind: contact_support
+
+rendered_on_channels:
+  product_surface:
+    axes_rendered:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:dependency_markers
+    worst_supporting_axis: axis:lifecycle_state
+    expected_copy_intent: name_the_policy_or_kill_switch_source
+  docs:
+    axes_rendered:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:freshness_class
+      - axis:client_scope
+      - axis:dependency_markers
+    worst_supporting_axis: axis:lifecycle_state
+    expected_copy_intent: name_the_policy_or_kill_switch_source
+  support_export:
+    axes_rendered:
+      - axis:lifecycle_state
+      - axis:support_class
+      - axis:release_channel
+      - axis:client_scope
+      - axis:freshness_class
+      - axis:certified_archetype_status
+      - axis:dependency_markers
+    worst_supporting_axis: axis:lifecycle_state
+    expected_copy_intent: preserve_kill_switch_source_and_policy_context
+  claim_manifest:
+    effective_claim_posture: policy_disabled
+    active_downgrade_reasons:
+      - dependency_kill_switch_tripped
+  compatibility_report:
+    current_state: unsupported
+    freshness_state: caveated
+  about_service_health:
+    service_contract_state: policy_blocked
+    degraded_state_token: degraded_state:policy_blocked
+
+forbidden_combinations_exercised:
+  # Intentionally NOT triggered: this fixture is the allowed
+  # form of kill_switch_tripped absorption. It exercises the
+  # inverse of forbidden:kill_switch_tripped_without_policy_
+  # blocked by correctly absorbing the lifecycle state.
+  - negated_id: forbidden:kill_switch_tripped_without_policy_blocked
+    assertion: lifecycle_state_was_absorbed_into_disabled_by_policy
