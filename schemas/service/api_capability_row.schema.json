@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/api_capability_row.schema.json",
+  "title": "Aureline optional-service API capability row",
+  "description": "Boundary schema for one row in artifacts/service/api_surface_rows.yaml. Each row names one optional service-HTTP capability (a family of endpoints on one managed-service surface) and binds it to an auth mode, a data class set, a local-fallback posture, a versioning rule, a deprecation lane, an offline / cache posture, and the existing SLO / retention / slo-backed degradation row in artifacts/service/slo_rows.yaml. The row is the contract the OpenAPI seed openapi/service_api_seed.yaml publishes against, and the row is the contract compat, docs, migration, deprecation, release, and support lanes cite instead of inventing parallel api ids. Raw request bytes, raw response bytes, raw credentials, and raw URLs never cross this boundary. Narrative companion: docs/service/api_inventory_seed.md. Adding a new value to any closed vocabulary below is additive-minor and bumps the file-level schema_version in artifacts/service/api_surface_rows.yaml; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "row_kind",
+    "api_surface_id",
+    "api_surface_title",
+    "summary",
+    "service_id",
+    "api_family_class",
+    "maturity_lane",
+    "ownership",
+    "auth",
+    "data_classes",
+    "local_fallback_posture",
+    "local_core_blocking",
+    "versioning",
+    "deprecation_lane",
+    "offline_and_cache_posture",
+    "compat_binding",
+    "linked_record_class_ids",
+    "linked_slo_row_ref",
+    "linked_retention_row_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Row-shape schema version. Additive-minor changes bump this integer."
+    },
+    "row_kind": {
+      "type": "string",
+      "const": "managed_service_api_capability_row",
+      "description": "Discriminator for this row shape."
+    },
+    "api_surface_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable dot-qualified api-surface id drawn from the closed api_surface_id_vocabulary in artifacts/service/api_surface_rows.yaml. Format is <service_id>.<capability_id>. Compat, docs, migration, deprecation, release, and support work cite this id verbatim."
+    },
+    "api_surface_title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable title for the api surface."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One or two sentence product-term description of what the api surface does and what it does not cover. MUST NOT carry milestone slugs."
+    },
+    "service_id": {
+      "$ref": "#/$defs/service_id",
+      "description": "Managed-service id from artifacts/service/slo_rows.yaml#service_id_vocabulary. Every api surface is hosted by exactly one managed-service surface."
+    },
+    "api_family_class": {
+      "$ref": "#/$defs/api_family_class",
+      "description": "Closed class of the api surface (registry, policy, sync, fleet, diagnostics, managed-control-plane, ...)."
+    },
+    "maturity_lane": {
+      "type": "string",
+      "enum": ["stable", "beta", "experimental", "internal"],
+      "description": "Contract-packet maturity lane re-exported from schemas/governance/contract_packet.schema.json. Every row at seed-time MUST be experimental or internal; promotion to beta or stable requires a decision row."
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_dri", "owning_lane", "backup_owner", "backup_waiver"],
+      "properties": {
+        "owner_dri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Named owner for the api surface."
+        },
+        "owning_lane": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Lane id from artifacts/governance/ownership_matrix.yaml."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Backup owner when one exists."
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Waiver id from ownership_matrix when backup_owner is null."
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["auth_mode", "entitlement_class", "policy_override_posture"],
+      "properties": {
+        "auth_mode": {
+          "$ref": "#/$defs/auth_mode",
+          "description": "Closed auth-mode vocabulary. No endpoint ships with open_no_auth at maturity_lane stable or beta."
+        },
+        "entitlement_class": {
+          "$ref": "#/$defs/entitlement_class",
+          "description": "Closed entitlement class the surface is gated by."
+        },
+        "policy_override_posture": {
+          "$ref": "#/$defs/policy_override_posture",
+          "description": "How admin-policy bundles may narrow this surface. MUST NOT widen the default stance."
+        }
+      }
+    },
+    "data_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/data_class" },
+      "description": "Closed data-class set the api surface sends or receives. Rows touching identity_principal_metadata or credential_material_reference MUST pair with an auth_mode other than open_no_auth."
+    },
+    "local_fallback_posture": {
+      "$ref": "#/$defs/local_fallback_posture",
+      "description": "What the product does locally when this surface is unreachable. No row may resolve to managed_only_no_local_fallback unless the narrative explicitly narrows the managed-only claim; local_core_blocking MUST remain false regardless."
+    },
+    "local_core_blocking": {
+      "type": "boolean",
+      "const": false,
+      "description": "Reviewer gate. MUST be false on every row. A row that needs true is an architecture defect, not an api surface."
+    },
+    "versioning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "versioning_rule_class",
+        "current_major_version_tag",
+        "url_version_segment_policy",
+        "unknown_field_policy",
+        "additive_minor_rule_summary",
+        "breaking_rule_summary"
+      ],
+      "properties": {
+        "versioning_rule_class": {
+          "$ref": "#/$defs/versioning_rule_class"
+        },
+        "current_major_version_tag": {
+          "type": "string",
+          "pattern": "^v[0-9]+(?:alpha|beta)?$",
+          "description": "Current major-version tag published in the url path and the OpenAPI seed info.version (for example v1, v1beta, v2alpha)."
+        },
+        "url_version_segment_policy": {
+          "$ref": "#/$defs/url_version_segment_policy"
+        },
+        "unknown_field_policy": {
+          "$ref": "#/$defs/unknown_field_policy"
+        },
+        "additive_minor_rule_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short product-term sentence explaining which changes are admitted as additive-minor."
+        },
+        "breaking_rule_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short product-term sentence explaining what counts as breaking and therefore requires a new major-version tag."
+        }
+      }
+    },
+    "deprecation_lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_class",
+        "sunset_posture",
+        "client_signal_headers",
+        "notice_window_summary"
+      ],
+      "properties": {
+        "lane_class": {
+          "$ref": "#/$defs/deprecation_lane_class"
+        },
+        "sunset_posture": {
+          "$ref": "#/$defs/sunset_posture"
+        },
+        "client_signal_headers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_signal_header" },
+          "description": "Typed signal-header vocabulary clients MUST honor. Lanes not using headers still list the corresponding machine-readable signal channel (a row in artifacts/service/api_surface_rows.yaml's deprecation_signal_channel vocabulary)."
+        },
+        "notice_window_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short product-term sentence describing the notice window, for example: twelve-month overlap window with every prior major version."
+        }
+      }
+    },
+    "offline_and_cache_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_behavior_class",
+        "client_cache_policy_class",
+        "last_known_good_posture",
+        "schema_discovery_posture",
+        "freshness_floor_summary"
+      ],
+      "properties": {
+        "offline_behavior_class": {
+          "$ref": "#/$defs/offline_behavior_class"
+        },
+        "client_cache_policy_class": {
+          "$ref": "#/$defs/client_cache_policy_class"
+        },
+        "last_known_good_posture": {
+          "$ref": "#/$defs/last_known_good_posture"
+        },
+        "schema_discovery_posture": {
+          "$ref": "#/$defs/schema_discovery_posture",
+          "description": "How the client learns the api shape. Values other than embedded_openapi_pinned_to_release require an explicit disclosure in the narrative seed."
+        },
+        "freshness_floor_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short product-term sentence naming the freshness floor, for example: policy-bundle cache is authoritative within its signed freshness floor; stale cache is labeled."
+        }
+      }
+    },
+    "compat_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_packet_ref",
+        "stable_surface_inventory_ref",
+        "compatibility_window_source_ref"
+      ],
+      "properties": {
+        "contract_packet_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Ref to the surface-contract packet row in artifacts/governance/stable_surface_inventory.yaml that publishes this api surface."
+        },
+        "stable_surface_inventory_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Ref to the stable-surface inventory file (the machine home)."
+        },
+        "compatibility_window_source_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Row ref in artifacts/compat/qualification_matrix_seed.yaml that owns this surface's compatibility window."
+        }
+      }
+    },
+    "linked_record_class_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/lower_snake_id" },
+      "description": "Record-class ids from artifacts/governance/record_class_registry.yaml this api surface reads, writes, or materializes a managed copy of. Every id MUST also appear in the linked SLO row's linked_record_class_ids and have a matching row in artifacts/service/retention_rows.yaml."
+    },
+    "linked_slo_row_ref": {
+      "$ref": "#/$defs/path_ref",
+      "description": "Ref to the managed_service_slo_row in artifacts/service/slo_rows.yaml that owns the availability, freshness, degradation, and recovery-cue contract for the hosting service. Exactly one SLO row per api surface."
+    },
+    "linked_retention_row_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/path_ref" },
+      "description": "Refs to managed_service_retention_row rows in artifacts/service/retention_rows.yaml. MAY be empty on api surfaces that read-only aggregate already-governed rows and produce no managed copy."
+    },
+    "openapi_document_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/path_ref" }
+      ],
+      "description": "Ref to the OpenAPI 3.2+ document (or sub-document) that publishes this api surface. Null while the surface is experimental and no OpenAPI document has landed; non-null at beta or stable."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional short operator-reviewable note. MUST NOT carry milestone slugs, raw user names, raw emails, raw URLs, raw credentials, or raw payload bytes."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Surfaces that carry credential_material_reference MUST use an auth_mode other than open_no_auth.",
+      "if": {
+        "properties": {
+          "data_classes": {
+            "contains": { "const": "credential_material_reference" }
+          }
+        },
+        "required": ["data_classes"]
+      },
+      "then": {
+        "properties": {
+          "auth": {
+            "properties": {
+              "auth_mode": {
+                "not": { "const": "open_no_auth" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Surfaces at maturity_lane stable or beta MUST carry a non-null openapi_document_ref so mocks, client generators, and docs attach to one source.",
+      "if": {
+        "properties": {
+          "maturity_lane": { "enum": ["stable", "beta"] }
+        },
+        "required": ["maturity_lane"]
+      },
+      "then": {
+        "properties": {
+          "openapi_document_ref": { "not": { "type": "null" } }
+        },
+        "required": ["openapi_document_ref"]
+      }
+    },
+    {
+      "description": "schema_discovery_posture = live_discovery_against_service is forbidden. Clients MUST pin to embedded or bundled OpenAPI; relying on live schema discovery at runtime collapses local-core non-dependence.",
+      "properties": {
+        "offline_and_cache_posture": {
+          "properties": {
+            "schema_discovery_posture": {
+              "not": { "const": "live_discovery_against_service" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or dot-qualified registry ref. Consumers treat it as opaque text."
+    },
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "service_id": {
+      "type": "string",
+      "enum": [
+        "managed_settings_sync",
+        "managed_marketplace",
+        "managed_ai_broker",
+        "managed_relay",
+        "managed_auth_identity",
+        "managed_policy_distribution",
+        "managed_docs_pack",
+        "managed_catalog",
+        "managed_telemetry_sink",
+        "managed_collaboration_review",
+        "managed_support_export",
+        "managed_entitlement_usage",
+        "managed_offboarding_export"
+      ]
+    },
+    "api_family_class": {
+      "type": "string",
+      "enum": [
+        "registry_api_family",
+        "policy_distribution_api_family",
+        "sync_api_family",
+        "fleet_api_family",
+        "diagnostics_api_family",
+        "managed_control_plane_api_family",
+        "identity_api_family",
+        "catalog_api_family",
+        "ai_broker_api_family",
+        "collaboration_relay_api_family",
+        "telemetry_ingest_api_family",
+        "support_export_api_family",
+        "entitlement_usage_api_family",
+        "offboarding_export_api_family",
+        "docs_pack_api_family"
+      ]
+    },
+    "auth_mode": {
+      "type": "string",
+      "enum": [
+        "open_no_auth",
+        "bearer_token_short_lived",
+        "oidc_session_token",
+        "mtls_client_cert",
+        "oidc_plus_mtls_dual_factor",
+        "scim_bearer_token",
+        "customer_byok_passthrough_no_broker_auth",
+        "signed_mirror_snapshot_only_no_live_auth",
+        "destruction_receipt_ledger_signed_append_only"
+      ]
+    },
+    "entitlement_class": {
+      "type": "string",
+      "enum": [
+        "no_entitlement_required",
+        "account_required",
+        "organization_entitlement",
+        "support_case_entitlement",
+        "admin_scope_entitlement",
+        "destruction_receipt_scope"
+      ]
+    },
+    "policy_override_posture": {
+      "type": "string",
+      "enum": [
+        "narrow_only_no_widen",
+        "narrow_only_with_emergency_disable",
+        "policy_immutable_no_override"
+      ]
+    },
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "public_catalog_metadata",
+        "user_scope_settings_payload",
+        "signed_policy_bundle_payload",
+        "signed_docs_pack_manifest",
+        "entitlement_snapshot",
+        "usage_export_packet",
+        "support_bundle_ref_only",
+        "collaboration_evidence_packet_ref",
+        "ai_evidence_packet_ref",
+        "telemetry_event_stream",
+        "identity_principal_metadata",
+        "credential_material_reference",
+        "destruction_receipt_id",
+        "offboarding_exit_packet_ref",
+        "runtime_catalog_manifest"
+      ]
+    },
+    "local_fallback_posture": {
+      "type": "string",
+      "enum": [
+        "local_copy_authoritative_within_freshness_floor",
+        "local_queue_with_replay_on_recovery",
+        "signed_mirror_snapshot_resolves",
+        "bundled_docs_pack_resolves",
+        "local_cache_with_staleness_label",
+        "read_only_degraded_claim_rendered",
+        "managed_only_no_local_fallback_narrows_managed_claim_only"
+      ]
+    },
+    "versioning_rule_class": {
+      "type": "string",
+      "enum": [
+        "url_major_version_plus_additive_minor_fields",
+        "url_major_version_plus_content_negotiation",
+        "single_major_with_schema_bundle_versioning",
+        "mirror_only_snapshot_versioning"
+      ]
+    },
+    "url_version_segment_policy": {
+      "type": "string",
+      "enum": [
+        "required_leading_v_segment",
+        "required_dated_snapshot_segment",
+        "no_url_segment_version_header_only"
+      ]
+    },
+    "unknown_field_policy": {
+      "type": "string",
+      "enum": [
+        "request_ignores_unknown_response_tolerates_unknown",
+        "request_rejects_unknown_response_tolerates_unknown",
+        "request_rejects_unknown_response_rejects_unknown"
+      ]
+    },
+    "deprecation_lane_class": {
+      "type": "string",
+      "enum": [
+        "pre_release_no_deprecation_yet",
+        "additive_only_no_removal_window",
+        "standard_overlap_with_sunset_header",
+        "emergency_sunset_with_explicit_advisory"
+      ]
+    },
+    "sunset_posture": {
+      "type": "string",
+      "enum": [
+        "no_sunset_yet",
+        "named_overlap_window_then_remove",
+        "named_overlap_window_then_mirror_only",
+        "immediate_sunset_on_advisory"
+      ]
+    },
+    "client_signal_header": {
+      "type": "string",
+      "enum": [
+        "deprecation_header",
+        "sunset_header",
+        "aureline_api_version_header",
+        "aureline_api_deprecation_advisory_header",
+        "aureline_api_freshness_floor_header",
+        "aureline_api_degradation_mode_header",
+        "aureline_api_recovery_cue_header"
+      ]
+    },
+    "offline_behavior_class": {
+      "type": "string",
+      "enum": [
+        "no_network_required_local_only",
+        "last_known_good_local_cache_resolves",
+        "bundled_mirror_snapshot_resolves",
+        "queued_for_replay_on_recovery",
+        "read_only_when_reachable_and_narrows_on_unreachable"
+      ]
+    },
+    "client_cache_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_cache_ephemeral_session_only",
+        "cache_bounded_by_service_freshness_floor",
+        "cache_authoritative_within_signed_freshness_floor",
+        "cache_labeled_stale_when_expired"
+      ]
+    },
+    "last_known_good_posture": {
+      "type": "string",
+      "enum": [
+        "last_known_good_not_applicable",
+        "last_known_good_local_settings",
+        "last_known_good_signed_policy_bundle",
+        "last_known_good_entitlement_snapshot",
+        "last_known_good_docs_pack_bundle",
+        "last_known_good_catalog_mirror_snapshot",
+        "last_known_good_exit_packet"
+      ]
+    },
+    "schema_discovery_posture": {
+      "type": "string",
+      "enum": [
+        "embedded_openapi_pinned_to_release",
+        "bundled_openapi_pinned_to_signed_mirror",
+        "bundled_openapi_with_additive_minor_tolerance",
+        "live_discovery_against_service"
+      ]
+    }
+  }
+}

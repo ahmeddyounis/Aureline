@@ -1,0 +1,1329 @@
+# Optional-service HTTP API capability surfaces.
+#
+# Machine-readable companion to docs/service/api_inventory_seed.md and the
+# OpenAPI seed in openapi/service_api_seed.yaml. Each row below names one
+# optional service-HTTP capability (a family of endpoints hosted on one
+# managed-service surface) and binds it to an auth mode, a data class set,
+# a local-fallback posture, a versioning rule, a deprecation lane, an
+# offline / cache posture, and the governing SLO + retention rows.
+#
+# Conformance: every row is a managed_service_api_capability_row; the row
+# shape is frozen by schemas/service/api_capability_row.schema.json.
+#
+# Rules:
+#   - Every row MUST name api_surface_id, api_surface_title, summary,
+#     service_id, api_family_class, maturity_lane, ownership, auth,
+#     data_classes, local_fallback_posture, local_core_blocking,
+#     versioning, deprecation_lane, offline_and_cache_posture,
+#     compat_binding, linked_record_class_ids, linked_slo_row_ref, and
+#     linked_retention_row_refs.
+#   - local_core_blocking MUST be false on every row in this file.
+#     Reviewers block any change that flips a row to true.
+#   - Every service_id MUST resolve to a row in
+#     artifacts/service/slo_rows.yaml; the api surface inherits its
+#     availability, freshness, degradation, and recovery-cue contract
+#     from that SLO row.
+#   - Every linked_record_class_id MUST appear in the linked SLO row's
+#     linked_record_class_ids field and have a matching row in
+#     artifacts/service/retention_rows.yaml.
+#   - maturity_lane MUST be experimental or internal at seed time.
+#     Promotion to beta or stable requires a decision row in
+#     artifacts/governance/decision_index.yaml plus a non-null
+#     openapi_document_ref.
+#   - schema_discovery_posture MUST NOT be
+#     live_discovery_against_service. The desktop core never depends on
+#     discovering the service schema at runtime.
+#   - Adding an api_surface_id, api_family_class, auth_mode,
+#     entitlement_class, policy_override_posture, data_class,
+#     local_fallback_posture, versioning_rule_class,
+#     url_version_segment_policy, unknown_field_policy,
+#     deprecation_lane_class, sunset_posture, client_signal_header,
+#     offline_behavior_class, client_cache_policy_class,
+#     last_known_good_posture, or schema_discovery_posture value is
+#     additive-minor and bumps schema_version. Repurposing an existing
+#     value is breaking.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     note field.
+
+schema_version: 1
+status: seeded
+
+seed_doc: docs/service/api_inventory_seed.md
+row_schema_ref: schemas/service/api_capability_row.schema.json
+openapi_seed_ref: openapi/service_api_seed.yaml
+slo_rows_ref: artifacts/service/slo_rows.yaml
+retention_rows_ref: artifacts/service/retention_rows.yaml
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+contract_packet_template_ref: docs/governance/contract_packet_template.md
+schema_families_ref: artifacts/governance/schema_families.yaml
+standards_matrix_openapi_ref: artifacts/governance/standards_matrix.yaml#standard.openapi_3_2
+managed_service_seed_ref: docs/service/managed_service_seed.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# Adding a value is additive-minor; repurposing a value is breaking.
+# These mirror the $defs block in the row schema and are restated here
+# so reviewers can diff the vocabulary without reading the JSON Schema.
+# -----------------------------------------------------------------------------
+
+api_surface_id_vocabulary:
+  - managed_marketplace.extension_catalog_read
+  - managed_marketplace.extension_install_request
+  - managed_policy_distribution.policy_bundle_fetch
+  - managed_settings_sync.user_settings_sync
+  - managed_auth_identity.oidc_session_front_door
+  - managed_auth_identity.scim_provisioning
+  - managed_catalog.runtime_catalog_fetch
+  - managed_ai_broker.ai_turn_route
+  - managed_relay.collaboration_session_transport
+  - managed_telemetry_sink.telemetry_event_ingest
+  - managed_support_export.support_bundle_attach
+  - managed_collaboration_review.review_evidence_archive
+  - managed_entitlement_usage.entitlement_snapshot_fetch
+  - managed_entitlement_usage.usage_export_fetch
+  - managed_offboarding_export.offboarding_exit_packet_assemble
+  - managed_offboarding_export.destruction_receipt_ledger_append
+  - managed_docs_pack.docs_pack_manifest_fetch
+
+api_family_class_vocabulary:
+  - registry_api_family
+  - policy_distribution_api_family
+  - sync_api_family
+  - fleet_api_family
+  - diagnostics_api_family
+  - managed_control_plane_api_family
+  - identity_api_family
+  - catalog_api_family
+  - ai_broker_api_family
+  - collaboration_relay_api_family
+  - telemetry_ingest_api_family
+  - support_export_api_family
+  - entitlement_usage_api_family
+  - offboarding_export_api_family
+  - docs_pack_api_family
+
+auth_mode_vocabulary:
+  - open_no_auth
+  - bearer_token_short_lived
+  - oidc_session_token
+  - mtls_client_cert
+  - oidc_plus_mtls_dual_factor
+  - scim_bearer_token
+  - customer_byok_passthrough_no_broker_auth
+  - signed_mirror_snapshot_only_no_live_auth
+  - destruction_receipt_ledger_signed_append_only
+
+entitlement_class_vocabulary:
+  - no_entitlement_required
+  - account_required
+  - organization_entitlement
+  - support_case_entitlement
+  - admin_scope_entitlement
+  - destruction_receipt_scope
+
+policy_override_posture_vocabulary:
+  - narrow_only_no_widen
+  - narrow_only_with_emergency_disable
+  - policy_immutable_no_override
+
+data_class_vocabulary:
+  - public_catalog_metadata
+  - user_scope_settings_payload
+  - signed_policy_bundle_payload
+  - signed_docs_pack_manifest
+  - entitlement_snapshot
+  - usage_export_packet
+  - support_bundle_ref_only
+  - collaboration_evidence_packet_ref
+  - ai_evidence_packet_ref
+  - telemetry_event_stream
+  - identity_principal_metadata
+  - credential_material_reference
+  - destruction_receipt_id
+  - offboarding_exit_packet_ref
+  - runtime_catalog_manifest
+
+local_fallback_posture_vocabulary:
+  - local_copy_authoritative_within_freshness_floor
+  - local_queue_with_replay_on_recovery
+  - signed_mirror_snapshot_resolves
+  - bundled_docs_pack_resolves
+  - local_cache_with_staleness_label
+  - read_only_degraded_claim_rendered
+  - managed_only_no_local_fallback_narrows_managed_claim_only
+
+versioning_rule_class_vocabulary:
+  - url_major_version_plus_additive_minor_fields
+  - url_major_version_plus_content_negotiation
+  - single_major_with_schema_bundle_versioning
+  - mirror_only_snapshot_versioning
+
+url_version_segment_policy_vocabulary:
+  - required_leading_v_segment
+  - required_dated_snapshot_segment
+  - no_url_segment_version_header_only
+
+unknown_field_policy_vocabulary:
+  - request_ignores_unknown_response_tolerates_unknown
+  - request_rejects_unknown_response_tolerates_unknown
+  - request_rejects_unknown_response_rejects_unknown
+
+deprecation_lane_class_vocabulary:
+  - pre_release_no_deprecation_yet
+  - additive_only_no_removal_window
+  - standard_overlap_with_sunset_header
+  - emergency_sunset_with_explicit_advisory
+
+sunset_posture_vocabulary:
+  - no_sunset_yet
+  - named_overlap_window_then_remove
+  - named_overlap_window_then_mirror_only
+  - immediate_sunset_on_advisory
+
+client_signal_header_vocabulary:
+  - deprecation_header
+  - sunset_header
+  - aureline_api_version_header
+  - aureline_api_deprecation_advisory_header
+  - aureline_api_freshness_floor_header
+  - aureline_api_degradation_mode_header
+  - aureline_api_recovery_cue_header
+
+offline_behavior_class_vocabulary:
+  - no_network_required_local_only
+  - last_known_good_local_cache_resolves
+  - bundled_mirror_snapshot_resolves
+  - queued_for_replay_on_recovery
+  - read_only_when_reachable_and_narrows_on_unreachable
+
+client_cache_policy_class_vocabulary:
+  - no_cache_ephemeral_session_only
+  - cache_bounded_by_service_freshness_floor
+  - cache_authoritative_within_signed_freshness_floor
+  - cache_labeled_stale_when_expired
+
+last_known_good_posture_vocabulary:
+  - last_known_good_not_applicable
+  - last_known_good_local_settings
+  - last_known_good_signed_policy_bundle
+  - last_known_good_entitlement_snapshot
+  - last_known_good_docs_pack_bundle
+  - last_known_good_catalog_mirror_snapshot
+  - last_known_good_exit_packet
+
+schema_discovery_posture_vocabulary:
+  - embedded_openapi_pinned_to_release
+  - bundled_openapi_pinned_to_signed_mirror
+  - bundled_openapi_with_additive_minor_tolerance
+  - live_discovery_against_service
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per optional service-HTTP capability surface.
+# -----------------------------------------------------------------------------
+
+rows:
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_marketplace.extension_catalog_read
+    api_surface_title: Extension catalog read surface
+    summary: >
+      Read-side of the hosted extension catalog (search, topic listing,
+      and manifest fetch by stable publisher or extension id). Install
+      orchestration is a separate surface; browsing is read-only and is
+      reachable without an account.
+    service_id: managed_marketplace
+    api_family_class: registry_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: open_no_auth
+      entitlement_class: no_entitlement_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - public_catalog_metadata
+    local_fallback_posture: signed_mirror_snapshot_resolves
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive fields on response manifests and additive query
+        parameters are in-epoch; publisher and extension id stability is
+        preserved across every v1.x revision.
+      breaking_rule_summary: >
+        Removing or repurposing a response field, changing an id shape,
+        or removing a stable query parameter requires a new major-version
+        tag and a sunset-overlap window with the prior major.
+    deprecation_lane:
+      lane_class: pre_release_no_deprecation_yet
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_freshness_floor_header
+      notice_window_summary: >
+        No major-version sunset is active yet. When a second major
+        lands, the standard twelve-month overlap window applies and
+        clients honor the Deprecation and Sunset response headers.
+    offline_and_cache_posture:
+      offline_behavior_class: bundled_mirror_snapshot_resolves
+      client_cache_policy_class: cache_bounded_by_service_freshness_floor
+      last_known_good_posture: last_known_good_catalog_mirror_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Catalog results inside the signed mirror snapshot's freshness
+        floor resolve without a live fetch; stale results are labeled.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_marketplace.extension_catalog_read
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_marketplace
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml
+    notes: >
+      Already-installed extensions run from local disk; this surface
+      only narrows the browse-new claim when unreachable.
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_marketplace.extension_install_request
+    api_surface_title: Extension install-request surface
+    summary: >
+      Write-side of the hosted extension surface. Accepts install
+      requests from signed-in users or admins, validates workspace-
+      trust posture, and emits an install manifest the client applies
+      against its local extension host. Never silently auto-enables.
+    service_id: managed_marketplace
+    api_family_class: registry_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_session_token
+      entitlement_class: account_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - public_catalog_metadata
+      - identity_principal_metadata
+    local_fallback_posture: read_only_degraded_claim_rendered
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive request fields, additive response fields, and additive
+        stable error codes are in-epoch.
+      breaking_rule_summary: >
+        Removing a request or response field, or collapsing an error
+        code, requires a new major-version tag and a sunset-overlap
+        window with the prior major.
+    deprecation_lane:
+      lane_class: pre_release_no_deprecation_yet
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        Install-request removal requires a twelve-month overlap with
+        the prior major and an explicit advisory row.
+    offline_and_cache_posture:
+      offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_catalog_mirror_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Install is an action; it is not satisfied from cache. Already-
+        installed extensions continue to run when this surface is
+        unreachable.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_marketplace.extension_install_request
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_marketplace
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_policy_distribution.policy_bundle_fetch
+    api_surface_title: Signed policy-bundle distribution surface
+    summary: >
+      Fetches signed policy bundles for an organization or workspace.
+      Clients pin to the bundle signature, not the transport; cached
+      bundles remain authoritative within their freshness floor when
+      the surface is unreachable.
+    service_id: managed_policy_distribution
+    api_family_class: policy_distribution_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: organization_entitlement
+      policy_override_posture: policy_immutable_no_override
+    data_classes:
+      - signed_policy_bundle_payload
+    local_fallback_posture: local_copy_authoritative_within_freshness_floor
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive bundle-envelope fields and additive query parameters
+        are in-epoch; bundle body shapes are versioned separately by
+        their own signed schema-bundle version.
+      breaking_rule_summary: >
+        Changing the bundle-envelope shape or the signature algorithm
+        requires a new major-version tag and an explicit overlap window.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_freshness_floor_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: last_known_good_local_cache_resolves
+      client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+      last_known_good_posture: last_known_good_signed_policy_bundle
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        The cached signed policy bundle remains authoritative within
+        its freshness floor. Stale cache is labeled; it never surfaces
+        as live truth.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_policy_distribution.policy_bundle_fetch
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_policy_distribution
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_settings_sync.user_settings_sync
+    api_surface_title: User-scope settings sync surface
+    summary: >
+      Reads and writes user-scope settings for signed-in users only.
+      Never resolves workspace or machine-scope settings and never
+      blocks local settings resolution.
+    service_id: managed_settings_sync
+    api_family_class: sync_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_session_token
+      entitlement_class: account_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - user_scope_settings_payload
+      - identity_principal_metadata
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_ignores_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive settings keys and additive response metadata are
+        in-epoch. Settings payloads forward-compatibly carry unknown
+        keys.
+      breaking_rule_summary: >
+        Removing or repurposing an envelope field requires a new major-
+        version tag.
+    deprecation_lane:
+      lane_class: pre_release_no_deprecation_yet
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        Sunset requires a twelve-month overlap with the prior major.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+      last_known_good_posture: last_known_good_local_settings
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Local settings on disk are authoritative. Pending writes queue
+        under the workspace and replay on recovery.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_settings_sync.user_settings_sync
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_settings_sync
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.entitlement_usage_export_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_auth_identity.oidc_session_front_door
+    api_surface_title: OIDC session front-door surface
+    summary: >
+      OIDC-facing sign-in and session-refresh surface layered over the
+      self-hosted protocol. Never reclassifies local workspace trust.
+      Existing local sessions continue under the entitlement snapshot
+      cache when this surface is unreachable.
+    service_id: managed_auth_identity
+    api_family_class: identity_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_plus_mtls_dual_factor
+      entitlement_class: account_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - identity_principal_metadata
+      - credential_material_reference
+      - entitlement_snapshot
+    local_fallback_posture: local_copy_authoritative_within_freshness_floor
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive claims on the session packet and additive metadata
+        fields are in-epoch.
+      breaking_rule_summary: >
+        Removing or repurposing a claim, changing a session-id shape,
+        or tightening an authentication factor class requires a new
+        major-version tag and an advisory.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_remove
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+        - aureline_api_deprecation_advisory_header
+      notice_window_summary: >
+        A twelve-month overlap with the prior major applies; emergency
+        sunsets cite a security advisory.
+    offline_and_cache_posture:
+      offline_behavior_class: last_known_good_local_cache_resolves
+      client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+      last_known_good_posture: last_known_good_entitlement_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Entitlement snapshot cache remains authoritative within its
+        freshness floor. Local-only work runs under account-free local
+        as usual.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_auth_identity.oidc_session_front_door
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_auth_identity
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.entitlement_usage_export_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_auth_identity.scim_provisioning
+    api_surface_title: SCIM provisioning surface
+    summary: >
+      SCIM 2.0 user and group provisioning endpoint for admin-scope
+      identity surfaces. Never writes into local workspace trust; its
+      absence pauses provisioning without blocking local work.
+    service_id: managed_auth_identity
+    api_family_class: identity_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: scim_bearer_token
+      entitlement_class: admin_scope_entitlement
+      policy_override_posture: narrow_only_no_widen
+    data_classes:
+      - identity_principal_metadata
+    local_fallback_posture: managed_only_no_local_fallback_narrows_managed_claim_only
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_content_negotiation
+      current_major_version_tag: v2
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_ignores_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive SCIM schema fields and additive search parameters are
+        in-epoch.
+      breaking_rule_summary: >
+        Changing a SCIM resource type or a mandatory schema identifier
+        requires a new major-version tag.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_remove
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        A twelve-month overlap window applies; SCIM clients are
+        notified by Sunset header plus an advisory row.
+    offline_and_cache_posture:
+      offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Provisioning is an action; it is not satisfied from cache.
+        Existing local sessions continue when provisioning is
+        unreachable.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_auth_identity.scim_provisioning
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_auth_identity
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_catalog.runtime_catalog_fetch
+    api_surface_title: Runtime-catalog fetch surface
+    summary: >
+      Fetches toolchain, language-pack, and companion-binary manifests
+      from the hosted runtime catalog. Installed artifacts continue to
+      run when the catalog is unreachable.
+    service_id: managed_catalog
+    api_family_class: catalog_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: open_no_auth
+      entitlement_class: no_entitlement_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - public_catalog_metadata
+      - runtime_catalog_manifest
+    local_fallback_posture: signed_mirror_snapshot_resolves
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive manifest fields and additive filter parameters are
+        in-epoch.
+      breaking_rule_summary: >
+        Removing or repurposing a manifest field or changing an id
+        shape requires a new major-version tag.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_freshness_floor_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: bundled_mirror_snapshot_resolves
+      client_cache_policy_class: cache_bounded_by_service_freshness_floor
+      last_known_good_posture: last_known_good_catalog_mirror_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        The signed mirror snapshot resolves within its freshness floor;
+        stale cache is labeled.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_catalog.runtime_catalog_fetch
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_catalog
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_ai_broker.ai_turn_route
+    api_surface_title: Managed AI-broker turn route surface
+    summary: >
+      Routes an AI turn to a managed provider under customer or vendor
+      key mode. Never a prerequisite for local or BYOK providers; its
+      absence narrows managed-AI claims without blocking AI use.
+    service_id: managed_ai_broker
+    api_family_class: ai_broker_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: organization_entitlement
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - ai_evidence_packet_ref
+      - credential_material_reference
+      - identity_principal_metadata
+    local_fallback_posture: read_only_degraded_claim_rendered
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1alpha
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive turn-envelope fields and additive provider identifiers
+        are in-epoch; the turn id and the provider identity remain
+        stable within a major.
+      breaking_rule_summary: >
+        Changing the turn-envelope shape, the evidence-packet ref
+        convention, or the provider identity class requires a new
+        major-version tag.
+    deprecation_lane:
+      lane_class: pre_release_no_deprecation_yet
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_degradation_mode_header
+        - aureline_api_recovery_cue_header
+      notice_window_summary: >
+        Pre-release; no sunset lane is admitted yet.
+    offline_and_cache_posture:
+      offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Not cacheable. Local models and BYOK providers continue to
+        resolve AI turns when the broker is unreachable.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_ai_broker.ai_turn_route
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - ai_retained_evidence_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_ai_broker
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.ai_retained_evidence_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_relay.collaboration_session_transport
+    api_surface_title: Collaboration-session transport surface
+    summary: >
+      Session-setup, presence, and transport endpoints for the managed
+      relay. Collaboration stream bodies themselves are brokered over
+      the relay transport; only session control flows through this
+      surface.
+    service_id: managed_relay
+    api_family_class: collaboration_relay_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: organization_entitlement
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - collaboration_evidence_packet_ref
+      - identity_principal_metadata
+    local_fallback_posture: read_only_degraded_claim_rendered
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1alpha
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive presence fields and additive session-control
+        parameters are in-epoch.
+      breaking_rule_summary: >
+        Changing a session id shape or removing a session-control
+        endpoint requires a new major-version tag.
+    deprecation_lane:
+      lane_class: pre_release_no_deprecation_yet
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_degradation_mode_header
+        - aureline_api_recovery_cue_header
+      notice_window_summary: >
+        Pre-release; no sunset lane is admitted yet.
+    offline_and_cache_posture:
+      offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Live session control only; local editing continues when the
+        relay is unreachable and the session freezes to read-only.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_relay.collaboration_session_transport
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - collaboration_evidence_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_relay
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.collaboration_evidence_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_telemetry_sink.telemetry_event_ingest
+    api_surface_title: Telemetry-event ingest surface
+    summary: >
+      Accepts opt-in telemetry event streams. Clients queue events
+      locally when the sink is unreachable and drop with disclosure
+      when a quota or policy denial applies.
+    service_id: managed_telemetry_sink
+    api_family_class: telemetry_ingest_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: account_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - telemetry_event_stream
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: single_major_with_schema_bundle_versioning
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive event-envelope fields and additive disposition fields
+        are in-epoch; the event-schema bundle versions separately.
+      breaking_rule_summary: >
+        Changing the event envelope or the disposition vocabulary
+        requires a new major-version tag.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_degradation_mode_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Events queue locally up to the queue floor and drop with
+        disclosure when quota is exhausted; no payload is uploaded
+        without opt-in.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_telemetry_sink.telemetry_event_ingest
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - telemetry_contract_schema
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_telemetry_sink
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.telemetry_contract_schema
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_support_export.support_bundle_attach
+    api_surface_title: Support-bundle attach surface
+    summary: >
+      Attaches a locally-assembled support bundle to a managed support
+      case. Accepts a ref, not raw payload bytes; the bundle body
+      remains user-owned and local.
+    service_id: managed_support_export
+    api_family_class: support_export_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: support_case_entitlement
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - support_bundle_ref_only
+      - identity_principal_metadata
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive attach-envelope fields are in-epoch.
+      breaking_rule_summary: >
+        Changing the attach-envelope shape or the case-id convention
+        requires a new major-version tag.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_degradation_mode_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Uploads queue locally with a progress label; the bundle
+        remains available for manual attach once the surface recovers.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_support_export.support_bundle_attach
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - support_bundle_archive
+      - crash_diagnostic_payload
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_support_export
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.support_bundle_archive
+      - artifacts/service/retention_rows.yaml#record_class.crash_diagnostic_payload
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_collaboration_review.review_evidence_archive
+    api_surface_title: Review-evidence archive surface
+    summary: >
+      Archives durable collaboration and review-evidence packets.
+      Never required for local replay; local cache continues under the
+      collaboration_evidence_packet record class when unreachable.
+    service_id: managed_collaboration_review
+    api_family_class: collaboration_relay_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: bearer_token_short_lived
+      entitlement_class: organization_entitlement
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - collaboration_evidence_packet_ref
+      - identity_principal_metadata
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive archive-envelope fields and additive search
+        parameters are in-epoch.
+      breaking_rule_summary: >
+        Changing the archive-envelope shape or the evidence-packet ref
+        convention requires a new major-version tag.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_degradation_mode_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_not_applicable
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Local replay cache is authoritative for the session; archive
+        writes queue and a reconcile note is surfaced on recovery.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_collaboration_review.review_evidence_archive
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - collaboration_evidence_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_collaboration_review
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.collaboration_evidence_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_entitlement_usage.entitlement_snapshot_fetch
+    api_surface_title: Entitlement-snapshot fetch surface
+    summary: >
+      Returns a signed entitlement snapshot for the current session.
+      Local snapshot cache remains authoritative within its freshness
+      floor when the surface is unreachable.
+    service_id: managed_entitlement_usage
+    api_family_class: entitlement_usage_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_session_token
+      entitlement_class: account_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - entitlement_snapshot
+      - identity_principal_metadata
+    local_fallback_posture: local_copy_authoritative_within_freshness_floor
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive entitlement claims and additive metadata fields are
+        in-epoch.
+      breaking_rule_summary: >
+        Removing or repurposing an entitlement claim requires a new
+        major-version tag.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_remove
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        A twelve-month overlap window applies between consecutive
+        majors.
+    offline_and_cache_posture:
+      offline_behavior_class: last_known_good_local_cache_resolves
+      client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+      last_known_good_posture: last_known_good_entitlement_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Entitlement cache is authoritative within its signed freshness
+        floor; stale cache is labeled.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_entitlement_usage.entitlement_snapshot_fetch
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_entitlement_usage
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.entitlement_usage_export_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_entitlement_usage.usage_export_fetch
+    api_surface_title: Usage-export fetch surface
+    summary: >
+      Returns a usage-export packet for a billing period or a closed
+      window. Usage counters continue to accumulate locally when the
+      surface is unreachable and export on recovery.
+    service_id: managed_entitlement_usage
+    api_family_class: entitlement_usage_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_plus_mtls_dual_factor
+      entitlement_class: admin_scope_entitlement
+      policy_override_posture: narrow_only_no_widen
+    data_classes:
+      - usage_export_packet
+      - identity_principal_metadata
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive usage-packet fields and additive window selectors are
+        in-epoch.
+      breaking_rule_summary: >
+        Changing the usage-packet shape or the billing-window
+        convention requires a new major-version tag.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_remove
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        A twelve-month overlap window applies between consecutive
+        majors.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_entitlement_snapshot
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Already-issued usage packets remain local; new exports queue
+        until recovery.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_entitlement_usage.usage_export_fetch
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_entitlement_usage
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.entitlement_usage_export_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_offboarding_export.offboarding_exit_packet_assemble
+    api_surface_title: Offboarding exit-packet assemble surface
+    summary: >
+      Assembles the offboarding exit packet and returns progress for
+      an admin-initiated off-ramp. Already-assembled artifacts remain
+      available when this surface is unreachable; remaining work
+      queues for retry.
+    service_id: managed_offboarding_export
+    api_family_class: offboarding_export_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: oidc_plus_mtls_dual_factor
+      entitlement_class: admin_scope_entitlement
+      policy_override_posture: narrow_only_no_widen
+    data_classes:
+      - offboarding_exit_packet_ref
+      - identity_principal_metadata
+      - destruction_receipt_id
+    local_fallback_posture: local_queue_with_replay_on_recovery
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive progress fields and additive artifact-manifest fields
+        are in-epoch.
+      breaking_rule_summary: >
+        Changing the exit-packet assembly shape or the destruction-
+        receipt pointer convention requires a new major-version tag.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_remove
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        A twelve-month overlap window applies between consecutive
+        majors.
+    offline_and_cache_posture:
+      offline_behavior_class: queued_for_replay_on_recovery
+      client_cache_policy_class: no_cache_ephemeral_session_only
+      last_known_good_posture: last_known_good_exit_packet
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Local copies of the exit packet and destruction receipts
+        remain available; remaining work queues for retry.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_offboarding_export.offboarding_exit_packet_assemble
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - offboarding_exit_packet
+      - destruction_receipt_record
+      - entitlement_usage_export_packet
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_offboarding_export
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.offboarding_exit_packet
+      - artifacts/service/retention_rows.yaml#record_class.destruction_receipt_record
+      - artifacts/service/retention_rows.yaml#record_class.entitlement_usage_export_packet
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_offboarding_export.destruction_receipt_ledger_append
+    api_surface_title: Destruction-receipt ledger append surface
+    summary: >
+      Append-only surface for the destruction-receipt ledger. Entries
+      are signed and immutable; reads are served from a signed mirror
+      snapshot when the live surface is unreachable.
+    service_id: managed_offboarding_export
+    api_family_class: offboarding_export_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: destruction_receipt_ledger_signed_append_only
+      entitlement_class: destruction_receipt_scope
+      policy_override_posture: policy_immutable_no_override
+    data_classes:
+      - destruction_receipt_id
+      - identity_principal_metadata
+    local_fallback_posture: signed_mirror_snapshot_resolves
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_rejects_unknown
+      additive_minor_rule_summary: >
+        Additive entry-envelope fields are in-epoch; the signature
+        scheme is held constant within a major.
+      breaking_rule_summary: >
+        Changing the signature scheme or the entry-envelope shape
+        requires a new major-version tag.
+    deprecation_lane:
+      lane_class: standard_overlap_with_sunset_header
+      sunset_posture: named_overlap_window_then_mirror_only
+      client_signal_headers:
+        - deprecation_header
+        - sunset_header
+        - aureline_api_version_header
+      notice_window_summary: >
+        A twelve-month overlap applies; after sunset, readers continue
+        to resolve against the signed mirror snapshot.
+    offline_and_cache_posture:
+      offline_behavior_class: bundled_mirror_snapshot_resolves
+      client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+      last_known_good_posture: last_known_good_exit_packet
+      schema_discovery_posture: bundled_openapi_pinned_to_signed_mirror
+      freshness_floor_summary: >
+        Append operations require the live surface; reads resolve from
+        the signed mirror snapshot within its freshness floor.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_offboarding_export.destruction_receipt_ledger_append
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids:
+      - destruction_receipt_record
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_offboarding_export
+    linked_retention_row_refs:
+      - artifacts/service/retention_rows.yaml#record_class.destruction_receipt_record
+    openapi_document_ref: openapi/service_api_seed.yaml
+
+  - schema_version: 1
+    row_kind: managed_service_api_capability_row
+    api_surface_id: managed_docs_pack.docs_pack_manifest_fetch
+    api_surface_title: Docs-pack manifest fetch surface
+    summary: >
+      Fetches signed docs-pack manifests and incremental help-pack
+      deltas. Bundled docs-pack and signed mirror snapshot continue
+      to resolve help content when the surface is unreachable.
+    service_id: managed_docs_pack
+    api_family_class: docs_pack_api_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    auth:
+      auth_mode: open_no_auth
+      entitlement_class: no_entitlement_required
+      policy_override_posture: narrow_only_with_emergency_disable
+    data_classes:
+      - signed_docs_pack_manifest
+    local_fallback_posture: bundled_docs_pack_resolves
+    local_core_blocking: false
+    versioning:
+      versioning_rule_class: url_major_version_plus_additive_minor_fields
+      current_major_version_tag: v1
+      url_version_segment_policy: required_leading_v_segment
+      unknown_field_policy: request_rejects_unknown_response_tolerates_unknown
+      additive_minor_rule_summary: >
+        Additive manifest fields and additive delta descriptors are
+        in-epoch.
+      breaking_rule_summary: >
+        Changing the manifest envelope or the delta-descriptor
+        convention requires a new major-version tag.
+    deprecation_lane:
+      lane_class: additive_only_no_removal_window
+      sunset_posture: no_sunset_yet
+      client_signal_headers:
+        - aureline_api_version_header
+        - aureline_api_freshness_floor_header
+      notice_window_summary: >
+        No removal lane at seed-time; only additive fields land.
+    offline_and_cache_posture:
+      offline_behavior_class: bundled_mirror_snapshot_resolves
+      client_cache_policy_class: cache_bounded_by_service_freshness_floor
+      last_known_good_posture: last_known_good_docs_pack_bundle
+      schema_discovery_posture: embedded_openapi_pinned_to_release
+      freshness_floor_summary: >
+        Bundled docs-pack and mirror snapshot resolve help content
+        within their freshness floor; stale cache is labeled.
+    compat_binding:
+      contract_packet_ref: artifacts/governance/stable_surface_inventory.yaml#managed_service_api.managed_docs_pack.docs_pack_manifest_fetch
+      stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+      compatibility_window_source_ref: artifacts/compat/qualification_matrix_seed.yaml
+    linked_record_class_ids: []
+    linked_slo_row_ref: artifacts/service/slo_rows.yaml#service.managed_docs_pack
+    linked_retention_row_refs: []
+    openapi_document_ref: openapi/service_api_seed.yaml

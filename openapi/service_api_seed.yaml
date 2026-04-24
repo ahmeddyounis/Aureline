@@ -1,0 +1,1316 @@
+# Aureline optional-service API seed (OpenAPI 3.2-oriented).
+#
+# Machine-readable companion to docs/service/api_inventory_seed.md and
+# the per-surface rows in artifacts/service/api_surface_rows.yaml.
+#
+# This is a seed, not a live service description. At this revision no
+# hosted Aureline service is running. The seed exists so mock, client-
+# generation, and documentation work can attach to one source of truth
+# before any backend lands.
+#
+# Stack:
+#   - artifacts/governance/standards_matrix.yaml#standard.openapi_3_2
+#   - artifacts/governance/schema_families.yaml — the service family
+#     publishes this OpenAPI document alongside its JSON Schemas.
+#   - docs/governance/policy_flag_schema_stack.md §"HTTP service API
+#     surface — OpenAPI 3.2+".
+#
+# Rules preserved in this seed:
+#   - Local desktop operation does not depend on live service-schema
+#     discovery. Clients pin to this document at release, not at
+#     runtime.
+#   - Every path below MUST trace to exactly one row in
+#     artifacts/service/api_surface_rows.yaml via
+#     x-aureline-api-surface-id.
+#   - Every tag below MUST trace to exactly one service_id in
+#     artifacts/service/slo_rows.yaml via
+#     x-aureline-service-id.
+#   - Deprecation is expressed through the Deprecation and Sunset
+#     response headers plus the custom Aureline-API-*-Advisory header
+#     family; a surface MAY NOT remove a path without one of the
+#     deprecation_lane_class values in the row file.
+#   - Offline and cache behavior is expressed via per-operation
+#     x-aureline-offline-and-cache (offline_behavior_class,
+#     client_cache_policy_class, last_known_good_posture,
+#     schema_discovery_posture, freshness_floor_summary). Clients
+#     honor those values; they never infer offline behavior from
+#     transport status alone.
+#   - Raw request bytes, raw response bytes, raw credentials, and raw
+#     URLs never appear as literal examples; schemas describe the
+#     shapes, fixtures live under /fixtures/ if needed.
+#   - Milestone slugs MUST NOT appear in any string, path, id, or
+#     description.
+
+# Note: OpenAPI 3.2 is still a standard_deferred_placeholder in the
+# standards matrix. This seed uses the 3.1 syntax that is a strict
+# subset of 3.2 so later upgrades are mechanical. The
+# x-aureline-openapi-seed-version carries the seed-level version.
+
+openapi: "3.1.0"
+x-aureline-openapi-seed-version: 1
+x-aureline-openapi-target-spec: openapi_3_2_when_ratified
+
+info:
+  title: Aureline optional-service API seed
+  version: "0.0.0-seed"
+  summary: >
+    Contract-first seed for Aureline's optional managed-service
+    surfaces. Not a live service description.
+  description: |
+    This document is a seed published early so mocks, code generators,
+    SDK stubs, docs, and support tooling can attach to one source
+    before any backend exists. It is not a live service description.
+
+    All request, response, and error body shapes are described by
+    JSON Schemas in components/schemas below. Managed-service SLO,
+    retention, and deletion-semantics behavior inherits from the
+    rows in artifacts/service/slo_rows.yaml and
+    artifacts/service/retention_rows.yaml.
+
+    The local desktop application does not depend on reaching any
+    path described here. Clients MUST pin to this document at
+    release time and MUST NOT perform live schema discovery against
+    a hosted service.
+  termsOfService: docs/service/api_inventory_seed.md
+  contact:
+    name: Aureline managed-service surface owner
+    url: docs/service/api_inventory_seed.md
+  license:
+    name: See repository LICENSE
+    identifier: See-LICENSE
+
+x-aureline-seed:
+  managed_service_seed_ref: docs/service/managed_service_seed.md
+  api_inventory_seed_ref: docs/service/api_inventory_seed.md
+  api_surface_rows_ref: artifacts/service/api_surface_rows.yaml
+  api_capability_row_schema_ref: schemas/service/api_capability_row.schema.json
+  slo_rows_ref: artifacts/service/slo_rows.yaml
+  retention_rows_ref: artifacts/service/retention_rows.yaml
+  stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+  schema_families_ref: artifacts/governance/schema_families.yaml
+  standards_matrix_refs:
+    - artifacts/governance/standards_matrix.yaml#standard.openapi_3_2
+    - artifacts/governance/standards_matrix.yaml#standard.json_schema_2020_12
+
+x-aureline-forbidden-couplings:
+  - live_schema_discovery_against_running_service
+  - local_core_startup_path_calling_any_managed_service
+  - managed_receipt_only_destruction_of_local_only_artifacts
+  - degradation_copy_routed_through_generic_error_or_spinner
+
+x-aureline-deprecation-lane:
+  lane_classes:
+    - pre_release_no_deprecation_yet
+    - additive_only_no_removal_window
+    - standard_overlap_with_sunset_header
+    - emergency_sunset_with_explicit_advisory
+  standard_headers:
+    deprecation_header: "Deprecation"
+    sunset_header: "Sunset"
+  aureline_headers:
+    version_header: "Aureline-API-Version"
+    deprecation_advisory_header: "Aureline-API-Deprecation-Advisory"
+    freshness_floor_header: "Aureline-API-Freshness-Floor"
+    degradation_mode_header: "Aureline-API-Degradation-Mode"
+    recovery_cue_header: "Aureline-API-Recovery-Cue"
+  default_overlap_summary: >
+    Unless a row in artifacts/service/api_surface_rows.yaml names a
+    narrower window, the standard overlap window between two
+    consecutive majors is twelve months.
+
+servers:
+  - url: "https://{region}.api.aureline.example/{api_family}/{major_version}"
+    description: >
+      Example server template. Real servers are registered per
+      deployment profile; no deployment ships with this URL.
+    variables:
+      region:
+        default: "placeholder-region"
+        description: >
+          Region token. Deployment profiles supply the real value at
+          install time.
+      api_family:
+        default: "placeholder-family"
+        description: >
+          api_family_class token, for example
+          policy_distribution_api_family.
+      major_version:
+        default: "v1"
+        description: >
+          Leading v-segment. Dated snapshot segments are admissible
+          only for families that declare
+          required_dated_snapshot_segment in their row.
+
+tags:
+  - name: managed_marketplace
+    description: Hosted extension catalog and install-request surface.
+    x-aureline-service-id: managed_marketplace
+  - name: managed_policy_distribution
+    description: Signed policy-bundle distribution surface.
+    x-aureline-service-id: managed_policy_distribution
+  - name: managed_settings_sync
+    description: User-scope settings sync surface.
+    x-aureline-service-id: managed_settings_sync
+  - name: managed_auth_identity
+    description: Managed auth / identity front-door surface.
+    x-aureline-service-id: managed_auth_identity
+  - name: managed_catalog
+    description: Runtime-catalog fetch surface.
+    x-aureline-service-id: managed_catalog
+  - name: managed_ai_broker
+    description: Managed AI-broker turn route surface.
+    x-aureline-service-id: managed_ai_broker
+  - name: managed_relay
+    description: Collaboration-session transport surface.
+    x-aureline-service-id: managed_relay
+  - name: managed_telemetry_sink
+    description: Opt-in telemetry-event ingest surface.
+    x-aureline-service-id: managed_telemetry_sink
+  - name: managed_support_export
+    description: Support-bundle attach surface.
+    x-aureline-service-id: managed_support_export
+  - name: managed_collaboration_review
+    description: Review-evidence archive surface.
+    x-aureline-service-id: managed_collaboration_review
+  - name: managed_entitlement_usage
+    description: Entitlement and usage-export surface.
+    x-aureline-service-id: managed_entitlement_usage
+  - name: managed_offboarding_export
+    description: Offboarding and destruction-receipt ledger surface.
+    x-aureline-service-id: managed_offboarding_export
+  - name: managed_docs_pack
+    description: Docs-pack manifest fetch surface.
+    x-aureline-service-id: managed_docs_pack
+
+paths:
+
+  /marketplace/extensions:
+    get:
+      tags: [managed_marketplace]
+      operationId: managed_marketplace_extension_catalog_read
+      summary: Browse the hosted extension catalog.
+      description: >
+        Returns a page of catalog entries. Already-installed
+        extensions run from local disk when this surface is
+        unreachable; browsing narrows to the signed mirror snapshot
+        with a staleness label.
+      x-aureline-api-surface-id: managed_marketplace.extension_catalog_read
+      x-aureline-offline-and-cache:
+        offline_behavior_class: bundled_mirror_snapshot_resolves
+        client_cache_policy_class: cache_bounded_by_service_freshness_floor
+        last_known_good_posture: last_known_good_catalog_mirror_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Catalog results inside the signed mirror snapshot's
+          freshness floor resolve without a live fetch; stale
+          results are labeled.
+      responses:
+        "200":
+          description: A page of catalog entries.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Freshness-Floor:
+              $ref: "#/components/headers/AurelineApiFreshnessFloor"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtensionCatalogPage"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /marketplace/extensions/install_requests:
+    post:
+      tags: [managed_marketplace]
+      operationId: managed_marketplace_extension_install_request
+      summary: Request installation of a catalog extension.
+      x-aureline-api-surface-id: managed_marketplace.extension_install_request
+      x-aureline-offline-and-cache:
+        offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_catalog_mirror_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Install is an action; it is not satisfied from cache.
+      security:
+        - aurelineOidcSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtensionInstallRequest"
+      responses:
+        "202":
+          description: Install request accepted; a manifest is returned.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtensionInstallManifest"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /policy/bundles/current:
+    get:
+      tags: [managed_policy_distribution]
+      operationId: managed_policy_distribution_policy_bundle_fetch
+      summary: Fetch the current signed policy bundle for the caller.
+      x-aureline-api-surface-id: managed_policy_distribution.policy_bundle_fetch
+      x-aureline-offline-and-cache:
+        offline_behavior_class: last_known_good_local_cache_resolves
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_signed_policy_bundle
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          The cached signed policy bundle remains authoritative
+          within its freshness floor. Stale cache is labeled.
+      security:
+        - aurelineBearer: []
+      responses:
+        "200":
+          description: The current signed policy-bundle envelope.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Freshness-Floor:
+              $ref: "#/components/headers/AurelineApiFreshnessFloor"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedPolicyBundleEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /settings_sync/user_scope:
+    get:
+      tags: [managed_settings_sync]
+      operationId: managed_settings_sync_user_settings_read
+      summary: Read the caller's user-scope settings snapshot.
+      x-aureline-api-surface-id: managed_settings_sync.user_settings_sync
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_local_settings
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Local settings on disk are authoritative; pending writes
+          queue under the workspace and replay on recovery.
+      security:
+        - aurelineOidcSession: []
+      responses:
+        "200":
+          description: A user-scope settings snapshot.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserScopeSettingsPayload"
+        default:
+          $ref: "#/components/responses/ServiceError"
+    put:
+      tags: [managed_settings_sync]
+      operationId: managed_settings_sync_user_settings_write
+      summary: Write the caller's user-scope settings snapshot.
+      x-aureline-api-surface-id: managed_settings_sync.user_settings_sync
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_local_settings
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Writes queue locally and replay on recovery.
+      security:
+        - aurelineOidcSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserScopeSettingsPayload"
+      responses:
+        "202":
+          description: Accepted; settings will be reconciled.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /auth/sessions:
+    post:
+      tags: [managed_auth_identity]
+      operationId: managed_auth_identity_oidc_session_front_door
+      summary: Establish or refresh a managed session.
+      x-aureline-api-surface-id: managed_auth_identity.oidc_session_front_door
+      x-aureline-offline-and-cache:
+        offline_behavior_class: last_known_good_local_cache_resolves
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_entitlement_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Entitlement snapshot cache remains authoritative within
+          its freshness floor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcSessionRequest"
+      responses:
+        "200":
+          description: A signed session packet.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Deprecation:
+              $ref: "#/components/headers/Deprecation"
+            Sunset:
+              $ref: "#/components/headers/Sunset"
+            Aureline-API-Deprecation-Advisory:
+              $ref: "#/components/headers/AurelineApiDeprecationAdvisory"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedSessionPacket"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /auth/scim/v2/Users:
+    post:
+      tags: [managed_auth_identity]
+      operationId: managed_auth_identity_scim_provisioning_create_user
+      summary: SCIM 2.0 user-creation endpoint.
+      x-aureline-api-surface-id: managed_auth_identity.scim_provisioning
+      x-aureline-offline-and-cache:
+        offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Provisioning is an action; it is not satisfied from cache.
+      security:
+        - aurelineScimBearer: []
+      requestBody:
+        required: true
+        content:
+          application/scim+json:
+            schema:
+              $ref: "#/components/schemas/ScimUserEnvelope"
+      responses:
+        "201":
+          description: The created SCIM user.
+          content:
+            application/scim+json:
+              schema:
+                $ref: "#/components/schemas/ScimUserEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /runtime_catalog/manifests:
+    get:
+      tags: [managed_catalog]
+      operationId: managed_catalog_runtime_catalog_fetch
+      summary: Fetch runtime-catalog manifests.
+      x-aureline-api-surface-id: managed_catalog.runtime_catalog_fetch
+      x-aureline-offline-and-cache:
+        offline_behavior_class: bundled_mirror_snapshot_resolves
+        client_cache_policy_class: cache_bounded_by_service_freshness_floor
+        last_known_good_posture: last_known_good_catalog_mirror_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          The signed mirror snapshot resolves within its freshness
+          floor; stale cache is labeled.
+      responses:
+        "200":
+          description: A list of runtime-catalog manifests.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Freshness-Floor:
+              $ref: "#/components/headers/AurelineApiFreshnessFloor"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeCatalogManifestPage"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /ai_broker/turn_routes:
+    post:
+      tags: [managed_ai_broker]
+      operationId: managed_ai_broker_ai_turn_route
+      summary: Route an AI turn through the managed broker.
+      x-aureline-api-surface-id: managed_ai_broker.ai_turn_route
+      x-aureline-offline-and-cache:
+        offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Not cacheable. Local models and BYOK providers resolve
+          turns when the broker is unreachable.
+      security:
+        - aurelineBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiTurnRouteRequest"
+      responses:
+        "200":
+          description: A route plan and spend-receipt reference.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Degradation-Mode:
+              $ref: "#/components/headers/AurelineApiDegradationMode"
+            Aureline-API-Recovery-Cue:
+              $ref: "#/components/headers/AurelineApiRecoveryCue"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiTurnRouteResult"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /relay/sessions:
+    post:
+      tags: [managed_relay]
+      operationId: managed_relay_collaboration_session_open
+      summary: Open a collaboration session and obtain transport info.
+      x-aureline-api-surface-id: managed_relay.collaboration_session_transport
+      x-aureline-offline-and-cache:
+        offline_behavior_class: read_only_when_reachable_and_narrows_on_unreachable
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Live session control only; local editing continues when
+          the relay is unreachable.
+      security:
+        - aurelineBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollaborationSessionOpenRequest"
+      responses:
+        "201":
+          description: Session descriptor and transport info.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Degradation-Mode:
+              $ref: "#/components/headers/AurelineApiDegradationMode"
+            Aureline-API-Recovery-Cue:
+              $ref: "#/components/headers/AurelineApiRecoveryCue"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollaborationSessionDescriptor"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /telemetry/events:
+    post:
+      tags: [managed_telemetry_sink]
+      operationId: managed_telemetry_sink_telemetry_event_ingest
+      summary: Ingest an opt-in telemetry event batch.
+      x-aureline-api-surface-id: managed_telemetry_sink.telemetry_event_ingest
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Events queue locally up to the queue floor and drop with
+          disclosure when quota is exhausted.
+      security:
+        - aurelineBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelemetryEventBatch"
+      responses:
+        "202":
+          description: Batch accepted for ingest.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Degradation-Mode:
+              $ref: "#/components/headers/AurelineApiDegradationMode"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /support/exports/bundles:
+    post:
+      tags: [managed_support_export]
+      operationId: managed_support_export_support_bundle_attach
+      summary: Attach a local support bundle to a managed case.
+      x-aureline-api-surface-id: managed_support_export.support_bundle_attach
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Uploads queue locally with a progress label; the bundle
+          remains available for manual attach once recovered.
+      security:
+        - aurelineBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportBundleAttachRequest"
+      responses:
+        "202":
+          description: Attach request accepted.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /collaboration/reviews/evidence:
+    post:
+      tags: [managed_collaboration_review]
+      operationId: managed_collaboration_review_evidence_archive
+      summary: Archive a collaboration or review evidence packet.
+      x-aureline-api-surface-id: managed_collaboration_review.review_evidence_archive
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_not_applicable
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Local replay cache is authoritative for the session;
+          archive writes queue and a reconcile note is surfaced on
+          recovery.
+      security:
+        - aurelineBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollaborationEvidenceArchiveRequest"
+      responses:
+        "202":
+          description: Archive request accepted.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckEnvelope"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /entitlements/snapshot:
+    get:
+      tags: [managed_entitlement_usage]
+      operationId: managed_entitlement_usage_entitlement_snapshot_fetch
+      summary: Fetch a signed entitlement snapshot.
+      x-aureline-api-surface-id: managed_entitlement_usage.entitlement_snapshot_fetch
+      x-aureline-offline-and-cache:
+        offline_behavior_class: last_known_good_local_cache_resolves
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_entitlement_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Entitlement cache is authoritative within its signed
+          freshness floor.
+      security:
+        - aurelineOidcSession: []
+      responses:
+        "200":
+          description: A signed entitlement snapshot.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Freshness-Floor:
+              $ref: "#/components/headers/AurelineApiFreshnessFloor"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntitlementSnapshot"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /usage/exports:
+    get:
+      tags: [managed_entitlement_usage]
+      operationId: managed_entitlement_usage_usage_export_fetch
+      summary: Fetch a usage-export packet for a closed window.
+      x-aureline-api-surface-id: managed_entitlement_usage.usage_export_fetch
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_entitlement_snapshot
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Already-issued usage packets remain local; new exports
+          queue until recovery.
+      security:
+        - aurelineOidcMtls: []
+      responses:
+        "200":
+          description: A usage-export packet.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageExportPacket"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /offboarding/exit_packets:
+    post:
+      tags: [managed_offboarding_export]
+      operationId: managed_offboarding_export_offboarding_exit_packet_assemble
+      summary: Assemble an offboarding exit packet.
+      x-aureline-api-surface-id: managed_offboarding_export.offboarding_exit_packet_assemble
+      x-aureline-offline-and-cache:
+        offline_behavior_class: queued_for_replay_on_recovery
+        client_cache_policy_class: no_cache_ephemeral_session_only
+        last_known_good_posture: last_known_good_exit_packet
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Local copies of the exit packet and destruction receipts
+          remain available; remaining work queues for retry.
+      security:
+        - aurelineOidcMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OffboardingExitPacketAssembleRequest"
+      responses:
+        "202":
+          description: Assembly job accepted; progress follows.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OffboardingExitPacketAssembleProgress"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /offboarding/destruction_receipts:
+    post:
+      tags: [managed_offboarding_export]
+      operationId: managed_offboarding_export_destruction_receipt_ledger_append
+      summary: Append a signed destruction-receipt entry.
+      x-aureline-api-surface-id: managed_offboarding_export.destruction_receipt_ledger_append
+      x-aureline-offline-and-cache:
+        offline_behavior_class: bundled_mirror_snapshot_resolves
+        client_cache_policy_class: cache_authoritative_within_signed_freshness_floor
+        last_known_good_posture: last_known_good_exit_packet
+        schema_discovery_posture: bundled_openapi_pinned_to_signed_mirror
+        freshness_floor_summary: >
+          Append operations require the live surface; reads resolve
+          from the signed mirror snapshot within its freshness floor.
+      security:
+        - aurelineDestructionReceiptSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DestructionReceiptEntry"
+      responses:
+        "201":
+          description: Entry appended.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DestructionReceiptEntry"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+  /docs_pack/manifest:
+    get:
+      tags: [managed_docs_pack]
+      operationId: managed_docs_pack_manifest_fetch
+      summary: Fetch the current signed docs-pack manifest.
+      x-aureline-api-surface-id: managed_docs_pack.docs_pack_manifest_fetch
+      x-aureline-offline-and-cache:
+        offline_behavior_class: bundled_mirror_snapshot_resolves
+        client_cache_policy_class: cache_bounded_by_service_freshness_floor
+        last_known_good_posture: last_known_good_docs_pack_bundle
+        schema_discovery_posture: embedded_openapi_pinned_to_release
+        freshness_floor_summary: >
+          Bundled docs-pack and mirror snapshot resolve help content
+          within their freshness floor; stale cache is labeled.
+      responses:
+        "200":
+          description: A signed docs-pack manifest.
+          headers:
+            Aureline-API-Version:
+              $ref: "#/components/headers/AurelineApiVersion"
+            Aureline-API-Freshness-Floor:
+              $ref: "#/components/headers/AurelineApiFreshnessFloor"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedDocsPackManifest"
+        default:
+          $ref: "#/components/responses/ServiceError"
+
+components:
+
+  securitySchemes:
+    aurelineBearer:
+      type: http
+      scheme: bearer
+      description: >
+        Short-lived bearer token. Scopes and entitlement classes are
+        bound by artifacts/service/api_surface_rows.yaml on the
+        matching row.
+    aurelineOidcSession:
+      type: openIdConnect
+      openIdConnectUrl: "https://placeholder.identity.aureline.example/.well-known/openid-configuration"
+      description: >
+        OIDC session token issued by managed_auth_identity. The
+        openIdConnectUrl value is a placeholder; deployment profiles
+        supply the real value at install time.
+    aurelineOidcMtls:
+      type: mutualTLS
+      description: >
+        OIDC plus mTLS client-cert dual factor. Required for admin-
+        scope entitlement surfaces.
+    aurelineScimBearer:
+      type: http
+      scheme: bearer
+      description: >
+        SCIM 2.0 bearer token scoped to the admin-scope entitlement
+        class.
+    aurelineDestructionReceiptSignature:
+      type: http
+      scheme: bearer
+      description: >
+        Destruction-receipt ledger signature. Append-only scope; the
+        entry body itself is signed and the transport token only
+        authenticates the ledger writer.
+
+  headers:
+    AurelineApiVersion:
+      description: >
+        Current major-version tag served by this response, matching
+        versioning.current_major_version_tag in the row file.
+      schema:
+        type: string
+        pattern: "^v[0-9]+(?:alpha|beta)?$"
+    AurelineApiFreshnessFloor:
+      description: >
+        Machine-readable freshness floor for the resource, for
+        example a duration or an RFC 3339 instant beyond which the
+        client MUST label the response stale.
+      schema:
+        type: string
+        minLength: 1
+    AurelineApiDegradationMode:
+      description: >
+        Degradation mode from
+        artifacts/service/slo_rows.yaml#degradation_mode_vocabulary.
+      schema:
+        type: string
+        enum:
+          - healthy
+          - degraded_slow
+          - degraded_stale_cache
+          - unavailable_retry_later
+          - unavailable_quota_exhausted
+          - unavailable_entitlement_expired
+          - unavailable_policy_blocked
+          - mirror_only
+          - boundary_recheck_required
+    AurelineApiRecoveryCue:
+      description: >
+        Short product-term recovery cue matching the per-mode
+        recovery_cue field on the governing SLO row.
+      schema:
+        type: string
+        minLength: 1
+    AurelineApiDeprecationAdvisory:
+      description: >
+        Ref to a governance advisory row explaining the deprecation
+        or sunset event. Clients render the advisory rather than a
+        generic error.
+      schema:
+        type: string
+        minLength: 1
+    Deprecation:
+      description: >
+        RFC 8594 Deprecation header. Present when a surface is in a
+        deprecation lane; clients render the Aureline-API-
+        Deprecation-Advisory ref rather than a generic warning.
+      schema:
+        type: string
+    Sunset:
+      description: >
+        RFC 8594 Sunset header. Present when a sunset posture other
+        than no_sunset_yet applies to the surface.
+      schema:
+        type: string
+
+  responses:
+    ServiceError:
+      description: >
+        Typed error envelope aligned with the degradation-mode and
+        policy-explain vocabularies on the governing SLO row.
+      headers:
+        Aureline-API-Degradation-Mode:
+          $ref: "#/components/headers/AurelineApiDegradationMode"
+        Aureline-API-Recovery-Cue:
+          $ref: "#/components/headers/AurelineApiRecoveryCue"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ServiceErrorEnvelope"
+
+  schemas:
+
+    AckEnvelope:
+      type: object
+      additionalProperties: false
+      required: [accepted_at, request_id]
+      properties:
+        accepted_at:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+
+    ServiceErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error_class, degradation_mode, recovery_cue]
+      properties:
+        error_class:
+          type: string
+          minLength: 1
+        degradation_mode:
+          type: string
+          enum:
+            - degraded_slow
+            - degraded_stale_cache
+            - unavailable_retry_later
+            - unavailable_quota_exhausted
+            - unavailable_entitlement_expired
+            - unavailable_policy_blocked
+            - mirror_only
+            - boundary_recheck_required
+        recovery_cue:
+          type: string
+          minLength: 1
+        advisory_ref:
+          type: string
+          minLength: 1
+
+    ExtensionCatalogPage:
+      type: object
+      additionalProperties: false
+      required: [entries, freshness_floor_summary]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtensionCatalogEntry"
+        next_page_token:
+          type: string
+        freshness_floor_summary:
+          type: string
+
+    ExtensionCatalogEntry:
+      type: object
+      additionalProperties: false
+      required: [extension_id, publisher_id, display_title_class, compatibility_claim_class]
+      properties:
+        extension_id:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+        publisher_id:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+        display_title_class:
+          type: string
+          enum:
+            - short_title
+            - short_title_with_publisher
+            - short_title_with_verification_badge
+        compatibility_claim_class:
+          type: string
+          minLength: 1
+
+    ExtensionInstallRequest:
+      type: object
+      additionalProperties: false
+      required: [extension_id, requested_version_constraint_class]
+      properties:
+        extension_id:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+        requested_version_constraint_class:
+          type: string
+          enum:
+            - latest_compatible_stable
+            - pinned_exact_version
+            - ranged_semver_constraint
+
+    ExtensionInstallManifest:
+      type: object
+      additionalProperties: false
+      required: [install_id, state_class]
+      properties:
+        install_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        state_class:
+          type: string
+          enum:
+            - requested
+            - scheduled
+            - blocked_by_workspace_trust
+            - blocked_by_policy
+            - delivered_manifest
+
+    SignedPolicyBundleEnvelope:
+      type: object
+      additionalProperties: false
+      required: [bundle_id, signature_scheme_class, freshness_floor_summary]
+      properties:
+        bundle_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        signature_scheme_class:
+          type: string
+          minLength: 1
+        freshness_floor_summary:
+          type: string
+          minLength: 1
+
+    UserScopeSettingsPayload:
+      type: object
+      additionalProperties: true
+      required: [schema_version, settings_epoch_id]
+      properties:
+        schema_version:
+          type: integer
+          minimum: 1
+        settings_epoch_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+
+    OidcSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [authorization_grant_class]
+      properties:
+        authorization_grant_class:
+          type: string
+          enum:
+            - authorization_code_with_pkce
+            - refresh_token
+            - device_authorization_grant
+
+    SignedSessionPacket:
+      type: object
+      additionalProperties: false
+      required: [session_id, entitlement_snapshot_ref, issued_at]
+      properties:
+        session_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        entitlement_snapshot_ref:
+          type: string
+          minLength: 1
+        issued_at:
+          type: string
+          format: date-time
+
+    ScimUserEnvelope:
+      type: object
+      additionalProperties: true
+      required: [schemas, userName]
+      properties:
+        schemas:
+          type: array
+          items:
+            type: string
+        userName:
+          type: string
+          minLength: 1
+
+    RuntimeCatalogManifestPage:
+      type: object
+      additionalProperties: false
+      required: [manifests, freshness_floor_summary]
+      properties:
+        manifests:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeCatalogManifest"
+        next_page_token:
+          type: string
+        freshness_floor_summary:
+          type: string
+
+    RuntimeCatalogManifest:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, artifact_class, compatibility_claim_class]
+      properties:
+        manifest_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        artifact_class:
+          type: string
+          enum:
+            - toolchain
+            - language_pack
+            - companion_binary
+        compatibility_claim_class:
+          type: string
+          minLength: 1
+
+    AiTurnRouteRequest:
+      type: object
+      additionalProperties: false
+      required: [turn_id, evidence_packet_ref, provider_selection_class]
+      properties:
+        turn_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        evidence_packet_ref:
+          type: string
+          minLength: 1
+        provider_selection_class:
+          type: string
+          enum:
+            - managed_broker_vendor_key
+            - managed_broker_customer_key
+            - byok_direct_provider
+            - local_model_only
+
+    AiTurnRouteResult:
+      type: object
+      additionalProperties: false
+      required: [turn_id, route_plan_ref, spend_receipt_ref]
+      properties:
+        turn_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        route_plan_ref:
+          type: string
+          minLength: 1
+        spend_receipt_ref:
+          type: string
+          minLength: 1
+
+    CollaborationSessionOpenRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_id, session_intent_class]
+      properties:
+        workspace_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        session_intent_class:
+          type: string
+          enum:
+            - live_review
+            - pair_edit
+            - handoff
+
+    CollaborationSessionDescriptor:
+      type: object
+      additionalProperties: false
+      required: [session_id, transport_class]
+      properties:
+        session_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        transport_class:
+          type: string
+          enum:
+            - websocket_over_mtls
+            - quic_over_mtls
+            - mirror_read_only
+
+    TelemetryEventBatch:
+      type: object
+      additionalProperties: false
+      required: [batch_id, events]
+      properties:
+        batch_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        events:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required: [event_class_id, event_at]
+            properties:
+              event_class_id:
+                type: string
+                pattern: "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+              event_at:
+                type: string
+                format: date-time
+
+    SupportBundleAttachRequest:
+      type: object
+      additionalProperties: false
+      required: [support_case_ref, bundle_ref]
+      properties:
+        support_case_ref:
+          type: string
+          minLength: 1
+        bundle_ref:
+          type: string
+          minLength: 1
+
+    CollaborationEvidenceArchiveRequest:
+      type: object
+      additionalProperties: false
+      required: [session_id, evidence_packet_ref]
+      properties:
+        session_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        evidence_packet_ref:
+          type: string
+          minLength: 1
+
+    EntitlementSnapshot:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, signature_scheme_class, freshness_floor_summary]
+      properties:
+        snapshot_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        signature_scheme_class:
+          type: string
+          minLength: 1
+        freshness_floor_summary:
+          type: string
+          minLength: 1
+
+    UsageExportPacket:
+      type: object
+      additionalProperties: false
+      required: [packet_id, window_class]
+      properties:
+        packet_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        window_class:
+          type: string
+          enum:
+            - billing_period
+            - closed_window
+            - contract_term
+
+    OffboardingExitPacketAssembleRequest:
+      type: object
+      additionalProperties: false
+      required: [principal_ref, scope_class]
+      properties:
+        principal_ref:
+          type: string
+          minLength: 1
+        scope_class:
+          type: string
+          enum:
+            - single_user
+            - single_workspace
+            - organization_full_exit
+
+    OffboardingExitPacketAssembleProgress:
+      type: object
+      additionalProperties: false
+      required: [packet_id, state_class]
+      properties:
+        packet_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        state_class:
+          type: string
+          enum:
+            - queued
+            - in_progress
+            - completed
+            - blocked_by_policy
+            - blocked_by_hold
+
+    DestructionReceiptEntry:
+      type: object
+      additionalProperties: false
+      required: [receipt_id, entry_class, signature_scheme_class]
+      properties:
+        receipt_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        entry_class:
+          type: string
+          enum:
+            - destruction_completed
+            - destruction_partial_hold
+            - destruction_partial_policy_retention
+        signature_scheme_class:
+          type: string
+          minLength: 1
+
+    SignedDocsPackManifest:
+      type: object
+      additionalProperties: false
+      required: [manifest_id, pack_version_id, signature_scheme_class, freshness_floor_summary]
+      properties:
+        manifest_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+        pack_version_id:
+          type: string
+          pattern: "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        signature_scheme_class:
+          type: string
+          minLength: 1
+        freshness_floor_summary:
+          type: string
+          minLength: 1
