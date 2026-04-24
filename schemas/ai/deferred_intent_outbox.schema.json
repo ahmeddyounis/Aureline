@@ -1,0 +1,706 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/deferred_intent_outbox.schema.json",
+  "title": "Aureline AI deferred-intent outbox, reconciliation-state, and reconciliation-audit vocabulary",
+  "description": "Boundary schema for the deferred_intent_record, deferred_intent_state_transition_record, deferred_intent_reconciliation_record, and deferred_intent_audit_event_record frozen in docs/ai/memory_and_reconciliation_contract.md. Every queueable AI action that may execute later — a deferred provider call, a queued tool invocation, a paused agent step, a buffered evidence dispatch, or a buffered context-binding update — resolves to one deferred_intent_record carrying exactly one deferred_intent_kind (provider_call_invocation, tool_call_invocation, agent_step_invocation, evidence_packet_dispatch, memory_row_invalidation_cascade, embedder_reindex_invocation, mutation_journal_replay_invocation), one current_state_class from the eight-value reconciliation vocabulary (queued_pending_send, queued_blocked_on_eligibility, queued_blocked_on_hold, queued_revalidate_before_send_required, replay_forbidden_against_changed_environment, fully_reconciled_completed, fully_reconciled_dropped_with_typed_disclosure, fully_reconciled_superseded_by_newer_intent), one bound_environment_pin (provider_entry_ref, model_entry_ref, prompt_pack_ref, tool_pack_ref, workspace_identity_ref, workspace_trust_state, policy_epoch_ref, rollout_state_ref) recorded at queue time, one revalidation_posture_class naming what MUST be re-checked before the intent may send, the deferred_action_class vocabulary naming what the action MAY do (read-only_lookup, mutating_first_party_route, mutating_byok_route, agent_chained_invocation, evidence_only_no_side_effect, mutation_journal_only), and the silent-replay forbidden invariant (an intent whose bound environment changed in any axis MUST NOT silently re-send; the schema's allOf gates force revalidate_before_send_required or replay_forbidden_against_changed_environment on every changed-axis case). Raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw tool return bytes, raw embeddings, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, and coarse buckets only. The eventual deferred-intent runtime crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new deferred_intent_kind, current_state_class, revalidation_posture_class, deferred_action_class, reconciliation_outcome_class, replay_forbidden_reason_class, audit_event_id, or denial_reason value is additive-minor and requires a deferred_intent_outbox_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/deferred_intent_record" },
+    { "$ref": "#/$defs/deferred_intent_state_transition_record" },
+    { "$ref": "#/$defs/deferred_intent_reconciliation_record" },
+    { "$ref": "#/$defs/deferred_intent_audit_event_record" }
+  ],
+  "$defs": {
+    "deferred_intent_outbox_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this deferred-intent outbox vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "deferred_intent_record",
+        "deferred_intent_state_transition_record",
+        "deferred_intent_reconciliation_record",
+        "deferred_intent_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-reconciliation consoles. Raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on outbox-inspector / reconciliation-readout / admin-reconciliation surfaces. Never contains raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw paths, or raw credential material."
+    },
+
+    "deferred_intent_kind": {
+      "type": "string",
+      "enum": [
+        "provider_call_invocation",
+        "tool_call_invocation",
+        "agent_step_invocation",
+        "evidence_packet_dispatch",
+        "memory_row_invalidation_cascade",
+        "embedder_reindex_invocation",
+        "mutation_journal_replay_invocation"
+      ],
+      "description": "Frozen deferred-intent-kind vocabulary. provider_call_invocation = a buffered AI provider call (composer turn, completion, summarisation). tool_call_invocation = a buffered external-tool / MCP invocation. agent_step_invocation = a paused step in an agent chain. evidence_packet_dispatch = a buffered dispatch of a retained evidence packet to a managed sink. memory_row_invalidation_cascade = a queued cascade of memory-row invalidations triggered by an upstream identity change. embedder_reindex_invocation = a queued embedder re-derivation pass. mutation_journal_replay_invocation = a queued replay of a mutation-journal entry against the current workspace state."
+    },
+
+    "current_state_class": {
+      "type": "string",
+      "enum": [
+        "queued_pending_send",
+        "queued_blocked_on_eligibility",
+        "queued_blocked_on_hold",
+        "queued_revalidate_before_send_required",
+        "replay_forbidden_against_changed_environment",
+        "fully_reconciled_completed",
+        "fully_reconciled_dropped_with_typed_disclosure",
+        "fully_reconciled_superseded_by_newer_intent"
+      ],
+      "description": "Frozen reconciliation-state vocabulary. queued_pending_send = the intent is queued and admissible to send when the next reconciliation pass runs. queued_blocked_on_eligibility = a pack-quarantine, provider-disable, workspace-trust loss, or policy-epoch denial blocks the intent. queued_blocked_on_hold = an active legal / support / retention-minimum hold blocks the intent. queued_revalidate_before_send_required = the bound environment changed (model, embedder, prompt-pack, tool-pack, workspace-trust, policy-epoch, rollout-state) and the intent MUST re-check the new environment against its required bindings before it may send. replay_forbidden_against_changed_environment = the change is non-replayable; the intent MUST NOT silently re-send and is moved to fully_reconciled_dropped_with_typed_disclosure. fully_reconciled_completed = the intent sent and a route-receipt / spend-receipt / mutation-journal entry / evidence packet was minted. fully_reconciled_dropped_with_typed_disclosure = the intent was dropped with an explicit reason (eligibility lost, hold not expected to clear, replay forbidden); the user / admin sees the typed disclosure on the next inspector readout. fully_reconciled_superseded_by_newer_intent = a fresher intent supersedes this one; the supersession is explicit on the audit stream."
+    },
+
+    "revalidation_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_revalidation_required_environment_unchanged",
+        "revalidate_provider_route_only",
+        "revalidate_model_identity_only",
+        "revalidate_embedder_identity_only",
+        "revalidate_prompt_pack_or_tool_pack_only",
+        "revalidate_workspace_trust_only",
+        "revalidate_policy_epoch_only",
+        "revalidate_full_environment_pin",
+        "revalidate_user_consent_required",
+        "revalidate_admin_approval_required"
+      ],
+      "description": "Frozen revalidation-posture vocabulary. Every queued_revalidate_before_send_required intent MUST cite at least one revalidation posture; the next reconciliation pass that finds every required posture clear may transition the intent to queued_pending_send. revalidate_user_consent_required and revalidate_admin_approval_required pause the intent until a typed approval ticket is minted (ADR-0010)."
+    },
+
+    "deferred_action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_lookup",
+        "mutating_first_party_route",
+        "mutating_byok_route",
+        "agent_chained_invocation",
+        "evidence_only_no_side_effect",
+        "mutation_journal_only"
+      ],
+      "description": "Frozen action-class vocabulary naming what the deferred intent may do when it sends. Mutating actions widen the revalidation surface — a mutating_first_party_route or mutating_byok_route intent whose model_identity_ref or prompt_pack_ref changed denies with mutating_intent_replay_against_changed_binding_forbidden unless a fresh consent / approval ticket admits the new binding. read_only_lookup may proceed under revalidate_provider_route_only. agent_chained_invocation always requires revalidate_full_environment_pin."
+    },
+
+    "reconciliation_outcome_class": {
+      "type": "string",
+      "enum": [
+        "sent_against_unchanged_environment",
+        "sent_against_revalidated_environment",
+        "dropped_eligibility_revoked",
+        "dropped_replay_forbidden",
+        "dropped_superseded_by_newer_intent",
+        "dropped_user_cancelled",
+        "dropped_admin_cancelled",
+        "dropped_consent_withdrawn",
+        "dropped_retention_window_closed_before_send",
+        "deferred_again_revalidation_pending"
+      ],
+      "description": "Frozen reconciliation-outcome vocabulary. Every reconciliation pass on a queued intent emits exactly one outcome; the outcome names whether the intent sent (and against which environment), was dropped (and why), or was deferred again."
+    },
+
+    "replay_forbidden_reason_class": {
+      "type": "string",
+      "enum": [
+        "model_identity_changed_non_replayable",
+        "embedder_identity_changed_non_replayable",
+        "prompt_pack_changed_non_replayable",
+        "tool_pack_changed_non_replayable",
+        "workspace_trust_state_lost_non_replayable",
+        "policy_epoch_rolled_non_replayable",
+        "rollout_state_demoted_or_withdrawn_non_replayable",
+        "consent_withdrawn_non_replayable",
+        "approval_ticket_revoked_non_replayable",
+        "memory_row_invalidated_non_replayable"
+      ],
+      "description": "Frozen replay-forbidden-reason vocabulary. Every replay_forbidden_against_changed_environment state MUST cite exactly one reason; opaque replay-forbidden (no reason) denies with replay_forbidden_reason_unresolved. The vocabulary is closed so a reviewer can answer 'why was this intent forbidden to replay' from the schema alone."
+    },
+
+    "deferred_intent_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "deferred_intent_minted",
+        "deferred_intent_state_transitioned",
+        "deferred_intent_revalidation_required",
+        "deferred_intent_replay_forbidden",
+        "deferred_intent_reconciled_sent",
+        "deferred_intent_reconciled_dropped",
+        "deferred_intent_superseded",
+        "deferred_intent_audit_denial_emitted",
+        "deferred_intent_outbox_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_deferred_intent audit stream. Events MUST NOT carry raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw paths, or raw credential material."
+    },
+
+    "deferred_intent_denial_reason": {
+      "type": "string",
+      "enum": [
+        "deferred_intent_kind_unresolved",
+        "current_state_class_unresolved",
+        "bound_environment_pin_missing",
+        "revalidation_posture_missing_when_required",
+        "replay_forbidden_reason_unresolved",
+        "mutating_intent_replay_against_changed_binding_forbidden",
+        "silent_send_against_changed_environment_forbidden",
+        "agent_chained_invocation_missing_full_environment_revalidation",
+        "deferred_intent_outbox_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent send against a changed environment is forbidden."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "bound_environment_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_entry_ref",
+        "model_entry_ref",
+        "prompt_pack_ref",
+        "tool_pack_ref",
+        "workspace_identity_ref",
+        "workspace_trust_state",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "prompt_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "tool_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "Workspace-trust state recorded at queue time. A reconciliation pass that finds the current workspace_trust_state ≠ the pinned value MUST move the intent to queued_revalidate_before_send_required (or replay_forbidden_against_changed_environment for mutating actions)."
+        },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollout_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the model_rollout_state_record (graduation-packet contract) the intent was queued against. Null when the intent was queued outside a rollout-state-pinned workflow."
+        },
+        "embedder_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the embedder identity the intent was queued against. Required (non-null) when deferred_intent_kind is embedder_reindex_invocation; optional otherwise."
+        }
+      },
+      "description": "The full environment pin recorded at queue time. The reconciliation pass compares each axis against the current environment; any axis change forces queued_revalidate_before_send_required or replay_forbidden_against_changed_environment per the action-class rules."
+    },
+
+    "deferred_intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_outbox_schema_version",
+        "deferred_intent_id",
+        "deferred_intent_kind",
+        "deferred_action_class",
+        "current_state_class",
+        "bound_environment_pin",
+        "originating_assembly_ref",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_record" },
+        "deferred_intent_outbox_schema_version": { "$ref": "#/$defs/deferred_intent_outbox_schema_version" },
+        "deferred_intent_id": { "$ref": "#/$defs/opaque_id" },
+        "deferred_intent_kind": { "$ref": "#/$defs/deferred_intent_kind" },
+        "deferred_action_class": { "$ref": "#/$defs/deferred_action_class" },
+        "current_state_class": { "$ref": "#/$defs/current_state_class" },
+        "bound_environment_pin": { "$ref": "#/$defs/bound_environment_pin" },
+        "originating_assembly_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the ai_context_assembly_record / mutation-journal entry / evidence packet that minted this intent. Reconciliation traces back to this ref to determine which prior turn's environment the intent was queued under."
+        },
+        "depends_on_memory_object_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to ai_memory_object_record entries the intent reads or mutates. The reconciliation pass denies a send when any depended-on memory row is invalidated, expired, or quarantined; the intent is forced through queued_revalidate_before_send_required or replay_forbidden_against_changed_environment."
+        },
+        "revalidation_postures": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/revalidation_posture_class" },
+          "description": "The set of revalidation postures required before the intent may send. Required (non-empty) when current_state_class is queued_revalidate_before_send_required; otherwise MAY be empty."
+        },
+        "replay_forbidden_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/replay_forbidden_reason_class" }
+          ],
+          "description": "Required (non-null) when current_state_class = replay_forbidden_against_changed_environment; null otherwise."
+        },
+        "supersedes_deferred_intent_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prior deferred_intent_record this intent supersedes. Null when this intent does not supersede an earlier one."
+        },
+        "summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short reviewable label safe for outbox-inspector / reconciliation-readout / admin-reconciliation surfaces. Never raw conversation text, raw prompt bodies, raw URLs, raw paths, or raw credential material."
+        },
+        "freshness_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/freshness_class" }
+          ]
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp at which the intent's queue window closes. A reconciliation pass after this point transitions the intent to fully_reconciled_dropped_with_typed_disclosure with reconciliation_outcome_class = dropped_retention_window_closed_before_send."
+        }
+      },
+      "allOf": [
+        {
+          "description": "revalidation_postures MUST be non-empty when current_state_class = queued_revalidate_before_send_required.",
+          "if": {
+            "properties": { "current_state_class": { "const": "queued_revalidate_before_send_required" } },
+            "required": ["current_state_class"]
+          },
+          "then": {
+            "properties": {
+              "revalidation_postures": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/revalidation_posture_class" }
+              }
+            },
+            "required": ["revalidation_postures"]
+          }
+        },
+        {
+          "description": "replay_forbidden_reason MUST be non-null when current_state_class = replay_forbidden_against_changed_environment.",
+          "if": {
+            "properties": { "current_state_class": { "const": "replay_forbidden_against_changed_environment" } },
+            "required": ["current_state_class"]
+          },
+          "then": {
+            "properties": { "replay_forbidden_reason": { "$ref": "#/$defs/replay_forbidden_reason_class" } },
+            "required": ["replay_forbidden_reason"]
+          }
+        },
+        {
+          "description": "supersedes_deferred_intent_ref MUST be non-null when current_state_class = fully_reconciled_superseded_by_newer_intent.",
+          "if": {
+            "properties": { "current_state_class": { "const": "fully_reconciled_superseded_by_newer_intent" } },
+            "required": ["current_state_class"]
+          },
+          "then": {
+            "properties": { "supersedes_deferred_intent_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["supersedes_deferred_intent_ref"]
+          }
+        },
+        {
+          "description": "agent_chained_invocation actions MUST cite revalidate_full_environment_pin in their revalidation_postures whenever revalidation is required.",
+          "if": {
+            "properties": {
+              "deferred_action_class": { "const": "agent_chained_invocation" },
+              "current_state_class": { "const": "queued_revalidate_before_send_required" }
+            },
+            "required": ["deferred_action_class", "current_state_class"]
+          },
+          "then": {
+            "properties": {
+              "revalidation_postures": {
+                "type": "array",
+                "contains": { "const": "revalidate_full_environment_pin" }
+              }
+            },
+            "required": ["revalidation_postures"]
+          }
+        }
+      ],
+      "description": "One deferred-intent row in the outbox. Every queueable AI action that may execute later emits exactly one deferred_intent_record naming the action class, the bound environment pin captured at queue time, and the current reconciliation state. Silent replay against a changed environment is forbidden by the schema's allOf gates."
+    },
+
+    "deferred_intent_state_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_outbox_schema_version",
+        "state_transition_id",
+        "deferred_intent_ref",
+        "from_state_class",
+        "to_state_class",
+        "trigger_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_state_transition_record" },
+        "deferred_intent_outbox_schema_version": { "$ref": "#/$defs/deferred_intent_outbox_schema_version" },
+        "state_transition_id": { "$ref": "#/$defs/opaque_id" },
+        "deferred_intent_ref": { "$ref": "#/$defs/opaque_id" },
+        "from_state_class": { "$ref": "#/$defs/current_state_class" },
+        "to_state_class": { "$ref": "#/$defs/current_state_class" },
+        "trigger_class": {
+          "type": "string",
+          "enum": [
+            "model_identity_changed",
+            "embedder_identity_changed",
+            "prompt_pack_changed",
+            "tool_pack_changed",
+            "workspace_trust_changed",
+            "workspace_identity_changed",
+            "policy_epoch_rolled",
+            "rollout_state_demoted_or_withdrawn",
+            "memory_row_invalidated",
+            "consent_withdrawn",
+            "approval_ticket_minted",
+            "approval_ticket_revoked",
+            "hold_class_applied",
+            "hold_class_cleared",
+            "retention_window_closed",
+            "user_cancelled",
+            "admin_cancelled",
+            "reconciliation_pass_revalidation_clear",
+            "reconciliation_pass_send_completed",
+            "newer_intent_superseded_this_one"
+          ],
+          "description": "Frozen trigger-class vocabulary on a state transition. Every transition names exactly one trigger; an opaque transition (no trigger) denies with deferred_intent_state_transitioned_without_trigger."
+        },
+        "narrative_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short reviewable label safe for reconciliation-readout surfaces. Never raw conversation text, raw URLs, raw paths, or raw credential material."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "State-transition record on a deferred intent. Every state change emits exactly one transition record; collapsing two transitions into one row is non-conforming."
+    },
+
+    "deferred_intent_reconciliation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_outbox_schema_version",
+        "reconciliation_id",
+        "deferred_intent_ref",
+        "reconciliation_outcome_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_reconciliation_record" },
+        "deferred_intent_outbox_schema_version": { "$ref": "#/$defs/deferred_intent_outbox_schema_version" },
+        "reconciliation_id": { "$ref": "#/$defs/opaque_id" },
+        "deferred_intent_ref": { "$ref": "#/$defs/opaque_id" },
+        "reconciliation_outcome_class": { "$ref": "#/$defs/reconciliation_outcome_class" },
+        "environment_axes_changed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "provider_entry_changed",
+              "model_entry_changed",
+              "embedder_identity_changed",
+              "prompt_pack_changed",
+              "tool_pack_changed",
+              "workspace_identity_changed",
+              "workspace_trust_changed",
+              "policy_epoch_rolled",
+              "rollout_state_demoted_or_withdrawn",
+              "depended_on_memory_invalidated",
+              "no_axis_changed"
+            ]
+          },
+          "description": "The closed set of environment axes that changed between queue time and reconciliation time. no_axis_changed is admissible only when reconciliation_outcome_class = sent_against_unchanged_environment; any other outcome MUST list every changed axis or deny with silent_send_against_changed_environment_forbidden."
+        },
+        "produced_route_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the route-receipt minted on a successful send. Required (non-null) when reconciliation_outcome_class is sent_against_unchanged_environment or sent_against_revalidated_environment; null otherwise."
+        },
+        "produced_evidence_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the evidence packet minted on a successful send. Required (non-null) when reconciliation_outcome_class is sent_against_unchanged_environment or sent_against_revalidated_environment; null otherwise."
+        },
+        "produced_mutation_journal_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the mutation-journal entry minted by a mutating send. Null on read-only / evidence-only / dropped outcomes."
+        },
+        "drop_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short reviewable label safe for outbox-inspector surfaces. Required (non-null) on dropped_* outcomes; null on sent_* and deferred_again_revalidation_pending outcomes."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "produced_route_receipt_ref MUST be non-null on sent_* outcomes.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": {
+                "enum": [
+                  "sent_against_unchanged_environment",
+                  "sent_against_revalidated_environment"
+                ]
+              }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": { "produced_route_receipt_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["produced_route_receipt_ref"]
+          }
+        },
+        {
+          "description": "produced_evidence_packet_ref MUST be non-null on sent_* outcomes.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": {
+                "enum": [
+                  "sent_against_unchanged_environment",
+                  "sent_against_revalidated_environment"
+                ]
+              }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": { "produced_evidence_packet_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["produced_evidence_packet_ref"]
+          }
+        },
+        {
+          "description": "drop_reason_label MUST be non-null on dropped_* outcomes.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": {
+                "enum": [
+                  "dropped_eligibility_revoked",
+                  "dropped_replay_forbidden",
+                  "dropped_superseded_by_newer_intent",
+                  "dropped_user_cancelled",
+                  "dropped_admin_cancelled",
+                  "dropped_consent_withdrawn",
+                  "dropped_retention_window_closed_before_send"
+                ]
+              }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": { "drop_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["drop_reason_label"]
+          }
+        },
+        {
+          "description": "environment_axes_changed MUST be exactly [no_axis_changed] when reconciliation_outcome_class = sent_against_unchanged_environment.",
+          "if": {
+            "properties": {
+              "reconciliation_outcome_class": { "const": "sent_against_unchanged_environment" }
+            },
+            "required": ["reconciliation_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "environment_axes_changed": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "no_axis_changed" }
+              }
+            },
+            "required": ["environment_axes_changed"]
+          }
+        }
+      ],
+      "description": "Reconciliation record. Every reconciliation pass on a deferred intent emits exactly one reconciliation record naming the outcome, the changed environment axes, the produced route-receipt / evidence-packet / mutation-journal-entry refs (on send), and a typed drop-reason label (on drop)."
+    },
+
+    "deferred_intent_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_intent_outbox_schema_version",
+        "audit_event_id",
+        "deferred_intent_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_intent_audit_event_record" },
+        "deferred_intent_outbox_schema_version": { "$ref": "#/$defs/deferred_intent_outbox_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/deferred_intent_audit_event_id" },
+        "deferred_intent_ref": { "$ref": "#/$defs/opaque_id" },
+        "state_transition_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "reconciliation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "from_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/current_state_class" }
+          ]
+        },
+        "to_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/current_state_class" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deferred_intent_denial_reason" }
+          ],
+          "description": "Required (non-null) on deferred_intent_audit_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null on deferred_intent_audit_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "deferred_intent_audit_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/deferred_intent_denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the ai_deferred_intent audit stream. Events MUST NOT carry raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw paths, or raw credential material."
+    }
+  }
+}

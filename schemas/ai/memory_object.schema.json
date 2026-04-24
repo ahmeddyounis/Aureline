@@ -1,0 +1,911 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/memory_object.schema.json",
+  "title": "Aureline AI memory-object, invalidation-event, delete-request, export-assembly, and memory-audit vocabulary",
+  "description": "Boundary schema for the ai_memory_object_record, ai_memory_invalidation_event_record, ai_memory_delete_request_record, ai_memory_export_assembly_record, and ai_memory_audit_event_record frozen in docs/ai/memory_and_reconciliation_contract.md. Every AI-derived row that survives the active turn — conversation history, derived caches, embeddings, memory rows, retained evidence-packet copies, and explicit user-saved memory — resolves to one ai_memory_object_record carrying exactly one ai_memory_class (turn_state_ephemeral, conversation_history_user_visible, derived_cache_regeneratable, embedding_row_regeneratable, reusable_repo_fact_workspace_scope, retained_evidence_packet_copy, explicit_saved_memory_user_owned), one storage_authority_class (user_authored_durable_truth, user_owned_recovery_state, disposable_derived_cache, admin_or_control_artifact, ai_retained_evidence_packet_class), one delete_posture_class (delete_clears_local_only, delete_clears_local_and_managed, delete_blocks_on_hold, delete_request_supported_with_destruction_receipt, delete_denied_class_immutable, delete_denied_evidence_packet_overrides), one export_posture_class (exportable_as_user_visible, exportable_metadata_only, exportable_as_evidence_packet, not_exportable_regeneratable_only, not_exportable_local_authority_only, not_exportable_secret_adjacent), one retention_posture_class (transient_session_only, conversation_scoped, workspace_scoped, packet_expiry_or_case_close, user_pin_only, never_gc_authoritative), and one redaction_class. The schema also carries the invalidation-trigger vocabulary (model_identity_changed, embedder_identity_changed, prompt_pack_changed, tool_pack_changed, workspace_trust_changed, workspace_identity_changed, policy_epoch_rolled, retention_policy_changed, delete_request_received, manual_admin_invalidation, schema_version_bumped, eligibility_revoked) and the deferred-intent outbox handles (this schema only references deferred_intent_record_refs by id; the deferred-intent shapes themselves live in schemas/ai/deferred_intent_outbox.schema.json). A record claiming retained_evidence_packet_copy MUST carry a non-empty originating_evidence_packet_ref or deny with retained_evidence_packet_copy_missing_origin_ref; a record claiming explicit_saved_memory_user_owned MUST carry a non-empty user_pin_ref or deny with explicit_saved_memory_missing_user_pin; a record claiming derived_cache_regeneratable or embedding_row_regeneratable MUST list at least one invalidation_fingerprint covering model_identity_ref, embedder_identity_ref, prompt_pack_ref, or tool_pack_ref or deny with derived_cache_missing_invalidation_fingerprint. Raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw tool return bytes, raw embeddings (vectors), raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, and coarse buckets only. The eventual memory-runtime crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new ai_memory_class, storage_authority_class, delete_posture_class, export_posture_class, retention_posture_class, invalidation_trigger_class, deferred_intent_relation_class, audit_event_id, or denial_reason value is additive-minor and requires an ai_memory_object_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_memory_object_record" },
+    { "$ref": "#/$defs/ai_memory_invalidation_event_record" },
+    { "$ref": "#/$defs/ai_memory_delete_request_record" },
+    { "$ref": "#/$defs/ai_memory_export_assembly_record" },
+    { "$ref": "#/$defs/ai_memory_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_memory_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI memory-object vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_memory_object_record",
+        "ai_memory_invalidation_event_record",
+        "ai_memory_delete_request_record",
+        "ai_memory_export_assembly_record",
+        "ai_memory_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-reconciliation consoles. Raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw embeddings, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on memory-inspector chips, clear-data review sheets, export readouts, and admin-reconciliation surfaces. Never contains raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw paths, or raw credential material."
+    },
+
+    "ai_memory_class": {
+      "type": "string",
+      "enum": [
+        "turn_state_ephemeral",
+        "conversation_history_user_visible",
+        "derived_cache_regeneratable",
+        "embedding_row_regeneratable",
+        "reusable_repo_fact_workspace_scope",
+        "retained_evidence_packet_copy",
+        "explicit_saved_memory_user_owned"
+      ],
+      "description": "Frozen AI memory-class vocabulary. turn_state_ephemeral = in-flight scratch state for one active turn, never durably retained; conversation_history_user_visible = the threaded user-visible record of past turns, exported as-is on user request; derived_cache_regeneratable = retrieval / lookup cache whose entries can be re-derived from primary sources (no separate authority); embedding_row_regeneratable = vector / embedding row whose value is bound to a specific embedder identity and is regeneratable on embedder change; reusable_repo_fact_workspace_scope = workspace-scoped derived fact (graph index, language snapshot, doc index summary) that survives across conversations; retained_evidence_packet_copy = an AI retained-evidence-packet copy governed by the ai_retained_evidence_packet record-class registry row; explicit_saved_memory_user_owned = a user-pinned 'remember this' note authored explicitly by the user. A surface that collapses two memory classes into one row denies with ai_memory_class_collapse_forbidden."
+    },
+
+    "storage_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "disposable_derived_cache",
+        "admin_or_control_artifact",
+        "ai_retained_evidence_packet_class"
+      ],
+      "description": "Re-exported (and narrowed for AI memory rows) from artifacts/runtime/storage_classes.yaml authority classes. user_authored_durable_truth and user_owned_recovery_state name primary user content the AI memory layer never re-mints; disposable_derived_cache covers regenerable derived rows; admin_or_control_artifact covers admin-published memory rules; ai_retained_evidence_packet_class is reserved for retained evidence packet copies governed by the ai_retained_evidence_packet record-class registry row. A derived_cache_regeneratable or embedding_row_regeneratable memory class MUST resolve to disposable_derived_cache; a retained_evidence_packet_copy MUST resolve to ai_retained_evidence_packet_class; an explicit_saved_memory_user_owned MUST resolve to user_owned_recovery_state."
+    },
+
+    "delete_posture_class": {
+      "type": "string",
+      "enum": [
+        "delete_clears_local_only",
+        "delete_clears_local_and_managed",
+        "delete_blocks_on_hold",
+        "delete_request_supported_with_destruction_receipt",
+        "delete_denied_class_immutable",
+        "delete_denied_evidence_packet_overrides"
+      ],
+      "description": "Frozen delete-posture vocabulary. delete_clears_local_only = local copy is removable; managed copy is not separately tracked. delete_clears_local_and_managed = both copies are removable on the same request. delete_blocks_on_hold = active legal / support / retention-minimum hold blocks completion; the request is queued and the user is shown the hold class. delete_request_supported_with_destruction_receipt = the delete completes with a destruction-receipt and a typed retained-subset note. delete_denied_class_immutable = the row's storage authority refuses generic delete; only an explicit class-specific review path may remove it. delete_denied_evidence_packet_overrides = the row is bound to a retained evidence packet and follows the packet's delete posture (ai_retained_evidence_packet record-class) instead of the AI memory layer's request."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_as_user_visible",
+        "exportable_metadata_only",
+        "exportable_as_evidence_packet",
+        "not_exportable_regeneratable_only",
+        "not_exportable_local_authority_only",
+        "not_exportable_secret_adjacent"
+      ],
+      "description": "Frozen export-posture vocabulary. exportable_as_user_visible = the conversation-history form a user reads in the product is the export form. exportable_metadata_only = only the row metadata (kind, identity refs, retention posture) is in the export; raw bodies remain off-boundary. exportable_as_evidence_packet = the export shape is the retained evidence packet itself (ai_retained_evidence_packet record-class). not_exportable_regeneratable_only = derived caches and embedding rows are not in the export because they are reproducible from primary sources; the export names what was excluded and why. not_exportable_local_authority_only = the row is local user state not surfaced to a managed export. not_exportable_secret_adjacent = the row would project secret-adjacent material and is excluded with disclosure."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "transient_session_only",
+        "conversation_scoped",
+        "workspace_scoped",
+        "packet_expiry_or_case_close",
+        "user_pin_only",
+        "never_gc_authoritative"
+      ],
+      "description": "Frozen retention-posture vocabulary. transient_session_only = lives only for the active session; on close the row is dropped. conversation_scoped = lives as long as the conversation thread exists. workspace_scoped = lives with the workspace identity (rebuildable on workspace re-open). packet_expiry_or_case_close = governed by the retained-evidence-packet expiry timer or case-close (record-class registry posture). user_pin_only = the user explicitly pinned this row; only the user can unpin it. never_gc_authoritative = held under retention-window or admin policy; not subject to ordinary cache GC."
+    },
+
+    "invalidation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "model_identity_changed",
+        "embedder_identity_changed",
+        "prompt_pack_changed",
+        "tool_pack_changed",
+        "workspace_trust_changed",
+        "workspace_identity_changed",
+        "policy_epoch_rolled",
+        "retention_policy_changed",
+        "delete_request_received",
+        "manual_admin_invalidation",
+        "schema_version_bumped",
+        "eligibility_revoked_pack_quarantined",
+        "eligibility_revoked_provider_disabled",
+        "eligibility_revoked_workspace_trust",
+        "eligibility_revoked_policy",
+        "rollout_state_demoted_or_withdrawn"
+      ],
+      "description": "Frozen invalidation-trigger vocabulary. Every change that may make a derived / cached / embedding memory row stale fires exactly one trigger class. model_identity_changed and embedder_identity_changed force re-derivation of any row whose invalidation_fingerprint cited the old identity; prompt_pack_changed and tool_pack_changed force re-derivation of any row whose composer-plan or tool-call binding shifted; workspace_trust_changed forces re-evaluation of every workspace-scoped row that was admitted under the old trust state; policy_epoch_rolled forces re-evaluation of every row whose policy_context cited the old epoch; delete_request_received fires when the user or admin requested removal; eligibility_revoked_* covers pack quarantine, provider disable, trust loss, and policy denial; rollout_state_demoted_or_withdrawn fires when the rollout-state pin moves to deprecated or disabled (graduation-packet contract). A surface that proceeds against a stale row without firing the matching trigger denies with stale_memory_row_used_without_invalidation_fired."
+    },
+
+    "invalidation_outcome_class": {
+      "type": "string",
+      "enum": [
+        "row_invalidated_and_purged",
+        "row_invalidated_and_marked_for_regeneration",
+        "row_quarantined_pending_review",
+        "row_partially_invalidated_subsegment",
+        "row_blocked_on_hold_invalidation_deferred",
+        "row_left_intact_invalidation_not_required"
+      ],
+      "description": "Frozen invalidation-outcome vocabulary. row_invalidated_and_purged = the row was removed and a destruction-receipt is emitted. row_invalidated_and_marked_for_regeneration = the row is marked stale; the next read forces regeneration before the row is admitted again. row_quarantined_pending_review = the row is held pending an admin review; reads deny with row_quarantined_pending_review until the review completes. row_partially_invalidated_subsegment = only a sub-range of the row was invalidated (e.g. one conversation turn, one tool-call segment). row_blocked_on_hold_invalidation_deferred = a legal / support hold blocks invalidation; the row stays present but is flagged. row_left_intact_invalidation_not_required = the trigger was filed but the row's identity did not match any invalidation fingerprint."
+    },
+
+    "invalidation_fingerprint_kind": {
+      "type": "string",
+      "enum": [
+        "model_identity_ref",
+        "embedder_identity_ref",
+        "prompt_pack_ref",
+        "tool_pack_ref",
+        "workspace_identity_ref",
+        "workspace_trust_state",
+        "policy_epoch_ref",
+        "producing_schema_version",
+        "aureline_compatible_version_range",
+        "retention_policy_ref",
+        "rollout_state_ref"
+      ],
+      "description": "Frozen fingerprint-kind vocabulary. Every derived / embedding / reusable-repo-fact row MUST list at least one fingerprint; a row missing every required fingerprint denies with derived_cache_missing_invalidation_fingerprint. Fingerprints are opaque refs to the bound identity; raw model weights, raw embedder weights, raw pack bytes, and raw policy bundles never appear."
+    },
+
+    "deferred_intent_relation_class": {
+      "type": "string",
+      "enum": [
+        "memory_row_originates_intent",
+        "memory_row_consumed_by_intent",
+        "memory_row_invalidated_by_intent_replay",
+        "memory_row_blocks_intent_send",
+        "memory_row_unrelated_to_intent"
+      ],
+      "description": "Frozen relation-class vocabulary describing how an ai_memory_object_record relates to a deferred_intent_record (whose shape is defined in schemas/ai/deferred_intent_outbox.schema.json). memory_row_blocks_intent_send fires when a deferred intent cannot send because a required memory row was deleted, invalidated, or expired; the intent is then forced through revalidate_before_send (deferred_intent_outbox contract) rather than silently replayed."
+    },
+
+    "memory_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_memory_object_minted",
+        "ai_memory_object_invalidated",
+        "ai_memory_object_purged",
+        "ai_memory_object_quarantined",
+        "ai_memory_object_export_assembled",
+        "ai_memory_object_delete_requested",
+        "ai_memory_object_delete_completed",
+        "ai_memory_object_delete_blocked_on_hold",
+        "ai_memory_object_delete_denied_class_immutable",
+        "ai_memory_object_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_memory audit stream. Events MUST NOT carry raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw paths, or raw credential material."
+    },
+
+    "memory_denial_reason": {
+      "type": "string",
+      "enum": [
+        "ai_memory_class_collapse_forbidden",
+        "retained_evidence_packet_copy_missing_origin_ref",
+        "explicit_saved_memory_missing_user_pin",
+        "derived_cache_missing_invalidation_fingerprint",
+        "stale_memory_row_used_without_invalidation_fired",
+        "row_quarantined_pending_review",
+        "delete_blocked_on_hold",
+        "delete_denied_class_immutable",
+        "delete_denied_evidence_packet_overrides",
+        "export_class_mismatch_forbidden",
+        "export_payload_raw_body_forbidden",
+        "invalidation_trigger_unresolved",
+        "invalidation_outcome_unresolved",
+        "deferred_intent_replay_against_invalidated_memory_forbidden",
+        "ai_memory_object_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort memory row, an opaque export, or an unmarked invalidation is forbidden."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "invalidation_fingerprint_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint_kind", "fingerprint_ref"],
+      "properties": {
+        "fingerprint_kind": { "$ref": "#/$defs/invalidation_fingerprint_kind" },
+        "fingerprint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound identity. Raw model weights, raw embedder weights, raw pack bytes, raw policy bundles, and raw workspace paths never appear."
+        }
+      },
+      "description": "One fingerprint binding the row to a stable identity. The next invalidation event whose trigger matches the fingerprint kind forces re-derivation or quarantine of this row."
+    },
+
+    "ai_memory_object_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_memory_object_schema_version",
+        "memory_object_id",
+        "ai_memory_class",
+        "storage_authority_class",
+        "delete_posture_class",
+        "export_posture_class",
+        "retention_posture_class",
+        "invalidation_fingerprints",
+        "freshness_class",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_memory_object_record" },
+        "ai_memory_object_schema_version": { "$ref": "#/$defs/ai_memory_object_schema_version" },
+        "memory_object_id": { "$ref": "#/$defs/opaque_id" },
+        "ai_memory_class": { "$ref": "#/$defs/ai_memory_class" },
+        "storage_authority_class": { "$ref": "#/$defs/storage_authority_class" },
+        "delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "conversation_thread_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the conversation thread the row belongs to. Required (non-null) when ai_memory_class is conversation_history_user_visible or turn_state_ephemeral; null on workspace-scoped rows that survive across conversations."
+        },
+        "workspace_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the workspace identity the row is scoped to. Required (non-null) when ai_memory_class is reusable_repo_fact_workspace_scope or when retention_posture_class is workspace_scoped. Raw workspace paths never appear."
+        },
+        "originating_evidence_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ai_evidence_packet_record that minted this row. Required (non-null) when ai_memory_class is retained_evidence_packet_copy."
+        },
+        "user_pin_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the user pin the row was saved under. Required (non-null) when ai_memory_class is explicit_saved_memory_user_owned."
+        },
+        "invalidation_fingerprints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/invalidation_fingerprint_entry" },
+          "description": "Fingerprints binding the row to one or more stable identities. Required non-empty when ai_memory_class is derived_cache_regeneratable, embedding_row_regeneratable, or reusable_repo_fact_workspace_scope; missing then denies with derived_cache_missing_invalidation_fingerprint. May be empty for turn_state_ephemeral, conversation_history_user_visible, retained_evidence_packet_copy, and explicit_saved_memory_user_owned."
+        },
+        "deferred_intent_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to deferred_intent_record entries that consume, originate, or are blocked by this row (the deferred_intent_record shape lives in schemas/ai/deferred_intent_outbox.schema.json). Empty when no deferred intent references this row."
+        },
+        "summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short reviewable label safe for memory-inspector / clear-data-review / export-readout surfaces. Never raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw URLs, raw absolute paths, or raw credential material."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp at which the row's retention window ends. Required (non-null) when retention_posture_class is packet_expiry_or_case_close, workspace_scoped, or conversation_scoped; null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "originating_evidence_packet_ref MUST be non-null when ai_memory_class = retained_evidence_packet_copy.",
+          "if": {
+            "properties": { "ai_memory_class": { "const": "retained_evidence_packet_copy" } },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": { "originating_evidence_packet_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["originating_evidence_packet_ref"]
+          }
+        },
+        {
+          "description": "user_pin_ref MUST be non-null when ai_memory_class = explicit_saved_memory_user_owned.",
+          "if": {
+            "properties": { "ai_memory_class": { "const": "explicit_saved_memory_user_owned" } },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": { "user_pin_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["user_pin_ref"]
+          }
+        },
+        {
+          "description": "invalidation_fingerprints MUST be non-empty for derived / embedding / reusable-repo-fact rows.",
+          "if": {
+            "properties": {
+              "ai_memory_class": {
+                "enum": [
+                  "derived_cache_regeneratable",
+                  "embedding_row_regeneratable",
+                  "reusable_repo_fact_workspace_scope"
+                ]
+              }
+            },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": {
+              "invalidation_fingerprints": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/invalidation_fingerprint_entry" }
+              }
+            },
+            "required": ["invalidation_fingerprints"]
+          }
+        },
+        {
+          "description": "storage_authority_class MUST be disposable_derived_cache for derived / embedding rows.",
+          "if": {
+            "properties": {
+              "ai_memory_class": {
+                "enum": [
+                  "derived_cache_regeneratable",
+                  "embedding_row_regeneratable"
+                ]
+              }
+            },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_authority_class": { "const": "disposable_derived_cache" }
+            },
+            "required": ["storage_authority_class"]
+          }
+        },
+        {
+          "description": "storage_authority_class MUST be ai_retained_evidence_packet_class for retained_evidence_packet_copy rows.",
+          "if": {
+            "properties": {
+              "ai_memory_class": { "const": "retained_evidence_packet_copy" }
+            },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_authority_class": { "const": "ai_retained_evidence_packet_class" }
+            },
+            "required": ["storage_authority_class"]
+          }
+        },
+        {
+          "description": "storage_authority_class MUST be user_owned_recovery_state for explicit_saved_memory_user_owned rows.",
+          "if": {
+            "properties": {
+              "ai_memory_class": { "const": "explicit_saved_memory_user_owned" }
+            },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_authority_class": { "const": "user_owned_recovery_state" }
+            },
+            "required": ["storage_authority_class"]
+          }
+        },
+        {
+          "description": "delete_posture_class MUST be delete_denied_evidence_packet_overrides for retained_evidence_packet_copy rows.",
+          "if": {
+            "properties": {
+              "ai_memory_class": { "const": "retained_evidence_packet_copy" }
+            },
+            "required": ["ai_memory_class"]
+          },
+          "then": {
+            "properties": {
+              "delete_posture_class": { "const": "delete_denied_evidence_packet_overrides" }
+            },
+            "required": ["delete_posture_class"]
+          }
+        },
+        {
+          "description": "expires_at MUST be non-null for retention windows that close on a date.",
+          "if": {
+            "properties": {
+              "retention_posture_class": {
+                "enum": [
+                  "packet_expiry_or_case_close",
+                  "workspace_scoped",
+                  "conversation_scoped"
+                ]
+              }
+            },
+            "required": ["retention_posture_class"]
+          },
+          "then": {
+            "properties": { "expires_at": { "$ref": "#/$defs/monotonic_timestamp" } },
+            "required": ["expires_at"]
+          }
+        }
+      ],
+      "description": "One memory row. Every AI-derived row that survives the active turn — conversation history, derived caches, embeddings, memory rows, retained evidence-packet copies, and explicit user-saved memory — emits exactly one ai_memory_object_record. The class, authority, delete posture, export posture, retention posture, and redaction posture are addressable from the schema alone; surfaces never have to read body content to classify the row."
+    },
+
+    "ai_memory_invalidation_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_memory_object_schema_version",
+        "invalidation_event_id",
+        "memory_object_ref",
+        "invalidation_trigger_class",
+        "invalidation_outcome_class",
+        "matched_fingerprint_kinds",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_memory_invalidation_event_record" },
+        "ai_memory_object_schema_version": { "$ref": "#/$defs/ai_memory_object_schema_version" },
+        "invalidation_event_id": { "$ref": "#/$defs/opaque_id" },
+        "memory_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_trigger_class": { "$ref": "#/$defs/invalidation_trigger_class" },
+        "invalidation_outcome_class": { "$ref": "#/$defs/invalidation_outcome_class" },
+        "matched_fingerprint_kinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/invalidation_fingerprint_kind" },
+          "description": "The fingerprint kinds on the row that matched the trigger. May be empty when invalidation_outcome_class is row_left_intact_invalidation_not_required (the trigger fired but no fingerprint matched)."
+        },
+        "prior_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prior bound identity (model, embedder, prompt-pack, tool-pack, workspace, policy-epoch). Non-null when invalidation_trigger_class is one of the *_changed / *_rolled triggers."
+        },
+        "current_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the new bound identity that fired the trigger. Non-null when invalidation_trigger_class is one of the *_changed / *_rolled triggers."
+        },
+        "regeneration_required": {
+          "type": "boolean",
+          "description": "True when the next read of this row MUST re-derive before serving; false when the row is purged outright or marked left-intact."
+        },
+        "destruction_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the destruction-receipt minted on row_invalidated_and_purged outcomes. Required (non-null) when invalidation_outcome_class is row_invalidated_and_purged; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "destruction_receipt_ref MUST be non-null when invalidation_outcome_class = row_invalidated_and_purged.",
+          "if": {
+            "properties": { "invalidation_outcome_class": { "const": "row_invalidated_and_purged" } },
+            "required": ["invalidation_outcome_class"]
+          },
+          "then": {
+            "properties": { "destruction_receipt_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["destruction_receipt_ref"]
+          }
+        },
+        {
+          "description": "matched_fingerprint_kinds MUST be empty when invalidation_outcome_class = row_left_intact_invalidation_not_required.",
+          "if": {
+            "properties": {
+              "invalidation_outcome_class": { "const": "row_left_intact_invalidation_not_required" }
+            },
+            "required": ["invalidation_outcome_class"]
+          },
+          "then": {
+            "properties": { "matched_fingerprint_kinds": { "maxItems": 0 } }
+          }
+        }
+      ],
+      "description": "Invalidation event recorded when a model / embedder / pack / workspace-trust / policy / retention / delete / quarantine trigger fires against a memory row. The event names exactly one trigger class and one outcome class; silent purge or silent regeneration without an event is non-conforming."
+    },
+
+    "ai_memory_delete_request_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_memory_object_schema_version",
+        "delete_request_id",
+        "memory_object_refs",
+        "requested_by_class",
+        "request_outcome_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_memory_delete_request_record" },
+        "ai_memory_object_schema_version": { "$ref": "#/$defs/ai_memory_object_schema_version" },
+        "delete_request_id": { "$ref": "#/$defs/opaque_id" },
+        "memory_object_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the memory rows the request targets. The request MUST address every memory class it touches separately on the request_outcome_per_class set so reviewers can see which classes were cleared and which were intentionally preserved."
+        },
+        "requested_by_class": {
+          "type": "string",
+          "enum": [
+            "user_initiated_clear_thread",
+            "user_initiated_clear_workspace_ai_state",
+            "user_initiated_clear_explicit_saved_memory",
+            "admin_initiated_class_specific_review",
+            "policy_initiated_retention_window_close",
+            "system_initiated_invalidation_cascade"
+          ],
+          "description": "Frozen requester-class vocabulary. user_initiated_clear_thread is the per-conversation 'delete this thread' control; user_initiated_clear_workspace_ai_state is the per-workspace 'clear AI state' control; user_initiated_clear_explicit_saved_memory removes a user-pinned memory row; admin_initiated_class_specific_review covers protected-class clears the user cannot trigger directly; policy_initiated_retention_window_close fires when a retention window closes; system_initiated_invalidation_cascade fires when an invalidation event drove a delete (e.g. embedder change → embedding rows purged)."
+        },
+        "request_outcome_class": {
+          "type": "string",
+          "enum": [
+            "completed_with_destruction_receipt",
+            "completed_local_only_managed_copy_governed_separately",
+            "blocked_on_hold_request_queued",
+            "denied_class_immutable",
+            "denied_evidence_packet_overrides",
+            "partially_completed_subset_blocked"
+          ],
+          "description": "Frozen outcome-class vocabulary. completed_with_destruction_receipt = every targeted row was removed and a destruction-receipt was minted. completed_local_only_managed_copy_governed_separately = the local copy was removed; managed copy follows its own delete posture. blocked_on_hold_request_queued = an active legal / support / retention-minimum hold blocks completion. denied_class_immutable = a row's storage authority refused generic delete; only an explicit class-specific review path may remove it. denied_evidence_packet_overrides = a row is bound to a retained evidence packet and its delete posture is governed by the packet (ai_retained_evidence_packet record-class). partially_completed_subset_blocked = some rows were removed and others were blocked; the request_outcome_per_class set names which were which."
+        },
+        "request_outcome_per_class": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ai_memory_class", "outcome_class"],
+            "properties": {
+              "ai_memory_class": { "$ref": "#/$defs/ai_memory_class" },
+              "outcome_class": {
+                "type": "string",
+                "enum": [
+                  "cleared",
+                  "preserved_evidence_packet",
+                  "preserved_user_pin",
+                  "preserved_legal_hold",
+                  "preserved_admin_owned",
+                  "regenerated_after_clear"
+                ],
+                "description": "Per-class outcome on this delete request. preserved_evidence_packet, preserved_user_pin, preserved_legal_hold, and preserved_admin_owned name the intentional retained-class so the user / admin can answer 'which AI memory class was preserved' without reading bodies."
+              },
+              "preserved_reason_class": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "evidence_packet_overrides",
+                      "user_pin_only_user_can_unpin",
+                      "active_legal_hold",
+                      "active_support_hold",
+                      "admin_owned_class_immutable",
+                      "retention_minimum_window_open",
+                      "regenerated_from_primary_source"
+                    ]
+                  }
+                ],
+                "description": "Frozen preserved-reason vocabulary, required (non-null) on every outcome other than cleared / regenerated_after_clear."
+              }
+            }
+          },
+          "description": "Per-class outcome rows. The set MUST cover every ai_memory_class the request touched; collapsing two classes into one row denies with ai_memory_class_collapse_forbidden."
+        },
+        "destruction_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the destruction-receipt minted on completed_with_destruction_receipt outcomes. Required (non-null) when request_outcome_class = completed_with_destruction_receipt; null otherwise."
+        },
+        "hold_class_blocking": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "administrative_legal",
+                "support_investigation",
+                "retention_minimum"
+              ]
+            }
+          ],
+          "description": "Frozen hold-class vocabulary (re-exported from artifacts/governance/record_class_registry.yaml hold_classes). Required (non-null) when request_outcome_class is blocked_on_hold_request_queued; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "destruction_receipt_ref MUST be non-null when request_outcome_class = completed_with_destruction_receipt.",
+          "if": {
+            "properties": { "request_outcome_class": { "const": "completed_with_destruction_receipt" } },
+            "required": ["request_outcome_class"]
+          },
+          "then": {
+            "properties": { "destruction_receipt_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["destruction_receipt_ref"]
+          }
+        },
+        {
+          "description": "hold_class_blocking MUST be non-null when request_outcome_class = blocked_on_hold_request_queued.",
+          "if": {
+            "properties": { "request_outcome_class": { "const": "blocked_on_hold_request_queued" } },
+            "required": ["request_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "hold_class_blocking": {
+                "type": "string",
+                "enum": [
+                  "administrative_legal",
+                  "support_investigation",
+                  "retention_minimum"
+                ]
+              }
+            },
+            "required": ["hold_class_blocking"]
+          }
+        }
+      ],
+      "description": "Delete request applied against one or more memory rows. The record names which memory classes were cleared, which were intentionally preserved, and which were blocked by hold; collapsing classes into one opaque 'AI history was deleted' line is non-conforming."
+    },
+
+    "ai_memory_export_assembly_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_memory_object_schema_version",
+        "export_assembly_id",
+        "export_target_class",
+        "included_classes",
+        "excluded_classes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_memory_export_assembly_record" },
+        "ai_memory_object_schema_version": { "$ref": "#/$defs/ai_memory_object_schema_version" },
+        "export_assembly_id": { "$ref": "#/$defs/opaque_id" },
+        "export_target_class": {
+          "type": "string",
+          "enum": [
+            "user_self_service_export",
+            "managed_offboarding_package",
+            "support_bundle_export",
+            "admin_legal_hold_export",
+            "evidence_packet_export"
+          ],
+          "description": "Frozen export-target-class vocabulary. Each target's redaction-class floor and admissible classes narrow further by deployment profile; the schema's class lists MUST be a subset of what the target admits."
+        },
+        "included_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ai_memory_class", "export_posture_class", "row_count_class"],
+            "properties": {
+              "ai_memory_class": { "$ref": "#/$defs/ai_memory_class" },
+              "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+              "row_count_class": {
+                "type": "string",
+                "enum": [
+                  "row_count_zero",
+                  "row_count_small_under_ten",
+                  "row_count_medium_under_one_hundred",
+                  "row_count_large_under_one_thousand",
+                  "row_count_xlarge_one_thousand_or_more"
+                ],
+                "description": "Coarse row-count bucket. Reviewers see a bucket; raw row counts and raw rows never appear."
+              },
+              "memory_object_refs": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" },
+                "description": "Opaque refs to the memory rows in the export. Empty admissible only when row_count_class is row_count_zero."
+              }
+            }
+          },
+          "description": "One row per ai_memory_class included in the export. The export MUST address every class separately so the user / admin / reviewer can distinguish 'user-visible history' from 'derived cache' from 'evidence packet'."
+        },
+        "excluded_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ai_memory_class", "exclusion_reason_class"],
+            "properties": {
+              "ai_memory_class": { "$ref": "#/$defs/ai_memory_class" },
+              "exclusion_reason_class": {
+                "type": "string",
+                "enum": [
+                  "regeneratable_excluded_by_design",
+                  "secret_adjacent_excluded_with_disclosure",
+                  "local_authority_only_not_in_managed_export",
+                  "evidence_packet_export_separate_path",
+                  "policy_redaction_class_exceeds_target_floor",
+                  "no_rows_present"
+                ],
+                "description": "Frozen exclusion-reason vocabulary. Every excluded class MUST cite exactly one reason; opaque exclusion (no reason) denies with export_class_mismatch_forbidden."
+              }
+            }
+          },
+          "description": "One row per ai_memory_class intentionally excluded from the export. The set is the contract's positive answer to 'which AI memory class is excluded and why'."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Export assembly. Every export of AI memory state — user self-service, managed offboarding, support bundle, admin legal-hold, or evidence-packet export — emits exactly one ai_memory_export_assembly_record listing the included memory classes (each with its export posture and a coarse row-count bucket) and the excluded memory classes (each with a frozen exclusion reason). Collapsing AI memory into one opaque 'AI history' export blob is non-conforming."
+    },
+
+    "ai_memory_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_memory_object_schema_version",
+        "audit_event_id",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_memory_audit_event_record" },
+        "ai_memory_object_schema_version": { "$ref": "#/$defs/ai_memory_object_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/memory_audit_event_id" },
+        "memory_object_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "invalidation_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delete_request_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "export_assembly_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "ai_memory_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ai_memory_class" }
+          ],
+          "description": "Required (non-null) on ai_memory_object_minted, ai_memory_object_invalidated, ai_memory_object_purged, and ai_memory_object_quarantined events; optional otherwise."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/memory_denial_reason" }
+          ],
+          "description": "Required (non-null) on ai_memory_object_delete_blocked_on_hold and ai_memory_object_delete_denied_class_immutable events; optional on other events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted on the ai_memory audit stream. Events MUST NOT carry raw conversation text, raw prompt bodies, raw retrieved-document bodies, raw embeddings, raw URLs, raw paths, or raw credential material."
+    }
+  }
+}
