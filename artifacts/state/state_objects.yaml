@@ -1,0 +1,1076 @@
+# State-object inventory: authority, category, schema-evolution posture,
+# downgrade readability, backup-before-migrate rule, and corruption
+# posture for every persisted state object Aureline manages.
+#
+# Companion to docs/state/state_object_inventory.md and
+# artifacts/state/corruption_routing_matrix.yaml. The product may
+# implement these objects through different internal stores, but every
+# later surface (clear-data review, Project Doctor, repair flow,
+# migration center, support bundle, benchmark council, restore
+# surface, signed-bundle distribution) MUST project back to the row
+# ids declared here.
+
+schema_version: 1
+artifact_id: aureline.state.state_objects
+title: State-object inventory, authority owner, schema-evolution path, and backup rule
+
+contract_source: docs/state/state_object_inventory.md
+
+related_docs:
+  - docs/state/profile_and_state_map.md
+  - docs/state/migration_and_restore_playbook.md
+  - docs/runtime/storage_classes_and_gc.md
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/support_bundle_contract.md
+
+companion_refs:
+  corruption_routing_matrix_ref: artifacts/state/corruption_routing_matrix.yaml
+  profile_and_state_map_ref: docs/state/profile_and_state_map.md
+  restore_provenance_schema_ref: schemas/state/restore_provenance.schema.json
+  storage_classes_ref: artifacts/runtime/storage_classes.yaml
+  recovery_ladder_packet_ref: docs/support/recovery_ladder_packet.md
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Re-exported verbatim from the contract source. Adding a value is
+# additive-minor and MUST bump schema_version; repurposing a value is
+# breaking and requires a new decision row.
+# --------------------------------------------------------------------------
+
+authority_class_vocabulary:
+  # Re-exported from docs/state/profile_and_state_map.md §1.
+  - user_authored_durable_truth
+  - user_owned_recovery_state
+  - admin_or_control_artifact
+  - disposable_derived_cache
+
+object_category_vocabulary:
+  - user_authored_durable_state
+  - workspace_authored_durable_state
+  - derived_disposable_state
+  - recovery_journal_state
+  - audit_trust_security_state
+  - evidence_support_state
+
+schema_evolution_posture_vocabulary:
+  - frozen_no_evolution
+  - additive_minor_only
+  - migrating_with_equivalence_map
+  - replay_only_no_schema
+  - signed_epoch_replacement
+  - content_addressed_immutable
+
+backward_downgrade_readability_vocabulary:
+  - downgrade_reads_fully
+  - downgrade_reads_with_fallback
+  - downgrade_requires_export_only
+  - downgrade_refused
+
+backup_before_migrate_rule_vocabulary:
+  - backup_required_before_destructive_migration
+  - backup_optional_user_offered
+  - backup_not_applicable_content_addressed
+  - backup_not_applicable_disposable
+  - backup_handled_by_authority
+
+corruption_posture_class_vocabulary:
+  - block_feature_only
+  - rebuild_automatically
+  - open_with_warning
+  - repair_flow
+  - backup_rollback
+  - fail_closed_for_privileged_operations
+
+location_root_vocabulary:
+  # Re-exported from docs/state/profile_and_state_map.md §6.
+  - AURELINE_CONFIG
+  - AURELINE_STATE
+  - AURELINE_POLICY
+  - workspace_tree
+  - os_credential_store
+
+consumer_surface_vocabulary:
+  - clear_data_review
+  - project_doctor
+  - repair_flow
+  - migration_center
+  - support_bundle
+  - benchmark_council
+  - restore_surface
+  - signed_bundle_distribution
+
+# --------------------------------------------------------------------------
+# Inventory rows.
+#
+# Each row binds one state object to a single authority, category,
+# schema-evolution posture, downgrade readability, backup rule, and
+# corruption posture. Every row declares at least one consumer
+# surface.
+# --------------------------------------------------------------------------
+
+state_objects:
+  # ---- user-authored durable state ----
+
+  - id: user_global_settings
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: settings.jsonc
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: backup_rollback
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+      - support_bundle
+    rationale: >
+      Primary portable-profile payload. Schema translations are
+      allowed only through declared equivalence maps; a corrupted
+      body rolls back to the preserved pre-migration artifact and
+      never silently rebuilds.
+
+  - id: keybindings
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: keybindings.jsonc
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: backup_rollback
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+      - support_bundle
+    rationale: >
+      Command-id remaps translate via equivalence map; a corrupted
+      body rolls back. Editor remains usable under fallback defaults
+      while rollback runs.
+
+  - id: snippets
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: snippets/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+    rationale: >
+      Snippet bodies are free text per trigger. A single corrupted
+      snippet MUST NOT block the rest; the product opens with a
+      warning and the affected snippet becomes inert until repaired.
+
+  - id: themes_and_design_tokens
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: themes/*
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: backup_rollback
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+    rationale: >
+      Token meaning can change across schema versions. A corrupted
+      token set rolls back to the preserved prior artifact so the
+      editor never renders against torn token semantics.
+
+  - id: command_aliases
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: aliases.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Aliases are opaque-to-semantics strings. Corruption disables
+      alias resolution until repaired but does not block editing.
+
+  - id: ui_presets_and_layout_defaults
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: layout_presets/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Layout presets are user-authored; corruption falls back to
+      built-in defaults with an explicit warning.
+
+  - id: extension_selection_inventory
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: extensions.selected.jsonc
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: backup_rollback
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+      - support_bundle
+    rationale: >
+      Marketplace id remaps travel via equivalence map; a corrupted
+      selection rolls back rather than silently dropping extensions.
+
+  - id: ai_preset_selection
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: ai/presets.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      AI preset ids and reference handles carry redacted values; a
+      corrupted body falls back to disabled AI affordances until
+      repaired.
+
+  - id: terminal_preferences
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: terminal/preferences.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Terminal preferences fall back to built-in defaults if the body
+      is unreadable; the editor still opens.
+
+  - id: machine_specific_settings
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: machine.settings.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Machine-specific hints are by construction recoverable from
+      defaults. Corruption yields a warning banner; the portable
+      profile remains unaffected.
+
+  - id: profile_library_index
+    category: user_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: AURELINE_CONFIG
+    location_path_concept: profiles/*.aureprofile.json
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: block_feature_only
+    repair_rung_ref: null
+    consumer_surfaces:
+      - migration_center
+      - restore_surface
+      - clear_data_review
+    rationale: >
+      Library index lists available profile files. Corruption
+      disables the library picker but does not block editing; repair
+      re-scans the library directory.
+
+  # ---- workspace-authored durable state ----
+
+  - id: workspace_manifest
+    category: workspace_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: workspace_tree
+    location_path_concept: aureline.workspace.jsonc
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.workspace_manifest_diff_review
+    consumer_surfaces:
+      - repair_flow
+      - migration_center
+      - restore_surface
+      - support_bundle
+    rationale: >
+      Workspace manifest is shared team truth. A corruption or
+      schema-meaning conflict routes through an explicit diff-review
+      rung; never silently overwritten.
+
+  - id: workset_manifest
+    category: workspace_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: workspace_tree
+    location_path_concept: .aureline/worksets/*.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.workspace_manifest_diff_review
+    consumer_surfaces:
+      - repair_flow
+      - migration_center
+      - restore_surface
+    rationale: >
+      Workset manifests capture scoping truth the team relies on.
+      A corrupted workset routes to the same diff-review rung as the
+      workspace manifest.
+
+  - id: tasks_and_launch_configs
+    category: workspace_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: workspace_tree
+    location_path_concept: .aureline/tasks.jsonc, .aureline/launch.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - migration_center
+      - restore_surface
+    rationale: >
+      Task / launch configs fall back to an editor-only posture on
+      corruption; running a task requires a clean config, so the
+      warning is surfaced until repair.
+
+  - id: extension_recommendations
+    category: workspace_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: workspace_tree
+    location_path_concept: .aureline/extensions.recommend.jsonc
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: block_feature_only
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Recommendation hints are informational. Corruption disables
+      the recommendations pane only; no editor capability is lost.
+
+  - id: extension_lockfile
+    category: workspace_authored_durable_state
+    authority: user_authored_durable_truth
+    location_root: workspace_tree
+    location_path_concept: .aureline/extensions.lock.json
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.extension_lock_repair
+    consumer_surfaces:
+      - repair_flow
+      - restore_surface
+      - support_bundle
+    rationale: >
+      Lockfile corruption can hide integrity drift. Repair flow
+      re-pins extension digests against the recommendation set and
+      preserves the prior lockfile for compare / export.
+
+  # ---- derived disposable state ----
+
+  - id: index_cache
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: cache/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: rung.cache_index_repair
+    consumer_surfaces:
+      - clear_data_review
+      - repair_flow
+    rationale: >
+      Search and language indexes rebuild from workspace truth; a
+      corrupted shard is discarded and rebuilt behind a visible
+      stale-index banner.
+
+  - id: object_store
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: objects/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+    rationale: >
+      Content-addressed blobs. A digest mismatch discards the blob;
+      the referring producer re-emits it. No backup needed; digests
+      supersede.
+
+  - id: execution_context_cache
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: contexts/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+    rationale: >
+      Execution-context cache is rebuildable from workspace
+      evaluation; corruption discards and rebuilds.
+
+  - id: logs_and_traces
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: logs/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - support_bundle
+    rationale: >
+      Logs and traces are append-only; a corrupted segment is
+      dropped and a new segment starts. Retention bounds govern
+      size.
+
+  - id: interactive_hot_cache
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: hot/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+    rationale: >
+      Render atlases and viewport state. Corruption triggers a
+      transparent rebuild behind the repaint.
+
+  - id: knowledge_cache
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: knowledge/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: rung.cache_index_repair
+    consumer_surfaces:
+      - clear_data_review
+      - repair_flow
+    rationale: >
+      Knowledge shards rebuild from workspace and docs sources;
+      corrupted shards are dropped under a stale-index banner.
+
+  - id: prebuild_environment_cache
+    category: derived_disposable_state
+    authority: disposable_derived_cache
+    location_root: AURELINE_STATE
+    location_path_concept: prebuilds/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    corruption_posture: rebuild_automatically
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+    rationale: >
+      Digest-addressed prebuild layers. Corruption discards the
+      layer; refresh pulls an authoritative copy from the pinned
+      artifact graph.
+
+  # ---- recovery journal state ----
+
+  - id: dirty_buffer_recovery_journal
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: history/recovery_journal/*
+    schema_evolution_posture: replay_only_no_schema
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - restore_surface
+      - project_doctor
+    rationale: >
+      Replay from last good frame; a corrupted frame stops replay
+      there and opens with a warning so the user sees exactly what
+      recovered. Never silently rebuilt.
+
+  - id: session_restore_state
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: session/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - restore_surface
+      - clear_data_review
+    rationale: >
+      Session restore is best-effort. Corruption opens an empty
+      session with a banner explaining what was lost.
+
+  - id: local_history
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: history/*
+    schema_evolution_posture: replay_only_no_schema
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - restore_surface
+      - clear_data_review
+      - project_doctor
+    rationale: >
+      Local history is user-owned authority held on behalf of the
+      user. Corruption truncates history at the last readable frame;
+      never silently rebuilt.
+
+  - id: deferred_intent_outbox
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: outbox/*
+    schema_evolution_posture: replay_only_no_schema
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.outbox_replay_review
+    consumer_surfaces:
+      - repair_flow
+      - project_doctor
+      - support_bundle
+    rationale: >
+      Outbox entries represent side-effects the user intended. A
+      corrupted entry MUST NOT silently replay; repair flow shows
+      each entry's intent and lets the user accept or discard.
+
+  - id: ai_memory_metadata
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: ai/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - clear_data_review
+      - restore_surface
+    rationale: >
+      Cache-key metadata only; corruption opens with AI affordances
+      disabled until the metadata is rebuilt from authoritative
+      inputs.
+
+  - id: terminal_restore_metadata
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: terminal/restore/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: open_with_warning
+    repair_rung_ref: null
+    consumer_surfaces:
+      - restore_surface
+      - clear_data_review
+    rationale: >
+      Terminal restore is best-effort and redacted. Corruption
+      opens a fresh terminal with a banner noting lost restore
+      context.
+
+  - id: sync_metadata
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: sync/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.sync_metadata_repair
+    consumer_surfaces:
+      - repair_flow
+      - project_doctor
+      - support_bundle
+    rationale: >
+      Sync metadata ties local state to a remote lane. Corruption
+      routes through an explicit repair flow (reconcile, re-seed,
+      or paused-sync) rather than silently reusing broken state.
+
+  - id: conflict_journal
+    category: recovery_journal_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: sync/conflict_journal/*
+    schema_evolution_posture: replay_only_no_schema
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_optional_user_offered
+    corruption_posture: repair_flow
+    repair_rung_ref: rung.sync_metadata_repair
+    consumer_surfaces:
+      - repair_flow
+      - project_doctor
+      - support_bundle
+    rationale: >
+      Conflict resolutions are user decisions. A corrupted journal
+      stops sync until the user inspects the remaining conflicts
+      through the repair flow.
+
+  # ---- audit / trust / security state ----
+
+  - id: admin_policy_bundle
+    category: audit_trust_security_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_POLICY
+    location_path_concept: aureline.policy.signed
+    schema_evolution_posture: signed_epoch_replacement
+    backward_downgrade_readability: downgrade_refused
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - project_doctor
+      - support_bundle
+    rationale: >
+      Signed admin authority. Corruption forces the system to the
+      last-known-good epoch and refuses privileged operations
+      (policy apply, admin-audit write) until a fresh signed epoch
+      is distributed.
+
+  - id: policy_bundle_cache
+    category: audit_trust_security_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: policy/*.signed
+    schema_evolution_posture: signed_epoch_replacement
+    backward_downgrade_readability: downgrade_refused
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - project_doctor
+    rationale: >
+      Local cache of admin-signed bundles. Corruption disables
+      bundle resolution; the last-known-good epoch covers editing
+      while a fresh fetch runs.
+
+  - id: trust_approvals
+    category: audit_trust_security_state
+    authority: user_owned_recovery_state
+    secondary_authority_hint: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: trust/approvals/*
+    schema_evolution_posture: additive_minor_only
+    backward_downgrade_readability: downgrade_reads_with_fallback
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - project_doctor
+    rationale: >
+      Trust approvals gate privileged operations. Corruption refuses
+      those operations until the user reconfirms approvals through
+      the live authority path.
+
+  - id: auth_session_secrets
+    category: audit_trust_security_state
+    authority: user_owned_recovery_state
+    location_root: os_credential_store
+    location_path_concept: credential_handle/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - project_doctor
+    rationale: >
+      Held in the OS credential store. A corrupted handle forces
+      re-authentication; privileged operations refuse until the
+      user signs in again.
+
+  - id: long_lived_credentials
+    category: audit_trust_security_state
+    authority: user_owned_recovery_state
+    location_root: os_credential_store
+    location_path_concept: credential_handle/*
+    schema_evolution_posture: frozen_no_evolution
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - project_doctor
+    rationale: >
+      Long-lived tokens never travel through portable profiles. A
+      corrupted handle refuses to mint requests until re-issued.
+
+  - id: admin_audit_log
+    category: audit_trust_security_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: audit/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - support_bundle
+      - project_doctor
+    rationale: >
+      Append-only audit entries are content-addressed. A gap or
+      digest mismatch refuses new privileged writes until the gap
+      is reported to the admin authority.
+
+  # ---- evidence / support state ----
+
+  - id: support_bundles
+    category: evidence_support_state
+    authority: user_owned_recovery_state
+    secondary_authority_hint: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: support/bundles/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    corruption_posture: block_feature_only
+    repair_rung_ref: null
+    consumer_surfaces:
+      - support_bundle
+      - clear_data_review
+    rationale: >
+      A corrupted support bundle cannot be edited; re-emit a fresh
+      one. Disable the specific bundle's export action; the rest of
+      support remains functional.
+
+  - id: crash_envelopes
+    category: evidence_support_state
+    authority: user_owned_recovery_state
+    location_root: AURELINE_STATE
+    location_path_concept: support/crash/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    corruption_posture: block_feature_only
+    repair_rung_ref: null
+    consumer_surfaces:
+      - support_bundle
+      - clear_data_review
+    rationale: >
+      Crash envelopes are digest-addressed. A bad envelope is
+      marked unreadable and excluded from export; no silent rebuild.
+
+  - id: review_packets
+    category: evidence_support_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: support/review/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - support_bundle
+      - benchmark_council
+    rationale: >
+      Review packets gate evidence-driven privileged actions
+      (publication, release cut). Corruption refuses those actions
+      until a fresh packet is distributed.
+
+  - id: benchmark_results
+    category: evidence_support_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: benchmarks/results/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - benchmark_council
+      - signed_bundle_distribution
+      - support_bundle
+    rationale: >
+      Benchmark governance packets carry comparability evidence. A
+      corrupted result refuses publication and rollout decisions
+      until the result is replaced with a fresh run.
+
+  - id: release_evidence_packs
+    category: evidence_support_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: release/evidence/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - benchmark_council
+      - support_bundle
+    rationale: >
+      Release evidence packs gate release-cut operations. Corruption
+      refuses the release until a fresh pack is distributed.
+
+  - id: incident_bundles
+    category: evidence_support_state
+    authority: admin_or_control_artifact
+    location_root: AURELINE_STATE
+    location_path_concept: support/incidents/*
+    schema_evolution_posture: content_addressed_immutable
+    backward_downgrade_readability: downgrade_reads_fully
+    backup_before_migrate_rule: backup_handled_by_authority
+    corruption_posture: fail_closed_for_privileged_operations
+    repair_rung_ref: null
+    consumer_surfaces:
+      - signed_bundle_distribution
+      - support_bundle
+    rationale: >
+      Incident bundles bind remediation steps to signed authority.
+      Corruption refuses incident-driven privileged actions until
+      a fresh bundle is distributed.
+
+# --------------------------------------------------------------------------
+# Inventory invariants.
+#
+# These rules the state-object registry, every inventory-reading
+# surface, and every QA fixture validate. Violating any invariant is
+# non-conforming.
+# --------------------------------------------------------------------------
+
+inventory_invariants:
+  - id: single_authority_per_object
+    description: >
+      Every state_objects row declares exactly one authority class.
+      A row declaring two primary authorities is non-conforming.
+    enforced_at: artifact_and_schema
+
+  - id: single_corruption_posture_per_object
+    description: >
+      Every state_objects row declares exactly one corruption
+      posture drawn from corruption_posture_class_vocabulary. A row
+      projecting two postures for the same detector event is
+      non-conforming.
+    enforced_at: artifact_and_schema
+
+  - id: rebuild_automatically_requires_disposable_authority
+    description: >
+      Only rows with authority = disposable_derived_cache may declare
+      corruption_posture = rebuild_automatically. Rebuilding user-
+      authored truth or recovery state is non-conforming.
+    enforced_at: artifact_and_schema
+
+  - id: admin_authority_fails_closed_or_rolls_back
+    description: >
+      Every row with authority = admin_or_control_artifact declares
+      corruption_posture = fail_closed_for_privileged_operations or
+      backup_rollback. Silent rebuild of admin authority is
+      non-conforming.
+    enforced_at: artifact_and_schema
+
+  - id: repair_flow_requires_rung_ref
+    description: >
+      Every row whose corruption_posture = repair_flow MUST set a
+      non-null repair_rung_ref binding the row to a recovery-ladder
+      rung.
+    enforced_at: artifact_and_schema
+
+  - id: backup_rollback_requires_backup_rule
+    description: >
+      Every row whose corruption_posture = backup_rollback MUST set
+      backup_before_migrate_rule =
+      backup_required_before_destructive_migration. Rolling back to
+      a preserved artifact is only admissible when the artifact is
+      required to exist.
+    enforced_at: artifact_and_schema
+
+  - id: migrating_posture_requires_backup
+    description: >
+      Every row whose schema_evolution_posture =
+      migrating_with_equivalence_map MUST set
+      backup_before_migrate_rule =
+      backup_required_before_destructive_migration.
+    enforced_at: artifact_and_schema
+
+  - id: content_addressed_posture_requires_content_addressed_backup_rule
+    description: >
+      Every row whose schema_evolution_posture =
+      content_addressed_immutable MUST set backup_before_migrate_rule
+      = backup_not_applicable_content_addressed or
+      backup_handled_by_authority. A digest-addressed body cannot be
+      migrated in place.
+    enforced_at: artifact_and_schema
+
+  - id: consumer_surface_declared
+    description: >
+      Every row declares consumer_surfaces with length >= 1.
+    enforced_at: artifact_and_schema
+
+  - id: fail_closed_requires_privileged_consumer
+    description: >
+      Every row whose corruption_posture =
+      fail_closed_for_privileged_operations MUST list
+      signed_bundle_distribution or project_doctor in
+      consumer_surfaces.
+    enforced_at: artifact_and_schema
+
+  - id: m0_artifacts_covered
+    description: >
+      Every M0 acceptance-listed state artifact (layout, profile,
+      settings, journals, caches, policy bundles, evidence packs,
+      support bundles, benchmark results) is covered by at least
+      one row in state_objects.
+    enforced_at: artifact_and_schema
+
+  - id: downgrade_refused_only_for_admin_authority
+    description: >
+      backward_downgrade_readability = downgrade_refused is
+      admissible only on rows with authority =
+      admin_or_control_artifact.
+    enforced_at: artifact_and_schema
+
+# --------------------------------------------------------------------------
+# M0 artifact coverage projection.
+#
+# Maps the acceptance-listed M0 state artifacts to inventory ids so the
+# acceptance check can confirm every required artifact has at least one
+# row.
+# --------------------------------------------------------------------------
+
+m0_artifact_coverage:
+  layout:
+    projects_to_ids:
+      - ui_presets_and_layout_defaults
+      - session_restore_state
+  profile:
+    projects_to_ids:
+      - user_global_settings
+      - keybindings
+      - snippets
+      - themes_and_design_tokens
+      - command_aliases
+      - extension_selection_inventory
+      - ai_preset_selection
+      - terminal_preferences
+      - machine_specific_settings
+      - profile_library_index
+  settings:
+    projects_to_ids:
+      - user_global_settings
+      - machine_specific_settings
+      - ai_preset_selection
+      - terminal_preferences
+  journals:
+    projects_to_ids:
+      - dirty_buffer_recovery_journal
+      - session_restore_state
+      - local_history
+      - deferred_intent_outbox
+      - ai_memory_metadata
+      - terminal_restore_metadata
+      - sync_metadata
+      - conflict_journal
+  caches:
+    projects_to_ids:
+      - index_cache
+      - object_store
+      - execution_context_cache
+      - logs_and_traces
+      - interactive_hot_cache
+      - knowledge_cache
+      - prebuild_environment_cache
+  policy_bundles:
+    projects_to_ids:
+      - admin_policy_bundle
+      - policy_bundle_cache
+      - trust_approvals
+  evidence_packs:
+    projects_to_ids:
+      - review_packets
+      - release_evidence_packs
+      - incident_bundles
+  support_bundles:
+    projects_to_ids:
+      - support_bundles
+      - crash_envelopes
+  benchmark_results:
+    projects_to_ids:
+      - benchmark_results

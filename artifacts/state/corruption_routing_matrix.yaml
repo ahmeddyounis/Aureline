@@ -1,0 +1,452 @@
+# Corruption-routing matrix.
+#
+# Binds the six closed corruption-posture classes to the decision-table
+# every detector projects an inventory row onto. Companion to
+# docs/state/state_object_inventory.md and
+# artifacts/state/state_objects.yaml. Every later clear-data review,
+# Project Doctor finding, repair flow, migration center, support
+# exporter, benchmark council, restore surface, and signed-bundle
+# distribution surface MUST resolve corruption decisions through the
+# rows declared here.
+
+schema_version: 1
+artifact_id: aureline.state.corruption_routing_matrix
+title: Corruption routing matrix for state objects
+
+contract_source: docs/state/state_object_inventory.md
+
+related_docs:
+  - docs/state/profile_and_state_map.md
+  - docs/state/migration_and_restore_playbook.md
+  - docs/runtime/storage_classes_and_gc.md
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/support_bundle_contract.md
+
+companion_refs:
+  state_objects_ref: artifacts/state/state_objects.yaml
+  restore_provenance_schema_ref: schemas/state/restore_provenance.schema.json
+  recovery_ladder_packet_ref: docs/support/recovery_ladder_packet.md
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+
+# --------------------------------------------------------------------------
+# Closed vocabularies (re-exported).
+# --------------------------------------------------------------------------
+
+corruption_posture_class_vocabulary:
+  - block_feature_only
+  - rebuild_automatically
+  - open_with_warning
+  - repair_flow
+  - backup_rollback
+  - fail_closed_for_privileged_operations
+
+detection_trigger_class_vocabulary:
+  - integrity_digest_mismatch
+  - schema_version_unreadable
+  - schema_meaning_translation_failed
+  - replay_frame_truncated
+  - signature_verification_failed
+  - declared_dependency_missing
+  - storage_io_error
+  - policy_epoch_refused
+
+authority_class_vocabulary:
+  - user_authored_durable_truth
+  - user_owned_recovery_state
+  - admin_or_control_artifact
+  - disposable_derived_cache
+
+required_consumer_surface_vocabulary:
+  - clear_data_review
+  - project_doctor
+  - repair_flow
+  - migration_center
+  - support_bundle
+  - benchmark_council
+  - restore_surface
+  - signed_bundle_distribution
+
+fidelity_label_vocabulary:
+  # Re-exported from docs/state/migration_and_restore_playbook.md §2.
+  - exact
+  - compatible
+  - layout_only
+  - manual_review
+
+# --------------------------------------------------------------------------
+# Posture rows.
+#
+# Each row declares the detector action, admissible authority classes,
+# required consumer surfaces, forbidden shortcuts, typical detection
+# triggers, and the resulting restore-provenance fidelity label the
+# follow-up record MUST carry.
+# --------------------------------------------------------------------------
+
+posture_rows:
+  - id: block_feature_only
+    detector_action: >
+      Disable or degrade the feature whose surface depends on the
+      object. Render a typed unavailability note. Every other
+      capability continues to run; the product does not restart.
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+      - admin_or_control_artifact
+      - disposable_derived_cache
+    required_consumer_surfaces_any_of:
+      - project_doctor
+      - repair_flow
+    typical_detection_triggers:
+      - storage_io_error
+      - integrity_digest_mismatch
+    forbidden_shortcut: >
+      Silently ignoring the fault and continuing to render the
+      dependent surface as if the object were healthy.
+    resulting_fidelity_label: layout_only
+    restore_provenance_required_fields:
+      - state_segments
+      - failure_states
+    rationale: >
+      Used when the corrupted object is not required for editor
+      correctness. The dependent surface renders an unavailability
+      note; the rest of the product keeps working.
+
+  - id: rebuild_automatically
+    detector_action: >
+      Discard the corrupted body and rebuild from authoritative
+      truth. The rebuild runs behind a visible stale-index or
+      rebuild-pending marker when it covers derived knowledge; for
+      transparent caches the rebuild is silent.
+    admissible_authority_classes:
+      - disposable_derived_cache
+    required_consumer_surfaces_any_of:
+      - clear_data_review
+      - repair_flow
+    typical_detection_triggers:
+      - integrity_digest_mismatch
+      - schema_version_unreadable
+      - storage_io_error
+    forbidden_shortcut: >
+      Rebuilding a user_authored_durable_truth or
+      user_owned_recovery_state body. Rebuilding user truth is not
+      the product's call.
+    resulting_fidelity_label: exact
+    restore_provenance_required_fields: []
+    rationale: >
+      Admissible only when the authority for rebuild lies elsewhere
+      (workspace truth, content-addressed producer). Never admissible
+      against user-owned authority.
+
+  - id: open_with_warning
+    detector_action: >
+      Open the product (or the affected surface) with a warning
+      banner at degraded fidelity. Never silently overwrite the
+      corrupted body. The user may continue; export and repair
+      actions remain reachable.
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+      - disposable_derived_cache
+    required_consumer_surfaces_any_of:
+      - restore_surface
+      - project_doctor
+      - clear_data_review
+    typical_detection_triggers:
+      - replay_frame_truncated
+      - schema_version_unreadable
+      - storage_io_error
+    forbidden_shortcut: >
+      Claiming exact fidelity when replay stopped at a corrupted
+      frame or when a default fallback substituted for unreadable
+      fields.
+    resulting_fidelity_label: layout_only
+    restore_provenance_required_fields:
+      - state_segments
+      - failure_states
+    rationale: >
+      Used for partially replayable recovery journals, best-effort
+      layout snapshots, and corrupted user-authored bodies that can
+      degrade to defaults with explicit user visibility.
+
+  - id: repair_flow
+    detector_action: >
+      Route the user through an explicit repair-flow rung (recovery
+      ladder / Project Doctor finding). The rung shows what was
+      preserved, what is lost, and what a repair run will do before
+      it runs. No repair action proceeds without preview.
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+    required_consumer_surfaces_any_of:
+      - repair_flow
+    typical_detection_triggers:
+      - schema_meaning_translation_failed
+      - replay_frame_truncated
+      - declared_dependency_missing
+    forbidden_shortcut: >
+      Running a repair pass without a preview, or silently writing
+      back a translated result the user never saw.
+    resulting_fidelity_label: manual_review
+    restore_provenance_required_fields:
+      - state_segments
+      - failure_states
+      - preserved_prior_artifacts
+      - rollback_checkpoint_ref
+      - equivalence_map_ref
+      - compare_ref
+    rationale: >
+      Used when the corruption requires an explicit repair decision
+      (workspace-manifest diff, outbox replay review, sync-metadata
+      reconcile).
+
+  - id: backup_rollback
+    detector_action: >
+      Refuse the corrupted body. Restore the preserved prior
+      artifact named by the backup-before-migrate ref. Present the
+      rollback result to the user so the recovery is visible. A
+      support-export handle covers the rolled-back-from body.
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+    required_consumer_surfaces_any_of:
+      - restore_surface
+      - migration_center
+    typical_detection_triggers:
+      - schema_meaning_translation_failed
+      - schema_version_unreadable
+      - integrity_digest_mismatch
+    forbidden_shortcut: >
+      Rewriting over the corrupted body with a freshly translated
+      result when the row carries a backup requirement.
+    resulting_fidelity_label: compatible
+    restore_provenance_required_fields:
+      - state_segments
+      - preserved_prior_artifacts
+      - rollback_checkpoint_ref
+      - equivalence_map_ref
+    rationale: >
+      Admissible only for rows carrying
+      backup_required_before_destructive_migration. The preserved
+      artifact is the single source of truth for recovery.
+
+  - id: fail_closed_for_privileged_operations
+    detector_action: >
+      Refuse privileged operations (policy apply, managed-sync
+      publish, release cut, admin-audit write, signed-bundle
+      refresh) until the object's integrity is re-established.
+      Non-privileged editor operations continue under
+      open_with_warning semantics so the user can still save work.
+    admissible_authority_classes:
+      - admin_or_control_artifact
+      - user_owned_recovery_state
+    required_consumer_surfaces_any_of:
+      - signed_bundle_distribution
+      - project_doctor
+    typical_detection_triggers:
+      - signature_verification_failed
+      - policy_epoch_refused
+      - integrity_digest_mismatch
+    forbidden_shortcut: >
+      Allowing a privileged operation to proceed against a
+      corrupted admin artifact or a revoked trust approval.
+    resulting_fidelity_label: manual_review
+    restore_provenance_required_fields:
+      - state_segments
+      - failure_states
+      - compare_ref
+    rationale: >
+      Used for admin policy bundles, policy-bundle cache, trust
+      approvals, auth secrets, long-lived credentials, admin audit
+      log, review packets, benchmark results, release-evidence
+      packs, and incident bundles.
+
+# --------------------------------------------------------------------------
+# Routing-matrix invariants.
+#
+# These rules the detector, every repair-flow rung, and every support
+# exporter validate. Violating any invariant is non-conforming.
+# --------------------------------------------------------------------------
+
+routing_invariants:
+  - id: posture_is_closed_set
+    description: >
+      A detector that selects a corruption_posture_class not listed
+      in corruption_posture_class_vocabulary is non-conforming.
+    enforced_at: schema_and_runtime
+
+  - id: posture_single_per_object
+    description: >
+      A detector that projects two postures onto the same
+      inventory row for the same detector event is non-conforming.
+      The inventory row's declared corruption_posture resolves the
+      ambiguity.
+    enforced_at: schema_and_runtime
+
+  - id: rebuild_automatically_authority_bound
+    description: >
+      Selecting rebuild_automatically against a row whose authority
+      is not disposable_derived_cache is non-conforming; the
+      schema-level inventory rule no_rebuild_on_user_authority
+      rejects such rows.
+    enforced_at: schema_and_runtime
+
+  - id: admin_authority_never_silent_rebuild
+    description: >
+      A detector that rebuilds an admin_or_control_artifact row is
+      non-conforming; admin authority refuses silent rebuild in
+      every posture.
+    enforced_at: schema_and_runtime
+
+  - id: repair_flow_requires_preview
+    description: >
+      A repair-flow posture that runs a destructive repair without a
+      preview record (preserved prior artifact + compare ref + user
+      decision) is non-conforming.
+    enforced_at: schema_and_runtime
+
+  - id: backup_rollback_requires_preserved_artifact
+    description: >
+      A backup-rollback posture that proceeds without a non-null
+      preserved_prior_artifact_ref on every restore-provenance
+      segment that references the rolled-back row is non-conforming.
+    enforced_at: restore_provenance_record
+
+  - id: fail_closed_privileged_ops_keep_editor_open
+    description: >
+      A detector that suspends non-privileged editor operations when
+      only a privileged op should fail closed is non-conforming. The
+      editor continues under open_with_warning semantics while
+      privileged ops refuse.
+    enforced_at: schema_and_runtime
+
+  - id: restore_provenance_required_fields_present
+    description: >
+      A restore-provenance record emitted for a posture MUST
+      populate the restore_provenance_required_fields declared on
+      the posture row.
+    enforced_at: restore_provenance_record
+
+  - id: consumer_surface_required_coverage
+    description: >
+      A corruption decision MUST project to at least one of the
+      posture row's required_consumer_surfaces_any_of. A decision
+      that does not surface through any declared consumer is
+      non-conforming.
+    enforced_at: schema_and_runtime
+
+# --------------------------------------------------------------------------
+# Detector-trigger decision seeds.
+#
+# Short worked table that maps typical detector triggers to the
+# posture-class rows above. Each seed names the admissible authority
+# classes the trigger pairs with and the posture selection; it is the
+# reviewer-facing shortcut that later detector code consumes.
+# --------------------------------------------------------------------------
+
+detection_trigger_decision_seeds:
+  - trigger: integrity_digest_mismatch
+    admissible_authority_classes:
+      - disposable_derived_cache
+    resulting_posture: rebuild_automatically
+    note: >
+      Content-addressed or digest-validated disposable caches; the
+      stored body is replaced by rebuild.
+
+  - trigger: integrity_digest_mismatch
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+    resulting_posture: backup_rollback
+    note: >
+      Digest-validated user-authored bodies roll back to the
+      preserved prior artifact; silent rebuild is refused.
+
+  - trigger: integrity_digest_mismatch
+    admissible_authority_classes:
+      - admin_or_control_artifact
+    resulting_posture: fail_closed_for_privileged_operations
+    note: >
+      Digest mismatch on admin authority refuses privileged ops
+      until a fresh signed epoch is distributed.
+
+  - trigger: schema_version_unreadable
+    admissible_authority_classes:
+      - user_authored_durable_truth
+    resulting_posture: backup_rollback
+    note: >
+      Unreadable schema on user truth rolls back to the preserved
+      prior artifact.
+
+  - trigger: schema_version_unreadable
+    admissible_authority_classes:
+      - user_owned_recovery_state
+      - disposable_derived_cache
+    resulting_posture: open_with_warning
+    note: >
+      Unreadable schema on recovery state or cache opens with a
+      warning; replay continues from the last good frame or a
+      rebuild runs.
+
+  - trigger: schema_meaning_translation_failed
+    admissible_authority_classes:
+      - user_authored_durable_truth
+    resulting_posture: repair_flow
+    note: >
+      A translation failure needs a human review; the repair flow
+      surfaces the preserved prior artifact and equivalence-map
+      diagnostics.
+
+  - trigger: replay_frame_truncated
+    admissible_authority_classes:
+      - user_owned_recovery_state
+    resulting_posture: open_with_warning
+    note: >
+      Recovery journals truncate at the last readable frame. A
+      deferred-intent outbox escalates to repair_flow instead so
+      intents are reviewed before replay.
+
+  - trigger: signature_verification_failed
+    admissible_authority_classes:
+      - admin_or_control_artifact
+    resulting_posture: fail_closed_for_privileged_operations
+    note: >
+      Signature failures on admin authority refuse privileged ops
+      until the signed distribution path re-establishes trust.
+
+  - trigger: declared_dependency_missing
+    admissible_authority_classes:
+      - user_authored_durable_truth
+    resulting_posture: repair_flow
+    note: >
+      A missing extension, lockfile entry, or workspace manifest
+      dependency routes through the repair flow for explicit
+      install / disable / open-without decisions.
+
+  - trigger: storage_io_error
+    admissible_authority_classes:
+      - disposable_derived_cache
+    resulting_posture: rebuild_automatically
+    note: >
+      Transient disk faults on disposable caches trigger a rebuild;
+      persistent faults escalate to block_feature_only with a
+      support-bundle note.
+
+  - trigger: storage_io_error
+    admissible_authority_classes:
+      - user_authored_durable_truth
+      - user_owned_recovery_state
+      - admin_or_control_artifact
+    resulting_posture: block_feature_only
+    note: >
+      Persistent disk faults on durable authority disable the
+      dependent feature and surface a Project Doctor finding; data
+      is not rewritten or rebuilt until storage is healthy.
+
+  - trigger: policy_epoch_refused
+    admissible_authority_classes:
+      - admin_or_control_artifact
+    resulting_posture: fail_closed_for_privileged_operations
+    note: >
+      Policy epochs the target cannot validate refuse privileged
+      ops; the last-known-good epoch covers editing while a fresh
+      distribution runs.
