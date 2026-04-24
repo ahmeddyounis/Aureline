@@ -1,0 +1,734 @@
+# Schema-family registry.
+#
+# Canonical machine-readable register of every contract-bearing JSON
+# directory under /schemas/**. Each row fixes five things so schemas
+# stay a governed stack instead of per-directory ad-hoc conventions:
+#
+#   1. family_id         — stable dot id (usually the directory name).
+#   2. schema_home       — authoritative directory containing the schemas.
+#   3. publication_path  — where consumers read the family from. Equal to
+#                          schema_home for most families; distinct when the
+#                          family also publishes through a generated
+#                          manifest, release-evidence bundle, or docs
+#                          projection.
+#   4. versioning_rule   — how version bumps, additive-minor changes, and
+#                          breaking changes are expressed.
+#   5. unknown_field_policy — additionalProperties posture. Governance /
+#                             identity / security boundaries are strict;
+#                             a family MAY carry a namespaced extension
+#                             envelope or a property-bag convention only
+#                             when the row declares it.
+#   6. compatibility_owner — named surface owner (team / role / forum) who
+#                            ratifies version bumps, new enum values, and
+#                            cross-family crosswalks.
+#
+# Every schema under /schemas/** MUST belong to exactly one row here. A
+# schema whose family row is missing is not ratified and may not be
+# consumed by a validator or CI lane. Adding a new family row is
+# additive-minor; repurposing an existing row's schema_home,
+# publication_path, versioning_rule, unknown_field_policy, or
+# compatibility_owner is breaking and requires a new decision row.
+#
+# Narrative companion: docs/governance/policy_flag_schema_stack.md.
+# Standards-matrix binding:
+# artifacts/governance/standards_matrix.yaml#standard.json_schema_2020_12
+# and #standard.openapi_3_2.
+
+schema_version: 1
+
+stack_doc: docs/governance/policy_flag_schema_stack.md
+standards_matrix_refs:
+  - artifacts/governance/standards_matrix.yaml#standard.json_schema_2020_12
+  - artifacts/governance/standards_matrix.yaml#standard.openapi_3_2
+
+companion_registers:
+  telemetry_and_support_registry: docs/governance/telemetry_and_support_schema_registry.md
+  consent_ledger_seed: artifacts/governance/consent_ledger_seed.yaml
+  record_class_registry: artifacts/governance/record_class_registry.yaml
+  control_artifact_index: artifacts/governance/control_artifact_index.yaml
+  feature_flag_provider_chain: artifacts/governance/feature_flag_provider_chain.yaml
+
+# -----------------------------------------------------------------------------
+# Cross-cutting conventions.
+#
+# Rules that apply to every family row. The row MAY cite these rules rather
+# than re-describe them.
+# -----------------------------------------------------------------------------
+cross_cutting_conventions:
+  json_schema_pin:
+    keyword: $schema
+    value: https://json-schema.org/draft/2020-12/schema
+    rule: >
+      Every schema file under /schemas/** MUST declare this keyword with
+      this exact value. Narrowing is permitted; inventing custom keywords
+      outside the JSON Schema vocabulary requires a deviation ADR that
+      cites standards_matrix.yaml#standard.json_schema_2020_12.
+  schema_id_pattern:
+    form: https://aureline.dev/schemas/<family>/<name>.schema.json
+    rule: >
+      The $id URL does NOT carry a version segment. Schemas track
+      version in a document-level const field (usually
+      <name>_schema_version or a root schema_version property).
+  additive_minor_rule: >
+    Adding a new enum value, a new optional property, or a new additive
+    sub-record is additive-minor and bumps the relevant
+    <name>_schema_version const. Removing or repurposing an existing
+    value is breaking and requires a new decision row.
+  unknown_field_default: additional_properties_false_strict
+  publication_discipline: >
+    Consumers read from the publication_path, not directly from the
+    git checkout. For most families publication_path equals schema_home.
+    Families that project through a generated manifest or release bundle
+    name the projection explicitly.
+  service_api_description_rule: >
+    When a family publishes a service HTTP surface, the description
+    document is an OpenAPI 3.2+ document placed alongside the family's
+    JSON Schemas. The row's notes name the OpenAPI file.
+
+# -----------------------------------------------------------------------------
+# Vocabularies.
+# -----------------------------------------------------------------------------
+
+versioning_rule_classes:
+  - document_const_schema_version_bump_on_breaking
+  - document_const_schema_version_bump_on_additive_minor
+  - inherited_from_parent_packet_header
+  - single_record_no_version_field
+  - generated_artifact_versioning_follows_generator
+
+unknown_field_policy_classes:
+  - additional_properties_false_strict
+  - additional_properties_false_strict_with_namespaced_extension_envelope
+  - additional_properties_false_strict_with_property_bag
+  - additional_properties_true_explicit_reason
+
+publication_path_classes:
+  - equal_to_schema_home
+  - generated_manifest_projection
+  - release_evidence_bundle_projection
+  - docs_projection_only
+  - inlined_in_parent_packet
+
+compatibility_role_vocabulary:
+  - governance_and_policy
+  - identity_and_auth
+  - security_trust
+  - runtime_surface
+  - ux_surface
+  - docs_public_truth
+  - automation_and_cli
+  - telemetry_and_support
+  - release_evidence
+  - extensions
+  - benchmark_lab
+
+# -----------------------------------------------------------------------------
+# Gates.
+# -----------------------------------------------------------------------------
+
+gates:
+  - >
+    Every file under /schemas/** MUST be accounted for by exactly one
+    family row whose schema_home contains it. Reviewers check this before
+    admitting a new schema directory.
+  - >
+    Changing a family row's versioning_rule or unknown_field_policy is
+    breaking and requires a new decision row. New family rows are
+    additive-minor.
+  - >
+    A family MAY declare a narrower unknown_field_policy than the
+    cross-cutting default, but MAY NOT declare a looser one without
+    citing the reason (the extension_envelope or property_bag namespace
+    MUST be named in notes).
+  - >
+    A family that publishes a service HTTP description MUST name the
+    OpenAPI file in notes and cite
+    standards_matrix.yaml#standard.openapi_3_2 in its row.
+  - >
+    Retiring a family is not a delete; set the row's
+    lifecycle_state to retired and record the supersede note. The audit
+    trail "this posture once applied" survives.
+
+# -----------------------------------------------------------------------------
+# Family rows.
+#
+# Row order follows the directory listing under /schemas/. New directories
+# land as new rows; they do not displace existing rows.
+# -----------------------------------------------------------------------------
+
+rows:
+  - family_id: ai
+    schema_home: schemas/ai/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/ai/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/ai/context_assembly.schema.json
+      - schemas/ai/evidence_packet.schema.json
+    notes: >
+      AI context-assembly and evidence-packet boundary for the provider
+      stack. Adding a new record class is additive-minor and bumps the
+      per-record schema_version const.
+
+  - family_id: auth
+    schema_home: schemas/auth/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/auth/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: identity_and_auth
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Authentication-surface boundary; coordinates with the identity
+      family for policy-bundle and entitlement crosswalks.
+
+  - family_id: automation
+    schema_home: schemas/automation/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/automation/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: automation_and_cli
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Automation and CLI-surface schemas. Any future CLI HTTP surface
+      is described via OpenAPI 3.2+ co-located here.
+
+  - family_id: benchmarks
+    schema_home: schemas/benchmarks/
+    publication_path_class: release_evidence_bundle_projection
+    publication_path: artifacts/benchmarks/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: benchmark_lab
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Benchmark-lab emission schemas. Published through the benchmark
+      dashboard seed and corpus manifest under artifacts/benchmarks/.
+
+  - family_id: build
+    schema_home: schemas/build/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/build/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: release_evidence
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Build-input and build-output manifest schemas used by ci/*.sh
+      scripts.
+
+  - family_id: commands
+    schema_home: schemas/commands/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/commands/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/commands/command_descriptor.schema.json
+      - schemas/commands/invocation_session_packet.schema.json
+    notes: >
+      Command-dispatch boundary contracts (see ADR-0016). New command
+      classes are additive-minor.
+
+  - family_id: compat
+    schema_home: schemas/compat/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/compat/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: governance_and_policy
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Compatibility-bridge envelopes; coordinates with the extensions
+      family for WIT-world crosswalks.
+
+  - family_id: debug
+    schema_home: schemas/debug/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/debug/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Debug-adapter boundary; payload contents narrow via the telemetry
+      registry for any exported slice.
+
+  - family_id: deployment
+    schema_home: schemas/deployment/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/deployment/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: release_evidence
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Deployment-profile surface; re-exports the deployment_profile_class
+      vocabulary shared with identity and governance rows.
+
+  - family_id: design
+    schema_home: schemas/design/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/design/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: ux_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      UX design-token schemas; coordinates with the ux family for motion,
+      theme, and accessibility crosswalks.
+
+  - family_id: docs
+    schema_home: schemas/docs/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/docs/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: docs_public_truth
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Docs-pack and help-service manifest schemas. Any authoring
+      rendering path that breaks CommonMark semantics requires a
+      deviation ADR (see
+      standards_matrix.yaml#standard.commonmark).
+
+  - family_id: execution
+    schema_home: schemas/execution/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/execution/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Execution-context surface (see ADR-0009). Inherits the identity
+      mode / trust-state vocabulary from the identity family.
+
+  - family_id: extensions
+    schema_home: schemas/extensions/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/extensions/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: extensions
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Extension manifest and permission-publisher schemas (see
+      ADR-0012 and ADR-0019). Pairs with wit/aureline/*.wit for the
+      capability-world ABI.
+
+  - family_id: filesystem
+    schema_home: schemas/filesystem/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/filesystem/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      VFS and save-path boundary (see ADR-0006). Coordinates with the
+      runtime family for vfs_save_envelope linkage.
+
+  - family_id: generated
+    schema_home: schemas/generated/
+    publication_path_class: generated_manifest_projection
+    publication_path: schemas/generated/
+    versioning_rule: generated_artifact_versioning_follows_generator
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: governance_and_policy
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/generated/artifact_edit_posture.schema.json
+    notes: >
+      Schemas for generated-artifact edit posture. The generator owns
+      versioning; manual edits to generated schemas require a decision
+      row.
+
+  - family_id: governance
+    schema_home: schemas/governance/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/governance/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: governance_and_policy
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/governance/decision_index.schema.json
+      - schemas/governance/schema_registry_entry.schema.json
+      - schemas/governance/evidence_packet_header.schema.json
+      - schemas/governance/policy_decision_explain.schema.json
+    notes: >
+      Governance boundary schemas (decision index, schema-registry
+      entry, evidence-packet header, governance packet, ownership
+      matrix, policy-decision explain, etc.). Every change here is
+      reviewer-blocking.
+
+  - family_id: graph
+    schema_home: schemas/graph/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/graph/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Semantic-workspace-graph boundary.
+
+  - family_id: identity
+    schema_home: schemas/identity/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/identity/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: identity_and_auth
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/identity/policy_bundle.schema.json
+      - schemas/identity/entitlement_snapshot.schema.json
+      - schemas/identity/admin_audit_packet.schema.json
+    notes: >
+      Policy-bundle, entitlement-snapshot, and admin-audit-packet
+      boundary (see ADR-0001). Source of truth for identity_mode,
+      deployment_profile_class, workspace_trust_state, and redaction_class
+      vocabularies re-exported by other families.
+
+  - family_id: integration
+    schema_home: schemas/integration/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/integration/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/integration/approval_ticket.schema.json
+      - schemas/integration/browser_handoff_packet.schema.json
+    notes: >
+      Approval-ticket and browser-handoff boundaries (see ADR-0010 and
+      ADR-0015).
+
+  - family_id: migration
+    schema_home: schemas/migration/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/migration/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: release_evidence
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Migration packets; coordinates with the governance family for
+      decision-row linkage and the release family for posture
+      crosswalks.
+
+  - family_id: network
+    schema_home: schemas/network/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/network/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Network-egress surface; re-exports the egress class vocabulary
+      used by the remote-agent contract (see ADR-0020).
+
+  - family_id: product
+    schema_home: schemas/product/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/product/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: governance_and_policy
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Product-boundary manifest. Every managed claim that moves bytes
+      off device, retains evidence, or promises an exit packet MUST
+      resolve to a telemetry registry row in the same change.
+
+  - family_id: profile
+    schema_home: schemas/profile/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/profile/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: release_evidence
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/profile/portable_profile.schema.json
+    notes: >
+      Portable-profile boundary for the portable build flavor.
+
+  - family_id: providers
+    schema_home: schemas/providers/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/providers/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Provider-side and AI-broker arbitration schemas; pairs with the
+      ai family for context-assembly linkage.
+
+  - family_id: release
+    schema_home: schemas/release/
+    publication_path_class: release_evidence_bundle_projection
+    publication_path: artifacts/release/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: release_evidence
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Release posture and promotion-gate boundary (see ADR-0017).
+      Consumers read from the release-evidence bundle projection.
+
+  - family_id: review
+    schema_home: schemas/review/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/review/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: governance_and_policy
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Hosted-review parity boundary; pairs with the
+      telemetry_and_support registry row for review.hosted_parity_record.
+
+  - family_id: rpc
+    schema_home: schemas/rpc/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/rpc/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Typed-payload-only RPC boundary (see ADR-0004). Raw transport
+      frames never cross this boundary; raw bundle bytes never cross
+      this boundary.
+
+  - family_id: runtime
+    schema_home: schemas/runtime/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/runtime/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Runtime-surface boundaries (background_job, execution_context,
+      environment_capsule, subscription_envelope, vfs_save_envelope,
+      reconnect-decision records, etc.).
+
+  - family_id: search
+    schema_home: schemas/search/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/search/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Search-readiness and result-truth boundary (see ADR-0014).
+
+  - family_id: security
+    schema_home: schemas/security/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/security/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: security_trust
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Security-boundary schemas (emergency_action_record, advisory_record,
+      trust_class, secret_class_rows, etc.). Source of truth for
+      narrowing_reason and emergency-disable vocabularies re-exported by
+      the policy-decision explain schema.
+
+  - family_id: settings
+    schema_home: schemas/settings/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/settings/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Settings-definition and effective-setting boundary (see ADR-0008).
+      The settings experiment-rollout control-stack row binds to the
+      settings_control_stack_reserved_full_ladder profile in
+      feature_flag_provider_chain.yaml.
+
+  - family_id: state
+    schema_home: schemas/state/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/state/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Reactive-state boundary; pairs with the subscription-envelope row
+      in the runtime family.
+
+  - family_id: support
+    schema_home: schemas/support/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/support/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: telemetry_and_support
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/support/support_bundle.schema.json
+      - schemas/support/support_packet_index.schema.json
+      - schemas/support/object_handoff_packet.schema.json
+      - schemas/support/recovery_action.schema.json
+    notes: >
+      Support-bundle and recovery-action boundary. Retention, redaction,
+      and endpoint posture come from the record-class registry and the
+      telemetry/support schema registry, not from row properties.
+
+  - family_id: traces
+    schema_home: schemas/traces/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/traces/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: telemetry_and_support
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas:
+      - schemas/traces/journey_trace.schema.json
+      - schemas/traces/spike_timing.schema.json
+      - schemas/traces/trace_event.schema.json
+    notes: >
+      Journey-trace and spike-timing boundary. An OTLP export lane is
+      reserved (see standards_matrix.yaml#standard.opentelemetry) but
+      payload contents narrow via the telemetry/support schema registry.
+
+  - family_id: ux
+    schema_home: schemas/ux/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/ux/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: ux_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      UX payload and accessibility-tree boundary.
+
+  - family_id: workspace
+    schema_home: schemas/workspace/
+    publication_path_class: equal_to_schema_home
+    publication_path: schemas/workspace/
+    versioning_rule: document_const_schema_version_bump_on_additive_minor
+    unknown_field_policy: additional_properties_false_strict
+    compatibility_owner:
+      role: runtime_surface
+      dri: "@ahmeddyounis"
+    lifecycle_state: seeded
+    representative_schemas: []
+    notes: >
+      Workspace-trust and workspace-structure boundary (see ADR-0018).

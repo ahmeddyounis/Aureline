@@ -1,0 +1,548 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/policy_decision_explain.schema.json",
+  "title": "Aureline typed policy-decision explain packet",
+  "description": "Boundary schema for the typed explain packet a policy-decision site emits instead of an opaque allow/deny string. Every admin-policy narrowing, workspace-trust restriction, capability-gate denial, entitlement-grace expiry, revocation enforcement, offline degradation, emergency-disable firing, last-known-good fallback, or grace-state transition produces one policy_decision_explain_record so reviewers, support surfaces, and the operator can read a closed decision_class, a closed narrowing_reason, an opaque rule ref, an opaque source ref, an opaque audit event id, the policy epoch, the fallback path the user remains on, the identity-mode and trust-state context the decision ran under, and the local-versus-vendor-console explainability envelope. Raw policy rule bodies, raw OIDC tokens, raw claim payloads, raw tenant directory material, raw bundle bytes, raw signatures, and raw secret material never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable-sentence summaries only. The vocabulary re-exports the identity_mode, deployment_profile_class, workspace_trust_state, redaction_class, and explainability_envelope shapes already frozen in schemas/identity/policy_bundle.schema.json, schemas/identity/entitlement_snapshot.schema.json, and schemas/identity/admin_audit_packet.schema.json. Adding a new decision_class, narrowing_reason, fallback_path_class, provider_chain_source_class, or emergency_disable_source_class value is additive-minor and requires a policy_decision_explain_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by governance_and_policy and security_trust.",
+  "$ref": "#/$defs/policy_decision_explain_record",
+  "$defs": {
+    "policy_decision_explain_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this explain-packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw rule bodies, raw signatures, raw policy bytes, raw claim payloads, and raw directory attributes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence safe for banners, admin exports, support packets, and release evidence. Raw policy rule text, raw claim payloads, and raw secret material MUST NOT appear."
+    },
+
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, export-safe label for banners and admin consoles. Raw URLs, raw tenant ids, raw directory attribute values, and raw signing material MUST NOT appear."
+    },
+
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Dot-separated stable identifier; used for row ids and decision-site refs."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001 and schemas/identity/policy_bundle.schema.json. Every decision records the mode it ran under so later reviewers can reproduce the gate."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ],
+      "description": "Deployment-profile class re-exported from the identity family."
+    },
+
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [ "trusted", "restricted" ],
+      "description": "Workspace trust state re-exported from ADR-0001 and ADR-0018. Policy MAY narrow trusted-workspace behaviour but MUST NOT widen it; the record preserves the state the decision ran under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle/support/release vocabulary."
+    },
+
+    "policy_epoch_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$",
+      "description": "Stable epoch identifier of the form policy_epoch.<lane>.<windowed>.<id>, matching schemas/identity/policy_bundle.schema.json. Consumers never concatenate or parse the epoch beyond equality and 'newer than' ordering."
+    },
+
+    "bundle_version_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*@[0-9]+(\\.[0-9]+){2}(-[a-z0-9_.]+)?$",
+      "description": "Bundle version identifier of the form <bundle_name>@<semver>, matching schemas/identity/policy_bundle.schema.json."
+    },
+
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "admin_policy_narrowing_applied",
+        "admin_policy_narrowing_refused_as_widening",
+        "workspace_trust_restriction_applied",
+        "capability_gate_denial",
+        "entitlement_grant",
+        "entitlement_grace_active",
+        "entitlement_grace_expired",
+        "entitlement_revoked",
+        "offline_degradation_to_last_known_good",
+        "offline_degradation_unavailable",
+        "feature_flag_resolution_narrowed",
+        "feature_flag_resolution_disabled",
+        "emergency_disable_fired",
+        "policy_bundle_refused_by_narrowing_ceiling",
+        "policy_bundle_stale_past_grace",
+        "policy_bundle_signature_verification_failed",
+        "provider_chain_fell_back_to_embedded_default"
+      ],
+      "description": "Closed decision-class vocabulary. admin_policy_narrowing_refused_as_widening names the case where a bundle attempted to widen a non-widenable surface and the client refused; emergency_disable_fired names a kill-switch firing that ratchets for the current session; provider_chain_fell_back_to_embedded_default names a resolution that bottomed out on the compiled default because every higher layer was unavailable."
+    },
+
+    "decision_outcome_class": {
+      "type": "string",
+      "enum": [
+        "denied",
+        "narrowed",
+        "restricted_to_read_only",
+        "deferred_pending_reapproval",
+        "allowed_with_note",
+        "degraded_to_fallback",
+        "held_for_admin_confirmation"
+      ],
+      "description": "Closed outcome vocabulary. The record separates decision_class (what kind of decision this was) from decision_outcome_class (what the operator experiences). allowed_with_note is admissible only when the decision_class is entitlement_grant, entitlement_grace_active, or feature_flag_resolution_narrowed with a reviewable_sentence note."
+    },
+
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "stale_bundle_past_grace",
+        "managed_policy_enforcement",
+        "admin_policy_ceiling_applied",
+        "capability_not_in_plan",
+        "quota_exhausted",
+        "entitlement_revoked",
+        "org_constraint_applied",
+        "identity_mode_incompatible",
+        "workspace_trust_required",
+        "restricted_mode_in_effect",
+        "security_incident_response",
+        "emergency_disable_ratcheted_session",
+        "signed_bundle_expired_no_grace",
+        "signed_bundle_revoked",
+        "signature_verification_failed",
+        "remote_provider_unreachable",
+        "cached_last_known_good_applied",
+        "editing_critical_floor_declined_remote_wait",
+        "experiment_not_admitted_to_cohort",
+        "feature_flag_disabled_by_policy",
+        "kill_switch_source_invoked"
+      ],
+      "description": "Closed narrowing-reason vocabulary. The set re-exports vocabulary already frozen in schemas/identity/policy_bundle.schema.json and schemas/security/*.schema.json so policy-decision sites and admin-audit sites speak the same reason language."
+    },
+
+    "fallback_path_class": {
+      "type": "string",
+      "enum": [
+        "local_safe_default",
+        "restricted_mode",
+        "offline_only",
+        "last_known_good_signed",
+        "grace_state_active",
+        "read_only_continuation",
+        "repair_hook_visible_no_silent_fallback",
+        "no_fallback_emergency_disable_ratcheted",
+        "none_surface_unavailable_with_reason"
+      ],
+      "description": "Closed fallback-path vocabulary. repair_hook_visible_no_silent_fallback is the value required when the decision fails closed and must surface a visible repair affordance; none_surface_unavailable_with_reason is admissible only when the record also carries a reviewable unavailable_reason and an opaque audit_event_id."
+    },
+
+    "provider_chain_source_class": {
+      "type": "string",
+      "enum": [
+        "emergency_disable",
+        "admin_policy_narrowing",
+        "optional_managed_override",
+        "signed_local_admin_bundle",
+        "ci_workflow_input",
+        "local_cli_argument",
+        "embedded_default"
+      ],
+      "description": "Closed provider-chain source vocabulary. Mirrors artifacts/governance/feature_flag_provider_chain.yaml so a decision record names the resolving layer directly."
+    },
+
+    "emergency_disable_source_class": {
+      "type": "string",
+      "enum": [
+        "embedded_default_off",
+        "local_cli_argument",
+        "ci_workflow_input",
+        "signed_local_admin_bundle",
+        "optional_managed_override"
+      ],
+      "description": "Closed emergency-disable source vocabulary, mirroring experiments_register.yaml#kill_switch_source_kinds."
+    },
+
+    "local_vs_vendor_console_explainability_class": {
+      "type": "string",
+      "enum": [
+        "locally_explainable_from_bundle",
+        "locally_explainable_with_signed_evidence",
+        "vendor_console_required_for_full_detail",
+        "vendor_console_only_acknowledged_gap"
+      ],
+      "description": "Closed local-versus-vendor-console vocabulary, re-exported from schemas/identity/policy_bundle.schema.json. locally_explainable_from_bundle is the default and the value required for every enterprise narrowing claim."
+    },
+
+    "explainability_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explainability_class",
+        "locally_inspectable_fields",
+        "vendor_console_only_fields",
+        "acknowledged_gap_waiver_refs",
+        "explainability_note"
+      ],
+      "properties": {
+        "explainability_class": { "$ref": "#/$defs/local_vs_vendor_console_explainability_class" },
+        "locally_inspectable_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Fields a local inspector, CLI, support-export surface, or admin desktop can render from this record without calling the vendor console."
+        },
+        "vendor_console_only_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Fields only the vendor console can render at full detail. MUST be an empty array when explainability_class is locally_explainable_from_bundle."
+        },
+        "acknowledged_gap_waiver_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/governance/exception_packet rows acknowledging an explainability gap. MUST be non-empty when explainability_class is vendor_console_only_acknowledged_gap."
+        },
+        "explainability_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "decision_site_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site_id",
+        "site_kind",
+        "surface_label"
+      ],
+      "properties": {
+        "site_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable site identifier, e.g. site.settings.experiment_rollout_layer or site.capability_gate.save_path."
+        },
+        "site_kind": {
+          "type": "string",
+          "enum": [
+            "feature_flag_resolution",
+            "admin_policy_gate",
+            "capability_gate",
+            "entitlement_gate",
+            "workspace_trust_gate",
+            "emergency_disable_handler",
+            "provider_chain_resolver",
+            "offline_degradation_handler",
+            "policy_bundle_validator"
+          ],
+          "description": "Kind of site that produced this record. The site_kind MUST be consistent with the decision_class; e.g. emergency_disable_handler pairs with decision_class emergency_disable_fired."
+        },
+        "surface_label": {
+          "$ref": "#/$defs/export_safe_label",
+          "description": "Short, export-safe label for the surface the decision rendered into (banner, admin export, support packet, CLI stdout, etc.)."
+        }
+      }
+    },
+
+    "rule_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_family",
+        "rule_note"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the rule or policy clause that produced the decision. MUST NOT contain raw rule body text or raw directory attribute values."
+        },
+        "rule_family": {
+          "type": "string",
+          "enum": [
+            "admin_policy_capability_narrowing",
+            "admin_policy_scope_restriction",
+            "workspace_trust_restriction",
+            "capability_lifecycle_gate",
+            "entitlement_plan_gate",
+            "feature_flag_rollout_rule",
+            "kill_switch_rule",
+            "signature_validation_rule",
+            "offline_grace_rule",
+            "provider_chain_precedence_rule"
+          ],
+          "description": "Closed rule-family vocabulary. rule_family lets reviewers locate the originating contract (admin policy, capability lifecycle, entitlement plan, feature-flag rollout, kill switch, signature validator, offline-grace handler, provider-chain resolver)."
+        },
+        "rule_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, reviewable summary of the rule, safe for banners and admin exports. Raw rule body text MUST NOT appear."
+        }
+      }
+    },
+
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_id"
+      ],
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "policy_bundle_record",
+            "entitlement_snapshot_record",
+            "admin_audit_packet_record",
+            "experiments_register_row",
+            "feature_flag_provider_chain_profile",
+            "emergency_action_record",
+            "embedded_build_default",
+            "local_cli_invocation",
+            "ci_workflow_run"
+          ],
+          "description": "Closed source-kind vocabulary. The source_kind names which upstream record or invocation materialised the decision."
+        },
+        "source_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id into the named source. For policy_bundle_record and entitlement_snapshot_record this is the record's opaque id; for feature_flag_provider_chain_profile this is the profile_id."
+        },
+        "bundle_version_ref": {
+          "$ref": "#/$defs/bundle_version_ref",
+          "description": "Present only when source_kind is policy_bundle_record."
+        }
+      }
+    },
+
+    "unavailable_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_class",
+        "reason_note"
+      ],
+      "properties": {
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "remote_provider_unreachable",
+            "signed_bundle_expired_no_grace",
+            "signed_bundle_revoked",
+            "policy_bundle_refused_by_narrowing_ceiling",
+            "emergency_disable_ratcheted_session",
+            "editing_critical_floor_declined_fallback",
+            "capability_not_admitted_to_identity_mode",
+            "capability_not_admitted_to_trust_state",
+            "workspace_trust_required_but_restricted"
+          ],
+          "description": "Closed unavailable-reason vocabulary, mirroring artifacts/governance/feature_flag_provider_chain.yaml#unavailable_reason_classes and extending with identity-mode / trust-state incompatibility."
+        },
+        "reason_note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+
+    "policy_decision_explain_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "record_id",
+        "decision_timestamp",
+        "decision_site",
+        "decision_class",
+        "decision_outcome",
+        "narrowing_reason",
+        "provider_chain_source",
+        "rule_ref",
+        "source_ref",
+        "policy_epoch",
+        "identity_mode",
+        "deployment_profile_class",
+        "workspace_trust_state",
+        "redaction_class",
+        "fallback_path",
+        "audit_event_id",
+        "explainability_envelope",
+        "summary_sentence"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/policy_decision_explain_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "policy_decision_explain_record",
+          "description": "Discriminator for this record kind."
+        },
+        "record_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable, opaque record id. Record ids stay stable across redaction-class changes and surface projections."
+        },
+        "decision_timestamp": { "$ref": "#/$defs/monotonic_timestamp" },
+        "decision_site": { "$ref": "#/$defs/decision_site_ref" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decision_outcome": { "$ref": "#/$defs/decision_outcome_class" },
+        "narrowing_reason": { "$ref": "#/$defs/narrowing_reason" },
+        "provider_chain_source": { "$ref": "#/$defs/provider_chain_source_class" },
+        "emergency_disable_source": {
+          "$ref": "#/$defs/emergency_disable_source_class",
+          "description": "Present only when decision_class is emergency_disable_fired. Names the kill-switch source that fired."
+        },
+        "rule_ref": { "$ref": "#/$defs/rule_ref" },
+        "source_ref": { "$ref": "#/$defs/source_ref" },
+        "policy_epoch": {
+          "$ref": "#/$defs/policy_epoch_ref",
+          "description": "Policy epoch the decision resolved under. When the decision did not consult a policy bundle (embedded-default resolution, local CLI invocation, CI workflow input), the epoch still records the last known epoch so reviewers can reproduce the gate."
+        },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "workspace_trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "fallback_path": { "$ref": "#/$defs/fallback_path_class" },
+        "unavailable_reason": {
+          "$ref": "#/$defs/unavailable_reason",
+          "description": "Present only when fallback_path is none_surface_unavailable_with_reason or decision_outcome is denied with no recovery path."
+        },
+        "audit_event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id into the admin_audit_packet_record family so every decision can be joined to the audit trail. Raw audit bodies never appear here; consumers dereference opaquely."
+        },
+        "explainability_envelope": { "$ref": "#/$defs/explainability_envelope" },
+        "summary_sentence": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence summarising the decision for banners, admin exports, and support packets. Raw policy rule bodies, raw claim payloads, and raw secret material MUST NOT appear."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Emergency-disable firings MUST name the kill-switch source and the ratchet-session fallback.",
+          "if": {
+            "properties": { "decision_class": { "const": "emergency_disable_fired" } },
+            "required": [ "decision_class" ]
+          },
+          "then": {
+            "required": [ "emergency_disable_source" ],
+            "properties": {
+              "fallback_path": {
+                "enum": [
+                  "no_fallback_emergency_disable_ratcheted",
+                  "repair_hook_visible_no_silent_fallback",
+                  "restricted_mode",
+                  "local_safe_default"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "When fallback_path is none_surface_unavailable_with_reason, the record MUST carry an unavailable_reason.",
+          "if": {
+            "properties": { "fallback_path": { "const": "none_surface_unavailable_with_reason" } },
+            "required": [ "fallback_path" ]
+          },
+          "then": {
+            "required": [ "unavailable_reason" ]
+          }
+        },
+        {
+          "description": "admin_policy_narrowing_refused_as_widening MUST cite a policy_bundle_record source.",
+          "if": {
+            "properties": { "decision_class": { "const": "admin_policy_narrowing_refused_as_widening" } },
+            "required": [ "decision_class" ]
+          },
+          "then": {
+            "properties": {
+              "source_ref": {
+                "properties": {
+                  "source_kind": { "const": "policy_bundle_record" }
+                },
+                "required": [ "source_kind" ]
+              }
+            },
+            "required": [ "source_ref" ]
+          }
+        },
+        {
+          "description": "provider_chain_fell_back_to_embedded_default MUST name provider_chain_source = embedded_default.",
+          "if": {
+            "properties": { "decision_class": { "const": "provider_chain_fell_back_to_embedded_default" } },
+            "required": [ "decision_class" ]
+          },
+          "then": {
+            "properties": {
+              "provider_chain_source": { "const": "embedded_default" }
+            },
+            "required": [ "provider_chain_source" ]
+          }
+        },
+        {
+          "description": "vendor_console_only_acknowledged_gap requires at least one waiver ref.",
+          "if": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "explainability_class": { "const": "vendor_console_only_acknowledged_gap" }
+                },
+                "required": [ "explainability_class" ]
+              }
+            },
+            "required": [ "explainability_envelope" ]
+          },
+          "then": {
+            "properties": {
+              "explainability_envelope": {
+                "properties": {
+                  "acknowledged_gap_waiver_refs": { "type": "array", "minItems": 1 }
+                },
+                "required": [ "acknowledged_gap_waiver_refs" ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One typed explain record per policy-decision site invocation. Records are append-only; a later decision at the same site mints a new record id and a new timestamp rather than overwriting the previous one."
+    }
+  }
+}

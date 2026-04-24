@@ -1,0 +1,373 @@
+# Feature-flag / experiment / benchmark / rollout provider-chain register.
+#
+# Canonical machine-readable register of provider-chain profiles that
+# experiments_register.yaml rows bind to. Each profile fixes:
+#
+#   1. The ordered subset of the resolution precedence ladder that the
+#      row actually supports (a row may NOT imply a layer it does not
+#      have).
+#   2. The refresh class that governs whether and when a higher layer
+#      may rewrite the cached value.
+#   3. The offline posture: authoritative-local, last-known-good-signed,
+#      cache-only, or unavailable-offline.
+#   4. The emergency-disable precedence: kill-switch source kinds in
+#      the order they take effect if more than one is authorised.
+#   5. The editing-critical floor: whether a row bound to this profile
+#      MAY ever declare remote_fetch_failure_may_block_startup = true.
+#
+# The narrative companion is docs/governance/policy_flag_schema_stack.md;
+# if the two disagree, the doc wins and this file is updated in the
+# same change. The per-row control contract lives in
+# docs/governance/feature_flag_policy.md, and each
+# experiments_register.yaml row MUST bind to exactly one profile here
+# via the provider_chain_profile field once the profile row it uses is
+# seeded. Rows that pre-date the profile binding keep their inline
+# provider_chain list until the next edit.
+
+schema_version: 1
+
+stack_doc: docs/governance/policy_flag_schema_stack.md
+policy_doc: docs/governance/feature_flag_policy.md
+standards_matrix_ref: artifacts/governance/standards_matrix.yaml#standard.openfeature
+
+companion_registers:
+  experiments_register: artifacts/governance/experiments_register.yaml
+  labs_register: artifacts/governance/labs_register.yaml
+  control_artifact_index: artifacts/governance/control_artifact_index.yaml
+  schema_families: artifacts/governance/schema_families.yaml
+
+vocabulary_sources:
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - docs/adr/0018-workspace-trust-and-restricted-mode.md
+  - docs/identity/offline_entitlement_and_policy_seed.md
+
+# -----------------------------------------------------------------------------
+# Resolution precedence ladder.
+#
+# Highest-precedence source wins, except where capped by policy_override_posture
+# or by the editing-critical floor (an editing-critical row MUST resolve locally
+# from embedded_default + locally cached signed material; remote fetch failure
+# MUST NOT block startup).
+# -----------------------------------------------------------------------------
+precedence_ladder:
+  - step: 1
+    source: emergency_disable
+    description: >
+      Any authorised kill-switch source can force the row off or narrow it for
+      the current session. Ratchets for the current session; does not silently
+      unfire on next refresh within the same session.
+  - step: 2
+    source: admin_policy_narrowing
+    description: >
+      Signed policy bundle narrows or disables the row. MAY NOT widen trust,
+      egress, write scope, startup dependencies, or enable an off_by_default
+      editing-critical row. Cap is the row's policy_override_posture.
+  - step: 3
+    source: optional_managed_override
+    description: >
+      Vendor-managed convenience layer over the self-hosted origin. Same
+      widening cap as admin_policy_narrowing.
+  - step: 4
+    source: signed_local_admin_bundle
+    description: >
+      Signed local or admin bundle cached on device. Serves as
+      last_known_good_signed when a higher layer is offline.
+  - step: 5
+    source: ci_workflow_input
+    description: >
+      CI-only workflow inputs. Never applies to editing-critical paths at
+      interactive runtime.
+  - step: 6
+    source: local_cli_argument
+    description: >
+      Local CLI flag, environment input, or wrapper argument. Primary
+      invocation path for prototype harnesses, benchmark modes, and hidden
+      developer toggles at this milestone.
+  - step: 7
+    source: embedded_default
+    description: >
+      Value compiled into the build. Every row MUST declare
+      embedded_default_behavior. This is the floor.
+
+# -----------------------------------------------------------------------------
+# Vocabularies.
+# -----------------------------------------------------------------------------
+
+provider_chain_step_set:
+  - emergency_disable
+  - admin_policy_narrowing
+  - optional_managed_override
+  - signed_local_admin_bundle
+  - ci_workflow_input
+  - local_cli_argument
+  - embedded_default
+
+refresh_classes:
+  - refresh_forbidden
+  - refresh_on_explicit_invocation
+  - refresh_on_session_start
+  - refresh_on_cached_expiry
+  - refresh_on_signed_push
+
+offline_resolution_postures:
+  # Inherited verbatim from ADR-0008 and experiments_register.yaml.
+  - authoritative_local
+  - last_known_good_signed
+  - cache_only
+  - unavailable_offline
+
+last_known_good_max_age_classes:
+  - not_applicable_authoritative_local
+  - bounded_by_bundle_validity_window
+  - bounded_by_session_lifetime
+  - bounded_by_build_lifetime
+  - unbounded_until_next_successful_refresh
+
+unavailable_reason_classes:
+  - remote_provider_unreachable
+  - signed_bundle_expired_no_grace
+  - signed_bundle_revoked
+  - policy_bundle_refused_by_narrowing_ceiling
+  - emergency_disable_ratcheted_session
+  - editing_critical_floor_declined_fallback
+
+editing_critical_floor_classes:
+  - forbidden_for_editing_critical_rows
+  - permitted_with_last_known_good_signed_only
+  - permitted_with_authoritative_local_only
+
+kill_switch_precedence_classes:
+  # Ordered; the earliest class authorised for the current row fires first.
+  - embedded_default_off
+  - local_cli_argument
+  - ci_workflow_input
+  - signed_local_admin_bundle
+  - optional_managed_override
+
+policy_override_postures:
+  # Mirrors experiments_register.yaml; the profile's cap MUST be >= the row's.
+  - not_allowed
+  - disable_only
+  - narrowing_allowed
+
+refresh_audit_rules:
+  - >
+    A successful refresh MUST record the previous value, the new value, the
+    refresh source, and the policy epoch that authored it.
+  - >
+    A failed refresh MUST fall back to the last_known_good_signed cached
+    value (or to embedded_default when no cache is available) and MUST NOT
+    block startup for editing-critical rows.
+  - >
+    An emergency-disable firing MUST emit a typed
+    policy_decision_explain_record with decision_class
+    emergency_disable_fired. The record's fallback_path names the path the
+    user remains on.
+  - >
+    A narrowing firing MUST emit a typed policy_decision_explain_record
+    with a narrowing_reason drawn from the closed vocabulary. Raw policy
+    rule bodies, raw tenant directory attributes, and raw signer bytes MUST
+    NOT appear in the record.
+
+# -----------------------------------------------------------------------------
+# Gates.
+# -----------------------------------------------------------------------------
+
+gates:
+  - >
+    Every experiments_register.yaml row MUST bind to exactly one profile
+    here (by profile_id) the next time it is edited. A row whose inline
+    provider_chain list names a step not in the profile's
+    supported_steps is a governance bug.
+  - >
+    A row whose editing_critical_path = true MUST bind to a profile whose
+    editing_critical_floor_class is either
+    permitted_with_last_known_good_signed_only or
+    permitted_with_authoritative_local_only. forbidden_for_editing_critical_rows
+    is never admissible for an editing-critical row.
+  - >
+    A row whose policy_override_posture = narrowing_allowed MUST bind to a
+    profile whose policy_override_cap is narrowing_allowed.
+    disable_only and not_allowed profiles cannot host a
+    narrowing_allowed row.
+  - >
+    Adding a new profile is additive-minor; repurposing an existing
+    profile's supported_steps, editing_critical_floor_class, or
+    policy_override_cap is breaking and requires a new decision row.
+
+# -----------------------------------------------------------------------------
+# Profiles.
+# -----------------------------------------------------------------------------
+
+profiles:
+  - profile_id: profile.prototype_harness_local_only
+    summary: >
+      Contributor-invoked prototype harness. Runs only when a maintainer
+      invokes the wrapper; embedded default is inactive.
+    supported_steps:
+      - embedded_default
+      - local_cli_argument
+    refresh_class: refresh_forbidden
+    offline_resolution_posture: authoritative_local
+    last_known_good_max_age_class: not_applicable_authoritative_local
+    editing_critical_floor_class: forbidden_for_editing_critical_rows
+    policy_override_cap: not_allowed
+    emergency_disable_sources:
+      - embedded_default_off
+      - local_cli_argument
+    example_rows:
+      - exp.buffer.prototype_harness
+      - exp.vfs.save_prototype
+      - exp.large_file.prototype_harness
+      - exp.graph.prototype_harness
+      - exp.reactive_state.prototype_harness
+    notes: >
+      Default behavior is inactive_until_invoked. Offline is the normal
+      case; remote refresh is never attempted. Kill switch is to stop
+      invoking the wrapper or to set the embedded default off in the
+      build.
+
+  - profile_id: profile.benchmark_mode_smoke_subset_local
+    summary: >
+      Optional benchmark mode selected by CLI argument. Defaults to the
+      smoke subset when enabled; default capture is broader and does not
+      require this profile.
+    supported_steps:
+      - embedded_default
+      - local_cli_argument
+    refresh_class: refresh_forbidden
+    offline_resolution_posture: authoritative_local
+    last_known_good_max_age_class: not_applicable_authoritative_local
+    editing_critical_floor_class: forbidden_for_editing_critical_rows
+    policy_override_cap: not_allowed
+    emergency_disable_sources:
+      - embedded_default_off
+      - local_cli_argument
+    example_rows:
+      - mode.benchmark_lab.smoke_subset
+      - exp.text_stack.smoke_mode
+    notes: >
+      The smoke-subset posture MUST NOT silently narrow published
+      benchmarks; a default shift is release-note-required per the row's
+      default_shift_change_log_posture.
+
+  - profile_id: profile.rollout_ci_reference_capture
+    summary: >
+      CI-only reference-capture rollout that gates which workflow rings
+      may publish reference artifacts. Not an editor-runtime path.
+    supported_steps:
+      - embedded_default
+      - ci_workflow_input
+    refresh_class: refresh_on_session_start
+    offline_resolution_posture: authoritative_local
+    last_known_good_max_age_class: not_applicable_authoritative_local
+    editing_critical_floor_class: forbidden_for_editing_critical_rows
+    policy_override_cap: not_allowed
+    emergency_disable_sources:
+      - embedded_default_off
+      - ci_workflow_input
+    example_rows:
+      - rollout.benchmark_lab.reference_capture
+    notes: >
+      Session = CI workflow run. "Refresh on session start" means the CI
+      workflow reads the input at the start of the run and holds it for
+      the remainder of the run. A maintainer aborting the run is the
+      effective kill switch.
+
+  - profile_id: profile.hidden_developer_toggle_local_only
+    summary: >
+      Hidden developer toggle invoked only from a local wrapper or CI
+      workflow input. Not contributor-visible in the Labs projection.
+    supported_steps:
+      - embedded_default
+      - local_cli_argument
+      - ci_workflow_input
+    refresh_class: refresh_on_explicit_invocation
+    offline_resolution_posture: authoritative_local
+    last_known_good_max_age_class: not_applicable_authoritative_local
+    editing_critical_floor_class: forbidden_for_editing_critical_rows
+    policy_override_cap: disable_only
+    emergency_disable_sources:
+      - embedded_default_off
+      - local_cli_argument
+      - ci_workflow_input
+    example_rows:
+      - flag.benchmark_lab.regression_demo
+      - flag.benchmark_lab.skip_build
+      - flag.benchmark_lab.verify_seed_only
+    notes: >
+      These toggles materially change reviewable evidence. They remain in
+      the canonical register only; they MUST NOT migrate to the Labs
+      projection without a new decision row.
+
+  - profile_id: profile.settings_control_stack_reserved_full_ladder
+    summary: >
+      Reserved ADR-0008 settings experiment-rollout control-stack
+      binding. The only profile that reserves the signed_local_admin_bundle
+      and optional_managed_override layers for future runtime use.
+      Editing-critical: true.
+    supported_steps:
+      - embedded_default
+      - signed_local_admin_bundle
+      - optional_managed_override
+    refresh_class: refresh_on_signed_push
+    offline_resolution_posture: last_known_good_signed
+    last_known_good_max_age_class: bounded_by_bundle_validity_window
+    editing_critical_floor_class: permitted_with_last_known_good_signed_only
+    policy_override_cap: narrowing_allowed
+    emergency_disable_sources:
+      - embedded_default_off
+      - signed_local_admin_bundle
+      - optional_managed_override
+    example_rows:
+      - flag.settings.experiment_rollout_layer
+    notes: >
+      Editing startup MUST NOT block on remote fetch failure. Policy MAY
+      narrow the row (disable, cap ring, restrict cohort) but MUST NOT
+      widen trust, egress, write scope, or startup dependencies.
+      Emergency disable ratchets for the current session and emits a
+      typed policy_decision_explain_record; silent re-enable within the
+      same session is forbidden.
+
+# -----------------------------------------------------------------------------
+# Profile row contract.
+#
+# This is the frozen shape every profile row carries. Later tooling MAY
+# read additional context (telemetry binding, audit sink) but MUST NOT
+# drop these fields without a new decision row.
+# -----------------------------------------------------------------------------
+profile_contract:
+  required_fields:
+    - profile_id
+    - summary
+    - supported_steps
+    - refresh_class
+    - offline_resolution_posture
+    - last_known_good_max_age_class
+    - editing_critical_floor_class
+    - policy_override_cap
+    - emergency_disable_sources
+    - example_rows
+    - notes
+  rules:
+    - >
+      supported_steps MUST be a subset of provider_chain_step_set in the
+      precedence order declared in precedence_ladder.
+    - >
+      supported_steps MUST include embedded_default. No profile may omit
+      the floor.
+    - >
+      emergency_disable_sources MUST be a subset of the supported_steps
+      plus embedded_default_off, and MUST appear in
+      kill_switch_precedence_classes order.
+    - >
+      A profile whose supported_steps includes optional_managed_override
+      or admin_policy_narrowing MUST declare
+      policy_override_cap = narrowing_allowed or disable_only; it MAY
+      NOT be not_allowed.
+    - >
+      A profile whose editing_critical_floor_class is
+      permitted_with_last_known_good_signed_only MUST declare
+      offline_resolution_posture = last_known_good_signed and
+      last_known_good_max_age_class != unbounded_until_next_successful_refresh.
