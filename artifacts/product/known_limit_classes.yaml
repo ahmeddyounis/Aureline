@@ -1,0 +1,694 @@
+# Known-limit, exclusion, and downgrade-note classes.
+#
+# Machine-readable companion register for docs/product/known_limits_contract.md
+# and schemas/product/known_limit_note.schema.json. Binds each closed
+# vocabulary value the schema admits to its review rubric, its required
+# scope fields, its propagation rules into the eleven shared publication
+# destinations, and the conditions under which the note is mandatory,
+# optional, stale, superseded, or promotion-blocking. Tooling reads this
+# file; the narrative companion is authoritative when the two agree.
+# If they disagree the machine file wins and the narrative is updated in
+# the same change.
+#
+# Scope.
+#   - Every note that narrows a published claim row, a cutline, a
+#     persona, a workflow bundle, an archetype, a deployment profile, or
+#     a release channel binds to exactly one limitation_class drawn from
+#     limitation_class_vocabulary.
+#   - Every note declares one severity_class and one review_rubric_class.
+#     A blocking severity_class forces review_rubric_class =
+#     promotion_blocking (schema-enforced).
+#   - Every note carries a typed workaround block, a support-window
+#     alignment block, a freshness envelope, and a mandatory-publication-
+#     destinations list drawn from the shared publication-destination
+#     vocabulary.
+#   - Closed vocabularies below are re-exported verbatim from schemas/
+#     release/assurance_claim.schema.json, schemas/governance/
+#     claim_manifest.schema.json, schemas/qe/public_proof_packet.schema
+#     .json, artifacts/governance/deployment_profiles.yaml, and
+#     artifacts/governance/evidence_freshness_slos.yaml. Re-exporting by
+#     reference keeps the vocabulary one edit away from every consumer.
+#
+# Out of scope.
+#   - Writing every end-user known-limit note. This file seeds the
+#     vocabulary and the rules that govern notes; individual note rows
+#     land in the docs, release-notes, and claim-manifest channels as
+#     downstream work.
+#   - Implementing the runtime detection pipeline. The detection rules
+#     below are expressed so a later validator can drive promotion
+#     review from them.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/product/known_limits_contract.md
+schema_ref: schemas/product/known_limit_note.schema.json
+
+upstream_vocabularies:
+  assurance_claim_schema_ref: schemas/release/assurance_claim.schema.json
+  claim_manifest_schema_ref: schemas/governance/claim_manifest.schema.json
+  public_proof_packet_schema_ref: schemas/qe/public_proof_packet.schema.json
+  deployment_profiles_ref: artifacts/governance/deployment_profiles.yaml
+  evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+  evidence_rerun_triggers_ref: artifacts/governance/evidence_rerun_triggers.yaml
+  assurance_claim_rows_ref: artifacts/release/assurance_claim_rows.yaml
+  claim_manifest_seed_ref: artifacts/governance/claim_manifest_seed.yaml
+  replacement_grade_cutlines_ref: artifacts/product/replacement_grade_cutlines.yaml
+  p0_persona_rows_ref: artifacts/product/p0_persona_rows.yaml
+  language_bundle_rows_ref: artifacts/product/language_bundle_rows.yaml
+  workflow_bundle_ids_ref: artifacts/qe/workflow_bundle_ids.yaml
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml. Tightening the wording on a
+# value already in the set is additive-minor and lands here in the same
+# change as the rule update.
+# -----------------------------------------------------------------------------
+
+limitation_class_vocabulary:
+  - scope_caveat_noted          # note records a scope caveat; does not narrow a claim class by itself
+  - platform_narrowed           # one or more deployment_profile values are excluded or narrowed
+  - workflow_narrowed           # one or more workflow bundles are excluded or narrowed
+  - persona_narrowed            # one or more P0 personas are excluded or narrowed
+  - corpus_narrowed             # benchmark / migration corpus scope is narrower than the claim wording implies
+  - competitor_parity_narrowed  # head-to-head parity is intentionally narrow or quarantined
+  - docs_drift_active           # docs / help version match is broken or stale on a bound surface
+  - support_export_narrowed     # support_export cannot redact or handoff the narrowed scope honestly
+  - migration_path_limited      # migration evidence is absent, partial, or quarantined for the bound bundle
+
+severity_class_vocabulary:
+  - minor       # scope caveat only; no claim-class narrowing required
+  - moderate    # narrows a bound claim to limited or evidence_stale on at least one destination
+  - major       # narrows a bound claim to experimental, retest_pending, or exception_recorded
+  - blocking    # forbids certified, supported, or replacement-grade wording until cleared or waived
+
+note_state_vocabulary:
+  - draft
+  - in_review
+  - active
+  - superseded
+  - withdrawn
+  - quarantined
+
+review_rubric_class_vocabulary:
+  - mandatory           # a bound claim row MUST cite this note before publishing
+  - optional            # a bound claim row MAY cite this note; absence is admissible
+  - stale               # freshness aged out; bound claim rows MUST narrow until refreshed
+  - superseded          # only the successor note named by superseded_by_known_limit_ref is citable
+  - promotion_blocking  # blocks certified / supported / replacement-grade wording on every bound cutline or claim row until cleared or waived
+
+workaround_availability_class_vocabulary:
+  - available_in_product         # a user-visible setting, command, or repair hook exists in the product
+  - available_via_recipe         # the workaround is a documented CLI / headless recipe
+  - available_via_policy_change  # the workaround requires an admin policy change
+  - unavailable_pending_work     # work is tracked but not yet landed
+  - unavailable_by_design        # no workaround is admissible; the limit is a scope boundary
+
+downgrade_trigger_vocabulary:
+  # First twelve values are re-exported verbatim from
+  # schemas/release/assurance_claim.schema.json#downgrade_trigger. The
+  # three known-limit-specific triggers are additive.
+  - required_evidence_missing
+  - required_evidence_stale
+  - required_evidence_narrower_than_claim
+  - docs_version_match_unmet
+  - docs_freshness_floor_unmet
+  - unresolved_migration_gap
+  - caveat_uncovered
+  - proof_class_not_currently_verifiable
+  - exception_window_expired
+  - compatibility_row_degraded
+  - support_window_expired
+  - policy_blocked
+  - known_limit_note_missing
+  - known_limit_note_stale
+  - known_limit_note_superseded
+
+support_class_vocabulary:
+  - certified
+  - supported
+  - community
+  - experimental
+  - not_supported
+
+support_window_state_vocabulary:
+  - current
+  - narrowed
+  - expired
+  - not_applicable
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+release_channel_class_vocabulary:
+  - dev_local
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+
+publication_destination_vocabulary:
+  - docs_site
+  - migration_notes
+  - help_about
+  - service_health
+  - support_export
+  - release_packet
+  - release_notes
+  - cli_help
+  - evaluation_artifact
+  - marketplace_discovery
+  - public_proof_packet
+
+# -----------------------------------------------------------------------------
+# Limitation-class rows.
+#
+# One row per limitation_class. Each row states what the class means, the
+# required scope fields on the note record (so a schema fixture or row
+# generator can assert the invariants mechanically), the minimum
+# severity_class the class can carry, the typical review_rubric_class a
+# note in this class defaults to, and the claim-class ceiling a bound
+# claim row may project while the note is active.
+# -----------------------------------------------------------------------------
+limitation_class_rows:
+
+  - limitation_class: scope_caveat_noted
+    description: >
+      Scope caveat. The claim text is accurate but a reviewer added a
+      reminder that a specific sub-scope is intentionally excluded. Does
+      not narrow a claim class by itself.
+    required_scope_fields: []
+    minimum_severity_floor: minor
+    typical_review_rubric: optional
+    claim_class_ceiling: certified
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+
+  - limitation_class: platform_narrowed
+    description: >
+      One or more deployment profiles are excluded or narrowed from the
+      bound claim. A managed_cloud-only feature on an air_gapped profile,
+      or a self_hosted feature that cannot ride managed_cloud, is a
+      canonical case.
+    required_scope_fields:
+      - affected_deployment_profiles
+    minimum_severity_floor: moderate
+    typical_review_rubric: mandatory
+    claim_class_ceiling: limited
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+      - service_health
+      - support_export
+
+  - limitation_class: workflow_narrowed
+    description: >
+      One or more workflow bundles are excluded or narrowed. Typical case
+      is a bundle that supports the daily loop but cannot yet host the
+      replacement-grade proof set; the workflow is usable but the claim
+      wording cannot generalize.
+    required_scope_fields:
+      - affected_workflow_bundle_refs
+    minimum_severity_floor: moderate
+    typical_review_rubric: mandatory
+    claim_class_ceiling: supported
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+      - release_notes
+      - public_proof_packet
+
+  - limitation_class: persona_narrowed
+    description: >
+      A P0 persona is excluded or narrowed. Daily-driver or replacement-
+      grade wording naming the persona cannot publish while this note is
+      active.
+    required_scope_fields:
+      - affected_persona_refs
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: experimental
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+      - release_notes
+      - marketplace_discovery
+      - public_proof_packet
+
+  - limitation_class: corpus_narrowed
+    description: >
+      Benchmark or migration corpus scope is narrower than the claim
+      wording implies. A benchmark row that covers three of five
+      personas, or a migration corpus row whose language coverage does
+      not yet include the claim's target, is a canonical case.
+    required_scope_fields:
+      - explicit_exclusions
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: limited
+    example_bound_surfaces:
+      - docs_site
+      - release_notes
+      - public_proof_packet
+      - evaluation_artifact
+
+  - limitation_class: competitor_parity_narrowed
+    description: >
+      Head-to-head parity is intentionally narrow or quarantined. Used
+      by replacement-grade wording whose benchmark packet carries
+      publication_posture = quarantined_not_comparable or whose
+      competitor_settings block pins a narrower comparison than the
+      claim text implies.
+    required_scope_fields:
+      - explicit_exclusions
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: limited
+    example_bound_surfaces:
+      - docs_site
+      - release_notes
+      - public_proof_packet
+      - marketplace_discovery
+
+  - limitation_class: docs_drift_active
+    description: >
+      Docs / help version match is broken or stale on at least one bound
+      publication destination. A claim row that would otherwise project
+      as certified MUST narrow to limited or evidence_stale until the
+      docs pack refreshes.
+    required_scope_fields: []
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: evidence_stale
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+      - service_health
+      - release_notes
+
+  - limitation_class: support_export_narrowed
+    description: >
+      support_export cannot redact or handoff the narrowed scope
+      honestly. The claim wording that depends on a support-class floor
+      (certified, supported) cannot publish until support export covers
+      the persona's workspace honestly.
+    required_scope_fields:
+      - explicit_exclusions
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: limited
+    example_bound_surfaces:
+      - docs_site
+      - help_about
+      - support_export
+      - release_packet
+
+  - limitation_class: migration_path_limited
+    description: >
+      Migration evidence is absent, partial, or quarantined for the
+      bound bundle. Replacement-grade wording that names a competing
+      tool cannot publish while this note is active; the self-host
+      cutline's waiver of migration_note_current is recorded on the
+      cutline and does not propagate as a note of this class.
+    required_scope_fields:
+      - explicit_exclusions
+    minimum_severity_floor: major
+    typical_review_rubric: promotion_blocking
+    claim_class_ceiling: limited
+    example_bound_surfaces:
+      - docs_site
+      - migration_notes
+      - release_notes
+      - public_proof_packet
+
+# -----------------------------------------------------------------------------
+# Review-rubric rows.
+#
+# One row per review_rubric_class stating the condition under which a
+# note enters that rubric, the effect on bound claim rows, and the
+# escape path back to a publishable posture.
+# -----------------------------------------------------------------------------
+review_rubric_rows:
+
+  - review_rubric_class: mandatory
+    entry_condition: >
+      The bound limitation_class requires the note on every publishing
+      claim row (platform_narrowed, workflow_narrowed, persona_narrowed
+      with claim text that names the persona, or any class whose
+      severity_class is moderate or higher).
+    effect_on_bound_claim_rows: >
+      The claim row MUST cite the note id in known_limit_refs; the
+      projected wording narrows to the note's claim_class_ceiling on
+      every mandatory publication destination.
+    escape_path: >
+      Scope the claim so the note no longer binds (for example by
+      dropping an affected deployment profile from the claim's scope
+      envelope), or refresh the evidence so the underlying condition
+      clears.
+    promotion_blocking: false
+
+  - review_rubric_class: optional
+    entry_condition: >
+      The bound limitation_class is scope_caveat_noted and the severity
+      is minor; the note is advisory rather than narrowing.
+    effect_on_bound_claim_rows: >
+      The claim row MAY cite the note. Omission is admissible; a
+      reviewer may still add the citation to make the scope caveat
+      explicit.
+    escape_path: >
+      No escape needed. The note is additive guidance.
+    promotion_blocking: false
+
+  - review_rubric_class: stale
+    entry_condition: >
+      The note's freshness envelope has expired (captured_at +
+      stale_after is in the past) or a rerun-trigger mismatch has fired.
+    effect_on_bound_claim_rows: >
+      Every bound claim row narrows to evidence_stale on every
+      publication destination; publishers render stale_text instead of
+      claim_text until the note refreshes.
+    escape_path: >
+      Refresh the note (new captured_at, new stale_after, new
+      rerun_trigger_refs) or supersede it with a current successor.
+    promotion_blocking: true
+
+  - review_rubric_class: superseded
+    entry_condition: >
+      A successor note has landed (note_state = superseded and
+      superseded_by_known_limit_ref names the current note).
+    effect_on_bound_claim_rows: >
+      Every bound claim row MUST migrate its known_limit_refs to the
+      successor id in the same change that lands the successor; the
+      prior row is archived for audit but never citable by a publishing
+      row.
+    escape_path: >
+      Migrate the claim rows. The prior row never returns to a citable
+      state.
+    promotion_blocking: false
+
+  - review_rubric_class: promotion_blocking
+    entry_condition: >
+      severity_class = blocking, or the limitation_class is one whose
+      required evidence is absent at a scope that forbids the declared
+      claim class (canonical cases: persona_narrowed on a
+      replacement-grade cutline, corpus_narrowed or competitor_parity
+      _narrowed on a benchmark claim, docs_drift_active on a certified
+      claim, support_export_narrowed on any supported-or-better wording,
+      migration_path_limited on replacement-grade wording that names a
+      competing tool).
+    effect_on_bound_claim_rows: >
+      The declared claim class narrows to the note's claim_class_ceiling
+      on every publication destination; downgrade_triggers fire on the
+      claim row; promotion review blocks the release train until the
+      note is cleared or an exception_recorded packet lands and is
+      cited.
+    escape_path: >
+      Clear the underlying condition (refresh evidence, land docs pack,
+      expand support-export redaction, land migration corpus) and move
+      the note to withdrawn, or open a late-proof exception packet
+      carrying a typed rationale and named reviewer set.
+    promotion_blocking: true
+
+# -----------------------------------------------------------------------------
+# Propagation rules.
+#
+# One rule per publication destination. Every rule states whether the
+# destination MUST render the note whenever the bound claim row renders,
+# what projection the destination uses, and what narrowing the
+# destination applies when the note's review_rubric_class is stale,
+# superseded, or promotion_blocking.
+# -----------------------------------------------------------------------------
+propagation_rules:
+
+  - destination: docs_site
+    render_policy: mandatory_when_note_binds_to_any_visible_claim_row
+    projection: verbatim_caveat_body_plus_narrowed_claim_text
+    narrowing_behavior: >
+      stale and promotion_blocking render narrowed_summary with
+      stale_text; superseded renders the successor note's body under
+      the original anchor id so linkbacks keep resolving.
+
+  - destination: migration_notes
+    render_policy: mandatory_when_limitation_class_in_migration_path_limited_or_competitor_parity_narrowed
+    projection: narrowed_summary_plus_migration_caveat
+    narrowing_behavior: >
+      stale and promotion_blocking force the migration-notes row to
+      carry its stale_text and the migration-evidence-missing or
+      migration-evidence-stale trigger from evidence_rerun_triggers
+      .yaml.
+
+  - destination: help_about
+    render_policy: mandatory_when_note_binds_to_any_help_about_claim_row
+    projection: status_badge_plus_narrowed_summary_link
+    narrowing_behavior: >
+      stale degrades the Help / About freshness badge to stale; promotion
+      _blocking renders the narrowed_summary with limited_text; superseded
+      rewrites the badge text to the successor note's id within the same
+      freshness window.
+
+  - destination: service_health
+    render_policy: mandatory_when_note_narrows_a_service_contract_state
+    projection: service_health_state_plus_known_limit_link_only
+    narrowing_behavior: >
+      stale downgrades the service_health state to stale; promotion
+      _blocking downgrades to contract_mismatch until cleared; all
+      other transitions mirror the claim row's service_health_state
+      mapping.
+
+  - destination: support_export
+    render_policy: mandatory_when_support_window_state_in_narrowed_or_expired_or_limitation_class_in_support_export_narrowed
+    projection: support_handoff_narrowed
+    narrowing_behavior: >
+      stale and promotion_blocking force the support handoff card to
+      cite the note id and narrow the support_class wording to the
+      note's support_class_ceiling. A support export that cannot render
+      the narrowed posture fails closed and is a release blocker.
+
+  - destination: release_packet
+    render_policy: mandatory_when_note_binds_to_any_release_packet_claim_row
+    projection: packet_reference_only
+    narrowing_behavior: >
+      stale and promotion_blocking carry the note id, the
+      downgrade_triggers list, and the narrowed posture in the
+      release-packet's claim-evidence-link block.
+
+  - destination: release_notes
+    render_policy: mandatory_when_severity_class_in_moderate_or_higher
+    projection: narrowed_summary_plus_caveat_link
+    narrowing_behavior: >
+      stale renders stale_text; promotion_blocking renders the
+      narrowed_summary and routes to the known_limit anchor; superseded
+      renders the successor id under the same release-notes anchor.
+
+  - destination: cli_help
+    render_policy: mandatory_when_note_binds_to_a_cli_surface_claim_row
+    projection: known_limit_link_only
+    narrowing_behavior: >
+      cli_help renders a one-line note id plus a resolvable anchor into
+      the docs_site body; narrowing mirrors the bound claim row's
+      cli_help channel binding in the claim manifest.
+
+  - destination: evaluation_artifact
+    render_policy: mandatory_when_limitation_class_in_corpus_narrowed_or_competitor_parity_narrowed
+    projection: packet_reference_only
+    narrowing_behavior: >
+      stale quarantines the evaluation artifact until the note refreshes;
+      promotion_blocking quarantines it until the scope is narrowed or
+      the evidence lands.
+
+  - destination: marketplace_discovery
+    render_policy: mandatory_when_limitation_class_in_persona_narrowed_or_competitor_parity_narrowed_or_support_export_narrowed
+    projection: status_badge_plus_known_limit_link_only
+    narrowing_behavior: >
+      stale degrades the marketplace row to unverified; promotion_blocking
+      removes the row from the public discovery surface until the note
+      clears; superseded rewrites the row to the successor id.
+
+  - destination: public_proof_packet
+    render_policy: mandatory_when_note_binds_to_any_public_proof_packet_claim_row
+    projection: known_limit_and_exclusion_block
+    narrowing_behavior: >
+      A public-proof packet whose bound note is stale, superseded, or
+      promotion_blocking MUST carry the corresponding downgrade_trigger
+      in active_downgrade_reasons and MUST NOT declare result_class =
+      pass_full_proof.
+
+# -----------------------------------------------------------------------------
+# Detection rules.
+#
+# Machine-detectable conditions for missing, stale, or superseded notes.
+# A later validator reads these rules to drive promotion review without
+# re-parsing prose bodies.
+# -----------------------------------------------------------------------------
+detection_rules:
+
+  - detector_id: detector:missing_required_note_on_claim_row
+    trigger: known_limit_note_missing
+    condition: >
+      A claim row in artifacts/governance/claim_manifest_seed.yaml
+      (or any downstream claim-manifest packet) projects through a
+      publication_destination that is listed as mandatory for a bound
+      known-limit note, and the claim row's known_limit_refs does not
+      cite the note id. The claim row narrows to the note's
+      claim_class_ceiling on every destination the note binds to.
+    effect_on_claim_row: narrow_to_note_claim_class_ceiling
+    effect_on_release_train: block_promotion_until_cited
+
+  - detector_id: detector:stale_note_freshness_expired
+    trigger: known_limit_note_stale
+    condition: >
+      A known-limit note's freshness envelope has expired
+      (captured_at + stale_after is in the past) OR a rerun-trigger
+      mismatch has fired against the packet's rerun_trigger_refs list.
+      Freshness is evaluated from metadata alone per
+      evidence_freshness_slos.yaml#metadata_evaluation_contract; prose
+      bodies are not required.
+    effect_on_claim_row: narrow_to_evidence_stale
+    effect_on_release_train: block_promotion_until_refreshed_or_superseded
+
+  - detector_id: detector:superseded_note_still_cited
+    trigger: known_limit_note_superseded
+    condition: >
+      A claim row's known_limit_refs cites a known-limit note whose
+      note_state = superseded. The successor note named by
+      superseded_by_known_limit_ref is the only citable replacement
+      until the successor itself is superseded.
+    effect_on_claim_row: require_migration_to_successor_in_same_change
+    effect_on_release_train: block_promotion_until_claim_row_migrated
+
+  - detector_id: detector:support_window_narrower_than_claim
+    trigger: support_window_expired
+    condition: >
+      A claim row projects support-class or support-window wording
+      stronger than the bound known-limit note's
+      support_window_alignment.support_class_ceiling or narrower than
+      its support_window_state allows (expired support_window_state
+      cannot back current or narrowed wording).
+    effect_on_claim_row: narrow_to_support_class_ceiling
+    effect_on_release_train: block_promotion_until_window_refreshed
+
+  - detector_id: detector:promotion_blocking_note_on_high_bar_claim
+    trigger: caveat_uncovered
+    condition: >
+      A claim row declares claim_class in {certified, supported,
+      replacement_grade_candidate} AND cites or is bound to a known
+      -limit note whose review_rubric_class = promotion_blocking. The
+      effective_claim_class MUST narrow to the note's
+      claim_class_ceiling until the note is cleared, waived via a late
+      -proof exception packet, or the claim is withdrawn.
+    effect_on_claim_row: narrow_to_note_claim_class_ceiling
+    effect_on_release_train: block_promotion_until_cleared_or_waived
+
+  - detector_id: detector:mandatory_publication_destination_skipped
+    trigger: caveat_uncovered
+    condition: >
+      A publication destination renders a claim row bound to a known
+      -limit note whose mandatory_publication_destinations list
+      includes that destination, but the rendered copy does not cite
+      the note id or its narrowed projection. The destination fails
+      closed.
+    effect_on_claim_row: no_render_until_note_cited
+    effect_on_release_train: block_publication_of_destination
+
+# -----------------------------------------------------------------------------
+# Invariants.
+#
+# Validators reading this file treat each invariant as a closed-world
+# rule. Adding an invariant is breaking; removing one is a decision row.
+# -----------------------------------------------------------------------------
+invariants:
+
+  - invariant_id: invariant:every_note_binds_one_limitation_class
+    statement: >
+      Every known-limit note record declares exactly one
+      limitation_class drawn from limitation_class_vocabulary. A note
+      that narrows more than one class opens a decision row rather than
+      stacking vocabulary values on one row.
+
+  - invariant_id: invariant:every_note_has_review_rubric_and_severity
+    statement: >
+      Every known-limit note record declares exactly one
+      review_rubric_class and exactly one severity_class. severity_class
+      = blocking MUST pair with review_rubric_class = promotion_blocking
+      (schema-enforced via allOf gate).
+
+  - invariant_id: invariant:promotion_blocking_narrows_bound_claim_rows
+    statement: >
+      A known-limit note with review_rubric_class = promotion_blocking
+      narrows the effective_claim_class of every bound claim row to
+      the limitation_class row's claim_class_ceiling on every
+      publication destination, raises the corresponding
+      downgrade_trigger on the claim row, and blocks the release train
+      until the note is cleared or an exception_recorded packet lands
+      and is cited.
+
+  - invariant_id: invariant:stale_note_forces_stale_copy_on_every_destination
+    statement: >
+      A known-limit note with review_rubric_class = stale forces every
+      bound claim row's effective_claim_class to evidence_stale and
+      forces every rendering publication destination to render
+      stale_text until the note refreshes or is superseded.
+
+  - invariant_id: invariant:superseded_note_routes_through_successor_only
+    statement: >
+      A known-limit note with note_state = superseded names a successor
+      via superseded_by_known_limit_ref, and no claim row publishes
+      while its known_limit_refs cites the superseded row. Migration to
+      the successor lands in the same change as the supersede.
+
+  - invariant_id: invariant:required_scope_fields_populated_for_class
+    statement: >
+      Every known-limit note whose limitation_class is one of
+      platform_narrowed, workflow_narrowed, persona_narrowed,
+      competitor_parity_narrowed, corpus_narrowed, migration_path
+      _limited, or support_export_narrowed populates the
+      required_scope_fields listed on the class row in
+      limitation_class_rows. Schema allOf gates enforce the subset
+      that corresponds to deployment-profile, workflow-bundle,
+      persona, and explicit-exclusion arrays.
+
+  - invariant_id: invariant:support_window_alignment_bounds_support_class
+    statement: >
+      A known-limit note's support_window_alignment.support_class
+      _floor and support_class_ceiling bound the support-class wording
+      any bound claim row may project. A claim row that projects
+      certified wording while the note's support_class_ceiling is
+      supported is non-conforming; promotion review fails closed.
+
+  - invariant_id: invariant:mandatory_destinations_include_public_surfaces
+    statement: >
+      Every known-limit note whose review_rubric_class is mandatory,
+      promotion_blocking, stale, or superseded lists docs_site and
+      help_about in mandatory_publication_destinations (schema-enforced
+      via allOf gate). Public-facing wording narrowed by an active
+      note cannot skip the two destinations every end user reads.
+
+  - invariant_id: invariant:freshness_envelope_drives_staleness
+    statement: >
+      A known-limit note's freshness envelope alone decides whether the
+      note is stale. Freshness is evaluated from captured_at +
+      stale_after and from rerun_trigger_refs against
+      evidence_rerun_triggers.yaml; prose bodies are never required. A
+      note with an expired envelope and review_rubric_class != stale is
+      non-conforming.
+
+  - invariant_id: invariant:adding_a_class_value_opens_a_decision_row
+    statement: >
+      Adding a value to limitation_class_vocabulary, severity_class
+      _vocabulary, note_state_vocabulary, review_rubric_class
+      _vocabulary, workaround_availability_class_vocabulary, or
+      downgrade_trigger_vocabulary opens a decision row in
+      artifacts/governance/decision_index.yaml, updates the paired
+      schema (schemas/product/known_limit_note.schema.json) in the
+      same change, and bumps the document-level schema_version const.
+      Tightening the wording on an existing value is additive-minor
+      and lands without a decision row.

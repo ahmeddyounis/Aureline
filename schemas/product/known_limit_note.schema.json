@@ -1,0 +1,873 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/product/known_limit_note.schema.json",
+  "title": "Aureline known-limit / exclusion / downgrade note",
+  "description": "Boundary schema for one known-limit / exclusion / downgrade note. Binds a stable known_limit_id to one limitation_class, one severity_class, one review_rubric_class, the persona / cutline / workflow-bundle / archetype / deployment-profile / release-channel scope it narrows, an explicit exclusions list, the downgrade-triggers it raises on claim rows that forget to cite it, a typed workaround block, a support-window alignment block, a freshness envelope, a mandatory-publication-destinations list drawn from the shared claim-manifest vocabulary, and the claim-row ids it binds to. Every channel that projects a claim row MUST resolve the same known-limit note rather than minting channel-local caveat copy. Raw marketing copy, raw vendor / account / hostname identifiers, raw reviewer notes, and raw credential material never cross this boundary; the record carries opaque refs, typed vocabulary, UTC timestamps, and enumerated classes only. Adding a new limitation_class, severity_class, review_rubric_class, workaround_availability_class, or downgrade_trigger is additive-minor and bumps the document-level schema version; repurposing an existing value is breaking and requires a new decision row. The normative narrative lives in docs/product/known_limits_contract.md.",
+  "$ref": "#/$defs/known_limit_note_record",
+  "$defs": {
+    "known_limit_note_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the known-limit note record. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "known_limit_note_record",
+      "description": "Frozen discriminator. Every record carries record_kind = known_limit_note_record so consumers multiplexing several packet families on one parser can route by field."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id. Used for caveat_summary_ref, workaround_ref, support_window_ref, superseded_by_known_limit_ref, and other upstream handles. No raw URLs, raw file paths outside the repo, raw logs, raw vendor names, raw hostnames, raw account handles, or raw credential material appear in this field."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:\\d+Y)?(?:\\d+M)?(?:\\d+W)?(?:\\d+D)?(?:T(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$",
+      "description": "ISO-8601 duration string, e.g. P14D, used for stale_after ceilings."
+    },
+    "owner_ref": {
+      "type": "string",
+      "pattern": "^(?:@[a-z0-9_.-]+|lane:[a-z0-9_.-]+)$",
+      "description": "Reviewable handle or lane alias. Resolves through artifacts/governance/ownership_matrix.yaml."
+    },
+    "known_limit_id": {
+      "type": "string",
+      "pattern": "^known_limit:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable known-limit id. Quoted verbatim by docs, Help/About, release notes, claim manifests, compatibility reports, benchmark packets, marketplace / discovery surfaces, and support exports."
+    },
+    "claim_row_ref": {
+      "type": "string",
+      "pattern": "^claim_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable claim-row id this note binds to. Mirrors schemas/governance/claim_manifest.schema.json#claim_row_id."
+    },
+    "cutline_ref": {
+      "type": "string",
+      "pattern": "^cutline:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Cutline row this note narrows. Quoted verbatim from artifacts/product/replacement_grade_cutlines.yaml."
+    },
+    "persona_ref": {
+      "type": "string",
+      "pattern": "^persona:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Persona row this note narrows. Quoted verbatim from artifacts/product/p0_persona_rows.yaml."
+    },
+    "workflow_bundle_ref": {
+      "type": "string",
+      "pattern": "^launch_bundle:[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\\.seed)?(?:@rev=[0-9]+)?$",
+      "description": "Launch-bundle or workflow-bundle id this note narrows. Quoted verbatim from artifacts/product/language_bundle_rows.yaml and artifacts/qe/workflow_bundle_ids.yaml. The optional @rev=N suffix pins a bundle revision; notes that do not pin a revision apply to every revision."
+    },
+    "archetype_row_ref": {
+      "type": "string",
+      "pattern": "^archetype_row:[a-z0-9]+(?:[._-][a-z0-9]+)*(?:@rev=[0-9]+)?$",
+      "description": "Archetype-row id this note narrows. Quoted verbatim from artifacts/compat/reference_workspace_rows.yaml and artifacts/qe/workflow_bundle_ids.yaml. The optional @rev=N suffix pins an archetype revision."
+    },
+    "superseded_by_known_limit_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/known_limit_id" }
+      ],
+      "description": "Successor known-limit id when this record is superseded. Required when note_state = superseded."
+    },
+    "limitation_class": {
+      "type": "string",
+      "enum": [
+        "scope_caveat_noted",
+        "platform_narrowed",
+        "workflow_narrowed",
+        "persona_narrowed",
+        "corpus_narrowed",
+        "competitor_parity_narrowed",
+        "docs_drift_active",
+        "support_export_narrowed",
+        "migration_path_limited"
+      ],
+      "description": "Closed limitation-class vocabulary. Mirrors schemas/qe/public_proof_packet.schema.json#known_limit_class verbatim except for no_limits_declared, which is reserved for packet-level declarations and is never a valid class on a known-limit note."
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "minor",
+        "moderate",
+        "major",
+        "blocking"
+      ],
+      "description": "Closed severity class. minor: scope caveat that does not narrow any claim class. moderate: narrows a claim to limited or evidence_stale on at least one destination. major: narrows a claim to experimental, retest_pending, or exception_recorded on at least one destination. blocking: forbids certified, supported, or replacement-grade wording until resolved or waived."
+    },
+    "note_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "active",
+        "superseded",
+        "withdrawn",
+        "quarantined"
+      ],
+      "description": "Note lifecycle state. Only active notes MAY be cited by publishable claim rows; every other state is narrower. superseded MUST name a successor via superseded_by_known_limit_ref; withdrawn MUST carry a withdrawn_at timestamp; quarantined narrows every bound claim row to limited or narrower until cleared."
+    },
+    "review_rubric_class": {
+      "type": "string",
+      "enum": [
+        "mandatory",
+        "optional",
+        "stale",
+        "superseded",
+        "promotion_blocking"
+      ],
+      "description": "Closed review-rubric class used by promotion review and claim-manifest validation. mandatory: a claim row narrowed by this note MUST cite it before publishing. optional: the claim row MAY cite it. stale: the note's freshness has aged out and every bound claim row MUST narrow until the note is refreshed. superseded: only the successor note named by superseded_by_known_limit_ref is citable. promotion_blocking: the note forbids any certified / supported / replacement-grade wording on the bound rows until it is cleared or explicitly waived."
+    },
+    "workaround_availability_class": {
+      "type": "string",
+      "enum": [
+        "available_in_product",
+        "available_via_recipe",
+        "available_via_policy_change",
+        "unavailable_pending_work",
+        "unavailable_by_design"
+      ],
+      "description": "Closed workaround-availability class. available_in_product: a user-visible setting, command, or repair hook exists. available_via_recipe: the workaround is a documented CLI / headless recipe. available_via_policy_change: the workaround requires an admin policy change. unavailable_pending_work: work is tracked but not yet landed. unavailable_by_design: no workaround is admissible; the limit is a scope boundary."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "required_evidence_missing",
+        "required_evidence_stale",
+        "required_evidence_narrower_than_claim",
+        "docs_version_match_unmet",
+        "docs_freshness_floor_unmet",
+        "unresolved_migration_gap",
+        "caveat_uncovered",
+        "proof_class_not_currently_verifiable",
+        "exception_window_expired",
+        "compatibility_row_degraded",
+        "support_window_expired",
+        "policy_blocked",
+        "known_limit_note_missing",
+        "known_limit_note_stale",
+        "known_limit_note_superseded"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. The first twelve values are re-exported verbatim from schemas/release/assurance_claim.schema.json#downgrade_trigger. known_limit_note_missing, known_limit_note_stale, and known_limit_note_superseded are raised by this family specifically and are additive-minor extensions of the parent vocabulary."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_supported"
+      ],
+      "description": "Support class re-exported verbatim from schemas/release/assurance_claim.schema.json#support_class."
+    },
+    "support_window_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "narrowed",
+        "expired",
+        "not_applicable"
+      ],
+      "description": "Support-window state re-exported verbatim from schemas/governance/claim_manifest.schema.json#support_window_state."
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile class re-exported verbatim from artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Release-channel class re-exported verbatim from schemas/release/assurance_claim.schema.json#release_channel_class."
+    },
+    "publication_destination": {
+      "type": "string",
+      "enum": [
+        "docs_site",
+        "migration_notes",
+        "help_about",
+        "service_health",
+        "support_export",
+        "release_packet",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "marketplace_discovery",
+        "public_proof_packet"
+      ],
+      "description": "Publication-channel vocabulary re-exported verbatim from schemas/release/assurance_claim.schema.json#publication_destination and schemas/governance/claim_manifest.schema.json#channel_id."
+    },
+    "freshness_cadence": {
+      "type": "string",
+      "enum": [
+        "each_change",
+        "each_release",
+        "weekly_plus_release_candidate",
+        "per_milestone"
+      ],
+      "description": "Freshness cadence re-exported verbatim from schemas/qe/public_proof_packet.schema.json#freshness_cadence."
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_publication_proof",
+        "compatibility_report_proof",
+        "docs_claim_truth_proof",
+        "continuity_drill_proof",
+        "support_scenario_quality_proof",
+        "migration_parity_proof",
+        "security_response_proof",
+        "transport_governance_proof"
+      ],
+      "description": "Proof class re-exported verbatim from schemas/qe/public_proof_packet.schema.json#proof_class."
+    },
+    "workaround_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workaround_availability_class",
+        "workaround_ref",
+        "workaround_summary_ref"
+      ],
+      "properties": {
+        "workaround_availability_class": {
+          "$ref": "#/$defs/workaround_availability_class"
+        },
+        "workaround_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the workaround target (setting id, command id, recipe id, or policy-change id). Required when workaround_availability_class is available_in_product, available_via_recipe, or available_via_policy_change; MUST be null when unavailable_pending_work or unavailable_by_design."
+        },
+        "workaround_summary_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a short human-readable summary of the workaround. Free-form bytes never cross this boundary. Required when workaround_availability_class is available_in_product, available_via_recipe, or available_via_policy_change; MAY be null when unavailable_pending_work or unavailable_by_design."
+        }
+      },
+      "description": "Typed workaround block. Every note declares whether a workaround exists, what class it is, and an opaque ref to the workaround target."
+    },
+    "support_window_alignment_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class_floor",
+        "support_class_ceiling",
+        "support_window_state",
+        "support_window_ref"
+      ],
+      "properties": {
+        "support_class_floor": {
+          "$ref": "#/$defs/support_class",
+          "description": "Minimum support class claim rows narrowed by this note MAY project. A claim row citing a note with support_class_floor = supported MUST NOT project certified wording."
+        },
+        "support_class_ceiling": {
+          "$ref": "#/$defs/support_class",
+          "description": "Maximum support class claim rows narrowed by this note MAY project. MUST be at least as strong as support_class_floor (validated out of band; the vocabulary is ordinal: certified > supported > community > experimental > not_supported)."
+        },
+        "support_window_state": {
+          "$ref": "#/$defs/support_window_state"
+        },
+        "support_window_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the support-window row this note aligns to. Required when support_window_state is current, narrowed, or expired; MAY be null when not_applicable."
+        }
+      },
+      "description": "Support-window alignment block. Support-window or support-class language on any bound claim row MUST NOT promise more than this block allows."
+    },
+    "freshness_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "stale_after",
+        "cadence_class",
+        "proof_class",
+        "rerun_trigger_refs"
+      ],
+      "properties": {
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/iso_duration" }
+          ],
+          "description": "ISO-8601 duration after which the note expires. Null only when cadence_class = each_change and the proof class explicitly admits null."
+        },
+        "cadence_class": {
+          "$ref": "#/$defs/freshness_cadence"
+        },
+        "proof_class": {
+          "$ref": "#/$defs/proof_class"
+        },
+        "rerun_trigger_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Ordered list of trigger ids from artifacts/governance/evidence_rerun_triggers.yaml. Every note names at least one trigger so a mismatch expires the note immediately even while stale_after remains in window."
+        },
+        "expires_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Absolute expiry timestamp derived from captured_at + stale_after. Convenience field; consumers MAY recompute from the other two fields."
+        }
+      },
+      "description": "Freshness envelope. Evaluators read this block alone to decide whether the note is current."
+    },
+    "known_limit_note_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "known_limit_note_schema_version",
+        "record_kind",
+        "known_limit_id",
+        "note_state",
+        "limitation_class",
+        "severity_class",
+        "review_rubric_class",
+        "promotion_blocking",
+        "headline",
+        "caveat_summary_ref",
+        "affected_workflow_bundle_refs",
+        "affected_archetype_row_refs",
+        "affected_persona_refs",
+        "affected_cutline_refs",
+        "affected_deployment_profiles",
+        "affected_release_channels",
+        "explicit_exclusions",
+        "downgrade_triggers",
+        "workaround",
+        "support_window_alignment",
+        "mandatory_publication_destinations",
+        "binding_claim_row_refs",
+        "freshness",
+        "owner_ref",
+        "evidence_owner_ref",
+        "superseded_by_known_limit_ref",
+        "activated_at",
+        "withdrawn_at",
+        "notes"
+      ],
+      "properties": {
+        "known_limit_note_schema_version": { "$ref": "#/$defs/known_limit_note_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "known_limit_id": { "$ref": "#/$defs/known_limit_id" },
+        "note_state": { "$ref": "#/$defs/note_state" },
+        "limitation_class": { "$ref": "#/$defs/limitation_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "review_rubric_class": { "$ref": "#/$defs/review_rubric_class" },
+        "promotion_blocking": {
+          "type": "boolean",
+          "description": "Whether this note blocks promotion of any claim row it binds to until cleared or waived. MUST be true when review_rubric_class = promotion_blocking; MUST be false when review_rubric_class = optional."
+        },
+        "headline": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "One-sentence export-safe headline. Raw vendor / hostname / account / credential names never appear here; the narrative lives behind caveat_summary_ref."
+        },
+        "caveat_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the human-readable caveat summary (docs known-limits page, release-notes caveat, exclusion note). Free-form bytes never cross this boundary."
+        },
+        "affected_workflow_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflow_bundle_ref" },
+          "description": "Workflow / launch bundles narrowed by this note. Required non-empty when limitation_class = workflow_narrowed."
+        },
+        "affected_archetype_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/archetype_row_ref" },
+          "description": "Certified-archetype rows narrowed by this note."
+        },
+        "affected_persona_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/persona_ref" },
+          "description": "P0 personas narrowed by this note. Required non-empty when limitation_class = persona_narrowed."
+        },
+        "affected_cutline_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cutline_ref" },
+          "description": "Cutlines narrowed by this note. Every note that narrows replacement-grade, daily-driver, or self-host wording on at least one cutline MUST list that cutline here."
+        },
+        "affected_deployment_profiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile" },
+          "description": "Deployment profiles narrowed by this note. Required non-empty when limitation_class = platform_narrowed."
+        },
+        "affected_release_channels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "description": "Release channels narrowed by this note. Empty means the note applies across every channel the bound claim row projects through."
+        },
+        "explicit_exclusions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Explicit exclusion ids this note declares. Every note with limitation_class = competitor_parity_narrowed, corpus_narrowed, migration_path_limited, or support_export_narrowed MUST carry at least one entry so the absence of supporting evidence is visible rather than inferred."
+        },
+        "downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "description": "Downgrade triggers the note raises on any bound claim row that forgets to cite it or that projects wording narrower than the note allows. Required non-empty when promotion_blocking = true."
+        },
+        "workaround": { "$ref": "#/$defs/workaround_block" },
+        "support_window_alignment": { "$ref": "#/$defs/support_window_alignment_block" },
+        "mandatory_publication_destinations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publication_destination" },
+          "description": "Publication channels that MUST render this note or its narrowed projection whenever the bound claim row renders. Drawn from the shared publication-destination vocabulary. docs_site and help_about are mandatory whenever the note narrows public-facing wording; support_export is mandatory whenever support-window alignment is narrower than current."
+        },
+        "binding_claim_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_row_ref" },
+          "description": "Claim rows this note binds to. Every claim row listed here MUST cite this note in its known_limit_refs when the note's note_state is active."
+        },
+        "freshness": { "$ref": "#/$defs/freshness_envelope" },
+        "owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "evidence_owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "superseded_by_known_limit_ref": { "$ref": "#/$defs/superseded_by_known_limit_ref" },
+        "activated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the note entered note_state = active. Required non-null when note_state is active, superseded, withdrawn, or quarantined; MAY be null when note_state is draft or in_review."
+        },
+        "withdrawn_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the note was withdrawn. Required non-null when note_state = withdrawn; MUST be null otherwise."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Optional one-sentence reviewer note. Free-form prose bodies live outside this boundary."
+        }
+      },
+      "allOf": [
+        {
+          "description": "review_rubric_class = promotion_blocking MUST carry promotion_blocking = true and at least one downgrade_trigger.",
+          "if": {
+            "properties": {
+              "review_rubric_class": { "const": "promotion_blocking" }
+            },
+            "required": ["review_rubric_class"]
+          },
+          "then": {
+            "properties": {
+              "promotion_blocking": { "const": true },
+              "downgrade_triggers": { "minItems": 1 }
+            },
+            "required": ["promotion_blocking", "downgrade_triggers"]
+          }
+        },
+        {
+          "description": "review_rubric_class = optional MUST carry promotion_blocking = false.",
+          "if": {
+            "properties": {
+              "review_rubric_class": { "const": "optional" }
+            },
+            "required": ["review_rubric_class"]
+          },
+          "then": {
+            "properties": {
+              "promotion_blocking": { "const": false }
+            },
+            "required": ["promotion_blocking"]
+          }
+        },
+        {
+          "description": "review_rubric_class = superseded MUST pair with note_state = superseded.",
+          "if": {
+            "properties": {
+              "review_rubric_class": { "const": "superseded" }
+            },
+            "required": ["review_rubric_class"]
+          },
+          "then": {
+            "properties": {
+              "note_state": { "const": "superseded" }
+            },
+            "required": ["note_state"]
+          }
+        },
+        {
+          "description": "note_state = active MUST carry a non-null activated_at, a null withdrawn_at, and a null superseded_by_known_limit_ref.",
+          "if": {
+            "properties": {
+              "note_state": { "const": "active" }
+            },
+            "required": ["note_state"]
+          },
+          "then": {
+            "properties": {
+              "activated_at": { "not": { "type": "null" } },
+              "withdrawn_at": { "type": "null" },
+              "superseded_by_known_limit_ref": { "type": "null" }
+            },
+            "required": ["activated_at", "withdrawn_at", "superseded_by_known_limit_ref"]
+          }
+        },
+        {
+          "description": "note_state = superseded MUST name a successor via superseded_by_known_limit_ref and MUST carry a non-null activated_at.",
+          "if": {
+            "properties": {
+              "note_state": { "const": "superseded" }
+            },
+            "required": ["note_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_known_limit_ref": {
+                "type": "string",
+                "pattern": "^known_limit:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+              },
+              "activated_at": { "not": { "type": "null" } }
+            },
+            "required": ["superseded_by_known_limit_ref", "activated_at"]
+          }
+        },
+        {
+          "description": "note_state = withdrawn MUST carry a non-null withdrawn_at.",
+          "if": {
+            "properties": {
+              "note_state": { "const": "withdrawn" }
+            },
+            "required": ["note_state"]
+          },
+          "then": {
+            "properties": {
+              "withdrawn_at": { "not": { "type": "null" } }
+            },
+            "required": ["withdrawn_at"]
+          }
+        },
+        {
+          "description": "note_state in {draft, in_review} MUST carry null activated_at, null withdrawn_at, and null superseded_by_known_limit_ref.",
+          "if": {
+            "properties": {
+              "note_state": { "enum": ["draft", "in_review"] }
+            },
+            "required": ["note_state"]
+          },
+          "then": {
+            "properties": {
+              "activated_at": { "type": "null" },
+              "withdrawn_at": { "type": "null" },
+              "superseded_by_known_limit_ref": { "type": "null" }
+            },
+            "required": ["activated_at", "withdrawn_at", "superseded_by_known_limit_ref"]
+          }
+        },
+        {
+          "description": "limitation_class = platform_narrowed MUST carry at least one affected_deployment_profile.",
+          "if": {
+            "properties": {
+              "limitation_class": { "const": "platform_narrowed" }
+            },
+            "required": ["limitation_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_deployment_profiles": { "minItems": 1 }
+            },
+            "required": ["affected_deployment_profiles"]
+          }
+        },
+        {
+          "description": "limitation_class = workflow_narrowed MUST carry at least one affected_workflow_bundle_ref.",
+          "if": {
+            "properties": {
+              "limitation_class": { "const": "workflow_narrowed" }
+            },
+            "required": ["limitation_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_workflow_bundle_refs": { "minItems": 1 }
+            },
+            "required": ["affected_workflow_bundle_refs"]
+          }
+        },
+        {
+          "description": "limitation_class = persona_narrowed MUST carry at least one affected_persona_ref.",
+          "if": {
+            "properties": {
+              "limitation_class": { "const": "persona_narrowed" }
+            },
+            "required": ["limitation_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_persona_refs": { "minItems": 1 }
+            },
+            "required": ["affected_persona_refs"]
+          }
+        },
+        {
+          "description": "limitation_class in {competitor_parity_narrowed, corpus_narrowed, migration_path_limited, support_export_narrowed} MUST carry at least one explicit_exclusions entry.",
+          "if": {
+            "properties": {
+              "limitation_class": {
+                "enum": [
+                  "competitor_parity_narrowed",
+                  "corpus_narrowed",
+                  "migration_path_limited",
+                  "support_export_narrowed"
+                ]
+              }
+            },
+            "required": ["limitation_class"]
+          },
+          "then": {
+            "properties": {
+              "explicit_exclusions": { "minItems": 1 }
+            },
+            "required": ["explicit_exclusions"]
+          }
+        },
+        {
+          "description": "workaround.workaround_availability_class in {available_in_product, available_via_recipe, available_via_policy_change} MUST carry a non-null workaround_ref and a non-null workaround_summary_ref.",
+          "if": {
+            "properties": {
+              "workaround": {
+                "properties": {
+                  "workaround_availability_class": {
+                    "enum": [
+                      "available_in_product",
+                      "available_via_recipe",
+                      "available_via_policy_change"
+                    ]
+                  }
+                },
+                "required": ["workaround_availability_class"]
+              }
+            },
+            "required": ["workaround"]
+          },
+          "then": {
+            "properties": {
+              "workaround": {
+                "properties": {
+                  "workaround_ref": { "not": { "type": "null" } },
+                  "workaround_summary_ref": { "not": { "type": "null" } }
+                },
+                "required": ["workaround_ref", "workaround_summary_ref"]
+              }
+            },
+            "required": ["workaround"]
+          }
+        },
+        {
+          "description": "workaround.workaround_availability_class in {unavailable_pending_work, unavailable_by_design} MUST carry a null workaround_ref.",
+          "if": {
+            "properties": {
+              "workaround": {
+                "properties": {
+                  "workaround_availability_class": {
+                    "enum": ["unavailable_pending_work", "unavailable_by_design"]
+                  }
+                },
+                "required": ["workaround_availability_class"]
+              }
+            },
+            "required": ["workaround"]
+          },
+          "then": {
+            "properties": {
+              "workaround": {
+                "properties": {
+                  "workaround_ref": { "type": "null" }
+                },
+                "required": ["workaround_ref"]
+              }
+            },
+            "required": ["workaround"]
+          }
+        },
+        {
+          "description": "support_window_alignment.support_window_state = expired MUST pair with review_rubric_class in {promotion_blocking, stale, superseded} or note_state in {superseded, withdrawn, quarantined}. Current-window wording cannot promise more than the linked evidence state allows.",
+          "if": {
+            "properties": {
+              "support_window_alignment": {
+                "properties": {
+                  "support_window_state": { "const": "expired" }
+                },
+                "required": ["support_window_state"]
+              }
+            },
+            "required": ["support_window_alignment"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "review_rubric_class": {
+                    "enum": ["promotion_blocking", "stale", "superseded"]
+                  }
+                },
+                "required": ["review_rubric_class"]
+              },
+              {
+                "properties": {
+                  "note_state": {
+                    "enum": ["superseded", "withdrawn", "quarantined"]
+                  }
+                },
+                "required": ["note_state"]
+              }
+            ]
+          }
+        },
+        {
+          "description": "support_window_alignment.support_window_state in {current, narrowed, expired} MUST carry a non-null support_window_ref. not_applicable MAY carry null.",
+          "if": {
+            "properties": {
+              "support_window_alignment": {
+                "properties": {
+                  "support_window_state": {
+                    "enum": ["current", "narrowed", "expired"]
+                  }
+                },
+                "required": ["support_window_state"]
+              }
+            },
+            "required": ["support_window_alignment"]
+          },
+          "then": {
+            "properties": {
+              "support_window_alignment": {
+                "properties": {
+                  "support_window_ref": { "not": { "type": "null" } }
+                },
+                "required": ["support_window_ref"]
+              }
+            },
+            "required": ["support_window_alignment"]
+          }
+        },
+        {
+          "description": "severity_class = blocking MUST pair with review_rubric_class = promotion_blocking.",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "blocking" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "review_rubric_class": { "const": "promotion_blocking" }
+            },
+            "required": ["review_rubric_class"]
+          }
+        },
+        {
+          "description": "promotion_blocking = true MUST name at least one of affected_cutline_refs or binding_claim_row_refs so reviewers can see which wording the note blocks.",
+          "if": {
+            "properties": {
+              "promotion_blocking": { "const": true }
+            },
+            "required": ["promotion_blocking"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "affected_cutline_refs": { "minItems": 1 }
+                },
+                "required": ["affected_cutline_refs"]
+              },
+              {
+                "properties": {
+                  "binding_claim_row_refs": { "minItems": 1 }
+                },
+                "required": ["binding_claim_row_refs"]
+              }
+            ]
+          }
+        },
+        {
+          "description": "mandatory_publication_destinations MUST include docs_site and help_about whenever review_rubric_class in {mandatory, promotion_blocking, stale, superseded}. Public-facing wording narrowed by an active note cannot skip the two destinations every end user reads.",
+          "if": {
+            "properties": {
+              "review_rubric_class": {
+                "enum": ["mandatory", "promotion_blocking", "stale", "superseded"]
+              }
+            },
+            "required": ["review_rubric_class"]
+          },
+          "then": {
+            "properties": {
+              "mandatory_publication_destinations": {
+                "allOf": [
+                  { "contains": { "const": "docs_site" } },
+                  { "contains": { "const": "help_about" } }
+                ]
+              }
+            },
+            "required": ["mandatory_publication_destinations"]
+          }
+        },
+        {
+          "description": "support_window_alignment.support_window_state in {narrowed, expired} MUST include support_export in mandatory_publication_destinations so support handoffs see the narrowed posture.",
+          "if": {
+            "properties": {
+              "support_window_alignment": {
+                "properties": {
+                  "support_window_state": {
+                    "enum": ["narrowed", "expired"]
+                  }
+                },
+                "required": ["support_window_state"]
+              }
+            },
+            "required": ["support_window_alignment"]
+          },
+          "then": {
+            "properties": {
+              "mandatory_publication_destinations": {
+                "contains": { "const": "support_export" }
+              }
+            },
+            "required": ["mandatory_publication_destinations"]
+          }
+        }
+      ],
+      "description": "One known-limit / exclusion / downgrade-note record. Binds one known_limit_id to one limitation_class, one severity_class, one review_rubric_class, the scope it narrows, the exclusions it declares, the downgrade triggers it raises, a typed workaround block, a support-window alignment block, a freshness envelope, the mandatory publication destinations, and the claim rows it binds to. Every channel that projects a claim row this note binds to MUST resolve this same note rather than minting channel-local caveat copy."
+    }
+  }
+}
