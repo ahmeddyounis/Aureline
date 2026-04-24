@@ -1,0 +1,1081 @@
+# Artifact-family versioning matrix.
+#
+# Machine-readable companion to docs/release/channel_and_branch_contract.md.
+# Each artifact_family_versioning_row binds one shipped artifact family
+# (desktop shell, CLI, SDK, remote agent, managed service contract,
+# extension API surface, extension SDK, marketplace metadata, admin
+# policy bundle, etc.) to one closed versioning model, one compatibility-
+# capability source, one skew-window declaration, and one downgrade
+# posture so versioning and compatibility promises can be stated
+# mechanically per family rather than by negotiated prose per release.
+#
+# Scope. This matrix freezes the per-family versioning rules that
+# release, install-topology, support, fleet, mirror, and extension-host
+# surfaces read before describing "what version of X may talk to what
+# version of Y" or "may this family downgrade in place?" without
+# re-deriving the answer per packet. It does NOT implement a packager
+# or an SDK; it states the version model and the closed admissibility
+# rules every later release lane and every later compatibility envelope
+# instance must honour.
+#
+# Rules.
+#   - Every artifact_family_versioning_row MUST name exactly one
+#     artifact_family_class drawn from
+#     artifact_family_class_vocabulary. Rows may extend an
+#     exact_build_identity artifact_family_class with a sub-axis (for
+#     example schema_export.extension_api or schema_export.policy_bundle)
+#     so families that share the schema_export carrier still resolve to
+#     one versioning model.
+#   - Every row MUST cite exactly one versioning_model_class drawn from
+#     versioning_model_class_vocabulary. Free-text version strings are
+#     non-conforming.
+#   - Every row MUST cite exactly one compatibility_capability_source.
+#     Capability negotiation rides the mixed-version envelope; rows
+#     without a capability source cannot negotiate compatibility.
+#   - Every row MUST cite a skew_window_declaration_ref into
+#     artifacts/compat/skew_windows.yaml. Rows whose family is bound to
+#     a coordinated artifact set carry
+#     coordinated_artifact_set_only on the skew window.
+#   - Every row MUST declare a downgrade_support_class drawn from
+#     downgrade_support_class_vocabulary. Downgrade is never an
+#     accidental capability.
+#   - Every row MUST declare a backward_readability_class so a newer
+#     consumer reading older bytes (and an older consumer reading
+#     newer bytes within the supported skew) is governed mechanically.
+#   - Every row MUST declare a same_change_set_obligation set drawn
+#     from artifacts/release/promotion_gate_map.yaml's
+#     same_change_set_groups; rows that elide this slot are
+#     non-conforming.
+#   - Every row MUST declare a stability_promise_class so consumers can
+#     resolve "is the public API stable?" in O(1).
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version and updating the narrative contract in the same
+#     change. Repurposing an existing value is breaking.
+
+schema_version: 1
+matrix_id: aureline.release_artifact_family_versioning
+status: seeded
+
+contract_doc_ref: docs/release/channel_and_branch_contract.md
+channel_matrix_ref: artifacts/release/channel_matrix.yaml
+governing_adr_ref: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+exact_build_identity_schema_ref: schemas/build/exact_build_identity.schema.json
+exact_build_identity_model_ref: docs/build/exact_build_identity_model.md
+mixed_version_envelope_schema_ref: schemas/compat/mixed_version_envelope.schema.json
+skew_windows_ref: artifacts/compat/skew_windows.yaml
+version_skew_register_ref: artifacts/compat/version_skew_register.yaml
+upgrade_order_contract_ref: docs/compat/upgrade_order_contract.md
+qualification_matrix_seed_ref: artifacts/compat/qualification_matrix_seed.yaml
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+state_root_map_ref: artifacts/release/state_root_map.yaml
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.9 mixed-version compatibility, negotiation, and upgrade posture"
+      - "§26.5 distributed compatibility and version-skew policy"
+      - "§27.8–§27.9 release widening and stable-facing claim movement"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.2.8 release widening and skew evidence"
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.20 release rhythm and channel discipline"
+      - "§9.9 mixed-version compatibility"
+      - "§9.12 enterprise deployment hooks"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 install and update behaviour as product truth"
+      - "§8.12 release widening"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+# Closed artifact-family vocabulary for versioning. Mirrors the
+# exact_build_identity artifact_family_class vocabulary but extends it
+# with shipped families that ride a shared carrier (schema_export,
+# docs_pack, support_runbook_bundle) and need their own versioning row.
+artifact_family_class_vocabulary:
+  - desktop_shell_binary
+  - cli_binary
+  - sdk_library
+  - remote_agent_binary
+  - managed_service_contract
+  - extension_api_surface
+  - extension_sdk_library
+  - marketplace_metadata_schema
+  - admin_policy_bundle
+  - docs_pack_payload
+  - schema_export_payload
+  - reference_pack_payload
+  - debug_symbols_sidecar
+  - source_map_sidecar
+  - crash_symbols_archive_sidecar
+  - sbom_document_payload
+  - signed_attestation_payload
+  - source_bundle_payload
+  - reproducibility_pack_payload
+  - support_runbook_payload
+  - release_evidence_packet_envelope
+
+# Closed versioning-model vocabulary. Each model has explicit
+# semantics; no row may declare a sixth model without bumping
+# schema_version.
+versioning_model_class_vocabulary:
+  - semver_release
+  - semver_with_capability_negotiation
+  - schema_epoch_with_additive_minor
+  - content_addressed_only
+  - content_addressed_with_signed_index
+  - calendar_versioned_lts_train
+  - coordinated_artifact_set_versioned
+
+# Closed compatibility-capability source vocabulary. Pinned so a
+# release-time compatibility report can name the source mechanically.
+compatibility_capability_source_class_vocabulary:
+  - mixed_version_envelope_negotiation
+  - schema_epoch_admission_table
+  - signed_index_capability_table
+  - coordinated_artifact_set_no_negotiation
+  - admin_policy_pin_only
+
+# Closed downgrade-support vocabulary. Pinned so downgrade is never an
+# accidental capability.
+downgrade_support_class_vocabulary:
+  - downgrade_supported
+  - downgrade_best_effort
+  - downgrade_untested
+  - downgrade_unsupported
+  - downgrade_requires_coordinated_artifact_set
+  - downgrade_requires_admin_or_managed_action
+
+# Closed backward-readability vocabulary. Names whether a newer
+# consumer can read older bytes (and vice versa within the supported
+# skew). Distinct from downgrade_support: backward_readability is
+# whether bytes round-trip; downgrade is whether the running install
+# may step backward.
+backward_readability_class_vocabulary:
+  - bytes_round_trip_within_epoch
+  - newer_reads_older_within_skew_window
+  - older_reads_newer_only_via_signed_index
+  - bytes_not_round_trip_safe_use_export_or_migration
+  - not_applicable_immutable_or_content_addressed
+
+# Closed stability-promise vocabulary. Pinned so consumers can resolve
+# "is the public API stable?" in O(1).
+stability_promise_class_vocabulary:
+  - stable_public_api_with_deprecation_window
+  - stable_public_api_with_capability_negotiation
+  - public_preview_subject_to_change
+  - internal_only_no_public_api_promise
+  - reserved_no_public_consumers_yet
+  - admin_only_contract
+
+# Closed deprecation-window vocabulary. Pinned so deprecations cannot
+# be made invisibly short.
+deprecation_window_class_vocabulary:
+  - none
+  - one_minor_release
+  - two_minor_releases
+  - one_full_lts_window
+  - explicit_decision_required
+
+# Closed coordinated-artifact-set membership vocabulary. Rows that ride
+# a coordinated artifact set name the set so the rollback atom can be
+# read mechanically.
+coordinated_artifact_set_class_vocabulary:
+  - none
+  - coordinated_artifact_set.launcher_and_helpers
+  - coordinated_artifact_set.desktop_shell_and_cli
+  - coordinated_artifact_set.desktop_shell_and_remote_agent
+  - coordinated_artifact_set.docs_pack_and_schema_exports
+  - coordinated_artifact_set.support_runbook_and_release_evidence
+
+# Closed channel admission vocabulary. Mirrors
+# artifacts/release/channel_matrix.yaml channel_class_vocabulary so a
+# row can mechanically pin "this family ships on these channels".
+channel_admission_class_vocabulary:
+  - dev_local
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+  - portable_stable
+  - portable_preview
+
+# Closed identifier-form vocabulary. Names how the family identifier
+# appears in manifests so reviewers can spot version-string drift.
+identifier_form_class_vocabulary:
+  - semver_string_with_build_metadata
+  - schema_epoch_integer
+  - content_digest_with_signature
+  - calendar_train_label
+  - coordinated_artifact_set_label
+  - opaque_capability_token
+
+# -----------------------------------------------------------------------------
+# Versioning-model rules.
+#
+# Authoritative semantics for every versioning_model_class_vocabulary
+# entry. Tooling reads this to validate row admissibility.
+# -----------------------------------------------------------------------------
+versioning_model_rules:
+  - versioning_model_class: semver_release
+    summary: >
+      Strict semver MAJOR.MINOR.PATCH applied to a public payload with
+      no negotiated capability set. MAJOR is reserved for breaking
+      changes; MINOR is additive-only; PATCH is bug-fix-only.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: false
+    notes: >
+      Used for families with a single public surface, no per-channel
+      capability projection, and a published deprecation window.
+
+  - versioning_model_class: semver_with_capability_negotiation
+    summary: >
+      Semver applied to a public payload that ALSO negotiates capability
+      via the mixed_version_envelope. The negotiated capability set is
+      authoritative within the supported skew window; semver remains the
+      human-readable version anchor.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: true
+    notes: >
+      Used for boundary-bearing families (desktop_shell ↔ remote_agent,
+      extension API ↔ host) where the wire-level capability set may
+      narrow without bumping the marketed major version.
+
+  - versioning_model_class: schema_epoch_with_additive_minor
+    summary: >
+      Integer schema epoch with explicit additive-minor admission. New
+      epoch is breaking; additive minor extends the current epoch with
+      backward-compatible fields. No semver string; the schema epoch is
+      the version.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: true
+    notes: >
+      Used for schema exports, marketplace metadata, and policy bundles
+      where the consumer is a parser, not a human reader.
+
+  - versioning_model_class: content_addressed_only
+    summary: >
+      Payload identity is its content digest. There is no marketed
+      version string; consumers identify the payload by its
+      content_addressed_with_signature ref.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: false
+    notes: >
+      Used for sidecars and content-addressed bytes (debug symbols,
+      source maps, crash-symbol archives, SBOM bodies, source bundles,
+      reproducibility packs).
+
+  - versioning_model_class: content_addressed_with_signed_index
+    summary: >
+      Content-addressed payload paired with a signed index that maps
+      logical names to digests. Consumers read the signed index to
+      resolve the current digest; the index is the negotiation surface.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: true
+    notes: >
+      Used for marketplace metadata and admin policy bundles where
+      consumers need stable logical names AND verifiable bytes.
+
+  - versioning_model_class: calendar_versioned_lts_train
+    summary: >
+      Calendar-versioned train label paired with a semver string for
+      the underlying payload. Used for the LTS train where the support
+      window is calendar-bounded.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: true
+    notes: >
+      Used for the LTS variant of stable-channel families.
+
+  - versioning_model_class: coordinated_artifact_set_versioned
+    summary: >
+      Family ships only as a member of a coordinated artifact set; its
+      version is the set's exact_build_identity_set. No independent
+      version is admissible.
+    breaking_change_authority: release_council
+    capability_negotiation_admitted: false
+    notes: >
+      Used for the release_evidence_packet envelope and for the
+      support_runbook payload that ships only with its paired release
+      family.
+
+# -----------------------------------------------------------------------------
+# Artifact-family versioning rows.
+#
+# Ordered by promotion seniority (primary payloads first, sidecars and
+# governance envelopes last).
+# -----------------------------------------------------------------------------
+artifact_family_versioning_rows:
+
+  - id: versioning.desktop_shell_binary
+    artifact_family_class: desktop_shell_binary
+    versioning_model_class: semver_with_capability_negotiation
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.debug_symbols_sidecar
+      - versioning.cli_binary
+      - versioning.docs_pack_payload
+    breaking_change_authority: release_council
+    notes: >
+      Primary desktop payload. Versioned by semver but the wire
+      capability set negotiated against the helper agent and remote
+      agent rides the mixed-version envelope.
+
+  - id: versioning.cli_binary
+    artifact_family_class: cli_binary
+    versioning_model_class: semver_with_capability_negotiation
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.desktop_shell_and_cli
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary  # self-pairing intentional: scripted callers pin CLI version
+    breaking_change_authority: release_council
+    notes: >
+      CLI versioned alongside the desktop shell. The stable CLI exit-
+      code family is the wire contract; new exit codes are additive-
+      minor and ride the same skew window.
+
+  - id: versioning.sdk_library
+    artifact_family_class: sdk_library
+    versioning_model_class: semver_release
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:extension_host_and_sdk.published_sdk_support_window
+    coordinated_artifact_set_class: none
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_best_effort
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.docs_pack_payload
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Public SDK library. Strict semver. MAJOR bumps cite a
+      deprecation window of at least two minor releases, recorded on
+      the claim_docs_known_limit_bundle.
+
+  - id: versioning.remote_agent_binary
+    artifact_family_class: remote_agent_binary
+    versioning_model_class: semver_with_capability_negotiation
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+    coordinated_artifact_set_class: coordinated_artifact_set.desktop_shell_and_remote_agent
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+    breaking_change_authority: release_council
+    notes: >
+      Remote agent ships per channel; desktop ↔ remote agent skew is
+      negotiated through the mixed_version_envelope. Out-of-window
+      attach refuses with a typed reason rather than degrading silently.
+
+  - id: versioning.managed_service_contract
+    artifact_family_class: managed_service_contract
+    versioning_model_class: schema_epoch_with_additive_minor
+    identifier_form_class: schema_epoch_integer
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: explicit_decision_required
+    compatibility_capability_source: schema_epoch_admission_table
+    skew_window_declaration_ref: skew_window:managed_control_plane.current_plus_previous_minor_or_lts
+    coordinated_artifact_set_class: none
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_requires_admin_or_managed_action
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.remote_agent_binary
+      - versioning.admin_policy_bundle
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Managed control plane / hosted service contract. Schema-epoch
+      versioned because the wire-side consumer is a parser; the human-
+      readable label is derived from the epoch. Downgrade requires an
+      admin or managed action because the control plane is shared
+      authority.
+
+  - id: versioning.extension_api_surface
+    artifact_family_class: extension_api_surface
+    versioning_model_class: semver_with_capability_negotiation
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:extension_host_and_sdk.published_sdk_support_window
+    coordinated_artifact_set_class: none
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_best_effort
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.extension_sdk_library
+      - versioning.docs_pack_payload
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Public extension-host API surface. Permission, host-contract
+      binding, and effective-permission projection are part of the
+      capability set; widening an extension's effective permission
+      beyond the manifest declaration is non-conforming.
+
+  - id: versioning.extension_sdk_library
+    artifact_family_class: extension_sdk_library
+    versioning_model_class: semver_release
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: mixed_version_envelope_negotiation
+    skew_window_declaration_ref: skew_window:extension_host_and_sdk.published_sdk_support_window
+    coordinated_artifact_set_class: none
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_best_effort
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    paired_artifact_family_refs:
+      - versioning.extension_api_surface
+      - versioning.docs_pack_payload
+    breaking_change_authority: release_council
+    notes: >
+      Extension SDK library used by extension authors. Versioned in
+      lockstep with the extension API surface major; minors may move
+      independently within the supported skew.
+
+  - id: versioning.marketplace_metadata_schema
+    artifact_family_class: marketplace_metadata_schema
+    versioning_model_class: content_addressed_with_signed_index
+    identifier_form_class: schema_epoch_integer
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: signed_index_capability_table
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    coordinated_artifact_set_class: none
+    backward_readability_class: older_reads_newer_only_via_signed_index
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.extension_api_surface
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Marketplace metadata schema (manifest fields, publisher continuity
+      packet fields, install-review fields, mirror continuity fields).
+      Mirrors and private registries MUST preserve the signed index
+      and digests; weakening the signed index is non-conforming.
+
+  - id: versioning.admin_policy_bundle
+    artifact_family_class: admin_policy_bundle
+    versioning_model_class: content_addressed_with_signed_index
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: admin_only_contract
+    deprecation_window_class: one_full_lts_window
+    compatibility_capability_source: admin_policy_pin_only
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    coordinated_artifact_set_class: none
+    backward_readability_class: older_reads_newer_only_via_signed_index
+    downgrade_support_class: downgrade_requires_admin_or_managed_action
+    channel_admission:
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.managed_service_contract
+      - versioning.extension_api_surface
+    breaking_change_authority: release_council
+    notes: >
+      Admin policy bundle (allow / deny lists, publisher trust tiers,
+      version pinning, permission floors, mirror endpoints, emergency-
+      disable bundles). Policy never silently widens an extension's
+      effective permission beyond the manifest declaration.
+
+  - id: versioning.docs_pack_payload
+    artifact_family_class: docs_pack_payload
+    versioning_model_class: semver_release
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: schema_epoch_admission_table
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    coordinated_artifact_set_class: coordinated_artifact_set.docs_pack_and_schema_exports
+    backward_readability_class: bytes_round_trip_within_epoch
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.sdk_library
+      - versioning.extension_api_surface
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Docs pack manifest payload. Truth surfaces (Help / About, public
+      docs, release notes) MUST quote the same docs_pack_payload digest.
+
+  - id: versioning.schema_export_payload
+    artifact_family_class: schema_export_payload
+    versioning_model_class: schema_epoch_with_additive_minor
+    identifier_form_class: schema_epoch_integer
+    stability_promise_class: stable_public_api_with_capability_negotiation
+    deprecation_window_class: two_minor_releases
+    compatibility_capability_source: schema_epoch_admission_table
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    coordinated_artifact_set_class: coordinated_artifact_set.docs_pack_and_schema_exports
+    backward_readability_class: newer_reads_older_within_skew_window
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+    paired_artifact_family_refs:
+      - versioning.docs_pack_payload
+      - versioning.sdk_library
+      - versioning.extension_api_surface
+      - versioning.marketplace_metadata_schema
+      - versioning.admin_policy_bundle
+    breaking_change_authority: release_council
+    notes: >
+      Public JSON Schema / SDL export. Schema epoch is the version;
+      additive-minor admits new optional fields without epoch bump.
+
+  - id: versioning.reference_pack_payload
+    artifact_family_class: reference_pack_payload
+    versioning_model_class: semver_release
+    identifier_form_class: semver_string_with_build_metadata
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: schema_epoch_admission_table
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    coordinated_artifact_set_class: coordinated_artifact_set.docs_pack_and_schema_exports
+    backward_readability_class: bytes_round_trip_within_epoch
+    downgrade_support_class: downgrade_supported
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.docs_pack_payload
+      - versioning.schema_export_payload
+    breaking_change_authority: release_council
+    notes: >
+      Generated reference index. Versioned alongside docs and schema
+      exports.
+
+  - id: versioning.debug_symbols_sidecar
+    artifact_family_class: debug_symbols_sidecar
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: internal_only_no_public_api_promise
+    deprecation_window_class: none
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+    breaking_change_authority: release_council
+    notes: >
+      Debug-symbols sidecar (split debug bytes for desktop and CLI).
+      Identified by content digest; only valid for the paired exact-
+      build identity.
+
+  - id: versioning.source_map_sidecar
+    artifact_family_class: source_map_sidecar
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: internal_only_no_public_api_promise
+    deprecation_window_class: none
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+    breaking_change_authority: release_council
+    notes: >
+      Source-map sidecar. Content-addressed; only valid for the paired
+      exact-build identity.
+
+  - id: versioning.crash_symbols_archive_sidecar
+    artifact_family_class: crash_symbols_archive_sidecar
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: internal_only_no_public_api_promise
+    deprecation_window_class: none
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - supportability_and_symbolication_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+    breaking_change_authority: release_council
+    notes: >
+      Crash-symbol archive consumed by the crash pipeline. Required
+      from beta onward when field diagnosis is part of the claimed
+      release line.
+
+  - id: versioning.sbom_document_payload
+    artifact_family_class: sbom_document_payload
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.sdk_library
+    breaking_change_authority: release_council
+    notes: >
+      SPDX / CycloneDX SBOM. Required from beta onward.
+
+  - id: versioning.signed_attestation_payload
+    artifact_family_class: signed_attestation_payload
+    versioning_model_class: content_addressed_with_signed_index
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: signed_index_capability_table
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.sbom_document_payload
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.sdk_library
+    breaking_change_authority: release_council
+    notes: >
+      In-toto / SLSA attestation payload. Verifier resolves through the
+      signed index.
+
+  - id: versioning.source_bundle_payload
+    artifact_family_class: source_bundle_payload
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_full_lts_window
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.sdk_library
+    breaking_change_authority: release_council
+    notes: >
+      Distributable source archive. Retention covers the LTS window
+      for supported lines.
+
+  - id: versioning.reproducibility_pack_payload
+    artifact_family_class: reproducibility_pack_payload
+    versioning_model_class: content_addressed_only
+    identifier_form_class: content_digest_with_signature
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: one_full_lts_window
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.launcher_and_helpers
+    backward_readability_class: not_applicable_immutable_or_content_addressed
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.source_bundle_payload
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+    breaking_change_authority: release_council
+    notes: >
+      Clean-room rebuild instruction pack. Required from beta onward;
+      the rebuild proof must reproduce the exact-build identity set.
+
+  - id: versioning.support_runbook_payload
+    artifact_family_class: support_runbook_payload
+    versioning_model_class: coordinated_artifact_set_versioned
+    identifier_form_class: coordinated_artifact_set_label
+    stability_promise_class: admin_only_contract
+    deprecation_window_class: one_minor_release
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.support_runbook_and_release_evidence
+    backward_readability_class: bytes_round_trip_within_epoch
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.docs_pack_payload
+      - versioning.release_evidence_packet_envelope
+    breaking_change_authority: release_council
+    notes: >
+      Support-runbook payload. May narrow further for redaction or
+      audience but may not widen the claim.
+
+  - id: versioning.release_evidence_packet_envelope
+    artifact_family_class: release_evidence_packet_envelope
+    versioning_model_class: coordinated_artifact_set_versioned
+    identifier_form_class: coordinated_artifact_set_label
+    stability_promise_class: stable_public_api_with_deprecation_window
+    deprecation_window_class: explicit_decision_required
+    compatibility_capability_source: coordinated_artifact_set_no_negotiation
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    coordinated_artifact_set_class: coordinated_artifact_set.support_runbook_and_release_evidence
+    backward_readability_class: bytes_round_trip_within_epoch
+    downgrade_support_class: downgrade_requires_coordinated_artifact_set
+    channel_admission:
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+    same_change_set_obligation:
+      - exact_build_and_publication_bundle
+      - claim_docs_known_limit_bundle
+      - supportability_and_symbolication_bundle
+      - advisory_and_revocation_bundle
+      - mirror_and_offline_bundle
+    paired_artifact_family_refs:
+      - versioning.desktop_shell_binary
+      - versioning.cli_binary
+      - versioning.sdk_library
+      - versioning.docs_pack_payload
+      - versioning.schema_export_payload
+      - versioning.support_runbook_payload
+      - versioning.sbom_document_payload
+      - versioning.signed_attestation_payload
+      - versioning.source_bundle_payload
+      - versioning.reproducibility_pack_payload
+    breaking_change_authority: release_council
+    notes: >
+      Aggregate release-evidence packet envelope. Versioned by the
+      coordinated artifact set; never minted independently.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants pinned on the matrix.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: artifact_family_class_closed
+    description: >
+      A row's artifact_family_class MUST be a value in
+      artifact_family_class_vocabulary.
+
+  - id: versioning_model_required
+    description: >
+      A row MUST cite exactly one versioning_model_class. The model's
+      semantics are pinned in versioning_model_rules; rows MUST NOT
+      override.
+
+  - id: capability_negotiation_admission
+    description: >
+      A row whose versioning_model_class admits capability negotiation
+      MUST cite a compatibility_capability_source other than
+      coordinated_artifact_set_no_negotiation. A row whose model
+      forbids negotiation MUST cite
+      coordinated_artifact_set_no_negotiation.
+
+  - id: skew_window_required
+    description: >
+      A row MUST cite exactly one skew_window_declaration_ref into
+      artifacts/compat/skew_windows.yaml.
+
+  - id: coordinated_set_implies_set_label
+    description: >
+      A row whose versioning_model_class is
+      coordinated_artifact_set_versioned MUST cite a non-none
+      coordinated_artifact_set_class.
+
+  - id: content_addressed_implies_no_round_trip
+    description: >
+      A row whose versioning_model_class is content_addressed_only or
+      content_addressed_with_signed_index MUST declare
+      backward_readability_class
+      not_applicable_immutable_or_content_addressed.
+
+  - id: downgrade_support_required
+    description: >
+      A row MUST declare a downgrade_support_class. Rows that elide
+      the slot are non-conforming.
+
+  - id: backward_readability_required
+    description: >
+      A row MUST declare a backward_readability_class.
+
+  - id: same_change_set_required
+    description: >
+      A row MUST declare same_change_set_obligation entries drawn from
+      artifacts/release/promotion_gate_map.yaml's
+      same_change_set_groups. Rows that elide the slot are
+      non-conforming.
+
+  - id: stability_promise_required
+    description: >
+      A row MUST declare a stability_promise_class. Rows that elide
+      the slot are non-conforming.
+
+  - id: deprecation_window_required
+    description: >
+      A row MUST declare a deprecation_window_class. Rows whose
+      stability_promise_class is internal_only_no_public_api_promise
+      MAY declare none; every other row MUST declare a non-none
+      window.
+
+  - id: channel_admission_subset
+    description: >
+      A row's channel_admission MUST be a subset of
+      channel_admission_class_vocabulary, which mirrors
+      artifacts/release/channel_matrix.yaml channel_class_vocabulary.
+
+  - id: paired_family_refs_resolve_within_matrix
+    description: >
+      Every entry in paired_artifact_family_refs MUST resolve to
+      another row id inside this matrix (excepting the explicit
+      self-pairing on cli_binary which is permitted).
+
+  - id: extension_api_pairing
+    description: >
+      versioning.extension_api_surface MUST pair to
+      versioning.extension_sdk_library and
+      versioning.docs_pack_payload so the SDK and docs move with the
+      API surface.
+
+  - id: marketplace_metadata_signed_index
+    description: >
+      versioning.marketplace_metadata_schema MUST cite
+      content_addressed_with_signed_index. Mirrors and private
+      registries that weaken the signed index are non-conforming per
+      ADR 0012.
+
+  - id: admin_policy_no_silent_widening
+    description: >
+      versioning.admin_policy_bundle MUST declare
+      stability_promise_class admin_only_contract and
+      compatibility_capability_source admin_policy_pin_only. Policy
+      MUST NOT silently widen an extension's effective permission
+      beyond its manifest declaration.
+
+  - id: lts_downgrade_floor
+    description: >
+      A row whose channel_admission includes lts MUST declare a
+      downgrade_support_class compatible with the LTS-floor rollback
+      target on artifacts/release/channel_matrix.yaml's channel.lts.
+
+  - id: hotfix_requires_advisory_bundle
+    description: >
+      A row whose channel_admission includes hotfix MUST list
+      advisory_and_revocation_bundle in same_change_set_obligation
+      whenever the family is a primary_payload, supply_chain_proof,
+      or supportability_payload per artifact_family_map.yaml.
+
+  - id: schema_epoch_additive_minor_admission
+    description: >
+      A row whose versioning_model_class is
+      schema_epoch_with_additive_minor MUST cite a skew window whose
+      window_class admits same_schema_epoch_additive_only,
+      additive_epoch, or current_plus_previous_minor_or_lts.

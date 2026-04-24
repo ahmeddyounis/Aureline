@@ -16,6 +16,9 @@ Companion artifacts:
 - [`/artifacts/release/evidence_ownership_map.yaml`](../../artifacts/release/evidence_ownership_map.yaml)
 - [`/docs/release/install_topology_plan.md`](./install_topology_plan.md)
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
+- [`/docs/release/channel_and_branch_contract.md`](./channel_and_branch_contract.md)
+- [`/artifacts/release/channel_matrix.yaml`](../../artifacts/release/channel_matrix.yaml)
+- [`/artifacts/release/artifact_family_versioning.yaml`](../../artifacts/release/artifact_family_versioning.yaml)
 
 Normative sources:
 

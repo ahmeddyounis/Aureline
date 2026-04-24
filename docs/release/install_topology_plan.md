@@ -33,6 +33,18 @@ Companion artifacts:
   — separate validation-ring policy for evidence widening, soak windows,
   rollback-stop defaults, and evidence-reset floors. These are not the
   same thing as the install-topology rollout rings owned here.
+- [`/docs/release/channel_and_branch_contract.md`](./channel_and_branch_contract.md),
+  [`/artifacts/release/channel_matrix.yaml`](../../artifacts/release/channel_matrix.yaml),
+  and
+  [`/artifacts/release/artifact_family_versioning.yaml`](../../artifacts/release/artifact_family_versioning.yaml)
+  — channel-and-branch contract binding each channel to a branch
+  posture, a pipeline lane, a downgrade posture, a freeze-posture
+  admission set, a side-by-side admission set with handler / update-
+  marker ownership pointers, a last-known-good repair path, and the
+  per-artifact-family versioning model. Install-profile cards here
+  resolve through the channel rows there for promotion semantics; the
+  side-by-side admission rows there cite this matrix's cards for
+  per-pair isolation evidence.
 
 Normative sources this plan projects from:
 

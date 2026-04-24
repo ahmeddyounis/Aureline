@@ -23,6 +23,13 @@ Companion artifacts:
 - [`/artifacts/compat/version_skew_register.yaml`](../../artifacts/compat/version_skew_register.yaml)
   — supported, best-effort, untested, and unsupported skew cases per
   qualification row.
+- [`/artifacts/release/artifact_family_versioning.yaml`](../../artifacts/release/artifact_family_versioning.yaml)
+  and
+  [`/docs/release/channel_and_branch_contract.md`](../release/channel_and_branch_contract.md)
+  — per-artifact-family versioning model and the channel-and-branch
+  contract that names which channels each family ships on. Every
+  versioning row binds one `skew_window_declaration_ref` into the
+  skew-window seed here.
 
 ## Why this exists
 

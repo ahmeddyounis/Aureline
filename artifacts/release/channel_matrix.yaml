@@ -1,0 +1,1228 @@
+# Release channel and branch matrix.
+#
+# Machine-readable companion to docs/release/channel_and_branch_contract.md.
+# Each channel_row binds one release channel to one branch class, one
+# pipeline lane, one rollback-target band, one downgrade posture, one
+# side-by-side admission set, and one freeze-posture admission set. The
+# narrative document is the story; this matrix is what tooling reads.
+# If the two disagree, the narrative wins and this file must be updated
+# in the same change.
+#
+# Scope. This matrix freezes the channel-and-branch contract so release,
+# install-topology, side-by-side, support, and fleet surfaces can resolve
+# "which channel is moving, off which branch, into which lane, with what
+# downgrade and side-by-side semantics, under what freeze posture?"
+# without inventing per-subsystem dialects. It does NOT implement a
+# release pipeline or a branch policy enforcer; it states the row shape
+# and the closed admissibility rules every later release lane must
+# honour.
+#
+# Rules.
+#   - Every channel_row MUST name exactly one channel_class drawn from
+#     the schemas/build/exact_build_identity.schema.json release-channel
+#     vocabulary (plus the two portable-channel rows the install-topology
+#     matrix admits). Inventing a new channel value is breaking and
+#     opens a decision row in artifacts/governance/decision_index.yaml.
+#   - Every channel_row MUST bind exactly one branch_class_ref into
+#     branch_class_vocabulary. Branch classes are not free-text branch
+#     names; they are stable refs.
+#   - Every channel_row MUST bind exactly one pipeline_lane_ref into
+#     artifacts/release/pipeline_lane_rules.yaml. Lane choice is
+#     channel-determining at promotion time.
+#   - rc_candidate is a review-stage label, not a channel. It does not
+#     appear in channel_class_vocabulary; the release_review_stage
+#     section pins how an existing channel-bound build set may carry the
+#     rc_candidate label.
+#   - Every channel_row MUST declare a downgrade_posture_class drawn
+#     from the closed downgrade_posture_class_vocabulary. Downgrade is
+#     never an accidental capability; rows that elide the slot are
+#     non-conforming.
+#   - Every channel_row MUST name a last_known_good_repair_path_class
+#     drawn from the closed vocabulary so failed updates resolve into
+#     one named recovery flow rather than ad hoc rollback prose.
+#   - Every channel_row MUST list the freeze postures it remains
+#     admissible under. A channel that elides freeze admission is
+#     non-conforming.
+#   - Side-by-side admission is mechanically derived from
+#     state_root_map.yaml: stable and preview do not write each other's
+#     durable state roots, update markers, recent-item registrations,
+#     file-association handlers, or protocol-handler schemes. Cards
+#     that would collide are non-conforming by construction in
+#     state_root_map.yaml; this matrix re-declares the admission
+#     vocabulary so reviewers can read promotion against one row.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version and updating the narrative contract in the same
+#     change. Repurposing an existing value is breaking.
+
+schema_version: 1
+matrix_id: aureline.release_channel_matrix
+status: seeded
+
+contract_doc_ref: docs/release/channel_and_branch_contract.md
+artifact_family_versioning_ref: artifacts/release/artifact_family_versioning.yaml
+governing_adr_ref: docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
+
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+pipeline_lane_rules_ref: artifacts/release/pipeline_lane_rules.yaml
+ring_matrix_ref: artifacts/release/ring_matrix.yaml
+ring_progression_policy_ref: docs/release/ring_progression_policy.md
+install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+install_topology_plan_ref: docs/release/install_topology_plan.md
+state_root_map_ref: artifacts/release/state_root_map.yaml
+silent_deployment_seed_ref: artifacts/release/silent_deployment_seed.yaml
+exact_build_identity_schema_ref: schemas/build/exact_build_identity.schema.json
+exact_build_identity_model_ref: docs/build/exact_build_identity_model.md
+mixed_version_envelope_schema_ref: schemas/compat/mixed_version_envelope.schema.json
+skew_windows_ref: artifacts/compat/skew_windows.yaml
+upgrade_order_contract_ref: docs/compat/upgrade_order_contract.md
+qualification_schedule_ref: artifacts/release/qualification_schedule.yaml
+emergency_action_model_ref: docs/security/emergency_action_model.md
+severity_matrix_ref: docs/security/severity_matrix.md
+fixtures_ref: fixtures/release/channel_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "§26.5 Distributed compatibility and version-skew policy"
+      - "§27.8–§27.9 release widening and stable-facing claim movement"
+      - "Appendix BA platform installation matrix and fleet rollout rings"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 install and update behaviour as product truth"
+      - "§8.12 release widening and stable-facing claim movement"
+      - "§12.1.6 LTS / backport posture"
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.20 release rhythm and channel discipline"
+      - "§9.9 mixed-version compatibility, negotiation, and upgrade posture"
+      - "§9.12 enterprise deployment hooks"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# Adding a value is additive-minor; repurposing is breaking. The narrative
+# contract and this file MUST agree on every vocabulary entry.
+# -----------------------------------------------------------------------------
+
+# Closed channel set. Mirrors schemas/build/exact_build_identity.schema.json
+# release_channel_class plus the two portable-mode channels frozen by
+# the install-topology matrix. dev_local is intentionally included so
+# the matrix can declare that it is non-promotable; it is not a release
+# channel in the publication sense.
+channel_class_vocabulary:
+  - dev_local
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+  - portable_stable
+  - portable_preview
+
+# Closed branch-class set. Branch classes are stable refs, not the literal
+# git branch names. main is the protected mainline. *_train_ref denotes a
+# release-train branch that stabilises a coordinated artifact family for
+# one channel; it MUST NOT be a feature-invention lane. patch_lane_ref
+# and backport_lane_ref are forward-port and back-port lanes; both are
+# explicitly stabilisation lanes.
+branch_class_vocabulary:
+  - mainline_protected_ref
+  - nightly_train_ref
+  - preview_train_ref
+  - beta_train_ref
+  - stable_train_ref
+  - lts_train_ref
+  - hotfix_train_ref
+  - patch_lane_ref
+  - backport_lane_ref
+  - portable_train_ref
+  - emergency_freeze_isolation_ref
+  - dev_local_ref
+  - upstream_release_packet_ref
+
+# Closed branch-posture set. A branch is either a feature-invention lane
+# (new feature work admitted), a stabilisation lane (no new feature work;
+# bug fixes, security fixes, doc/help corrections only), or a protected
+# mainline (all integration of feature work flows here before release
+# trains take a snapshot). Release branches MUST be stabilisation lanes.
+branch_posture_class_vocabulary:
+  - feature_invention_protected_mainline
+  - stabilisation_no_feature_invention
+  - emergency_freeze_isolation
+  - portable_packaging_stabilisation
+  - upstream_acquisition_only
+  - developer_local_only
+
+# Closed forward-promotion target set. Each channel publishes onto exactly
+# one channel_class_vocabulary value; promotion-target rows below name
+# which other channels a build originating in this channel may be
+# promoted into.
+forward_promotion_target_vocabulary:
+  - none
+  - protected_internal_only
+  - nightly
+  - preview
+  - beta
+  - stable
+  - lts
+  - hotfix
+  - portable_stable
+  - portable_preview
+
+# Closed backward-promotion (downgrade) posture set. Downgrade is
+# explicit; rows that elide this slot are non-conforming.
+downgrade_posture_class_vocabulary:
+  - downgrade_supported_in_channel
+  - downgrade_supported_to_named_floor
+  - downgrade_supported_to_lts_floor
+  - downgrade_best_effort_with_state_warning
+  - downgrade_unsupported
+  - downgrade_requires_admin_or_managed_action
+  - downgrade_requires_coordinated_artifact_set
+
+# Closed support-window posture set. Stable and LTS rows MUST name a
+# concrete window posture; nightly/preview/beta rows narrow.
+support_window_class_vocabulary:
+  - no_support_claim_dev_local
+  - no_support_claim_nightly_pre_release
+  - narrowed_window_pre_release
+  - rolling_window_stable
+  - explicit_lts_window
+  - hotfix_correction_only_window
+  - portable_no_managed_support
+
+# Closed freeze-posture set. The release lane may declare an emergency
+# freeze; the matrix names which channels remain admissible under each
+# posture.
+freeze_posture_class_vocabulary:
+  - normal_open
+  - soft_freeze_release_lane_only
+  - hard_freeze_security_only
+  - cold_chain_mirror_only
+  - publication_paused
+
+# Closed last-known-good repair-path set. Every channel resolves a failed
+# update or a corrupted promoted family into one of these recovery
+# paths; free-text recovery prose is non-conforming.
+last_known_good_repair_path_class_vocabulary:
+  - in_channel_rollback_to_previous_build
+  - in_channel_rollback_to_last_broad_cut
+  - rollback_to_lts_floor
+  - rollback_to_admin_pinned_target
+  - reinstall_from_offline_bundle
+  - reinstall_from_customer_managed_mirror
+  - portable_extract_replace_self_contained
+  - admin_or_managed_repair_required
+  - unsupported_no_in_product_repair
+
+# Closed side-by-side admission set. Mirrors the install-topology
+# matrix's side_by_side_relation_class vocabulary plus the explicit
+# forbidden case so the matrix can pin "two stable installs on one host
+# is non-conforming" mechanically.
+side_by_side_admission_class_vocabulary:
+  - none
+  - stable_and_preview
+  - stable_and_beta
+  - stable_and_lts
+  - preview_and_beta
+  - installed_and_portable
+  - three_channel_matrix
+  - managed_and_portable
+  - forbidden_two_of_same_channel
+
+# Closed handler-ownership pointer set. Every channel_row points at the
+# state_root_map.yaml row family that owns its update marker, recent-
+# item registration, file-association registration, and protocol-handler
+# scheme so reviewers can resolve "who owns the markers for this channel"
+# in O(1).
+handler_ownership_pointer_class_vocabulary:
+  - update_marker_per_channel_under_binary_root
+  - update_marker_per_channel_under_user_profile
+  - update_marker_per_channel_under_portable_root
+  - update_marker_per_channel_under_admin_policy_root
+  - update_marker_external_package_manager_owned
+  - update_marker_none
+
+# Closed publication posture pointer set. Mirrors the install-topology
+# matrix's publication_posture_class so a channel_row can advertise
+# which transports it admits at publication time.
+publication_posture_admission_class_vocabulary:
+  - online_vendor
+  - offline_signed_bundle
+  - customer_managed_mirror
+  - third_party_package_index
+
+# -----------------------------------------------------------------------------
+# Branch posture register.
+#
+# Authoritative list. Tooling reads this to resolve "is this branch a
+# stabilisation lane?" without reading channel rows.
+# -----------------------------------------------------------------------------
+branch_posture_register:
+  - branch_class_ref: mainline_protected_ref
+    branch_posture_class: feature_invention_protected_mainline
+    feature_invention_admitted: true
+    description: >
+      Protected mainline integration ref. Every feature lands here first.
+      Release-train branches take stabilisation snapshots from this ref;
+      release-train branches do not feed mainline.
+  - branch_class_ref: nightly_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Automated nightly-train ref off the mainline integration ref. May
+      carry experimental flags but MUST NOT host new feature invention;
+      feature work is integrated into mainline first.
+  - branch_class_ref: preview_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Preview-train ref. Stabilisation, narrowing, doc/help correction,
+      and migration-note authoring only. Feature invention on this lane
+      is non-conforming.
+  - branch_class_ref: beta_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Beta-train ref. Stabilisation only; new feature invention on this
+      ref is non-conforming and opens a decision row.
+  - branch_class_ref: stable_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Stable-train ref. Stabilisation, security, doc/help correction,
+      and patch-lane integration only.
+  - branch_class_ref: lts_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Long-term-support train ref. Backport-only; new feature invention
+      on this ref is non-conforming. Backport scope is bounded by the
+      LTS support window.
+  - branch_class_ref: hotfix_train_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Hotfix-train ref off a stable or LTS train ref. Carries a single
+      named correction scope; widening on this ref is non-conforming.
+  - branch_class_ref: patch_lane_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Forward-port patch lane that takes a fix from one stabilisation
+      ref to another newer stabilisation ref. Bug fixes, security fixes,
+      doc/help corrections only.
+  - branch_class_ref: backport_lane_ref
+    branch_posture_class: stabilisation_no_feature_invention
+    feature_invention_admitted: false
+    description: >
+      Back-port lane that takes a fix from a newer stabilisation ref to
+      an older one (typically stable→LTS). Same admission rules as the
+      forward-port patch lane.
+  - branch_class_ref: portable_train_ref
+    branch_posture_class: portable_packaging_stabilisation
+    feature_invention_admitted: false
+    description: >
+      Portable-packaging stabilisation ref. Same scope as the channel
+      train ref it tracks; carries portable-mode packaging differences
+      only.
+  - branch_class_ref: emergency_freeze_isolation_ref
+    branch_posture_class: emergency_freeze_isolation
+    feature_invention_admitted: false
+    description: >
+      Isolation ref taken when a hard freeze or cold-chain freeze is in
+      effect. No promotion to public channels; security-only fixes flow
+      through the emergency-action model.
+  - branch_class_ref: dev_local_ref
+    branch_posture_class: developer_local_only
+    feature_invention_admitted: true
+    description: >
+      Developer working ref. Never publishes to a public channel.
+  - branch_class_ref: upstream_release_packet_ref
+    branch_posture_class: upstream_acquisition_only
+    feature_invention_admitted: false
+    description: >
+      Upstream release-packet ref consumed by the mirror_or_offline_promotion_lane.
+      Republishes content-addressed bytes; never mints a new channel id.
+
+# -----------------------------------------------------------------------------
+# Release-review stage register.
+#
+# rc_candidate is a review-stage label that may be carried by an existing
+# channel-bound build set. It is NOT a separate exact-build channel value
+# and MUST NOT appear in channel_class_vocabulary.
+# -----------------------------------------------------------------------------
+release_review_stage_register:
+  - stage_id: rc_candidate
+    admissible_carrier_channels:
+      - beta
+      - stable
+      - lts
+      - hotfix
+    forbidden_carrier_channels:
+      - dev_local
+      - nightly
+      - preview
+      - portable_stable
+      - portable_preview
+    description: >
+      rc_candidate is a shiproom review state over an existing channel-
+      bound build set, not a release channel. A candidate may carry the
+      rc_candidate label only while it is moving from beta to stable,
+      from stable to lts, or through a hotfix review.
+
+# -----------------------------------------------------------------------------
+# Channel-row definitions.
+#
+# One row per channel_class. Rows are ordered by promotion seniority
+# (dev_local first, lts/hotfix last; portable rows after the installed
+# pair they shadow).
+# -----------------------------------------------------------------------------
+channel_rows:
+
+  - id: channel.dev_local
+    channel_class: dev_local
+    branch_class_ref: dev_local_ref
+    pipeline_lane_ref: contributor_pr_lane
+    rollout_ring_admission:
+      - canary
+    promotion_seniority_index: 0
+    forward_promotion_targets:
+      - none
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_unsupported
+    support_window_class: no_support_claim_dev_local
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+      - hard_freeze_security_only
+      - cold_chain_mirror_only
+      - publication_paused
+    side_by_side_admission:
+      - none
+    publication_posture_admission: []
+    handler_ownership_pointer_class: update_marker_none
+    state_root_map_owning_channel_refs: []
+    install_topology_card_refs: []
+    last_known_good_repair_path_class: unsupported_no_in_product_repair
+    candidate_stage_admission: []
+    summary: >
+      Developer workstation builds. Never publishes a public channel.
+      Listed so the matrix can mechanically refuse promotion attempts.
+
+  - id: channel.nightly
+    channel_class: nightly
+    branch_class_ref: nightly_train_ref
+    pipeline_lane_ref: nightly_release_lane
+    rollout_ring_admission:
+      - canary
+    promotion_seniority_index: 1
+    forward_promotion_targets:
+      - preview
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_supported_in_channel
+    support_window_class: no_support_claim_nightly_pre_release
+    freeze_posture_admission:
+      - normal_open
+    side_by_side_admission:
+      - none
+    publication_posture_admission:
+      - online_vendor
+    handler_ownership_pointer_class: update_marker_per_channel_under_binary_root
+    state_root_map_owning_channel_refs: []
+    install_topology_card_refs: []
+    last_known_good_repair_path_class: in_channel_rollback_to_previous_build
+    candidate_stage_admission:
+      - nightly_candidate
+    summary: >
+      Automated daily lane. May carry experimental flags. Promotes only
+      into preview; nightly never publishes to beta, stable, lts, or
+      hotfix.
+
+  - id: channel.preview
+    channel_class: preview
+    branch_class_ref: preview_train_ref
+    pipeline_lane_ref: preview_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+    promotion_seniority_index: 2
+    forward_promotion_targets:
+      - beta
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_best_effort_with_state_warning
+    support_window_class: narrowed_window_pre_release
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+    side_by_side_admission:
+      - stable_and_preview
+      - preview_and_beta
+      - installed_and_portable
+      - three_channel_matrix
+    publication_posture_admission:
+      - online_vendor
+    handler_ownership_pointer_class: update_marker_per_channel_under_binary_root
+    state_root_map_owning_channel_refs:
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_keychain_or_secret_store.preview
+    install_topology_card_refs:
+      - card.windows.x86_64.side_by_side_preview.preview
+      - card.macos.universal_binary.side_by_side_preview.preview
+    last_known_good_repair_path_class: in_channel_rollback_to_previous_build
+    candidate_stage_admission:
+      - preview_candidate
+    summary: >
+      Gated pre-release. Narrows compatibility claims and renders the
+      pre_release_unverified docs version-match state. Side-by-side with
+      stable, beta, and portable peers per state_root_map.yaml.
+
+  - id: channel.beta
+    channel_class: beta
+    branch_class_ref: beta_train_ref
+    pipeline_lane_ref: beta_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+    promotion_seniority_index: 3
+    forward_promotion_targets:
+      - stable
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_best_effort_with_state_warning
+    support_window_class: narrowed_window_pre_release
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+    side_by_side_admission:
+      - stable_and_beta
+      - preview_and_beta
+      - three_channel_matrix
+    publication_posture_admission:
+      - online_vendor
+    handler_ownership_pointer_class: update_marker_per_channel_under_binary_root
+    state_root_map_owning_channel_refs: []
+    install_topology_card_refs: []
+    last_known_good_repair_path_class: in_channel_rollback_to_previous_build
+    candidate_stage_admission:
+      - beta_candidate
+      - rc_candidate
+    summary: >
+      Optional staging channel between preview and stable. Reserved at
+      this milestone; vocabulary frozen so beta-train work later resolves
+      into one row instead of inventing per-team semantics.
+
+  - id: channel.stable
+    channel_class: stable
+    branch_class_ref: stable_train_ref
+    pipeline_lane_ref: stable_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+      - broad
+    promotion_seniority_index: 4
+    forward_promotion_targets:
+      - lts
+      - hotfix
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_supported_to_named_floor
+    support_window_class: rolling_window_stable
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+      - hard_freeze_security_only
+    side_by_side_admission:
+      - stable_and_preview
+      - stable_and_beta
+      - stable_and_lts
+      - installed_and_portable
+      - three_channel_matrix
+      - managed_and_portable
+    publication_posture_admission:
+      - online_vendor
+      - offline_signed_bundle
+      - customer_managed_mirror
+      - third_party_package_index
+    handler_ownership_pointer_class: update_marker_per_channel_under_binary_root
+    state_root_map_owning_channel_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.managed_deployed.stable
+      - card.windows.x86_64.offline_bundle.stable
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.macos.universal_binary.managed_deployed.stable
+      - card.macos.universal_binary.external_package_manager.stable
+      - card.linux.x86_64.per_user_installed.stable
+      - card.linux.x86_64.managed_deployed.stable
+      - card.linux.x86_64.external_package_manager.stable
+      - card.linux.x86_64.offline_bundle.stable
+      - card.linux.x86_64.customer_managed_mirror.stable
+      - card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+    last_known_good_repair_path_class: in_channel_rollback_to_last_broad_cut
+    candidate_stage_admission:
+      - rc_or_stable_candidate
+      - rc_candidate
+    summary: >
+      General-availability lane. Rolling support window. Side-by-side
+      with preview, beta, lts, and portable peers per state_root_map.yaml;
+      two stable installs on one host is forbidden_two_of_same_channel.
+
+  - id: channel.lts
+    channel_class: lts
+    branch_class_ref: lts_train_ref
+    pipeline_lane_ref: lts_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+      - broad
+      - lts
+    promotion_seniority_index: 5
+    forward_promotion_targets:
+      - hotfix
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_supported_to_lts_floor
+    support_window_class: explicit_lts_window
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+      - hard_freeze_security_only
+      - cold_chain_mirror_only
+    side_by_side_admission:
+      - stable_and_lts
+    publication_posture_admission:
+      - online_vendor
+      - offline_signed_bundle
+      - customer_managed_mirror
+    handler_ownership_pointer_class: update_marker_per_channel_under_admin_policy_root
+    state_root_map_owning_channel_refs:
+      - state.per_user_configuration_root.lts
+      - state.per_user_recovery_root.lts
+      - state.per_user_derived_cache_root.lts
+      - state.per_machine_admin_policy_root.lts
+      - state.per_machine_shared_data_root.lts
+    install_topology_card_refs:
+      - card.windows.x86_64.per_machine_installed.lts
+    last_known_good_repair_path_class: rollback_to_lts_floor
+    candidate_stage_admission:
+      - lts_candidate
+      - rc_candidate
+    summary: >
+      Long-term-support lane for enterprise deployment. Promotion off
+      stable; backport scope only. Update marker is owned under the
+      admin-policy root because LTS rows MUST carry an admin or managed
+      updater per install_topology_matrix.yaml.
+
+  - id: channel.hotfix
+    channel_class: hotfix
+    branch_class_ref: hotfix_train_ref
+    pipeline_lane_ref: emergency_hotfix_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+      - broad
+      - lts
+    promotion_seniority_index: 6
+    forward_promotion_targets:
+      - none
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_requires_admin_or_managed_action
+    support_window_class: hotfix_correction_only_window
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+      - hard_freeze_security_only
+      - cold_chain_mirror_only
+      - publication_paused
+    side_by_side_admission:
+      - stable_and_lts
+    publication_posture_admission:
+      - online_vendor
+      - offline_signed_bundle
+      - customer_managed_mirror
+    handler_ownership_pointer_class: update_marker_per_channel_under_binary_root
+    state_root_map_owning_channel_refs: []
+    install_topology_card_refs: []
+    last_known_good_repair_path_class: rollback_to_admin_pinned_target
+    candidate_stage_admission:
+      - hotfix_candidate
+      - rc_candidate
+    summary: >
+      Patched correction off a stable or LTS line. Named rollback target
+      and explicit backport scope; no silent support-window or schema
+      widening.
+
+  - id: channel.portable_stable
+    channel_class: portable_stable
+    branch_class_ref: portable_train_ref
+    pipeline_lane_ref: stable_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+      - broad
+    promotion_seniority_index: 4
+    forward_promotion_targets:
+      - none
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_supported_in_channel
+    support_window_class: portable_no_managed_support
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+      - hard_freeze_security_only
+    side_by_side_admission:
+      - installed_and_portable
+      - three_channel_matrix
+      - managed_and_portable
+    publication_posture_admission:
+      - online_vendor
+    handler_ownership_pointer_class: update_marker_per_channel_under_portable_root
+    state_root_map_owning_channel_refs:
+      - state.portable_colocated_root.portable_stable
+    install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    last_known_good_repair_path_class: portable_extract_replace_self_contained
+    candidate_stage_admission:
+      - rc_or_stable_candidate
+    summary: >
+      Stable channel running in portable mode. Self-contained directory;
+      no machine-global mutation. Portable_stable is side-by-side with
+      installed stable per the install-topology matrix.
+
+  - id: channel.portable_preview
+    channel_class: portable_preview
+    branch_class_ref: portable_train_ref
+    pipeline_lane_ref: preview_release_lane
+    rollout_ring_admission:
+      - canary
+      - pilot
+    promotion_seniority_index: 2
+    forward_promotion_targets:
+      - none
+    backward_promotion_targets: []
+    downgrade_posture_class: downgrade_supported_in_channel
+    support_window_class: portable_no_managed_support
+    freeze_posture_admission:
+      - normal_open
+      - soft_freeze_release_lane_only
+    side_by_side_admission:
+      - installed_and_portable
+      - three_channel_matrix
+    publication_posture_admission:
+      - online_vendor
+    handler_ownership_pointer_class: update_marker_per_channel_under_portable_root
+    state_root_map_owning_channel_refs:
+      - state.portable_colocated_root.portable_preview
+    install_topology_card_refs: []
+    last_known_good_repair_path_class: portable_extract_replace_self_contained
+    candidate_stage_admission:
+      - preview_candidate
+    summary: >
+      Preview channel running in portable mode. Same self-contained rules
+      as portable_stable.
+
+# -----------------------------------------------------------------------------
+# Patch / backport lane register.
+#
+# Each lane is bound to one source channel and one or more destination
+# channels with a closed admission set so a fix authored on one
+# stabilisation ref can be carried into another without minting parallel
+# branch semantics.
+# -----------------------------------------------------------------------------
+patch_and_backport_lane_register:
+  - lane_id: patch_lane.preview_to_beta
+    branch_class_ref: patch_lane_ref
+    direction_class: forward_port
+    source_channel_ref: channel.preview
+    destination_channel_refs:
+      - channel.beta
+    admissible_change_classes:
+      - bug_fix
+      - security_fix
+      - docs_or_help_correction
+      - migration_note_clarification
+    forbidden_change_classes:
+      - new_feature_invention
+      - public_api_widening
+      - claim_widening
+    requires_same_change_set_groups:
+      - claim_docs_known_limit_bundle
+    notes: >
+      Patch-forward from preview into beta during preview-train
+      stabilisation.
+
+  - lane_id: patch_lane.beta_to_stable
+    branch_class_ref: patch_lane_ref
+    direction_class: forward_port
+    source_channel_ref: channel.beta
+    destination_channel_refs:
+      - channel.stable
+    admissible_change_classes:
+      - bug_fix
+      - security_fix
+      - docs_or_help_correction
+      - migration_note_clarification
+    forbidden_change_classes:
+      - new_feature_invention
+      - public_api_widening
+      - claim_widening
+    requires_same_change_set_groups:
+      - claim_docs_known_limit_bundle
+    notes: >
+      Beta-train fixes carried into the stable train during stable
+      stabilisation.
+
+  - lane_id: backport_lane.stable_to_lts
+    branch_class_ref: backport_lane_ref
+    direction_class: back_port
+    source_channel_ref: channel.stable
+    destination_channel_refs:
+      - channel.lts
+    admissible_change_classes:
+      - security_fix
+      - data_loss_or_trust_correction
+      - bug_fix
+      - docs_or_help_correction
+    forbidden_change_classes:
+      - new_feature_invention
+      - public_api_widening
+      - schema_widening
+      - support_window_widening
+    requires_same_change_set_groups:
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    notes: >
+      Backport from stable into the LTS line. Backport scope is bounded
+      by the LTS support window.
+
+  - lane_id: backport_lane.stable_to_hotfix
+    branch_class_ref: backport_lane_ref
+    direction_class: back_port
+    source_channel_ref: channel.stable
+    destination_channel_refs:
+      - channel.hotfix
+    admissible_change_classes:
+      - security_fix
+      - data_loss_or_trust_correction
+    forbidden_change_classes:
+      - new_feature_invention
+      - public_api_widening
+      - claim_widening
+    requires_same_change_set_groups:
+      - advisory_and_revocation_bundle
+      - claim_docs_known_limit_bundle
+    notes: >
+      Hotfix correction off the stable train. Single named correction
+      scope; widening on the hotfix train is non-conforming.
+
+  - lane_id: backport_lane.lts_to_hotfix
+    branch_class_ref: backport_lane_ref
+    direction_class: back_port
+    source_channel_ref: channel.lts
+    destination_channel_refs:
+      - channel.hotfix
+    admissible_change_classes:
+      - security_fix
+      - data_loss_or_trust_correction
+    forbidden_change_classes:
+      - new_feature_invention
+      - public_api_widening
+      - support_window_widening
+    requires_same_change_set_groups:
+      - advisory_and_revocation_bundle
+      - claim_docs_known_limit_bundle
+      - mirror_and_offline_bundle
+    notes: >
+      Hotfix correction off the LTS train.
+
+# -----------------------------------------------------------------------------
+# Freeze posture admission matrix.
+#
+# Pins which channels remain admissible under each freeze posture so
+# release lanes do not silently widen during a freeze.
+# -----------------------------------------------------------------------------
+freeze_posture_admission_matrix:
+  - freeze_posture_class: normal_open
+    description: >
+      Normal release rhythm. All channels admissible.
+    admitted_channel_refs:
+      - channel.dev_local
+      - channel.nightly
+      - channel.preview
+      - channel.beta
+      - channel.stable
+      - channel.lts
+      - channel.hotfix
+      - channel.portable_stable
+      - channel.portable_preview
+    blocked_channel_refs: []
+    invoked_by_authority_class: shiproom
+    invoked_by_authority_ref: docs/release/shiproom_runbook.md
+
+  - freeze_posture_class: soft_freeze_release_lane_only
+    description: >
+      Pre-promotion soft freeze. Nightly stops cutting; preview, beta,
+      stable, lts, and hotfix continue under tighter scrutiny.
+    admitted_channel_refs:
+      - channel.dev_local
+      - channel.preview
+      - channel.beta
+      - channel.stable
+      - channel.lts
+      - channel.hotfix
+      - channel.portable_stable
+      - channel.portable_preview
+    blocked_channel_refs:
+      - channel.nightly
+    invoked_by_authority_class: shiproom
+    invoked_by_authority_ref: docs/release/shiproom_runbook.md
+
+  - freeze_posture_class: hard_freeze_security_only
+    description: >
+      Hard freeze. Only security-bearing changes flow; nightly and
+      preview are blocked. Hotfix remains admissible because the
+      hotfix lane carries the security correction.
+    admitted_channel_refs:
+      - channel.dev_local
+      - channel.stable
+      - channel.lts
+      - channel.hotfix
+    blocked_channel_refs:
+      - channel.nightly
+      - channel.preview
+      - channel.beta
+      - channel.portable_stable
+      - channel.portable_preview
+    invoked_by_authority_class: release_council
+    invoked_by_authority_ref: docs/security/emergency_action_model.md
+
+  - freeze_posture_class: cold_chain_mirror_only
+    description: >
+      Online publication paused; mirror or offline transport only.
+      Stable and LTS rows that admit offline_signed_bundle or
+      customer_managed_mirror remain reachable; nightly and preview
+      are blocked.
+    admitted_channel_refs:
+      - channel.dev_local
+      - channel.stable
+      - channel.lts
+      - channel.hotfix
+    blocked_channel_refs:
+      - channel.nightly
+      - channel.preview
+      - channel.beta
+      - channel.portable_stable
+      - channel.portable_preview
+    invoked_by_authority_class: release_council
+    invoked_by_authority_ref: docs/security/emergency_action_model.md
+
+  - freeze_posture_class: publication_paused
+    description: >
+      All publication paused (for example a signing-root revocation
+      response). Nothing promotes; the only admissible lane is dev_local
+      and the only admissible response is the emergency-action model.
+    admitted_channel_refs:
+      - channel.dev_local
+    blocked_channel_refs:
+      - channel.nightly
+      - channel.preview
+      - channel.beta
+      - channel.stable
+      - channel.lts
+      - channel.hotfix
+      - channel.portable_stable
+      - channel.portable_preview
+    invoked_by_authority_class: release_council
+    invoked_by_authority_ref: docs/security/emergency_action_model.md
+
+# -----------------------------------------------------------------------------
+# Side-by-side admission rules.
+#
+# Reviewers read this section to resolve "may these two channels coexist
+# on one host?" mechanically. Detailed per-card behaviour lives in
+# install_topology_matrix.yaml; per-channel handler/marker ownership
+# lives in state_root_map.yaml.
+# -----------------------------------------------------------------------------
+side_by_side_admission_matrix:
+  - pair_id: pair.stable_and_preview
+    pair_channels: [channel.stable, channel.preview]
+    admission_class: stable_and_preview
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.stable
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_derived_cache_root.preview
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_user_keychain_or_secret_store.preview
+    install_topology_card_evidence_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.side_by_side_preview.preview
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.side_by_side_preview.preview
+    notes: >
+      Default side-by-side posture. Each channel keeps its own state
+      roots, update marker, recent-item registration, file-association
+      candidacy, and protocol-handler scheme.
+
+  - pair_id: pair.stable_and_beta
+    pair_channels: [channel.stable, channel.beta]
+    admission_class: stable_and_beta
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs: []
+    install_topology_card_evidence_refs: []
+    notes: >
+      Beta is reserved at this milestone; isolation rules are pinned so
+      later beta-train work resolves into one row.
+
+  - pair_id: pair.stable_and_lts
+    pair_channels: [channel.stable, channel.lts]
+    admission_class: stable_and_lts
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.lts
+      - state.per_machine_admin_policy_root.stable
+      - state.per_machine_admin_policy_root.lts
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_shared_data_root.lts
+    install_topology_card_evidence_refs:
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.per_machine_installed.lts
+    notes: >
+      Stable and LTS coexist with channel-suffixed admin/policy roots.
+      LTS update marker lives under the admin policy root; stable's
+      lives under its binary root.
+
+  - pair_id: pair.preview_and_beta
+    pair_channels: [channel.preview, channel.beta]
+    admission_class: preview_and_beta
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs: []
+    install_topology_card_evidence_refs: []
+    notes: >
+      Preview and beta isolation is pinned now so later beta-train work
+      cannot inherit preview's state roots or markers.
+
+  - pair_id: pair.installed_and_portable
+    pair_channels: [channel.stable, channel.portable_stable]
+    admission_class: installed_and_portable
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs:
+      - state.per_user_configuration_root.stable
+      - state.portable_colocated_root.portable_stable
+    install_topology_card_evidence_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.portable.portable_stable
+    notes: >
+      Portable mode MUST NOT register file associations, protocol
+      handlers, or machine-global recent items. The portable root is
+      self-contained.
+
+  - pair_id: pair.three_channel_matrix
+    pair_channels: [channel.stable, channel.preview, channel.portable_stable]
+    admission_class: three_channel_matrix
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+      - state.portable_colocated_root.portable_stable
+    install_topology_card_evidence_refs: []
+    notes: >
+      Three-channel coexistence (stable + preview + portable_stable)
+      composes the pairwise rules; no rule is relaxed when a third
+      channel is added.
+
+  - pair_id: pair.managed_and_portable
+    pair_channels: [channel.stable, channel.portable_stable]
+    admission_class: managed_and_portable
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.portable_colocated_root.portable_stable
+    install_topology_card_evidence_refs:
+      - card.windows.x86_64.managed_deployed.stable
+      - card.macos.universal_binary.managed_deployed.stable
+      - card.linux.x86_64.managed_deployed.stable
+      - card.windows.x86_64.portable.portable_stable
+    notes: >
+      Managed-fleet stable plus portable_stable on the same host.
+      Managed install owns the admin-policy root; portable install owns
+      its self-contained directory; neither writes the other's roots.
+
+  - pair_id: pair.forbidden_two_stables
+    pair_channels: [channel.stable, channel.stable]
+    admission_class: forbidden_two_of_same_channel
+    state_root_isolation_required: true
+    update_marker_isolation_required: true
+    recent_item_registration_isolation_required: true
+    file_association_isolation_required: true
+    protocol_handler_isolation_required: true
+    state_root_map_evidence_refs: []
+    install_topology_card_evidence_refs: []
+    notes: >
+      Two installs of the same channel on one host are non-conforming
+      because they would collide on every state root, update marker,
+      and handler ownership row. The state-root map enforces this by
+      pinning owning_channels to one channel per row.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants pinned on the matrix.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: channel_class_closed
+    description: >
+      A channel_row's channel_class MUST be a value in
+      channel_class_vocabulary. rc_candidate is not a channel_class.
+
+  - id: branch_class_required
+    description: >
+      A channel_row MUST cite exactly one branch_class_ref drawn from
+      branch_class_vocabulary; that ref MUST resolve in
+      branch_posture_register.
+
+  - id: pipeline_lane_required
+    description: >
+      A channel_row MUST cite exactly one pipeline_lane_ref drawn from
+      artifacts/release/pipeline_lane_rules.yaml.
+
+  - id: release_branches_are_stabilisation
+    description: >
+      Every branch_class_ref bound to a published channel (nightly,
+      preview, beta, stable, lts, hotfix, portable_stable,
+      portable_preview) MUST have branch_posture_class
+      stabilisation_no_feature_invention or
+      portable_packaging_stabilisation. Feature invention on a release
+      train is non-conforming.
+
+  - id: rc_candidate_not_a_channel
+    description: >
+      rc_candidate is admitted only via release_review_stage_register.
+      An exact_build_identity_record MUST NOT mint rc as a
+      release_channel_class value.
+
+  - id: downgrade_posture_required
+    description: >
+      A channel_row MUST declare a downgrade_posture_class drawn from
+      downgrade_posture_class_vocabulary. Rows that elide the slot are
+      non-conforming.
+
+  - id: lts_downgrade_floor
+    description: >
+      channel.lts MUST declare downgrade_posture_class
+      downgrade_supported_to_lts_floor. lts_release_lane never rolls
+      across the LTS floor without a release-council waiver.
+
+  - id: side_by_side_admission_resolves_state_root_map
+    description: >
+      Every side_by_side_admission entry on a channel_row MUST resolve
+      to a pair_id row in side_by_side_admission_matrix. Pair rows MUST
+      cite state_root_map.yaml owning_channels evidence so reviewers can
+      verify isolation in O(1).
+
+  - id: forbidden_two_of_same_channel
+    description: >
+      Two installs of the same channel_class on one host are
+      non-conforming. The matrix carries the explicit
+      forbidden_two_of_same_channel admission class so tooling can name
+      the rejection rather than infer it.
+
+  - id: handler_ownership_pointer_required
+    description: >
+      Every channel_row carrying a non-none update marker MUST cite a
+      handler_ownership_pointer_class that resolves to a row in
+      state_root_map.yaml's update_markers, recent_item_registrations,
+      file_associations, and protocol_handlers blocks.
+
+  - id: last_known_good_repair_path_required
+    description: >
+      Every channel_row MUST declare a
+      last_known_good_repair_path_class. Free-text recovery prose is
+      non-conforming.
+
+  - id: freeze_posture_admission_required
+    description: >
+      Every channel_row MUST list every freeze posture under which it
+      remains admissible. Channels not listed under a posture are
+      blocked under that posture.
+
+  - id: hotfix_only_after_named_correction_scope
+    description: >
+      channel.hotfix promotion is admissible only when an
+      advisory_and_revocation_bundle and a same_change_set
+      claim_docs_known_limit_bundle are current per
+      promotion_gate_map.yaml.
+
+  - id: portable_no_machine_global_handlers
+    description: >
+      channel.portable_stable and channel.portable_preview carry
+      handler_ownership_pointer_class
+      update_marker_per_channel_under_portable_root and MUST NOT register
+      any file association, protocol handler, or machine-global recent-
+      item list entry. The state_root_map.yaml file_associations and
+      protocol_handlers rows pin not_registered for portable channels.
+
+  - id: emergency_freeze_blocks_promotion
+    description: >
+      A channel_row not listed in freeze_posture_admission_matrix's
+      admitted_channel_refs for the active freeze posture MUST refuse
+      promotion. The matrix is the authority.
+
+  - id: rollout_ring_admission_subset
+    description: >
+      A channel_row's rollout_ring_admission MUST be a subset of
+      install_topology_matrix.yaml's ring_promotion_evidence
+      admissible_channels rows for the matching ring.
+
+  - id: same_change_set_required_on_lts_and_hotfix_promotion
+    description: >
+      Promotion into channel.lts or channel.hotfix MUST satisfy the
+      same_change_set groups named on the patch / backport lane row
+      that authored the change.
