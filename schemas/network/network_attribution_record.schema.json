@@ -1,0 +1,913 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/network_attribution_record.schema.json",
+  "title": "Aureline network attribution record",
+  "description": "Boundary schema for one network_attribution_record frozen in docs/network/transport_governance_seed.md. One record attributes a single outbound-allowed, outbound-denied, outbound-failed, or inbound-callback-returning network event to the component that needed network, the permission gate it claimed, the target it reached (or tried to reach), the auth mode in force, the route the traffic took (direct, system proxy, manual proxy, PAC resolved, environment proxy, mirror proxy, managed relay, remote-target originated, or browser system), the egress class (local_only, target_local, org_approved_external, public_internet, or deny_all), the outcome, and the transport posture in force at the time of the event. Desktop shell, CLI/headless, extension host, AI broker, update client, extension registry, docs pack, policy distribution, telemetry sink, git VCS, notebook kernel, debugger/symbol, API client, mirror refresh, remote tunnel, remote SSH, browser handoff launcher, and heuristic unknown components share this one attribution shape so proxy, trust, SSH-host-key provenance, and egress-class decisions are legible across desktop and CLI/headless without reinventing fields. The embedded transport_posture object is the inspectable current transport-posture object status items, diagnostics cards, and support exports reference without recomputing field names. Raw URLs, raw host names, raw IPs, raw SSH host keys, raw proxy credentials, raw CA bundle bytes, raw tokens, raw request bodies, and raw response bodies never cross this boundary; the record carries opaque refs, typed vocabulary, reviewable sentences, and byte-count metadata only. Adding a network_component_class, network_permission_class, network_target_class, auth_mode_class, route_class, egress_class, outcome_class, proxy_resolution_mode_class, trust_store_source_class, ssh_host_key_provenance_class, mirror_route_class, or offline_or_deny_all_state_class value is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "attribution_id",
+    "invocation_session_id",
+    "component_class",
+    "permission_class",
+    "target_class",
+    "target_identity_ref",
+    "auth_mode",
+    "route_class",
+    "egress_class",
+    "proxy_resolution",
+    "trust_posture",
+    "mirror_route",
+    "reason_sentence",
+    "outcome_class",
+    "transport_posture_at_event",
+    "redaction_class",
+    "request_started_at",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this attribution record. Additive-minor vocabulary additions bump this integer."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "network_attribution_record"
+    },
+    "attribution_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable, opaque, snake_case-safe attribution id. Safe in support bundles, admin audit exports, and diagnostics cards. MUST NOT contain milestone slugs, raw URLs, raw host names, or raw IPs."
+    },
+    "invocation_session_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque invocation / session id linking this attribution to the surrounding command, automation run, remote session, or callback. Raw PIDs, raw process handles, and raw user ids never appear here."
+    },
+    "component_class": {
+      "$ref": "#/$defs/network_component_class"
+    },
+    "component_instance_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref for the specific instance inside the component class (for example one installed extension inside extension_host_component). Null is admissible when the class itself is the attribution unit."
+    },
+    "permission_class": {
+      "$ref": "#/$defs/network_permission_class"
+    },
+    "permission_grant_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref into the permission manifest entry the grant resolved against. Extension host components MUST carry a non-null ref on any non-local_only egress class; the cross-field rule in allOf enforces that."
+    },
+    "target_class": {
+      "$ref": "#/$defs/network_target_class"
+    },
+    "target_identity_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque, stable id for the target endpoint (one mirror endpoint, one remote SSH host, one provider endpoint, one tunnel route). Raw URLs, raw host names, and raw IPs MUST NOT appear here."
+    },
+    "target_scope_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref for the scope the target resolves inside (workspace ref, remote workspace ref, managed workspace ref). Null is admissible when the target has no enclosing scope."
+    },
+    "auth_mode": {
+      "$ref": "#/$defs/auth_mode_class"
+    },
+    "auth_handle_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque credential-handle ref (secret broker handle, OAuth delegated handle, mTLS client cert handle, device-code handle). Raw token bytes, raw cookies, raw passwords, and raw basic-auth strings never appear here. Null is admissible for no_auth_public."
+    },
+    "route_class": {
+      "$ref": "#/$defs/route_class"
+    },
+    "egress_class": {
+      "$ref": "#/$defs/egress_class"
+    },
+    "proxy_resolution": {
+      "$ref": "#/$defs/proxy_resolution_envelope"
+    },
+    "trust_posture": {
+      "$ref": "#/$defs/trust_posture_envelope"
+    },
+    "mirror_route": {
+      "$ref": "#/$defs/mirror_route_envelope"
+    },
+    "reason_sentence": {
+      "$ref": "#/$defs/reviewable_sentence",
+      "description": "Short, product-term sentence naming why this component needed network on this path. Raw URLs, raw host names, raw payloads, and raw credentials MUST NOT appear. Every attribution MUST carry a reason sentence so 'silent egress' is never attributable to an unnamed need."
+    },
+    "outcome_class": {
+      "$ref": "#/$defs/outcome_class"
+    },
+    "outcome_note": {
+      "$ref": "#/$defs/reviewable_sentence",
+      "description": "Short reviewable sentence summarising the outcome for support banners and diagnostics cards. Raw payloads, raw response bodies, raw error strings with sensitive URLs, and raw remote stack traces MUST NOT appear."
+    },
+    "deny_reason_detail": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/deny_reason_detail" }
+      ],
+      "description": "Typed deny detail when outcome_class is any outbound_denied_* value. Null for allowed / failed transport outcomes. The cross-field rule in allOf requires this block on any outbound_denied_* outcome."
+    },
+    "request_started_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "request_completed_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ],
+      "description": "When the request completed, was denied, or failed. Null is admissible for outbound_allowed_in_flight records; any terminal outcome MUST carry a non-null completion time."
+    },
+    "bytes_sent_estimate": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "integer",
+          "minimum": 0
+        }
+      ],
+      "description": "Approximate request byte count. Metadata-only; raw bodies are never attached. Null is admissible when the component does not measure egress bytes."
+    },
+    "bytes_received_estimate": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "integer",
+          "minimum": 0
+        }
+      ],
+      "description": "Approximate response byte count. Metadata-only; raw bodies are never attached. Null is admissible when the component does not measure ingress bytes."
+    },
+    "linked_approval_ticket_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref to the approval ticket that gated this request (when the permission class requires one). Null is admissible for read-only local-only and target-local classes."
+    },
+    "linked_browser_handoff_packet_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref to the browser handoff packet (ADR-0010) that minted this request (for example a system-browser auth callback). Null is admissible when the request was not browser-mediated."
+    },
+    "linked_authority_ticket_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ],
+      "description": "Opaque ref to the runtime authority ticket that admitted this external effect. Null is admissible for read-only or permission-implicit paths."
+    },
+    "transport_posture_at_event": {
+      "$ref": "#/$defs/transport_posture"
+    },
+    "redaction_class": {
+      "$ref": "#/$defs/redaction_class"
+    },
+    "export_safe": {
+      "type": "boolean",
+      "default": true,
+      "description": "True when the record is safe to include in a support bundle under metadata_safe_default without additional redaction. False marks a record requiring operator_only_restricted or internal_support_restricted handling before export."
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "description": "Repo-relative pointers into the narrative seed and any related companion documents."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Convention carries the fixture name, scenario, and contract sections exercised; never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Every outbound_denied_* outcome MUST carry a typed deny_reason_detail so diagnostics and support exports never surface generic 'network blocked' prose.",
+      "if": {
+        "properties": {
+          "outcome_class": {
+            "enum": [
+              "outbound_denied_by_policy",
+              "outbound_denied_by_user_setting",
+              "outbound_denied_by_offline_mode",
+              "outbound_denied_by_egress_class_boundary",
+              "outbound_denied_by_permission_missing",
+              "outbound_denied_by_trust_failure",
+              "outbound_denied_by_proxy_auth_required",
+              "outbound_denied_by_deny_all_profile"
+            ]
+          }
+        },
+        "required": [ "outcome_class" ]
+      },
+      "then": {
+        "required": [ "deny_reason_detail" ],
+        "properties": {
+          "deny_reason_detail": {
+            "not": { "type": "null" }
+          }
+        }
+      }
+    },
+    {
+      "description": "deny_all offline/deny-all posture MUST collapse to an outbound_denied_* outcome; allow/fail outcomes are non-conforming when the transport posture reports deny_all_enforced.",
+      "if": {
+        "properties": {
+          "transport_posture_at_event": {
+            "properties": {
+              "offline_or_deny_all_state": { "const": "deny_all_enforced" }
+            },
+            "required": [ "offline_or_deny_all_state" ]
+          }
+        },
+        "required": [ "transport_posture_at_event" ]
+      },
+      "then": {
+        "properties": {
+          "outcome_class": {
+            "enum": [
+              "outbound_denied_by_deny_all_profile",
+              "outbound_denied_by_policy",
+              "outbound_denied_by_offline_mode",
+              "outbound_denied_by_user_setting",
+              "outbound_denied_by_egress_class_boundary",
+              "outbound_denied_by_permission_missing"
+            ]
+          },
+          "egress_class": {
+            "enum": [
+              "local_only",
+              "target_local",
+              "deny_all"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "air_gapped deployment profile MUST NOT carry public_internet egress and MUST route through air_gap_no_network_route or mirror_proxy_route. managed_relay_route and remote_target_originated_route remain admissible for managed or remote-target traffic that stayed inside the offline boundary.",
+      "if": {
+        "properties": {
+          "transport_posture_at_event": {
+            "properties": {
+              "active_deployment_profile": { "const": "air_gapped" }
+            },
+            "required": [ "active_deployment_profile" ]
+          }
+        },
+        "required": [ "transport_posture_at_event" ]
+      },
+      "then": {
+        "properties": {
+          "egress_class": {
+            "not": { "const": "public_internet" }
+          },
+          "route_class": {
+            "enum": [
+              "direct_local_loopback_route",
+              "direct_target_local_route",
+              "mirror_proxy_route",
+              "air_gap_no_network_route",
+              "remote_target_originated_route"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Extension host components MUST carry a non-null permission_grant_ref on any egress_class other than local_only. Extension network access is permissioned and attributable, never ambient.",
+      "if": {
+        "properties": {
+          "component_class": { "const": "extension_host_component" },
+          "egress_class": {
+            "enum": [
+              "target_local",
+              "org_approved_external",
+              "public_internet"
+            ]
+          }
+        },
+        "required": [ "component_class", "egress_class" ]
+      },
+      "then": {
+        "required": [ "permission_grant_ref" ],
+        "properties": {
+          "permission_grant_ref": {
+            "not": { "type": "null" }
+          }
+        }
+      }
+    },
+    {
+      "description": "remote_connect and remote SSH / tunnel / bridged helper paths MUST target a remote target class or a tunnel-exposed target. Mismatched target/permission pairs are validation failures.",
+      "if": {
+        "properties": {
+          "permission_class": { "const": "remote_connect" }
+        },
+        "required": [ "permission_class" ]
+      },
+      "then": {
+        "properties": {
+          "target_class": {
+            "enum": [
+              "remote_ssh_target",
+              "remote_agent_target",
+              "managed_workspace_target",
+              "tunnel_exposed_target",
+              "bridged_helper_target"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "tunnel_publish permission MUST run under public_internet egress with a reviewable reason sentence; tunnel exposure cannot be described as target_local or org_approved_external without a re-scoping decision.",
+      "if": {
+        "properties": {
+          "permission_class": { "const": "tunnel_publish" }
+        },
+        "required": [ "permission_class" ]
+      },
+      "then": {
+        "properties": {
+          "egress_class": { "const": "public_internet" },
+          "target_class": { "const": "tunnel_exposed_target" }
+        },
+        "required": [ "reason_sentence" ]
+      }
+    },
+    {
+      "description": "auth_mode ssh_host_key_pinned MUST target a remote_ssh_target and carry a concrete ssh_host_key_provenance class (never not_applicable_non_ssh).",
+      "if": {
+        "properties": {
+          "auth_mode": { "const": "ssh_host_key_pinned" }
+        },
+        "required": [ "auth_mode" ]
+      },
+      "then": {
+        "properties": {
+          "target_class": { "const": "remote_ssh_target" },
+          "trust_posture": {
+            "properties": {
+              "ssh_host_key_provenance": {
+                "not": { "const": "not_applicable_non_ssh" }
+              }
+            },
+            "required": [ "ssh_host_key_provenance" ]
+          }
+        }
+      }
+    },
+    {
+      "description": "outbound_failed_ssh_host_key_mismatch outcome MUST carry ssh_host_key_provenance set to mismatched_rejected so support bundles surface the host-key story mechanically.",
+      "if": {
+        "properties": {
+          "outcome_class": { "const": "outbound_failed_ssh_host_key_mismatch" }
+        },
+        "required": [ "outcome_class" ]
+      },
+      "then": {
+        "properties": {
+          "trust_posture": {
+            "properties": {
+              "ssh_host_key_provenance": { "const": "mismatched_rejected" }
+            },
+            "required": [ "ssh_host_key_provenance" ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Any terminal outcome (not outbound_allowed_in_flight) MUST carry a non-null request_completed_at so latency / liveness reporting is mechanical.",
+      "if": {
+        "properties": {
+          "outcome_class": {
+            "not": { "const": "outbound_allowed_in_flight" }
+          }
+        },
+        "required": [ "outcome_class" ]
+      },
+      "then": {
+        "required": [ "request_completed_at" ],
+        "properties": {
+          "request_completed_at": {
+            "not": { "type": "null" }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable, snake_case-safe id. Safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw URLs, raw host names, raw IPs, raw SSH host keys, raw proxy credentials, raw CA bundle bytes, raw tokens, and raw path bytes never appear here."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence safe for banners, admin exports, support packets, diagnostics cards, and release evidence. Raw URLs, raw host names, raw payloads, raw tokens, and raw secret material MUST NOT appear."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$",
+      "description": "Opaque stable fingerprint safe to log and export. Raw key bytes, raw PEM bodies, raw tokens, and raw path bytes never appear here."
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment profile vocabulary re-exported from the locality-and-continuity seed."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle / support / release vocabulary."
+    },
+
+    "network_component_class": {
+      "type": "string",
+      "enum": [
+        "desktop_shell_component",
+        "cli_headless_component",
+        "update_client_component",
+        "extension_registry_component",
+        "extension_host_component",
+        "ai_broker_component",
+        "docs_pack_component",
+        "policy_distribution_component",
+        "telemetry_sink_component",
+        "remote_tunnel_component",
+        "remote_ssh_component",
+        "remote_agent_component",
+        "managed_control_plane_component",
+        "git_vcs_component",
+        "notebook_kernel_component",
+        "debugger_symbol_component",
+        "api_client_component",
+        "mirror_refresh_component",
+        "browser_handoff_launcher_component",
+        "provider_callback_receiver_component",
+        "heuristic_unknown_component"
+      ],
+      "description": "Frozen network-component vocabulary. Every network-capable surface of the desktop, CLI/headless, extension host, AI, remote, and provider planes attributes to exactly one class. heuristic_unknown_component is admissible only as a repair-only placeholder while a new component class is being seated into the matrix."
+    },
+
+    "network_permission_class": {
+      "type": "string",
+      "enum": [
+        "core_update",
+        "registry_read",
+        "registry_write",
+        "ai_context_egress",
+        "ai_tool_egress",
+        "docs_fetch",
+        "remote_connect",
+        "vcs_network",
+        "extension_network",
+        "policy_refresh",
+        "telemetry_send",
+        "tunnel_publish",
+        "provider_callback_inbound",
+        "mirror_refresh",
+        "browser_handoff_launch",
+        "api_client_request"
+      ],
+      "description": "Frozen network-permission vocabulary. Re-exported from the Technical Architecture Appendix G network-and-transport-policy matrix. Adding a value is additive-minor and MUST land a row in artifacts/network/egress_classes.yaml in the same change."
+    },
+
+    "network_target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "device_local_loopback_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "connected_provider_target",
+        "system_browser_target",
+        "embedded_webview_target",
+        "mirror_endpoint_target",
+        "private_registry_target",
+        "public_registry_target",
+        "ai_provider_endpoint_target",
+        "docs_mirror_target",
+        "policy_endpoint_target",
+        "update_feed_target",
+        "telemetry_sink_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target"
+      ],
+      "description": "Frozen network-target vocabulary. Cross-walks with the action_origin_target_labels matrix for execution targets; adds network-only targets (mirror endpoint, private or public registry, AI provider endpoint, docs mirror, policy endpoint, update feed, telemetry sink)."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_public",
+        "api_key_handle",
+        "oauth_delegated_handle",
+        "device_code_handle",
+        "mtls_client_cert",
+        "ssh_host_key_pinned",
+        "system_browser_callback_token",
+        "org_ca_bundle_pinned",
+        "managed_service_identity",
+        "step_up_authenticator_required",
+        "auth_unknown"
+      ],
+      "description": "Frozen auth-mode vocabulary. Every handle form rides on an opaque ref; raw tokens, raw secrets, raw cookies, raw basic-auth strings, and raw client certificates never cross this boundary."
+    },
+
+    "route_class": {
+      "type": "string",
+      "enum": [
+        "direct_local_loopback_route",
+        "direct_target_local_route",
+        "system_proxy_route",
+        "manual_proxy_route",
+        "pac_resolved_route",
+        "environment_proxy_route",
+        "mirror_proxy_route",
+        "managed_relay_route",
+        "remote_target_originated_route",
+        "browser_system_route",
+        "air_gap_no_network_route",
+        "heuristic_unknown_route"
+      ],
+      "description": "Frozen network-route vocabulary. direct_local_loopback_route is a device-local loopback attempt. direct_target_local_route is a remote-target-local attempt inside a remote session. The four proxy route values correspond to the four proxy-resolution modes in proxy_resolution_mode_class. mirror_proxy_route is a traffic path through an org-operated or vendor-operated mirror. managed_relay_route is the vendor-operated managed-service relay path. remote_target_originated_route names traffic originated from a remote target (SSH, agent, devcontainer, managed workspace) rather than from the client. browser_system_route is a system-browser-mediated hop (ADR-0010). air_gap_no_network_route is the no-network path in air-gapped profiles. heuristic_unknown_route is admissible only as a repair-only placeholder."
+    },
+
+    "egress_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "org_approved_external",
+        "public_internet",
+        "deny_all"
+      ],
+      "description": "Frozen egress vocabulary. local_only names device-local traffic (loopback, process-local RPC, local-only mirror). target_local names traffic local to a remote target (SSH host, remote agent, managed workspace) without crossing the internet. org_approved_external names traffic to a customer- or admin-approved external endpoint (private registry, enterprise mirror, policy endpoint, AI gateway running under customer-managed control plane). public_internet names traffic to any endpoint outside the org-approved allowlist. deny_all is the refusal class used by deny-all profiles or offline enforcement."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "outbound_allowed_completed",
+        "outbound_allowed_in_flight",
+        "outbound_allowed_completed_with_warning",
+        "outbound_denied_by_policy",
+        "outbound_denied_by_user_setting",
+        "outbound_denied_by_offline_mode",
+        "outbound_denied_by_egress_class_boundary",
+        "outbound_denied_by_permission_missing",
+        "outbound_denied_by_trust_failure",
+        "outbound_denied_by_proxy_auth_required",
+        "outbound_denied_by_deny_all_profile",
+        "outbound_failed_transport_error",
+        "outbound_failed_host_unreachable",
+        "outbound_failed_tls_verification",
+        "outbound_failed_ssh_host_key_mismatch",
+        "outbound_failed_unknown",
+        "inbound_callback_received",
+        "inbound_callback_refused"
+      ],
+      "description": "Frozen outcome vocabulary. outbound_allowed_in_flight covers long-lived streams (remote SSH, tunnels, AI streaming) that have not yet terminated. outbound_allowed_completed_with_warning covers cases where the request succeeded but a warning posture (stale trust root, mirror-past-window) applies. The eight outbound_denied_* values are the closed reasons a policy, setting, offline mode, egress-boundary, permission, trust, proxy-auth, or deny-all check refused. outbound_failed_* values are the closed reasons a transport attempt failed. inbound_callback_received and inbound_callback_refused cover the provider-callback inbound side (ADR-0010 browser handoff returns, webhook deliveries)."
+    },
+
+    "proxy_resolution_mode_class": {
+      "type": "string",
+      "enum": [
+        "system_proxy",
+        "pac_proxy",
+        "environment_proxy",
+        "manual_proxy",
+        "direct_no_proxy",
+        "proxy_unknown"
+      ],
+      "description": "Frozen proxy-resolution-mode vocabulary. system_proxy names the OS-native proxy setting path. pac_proxy names a proxy-auto-config file path. environment_proxy names the HTTPS_PROXY / HTTP_PROXY / NO_PROXY environment-variable path. manual_proxy names an explicit user- or admin-entered proxy endpoint. direct_no_proxy names a direct-connection posture. proxy_unknown is admissible only as a repair-only placeholder while the effective proxy is being resolved."
+    },
+
+    "proxy_resolution_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "proxy_resolution_mode" ],
+      "properties": {
+        "proxy_resolution_mode": { "$ref": "#/$defs/proxy_resolution_mode_class" },
+        "effective_proxy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the effective proxy endpoint resolved for this target on this profile. Raw URLs and raw proxy credentials MUST NOT appear. Null is admissible for direct_no_proxy and for proxy_unknown repair-only placeholders."
+        },
+        "resolution_source_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "pac_script_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ],
+          "description": "Opaque fingerprint of the resolved PAC script for pac_proxy mode. Raw PAC script bodies never appear."
+        }
+      },
+      "description": "Proxy-resolution envelope. Names the mode used, the effective proxy the component would have used (opaque), and a short reviewable sentence explaining how it was resolved."
+    },
+
+    "trust_store_source_class": {
+      "type": "string",
+      "enum": [
+        "os_trust_store",
+        "os_trust_store_plus_org_ca_bundle",
+        "pinned_control_plane_trust_only",
+        "air_gap_offline_trust_root",
+        "trust_store_unknown"
+      ],
+      "description": "Frozen trust-store-source vocabulary. os_trust_store is the platform default path. os_trust_store_plus_org_ca_bundle is the enterprise CA-bundle overlay path. pinned_control_plane_trust_only is the narrowed path used by managed control-plane or policy endpoints that pin a specific trust root. air_gap_offline_trust_root is the offline-bundle-derived trust root. trust_store_unknown is admissible only as a repair-only placeholder."
+    },
+
+    "ssh_host_key_provenance_class": {
+      "type": "string",
+      "enum": [
+        "known_hosts_entry_trusted",
+        "first_use_trust_on_first_use",
+        "pinned_by_policy",
+        "admin_policy_strict_required",
+        "mismatched_rejected",
+        "not_applicable_non_ssh"
+      ],
+      "description": "Frozen SSH-host-key-provenance vocabulary. known_hosts_entry_trusted names an already-trusted known_hosts entry. first_use_trust_on_first_use names a TOFU decision admissible only where the trust_on_first_use posture is permitted by policy. pinned_by_policy names a host-key pinned by admin policy. admin_policy_strict_required names the strict-mode posture where first-use trust is forbidden. mismatched_rejected names a rejected mismatch (host-key changed or did not match the pinned fingerprint). not_applicable_non_ssh is set for non-SSH attributions."
+    },
+
+    "trust_posture_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "trust_store_source", "ssh_host_key_provenance" ],
+      "properties": {
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "org_ca_bundle_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ],
+          "description": "Opaque fingerprint of the enterprise / org CA bundle in force. Non-null whenever trust_store_source is os_trust_store_plus_org_ca_bundle; null is admissible on the other classes."
+        },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs for the pinned control-plane trust roots. Non-empty whenever trust_store_source is pinned_control_plane_trust_only."
+        },
+        "ssh_host_key_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "ssh_host_key_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ],
+          "description": "Opaque fingerprint of the SSH host key presented by the target. Null is admissible for non-SSH attributions."
+        },
+        "tls_server_cert_chain_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ],
+          "description": "Opaque fingerprint of the verified TLS server certificate chain. Raw PEM bodies never appear."
+        },
+        "trust_posture_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Trust posture envelope covering TLS trust-store source, enterprise CA-bundle overlay, pinned control-plane trust roots, SSH host-key provenance, and the reviewable story. Raw certificate bodies, raw host keys, and raw trust-root PEM never appear here."
+    },
+
+    "mirror_route_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_direct_origin",
+        "customer_operated_mirror_active",
+        "vendor_published_mirror_active",
+        "offline_bundle_derived_mirror_active",
+        "mirror_only_no_direct_allowed",
+        "mirror_not_applicable"
+      ],
+      "description": "Frozen mirror-route vocabulary. no_mirror_direct_origin names the path with no mirror in play (direct origin reach). customer_operated_mirror_active, vendor_published_mirror_active, and offline_bundle_derived_mirror_active are the three active mirror classes the locality matrix already carries. mirror_only_no_direct_allowed is the enforced-mirror posture (direct origin is refused). mirror_not_applicable is the posture for local-only or target-local classes where mirrors do not apply."
+    },
+
+    "mirror_route_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "mirror_route_class" ],
+      "properties": {
+        "mirror_route_class": { "$ref": "#/$defs/mirror_route_class" },
+        "mirror_endpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the active mirror endpoint. Non-null for every mirror_*_active and mirror_only_no_direct_allowed class."
+        },
+        "mirror_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the active mirror snapshot id (cross-walks with the locality-and-continuity seed mirror_continuity_fields.mirror_snapshot_id)."
+        },
+        "mirror_freshness_class": {
+          "type": "string",
+          "enum": [
+            "mirror_fresh_within_window",
+            "mirror_within_extended_window",
+            "mirror_past_extended_window",
+            "mirror_freshness_unknown",
+            "not_applicable"
+          ],
+          "description": "Mirror freshness class re-exported from the locality-and-continuity seed."
+        }
+      },
+      "description": "Mirror route envelope. Names the mirror class in force and an opaque ref for the active mirror endpoint / snapshot. Raw mirror URLs never appear."
+    },
+
+    "offline_or_deny_all_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic"
+      ],
+      "description": "Frozen offline / deny-all state vocabulary. online_live_allowed is the default online posture. online_mirror_only is the enforced-mirror posture. offline_grace_preserved names the bounded offline grace window during which cached posture remains authoritative. offline_air_gapped is the air-gapped deployment-profile posture. deny_all_enforced is the refuse-all-network posture (user, policy, or emergency). network_disabled_by_user names the user-initiated global disable. network_degraded_heuristic is admissible only as a repair-only placeholder while degraded state is being classified."
+    },
+
+    "transport_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proxy_resolution_mode",
+        "trust_store_source",
+        "ssh_host_key_default_provenance",
+        "mirror_route_class",
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "proxy_resolution_mode": { "$ref": "#/$defs/proxy_resolution_mode_class" },
+        "effective_proxy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "org_ca_bundle_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ]
+        },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "ssh_host_key_default_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "mirror_route_class": { "$ref": "#/$defs/mirror_route_class" },
+        "mirror_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "active_deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "offline_or_deny_all_state": { "$ref": "#/$defs/offline_or_deny_all_state_class" },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Inspectable current transport-posture object. Status items, diagnostics cards, support exports, admin-audit packets, and boundary-manifest rows reference this object without recomputing field names. The object captures proxy mode, trust-store source, org CA-bundle overlay, pinned-control-plane trust refs, SSH host-key default provenance, mirror route, active policy / deployment profile, and the offline / deny-all state."
+    },
+
+    "deny_reason_detail_class": {
+      "type": "string",
+      "enum": [
+        "admin_policy_denied",
+        "user_setting_denied",
+        "offline_mode_denied",
+        "air_gap_profile_denied",
+        "egress_class_boundary_denied",
+        "permission_not_granted",
+        "permission_floor_blocked",
+        "extension_permission_missing",
+        "extension_network_capability_revoked",
+        "approval_ticket_missing",
+        "approval_ticket_expired",
+        "step_up_required_not_satisfied",
+        "trust_store_verification_failed",
+        "org_ca_bundle_not_loaded",
+        "pinned_control_plane_trust_mismatch",
+        "ssh_host_key_strict_mode_rejected",
+        "proxy_auth_required",
+        "proxy_auth_denied",
+        "proxy_unreachable",
+        "deny_all_profile_enforced",
+        "region_pinned_target_out_of_region",
+        "freshness_floor_unmet",
+        "deny_reason_unknown_requires_review"
+      ],
+      "description": "Frozen deny-reason-detail vocabulary. Every outbound_denied_* outcome resolves against one of these reasons so diagnostics and support exports never surface generic 'network blocked' prose."
+    },
+
+    "deny_reason_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "deny_reason_class", "deny_reason_sentence" ],
+      "properties": {
+        "deny_reason_class": { "$ref": "#/$defs/deny_reason_detail_class" },
+        "deny_reason_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "recovery_hint_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_rule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the policy-bundle rule entry that denied the request, when deny_reason_class is admin_policy_denied."
+        },
+        "user_setting_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the effective-setting entry that denied the request, when deny_reason_class is user_setting_denied."
+        }
+      },
+      "description": "Typed deny detail block attached to every outbound_denied_* outcome."
+    }
+  }
+}

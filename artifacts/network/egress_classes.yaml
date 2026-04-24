@@ -1,0 +1,1288 @@
+# Egress-class, permission-class, target-class, auth-mode, route,
+# proxy-resolution-mode, trust-store-source, SSH host-key provenance,
+# mirror-route, offline-or-deny-all state, outcome, and deny-reason
+# matrix.
+#
+# Machine-readable companion to docs/network/transport_governance_seed.md.
+# Schema companion: schemas/network/network_attribution_record.schema.json.
+# Fixture companion: fixtures/network/connectivity_cases/.
+#
+# This file freezes the shared transport vocabulary the desktop shell,
+# CLI / headless runner, update client, extension registry, extension
+# host, AI broker, docs pack, policy distribution, telemetry sink,
+# remote tunnel, remote SSH, remote agent, managed control plane, git
+# VCS, notebook kernel, debugger / symbol, API client, mirror refresh,
+# browser handoff launcher, and provider callback receiver components
+# all resolve against. One row per permission class. Every row pins
+# the admissible target classes, admissible route classes, admissible
+# egress classes, admissible auth modes, default redaction class, and
+# the set of deny-reason classes that may be minted when the request
+# is refused. Egress-class boundaries, trust posture, mirror route,
+# and offline / deny-all posture are enforced by the schema companion
+# and re-verified by fixture conformance tests.
+#
+# Rules:
+#   - Every row MUST name exactly one permission_class value from the
+#     frozen vocabulary and MUST list non-empty admissible target,
+#     route, egress, and auth-mode sets.
+#   - Adding a value to any vocabulary (permission class, target
+#     class, route class, egress class, auth-mode class, proxy-mode
+#     class, trust-store-source class, SSH host-key provenance
+#     class, mirror-route class, offline / deny-all state class,
+#     outcome class, deny-reason class, component class) is
+#     additive-minor: bump schema_version, update this file, update
+#     the schema companion, and update the narrative seed in the
+#     same change.
+#   - Repurposing any existing token is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml
+#     co-signed by security_trust_review and product_scope_review.
+#   - Milestone slugs MUST NOT appear in any id, path, or
+#     description field.
+#   - Desktop and CLI / headless flows MUST resolve proxy, trust,
+#     SSH host-key, mirror-route, and offline / deny-all postures
+#     against this file. A CLI-only or desktop-only override is
+#     not admissible.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/network/transport_governance_seed.md
+packet_schema_source: schemas/network/network_attribution_record.schema.json
+fixture_source: fixtures/network/connectivity_cases/
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.42 Network, proxy, certificates, and transport-governance architecture"
+      - "§5.27 desktop-platform conformance row for proxy and trust stores"
+      - "§5.45 managed service and enterprise controls"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Appendix G Network and Transport Policy Matrix"
+      - "Appendix O enterprise-control boundaries"
+      - "§9.6 managed-service separation"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "transport-governance layer"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "status-item transport posture surface"
+
+related_seeds_and_adrs:
+  - docs/adr/0001-identity-modes.md
+  - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  - docs/deployment/locality_and_continuity_seed.md
+  - docs/identity/offline_entitlement_and_policy_seed.md
+  - docs/governance/runtime_authority_contract.md
+  - docs/runtime/origin_target_route_taxonomy.md
+  - docs/platform/desktop_platform_conformance_matrix.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. The schema companion MUST carry identical enum
+# sets. Tooling cross-validates this file against the schema on every
+# change.
+# -----------------------------------------------------------------------------
+
+network_component_class_vocabulary:
+  - desktop_shell_component
+  - cli_headless_component
+  - update_client_component
+  - extension_registry_component
+  - extension_host_component
+  - ai_broker_component
+  - docs_pack_component
+  - policy_distribution_component
+  - telemetry_sink_component
+  - remote_tunnel_component
+  - remote_ssh_component
+  - remote_agent_component
+  - managed_control_plane_component
+  - git_vcs_component
+  - notebook_kernel_component
+  - debugger_symbol_component
+  - api_client_component
+  - mirror_refresh_component
+  - browser_handoff_launcher_component
+  - provider_callback_receiver_component
+  - heuristic_unknown_component
+
+network_permission_class_vocabulary:
+  - core_update
+  - registry_read
+  - registry_write
+  - ai_context_egress
+  - ai_tool_egress
+  - docs_fetch
+  - remote_connect
+  - vcs_network
+  - extension_network
+  - policy_refresh
+  - telemetry_send
+  - tunnel_publish
+  - provider_callback_inbound
+  - mirror_refresh
+  - browser_handoff_launch
+  - api_client_request
+
+network_target_class_vocabulary:
+  - local_host_target
+  - device_local_loopback_target
+  - remote_ssh_target
+  - remote_agent_target
+  - managed_workspace_target
+  - connected_provider_target
+  - system_browser_target
+  - embedded_webview_target
+  - mirror_endpoint_target
+  - private_registry_target
+  - public_registry_target
+  - ai_provider_endpoint_target
+  - docs_mirror_target
+  - policy_endpoint_target
+  - update_feed_target
+  - telemetry_sink_target
+  - tunnel_exposed_target
+  - bridged_helper_target
+  - unknown_target
+
+auth_mode_class_vocabulary:
+  - no_auth_public
+  - api_key_handle
+  - oauth_delegated_handle
+  - device_code_handle
+  - mtls_client_cert
+  - ssh_host_key_pinned
+  - system_browser_callback_token
+  - org_ca_bundle_pinned
+  - managed_service_identity
+  - step_up_authenticator_required
+  - auth_unknown
+
+route_class_vocabulary:
+  - direct_local_loopback_route
+  - direct_target_local_route
+  - system_proxy_route
+  - manual_proxy_route
+  - pac_resolved_route
+  - environment_proxy_route
+  - mirror_proxy_route
+  - managed_relay_route
+  - remote_target_originated_route
+  - browser_system_route
+  - air_gap_no_network_route
+  - heuristic_unknown_route
+
+egress_class_vocabulary:
+  - local_only
+  - target_local
+  - org_approved_external
+  - public_internet
+  - deny_all
+
+proxy_resolution_mode_class_vocabulary:
+  - system_proxy
+  - pac_proxy
+  - environment_proxy
+  - manual_proxy
+  - direct_no_proxy
+  - proxy_unknown
+
+trust_store_source_class_vocabulary:
+  - os_trust_store
+  - os_trust_store_plus_org_ca_bundle
+  - pinned_control_plane_trust_only
+  - air_gap_offline_trust_root
+  - trust_store_unknown
+
+ssh_host_key_provenance_class_vocabulary:
+  - known_hosts_entry_trusted
+  - first_use_trust_on_first_use
+  - pinned_by_policy
+  - admin_policy_strict_required
+  - mismatched_rejected
+  - not_applicable_non_ssh
+
+mirror_route_class_vocabulary:
+  - no_mirror_direct_origin
+  - customer_operated_mirror_active
+  - vendor_published_mirror_active
+  - offline_bundle_derived_mirror_active
+  - mirror_only_no_direct_allowed
+  - mirror_not_applicable
+
+offline_or_deny_all_state_class_vocabulary:
+  - online_live_allowed
+  - online_mirror_only
+  - offline_grace_preserved
+  - offline_air_gapped
+  - deny_all_enforced
+  - network_disabled_by_user
+  - network_degraded_heuristic
+
+outcome_class_vocabulary:
+  - outbound_allowed_completed
+  - outbound_allowed_in_flight
+  - outbound_allowed_completed_with_warning
+  - outbound_denied_by_policy
+  - outbound_denied_by_user_setting
+  - outbound_denied_by_offline_mode
+  - outbound_denied_by_egress_class_boundary
+  - outbound_denied_by_permission_missing
+  - outbound_denied_by_trust_failure
+  - outbound_denied_by_proxy_auth_required
+  - outbound_denied_by_deny_all_profile
+  - outbound_failed_transport_error
+  - outbound_failed_host_unreachable
+  - outbound_failed_tls_verification
+  - outbound_failed_ssh_host_key_mismatch
+  - outbound_failed_unknown
+  - inbound_callback_received
+  - inbound_callback_refused
+
+deny_reason_detail_class_vocabulary:
+  - admin_policy_denied
+  - user_setting_denied
+  - offline_mode_denied
+  - air_gap_profile_denied
+  - egress_class_boundary_denied
+  - permission_not_granted
+  - permission_floor_blocked
+  - extension_permission_missing
+  - extension_network_capability_revoked
+  - approval_ticket_missing
+  - approval_ticket_expired
+  - step_up_required_not_satisfied
+  - trust_store_verification_failed
+  - org_ca_bundle_not_loaded
+  - pinned_control_plane_trust_mismatch
+  - ssh_host_key_strict_mode_rejected
+  - proxy_auth_required
+  - proxy_auth_denied
+  - proxy_unreachable
+  - deny_all_profile_enforced
+  - region_pinned_target_out_of_region
+  - freshness_floor_unmet
+  - deny_reason_unknown_requires_review
+
+redaction_class_vocabulary:
+  - metadata_safe_default
+  - operator_only_restricted
+  - internal_support_restricted
+  - signing_evidence_only
+
+# -----------------------------------------------------------------------------
+# Proxy-resolution-mode rows.
+# -----------------------------------------------------------------------------
+
+proxy_resolution_modes:
+
+  - proxy_resolution_mode: system_proxy
+    description: >
+      Use the OS-native proxy setting. Desktop and CLI / headless
+      MUST resolve identically on a given platform profile; a CLI
+      bypass is not admissible.
+    platform_sources:
+      macos: system_network_proxy_settings
+      windows: winhttp_system_proxy_settings
+      linux: gsettings_or_env_source_for_claimed_display_stack
+    effective_proxy_disclosure: required_per_target_and_profile
+
+  - proxy_resolution_mode: pac_proxy
+    description: >
+      Resolve proxy via a PAC (proxy auto-config) script. The PAC
+      script fingerprint is opaque; raw PAC script bodies never
+      cross the attribution boundary.
+    platform_sources:
+      macos: system_network_proxy_settings_auto_config
+      windows: winhttp_pac_file
+      linux: gsettings_auto_config
+    effective_proxy_disclosure: required_per_target_and_profile
+
+  - proxy_resolution_mode: environment_proxy
+    description: >
+      Resolve proxy via HTTPS_PROXY, HTTP_PROXY, ALL_PROXY, and
+      NO_PROXY environment variables. CLI / headless flows
+      explicitly inherit this resolution when run in an env with
+      these variables set.
+    platform_sources:
+      all: process_environment_variables
+    effective_proxy_disclosure: required_per_target_and_profile
+
+  - proxy_resolution_mode: manual_proxy
+    description: >
+      User- or admin-entered proxy endpoint. Policy-bound manual
+      proxies override user-entered ones; the effective proxy ref
+      disclosed to diagnostics is the policy-bound one.
+    platform_sources:
+      all: aureline_settings_definition
+    effective_proxy_disclosure: required_per_target_and_profile
+
+  - proxy_resolution_mode: direct_no_proxy
+    description: >
+      Direct connection with no proxy. Admissible only when the
+      egress class admits direct connection on the active
+      deployment profile.
+    effective_proxy_disclosure: required_per_target_and_profile
+
+  - proxy_resolution_mode: proxy_unknown
+    description: >
+      Repair-only placeholder while the effective proxy is being
+      resolved. Surfaces MUST display a reviewable sentence
+      explaining the unknown state; silently falling back to
+      direct is non-conforming.
+    effective_proxy_disclosure: required_per_target_and_profile
+
+# -----------------------------------------------------------------------------
+# Trust-store-source rows.
+# -----------------------------------------------------------------------------
+
+trust_store_sources:
+
+  - trust_store_source: os_trust_store
+    description: >
+      Platform-default trust store. macOS Keychain roots, Windows
+      certificate store, and the claimed Linux trust-store path
+      resolved by the desktop platform conformance matrix.
+    org_ca_bundle_overlay_allowed: false
+    pinned_control_plane_trust_overlay_allowed: false
+
+  - trust_store_source: os_trust_store_plus_org_ca_bundle
+    description: >
+      Platform-default trust store overlaid with an enterprise /
+      org CA bundle. org_ca_bundle_fingerprint MUST be non-null
+      on any attribution under this source. Common on corporate
+      networks with TLS interception.
+    org_ca_bundle_overlay_allowed: true
+    pinned_control_plane_trust_overlay_allowed: true
+
+  - trust_store_source: pinned_control_plane_trust_only
+    description: >
+      Narrowed trust path used by the managed control plane and
+      policy endpoints. The set of pinned control-plane trust
+      roots MUST be non-empty and MUST be disclosed by opaque
+      ref. Self-hosted and managed deployments use this source
+      on the control-plane route.
+    org_ca_bundle_overlay_allowed: false
+    pinned_control_plane_trust_overlay_allowed: true
+
+  - trust_store_source: air_gap_offline_trust_root
+    description: >
+      Offline-bundle-derived trust root. Used in air-gapped
+      profiles where no live trust refresh is admissible.
+    org_ca_bundle_overlay_allowed: true
+    pinned_control_plane_trust_overlay_allowed: true
+
+  - trust_store_source: trust_store_unknown
+    description: >
+      Repair-only placeholder while trust source is being
+      classified. Any outbound request MUST be gated by an
+      explicit user or policy decision before transitioning off
+      this placeholder.
+    org_ca_bundle_overlay_allowed: false
+    pinned_control_plane_trust_overlay_allowed: false
+
+# -----------------------------------------------------------------------------
+# SSH host-key provenance rows.
+# -----------------------------------------------------------------------------
+
+ssh_host_key_provenances:
+
+  - ssh_host_key_provenance: known_hosts_entry_trusted
+    description: >
+      Host-key is already trusted via a known_hosts entry. The
+      fingerprint is disclosed as an opaque fingerprint in
+      trust_posture.ssh_host_key_fingerprint.
+    admissible_under_strict_mode: true
+
+  - ssh_host_key_provenance: first_use_trust_on_first_use
+    description: >
+      Trust-on-first-use decision. Admissible only when the
+      effective trust_on_first_use policy posture permits it on
+      the active deployment profile. Enterprise / managed
+      profiles typically forbid TOFU.
+    admissible_under_strict_mode: false
+
+  - ssh_host_key_provenance: pinned_by_policy
+    description: >
+      Host-key is pinned by admin policy or a policy bundle
+      narrowing rule. Fingerprint mismatch on a pinned host MUST
+      surface as outbound_failed_ssh_host_key_mismatch with
+      mismatched_rejected.
+    admissible_under_strict_mode: true
+
+  - ssh_host_key_provenance: admin_policy_strict_required
+    description: >
+      Admin policy requires strict mode: TOFU is not admissible,
+      every new host requires an explicit admin-supplied pin or
+      a vetted known_hosts entry.
+    admissible_under_strict_mode: true
+
+  - ssh_host_key_provenance: mismatched_rejected
+    description: >
+      Host-key presented did not match the known or pinned
+      fingerprint. Attribution MUST surface
+      outbound_failed_ssh_host_key_mismatch.
+    admissible_under_strict_mode: true
+
+  - ssh_host_key_provenance: not_applicable_non_ssh
+    description: >
+      Set for non-SSH attributions.
+    admissible_under_strict_mode: true
+
+# -----------------------------------------------------------------------------
+# Mirror-route rows.
+# -----------------------------------------------------------------------------
+
+mirror_routes:
+
+  - mirror_route_class: no_mirror_direct_origin
+    description: >
+      No mirror is in play. Direct origin is reached if policy
+      permits on this profile.
+    air_gap_admissible: false
+
+  - mirror_route_class: customer_operated_mirror_active
+    description: >
+      Customer-operated mirror is in play. Mirror endpoint ref
+      and mirror snapshot ref MUST be disclosed.
+    air_gap_admissible: true
+
+  - mirror_route_class: vendor_published_mirror_active
+    description: >
+      Vendor-published mirror for the customer is in play.
+    air_gap_admissible: true
+
+  - mirror_route_class: offline_bundle_derived_mirror_active
+    description: >
+      Mirror is derived from an offline bundle (air-gap transfer
+      or sneakernet). Attribution posture MUST name the offline
+      bundle by opaque ref.
+    air_gap_admissible: true
+
+  - mirror_route_class: mirror_only_no_direct_allowed
+    description: >
+      Enforced-mirror posture: direct origin is refused. Any
+      direct-origin attempt is an outbound_denied_by_policy or
+      outbound_denied_by_egress_class_boundary event.
+    air_gap_admissible: true
+
+  - mirror_route_class: mirror_not_applicable
+    description: >
+      Mirrors do not apply (local-only or target-local classes).
+    air_gap_admissible: true
+
+# -----------------------------------------------------------------------------
+# Egress-class rows with admissible route, trust posture, and
+# deny-reason sets.
+# -----------------------------------------------------------------------------
+
+egress_classes:
+
+  - egress_class: local_only
+    description: >
+      Device-local traffic. Loopback, process-local RPC, and
+      device-local mirrors. No proxy and no trust store is
+      involved; trust_store_source is typically os_trust_store
+      by default and is often never exercised on the wire.
+    admissible_route_classes:
+      - direct_local_loopback_route
+      - mirror_proxy_route
+    admissible_proxy_resolution_modes:
+      - direct_no_proxy
+      - system_proxy
+      - manual_proxy
+      - environment_proxy
+      - pac_proxy
+      - proxy_unknown
+    admissible_trust_store_sources:
+      - os_trust_store
+      - os_trust_store_plus_org_ca_bundle
+      - pinned_control_plane_trust_only
+      - air_gap_offline_trust_root
+      - trust_store_unknown
+    permitted_under_air_gap: true
+    permitted_under_deny_all: true
+
+  - egress_class: target_local
+    description: >
+      Traffic local to a remote target (remote SSH host, remote
+      agent, managed workspace, devcontainer) that does not
+      traverse the public internet. Proxy and trust postures
+      apply when the traffic goes through the target-originated
+      route.
+    admissible_route_classes:
+      - direct_target_local_route
+      - remote_target_originated_route
+      - managed_relay_route
+      - mirror_proxy_route
+    admissible_proxy_resolution_modes:
+      - direct_no_proxy
+      - system_proxy
+      - manual_proxy
+      - environment_proxy
+      - pac_proxy
+      - proxy_unknown
+    admissible_trust_store_sources:
+      - os_trust_store
+      - os_trust_store_plus_org_ca_bundle
+      - pinned_control_plane_trust_only
+      - air_gap_offline_trust_root
+    permitted_under_air_gap: true
+    permitted_under_deny_all: false
+
+  - egress_class: org_approved_external
+    description: >
+      Traffic to a customer- or admin-approved external endpoint.
+      Enterprise mirrors, private registries, managed AI
+      gateways, managed control planes, and customer-operated
+      telemetry sinks resolve here. Typically reached through an
+      enterprise proxy or a mirror.
+    admissible_route_classes:
+      - system_proxy_route
+      - manual_proxy_route
+      - pac_resolved_route
+      - environment_proxy_route
+      - mirror_proxy_route
+      - managed_relay_route
+      - direct_target_local_route
+      - browser_system_route
+    admissible_proxy_resolution_modes:
+      - system_proxy
+      - pac_proxy
+      - environment_proxy
+      - manual_proxy
+      - direct_no_proxy
+    admissible_trust_store_sources:
+      - os_trust_store_plus_org_ca_bundle
+      - pinned_control_plane_trust_only
+      - air_gap_offline_trust_root
+      - os_trust_store
+    permitted_under_air_gap: false
+    permitted_under_deny_all: false
+
+  - egress_class: public_internet
+    description: >
+      Traffic to any endpoint outside the org-approved allowlist.
+      Public package mirrors, vendor-public AI endpoints, public
+      docs mirrors, tunnel-exposed routes, public provider
+      callbacks, and unrestricted extension egress resolve here.
+      Denied by default on air-gapped profiles and by many
+      managed / self-hosted policies.
+    admissible_route_classes:
+      - system_proxy_route
+      - manual_proxy_route
+      - pac_resolved_route
+      - environment_proxy_route
+      - mirror_proxy_route
+      - browser_system_route
+    admissible_proxy_resolution_modes:
+      - system_proxy
+      - pac_proxy
+      - environment_proxy
+      - manual_proxy
+      - direct_no_proxy
+    admissible_trust_store_sources:
+      - os_trust_store
+      - os_trust_store_plus_org_ca_bundle
+    permitted_under_air_gap: false
+    permitted_under_deny_all: false
+
+  - egress_class: deny_all
+    description: >
+      Refusal class for deny-all profiles or offline-enforced
+      posture. Any outbound attempt MUST collapse to an
+      outbound_denied_* outcome.
+    admissible_route_classes:
+      - air_gap_no_network_route
+    admissible_proxy_resolution_modes:
+      - proxy_unknown
+      - direct_no_proxy
+    admissible_trust_store_sources:
+      - trust_store_unknown
+      - air_gap_offline_trust_root
+      - os_trust_store
+      - os_trust_store_plus_org_ca_bundle
+      - pinned_control_plane_trust_only
+    permitted_under_air_gap: true
+    permitted_under_deny_all: true
+
+# -----------------------------------------------------------------------------
+# Permission-class rows. Every row names the component classes that
+# may claim the permission, the admissible target classes, the
+# admissible egress classes, the admissible auth modes, the default
+# egress class on a nominal online_live_allowed posture, and the set
+# of deny-reason classes that may be minted when the request is
+# refused.
+# -----------------------------------------------------------------------------
+
+permission_rows:
+
+  - permission_class: core_update
+    surface: Updates
+    description: >
+      Aureline update client checks for and fetches signed update
+      artifacts from the update feed.
+    canonical_components:
+      - update_client_component
+    admissible_target_classes:
+      - update_feed_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - local_only
+    admissible_auth_modes:
+      - no_auth_public
+      - api_key_handle
+      - mtls_client_cert
+      - org_ca_bundle_pinned
+      - managed_service_identity
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - proxy_auth_denied
+      - proxy_unreachable
+      - freshness_floor_unmet
+      - deny_all_profile_enforced
+
+  - permission_class: registry_read
+    surface: Extension registry
+    description: >
+      Read extension metadata, publisher trust, version pins, and
+      signed manifests from the registry.
+    canonical_components:
+      - extension_registry_component
+      - desktop_shell_component
+      - cli_headless_component
+    admissible_target_classes:
+      - private_registry_target
+      - public_registry_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - local_only
+    admissible_auth_modes:
+      - no_auth_public
+      - api_key_handle
+      - oauth_delegated_handle
+      - mtls_client_cert
+      - org_ca_bundle_pinned
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - proxy_auth_denied
+      - deny_all_profile_enforced
+
+  - permission_class: registry_write
+    surface: Extension registry
+    description: >
+      Publish or update extension artifacts. Publisher-attested
+      action that MUST carry an approval ticket on managed and
+      enterprise profiles.
+    canonical_components:
+      - extension_registry_component
+      - cli_headless_component
+    admissible_target_classes:
+      - private_registry_target
+      - public_registry_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+    admissible_auth_modes:
+      - oauth_delegated_handle
+      - api_key_handle
+      - mtls_client_cert
+      - step_up_authenticator_required
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - permission_not_granted
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - step_up_required_not_satisfied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - deny_all_profile_enforced
+
+  - permission_class: ai_context_egress
+    surface: AI providers
+    description: >
+      Send workspace context to an AI provider for completion,
+      retrieval, or tool-call planning. Policy-bounded and opt-in
+      by default.
+    canonical_components:
+      - ai_broker_component
+    admissible_target_classes:
+      - ai_provider_endpoint_target
+      - managed_workspace_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - target_local
+    admissible_auth_modes:
+      - api_key_handle
+      - oauth_delegated_handle
+      - managed_service_identity
+      - mtls_client_cert
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - permission_not_granted
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - region_pinned_target_out_of_region
+      - trust_store_verification_failed
+      - deny_all_profile_enforced
+
+  - permission_class: ai_tool_egress
+    surface: AI providers
+    description: >
+      Let an AI tool call reach an external endpoint
+      (tool-use, MCP server, retrieval call). Admits only when
+      the tool grant is non-null and the approval ticket posture
+      is satisfied.
+    canonical_components:
+      - ai_broker_component
+    admissible_target_classes:
+      - ai_provider_endpoint_target
+      - connected_provider_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - target_local
+    admissible_auth_modes:
+      - api_key_handle
+      - oauth_delegated_handle
+      - managed_service_identity
+      - mtls_client_cert
+      - step_up_authenticator_required
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: deny_all
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - permission_not_granted
+      - permission_floor_blocked
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - step_up_required_not_satisfied
+      - egress_class_boundary_denied
+      - deny_all_profile_enforced
+
+  - permission_class: docs_fetch
+    surface: Docs and tutorial packs
+    description: >
+      Fetch or refresh docs-pack metadata and bodies from a
+      vendor-published or customer-mirrored docs endpoint.
+    canonical_components:
+      - docs_pack_component
+    admissible_target_classes:
+      - docs_mirror_target
+      - mirror_endpoint_target
+      - public_registry_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - local_only
+    admissible_auth_modes:
+      - no_auth_public
+      - api_key_handle
+      - org_ca_bundle_pinned
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - freshness_floor_unmet
+      - deny_all_profile_enforced
+
+  - permission_class: remote_connect
+    surface: Remote tunnels / brokers / SSH / agents
+    description: >
+      Establish or resume a remote connection (SSH, remote
+      agent, managed workspace, tunnel). Carries the SSH
+      host-key provenance rules.
+    canonical_components:
+      - remote_tunnel_component
+      - remote_ssh_component
+      - remote_agent_component
+      - managed_control_plane_component
+      - cli_headless_component
+      - desktop_shell_component
+    admissible_target_classes:
+      - remote_ssh_target
+      - remote_agent_target
+      - managed_workspace_target
+      - tunnel_exposed_target
+      - bridged_helper_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - target_local
+    admissible_auth_modes:
+      - ssh_host_key_pinned
+      - oauth_delegated_handle
+      - managed_service_identity
+      - mtls_client_cert
+      - step_up_authenticator_required
+      - system_browser_callback_token
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: target_local
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - air_gap_profile_denied
+      - permission_not_granted
+      - ssh_host_key_strict_mode_rejected
+      - trust_store_verification_failed
+      - pinned_control_plane_trust_mismatch
+      - proxy_auth_required
+      - proxy_auth_denied
+      - proxy_unreachable
+      - region_pinned_target_out_of_region
+      - deny_all_profile_enforced
+
+  - permission_class: vcs_network
+    surface: Git remotes
+    description: >
+      Push / pull / fetch / clone against a git remote (SSH or
+      HTTPS) on a private or enterprise mirror or a public host.
+    canonical_components:
+      - git_vcs_component
+      - cli_headless_component
+      - desktop_shell_component
+    admissible_target_classes:
+      - remote_ssh_target
+      - private_registry_target
+      - public_registry_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - target_local
+    admissible_auth_modes:
+      - ssh_host_key_pinned
+      - api_key_handle
+      - oauth_delegated_handle
+      - mtls_client_cert
+      - org_ca_bundle_pinned
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: target_local
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - ssh_host_key_strict_mode_rejected
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - proxy_auth_denied
+      - proxy_unreachable
+      - region_pinned_target_out_of_region
+      - deny_all_profile_enforced
+
+  - permission_class: extension_network
+    surface: Extension egress
+    description: >
+      Permissioned, attributable outbound traffic from an
+      extension. Denied unless the extension holds a non-null
+      network permission grant; attribution MUST carry the grant
+      ref.
+    canonical_components:
+      - extension_host_component
+    admissible_target_classes:
+      - connected_provider_target
+      - private_registry_target
+      - public_registry_target
+      - ai_provider_endpoint_target
+      - mirror_endpoint_target
+      - docs_mirror_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - local_only
+    admissible_auth_modes:
+      - no_auth_public
+      - api_key_handle
+      - oauth_delegated_handle
+      - mtls_client_cert
+      - managed_service_identity
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - extension_permission_missing
+      - extension_network_capability_revoked
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - permission_floor_blocked
+      - trust_store_verification_failed
+      - deny_all_profile_enforced
+
+  - permission_class: policy_refresh
+    surface: Policy / trust / identity
+    description: >
+      Refresh a signed policy bundle from the policy
+      distribution endpoint. Runs under the pinned control-plane
+      trust posture.
+    canonical_components:
+      - policy_distribution_component
+    admissible_target_classes:
+      - policy_endpoint_target
+      - mirror_endpoint_target
+    admissible_egress_classes:
+      - org_approved_external
+      - local_only
+    admissible_auth_modes:
+      - managed_service_identity
+      - mtls_client_cert
+      - org_ca_bundle_pinned
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - pinned_control_plane_trust_mismatch
+      - trust_store_verification_failed
+      - org_ca_bundle_not_loaded
+      - proxy_auth_required
+      - proxy_auth_denied
+      - freshness_floor_unmet
+      - deny_all_profile_enforced
+
+  - permission_class: telemetry_send
+    surface: Telemetry / diagnostics
+    description: >
+      Send privacy-labelled telemetry envelopes to the telemetry
+      sink. Defaults to off outside opt-in or managed paths.
+    canonical_components:
+      - telemetry_sink_component
+    admissible_target_classes:
+      - telemetry_sink_target
+    admissible_egress_classes:
+      - org_approved_external
+      - local_only
+    admissible_auth_modes:
+      - managed_service_identity
+      - api_key_handle
+      - mtls_client_cert
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - deny_all_profile_enforced
+
+  - permission_class: tunnel_publish
+    surface: Remote tunnels
+    description: >
+      Expose a local port or service via a tunnel. Public-visible
+      by definition; MUST carry a reason sentence and an
+      approval ticket on managed / enterprise profiles.
+    canonical_components:
+      - remote_tunnel_component
+    admissible_target_classes:
+      - tunnel_exposed_target
+    admissible_egress_classes:
+      - public_internet
+    admissible_auth_modes:
+      - oauth_delegated_handle
+      - managed_service_identity
+      - step_up_authenticator_required
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: public_internet
+      enterprise_online: public_internet
+      air_gapped: deny_all
+      managed_cloud: public_internet
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - step_up_required_not_satisfied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - deny_all_profile_enforced
+
+  - permission_class: provider_callback_inbound
+    surface: Provider callbacks
+    description: >
+      Receive a provider webhook / callback / browser-handoff
+      return (ADR-0010). Attribution is inbound.
+    canonical_components:
+      - provider_callback_receiver_component
+      - browser_handoff_launcher_component
+    admissible_target_classes:
+      - connected_provider_target
+      - system_browser_target
+      - local_host_target
+    admissible_egress_classes:
+      - local_only
+      - org_approved_external
+      - public_internet
+    admissible_auth_modes:
+      - system_browser_callback_token
+      - oauth_delegated_handle
+      - managed_service_identity
+      - no_auth_public
+    default_egress_by_profile:
+      individual_local: local_only
+      self_hosted: local_only
+      enterprise_online: local_only
+      air_gapped: local_only
+      managed_cloud: local_only
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - air_gap_profile_denied
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - trust_store_verification_failed
+      - deny_all_profile_enforced
+
+  - permission_class: mirror_refresh
+    surface: Mirror refresh
+    description: >
+      Refresh an org-operated or vendor-published mirror snapshot.
+    canonical_components:
+      - mirror_refresh_component
+    admissible_target_classes:
+      - mirror_endpoint_target
+      - private_registry_target
+      - public_registry_target
+      - docs_mirror_target
+      - update_feed_target
+    admissible_egress_classes:
+      - org_approved_external
+      - public_internet
+      - local_only
+    admissible_auth_modes:
+      - api_key_handle
+      - mtls_client_cert
+      - org_ca_bundle_pinned
+      - managed_service_identity
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - proxy_auth_denied
+      - freshness_floor_unmet
+      - deny_all_profile_enforced
+
+  - permission_class: browser_handoff_launch
+    surface: Browser handoff
+    description: >
+      Launch the system browser to hand off an action (auth,
+      provider callback, publish preview). ADR-0010 packet
+      governs the handoff shape.
+    canonical_components:
+      - browser_handoff_launcher_component
+      - desktop_shell_component
+      - cli_headless_component
+    admissible_target_classes:
+      - system_browser_target
+      - connected_provider_target
+    admissible_egress_classes:
+      - public_internet
+      - org_approved_external
+      - local_only
+    admissible_auth_modes:
+      - no_auth_public
+      - system_browser_callback_token
+      - oauth_delegated_handle
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: metadata_safe_default
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - air_gap_profile_denied
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - deny_all_profile_enforced
+
+  - permission_class: api_client_request
+    surface: API client
+    description: >
+      First-class HTTP / GraphQL request made from the API
+      client. Rides the shared transport governance layer and
+      the secret broker.
+    canonical_components:
+      - api_client_component
+    admissible_target_classes:
+      - ai_provider_endpoint_target
+      - connected_provider_target
+      - private_registry_target
+      - public_registry_target
+      - managed_workspace_target
+      - remote_agent_target
+      - mirror_endpoint_target
+      - local_host_target
+    admissible_egress_classes:
+      - local_only
+      - target_local
+      - org_approved_external
+      - public_internet
+    admissible_auth_modes:
+      - no_auth_public
+      - api_key_handle
+      - oauth_delegated_handle
+      - device_code_handle
+      - mtls_client_cert
+      - managed_service_identity
+      - step_up_authenticator_required
+    default_egress_by_profile:
+      individual_local: public_internet
+      self_hosted: org_approved_external
+      enterprise_online: org_approved_external
+      air_gapped: local_only
+      managed_cloud: org_approved_external
+    default_redaction_class: operator_only_restricted
+    admissible_deny_reason_classes:
+      - admin_policy_denied
+      - user_setting_denied
+      - offline_mode_denied
+      - air_gap_profile_denied
+      - egress_class_boundary_denied
+      - approval_ticket_missing
+      - approval_ticket_expired
+      - step_up_required_not_satisfied
+      - trust_store_verification_failed
+      - proxy_auth_required
+      - proxy_auth_denied
+      - deny_all_profile_enforced
+
+# -----------------------------------------------------------------------------
+# Seeded connectivity-case index. Each fixture in
+# fixtures/network/connectivity_cases/ resolves against this file and
+# the schema companion.
+# -----------------------------------------------------------------------------
+
+connectivity_case_index:
+  - fixture: individual_local_public_registry_allowed.json
+    scenario_tag: individual_profile_public_registry_read_allowed_under_system_proxy
+  - fixture: enterprise_online_pac_update_allowed.json
+    scenario_tag: enterprise_profile_pac_resolved_update_allowed_under_org_ca_bundle
+  - fixture: enterprise_online_ai_extension_denied_by_policy.json
+    scenario_tag: extension_ai_tool_egress_denied_by_admin_policy
+  - fixture: self_hosted_remote_ssh_host_key_strict_rejected.json
+    scenario_tag: self_hosted_profile_ssh_strict_mode_rejects_host_key_mismatch
+  - fixture: air_gapped_mirror_only_docs_allowed.json
+    scenario_tag: air_gapped_profile_docs_refreshed_via_offline_bundle_mirror
+  - fixture: managed_cloud_browser_handoff_auth_callback.json
+    scenario_tag: managed_cloud_system_browser_auth_callback_inbound
+  - fixture: enterprise_online_telemetry_denied_by_user_setting.json
+    scenario_tag: enterprise_profile_telemetry_send_denied_by_user_disable
+  - fixture: individual_local_deny_all_profile_all_blocked.json
+    scenario_tag: individual_profile_deny_all_blocks_every_egress_class
