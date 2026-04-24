@@ -1,0 +1,1213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/task_event_envelope.schema.json",
+  "title": "Aureline task-event envelope, source-kind vocabulary, confidence posture, and raw-payload retention contract",
+  "description": "Boundary schema for the canonical task-event envelope every build, test, diagnostic, and artifact-publication producer emits and every UI, CLI, support-export, replay, benchmark, and automation consumer reads. One envelope shape covers task lifecycle, test-case outcomes, diagnostics, artifact publication, log lines, progress ticks, and resource-usage samples without hiding the source origin, the adapter that normalized the source, or the confidence class of the emission. Raw event bodies, raw stdout / stderr byte streams, raw compiler output, raw stack traces, raw path bytes, and raw secret values never cross this boundary; producers retain raw payloads out-of-band and cite them through the raw_payload_retention block with opaque retention ids, size and hash summaries, a retention-class label drawn from artifacts/governance/record_class_registry.yaml, and a redaction-class label rather than inline bytes. Execution context is not re-minted here: every envelope cites an execution_context_id that resolves to the canonical record frozen in schemas/runtime/execution_context.schema.json and the shared snapshot in schemas/execution/context_snapshot.schema.json. The provenance block names the producer_tool, the adapter_id (which resolves to a row in artifacts/tooling/adapter_map.yaml), the adapter_capabilities asserted at emission, the normalization_passes the envelope went through, and the ingest_host_class so later support / compatibility / replay reviews can tell whether an event arrived first-party or through a heuristic bridge. Adding a new event_kind, source_kind, confidence_class, adapter_id token, payload_kind, normalization_pass, ingest_host_class, raw_payload_retention_class, or provenance_field is additive-minor and bumps the relevant record's task_event_envelope_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task_event_envelope_record" },
+    { "$ref": "#/$defs/task_event_replay_bundle_record" }
+  ],
+  "$defs": {
+    "task_event_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the task-event envelope contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "task_event_envelope_record",
+        "task_event_replay_bundle_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source at emission or ingest time. Producers MUST use a UTC instant; wall-clock skew handling rides the execution context, not this field."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, diff, and export. Raw secrets, raw absolute paths, raw URLs, raw stdout / stderr bytes, and raw payload bodies never appear here."
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Lowercase token id safe to embed in registry rows. Snake or kebab case."
+    },
+
+    "dotted_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted id used for producer_tool, adapter_id, and event_kind ids."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in preview and export surfaces. Raw payload bytes, raw command lines, raw env bodies, and raw secret values never appear here."
+    },
+
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$",
+      "description": "Hash-algorithm-prefixed digest (for example 'sha256:7b9f0b2d...') of a raw retained payload. The raw bytes themselves never cross this boundary."
+    },
+
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "task_started",
+        "task_progress_tick",
+        "task_completed",
+        "task_cancelled",
+        "task_failed",
+        "task_retry_scheduled",
+        "test_suite_started",
+        "test_case_started",
+        "test_case_completed",
+        "test_case_skipped",
+        "test_case_flaky",
+        "test_suite_completed",
+        "compile_unit_started",
+        "compile_unit_completed",
+        "build_target_started",
+        "build_target_completed",
+        "build_target_cached",
+        "artifact_published",
+        "artifact_withdrawn",
+        "diagnostic_reported",
+        "log_line_emitted",
+        "resource_usage_sample",
+        "debugger_breakpoint_hit",
+        "debugger_session_ended",
+        "unsupported_source_placeholder"
+      ],
+      "description": "Closed event-kind vocabulary. Any surface that wants to emit a new kind adds it here in an additive-minor change rather than minting a parallel vocabulary on the consuming side. unsupported_source_placeholder is the honest kind reserved for envelopes that preserve provenance from a source whose adapter has not been seeded; such envelopes MUST carry confidence_class = unknown and payload_kind = opaque_preservation_only."
+    },
+
+    "payload_kind": {
+      "type": "string",
+      "enum": [
+        "task_lifecycle",
+        "test_case_outcome",
+        "test_suite_outcome",
+        "build_target_lifecycle",
+        "compile_unit_lifecycle",
+        "artifact_publication",
+        "diagnostic",
+        "log_line",
+        "progress_tick",
+        "resource_usage",
+        "debugger_event",
+        "opaque_preservation_only"
+      ],
+      "description": "Closed payload-kind vocabulary naming the shape of the typed payload block. opaque_preservation_only means the envelope carries provenance and raw_payload_retention but no decoded typed payload; it is valid only when source_kind is heuristic_parser, ai_emitted_event, or user_reported_manual, or when event_kind is unsupported_source_placeholder."
+    },
+
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "native_task_runner",
+        "build_server_protocol_client",
+        "bazel_build_event_protocol",
+        "structured_tool_output_ingest",
+        "heuristic_parser",
+        "debugger_adapter_emitted",
+        "notebook_kernel_emitted",
+        "ai_emitted_event",
+        "user_reported_manual",
+        "replayed_from_support_bundle"
+      ],
+      "description": "Closed source-kind vocabulary. Names the originating producer class, not the adapter that normalized the event. A single event MAY be emitted through two adapters on two envelopes (one native, one heuristic); each envelope carries the source_kind that matches its own adapter, never flattens the pair."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Confidence posture of the emission. authoritative_from_source is reserved for native task runners, BSP, BEP, and debugger-adapter sources that own the event directly. structured_parse_match is reserved for lossless ingest of a well-formed structured tool output (JUnit XML, SARIF JSON, TAP, cargo --message-format=json, etc.). heuristic_best_effort is reserved for regex / line-oriented parsers and any ingest that reconstructs structure from unstructured output. degraded_partial is reserved for emissions that were authoritative or structured at emission but lost fields during ingest (truncation, oversize drop, missing optional field). unknown is reserved for unsupported_source_placeholder envelopes and for replay from a support bundle that did not carry the original confidence posture."
+    },
+
+    "ingest_host_class": {
+      "type": "string",
+      "enum": [
+        "in_process_native",
+        "in_process_adapter_plugin",
+        "out_of_process_sidecar",
+        "remote_agent",
+        "support_bundle_replay",
+        "automation_replay_harness"
+      ],
+      "description": "Where the adapter ran relative to the task runner. Used by compatibility and support review to tell whether an event was produced first-party or through a bridge."
+    },
+
+    "raw_payload_retention_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_ephemeral",
+        "retained_local_support_bundle_only",
+        "retained_local_with_replay_opt_in",
+        "retained_managed_with_redaction",
+        "retained_managed_with_broadened_capture"
+      ],
+      "description": "Retention posture for the raw pre-normalization payload. Class-level defaults come from the record-class registry; individual envelopes narrow through this label so later replay and support-export flows know whether the raw body still exists and whether it has been redaction-processed. retained_managed_with_broadened_capture requires an approval_ticket_ref at the envelope level."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "structured_fields_with_path_redaction",
+        "structured_fields_with_broadened_capture",
+        "none"
+      ],
+      "description": "Default export redaction class for the typed payload. metadata_and_hashes_only is the default. broadened_capture requires an approval_ticket_ref on the envelope."
+    },
+
+    "normalization_pass": {
+      "type": "string",
+      "enum": [
+        "raw_capture_only",
+        "utf8_validation_and_replace",
+        "ansi_escape_strip",
+        "line_framing_and_offset",
+        "path_redaction_pass",
+        "secret_pattern_scan",
+        "schema_canonicalization",
+        "source_specific_decoder",
+        "adapter_confidence_downgrade",
+        "adapter_confidence_preserved"
+      ],
+      "description": "Closed list of normalization passes an adapter MAY run between raw capture and emission. Ordering matters: raw_capture_only is always first and adapter_confidence_{downgrade,preserved} is always last. An envelope whose normalization_passes omits adapter_confidence_downgrade and adapter_confidence_preserved is non-conforming."
+    },
+
+    "adapter_capability": {
+      "type": "string",
+      "enum": [
+        "task_lifecycle",
+        "build_target_lifecycle",
+        "compile_unit_lifecycle",
+        "test_case_outcome",
+        "test_suite_outcome",
+        "artifact_publication",
+        "artifact_withdrawal",
+        "diagnostic_structured",
+        "diagnostic_freeform",
+        "log_line_streaming",
+        "log_line_snapshot_only",
+        "progress_tick",
+        "resource_usage_sample",
+        "debugger_event",
+        "unsupported_source_preservation"
+      ],
+      "description": "Capabilities an adapter may assert. Capability negotiation: consumers that ask for capabilities an adapter does not offer MUST treat the absent events as not_observed_by_adapter rather than not_happened_in_task."
+    },
+
+    "unsupported_source_posture": {
+      "type": "string",
+      "enum": [
+        "reject_with_explanation",
+        "accept_as_heuristic_only",
+        "accept_with_degraded_confidence",
+        "coexist_side_by_side_with_native",
+        "preserve_opaque_with_provenance"
+      ],
+      "description": "How an adapter handles a source it does not fully support. reject_with_explanation declines to emit. accept_as_heuristic_only emits with source_kind = heuristic_parser and confidence_class = heuristic_best_effort. accept_with_degraded_confidence preserves the source_kind but sets confidence_class = degraded_partial. coexist_side_by_side_with_native emits alongside a native adapter using distinct event_ids and the same trace_id. preserve_opaque_with_provenance emits an unsupported_source_placeholder envelope carrying only provenance and raw_payload_retention."
+    },
+
+    "workspace_or_target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_kind",
+        "workspace_id",
+        "target_ref"
+      ],
+      "properties": {
+        "identity_kind": {
+          "type": "string",
+          "enum": [
+            "workspace_scoped",
+            "target_scoped",
+            "workspace_and_target",
+            "global_no_workspace_no_target"
+          ]
+        },
+        "workspace_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Canonical target id from schemas/runtime/execution_context.schema.json. Raw hostnames / raw paths never appear here."
+        },
+        "build_target_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Build-system target id (for example //crates/aureline-core:lib, :cargo_build, :pytest_suite) when the envelope refers to one. Null for task-scoped envelopes that do not resolve to a single target."
+        },
+        "scope_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "current_root",
+                "named_workset",
+                "sparse_slice",
+                "full_workspace",
+                "policy_limited_view",
+                "review_workspace",
+                "companion_surface"
+              ]
+            }
+          ],
+          "description": "Re-export of schemas/runtime/execution_context.schema.json#scope_class when resolved. Null when not resolved yet."
+        }
+      },
+      "description": "Workspace and target identity for the envelope. global_no_workspace_no_target is valid only for ingest-infrastructure events (for example, adapter self-report)."
+    },
+
+    "raw_payload_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "raw_payload_ref",
+        "raw_payload_bytes_reported",
+        "raw_payload_hash",
+        "raw_payload_media_class"
+      ],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/raw_payload_retention_class" },
+        "raw_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque retention id pointing at the raw pre-normalization payload for later reparse or support review. MUST be non-null on retained_* retention classes. MUST be null on not_retained_ephemeral."
+        },
+        "raw_payload_bytes_reported": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Raw payload size in bytes as observed at capture time. Null only when the adapter legitimately cannot report a byte count (for example, streaming sources that closed before size was known)."
+        },
+        "raw_payload_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hex_hash" }
+          ],
+          "description": "Digest of the raw payload. MUST be non-null on retained_* retention classes whose raw_payload_bytes_reported is non-null and non-zero."
+        },
+        "raw_payload_media_class": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "utf8_text_plain",
+            "utf8_text_jsonl",
+            "utf8_text_json_document",
+            "utf8_text_xml_document",
+            "utf8_text_tap_stream",
+            "utf8_text_sarif_document",
+            "utf8_text_cargo_json_message_stream",
+            "utf8_text_build_event_stream_jsonl",
+            "utf8_text_bsp_json_rpc_stream",
+            "utf8_text_ansi_colored_stream",
+            "binary_opaque_blob",
+            "mixed_text_and_binary"
+          ],
+          "description": "Media class label for the raw payload. utf8_text_ansi_colored_stream is the legitimate label for heuristic parsers operating on a tty-framed stream; other adapters normalize to an ansi-stripped canonical stream first."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "truncation_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Short note naming why the raw payload was truncated (for example 'truncated at 2 MiB adapter cap'). MUST be non-null when raw_payload_bytes_reported is non-null and the producer applied a size cap."
+        }
+      },
+      "description": "Raw-payload retention block. Raw bytes do NOT cross this boundary; the block records how to find them in the producer's retention surface. Every stable consumer (support-export, replay harness, benchmark, AI broker) reads retention_class and raw_payload_ref rather than assuming bytes are inline."
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_tool",
+        "producer_version",
+        "adapter_id",
+        "adapter_capabilities_asserted",
+        "adapter_confidence_ceiling",
+        "ingest_host_class",
+        "normalization_passes",
+        "unsupported_source_posture"
+      ],
+      "properties": {
+        "producer_tool": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Dotted id of the originating tool (for example cargo.test, pytest, bazel.build_event_stream, jupyter.kernel_ipykernel, msbuild.binlog)."
+        },
+        "producer_version": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reported tool version string (opaque; exact-build identity for the tool lives in schemas/build/exact_build_identity.schema.json when the tool is part of the aureline build)."
+        },
+        "adapter_id": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Adapter id resolving to one row in artifacts/tooling/adapter_map.yaml. Adapter ids are stable across tool versions; adapter changes bump adapter_map_schema_version rather than the adapter_id."
+        },
+        "adapter_capabilities_asserted": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/adapter_capability" },
+          "description": "Capabilities this adapter asserted at emission. MUST be a subset of the capabilities declared on the adapter row. Empty arrays are non-conforming; every adapter asserts at least one capability."
+        },
+        "adapter_confidence_ceiling": { "$ref": "#/$defs/confidence_class" },
+        "ingest_host_class": { "$ref": "#/$defs/ingest_host_class" },
+        "normalization_passes": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/normalization_pass" },
+          "description": "Ordered list of normalization passes the envelope went through. The first entry MUST be raw_capture_only; the last entry MUST be adapter_confidence_downgrade or adapter_confidence_preserved."
+        },
+        "unsupported_source_posture": { "$ref": "#/$defs/unsupported_source_posture" },
+        "bridge_adapter_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dotted_id" },
+          "description": "Other adapter ids that emitted envelopes for the same originating event (used when coexist_side_by_side_with_native is the posture). The bridged envelopes share the trace_id but carry different event_ids."
+        }
+      },
+      "description": "Provenance block recording who produced the event, who normalized it, where the adapter ran, and what confidence ceiling the adapter is allowed to claim. Raw stack traces, raw command lines, and raw env bodies never appear here."
+    },
+
+    "task_lifecycle_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "timed_out",
+            "retry_scheduled"
+          ]
+        },
+        "exit_code": { "type": ["integer", "null"] },
+        "failure_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "tool_exit_nonzero",
+                "tool_crash",
+                "timeout",
+                "cancelled_by_user",
+                "cancelled_by_system",
+                "precondition_failed",
+                "environment_drift",
+                "policy_denied",
+                "adapter_error"
+              ]
+            }
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "test_case_outcome_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "test_case_id"],
+      "properties": {
+        "test_case_id": { "$ref": "#/$defs/opaque_id" },
+        "test_suite_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "errored",
+            "skipped",
+            "flaky_passed_on_retry",
+            "quarantined",
+            "unknown_parse_incomplete"
+          ]
+        },
+        "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "failure_category": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "assertion_failed",
+                "exception_thrown",
+                "panic",
+                "timeout",
+                "setup_failed",
+                "teardown_failed",
+                "adapter_parse_error",
+                "other"
+              ]
+            }
+          ]
+        },
+        "failure_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "build_target_lifecycle_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "build_target_id"],
+      "properties": {
+        "build_target_id": { "$ref": "#/$defs/opaque_id" },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "started",
+            "compiled",
+            "linked",
+            "succeeded",
+            "failed",
+            "cached",
+            "skipped"
+          ]
+        },
+        "cache_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "not_cached",
+                "local_cache_hit",
+                "remote_cache_hit",
+                "partial_cache_hit"
+              ]
+            }
+          ]
+        },
+        "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "artifact_publication_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "publication_state"],
+      "properties": {
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque artifact id. Raw output paths never appear here; the producer retains the path map out-of-band and cites it through raw_payload_retention."
+        },
+        "artifact_kind_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "library",
+                "executable",
+                "archive",
+                "test_report",
+                "coverage_report",
+                "doc_bundle",
+                "package",
+                "image",
+                "other"
+              ]
+            }
+          ]
+        },
+        "publication_state": {
+          "type": "string",
+          "enum": [
+            "published",
+            "overwritten",
+            "withdrawn",
+            "failed_to_publish"
+          ]
+        },
+        "content_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hex_hash" }
+          ]
+        },
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "diagnostic_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "diagnostic_message"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warning",
+            "note",
+            "info",
+            "hint"
+          ]
+        },
+        "diagnostic_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_token" }
+          ],
+          "description": "Tool-owned diagnostic code (for example rustc.E0308, pyright.reportUndefinedVariable). Null when the tool does not publish a code."
+        },
+        "diagnostic_message": { "$ref": "#/$defs/short_sentence" },
+        "file_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque file id (for example a vfs id) resolving to schemas/filesystem/**. Raw paths never appear here."
+        },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 1 },
+        "related_artifact_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "log_line_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stream_class"],
+      "properties": {
+        "stream_class": {
+          "type": "string",
+          "enum": [
+            "stdout",
+            "stderr",
+            "combined_interleaved",
+            "structured_framed"
+          ]
+        },
+        "line_offset": { "type": ["integer", "null"], "minimum": 0 },
+        "line_length_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "redacted_preview": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ],
+          "description": "Optional short redacted preview of the line safe for support review. MUST NOT carry raw secret values, raw env bodies, or raw path bytes. Null when the adapter does not preview log lines."
+        }
+      }
+    },
+
+    "progress_tick_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["progress_class"],
+      "properties": {
+        "progress_class": {
+          "type": "string",
+          "enum": [
+            "indeterminate",
+            "discrete_count",
+            "percent_known",
+            "phase_transition"
+          ]
+        },
+        "current_count": { "type": ["integer", "null"], "minimum": 0 },
+        "total_count": { "type": ["integer", "null"], "minimum": 0 },
+        "percent_complete": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "phase_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_token" }
+          ]
+        }
+      }
+    },
+
+    "resource_usage_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_class"],
+      "properties": {
+        "sample_class": {
+          "type": "string",
+          "enum": [
+            "cpu_time_ms",
+            "wall_time_ms",
+            "peak_rss_bytes",
+            "heap_allocated_bytes",
+            "thread_count",
+            "open_fd_count",
+            "io_read_bytes",
+            "io_write_bytes"
+          ]
+        },
+        "sample_value": { "type": ["number", "null"] },
+        "window_ms": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+
+    "debugger_event_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["debugger_event_class"],
+      "properties": {
+        "debugger_event_class": {
+          "type": "string",
+          "enum": [
+            "breakpoint_hit",
+            "step_completed",
+            "exception_raised",
+            "session_started",
+            "session_ended"
+          ]
+        },
+        "thread_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "frame_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "opaque_preservation_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preservation_reason"],
+      "properties": {
+        "preservation_reason": {
+          "type": "string",
+          "enum": [
+            "unsupported_source_no_adapter_seeded",
+            "adapter_parse_refused",
+            "replay_from_support_bundle_without_original_shape",
+            "policy_denied_decode"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Typed payload for unsupported_source_placeholder envelopes. Carries no decoded fields; the original bytes are in raw_payload_retention."
+    },
+
+    "typed_payload": {
+      "oneOf": [
+        { "$ref": "#/$defs/task_lifecycle_payload" },
+        { "$ref": "#/$defs/test_case_outcome_payload" },
+        { "$ref": "#/$defs/build_target_lifecycle_payload" },
+        { "$ref": "#/$defs/artifact_publication_payload" },
+        { "$ref": "#/$defs/diagnostic_payload" },
+        { "$ref": "#/$defs/log_line_payload" },
+        { "$ref": "#/$defs/progress_tick_payload" },
+        { "$ref": "#/$defs/resource_usage_payload" },
+        { "$ref": "#/$defs/debugger_event_payload" },
+        { "$ref": "#/$defs/opaque_preservation_payload" }
+      ],
+      "description": "Typed payload block. The concrete shape matches payload_kind; the envelope-level allOf gate enforces the pairing."
+    },
+
+    "task_event_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_envelope_schema_version",
+        "event_id",
+        "trace_id",
+        "captured_at",
+        "ingested_at",
+        "event_kind",
+        "payload_kind",
+        "source_kind",
+        "confidence_class",
+        "workspace_or_target_identity",
+        "execution_context_id",
+        "raw_payload_retention",
+        "provenance",
+        "typed_payload"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "task_event_envelope_record" },
+        "task_event_envelope_schema_version": { "$ref": "#/$defs/task_event_envelope_schema_version" },
+        "event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque stable id for this envelope. MUST be unique within one execution_context_id."
+        },
+        "trace_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque correlation id shared across envelopes that belong to the same task, build target, or test suite run. UI, CLI, and support consumers group envelopes by trace_id rather than re-deriving correlation from raw lines."
+        },
+        "parent_event_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional parent envelope id for nested lifecycle (for example a test_case_completed whose parent is the matching test_suite_started)."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "When the event was observed by the producer."
+        },
+        "ingested_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "When the adapter emitted this envelope. MAY equal captured_at when the producer is in-process."
+        },
+        "event_kind": { "$ref": "#/$defs/event_kind" },
+        "payload_kind": { "$ref": "#/$defs/payload_kind" },
+        "source_kind": { "$ref": "#/$defs/source_kind" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "workspace_or_target_identity": { "$ref": "#/$defs/workspace_or_target_identity" },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Execution context id resolving to schemas/runtime/execution_context.schema.json. Every envelope cites an execution context; task-event producers do not re-mint toolchain, target, or scope vocabulary."
+        },
+        "execution_context_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional snapshot id resolving to schemas/execution/context_snapshot.schema.json. Stable consumers that replay an envelope alongside a snapshot cite this ref; ephemeral consumers MAY leave it null."
+        },
+        "raw_payload_retention": { "$ref": "#/$defs/raw_payload_retention" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "ADR-0007 approval ticket ref required when raw_payload_retention.retention_class is retained_managed_with_broadened_capture or when raw_payload_retention.redaction_class is structured_fields_with_broadened_capture / none."
+        },
+        "typed_payload": { "$ref": "#/$defs/typed_payload" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema pointer used only by fixture files so editors can resolve the boundary schema; never part of the runtime record."
+        },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "description": "One task-event envelope. Every build, test, diagnostic, and artifact-publication event that crosses a boundary (UI, CLI, support-export, replay, benchmark, AI broker, automation consumer) rides one of these records."
+    },
+
+    "task_event_replay_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_envelope_schema_version",
+        "bundle_id",
+        "captured_at",
+        "trace_ids",
+        "execution_context_ids",
+        "envelope_count",
+        "adapter_map_ref",
+        "redaction_class",
+        "raw_payload_retention_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "task_event_replay_bundle_record" },
+        "task_event_envelope_schema_version": { "$ref": "#/$defs/task_event_envelope_schema_version" },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "trace_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "execution_context_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "envelope_count": { "type": "integer", "minimum": 0 },
+        "adapter_map_ref": {
+          "type": "string",
+          "description": "Points at the adapter-map row-set this bundle was emitted under (for example 'artifacts/tooling/adapter_map.yaml#seed.01')."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "raw_payload_retention_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retained_local_count",
+            "retained_managed_count",
+            "not_retained_count"
+          ],
+          "properties": {
+            "retained_local_count": { "type": "integer", "minimum": 0 },
+            "retained_managed_count": { "type": "integer", "minimum": 0 },
+            "not_retained_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema pointer used only by fixture files so editors can resolve the boundary schema; never part of the runtime record."
+        },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "description": "Replay-bundle index for a set of envelopes emitted during one task, build, or test run. Support bundles, diagnostics views, benchmark harnesses, and automation consumers cite a bundle and read envelopes through it rather than flattening events into summary strings."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "task_event_envelope_record: payload_kind and typed_payload shape must agree.",
+      "if": {
+        "properties": { "record_kind": { "const": "task_event_envelope_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "allOf": [
+          {
+            "if": { "properties": { "payload_kind": { "const": "task_lifecycle" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/task_lifecycle_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "test_case_outcome" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/test_case_outcome_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "test_suite_outcome" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/test_case_outcome_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "build_target_lifecycle" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/build_target_lifecycle_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "compile_unit_lifecycle" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/build_target_lifecycle_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "artifact_publication" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/artifact_publication_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "diagnostic" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/diagnostic_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "log_line" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/log_line_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "progress_tick" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/progress_tick_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "resource_usage" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/resource_usage_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "debugger_event" } }, "required": ["payload_kind"] },
+            "then": { "properties": { "typed_payload": { "$ref": "#/$defs/debugger_event_payload" } } }
+          },
+          {
+            "if": { "properties": { "payload_kind": { "const": "opaque_preservation_only" } }, "required": ["payload_kind"] },
+            "then": {
+              "properties": {
+                "typed_payload": { "$ref": "#/$defs/opaque_preservation_payload" },
+                "confidence_class": { "enum": ["heuristic_best_effort", "degraded_partial", "unknown"] }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "unsupported_source_placeholder envelopes MUST carry opaque_preservation_only payload and confidence_class = unknown.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "event_kind": { "const": "unsupported_source_placeholder" }
+        },
+        "required": ["record_kind", "event_kind"]
+      },
+      "then": {
+        "properties": {
+          "payload_kind": { "const": "opaque_preservation_only" },
+          "confidence_class": { "const": "unknown" }
+        },
+        "required": ["payload_kind", "confidence_class"]
+      }
+    },
+    {
+      "description": "Retained-* retention classes MUST carry a non-null raw_payload_ref; not_retained_ephemeral MUST carry a null raw_payload_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "raw_payload_retention": {
+            "properties": {
+              "retention_class": {
+                "enum": [
+                  "retained_local_support_bundle_only",
+                  "retained_local_with_replay_opt_in",
+                  "retained_managed_with_redaction",
+                  "retained_managed_with_broadened_capture"
+                ]
+              }
+            },
+            "required": ["retention_class"]
+          }
+        },
+        "required": ["record_kind", "raw_payload_retention"]
+      },
+      "then": {
+        "properties": {
+          "raw_payload_retention": {
+            "properties": {
+              "raw_payload_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["raw_payload_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "not_retained_ephemeral retention MUST carry a null raw_payload_ref and a null raw_payload_hash.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "raw_payload_retention": {
+            "properties": {
+              "retention_class": { "const": "not_retained_ephemeral" }
+            },
+            "required": ["retention_class"]
+          }
+        },
+        "required": ["record_kind", "raw_payload_retention"]
+      },
+      "then": {
+        "properties": {
+          "raw_payload_retention": {
+            "properties": {
+              "raw_payload_ref": { "type": "null" },
+              "raw_payload_hash": { "type": "null" }
+            },
+            "required": ["raw_payload_ref", "raw_payload_hash"]
+          }
+        }
+      }
+    },
+    {
+      "description": "retained_managed_with_broadened_capture and redaction_class = none or structured_fields_with_broadened_capture require a non-null envelope approval_ticket_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "raw_payload_retention": {
+            "anyOf": [
+              {
+                "properties": {
+                  "retention_class": { "const": "retained_managed_with_broadened_capture" }
+                },
+                "required": ["retention_class"]
+              },
+              {
+                "properties": {
+                  "redaction_class": {
+                    "enum": ["structured_fields_with_broadened_capture", "none"]
+                  }
+                },
+                "required": ["redaction_class"]
+              }
+            ]
+          }
+        },
+        "required": ["record_kind", "raw_payload_retention"]
+      },
+      "then": {
+        "properties": {
+          "approval_ticket_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["approval_ticket_ref"]
+      }
+    },
+    {
+      "description": "authoritative_from_source confidence is reserved for first-party source_kinds.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "confidence_class": { "const": "authoritative_from_source" }
+        },
+        "required": ["record_kind", "confidence_class"]
+      },
+      "then": {
+        "properties": {
+          "source_kind": {
+            "enum": [
+              "native_task_runner",
+              "build_server_protocol_client",
+              "bazel_build_event_protocol",
+              "debugger_adapter_emitted",
+              "notebook_kernel_emitted"
+            ]
+          }
+        },
+        "required": ["source_kind"]
+      }
+    },
+    {
+      "description": "heuristic_parser sources MUST NOT claim authoritative or structured_parse_match confidence.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "source_kind": { "const": "heuristic_parser" }
+        },
+        "required": ["record_kind", "source_kind"]
+      },
+      "then": {
+        "properties": {
+          "confidence_class": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["confidence_class"]
+      }
+    },
+    {
+      "description": "structured_tool_output_ingest sources MAY claim structured_parse_match but MUST NOT claim authoritative_from_source.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "source_kind": { "const": "structured_tool_output_ingest" }
+        },
+        "required": ["record_kind", "source_kind"]
+      },
+      "then": {
+        "properties": {
+          "confidence_class": {
+            "enum": ["structured_parse_match", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["confidence_class"]
+      }
+    },
+    {
+      "description": "Envelope confidence_class MUST NOT exceed the adapter's advertised ceiling on its row (enforced at ingest; re-asserted here so replays preserve the invariant).",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "provenance": {
+            "properties": {
+              "adapter_confidence_ceiling": { "const": "heuristic_best_effort" }
+            },
+            "required": ["adapter_confidence_ceiling"]
+          }
+        },
+        "required": ["record_kind", "provenance"]
+      },
+      "then": {
+        "properties": {
+          "confidence_class": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["confidence_class"]
+      }
+    },
+    {
+      "description": "workspace_or_target_identity.identity_kind must agree with workspace_id / target_ref presence.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "task_event_envelope_record" },
+          "workspace_or_target_identity": {
+            "properties": { "identity_kind": { "const": "global_no_workspace_no_target" } },
+            "required": ["identity_kind"]
+          }
+        },
+        "required": ["record_kind", "workspace_or_target_identity"]
+      },
+      "then": {
+        "properties": {
+          "workspace_or_target_identity": {
+            "properties": {
+              "workspace_id": { "type": "null" },
+              "target_ref": { "type": "null" }
+            },
+            "required": ["workspace_id", "target_ref"]
+          }
+        }
+      }
+    }
+  ]
+}

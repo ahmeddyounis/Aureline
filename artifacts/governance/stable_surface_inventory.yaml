@@ -753,9 +753,11 @@ rows:
     surface_id: tooling.task_event_envelope
     surface_title: Canonical task-event envelope
     summary: >
-      Shared task, test, debug, notebook, and support-export event
-      envelope reserved now so the eventual canonical schema lands on a
-      governed row instead of on prose only.
+      Shared task, test, debug, notebook, AI-broker, and support-
+      export event envelope. The contract, boundary schema, adapter
+      register, and replay-fixture corpus are seeded; producers and
+      consumers cite this row rather than minting parallel event
+      families per surface.
     maturity_lane: experimental
     contract_form: event_envelope_schema
     ownership:
@@ -767,47 +769,62 @@ rows:
       publication_artifact_refs:
         - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
         - artifacts/product/task_success_corpus_seed.yaml
-        - not_yet_seeded
+        - docs/tooling/task_event_contract_seed.md
+        - schemas/tooling/task_event_envelope.schema.json
+        - artifacts/tooling/adapter_map.yaml
+        - fixtures/tooling/task_event_replay/
       schema_or_interface_directory_refs:
-        - not_yet_seeded
+        - schemas/tooling/
+        - docs/tooling/
+        - artifacts/tooling/
+        - fixtures/tooling/task_event_replay/
     versioning:
       rule_summary: >
         One task-event schema epoch governs canonical fields, event
-        kinds, provenance, and confidence semantics; additive kinds are
-        allowed, while required-kind drift is breaking.
+        kinds, provenance, and confidence semantics; additive kinds,
+        payload kinds, source kinds, confidence classes, adapter
+        capabilities, normalization passes, ingest-host classes,
+        retention classes, and media classes are allowed and bump
+        task_event_envelope_schema_version; required-kind drift or
+        repurposing an existing value is breaking.
       compatibility_window_source_ref: >
         artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
     reader_writer_semantics:
       canonical_writers:
-        - task_test_debug_and_notebook_event_producers
+        - task_test_debug_notebook_debugger_ai_and_automation_event_producers
       canonical_readers:
-        - support_export_replay_benchmark_and_release_consumers
+        - desktop_task_pane_cli_support_export_replay_benchmark_ai_broker_and_release_consumers
       reader_semantics:
-        - Readers preserve canonical event fields and provenance instead of renaming them per feature lane.
+        - Readers preserve canonical event fields, source kind, confidence class, adapter provenance, and raw-payload retention block instead of renaming them per feature lane.
         - Readers fail closed on required-kind drift and may preserve unknown additive fields inside the same epoch.
+        - Readers that need raw bytes resolve raw_payload_ref through the producer's retention surface under the envelope's retention_class; raw bytes are never expected inline.
       writer_semantics:
-        - Writers emit explicit schema epoch, event kind, provenance, and confidence fields on every envelope.
-        - Writers keep raw payload retention and normalized envelope linkage explicit rather than flattening them into logs.
+        - Writers emit explicit schema epoch, event kind, payload kind, source kind, confidence class, execution_context_id, provenance block, and raw_payload_retention block on every envelope.
+        - Writers enforce source_kind / confidence_class invariants (authoritative reserved for first-party sources, heuristic capped at heuristic_best_effort, structured capped at structured_parse_match) rather than relaxing them per surface.
+        - Writers keep raw payload retained by reference and cite the retention_class and raw_payload_ref; broadened-capture retention or redaction requires an approval_ticket_ref.
       downgrade_behavior: >
         Fail closed on required-kind drift; out-of-window readers may
         retain raw payload by reference but do not treat the normalized
-        envelope as trustworthy.
+        envelope as trustworthy; unsupported sources route through the
+        preserve_opaque_with_provenance posture rather than silent loss.
     compatibility:
       compatibility_window_summary: >
         Producers and consumers preserve canonical task-event fields,
-        payload kinds, provenance, and confidence semantics within one
-        stable epoch.
+        payload kinds, source kinds, confidence classes, provenance,
+        and raw-payload retention posture within one stable epoch.
       support_window_posture: >
-        Experimental until the canonical schema and replay fixtures land;
-        no broad mixed-version claim exists before then.
+        Experimental until the first native adapter wiring lands; the
+        contract, boundary schema, adapter register, and replay
+        fixtures are seeded so later wiring lands on a governed row
+        rather than a prose posture.
       compatibility_report_refs:
         - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
       migration_guidance_refs:
         - artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+        - docs/tooling/task_event_contract_seed.md
         - .t2/docs/Aureline_Technical_Architecture_Document.md
     lifecycle:
-      dependency_markers:
-        - contract_not_yet_seeded
+      dependency_markers: []
       deprecation_posture: >
         Deprecation requires a successor event kind or envelope revision
         plus replay and support-export migration notes before old events
@@ -815,6 +832,7 @@ rows:
     review:
       review_cadence: each_change
       docs_touchpoint_refs:
+        - docs/tooling/task_event_contract_seed.md
         - .t2/docs/Aureline_Technical_Architecture_Document.md
         - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
 

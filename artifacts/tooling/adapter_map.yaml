@@ -1,0 +1,554 @@
+# Task-event envelope adapter map seed.
+#
+# Machine-readable companion to docs/tooling/task_event_contract_seed.md
+# and boundary schema schemas/tooling/task_event_envelope.schema.json.
+# Every row binds one adapter to:
+#   - a stable adapter_id (dotted id, snake_case segments);
+#   - the source_kind it normalizes from;
+#   - the producer_tool the adapter understands;
+#   - the adapter_capabilities it asserts (subset of the closed
+#     vocabulary in the schema $defs);
+#   - the adapter_confidence_ceiling it is allowed to claim;
+#   - the payload_kinds it can emit;
+#   - the normalization_passes it applies;
+#   - an unsupported_source_posture naming how the adapter behaves
+#     when it meets a source it does not fully support;
+#   - a raw_payload_retention_posture naming the retention class the
+#     adapter defaults to (individual envelopes MAY narrow further);
+#   - at least one seeded fixture under
+#     fixtures/tooling/task_event_replay/ exercising the adapter.
+#
+# Rules.
+#   - Every row MUST carry a adapter_id, a source_kind, at least one
+#     capability, an adapter_confidence_ceiling, a non-empty
+#     normalization_passes list whose first entry is raw_capture_only
+#     and whose last entry is adapter_confidence_downgrade or
+#     adapter_confidence_preserved, an unsupported_source_posture,
+#     and at least one fixture_ref.
+#   - Adapters with adapter_confidence_ceiling = heuristic_best_effort
+#     MUST NOT offer capabilities that require an authoritative source
+#     (task_lifecycle, build_target_lifecycle, compile_unit_lifecycle,
+#     debugger_event); they MAY offer diagnostic_freeform and
+#     log_line_snapshot_only.
+#   - Adapters with source_kind = structured_tool_output_ingest MAY
+#     claim adapter_confidence_ceiling = structured_parse_match but
+#     MUST NOT claim authoritative_from_source.
+#   - Every row with capabilities including unsupported_source_
+#     preservation MUST have unsupported_source_posture =
+#     preserve_opaque_with_provenance.
+#   - No row promises payload_kind = opaque_preservation_only unless it
+#     also offers unsupported_source_preservation.
+#   - Adding a new adapter row is additive-minor and bumps
+#     adapter_map_schema_version; repurposing an existing adapter_id is
+#     breaking and requires a new decision row.
+#   - Milestone slugs (M0, M00, M00-190, etc.) MUST NOT appear in any
+#     id, path, or description field.
+#
+# Narrative companion: docs/tooling/task_event_contract_seed.md.
+# Boundary schema: schemas/tooling/task_event_envelope.schema.json.
+# Governance registration:
+#   artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+#   artifacts/governance/schema_families.yaml#family_id:tooling
+#   artifacts/governance/control_artifact_index.yaml#task_event_envelope_adapter_map
+
+record_kind: task_event_adapter_map_seed_record
+adapter_map_schema_version: 1
+map_id: task_event_adapter_map.seed.01
+title: Task-event envelope adapter-map seed (native runners, BSP, Bazel BEP, structured tool output, heuristic parsers)
+
+seed_scope_summary: >-
+  Seeds the canonical adapter register every producer (native task
+  runner, BSP client, Bazel BEP reader, JUnit / SARIF / TAP / cargo-
+  json ingest, heuristic line parser) and every consumer (UI task
+  pane, CLI task view, support bundle, replay harness, benchmark
+  report, AI broker) reads to know which adapters emit which event
+  kinds with which confidence class and which retention posture. No
+  surface invents a parallel event vocabulary; every emission rides
+  one row here.
+
+source_contract_refs:
+  - docs/tooling/task_event_contract_seed.md
+  - docs/automation/cli_surface_contract.md
+  - docs/execution/context_inspector_packet.md
+  - docs/governance/interface_inventory.md
+
+schema_ref: schemas/tooling/task_event_envelope.schema.json
+stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+schema_family_ref: artifacts/governance/schema_families.yaml#family_id:tooling
+
+fixture_root: fixtures/tooling/task_event_replay
+fixture_refs:
+  - fixtures/tooling/task_event_replay/native_cargo_test_case_outcome.json
+  - fixtures/tooling/task_event_replay/bsp_build_target_lifecycle.json
+  - fixtures/tooling/task_event_replay/bazel_bep_artifact_publication.json
+  - fixtures/tooling/task_event_replay/junit_structured_test_suite.json
+  - fixtures/tooling/task_event_replay/heuristic_parser_diagnostic.json
+  - fixtures/tooling/task_event_replay/unsupported_source_preserved.json
+  - fixtures/tooling/task_event_replay/replay_bundle_support_export.json
+
+map_invariants:
+  no_parallel_event_vocabularies: true
+  every_envelope_carries_confidence_class: true
+  every_envelope_carries_source_kind: true
+  every_envelope_carries_execution_context_id: true
+  every_envelope_carries_raw_payload_retention_block: true
+  raw_payload_bytes_never_cross_boundary: true
+  adapter_confidence_ceiling_enforced_at_ingest_and_replay: true
+  unsupported_sources_preserved_not_hidden: true
+
+# -----------------------------------------------------------------------------
+# Adapter rows.
+#
+# Rows are ordered: native task runners first, BSP, Bazel BEP, structured
+# tool-output adapters, heuristic parsers, and finally the unsupported-source
+# preservation adapter so the degraded path is explicit.
+# -----------------------------------------------------------------------------
+adapters:
+  - adapter_id: aureline.native.cargo_runner
+    title: Native cargo task runner (build / test / bench)
+    source_kind: native_task_runner
+    producer_tool: cargo.runner
+    producer_tool_version_policy: >-
+      Adapter tracks cargo stable and nightly; producer_version strings
+      are passed through opaque. Behavior changes tied to cargo version
+      are noted in the release notes, not re-encoded here.
+    ingest_host_class: in_process_native
+    adapter_confidence_ceiling: authoritative_from_source
+    unsupported_source_posture: reject_with_explanation
+    raw_payload_retention_posture: retained_local_with_replay_opt_in
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - log_line_streaming
+      - progress_tick
+      - resource_usage_sample
+    payload_kinds_supported:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic
+      - log_line
+      - progress_tick
+      - resource_usage
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - ansi_escape_strip
+      - line_framing_and_offset
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/native_cargo_test_case_outcome.json
+    notes: >-
+      Reads cargo --message-format=json for structured build events
+      and the native cargo test event stream for test outcomes. Does
+      not emit for non-cargo workspaces; such sources route to the
+      heuristic parser with a degraded confidence class instead.
+
+  - adapter_id: aureline.bsp.client_v2
+    title: Build Server Protocol v2 client
+    source_kind: build_server_protocol_client
+    producer_tool: bsp.server
+    producer_tool_version_policy: >-
+      Adapter speaks BSP v2 and preserves the server's reported version
+      string verbatim in producer_version. BSP v1 sources are rejected
+      and re-routed to the heuristic parser with a degraded confidence
+      class.
+    ingest_host_class: out_of_process_sidecar
+    adapter_confidence_ceiling: authoritative_from_source
+    unsupported_source_posture: reject_with_explanation
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - progress_tick
+    payload_kinds_supported:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic
+      - progress_tick
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - line_framing_and_offset
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/bsp_build_target_lifecycle.json
+    notes: >-
+      Transforms BSP build / compile / test notifications into envelope
+      form. Preserves BSP diagnostic codes as diagnostic_code tokens.
+      BSP log-message notifications emit as payload_kind=log_line with
+      stream_class=structured_framed; raw stdout from BSP runTarget is
+      retained by reference, never inlined.
+
+  - adapter_id: aureline.bazel.build_event_stream
+    title: Bazel Build Event Protocol (BEP) ingest
+    source_kind: bazel_build_event_protocol
+    producer_tool: bazel.build_event_stream
+    producer_tool_version_policy: >-
+      Adapter reads the BEP JSON streaming format; the bazel release
+      string is passed through opaque.
+    ingest_host_class: out_of_process_sidecar
+    adapter_confidence_ceiling: authoritative_from_source
+    unsupported_source_posture: accept_with_degraded_confidence
+    raw_payload_retention_posture: retained_local_with_replay_opt_in
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - artifact_withdrawal
+      - diagnostic_structured
+      - progress_tick
+    payload_kinds_supported:
+      - task_lifecycle
+      - build_target_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic
+      - progress_tick
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - line_framing_and_offset
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/bazel_bep_artifact_publication.json
+    notes: >-
+      BEP TargetCompleted, TestResult, and NamedSetOfFiles events are
+      mapped one-to-one to envelope records. BEP's raw action stdout /
+      stderr streams are retained by reference through
+      raw_payload_retention.raw_payload_ref. Partial or truncated
+      streams downgrade confidence_class to degraded_partial rather
+      than hide the loss.
+
+  - adapter_id: aureline.structured.junit_xml_ingest
+    title: JUnit XML structured test report ingest
+    source_kind: structured_tool_output_ingest
+    producer_tool: junit.xml_report
+    producer_tool_version_policy: >-
+      Adapter accepts the JUnit 4 and JUnit 5 XML schemas and a small
+      set of well-known extensions (surefire, pytest-junitxml, cargo-
+      nextest). Version is derived from the root element and preserved
+      verbatim in producer_version.
+    ingest_host_class: in_process_adapter_plugin
+    adapter_confidence_ceiling: structured_parse_match
+    unsupported_source_posture: accept_with_degraded_confidence
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - test_case_outcome
+      - test_suite_outcome
+      - diagnostic_structured
+    payload_kinds_supported:
+      - test_case_outcome
+      - test_suite_outcome
+      - diagnostic
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/junit_structured_test_suite.json
+    notes: >-
+      Structured lossless ingest. Reports confidence_class =
+      structured_parse_match when every required JUnit field resolves;
+      downgrades to degraded_partial when fields are missing or when
+      the XML is truncated. The underlying XML bytes stay retained by
+      reference so support review can reparse.
+
+  - adapter_id: aureline.structured.sarif_v2_ingest
+    title: SARIF v2.1.0 structured diagnostic ingest
+    source_kind: structured_tool_output_ingest
+    producer_tool: sarif.v2_1_report
+    producer_tool_version_policy: >-
+      Adapter accepts SARIF v2.1.0 documents and their extensions.
+      Other SARIF versions route through accept_with_degraded_
+      confidence.
+    ingest_host_class: in_process_adapter_plugin
+    adapter_confidence_ceiling: structured_parse_match
+    unsupported_source_posture: accept_with_degraded_confidence
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - diagnostic_structured
+      - artifact_publication
+    payload_kinds_supported:
+      - diagnostic
+      - artifact_publication
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/heuristic_parser_diagnostic.json
+    notes: >-
+      SARIF results map one-to-one to diagnostic envelopes. Rule id
+      becomes diagnostic_code; SARIF message text becomes
+      diagnostic_message after path redaction. Artifacts associated
+      with a result emit as artifact_publication envelopes sharing the
+      same trace_id.
+
+  - adapter_id: aureline.structured.tap_v14_ingest
+    title: TAP v14 structured test stream ingest
+    source_kind: structured_tool_output_ingest
+    producer_tool: tap.v14_stream
+    producer_tool_version_policy: >-
+      Adapter accepts TAP v13 and v14. TAP v12 and earlier are
+      routed to the heuristic line parser.
+    ingest_host_class: in_process_adapter_plugin
+    adapter_confidence_ceiling: structured_parse_match
+    unsupported_source_posture: accept_with_degraded_confidence
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - test_case_outcome
+      - test_suite_outcome
+      - diagnostic_freeform
+    payload_kinds_supported:
+      - test_case_outcome
+      - test_suite_outcome
+      - diagnostic
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - ansi_escape_strip
+      - line_framing_and_offset
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/junit_structured_test_suite.json
+    notes: >-
+      TAP directives (SKIP, TODO, BAIL_OUT) surface as test outcome
+      classes. Unrecognized TAP extensions preserve in
+      raw_payload_retention rather than silently discarding.
+
+  - adapter_id: aureline.heuristic.line_and_regex
+    title: Heuristic line-oriented and regex parser (fallback)
+    source_kind: heuristic_parser
+    producer_tool: heuristic.line_parser
+    producer_tool_version_policy: >-
+      Adapter ships a named ruleset per release; producer_version
+      reports the ruleset id (for example
+      heuristic.line_parser.ruleset_2026_04).
+    ingest_host_class: in_process_adapter_plugin
+    adapter_confidence_ceiling: heuristic_best_effort
+    unsupported_source_posture: accept_as_heuristic_only
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - diagnostic_freeform
+      - log_line_streaming
+      - log_line_snapshot_only
+      - progress_tick
+    payload_kinds_supported:
+      - diagnostic
+      - log_line
+      - progress_tick
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - ansi_escape_strip
+      - line_framing_and_offset
+      - path_redaction_pass
+      - secret_pattern_scan
+      - adapter_confidence_downgrade
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/heuristic_parser_diagnostic.json
+    notes: >-
+      Reserved for workspaces without a native runner, BSP, BEP, or
+      structured tool report. MUST NOT claim task_lifecycle,
+      build_target_lifecycle, compile_unit_lifecycle, test_case_
+      outcome, test_suite_outcome, artifact_publication, or debugger_
+      event capabilities; those emissions are the authoritative-source
+      adapters' job. When the native adapter also runs, both adapters
+      emit with the same trace_id and distinct event_ids so support
+      can compare.
+
+  - adapter_id: aureline.unsupported.opaque_preservation
+    title: Unsupported-source opaque preservation adapter
+    source_kind: heuristic_parser
+    producer_tool: aureline.unsupported_preservation
+    producer_tool_version_policy: >-
+      Adapter ships with the core; producer_version equals the
+      aureline runtime release id.
+    ingest_host_class: in_process_native
+    adapter_confidence_ceiling: unknown
+    unsupported_source_posture: preserve_opaque_with_provenance
+    raw_payload_retention_posture: retained_local_support_bundle_only
+    capabilities:
+      - unsupported_source_preservation
+    payload_kinds_supported:
+      - opaque_preservation_only
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - path_redaction_pass
+      - secret_pattern_scan
+      - adapter_confidence_downgrade
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/unsupported_source_preserved.json
+    notes: >-
+      Last-resort adapter. Emits a single envelope per unsupported
+      source event, carrying only provenance and raw_payload_retention
+      with payload_kind = opaque_preservation_only and confidence_
+      class = unknown. Replay and support review still have a
+      reviewable row; automation consumers can detect the gap instead
+      of silently treating the source as empty.
+
+# -----------------------------------------------------------------------------
+# Capability negotiation matrix.
+#
+# Consumers ask adapters for capabilities; this matrix records which
+# capabilities are available per source_kind so negotiation can resolve
+# without reading every adapter row.
+# -----------------------------------------------------------------------------
+capability_matrix:
+  native_task_runner:
+    can_claim_confidence: [authoritative_from_source, structured_parse_match, degraded_partial, unknown]
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - log_line_streaming
+      - progress_tick
+      - resource_usage_sample
+  build_server_protocol_client:
+    can_claim_confidence: [authoritative_from_source, structured_parse_match, degraded_partial, unknown]
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - progress_tick
+  bazel_build_event_protocol:
+    can_claim_confidence: [authoritative_from_source, structured_parse_match, degraded_partial, unknown]
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - artifact_withdrawal
+      - diagnostic_structured
+      - progress_tick
+  structured_tool_output_ingest:
+    can_claim_confidence: [structured_parse_match, degraded_partial, unknown]
+    capabilities:
+      - test_case_outcome
+      - test_suite_outcome
+      - diagnostic_structured
+      - diagnostic_freeform
+      - artifact_publication
+  heuristic_parser:
+    can_claim_confidence: [heuristic_best_effort, degraded_partial, unknown]
+    capabilities:
+      - diagnostic_freeform
+      - log_line_streaming
+      - log_line_snapshot_only
+      - progress_tick
+      - unsupported_source_preservation
+  debugger_adapter_emitted:
+    can_claim_confidence: [authoritative_from_source, degraded_partial, unknown]
+    capabilities:
+      - debugger_event
+      - diagnostic_structured
+      - log_line_streaming
+  notebook_kernel_emitted:
+    can_claim_confidence: [authoritative_from_source, degraded_partial, unknown]
+    capabilities:
+      - task_lifecycle
+      - diagnostic_structured
+      - log_line_streaming
+      - resource_usage_sample
+  ai_emitted_event:
+    can_claim_confidence: [heuristic_best_effort, degraded_partial, unknown]
+    capabilities:
+      - diagnostic_freeform
+      - log_line_snapshot_only
+  user_reported_manual:
+    can_claim_confidence: [unknown]
+    capabilities:
+      - diagnostic_freeform
+      - unsupported_source_preservation
+  replayed_from_support_bundle:
+    can_claim_confidence: [structured_parse_match, degraded_partial, unknown]
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - log_line_snapshot_only
+
+# -----------------------------------------------------------------------------
+# Unsupported-source posture register.
+#
+# Names the allowed postures and the adapter behaviour each implies.
+# -----------------------------------------------------------------------------
+unsupported_source_postures:
+  - posture: reject_with_explanation
+    summary: >-
+      Adapter declines to emit envelopes for a source it does not
+      understand; the unsupported-source opaque-preservation adapter
+      (aureline.unsupported.opaque_preservation) MAY pick up the slack.
+  - posture: accept_as_heuristic_only
+    summary: >-
+      Adapter emits with source_kind = heuristic_parser and
+      confidence_class = heuristic_best_effort, regardless of how
+      structured the raw source appeared.
+  - posture: accept_with_degraded_confidence
+    summary: >-
+      Adapter preserves the source_kind (for example
+      bazel_build_event_protocol or structured_tool_output_ingest) but
+      sets confidence_class = degraded_partial because fields were
+      missing, truncated, or the source version is out of the
+      supported window.
+  - posture: coexist_side_by_side_with_native
+    summary: >-
+      Adapter emits alongside a first-party native adapter under the
+      same trace_id; the two envelopes carry distinct event_ids and
+      distinct source_kinds so support review can compare authoritative
+      and bridged emissions.
+  - posture: preserve_opaque_with_provenance
+    summary: >-
+      Adapter emits an unsupported_source_placeholder envelope carrying
+      only provenance and raw_payload_retention. Typed payload is
+      opaque_preservation_only; confidence_class is unknown.
