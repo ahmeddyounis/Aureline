@@ -1,0 +1,724 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/external_tool_registry.schema.json",
+  "title": "Aureline AI external-tool / MCP-server gateway registry: transport, execution-locus, auth mode, taint posture, allowed side-effect, data-class, approval, and invocation disclosure vocabulary",
+  "description": "Boundary schema for the external_tool_registry_entry_record, external_tool_invocation_disclosure_record, and external_tool_registry_audit_event_record frozen in docs/ai/provider_model_registry_contract.md. Every external tool or MCP-server entry the product might allow an AI turn or a user-facing command to invoke — a stdio-spawned local subprocess, a loopback HTTP tool, a loopback unix-domain-socket tool, a remote HTTPS tool, a remote MCP server over stdio / local HTTP / streamable HTTP, an extension-mediated tool, or a mocked test tool — resolves to one governed row on this boundary. Two invariants are frozen on this boundary. First: external-tool output is tainted input by default. Every tool return value carries the tainted fence (schemas/ai/context_assembly.schema.json tainted_fence_strategy / tainted_usage_constraint) unless the row's tool_output_trust_posture_class is explicitly trusted_first_party_local_tool and the invocation policy admits that posture. Second: external tools MUST ride the same permission, policy, and audit model as native tools. Every admitted invocation spends an approval ticket (ADR-0010 schemas/integration/approval_ticket.schema.json) and emits on the provider_handoff and ai_context audit streams; a tool invocation that attempts to bypass the approval / policy / audit path is denied with a typed bypass-forbidden denial. Raw URLs, raw endpoint hostnames, raw spawn commands, raw environment variables, raw API keys, raw OAuth tokens, raw mTLS material, raw request / response bodies, and raw stdio frames never cross this boundary; records carry opaque refs, fingerprints, and structured fields only. The schema composes with (and does not replace) schemas/ai/provider_registry.schema.json, schemas/ai/context_assembly.schema.json (tainted fence / tainted usage vocabulary, tool_call_outcome, data-class family), schemas/providers/publish_later_record.schema.json (predicted_side_effect_class, irreversibility_class), schemas/integration/approval_ticket.schema.json (approval lineage), schemas/integration/browser_handoff_packet.schema.json (actor-class vocabulary), and schemas/extensions/*.schema.json (extension-mediated tool transport). The eventual tool-gateway crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new tool_class, tool_transport_class, tool_execution_locus_class, tool_auth_mode_class, tool_output_trust_posture_class, allowed_side_effect_class, allowed_data_class, approval_posture_class, denial_reason, audit_event_id, or tool_lifecycle_state_class is additive-minor and requires an external_tool_registry_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/external_tool_registry_entry_record" },
+    { "$ref": "#/$defs/external_tool_invocation_disclosure_record" },
+    { "$ref": "#/$defs/external_tool_registry_audit_event_record" }
+  ],
+  "$defs": {
+    "external_tool_registry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this external-tool-registry vocabulary export. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "external_tool_registry_entry_record",
+        "external_tool_invocation_disclosure_record",
+        "external_tool_registry_audit_event_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw URLs, raw endpoint hostnames, raw spawn commands, raw environment variables, raw API keys, raw OAuth tokens, raw mTLS material, raw request / response bodies, and raw stdio frames never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "tool_class": {
+      "type": "string",
+      "enum": [
+        "first_party_native_tool",
+        "extension_provided_tool",
+        "mcp_server_tool",
+        "user_registered_external_tool",
+        "enterprise_registered_external_tool",
+        "mocked_test_tool",
+        "disabled_no_tool"
+      ],
+      "description": "High-level tool class. first_party_native_tool = a tool shipped with Aureline itself (e.g. a workspace-search tool hosted in-process); extension_provided_tool = a tool provided by an installed extension manifest (schemas/extensions/); mcp_server_tool = a tool exposed by an MCP server following the Model Context Protocol; user_registered_external_tool = a tool the user registered directly; enterprise_registered_external_tool = a tool an admin / policy bundle registered for managed fleets; mocked_test_tool = parity / record-replay test fixtures only; disabled_no_tool = the row exists but is suspended / withdrawn / not admitted."
+    },
+
+    "tool_transport_class": {
+      "type": "string",
+      "enum": [
+        "in_process_call",
+        "local_stdio_spawn",
+        "local_unix_domain_socket",
+        "local_named_pipe",
+        "local_http_loopback",
+        "local_grpc_loopback",
+        "remote_https",
+        "remote_grpc_over_tls",
+        "remote_mcp_over_stdio",
+        "remote_mcp_over_local_http",
+        "remote_mcp_over_streamable_http",
+        "extension_mediated_transport",
+        "mocked_test_transport",
+        "disabled_no_transport"
+      ],
+      "description": "Transport-class vocabulary for external tools. local_stdio_spawn means the tool is spawned as a subprocess on the user's device with stdio framing (typical MCP-over-stdio pattern). local_http_loopback means the tool listens on loopback HTTP. remote_https / remote_grpc_over_tls are the fully remote variants. remote_mcp_over_stdio / remote_mcp_over_local_http / remote_mcp_over_streamable_http are MCP-shaped variants (the MCP server's own transport, distinct from the AI-inference MCP variants on schemas/ai/provider_registry.schema.json). Every entry names exactly one."
+    },
+
+    "tool_execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_subprocess_same_device",
+        "local_sandboxed_container_same_device",
+        "local_companion_service_loopback",
+        "remote_vendor_managed_service",
+        "remote_self_hosted_service",
+        "enterprise_gateway_brokered_service",
+        "extension_provided_locus",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ],
+      "description": "Execution-locus vocabulary naming where the tool actually runs. local_* variants never leave the device; remote_* and enterprise_gateway_brokered_service variants reach the network. Every external-tool invocation's locus is visually distinguishable from a local native-tool invocation in the invocation disclosure chip."
+    },
+
+    "tool_auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_local_spawn",
+        "no_auth_loopback_only",
+        "byok_api_key",
+        "byok_oauth_user_token",
+        "byok_service_account_key",
+        "byok_mtls_client_certificate",
+        "enterprise_gateway_managed_credential",
+        "enterprise_gateway_federated_identity",
+        "signed_manifest_only",
+        "policy_injected_service_identity",
+        "extension_provided_auth",
+        "mocked_test_auth",
+        "disabled_no_auth"
+      ],
+      "description": "Auth-mode vocabulary for the tool endpoint. byok_* = the user brought the credential and the credential is addressed through the secret broker (ADR-0007); the row MUST NOT embed the credential. signed_manifest_only = the tool is admitted only by its signed manifest (typical for first-party native tools and signed extension-provided tools)."
+    },
+
+    "tool_output_trust_posture_class": {
+      "type": "string",
+      "enum": [
+        "always_tainted_external_tool_output",
+        "always_tainted_remote_service_output",
+        "always_tainted_extension_provided_output",
+        "tainted_unless_reviewed_then_fenced",
+        "trusted_first_party_local_tool_output",
+        "trusted_signed_extension_local_tool_output",
+        "posture_unknown_requires_fence_by_default"
+      ],
+      "description": "Taint posture the composer MUST apply to bytes returned by this tool when they flow back into a future AI turn. always_tainted_* = the return value is always placed under the tainted fence (schemas/ai/context_assembly.schema.json tainted_fence_strategy with the default usage-constraint set); trusted_first_party_local_tool_output is admitted only for first-party native tools whose manifest signature is verified and whose locus is local_in_process / local_subprocess_same_device; trusted_signed_extension_local_tool_output is admitted for signed extension-provided local tools. Every other posture is tainted by default."
+    },
+
+    "predicted_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ],
+      "description": "Side-effect class re-exported from schemas/providers/publish_later_record.schema.json without modification (ADR-0010). Every tool row lists the allowed side-effect classes the tool may predict; a tool that declares external_irreversible_publish / policy_or_trust_mutation / capability_widening / local_destructive_edit MUST carry a preview / approval posture above allowed_without_prompt."
+    },
+
+    "allowed_data_class": {
+      "type": "string",
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "repo_check_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ],
+      "description": "Data-class allowlist vocabulary naming which ai_context_assembly source classes may be sent to the tool as an input argument. Re-exported from schemas/ai/provider_registry.schema.json without modification. credential_handle_denied_always / secret_projection_denied_always are never admitted on the allowlist; they are surfaced on the row's denied-always set so the deny record is mechanically checkable."
+    },
+
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "allowed_without_prompt",
+        "allowed_with_one_time_prompt",
+        "allowed_with_per_session_prompt",
+        "allowed_with_per_invocation_prompt",
+        "requires_admin_approval",
+        "denied_by_policy",
+        "denied_by_workspace_trust",
+        "denied_tool_not_admitted"
+      ],
+      "description": "Approval-posture vocabulary the tool row advertises. Every invocation above allowed_without_prompt MUST spend an approval ticket before invocation; the tool bypass-forbidden invariant applies here identically to native-tool approvals."
+    },
+
+    "tool_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "preview_admitted",
+        "generally_admitted",
+        "admitted_with_downgrade_trigger",
+        "soft_deprecated_still_admitted",
+        "hard_deprecated_denies_new_sessions",
+        "withdrawn",
+        "quarantined_pending_review",
+        "mocked_test_only"
+      ],
+      "description": "Lifecycle state of the tool entry. quarantined_pending_review is the canonical state for a user-registered or mirror-imported tool whose signature / manifest verification is pending or failed; a quarantined tool MUST NOT be invoked."
+    },
+
+    "offline_posture_class": {
+      "type": "string",
+      "enum": [
+        "online_required",
+        "online_preferred_offline_degraded",
+        "offline_preferred_online_bonus",
+        "offline_only_no_network_egress",
+        "air_gapped_signed_bundle"
+      ],
+      "description": "Offline-posture vocabulary re-exported from schemas/ai/provider_registry.schema.json without modification. offline_only_no_network_egress is the only admitted value when tool_execution_locus_class is one of local_in_process / local_subprocess_same_device / local_sandboxed_container_same_device / local_companion_service_loopback and tool_auth_mode_class is one of no_auth_local_spawn / no_auth_loopback_only / signed_manifest_only."
+    },
+
+    "tool_output_invocation_disclosure_kind": {
+      "type": "string",
+      "enum": [
+        "tool_identity_chip",
+        "tool_transport_chip",
+        "tool_execution_locus_chip",
+        "tool_auth_mode_chip",
+        "tool_output_trust_posture_chip",
+        "allowed_side_effect_readout",
+        "allowed_data_class_readout",
+        "approval_posture_chip",
+        "policy_epoch_chip",
+        "workspace_trust_chip"
+      ],
+      "description": "Pre-invocation disclosure-kind vocabulary for external tools. The invocation disclosure record MUST surface at minimum tool_identity_chip, tool_transport_chip, tool_execution_locus_chip, tool_output_trust_posture_chip, allowed_side_effect_readout, and allowed_data_class_readout; missing kinds deny with tool_inspectability_disclosure_missing_pre_invocation."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ]
+        },
+        "execution_context_id": { "type": "string" }
+      }
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_external_tool_registry_entry_minted",
+        "ai_external_tool_registry_entry_updated",
+        "ai_external_tool_registry_entry_disabled",
+        "ai_external_tool_registry_entry_superseded",
+        "ai_external_tool_output_tainted_by_default",
+        "ai_external_tool_invocation_admitted",
+        "ai_external_tool_invocation_denied",
+        "ai_external_tool_invocation_bypass_attempt_denied",
+        "ai_external_tool_quarantined",
+        "ai_external_tool_withdrawn",
+        "ai_external_tool_registry_schema_version_bumped"
+      ]
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "tool_disabled_by_policy",
+        "tool_not_admitted",
+        "tool_class_unresolved",
+        "tool_transport_class_unresolved",
+        "tool_execution_locus_unresolved",
+        "tool_auth_mode_unresolved",
+        "tool_output_trust_posture_unresolved",
+        "tool_output_untainted_attempted",
+        "tool_bypass_attempted_approval_ticket_missing",
+        "tool_bypass_attempted_policy_evaluation_skipped",
+        "tool_bypass_attempted_audit_event_suppressed",
+        "tool_side_effect_class_not_in_allowlist",
+        "tool_data_class_not_in_allowlist",
+        "tool_quota_exceeded",
+        "tool_quarantined",
+        "tool_withdrawn",
+        "tool_inspectability_disclosure_missing_pre_invocation",
+        "tool_signature_verification_failed",
+        "policy_epoch_rolled_invalidations",
+        "raw_url_forbidden_on_boundary",
+        "raw_endpoint_hostname_forbidden_on_boundary",
+        "raw_spawn_command_forbidden_on_boundary",
+        "raw_credential_forbidden_on_boundary",
+        "raw_tool_response_forbidden_on_boundary",
+        "external_tool_registry_schema_version_lagging"
+      ]
+    },
+
+    "signing_evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signing_profile_ref"],
+      "properties": {
+        "signing_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "signer_continuity_state_ref": {
+          "type": "string",
+          "description": "Opaque ref to the signer-continuity-state record. Empty string when tool_class = first_party_native_tool and no external continuity chain applies."
+        },
+        "manifest_chain_root_ref": {
+          "type": "string",
+          "description": "Opaque ref to the root of the tool's signed manifest chain. Empty string when none applies."
+        }
+      }
+    },
+
+    "external_tool_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_tool_registry_schema_version",
+        "tool_entry_id",
+        "tool_class",
+        "tool_transport_class",
+        "tool_execution_locus_class",
+        "tool_auth_mode_class",
+        "tool_output_trust_posture_class",
+        "tool_lifecycle_state_class",
+        "offline_posture_class",
+        "approval_posture_class",
+        "allowed_side_effect_classes",
+        "allowed_data_classes",
+        "denied_always_data_classes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_tool_registry_entry_record" },
+        "external_tool_registry_schema_version": { "$ref": "#/$defs/external_tool_registry_schema_version" },
+        "tool_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "tool_family_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible family label. Never a raw URL or raw hostname."
+        },
+        "tool_variant_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "tool_capability_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable capability-version the row advertises for parity / replay correlation. Bumped when the tool's observable capability set changes."
+        },
+        "tool_class": { "$ref": "#/$defs/tool_class" },
+        "tool_transport_class": { "$ref": "#/$defs/tool_transport_class" },
+        "tool_execution_locus_class": { "$ref": "#/$defs/tool_execution_locus_class" },
+        "tool_auth_mode_class": { "$ref": "#/$defs/tool_auth_mode_class" },
+        "tool_output_trust_posture_class": { "$ref": "#/$defs/tool_output_trust_posture_class" },
+        "tool_lifecycle_state_class": { "$ref": "#/$defs/tool_lifecycle_state_class" },
+        "offline_posture_class": { "$ref": "#/$defs/offline_posture_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "allowed_side_effect_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/predicted_side_effect_class" },
+          "description": "Side-effect classes the tool may predict. An invocation whose predicted side effect is not in this set MUST deny with tool_side_effect_class_not_in_allowlist."
+        },
+        "allowed_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/allowed_data_class" },
+          "description": "Data-class allowlist naming which ai_context_assembly source classes may be sent to the tool as an input argument."
+        },
+        "denied_always_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/allowed_data_class" },
+          "description": "Data classes the row explicitly denies regardless of policy epoch. MUST include credential_handle_denied_always and secret_projection_denied_always so the deny record is mechanically checkable."
+        },
+        "enterprise_gateway_broker_ref": {
+          "type": "string",
+          "description": "Opaque ref to the enterprise-gateway broker record fronting the tool. Required (non-empty) when tool_execution_locus_class = enterprise_gateway_brokered_service."
+        },
+        "connected_provider_record_id": {
+          "type": "string",
+          "description": "Opaque ref to the ADR-0010 connected-provider record the tool is scoped under (BYOK tools that authenticate against a vendor the user has connected). Empty string when none applies."
+        },
+        "extension_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the extension manifest row (schemas/extensions/) that authored the tool. Required (non-empty) when tool_class = extension_provided_tool; empty string otherwise."
+        },
+        "mcp_server_capability_ref": {
+          "type": "string",
+          "description": "Opaque ref to the MCP-server capability descriptor (the capability block the server advertised at admission). Required (non-empty) when tool_class = mcp_server_tool; empty string otherwise."
+        },
+        "signing_evidence_reference": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signing_evidence_reference" }
+          ],
+          "description": "Signing-evidence reference for the tool manifest. Required (non-null) when tool_output_trust_posture_class is trusted_first_party_local_tool_output or trusted_signed_extension_local_tool_output; null otherwise."
+        },
+        "required_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket row that admitted the tool into the registry (first-admission approval). Required (non-empty) when approval_posture_class is above allowed_without_prompt."
+        },
+        "quota_family_class": {
+          "type": "string",
+          "enum": [
+            "per_user_local_no_limit",
+            "per_user_local_soft_throttle",
+            "per_user_byok_vendor_quota",
+            "per_user_byok_organization_quota",
+            "enterprise_gateway_pooled_quota",
+            "vendor_hosted_entitlement_quota",
+            "free_tier_rate_limited",
+            "paid_tier_metered",
+            "policy_enforced_quota_override",
+            "quota_unknown_unverified"
+          ],
+          "description": "Quota-family class re-exported from schemas/ai/provider_registry.schema.json without modification."
+        },
+        "region_posture_class": {
+          "type": "string",
+          "enum": [
+            "local_device_only",
+            "single_region_pinned",
+            "multi_region_pinned",
+            "region_failover_bounded_set",
+            "region_unpinned_vendor_default",
+            "region_unknown_unverified",
+            "region_policy_blocked"
+          ],
+          "description": "Region-posture class re-exported from schemas/ai/provider_registry.schema.json without modification. local_device_only is the only admitted value for tool_execution_locus_class in {local_in_process, local_subprocess_same_device, local_sandboxed_container_same_device, local_companion_service_loopback}."
+        },
+        "retention_stance_class": {
+          "type": "string",
+          "enum": [
+            "no_retention_local_only",
+            "no_retention_promised_body_discarded",
+            "bounded_retention_operator_access_only",
+            "bounded_retention_with_user_export",
+            "bounded_retention_with_legal_hold_only",
+            "unbounded_retention_not_used_for_training",
+            "unbounded_retention_used_for_training",
+            "retention_unknown_unverified",
+            "retention_policy_blocked"
+          ],
+          "description": "Retention-stance class re-exported from schemas/ai/provider_registry.schema.json without modification. Describes what the tool's backend does with arguments / results after the call completes."
+        },
+        "supersedes_tool_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "disabled_no_tool MUST carry disabled_no_transport / disabled_no_locus / disabled_no_auth.",
+          "if": {
+            "properties": { "tool_class": { "const": "disabled_no_tool" } },
+            "required": ["tool_class"]
+          },
+          "then": {
+            "properties": {
+              "tool_transport_class": { "const": "disabled_no_transport" },
+              "tool_execution_locus_class": { "const": "disabled_no_locus" },
+              "tool_auth_mode_class": { "const": "disabled_no_auth" }
+            },
+            "required": ["tool_transport_class", "tool_execution_locus_class", "tool_auth_mode_class"]
+          }
+        },
+        {
+          "description": "mcp_server_tool MUST carry an mcp_server_capability_ref.",
+          "if": {
+            "properties": { "tool_class": { "const": "mcp_server_tool" } },
+            "required": ["tool_class"]
+          },
+          "then": {
+            "properties": { "mcp_server_capability_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["mcp_server_capability_ref"]
+          }
+        },
+        {
+          "description": "extension_provided_tool MUST carry an extension_manifest_ref.",
+          "if": {
+            "properties": { "tool_class": { "const": "extension_provided_tool" } },
+            "required": ["tool_class"]
+          },
+          "then": {
+            "properties": { "extension_manifest_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["extension_manifest_ref"]
+          }
+        },
+        {
+          "description": "enterprise_gateway_brokered_service MUST carry a non-empty enterprise_gateway_broker_ref.",
+          "if": {
+            "properties": { "tool_execution_locus_class": { "const": "enterprise_gateway_brokered_service" } },
+            "required": ["tool_execution_locus_class"]
+          },
+          "then": {
+            "properties": { "enterprise_gateway_broker_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["enterprise_gateway_broker_ref"]
+          }
+        },
+        {
+          "description": "A trusted_* tool output posture MUST carry a signing_evidence_reference and a local execution locus.",
+          "if": {
+            "properties": {
+              "tool_output_trust_posture_class": {
+                "enum": [
+                  "trusted_first_party_local_tool_output",
+                  "trusted_signed_extension_local_tool_output"
+                ]
+              }
+            },
+            "required": ["tool_output_trust_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "tool_execution_locus_class": {
+                "enum": [
+                  "local_in_process",
+                  "local_subprocess_same_device",
+                  "local_sandboxed_container_same_device",
+                  "local_companion_service_loopback"
+                ]
+              },
+              "signing_evidence_reference": { "$ref": "#/$defs/signing_evidence_reference" }
+            },
+            "required": ["tool_execution_locus_class", "signing_evidence_reference"]
+          }
+        },
+        {
+          "description": "An approval posture above allowed_without_prompt MUST carry a non-empty required_approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "approval_posture_class": {
+                "enum": [
+                  "allowed_with_one_time_prompt",
+                  "allowed_with_per_session_prompt",
+                  "allowed_with_per_invocation_prompt",
+                  "requires_admin_approval"
+                ]
+              }
+            },
+            "required": ["approval_posture_class"]
+          },
+          "then": {
+            "properties": { "required_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["required_approval_ticket_ref"]
+          }
+        }
+      ],
+      "description": "One governed row per external-tool or MCP-server entry. Local (stdio / loopback / companion-service), remote (HTTPS / gRPC / streamable HTTP MCP), and enterprise-gateway-brokered rows are mutually distinguishable by schema alone so reviewers, admins, and support-export surfaces can see the execution locus without opening raw endpoint metadata."
+    },
+
+    "external_tool_invocation_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_tool_registry_schema_version",
+        "disclosure_id",
+        "tool_entry_ref",
+        "tool_transport_class",
+        "tool_execution_locus_class",
+        "tool_auth_mode_class",
+        "tool_output_trust_posture_class",
+        "predicted_side_effect_class",
+        "data_classes_to_be_sent",
+        "approval_posture_class",
+        "originating_approval_ticket_ref",
+        "disclosure_kinds_surfaced",
+        "invocation_origin_class",
+        "policy_context",
+        "redaction_class",
+        "disclosed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_tool_invocation_disclosure_record" },
+        "external_tool_registry_schema_version": { "$ref": "#/$defs/external_tool_registry_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "tool_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "tool_transport_class": { "$ref": "#/$defs/tool_transport_class" },
+        "tool_execution_locus_class": { "$ref": "#/$defs/tool_execution_locus_class" },
+        "tool_auth_mode_class": { "$ref": "#/$defs/tool_auth_mode_class" },
+        "tool_output_trust_posture_class": { "$ref": "#/$defs/tool_output_trust_posture_class" },
+        "predicted_side_effect_class": { "$ref": "#/$defs/predicted_side_effect_class" },
+        "data_classes_to_be_sent": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/allowed_data_class" },
+          "description": "Data classes the invocation intends to pass as tool input. Every entry MUST be in the tool row's allowed_data_classes set; a mismatch denies with tool_data_class_not_in_allowlist."
+        },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "originating_approval_ticket_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the approval-ticket row that admitted this invocation. External-tool invocations MUST resolve to a ticket; a ticket-missing invocation denies with tool_bypass_attempted_approval_ticket_missing."
+        },
+        "disclosure_kinds_surfaced": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tool_output_invocation_disclosure_kind" },
+          "description": "Pre-invocation disclosure kinds the invocation surface has rendered. MUST include at minimum tool_identity_chip, tool_transport_chip, tool_execution_locus_chip, tool_output_trust_posture_chip, allowed_side_effect_readout, and allowed_data_class_readout."
+        },
+        "invocation_origin_class": {
+          "type": "string",
+          "enum": [
+            "ai_turn_inline_composer",
+            "ai_turn_background_branch_agent",
+            "ai_turn_review_handoff",
+            "user_palette_command",
+            "user_keybinding",
+            "user_automation_recipe",
+            "cli_headless_invocation",
+            "support_replay_only"
+          ],
+          "description": "Origin surface that issued the invocation. support_replay_only is a reconstructed invocation for support / parity audit; it MUST NOT produce side effects."
+        },
+        "originating_context_assembly_ref": {
+          "type": "string",
+          "description": "Opaque ref to the ai_context_assembly_record when invocation_origin_class is one of the ai_turn_* classes. Empty string otherwise."
+        },
+        "originating_command_invocation_ref": {
+          "type": "string",
+          "description": "Opaque ref to the command-invocation-session record (schemas/commands/) when the invocation was routed through a user command. Empty string otherwise."
+        },
+        "tool_call_lineage_ref": {
+          "type": "string",
+          "description": "Opaque ref to the ai_tool_call_lineage_record (schemas/ai/context_assembly.schema.json) that will carry the tool-call outcome once the invocation completes. Empty string for pre-invocation disclosures minted before the lineage record is attached."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "disclosed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Every disclosure MUST surface the six minimum disclosure kinds.",
+          "properties": {
+            "disclosure_kinds_surfaced": {
+              "allOf": [
+                { "contains": { "const": "tool_identity_chip" } },
+                { "contains": { "const": "tool_transport_chip" } },
+                { "contains": { "const": "tool_execution_locus_chip" } },
+                { "contains": { "const": "tool_output_trust_posture_chip" } },
+                { "contains": { "const": "allowed_side_effect_readout" } },
+                { "contains": { "const": "allowed_data_class_readout" } }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "One disclosure minted at the point of intent before every external-tool invocation. Makes tool identity, transport, locus, auth mode, output trust posture, predicted side effect, admitted data classes, and approval posture inspectable so local-subprocess, loopback, remote-HTTP, and MCP tool invocations can be visually distinguished from each other and from native-tool invocations."
+    },
+
+    "external_tool_registry_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_tool_registry_schema_version",
+        "audit_event_id",
+        "tool_entry_ref",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_tool_registry_audit_event_record" },
+        "external_tool_registry_schema_version": { "$ref": "#/$defs/external_tool_registry_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "tool_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "invocation_disclosure_ref": {
+          "type": "string",
+          "description": "Opaque ref to the external_tool_invocation_disclosure_record when the event applies to an invocation. Empty string otherwise."
+        },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket row that admitted the invocation. Empty string for registry-level events."
+        },
+        "denial_reason": {
+          "type": "string",
+          "description": "Optional denial_reason string from the denial_reason enum. Empty string for non-deny events."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Observable event on the ai_external_tool_registry audit stream. Never carries raw URLs, raw endpoint hostnames, raw spawn commands, raw environment variables, raw credential bodies, or raw tool response bytes."
+    }
+  }
+}

@@ -1,0 +1,1011 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/provider_registry.schema.json",
+  "title": "Aureline AI provider / local-model-pack registry, execution-locus, transport, auth-mode, retention, region, feature, quota, and pre-invocation disclosure vocabulary",
+  "description": "Boundary schema for the ai_provider_registry_entry_record, local_model_pack_entry_record, provider_selection_disclosure_record, and ai_provider_registry_audit_event_record frozen in docs/ai/provider_model_registry_contract.md. Every AI provider entry the product might route against — first-party managed, first-party self-hosted, BYOK (user-brought credential to a vendor or self-hosted endpoint), enterprise-gateway-brokered, vendor-hosted managed, extension-provided, or mocked / disabled — resolves to one governed row on this boundary before any turn can cite its identity. Every local-model pack (a signed offline pack the product can serve from) resolves to one local_model_pack_entry_record declaring its origin, signature-verification state, offline posture, and trust posture; a pack that has not been verified MUST NOT serve turns. Every invocation carries a matching provider_selection_disclosure_record minted before the call so provider identity, model identity, execution-locus identity, region posture, retention stance, quota family, allowed feature classes, transport class, auth mode, and allowed data classes are inspectable at the point of intent; silent widening of any axis after disclosure is forbidden. The schema composes with (and does not replace) schemas/ai/context_assembly.schema.json (provider_class, route_path_class, cost_visibility_class, trust_posture, redaction_class, tainted-fence / tainted-usage vocabulary), schemas/ai/model_registry.schema.json (model identity, capability, deprecation lane), schemas/ai/external_tool_registry.schema.json (external tool taint posture), schemas/providers/publish_later_record.schema.json (predicted_side_effect_class, irreversibility_class), schemas/integration/approval_ticket.schema.json (approval-ticket lineage), and schemas/identity/policy_bundle.schema.json (deployment_profile_class, policy_epoch, workspace-trust state). Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, and raw credential bodies never cross this boundary; records carry opaque refs, structured fields, and fingerprints only. The eventual provider-arbitration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new provider_class, execution_locus_class, transport_class, auth_mode_class, retention_stance_class, region_posture_class, supported_feature_class, quota_family_class, data_class, pre_invocation_disclosure_kind, approval_posture_class, pack_origin_class, pack_verification_state_class, pack_trust_posture, audit_event_id, or denial_reason is additive-minor and requires an ai_provider_registry_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_provider_registry_entry_record" },
+    { "$ref": "#/$defs/local_model_pack_entry_record" },
+    { "$ref": "#/$defs/provider_selection_disclosure_record" },
+    { "$ref": "#/$defs/ai_provider_registry_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_provider_registry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI provider / local-model-pack registry vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_provider_registry_entry_record",
+        "local_model_pack_entry_record",
+        "provider_selection_disclosure_record",
+        "ai_provider_registry_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / admin-reconciliation consoles. Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, and raw credential bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in pre-invocation disclosure chips, provider-selection review, admin-reconciliation, and support-export review surfaces."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted",
+        "first_party_managed",
+        "connected_provider_vendor",
+        "connected_provider_self_hosted",
+        "extension_provided_provider",
+        "mocked_test_provider",
+        "disabled_no_provider"
+      ],
+      "description": "Provider-class vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification. Every registry entry names exactly one provider_class. disabled_no_provider is the canonical state for a registry row that exists but is suspended / withdrawn / not admitted; an entry whose provider_class = disabled_no_provider MUST NOT be cited as a selection candidate."
+    },
+
+    "execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sandbox_process",
+        "local_companion_service",
+        "byok_remote_vendor_direct",
+        "byok_remote_self_hosted_direct",
+        "enterprise_gateway_brokered",
+        "vendor_hosted_first_party_managed",
+        "extension_provided_locus",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ],
+      "description": "Execution-locus vocabulary naming where the model inference actually runs. local_in_process = same OS process as Aureline. local_sandbox_process = a separate local sandboxed process / container on the same device. local_companion_service = a local long-running companion service on loopback. byok_remote_vendor_direct = the user brought a vendor credential and calls land on the vendor's endpoint with no first-party broker in the middle. byok_remote_self_hosted_direct = the user brought a self-hosted endpoint and calls land there with no first-party broker. enterprise_gateway_brokered = every call is brokered through a customer-operated or customer-contracted enterprise gateway; the gateway is the only egress origin the vendor sees. vendor_hosted_first_party_managed = the first-party product operates the relationship with the vendor and the user does not see per-vendor credential handling. extension_provided_locus = an extension provider owns the locus; locus identity is authored by the extension manifest. mocked_test_locus = a mocked locus for parity / record-replay tests only. disabled_no_locus is the locus when provider_class = disabled_no_provider and MUST NOT be coerced to any concrete value."
+    },
+
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "in_process_call",
+        "local_stdio_pipe",
+        "local_unix_domain_socket",
+        "local_named_pipe",
+        "local_http_loopback",
+        "local_grpc_loopback",
+        "remote_https",
+        "remote_grpc_over_tls",
+        "remote_mcp_over_stdio",
+        "remote_mcp_over_local_http",
+        "remote_mcp_over_streamable_http",
+        "extension_mediated_transport",
+        "mocked_test_transport",
+        "disabled_no_transport"
+      ],
+      "description": "Transport-class vocabulary naming how bytes move between Aureline and the provider's inference endpoint. Every entry names exactly one. local_* variants never leave the device. remote_mcp_* variants are reserved for MCP-shaped AI-inference endpoints (distinct from the external-tool MCP transports in schemas/ai/external_tool_registry.schema.json; the two vocabularies are kept separate because a provider endpoint and a tool endpoint carry different taint / approval rules). extension_mediated_transport = an extension owns the wire and the registry row records that the first-party product does not see the transport directly. A row whose provider_class = disabled_no_provider MUST carry transport_class = disabled_no_transport."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_local_only",
+        "byok_api_key",
+        "byok_oauth_user_token",
+        "byok_oauth_device_code",
+        "byok_service_account_key",
+        "byok_mtls_client_certificate",
+        "byok_signed_request_header",
+        "enterprise_gateway_managed_credential",
+        "enterprise_gateway_federated_identity",
+        "vendor_hosted_first_party_managed_credential",
+        "signed_manifest_only_local_pack",
+        "policy_injected_service_identity",
+        "extension_provided_auth",
+        "mocked_test_auth",
+        "disabled_no_auth"
+      ],
+      "description": "Auth-mode vocabulary naming how the caller authenticates to the provider endpoint. Every entry names exactly one. byok_* = the user brought the credential; the credential MUST be addressed through the secret broker (ADR-0007) and never embedded in the row. enterprise_gateway_* = the gateway holds and rotates credentials and the product sees a managed credential handle only. vendor_hosted_first_party_managed_credential = the first-party operator holds and rotates the credential; the end user never sees a per-call credential. signed_manifest_only_local_pack = the pack's manifest signature is the only authentication; applies only to local_model_pack_entry_record rows. policy_injected_service_identity = identity is minted by the policy engine (ADR-0001 / ADR-0008) and never appears as a user-held secret."
+    },
+
+    "retention_stance_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_local_only",
+        "no_retention_promised_body_discarded",
+        "bounded_retention_operator_access_only",
+        "bounded_retention_with_user_export",
+        "bounded_retention_with_legal_hold_only",
+        "unbounded_retention_not_used_for_training",
+        "unbounded_retention_used_for_training",
+        "retention_unknown_unverified",
+        "retention_policy_blocked"
+      ],
+      "description": "Retention-stance vocabulary naming what the provider does with request / response bodies once the call completes. Every entry names exactly one. retention_unknown_unverified is admitted only when the provider has not published a verifiable stance; a selection against it MUST surface the unverified chip at the point of intent. unbounded_retention_used_for_training is the canonical label when the provider may train on the content; narrower default policy (ADR-0008) MAY forbid this stance without re-minting the value."
+    },
+
+    "region_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "single_region_pinned",
+        "multi_region_pinned",
+        "region_failover_bounded_set",
+        "region_unpinned_vendor_default",
+        "region_unknown_unverified",
+        "region_policy_blocked"
+      ],
+      "description": "Region-posture vocabulary naming where inference bytes land geographically. Every entry names exactly one. local_device_only is the only admitted value for execution_locus_class in {local_in_process, local_sandbox_process, local_companion_service}. region_unknown_unverified = the provider has not published a verifiable region; a selection against it MUST surface the unverified chip at the point of intent and MUST NOT masquerade as pinned."
+    },
+
+    "supported_feature_class": {
+      "type": "string",
+      "enum": [
+        "text_completion",
+        "chat_completion",
+        "fill_in_middle",
+        "code_completion_single_line",
+        "code_completion_multi_line",
+        "chat_with_tool_calls",
+        "function_calling_json_schema",
+        "structured_output_json_schema",
+        "embeddings_text",
+        "embeddings_code",
+        "reranking",
+        "classification",
+        "image_input_vision",
+        "image_output_generation",
+        "audio_input_transcription",
+        "audio_output_synthesis",
+        "long_context_window",
+        "prompt_cache_hinting",
+        "streaming_delta_output",
+        "deterministic_replay_seeding"
+      ],
+      "description": "Supported-feature-class vocabulary. A registry entry lists every feature class the provider advertises for the endpoint. An invocation whose requested feature class is not in the entry's supported set MUST deny with provider_exceeds_feature_class_policy rather than silently route to a narrower capability."
+    },
+
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "per_user_local_no_limit",
+        "per_user_local_soft_throttle",
+        "per_user_byok_vendor_quota",
+        "per_user_byok_organization_quota",
+        "enterprise_gateway_pooled_quota",
+        "vendor_hosted_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered",
+        "policy_enforced_quota_override",
+        "quota_unknown_unverified"
+      ],
+      "description": "Quota-family vocabulary naming how capacity and cost are budgeted against the entry. Every entry names exactly one. A selection whose quota_family_class differs between the registry row and the selection disclosure MUST deny with provider_quota_family_forbidden rather than silently widen."
+    },
+
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "repo_check_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ],
+      "description": "Data-class allowlist vocabulary naming which ai_context_assembly segment sources MAY be sent to the provider. Each registry entry names the admitted subset. credential_handle_denied_always and secret_projection_denied_always are never admitted and are declared explicitly to make the deny record mechanically checkable on every entry. Narrowing is permitted (policy MAY remove a class from an entry); widening beyond the entry's allowlist is forbidden."
+    },
+
+    "pre_invocation_disclosure_kind": {
+      "type": "string",
+      "enum": [
+        "provider_identity_chip",
+        "model_identity_chip",
+        "execution_locus_chip",
+        "region_posture_chip",
+        "retention_stance_chip",
+        "quota_family_chip",
+        "feature_class_badge",
+        "data_class_allowlist_readout",
+        "transport_class_chip",
+        "auth_mode_chip",
+        "cost_visibility_chip",
+        "deployment_profile_chip",
+        "policy_epoch_chip",
+        "workspace_trust_chip",
+        "tainted_return_posture_chip"
+      ],
+      "description": "Pre-invocation disclosure-kind vocabulary. A provider_selection_disclosure_record MUST name every kind it has surfaced before the turn dispatches; a turn whose disclosure record is missing any required kind denies with inspectability_disclosure_missing_pre_invocation. Required kinds are at minimum provider_identity_chip, model_identity_chip, execution_locus_chip, region_posture_chip, retention_stance_chip, and data_class_allowlist_readout; additional kinds narrow and do not widen."
+    },
+
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "allowed_without_prompt",
+        "allowed_with_one_time_prompt",
+        "allowed_with_per_session_prompt",
+        "allowed_with_per_invocation_prompt",
+        "requires_admin_approval",
+        "denied_by_policy",
+        "denied_by_workspace_trust",
+        "denied_pack_verification_missing"
+      ],
+      "description": "Approval-posture vocabulary. Every registry entry declares the approval posture that applies to an invocation. The posture composes with (and does not replace) the approval-ticket contract (ADR-0010); a posture above allowed_without_prompt MUST resolve through an approval ticket before dispatch."
+    },
+
+    "pack_origin_class": {
+      "type": "string",
+      "enum": [
+        "first_party_bundled_local_pack",
+        "first_party_downloaded_verified_pack",
+        "user_imported_signed_pack",
+        "user_imported_unsigned_pack_quarantined",
+        "mirror_imported_signed_pack",
+        "air_gapped_imported_signed_pack",
+        "extension_provided_local_pack",
+        "disabled_no_pack"
+      ],
+      "description": "Local-model-pack origin vocabulary. Every local_model_pack_entry_record names exactly one. user_imported_unsigned_pack_quarantined is the canonical state for a pack whose signature the product could not verify; a quarantined pack MAY NOT serve turns until the user resolves the quarantine through an admin / security-review path."
+    },
+
+    "pack_verification_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_signature_valid",
+        "verified_manifest_chain_valid",
+        "verified_mirror_continuity_intact",
+        "pending_first_verification",
+        "verification_failed_signature_invalid",
+        "verification_failed_manifest_chain_broken",
+        "verification_failed_mirror_continuity_broken",
+        "quarantined_pending_review",
+        "withdrawn_by_operator"
+      ],
+      "description": "Local-model-pack verification-state vocabulary. A pack whose state is not one of the verified_* values MUST NOT serve turns and MUST surface the failing state in every pack-chooser, settings, and evidence surface."
+    },
+
+    "pack_trust_posture_class": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party_bundle",
+        "trusted_signed_by_operator",
+        "trusted_mirrored_with_continuity",
+        "reviewed_user_imported",
+        "unreviewed_user_imported",
+        "policy_quarantined_pack",
+        "untrusted_extension_provided_pack"
+      ],
+      "description": "Local-model-pack trust posture. Never promotes to trusted_* silently; a user-imported pack stays reviewed_user_imported until an explicit admin / security-review decision promotes it."
+    },
+
+    "offline_posture_class": {
+      "type": "string",
+      "enum": [
+        "online_required",
+        "online_preferred_offline_degraded",
+        "offline_preferred_online_bonus",
+        "offline_only_no_network_egress",
+        "air_gapped_signed_bundle",
+        "offline_expired_requires_refresh"
+      ],
+      "description": "Offline-posture vocabulary for local-model packs and provider entries. offline_only_no_network_egress is the only admitted value for execution_locus_class in {local_in_process, local_sandbox_process, local_companion_service} when the entry also declares no_auth_local_only / signed_manifest_only_local_pack."
+    },
+
+    "enterprise_gateway_broker_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_broker_direct_route",
+        "customer_operated_enterprise_gateway",
+        "customer_contracted_enterprise_gateway",
+        "first_party_operated_managed_broker",
+        "vendor_operated_regional_broker",
+        "extension_operated_broker"
+      ],
+      "description": "Enterprise-gateway broker posture. no_broker_direct_route is the only admitted value when execution_locus_class is byok_remote_vendor_direct, byok_remote_self_hosted_direct, local_in_process, local_sandbox_process, or local_companion_service. customer_operated_enterprise_gateway / customer_contracted_enterprise_gateway are the two admitted values when execution_locus_class = enterprise_gateway_brokered."
+    },
+
+    "tainted_return_posture_class": {
+      "type": "string",
+      "enum": [
+        "always_tainted_external_completion",
+        "always_tainted_external_tool_style_completion",
+        "trusted_first_party_bundle_output",
+        "trusted_signed_local_pack_output",
+        "reviewed_derived_output_at_source",
+        "posture_unknown_requires_fence_by_default"
+      ],
+      "description": "Taint posture the composer MUST apply to completion bytes returned from this provider / pack. Every external, BYOK, enterprise-gateway, and vendor-hosted provider returns bytes that the composer treats as untrusted_external by default (ADR context-assembly rule). A local-only first-party bundle pack MAY be declared trusted_first_party_bundle_output when the bundle manifest carries a first-party signature; unsigned or mirror-imported packs remain always_tainted_external_completion."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification. Narrower defaults (air_gapped, managed_fleet) MAY forbid a provider_class, execution_locus_class, transport_class, auth_mode_class, retention_stance_class, region_posture_class, quota_family_class, or data_class without re-minting the value."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context (for example when a first-party registry entry is seeded at product-launch time)."
+        }
+      },
+      "description": "Policy context the registry entry, pack, disclosure, or audit event was minted under. Revalidated on every selection and every invocation; a policy-epoch roll invalidates prior selection disclosures and forces re-disclosure."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink; raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, and raw credential bodies never cross this boundary regardless of class."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_provider_registry_entry_minted",
+        "ai_provider_registry_entry_updated",
+        "ai_provider_registry_entry_disabled",
+        "ai_provider_registry_entry_superseded",
+        "ai_provider_selection_disclosed_before_invocation",
+        "ai_provider_selection_denied_by_policy",
+        "ai_local_model_pack_admitted",
+        "ai_local_model_pack_quarantined",
+        "ai_local_model_pack_withdrawn",
+        "ai_local_model_pack_verified",
+        "ai_local_model_pack_verification_failed",
+        "ai_provider_identity_emitted_on_evidence",
+        "ai_execution_locus_emitted_on_evidence",
+        "ai_model_identity_emitted_on_evidence",
+        "ai_provider_registry_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_provider_registry audit stream. Events MUST NOT carry raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, or raw credential bodies."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "provider_disabled_by_policy",
+        "provider_class_unresolved",
+        "execution_locus_unresolved",
+        "transport_class_unresolved",
+        "auth_mode_unresolved",
+        "retention_stance_unresolved",
+        "region_posture_unresolved",
+        "feature_class_unresolved",
+        "quota_family_unresolved",
+        "provider_not_approved_for_region",
+        "provider_not_approved_for_retention_stance",
+        "provider_exceeds_feature_class_policy",
+        "provider_quota_family_forbidden",
+        "provider_auth_mode_forbidden",
+        "provider_transport_forbidden",
+        "provider_data_class_not_in_allowlist",
+        "local_model_pack_unverified",
+        "local_model_pack_signature_invalid",
+        "local_model_pack_manifest_chain_broken",
+        "local_model_pack_mirror_continuity_broken",
+        "local_model_pack_quarantined",
+        "local_model_pack_withdrawn",
+        "provider_identity_mismatch_on_evidence",
+        "execution_locus_mismatch_on_evidence",
+        "model_identity_mismatch_on_evidence",
+        "inspectability_disclosure_missing_pre_invocation",
+        "policy_epoch_rolled_invalidations",
+        "raw_url_forbidden_on_boundary",
+        "raw_endpoint_hostname_forbidden_on_boundary",
+        "raw_credential_forbidden_on_boundary",
+        "raw_pack_bytes_forbidden_on_boundary",
+        "ai_provider_registry_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort registry admission, a best-effort selection, or a best-effort local-pack admission is forbidden."
+    },
+
+    "signing_evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signing_profile_ref", "signer_continuity_state_ref"],
+      "properties": {
+        "signing_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "signer_continuity_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_chain_root_ref": {
+          "type": "string",
+          "description": "Opaque ref to the root of the pack's signed manifest chain. Empty string when pack_origin_class = first_party_bundled_local_pack and no external manifest chain applies."
+        }
+      },
+      "description": "Signing-evidence reference the pack row points at. Never inlines raw signature bytes; the signing-profile and signer-continuity-state refs resolve against schemas/security/emergency_action_record.schema.json / schemas/security/manual_import_receipt.schema.json vocabulary."
+    },
+
+    "ai_provider_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_provider_registry_schema_version",
+        "provider_entry_id",
+        "provider_class",
+        "execution_locus_class",
+        "transport_class",
+        "auth_mode_class",
+        "retention_stance_class",
+        "region_posture_class",
+        "supported_feature_classes",
+        "quota_family_class",
+        "data_class_allowlist",
+        "enterprise_gateway_broker_posture_class",
+        "tainted_return_posture_class",
+        "approval_posture_class",
+        "offline_posture_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_provider_registry_entry_record" },
+        "ai_provider_registry_schema_version": { "$ref": "#/$defs/ai_provider_registry_schema_version" },
+        "provider_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short human-readable label the selection chip, admin console, and support export render verbatim. Never contains raw URLs, raw hostnames, or raw credential material."
+        },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "supported_feature_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_feature_class" }
+        },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "data_class_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Admitted ai_context_assembly source-class allowlist for this entry. MUST NOT include credential_handle_denied_always or secret_projection_denied_always as allowed; those values are declared explicitly on the row's denied-always set so the deny record is mechanically checkable."
+        },
+        "denied_always_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Data classes the entry explicitly denies under every policy epoch. Reviewers MUST see credential_handle_denied_always and secret_projection_denied_always on every entry; they are never admitted through the allowlist."
+        },
+        "enterprise_gateway_broker_posture_class": { "$ref": "#/$defs/enterprise_gateway_broker_posture_class" },
+        "enterprise_gateway_broker_ref": {
+          "type": "string",
+          "description": "Opaque ref to the enterprise-gateway broker record that fronts this entry. Required (non-empty) when enterprise_gateway_broker_posture_class is customer_operated_enterprise_gateway / customer_contracted_enterprise_gateway / first_party_operated_managed_broker / vendor_operated_regional_broker / extension_operated_broker; empty string otherwise."
+        },
+        "connected_provider_record_id": {
+          "type": "string",
+          "description": "Opaque ref to the ADR-0010 connected-provider record the entry is scoped under (BYOK providers, vendor-hosted providers, extension-provided providers). Empty string for first-party-bundled local packs that do not bind a connected-provider record."
+        },
+        "local_model_pack_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to local_model_pack_entry_record rows the provider entry may serve from. Required non-empty when execution_locus_class is one of local_in_process / local_sandbox_process / local_companion_service; MUST be empty for byok_remote_*, enterprise_gateway_brokered, and vendor_hosted_first_party_managed loci."
+        },
+        "model_registry_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to model_registry_entry_record rows (schemas/ai/model_registry.schema.json) this provider may serve. An invocation whose resolved model_entry ref is not listed here MUST deny with provider_class_unresolved or model_identity_mismatch_on_evidence."
+        },
+        "tainted_return_posture_class": { "$ref": "#/$defs/tainted_return_posture_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "offline_posture_class": { "$ref": "#/$defs/offline_posture_class" },
+        "cost_visibility_class": {
+          "type": "string",
+          "enum": [
+            "metered_per_request",
+            "metered_per_token",
+            "flat_fee_subscription",
+            "bundled_no_incremental_cost",
+            "estimated_unverified",
+            "undisclosed_by_provider"
+          ],
+          "description": "Cost-visibility class re-exported from schemas/ai/context_assembly.schema.json without modification. undisclosed_by_provider is admitted only when the provider explicitly does not expose cost metadata; the selection chip renders the state verbatim."
+        },
+        "evidence_identity_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "provider_entry_id",
+              "model_entry_id",
+              "execution_locus_class",
+              "transport_class",
+              "region_posture_class",
+              "retention_stance_class",
+              "quota_family_class",
+              "auth_mode_class"
+            ]
+          },
+          "description": "Identity fields the entry promises to emit on every evidence packet / route receipt / spend receipt so the same provider / model identity is legible from local, BYOK, enterprise-gateway, and vendor-hosted routes. Every entry MUST include at minimum provider_entry_id, model_entry_id, execution_locus_class, region_posture_class, and retention_stance_class; missing fields deny with provider_identity_mismatch_on_evidence on emission."
+        },
+        "supersedes_provider_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Prior provider-entry refs this row supersedes. Retiring an entry is not a delete; the superseded row survives with provider_class = disabled_no_provider."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible sentence summarising the entry. Never quotes raw URLs, raw hostnames, or raw credential material."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the entry was last refreshed / re-verified. Empty on first mint."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A disabled_no_provider row MUST carry disabled_no_locus / disabled_no_transport / disabled_no_auth.",
+          "if": {
+            "properties": { "provider_class": { "const": "disabled_no_provider" } },
+            "required": ["provider_class"]
+          },
+          "then": {
+            "properties": {
+              "execution_locus_class": { "const": "disabled_no_locus" },
+              "transport_class": { "const": "disabled_no_transport" },
+              "auth_mode_class": { "const": "disabled_no_auth" }
+            },
+            "required": ["execution_locus_class", "transport_class", "auth_mode_class"]
+          }
+        },
+        {
+          "description": "Local-locus entries MUST declare local_device_only region and one or more local_model_pack_refs.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": ["local_in_process", "local_sandbox_process", "local_companion_service"]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "region_posture_class": { "const": "local_device_only" },
+              "local_model_pack_refs": { "minItems": 1 }
+            },
+            "required": ["region_posture_class", "local_model_pack_refs"]
+          }
+        },
+        {
+          "description": "Enterprise-gateway-brokered entries MUST carry a non-empty broker posture and broker ref.",
+          "if": {
+            "properties": { "execution_locus_class": { "const": "enterprise_gateway_brokered" } },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "enterprise_gateway_broker_posture_class": {
+                "enum": [
+                  "customer_operated_enterprise_gateway",
+                  "customer_contracted_enterprise_gateway",
+                  "first_party_operated_managed_broker",
+                  "vendor_operated_regional_broker",
+                  "extension_operated_broker"
+                ]
+              },
+              "enterprise_gateway_broker_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["enterprise_gateway_broker_posture_class", "enterprise_gateway_broker_ref"]
+          }
+        },
+        {
+          "description": "BYOK and vendor-hosted direct routes MUST carry no_broker_direct_route.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": [
+                  "byok_remote_vendor_direct",
+                  "byok_remote_self_hosted_direct",
+                  "vendor_hosted_first_party_managed"
+                ]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "enterprise_gateway_broker_posture_class": { "const": "no_broker_direct_route" }
+            },
+            "required": ["enterprise_gateway_broker_posture_class"]
+          }
+        }
+      ],
+      "description": "One governed row per AI provider entry the product may route against. Every invocation MUST resolve to exactly one provider_entry_id and cite that id on its ai_context_assembly_record, ai_route_plan_record, ai_route_receipt_record, ai_spend_receipt_record, and ai_evidence_packet_record so local, BYOK, enterprise-gateway, and vendor-hosted routes are mutually distinguishable by schema alone."
+    },
+
+    "local_model_pack_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_provider_registry_schema_version",
+        "pack_entry_id",
+        "pack_origin_class",
+        "pack_verification_state_class",
+        "pack_trust_posture_class",
+        "model_family_label",
+        "model_variant_label",
+        "offline_posture_class",
+        "signing_evidence_reference",
+        "data_class_allowlist",
+        "supported_feature_classes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_model_pack_entry_record" },
+        "ai_provider_registry_schema_version": { "$ref": "#/$defs/ai_provider_registry_schema_version" },
+        "pack_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "pack_origin_class": { "$ref": "#/$defs/pack_origin_class" },
+        "pack_verification_state_class": { "$ref": "#/$defs/pack_verification_state_class" },
+        "pack_trust_posture_class": { "$ref": "#/$defs/pack_trust_posture_class" },
+        "model_family_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Opaque human-readable family label (e.g. a short product-facing name) the pack chooser renders. Never a raw URL or raw weight hash."
+        },
+        "model_variant_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Opaque human-readable variant label (e.g. parameter-count / quantisation band). Never a raw URL or raw weight hash."
+        },
+        "weight_digest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the signing-evidence record binding the pack's weight digest. Never the raw digest bytes."
+        },
+        "pack_size_bucket": {
+          "type": "string",
+          "enum": [
+            "under_500MB",
+            "500MB_to_2GB",
+            "2GB_to_8GB",
+            "8GB_to_32GB",
+            "over_32GB",
+            "unknown_size"
+          ],
+          "description": "Coarse size bucket for pack-chooser readout. Never the exact byte count."
+        },
+        "runtime_requirement_class": {
+          "type": "string",
+          "enum": [
+            "cpu_only",
+            "discrete_gpu_preferred",
+            "discrete_gpu_required",
+            "apple_silicon_accelerated",
+            "cuda_accelerated",
+            "rocm_accelerated",
+            "directml_accelerated",
+            "unknown_runtime_requirement"
+          ],
+          "description": "Runtime-requirement class the pack chooser renders. A device whose runtime does not satisfy the pack's requirement MUST surface a typed blocker before invocation."
+        },
+        "offline_posture_class": { "$ref": "#/$defs/offline_posture_class" },
+        "signing_evidence_reference": { "$ref": "#/$defs/signing_evidence_reference" },
+        "data_class_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_class" }
+        },
+        "denied_always_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" }
+        },
+        "supported_feature_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_feature_class" }
+        },
+        "served_by_provider_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to ai_provider_registry_entry_record rows that may serve this pack. A pack that no provider entry references cannot be invoked."
+        },
+        "supersedes_pack_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_verified_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A pack whose verification state is not one of the verified_* values MUST NOT claim a trusted_* trust posture.",
+          "if": {
+            "properties": {
+              "pack_verification_state_class": {
+                "enum": [
+                  "pending_first_verification",
+                  "verification_failed_signature_invalid",
+                  "verification_failed_manifest_chain_broken",
+                  "verification_failed_mirror_continuity_broken",
+                  "quarantined_pending_review",
+                  "withdrawn_by_operator"
+                ]
+              }
+            },
+            "required": ["pack_verification_state_class"]
+          },
+          "then": {
+            "properties": {
+              "pack_trust_posture_class": {
+                "enum": [
+                  "unreviewed_user_imported",
+                  "policy_quarantined_pack",
+                  "untrusted_extension_provided_pack"
+                ]
+              }
+            },
+            "required": ["pack_trust_posture_class"]
+          }
+        },
+        {
+          "description": "A user_imported_unsigned_pack_quarantined origin MUST carry a quarantined / failed verification state and the policy_quarantined_pack trust posture.",
+          "if": {
+            "properties": { "pack_origin_class": { "const": "user_imported_unsigned_pack_quarantined" } },
+            "required": ["pack_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "pack_verification_state_class": {
+                "enum": [
+                  "quarantined_pending_review",
+                  "verification_failed_signature_invalid",
+                  "verification_failed_manifest_chain_broken"
+                ]
+              },
+              "pack_trust_posture_class": { "const": "policy_quarantined_pack" }
+            },
+            "required": ["pack_verification_state_class", "pack_trust_posture_class"]
+          }
+        }
+      ],
+      "description": "One governed row per local-model pack. A pack that has not been verified (pack_verification_state_class not in the verified_* set) MUST NOT serve turns and MUST surface its failing state in pack chooser, settings, and evidence surfaces."
+    },
+
+    "provider_selection_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_provider_registry_schema_version",
+        "disclosure_id",
+        "provider_entry_ref",
+        "model_entry_ref",
+        "execution_locus_class",
+        "region_posture_class",
+        "retention_stance_class",
+        "quota_family_class",
+        "supported_feature_classes",
+        "data_class_allowlist",
+        "transport_class",
+        "auth_mode_class",
+        "approval_posture_class",
+        "tainted_return_posture_class",
+        "disclosure_kinds_surfaced",
+        "policy_context",
+        "redaction_class",
+        "disclosed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_selection_disclosure_record" },
+        "ai_provider_registry_schema_version": { "$ref": "#/$defs/ai_provider_registry_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "local_model_pack_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local_model_pack_entry_record when execution_locus_class is local_*. Empty string otherwise."
+        },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "supported_feature_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supported_feature_class" }
+        },
+        "data_class_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/data_class" }
+        },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "tainted_return_posture_class": { "$ref": "#/$defs/tainted_return_posture_class" },
+        "disclosure_kinds_surfaced": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pre_invocation_disclosure_kind" },
+          "description": "Pre-invocation disclosure kinds the selection surface has rendered. MUST include at minimum provider_identity_chip, model_identity_chip, execution_locus_chip, region_posture_chip, retention_stance_chip, and data_class_allowlist_readout; missing kinds deny with inspectability_disclosure_missing_pre_invocation."
+        },
+        "intended_feature_class": {
+          "$ref": "#/$defs/supported_feature_class",
+          "description": "The feature class the caller intends to invoke under this disclosure. MUST be present in supported_feature_classes; a mismatch denies with provider_exceeds_feature_class_policy."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the schemas/integration/approval_ticket.schema.json ticket that admitted the selection. Required (non-empty) when approval_posture_class is above allowed_without_prompt."
+        },
+        "originating_context_assembly_ref": {
+          "type": "string",
+          "description": "Opaque ref to the schemas/ai/context_assembly.schema.json ai_context_assembly_record this disclosure was minted against. Empty string for pre-assembly disclosure chips (provider picker, settings panel)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "disclosed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which this disclosure is stale and MUST be re-minted before invocation. Typically bounded by policy-epoch stability and workspace-trust state."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every disclosure MUST surface the six minimum disclosure kinds.",
+          "properties": {
+            "disclosure_kinds_surfaced": {
+              "allOf": [
+                { "contains": { "const": "provider_identity_chip" } },
+                { "contains": { "const": "model_identity_chip" } },
+                { "contains": { "const": "execution_locus_chip" } },
+                { "contains": { "const": "region_posture_chip" } },
+                { "contains": { "const": "retention_stance_chip" } },
+                { "contains": { "const": "data_class_allowlist_readout" } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "An approval_posture_class above allowed_without_prompt MUST carry a non-empty originating_approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "approval_posture_class": {
+                "enum": [
+                  "allowed_with_one_time_prompt",
+                  "allowed_with_per_session_prompt",
+                  "allowed_with_per_invocation_prompt",
+                  "requires_admin_approval"
+                ]
+              }
+            },
+            "required": ["approval_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "A local execution-locus disclosure MUST name the local_model_pack_ref.",
+          "if": {
+            "properties": {
+              "execution_locus_class": {
+                "enum": ["local_in_process", "local_sandbox_process", "local_companion_service"]
+              }
+            },
+            "required": ["execution_locus_class"]
+          },
+          "then": {
+            "properties": { "local_model_pack_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["local_model_pack_ref"]
+          }
+        }
+      ],
+      "description": "One disclosure minted at the point of intent before every AI invocation. Makes provider / model / locus / region / retention / quota / feature / data-class / transport / auth / approval / taint identity inspectable so local, BYOK, enterprise-gateway, and vendor-hosted routes can be visually distinguished. Silent widening of any axis after disclosure is forbidden."
+    },
+
+    "ai_provider_registry_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_provider_registry_schema_version",
+        "audit_event_id",
+        "provider_entry_ref",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_provider_registry_audit_event_record" },
+        "ai_provider_registry_schema_version": { "$ref": "#/$defs/ai_provider_registry_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "pack_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local_model_pack_entry_record when the event applies to a pack (ai_local_model_pack_*). Empty string otherwise."
+        },
+        "disclosure_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_selection_disclosure_record when the event applies to a disclosure. Empty string otherwise."
+        },
+        "denial_reason": {
+          "type": "string",
+          "description": "Optional denial_reason string from the denial_reason enum. Empty string for non-deny events."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Observable event on the ai_provider_registry audit stream. Never carries raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, or raw credential bodies."
+    }
+  }
+}
