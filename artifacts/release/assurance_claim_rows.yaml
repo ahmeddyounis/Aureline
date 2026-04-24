@@ -1,0 +1,1899 @@
+# Assurance-claim matrix (machine-readable companion).
+#
+# Canonical register of launch-facing assurance rows. Every row binds one
+# claim-subject family to a declared claim class, an effective claim
+# class after automatic narrowing, a scope envelope, archetype and
+# workflow-bundle refs, a closed proof-class breakdown, explicit
+# exclusion and known-limit refs, a docs-version-match floor,
+# publication destinations, and downgrade triggers. Rows conform to
+# schemas/release/assurance_claim.schema.json.
+#
+# The narrative companion is docs/release/assurance_claim_matrix.md.
+# If this file and the matrix narrative disagree, this file is
+# authoritative for tooling and the narrative MUST update in the same
+# change.
+#
+# Vocabulary rules. The class, proof-class, proof-presence, downgrade-
+# trigger, scope, and publication-destination vocabularies here are
+# closed and aligned with:
+#   - schemas/release/assurance_claim.schema.json        (boundary)
+#   - artifacts/governance/claim_propagation_rules.yaml  (propagation)
+#   - artifacts/governance/claim_manifest_seed.yaml      (failure modes)
+#   - artifacts/governance/truth_class_matrix.yaml       (truth classes)
+#   - docs/release/assurance_claim_matrix.md             (narrative)
+# Adding a new class, proof class, proof-presence value, downgrade
+# trigger, scope value, or publication destination is additive-minor
+# and lands in this file, the schema, and the narrative doc in the
+# same change. Repurposing an existing value is breaking.
+#
+# Milestone posture. The repository is pre-implementation: no row may
+# currently declare or project as `certified`, and no row may declare
+# `replacement_grade_candidate` without also naming the superseded
+# assurance-claim id. The schema enforces this structurally; this
+# seed does not exercise those branches.
+
+schema_version: 1
+record_kind: assurance_claim_matrix
+matrix_id: aureline.assurance_claim_matrix
+status: seeded
+
+# ---------------------------------------------------------------------------
+# Cross-references.
+# ---------------------------------------------------------------------------
+row_schema_ref: schemas/release/assurance_claim.schema.json
+overview_doc_ref: docs/release/assurance_claim_matrix.md
+claim_manifest_schema_ref: schemas/governance/claim_manifest.schema.json
+claim_manifest_seed_ref: artifacts/governance/claim_manifest_seed.yaml
+claim_propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
+truth_class_matrix_ref: artifacts/governance/truth_class_matrix.yaml
+deployment_profiles_ref: artifacts/governance/deployment_profiles.yaml
+evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+release_evidence_packet_template_ref: docs/release/release_evidence_packet_template.md
+compatibility_seed_ref: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_ref: artifacts/compat/version_skew_register.yaml
+certified_archetype_template_ref: docs/release/certified_archetype_report_template.md
+
+# ---------------------------------------------------------------------------
+# Closed claim-class vocabulary (mirrors schemas/release/assurance_claim
+# .schema.json#/$defs/claim_class).
+#
+# Ordering from strongest to weakest (narrower is always admissible;
+# widening is forbidden):
+#   certified > supported > community > limited > experimental >
+#   retest_pending > exception_recorded > evidence_stale > not_claimed.
+# replacement_grade_candidate is a ladder-crossing class reserved for
+# rows that supersede a prior row AND carry the full certified-grade
+# proof set.
+# ---------------------------------------------------------------------------
+claim_class_vocabulary:
+  - certified
+  - supported
+  - limited
+  - community
+  - experimental
+  - retest_pending
+  - exception_recorded
+  - evidence_stale
+  - not_claimed
+  - replacement_grade_candidate
+
+# ---------------------------------------------------------------------------
+# Closed proof-class and proof-presence vocabularies.
+# ---------------------------------------------------------------------------
+proof_class_vocabulary:
+  - vendor_asserted
+  - customer_provided
+  - runtime_observed
+  - policy_declared
+  - not_currently_verifiable
+
+proof_presence_vocabulary:
+  - present
+  - partial
+  - absent
+  - not_applicable
+
+# ---------------------------------------------------------------------------
+# Closed downgrade-trigger vocabulary.
+# ---------------------------------------------------------------------------
+downgrade_trigger_vocabulary:
+  - required_evidence_missing
+  - required_evidence_stale
+  - required_evidence_narrower_than_claim
+  - docs_version_match_unmet
+  - docs_freshness_floor_unmet
+  - unresolved_migration_gap
+  - caveat_uncovered
+  - proof_class_not_currently_verifiable
+  - exception_window_expired
+  - compatibility_row_degraded
+  - support_window_expired
+  - policy_blocked
+
+# ---------------------------------------------------------------------------
+# Closed publication-destination vocabulary. Aligned verbatim with the
+# publication_channels list in artifacts/governance/claim_manifest_seed
+# .yaml so no row invents a private channel.
+# ---------------------------------------------------------------------------
+publication_destination_vocabulary:
+  - docs_site
+  - migration_notes
+  - help_about
+  - service_health
+  - support_export
+  - release_packet
+  - release_notes
+  - cli_help
+  - evaluation_artifact
+  - marketplace_discovery
+  - public_proof_packet
+
+# ---------------------------------------------------------------------------
+# Class-level rules.
+#
+# Every class declares the proof classes and ref floors required to
+# project it, the allowed automatic downgrade targets, and whether the
+# class permits declared use in the current milestone. These rules are
+# the data form of the structural gates in schemas/release/assurance_
+# claim.schema.json; if the schema and these rules disagree, the schema
+# wins and this file updates in the same change.
+# ---------------------------------------------------------------------------
+class_rules:
+  - class_id: certified
+    required_proof_classes:
+      - vendor_asserted
+      - customer_provided
+      - runtime_observed
+      - policy_declared
+    required_archetype_refs_minimum: 1
+    required_workflow_bundle_refs_minimum: 1
+    required_evidence_refs_minimum: 1
+    allowed_automatic_downgrade_targets:
+      - supported
+      - limited
+      - retest_pending
+      - evidence_stale
+      - exception_recorded
+      - not_claimed
+    narrowing_is_widening: false
+    declared_use_allowed_at_milestone: not_available_until_runtime_observation_exists
+    notes: >
+      Certified is the highest claim class. It requires vendor_asserted,
+      customer_provided, runtime_observed, and policy_declared proof
+      classes to each be present or not_applicable (runtime_observed
+      MUST be present). The repository is pre-implementation; no row
+      may currently declare certified.
+
+  - class_id: supported
+    required_proof_classes:
+      - vendor_asserted
+      - policy_declared
+    required_proof_classes_any_of_present_or_partial:
+      - runtime_observed
+      - customer_provided
+    required_archetype_refs_minimum: 0
+    required_workflow_bundle_refs_minimum: 0
+    required_evidence_refs_minimum: 1
+    allowed_automatic_downgrade_targets:
+      - limited
+      - community
+      - retest_pending
+      - evidence_stale
+      - exception_recorded
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Supported rows publish claim-bearing wording. At least one of
+      runtime_observed or customer_provided MUST be present or partial
+      so the row is not merely vendor-asserted.
+
+  - class_id: limited
+    required_proof_classes:
+      - vendor_asserted
+    required_archetype_refs_minimum: 0
+    required_workflow_bundle_refs_minimum: 0
+    required_evidence_refs_minimum: 0
+    allowed_automatic_downgrade_targets:
+      - retest_pending
+      - evidence_stale
+      - exception_recorded
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Limited rows disclose that available evidence covers a smaller
+      scope than a full support claim would imply. Must carry at least
+      one active downgrade reason.
+
+  - class_id: community
+    required_proof_classes:
+      - vendor_asserted
+    required_proof_classes_any_of_present_or_partial:
+      - customer_provided
+      - runtime_observed
+    required_archetype_refs_minimum: 0
+    required_workflow_bundle_refs_minimum: 0
+    required_evidence_refs_minimum: 0
+    allowed_automatic_downgrade_targets:
+      - limited
+      - experimental
+      - retest_pending
+      - evidence_stale
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Community rows lean on community or customer-provided reports as
+      the supporting proof. Aureline does not maintain runtime-observed
+      coverage on community rows.
+
+  - class_id: experimental
+    required_proof_classes:
+      - vendor_asserted
+    required_archetype_refs_minimum: 0
+    required_workflow_bundle_refs_minimum: 0
+    required_evidence_refs_minimum: 0
+    allowed_automatic_downgrade_targets:
+      - retest_pending
+      - evidence_stale
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Experimental is the default class for capabilities that are not
+      yet ready to carry supported wording. Rows MUST still name
+      exclusions and downgrade triggers.
+
+  - class_id: retest_pending
+    required_proof_classes: []
+    allowed_automatic_downgrade_targets:
+      - evidence_stale
+      - exception_recorded
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Retest-pending is a short-lived state. Rows MUST name the trigger
+      that invalidated the prior evidence and the refresh target.
+
+  - class_id: exception_recorded
+    required_proof_classes: []
+    required_known_limit_refs_minimum: 1
+    allowed_automatic_downgrade_targets:
+      - evidence_stale
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Exception-recorded rows MUST carry at least one known-limit or
+      waiver ref and name the exception's expiry. Surfaces render the
+      exception-recorded posture, not the declared wording.
+
+  - class_id: evidence_stale
+    required_proof_classes: []
+    allowed_automatic_downgrade_targets:
+      - not_claimed
+    narrowing_is_widening: false
+    notes: >
+      Evidence-stale rows MUST name the trigger (required_evidence_
+      stale, docs_freshness_floor_unmet, or compatibility_row_degraded)
+      and the refresh target. Surfaces render the stale posture.
+
+  - class_id: not_claimed
+    required_proof_classes: []
+    required_exclusion_refs_minimum: 1
+    allowed_automatic_downgrade_targets: []
+    narrowing_is_widening: false
+    notes: >
+      Not-claimed rows carry explicit non-claim wording and MUST name
+      at least one exclusion ref so the absence of claim is visible,
+      not silent.
+
+  - class_id: replacement_grade_candidate
+    required_proof_classes:
+      - vendor_asserted
+      - customer_provided
+      - runtime_observed
+      - policy_declared
+    required_archetype_refs_minimum: 1
+    required_workflow_bundle_refs_minimum: 1
+    required_evidence_refs_minimum: 1
+    required_replacement_claim_row_ref: true
+    allowed_automatic_downgrade_targets:
+      - retest_pending
+      - evidence_stale
+      - exception_recorded
+      - not_claimed
+    narrowing_is_widening: false
+    declared_use_allowed_at_milestone: not_available_until_runtime_observation_exists
+    notes: >
+      Replacement-grade candidate is reserved for successor rows that
+      carry full certified-grade proof AND name the superseded row via
+      replacement_claim_row_ref. Structurally impossible without the
+      full proof set.
+
+# ---------------------------------------------------------------------------
+# Automatic downgrade rules.
+#
+# When the named trigger fires on a row, the row projects as the
+# target_effective_class through the mandatory_publication_destinations
+# until the trigger clears or a waiver closes. Rules compose worst-
+# supporting-truth-wins (see claim_propagation_rules.composition_rule).
+# ---------------------------------------------------------------------------
+downgrade_rules:
+  - rule_id: downgrade:required_evidence_missing
+    trigger: required_evidence_missing
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - release_packet
+      - support_export
+      - help_about
+    notes: >
+      A required evidence packet or row ref is absent. The row narrows
+      to limited and points readers to the packet or repair path
+      instead of silently preserving claim-bearing wording.
+
+  - rule_id: downgrade:required_evidence_stale
+    trigger: required_evidence_stale
+    target_effective_class: evidence_stale
+    mandatory_publication_destinations:
+      - public_proof_packet
+      - release_notes
+      - support_export
+    notes: >
+      Evidence exists but its freshness window expired. Public-proof,
+      release-note, and support surfaces carry the stale posture.
+
+  - rule_id: downgrade:required_evidence_narrower_than_claim
+    trigger: required_evidence_narrower_than_claim
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - docs_site
+      - release_packet
+      - support_export
+    notes: >
+      Evidence covers a smaller scope than the copy would imply. The
+      row narrows to limited; surfaces MUST trim the wording to the
+      evidenced scope.
+
+  - rule_id: downgrade:docs_version_match_unmet
+    trigger: docs_version_match_unmet
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - docs_site
+      - help_about
+      - service_health
+    notes: >
+      Docs/help version match fell below the row's floor. Docs and
+      in-product truth surfaces narrow to mismatch or stale wording.
+
+  - rule_id: downgrade:docs_freshness_floor_unmet
+    trigger: docs_freshness_floor_unmet
+    target_effective_class: evidence_stale
+    mandatory_publication_destinations:
+      - docs_site
+      - help_about
+      - service_health
+    notes: >
+      Freshness dropped below the row's minimum class; cached or stale
+      copy MUST stay explicit and cannot present as authoritative.
+
+  - rule_id: downgrade:unresolved_migration_gap
+    trigger: unresolved_migration_gap
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - migration_notes
+      - release_packet
+      - release_notes
+    notes: >
+      A migration path is incomplete. Release and migration-note
+      surfaces narrow the claim to what the current migration covers.
+
+  - rule_id: downgrade:caveat_uncovered
+    trigger: caveat_uncovered
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - docs_site
+      - release_notes
+      - support_export
+    notes: >
+      Required caveats or known-limit notes are absent; the claim
+      cannot remain claim-bearing even when evidence is present.
+
+  - rule_id: downgrade:proof_class_not_currently_verifiable
+    trigger: proof_class_not_currently_verifiable
+    target_effective_class: experimental
+    mandatory_publication_destinations:
+      - docs_site
+      - release_packet
+      - public_proof_packet
+    notes: >
+      A proof class required by the declared class is not currently
+      verifiable at Aureline's verification capability. The row
+      narrows to experimental.
+
+  - rule_id: downgrade:exception_window_expired
+    trigger: exception_window_expired
+    target_effective_class: not_claimed
+    mandatory_publication_destinations:
+      - release_notes
+      - migration_notes
+      - support_export
+    notes: >
+      A recorded exception reached its expiry. The row narrows to
+      not_claimed until the exception is renewed or retired.
+
+  - rule_id: downgrade:compatibility_row_degraded
+    trigger: compatibility_row_degraded
+    target_effective_class: limited
+    mandatory_publication_destinations:
+      - migration_notes
+      - release_packet
+      - evaluation_artifact
+    notes: >
+      The upstream compatibility row already degraded. Claim consumers
+      quote that degraded posture rather than widening the wording.
+
+  - rule_id: downgrade:support_window_expired
+    trigger: support_window_expired
+    target_effective_class: not_claimed
+    mandatory_publication_destinations:
+      - docs_site
+      - migration_notes
+      - cli_help
+      - release_notes
+    notes: >
+      The declared support window ended. The row routes readers to
+      the successor path instead of implying normal support.
+
+  - rule_id: downgrade:policy_blocked
+    trigger: policy_blocked
+    target_effective_class: exception_recorded
+    mandatory_publication_destinations:
+      - help_about
+      - service_health
+      - support_export
+    notes: >
+      A policy, kill switch, or disclosure rule blocks the row's
+      proof chain. Surfaces render the exception-recorded posture.
+
+# ---------------------------------------------------------------------------
+# Subject-family register.
+#
+# Every claim row binds to one subject family. This register is the
+# shared taxonomy release, docs, support, and product owners use so the
+# same row is not quoted under different subject names. Coverage below
+# lists every subject family the PRD requires the matrix to speak for
+# at this milestone, with its current_default_claim_class so readers
+# see at a glance where the product is at today.
+# ---------------------------------------------------------------------------
+subject_family_register:
+  - subject_family_id: provider_aware_language_intelligence
+    summary: >
+      Provider-aware language intelligence spans syntax-aware editing,
+      semantic navigation, provider-backed completions, and multi-
+      provider fallbacks. Any claim on this family MUST distinguish
+      provider-neutral editor behavior from provider-bound behavior.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:provider_aware_language_intelligence
+
+  - subject_family_id: trustworthy_diagnostics_and_quick_fixes
+    summary: >
+      Diagnostics, lint routing, and quick-fix or code-action suggestions.
+      Any claim MUST distinguish provider-sourced diagnostics from
+      Aureline-sourced diagnostics and MUST disclose which quick fixes
+      are auto-applied versus gated on explicit user confirmation.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:trustworthy_diagnostics_and_quick_fixes
+
+  - subject_family_id: replay_safe_execution_history
+    summary: >
+      Task, run, and debug-execution history captured in a form safe
+      to replay for audit, review, or regression re-evaluation.
+      Any claim MUST distinguish lossy summaries from lossless record
+      streams and name which schema epochs preserve replay fidelity.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:replay_safe_execution_history
+
+  - subject_family_id: provider_integrated_review
+    summary: >
+      Review threading that binds an Aureline review surface to an
+      upstream provider (issue tracker, code-review host, or ticketing
+      platform). Any claim MUST distinguish the provider-hosted record
+      from the Aureline mirror and state the drift window.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:provider_integrated_review
+
+  - subject_family_id: localization_readiness
+    summary: >
+      Localization readiness: translated strings, locale-aware
+      formatting, right-to-left layouts, bidirectional text, and
+      input-method-editor behavior.
+    current_default_claim_class: not_claimed
+    assurance_claim_row_ref: assurance_claim:localization_readiness
+
+  - subject_family_id: export_and_offboarding_support
+    summary: >
+      Export, offboarding, and data-portability support. Any claim
+      MUST name which artifacts are exportable, in which formats, and
+      under which retention and redaction posture.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:export_and_offboarding_support
+
+  - subject_family_id: theme_package_portability
+    summary: >
+      Theme-package portability across display technologies, color
+      gamuts, high-contrast modes, and across theme-package schema
+      revisions. Any claim MUST name which package schema epoch is
+      covered and how mismatches are handled.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:theme_package_portability
+
+  - subject_family_id: voice_privacy
+    summary: >
+      Voice input or voice-driven features and their privacy posture
+      (on-device processing, audio retention, transcript retention).
+    current_default_claim_class: not_claimed
+    assurance_claim_row_ref: assurance_claim:voice_privacy
+
+  - subject_family_id: repair_rollback_safety
+    summary: >
+      Repair and rollback safety: undo an Aureline-initiated change
+      cleanly and restore the workspace state that preceded it.
+      Any claim MUST name the rollback scope, the retained evidence,
+      and which classes of change are irreversible.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:repair_rollback_safety
+
+  - subject_family_id: regulated_environment_assurance
+    summary: >
+      Regulated-environment assurances: sovereign posture, customer-
+      managed keys, no vendor-hosted AI, and the evidence posture
+      required for regulated deployments. Any claim MUST name the
+      specific posture and MUST NOT imply generic "regulated-ready"
+      wording absent a named certification.
+    current_default_claim_class: limited
+    assurance_claim_row_ref: assurance_claim:regulated_environment_assurance
+
+  - subject_family_id: boundary_and_scope_truth
+    summary: >
+      Boundary-and-scope truth: open-versus-managed, local-core
+      continuity, and the scope of optional managed dependencies.
+    current_default_claim_class: limited
+    assurance_claim_row_ref: assurance_claim:boundary_and_scope_truth
+
+  - subject_family_id: compatibility_and_skew_truth
+    summary: >
+      Compatibility and version-skew truth across Aureline's
+      artifact boundaries.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:compatibility_and_skew_truth
+
+  - subject_family_id: benchmark_publication_truth
+    summary: >
+      Benchmark publication truth: what published benchmark numbers
+      claim, under which hardware and workspace, and which caveats
+      narrow the claim.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:benchmark_publication_truth
+
+  - subject_family_id: docs_and_help_freshness_truth
+    summary: >
+      Docs and help freshness truth: the minimum docs-version match
+      and freshness class required for a row to project through
+      docs_site, help_about, or service_health.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:docs_and_help_freshness_truth
+
+  - subject_family_id: supply_chain_and_provenance_truth
+    summary: >
+      Supply-chain and provenance truth: exact-build identity, signing,
+      SBOM, and publication proofs.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:supply_chain_and_provenance_truth
+
+  - subject_family_id: accessibility_readiness
+    summary: >
+      Accessibility readiness: keyboard coverage, screen-reader role
+      mapping, contrast, motion sensitivity, and assistive-technology
+      interoperability.
+    current_default_claim_class: experimental
+    assurance_claim_row_ref: assurance_claim:accessibility_readiness
+
+# ---------------------------------------------------------------------------
+# Assurance-claim rows.
+#
+# Every row conforms to schemas/release/assurance_claim.schema.json.
+# Rows are seed-grade only: they carry explicit exclusions and
+# downgrade triggers so surfaces never project wording the repository's
+# evidence does not currently support. No row declares or projects as
+# `certified` or `replacement_grade_candidate` at this milestone; both
+# are reserved for future rows that carry the full proof set.
+# ---------------------------------------------------------------------------
+assurance_claims:
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:provider_aware_language_intelligence
+    claim_subject_family: provider_aware_language_intelligence
+    claim_subject_summary: >
+      Provider-aware language intelligence (editor-side semantic behavior,
+      provider-bound completions, and multi-provider fallback posture).
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - proof_class_not_currently_verifiable
+      - caveat_uncovered
+    canonical_copy:
+      headline: Provider-aware language intelligence is preview-grade.
+      claim_text: >
+        Aureline's provider-aware language intelligence narrows to
+        editor-native behavior plus whichever configured provider the
+        user's deployment resolves to; claim-bearing wording is not yet
+        earned.
+      limited_text: >
+        Provider-aware behavior is limited to the configured provider
+        scope named in the deployment profile and does not imply
+        multi-provider parity.
+      experimental_text: >
+        Provider-aware language intelligence is experimental. Provider
+        fidelity, multi-provider fallback parity, and offline-LLM
+        capability are not claimed.
+      retest_pending_text: >
+        Provider-aware behavior evidence is being refreshed; surfaces
+        hold claim-bearing wording until the refresh closes.
+      exception_recorded_text: >
+        Provider-aware behavior is under a recorded exception and MUST
+        render the exception posture until it closes.
+      evidence_stale_text: >
+        Evidence for provider-aware behavior is stale; surfaces cannot
+        present current-proof wording.
+      not_claimed_text: >
+        Provider-aware language intelligence is not claimed for this
+        row's scope envelope.
+      replacement_text: >
+        This row has been superseded; route readers to the successor
+        assurance-claim row before preserving older wording.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+      client_scopes:
+        - desktop_product
+        - cli
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - docs/adr/0013-docs-help-service-health-truth.md
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Vendor-asserted posture states that language-intelligence
+          behavior MUST disclose its provider scope and MUST NOT imply
+          offline-LLM inference. No runtime-observed verification.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          No customer-provided attestations of provider-aware behavior
+          are collected at this milestone.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          No runtime-observed evidence. Aureline has not yet shipped a
+          reference workspace that exercises provider-aware language
+          intelligence end to end.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - artifacts/governance/public_truth_parity_matrix.yaml
+        known_limit_refs: []
+        note: >
+          Policy-declared posture: provider scope, fallback handling,
+          and offline behavior MUST be named in docs_site and help_about
+          copy before claim-bearing wording is earned.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Multi-provider fidelity parity is outside Aureline's current
+          verification capability and cannot be claimed.
+    required_evidence_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+    exclusion_refs:
+      - "non_claim:language_intelligence.multi_provider_parity_not_claimed"
+      - "non_claim:language_intelligence.offline_llm_inference_not_claimed"
+      - "non_claim:language_intelligence.ai_fidelity_sla_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+    docs_version_match:
+      minimum_match_state: warm_cached_allowed
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_evidence_stale
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+    downgrade_triggers:
+      - trigger: required_evidence_narrower_than_claim
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: >
+          If provider-aware proof narrows to one provider only, copy
+          narrows to that provider's scope.
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - public_proof_packet
+        notes: >
+          Multi-provider fidelity parity remains unverifiable; the row
+          stays experimental until runtime-observed evidence exists.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+          - support_export
+        notes: Required caveats are not yet all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first runtime-observed provider benchmark
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: >
+      Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:trustworthy_diagnostics_and_quick_fixes
+    claim_subject_family: trustworthy_diagnostics_and_quick_fixes
+    claim_subject_summary: >
+      Diagnostics, lint routing, and quick-fix or code-action
+      suggestions, including which fixes are auto-applied versus
+      gated on explicit user confirmation.
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - proof_class_not_currently_verifiable
+      - caveat_uncovered
+    canonical_copy:
+      headline: Diagnostics and quick-fix suggestions are preview-grade.
+      claim_text: >
+        Aureline surfaces diagnostics from the configured provider plus
+        editor-native checks; claim-bearing wording on diagnostic
+        correctness or auto-apply safety is not yet earned.
+      limited_text: >
+        Diagnostics are limited to the routed provider and editor-native
+        checks; no claim of universal correctness.
+      experimental_text: >
+        Quick-fix auto-apply safety, suggestion reversibility, and
+        diagnostic provenance are experimental and not claim-bearing.
+      retest_pending_text: >
+        Diagnostic evidence is being refreshed; suggestion-safety
+        copy holds until the refresh closes.
+      exception_recorded_text: >
+        Quick-fix auto-apply is under a recorded exception and MUST
+        render the exception posture.
+      evidence_stale_text: >
+        Diagnostic-evidence freshness has lapsed; surfaces cannot
+        present current-proof wording.
+      not_claimed_text: >
+        Diagnostics or quick-fix suggestions are not claimed for this
+        scope envelope.
+      replacement_text: >
+        This diagnostics row has been superseded; route readers to the
+        successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+      client_scopes:
+        - desktop_product
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - docs/adr/0013-docs-help-service-health-truth.md
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Vendor-asserted posture that diagnostics MUST disclose
+          provenance (provider vs editor-native) and that auto-apply
+          paths MUST be gated by policy.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided correctness attestations.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed diagnostic-accuracy evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - artifacts/governance/public_truth_parity_matrix.yaml
+        known_limit_refs: []
+        note: >
+          Policy requires explicit disclosure of diagnostic provenance
+          and explicit confirmation on non-reversible quick fixes.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Universal diagnostic correctness across all provider backends
+          is outside current verification capability.
+    required_evidence_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+    exclusion_refs:
+      - "non_claim:diagnostics.universal_correctness_not_claimed"
+      - "non_claim:diagnostics.auto_apply_safety_not_claimed"
+      - "non_claim:diagnostics.suggestion_reversibility_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: warm_cached_allowed
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_evidence_stale
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+    downgrade_triggers:
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: Correctness remains unverifiable at this milestone.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+          - support_export
+        notes: Quick-fix auto-apply caveats are not all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first runtime-observed diagnostic benchmark
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:replay_safe_execution_history
+    claim_subject_family: replay_safe_execution_history
+    claim_subject_summary: >
+      Execution-history capture (tasks, runs, debug sessions) that is
+      safe to replay for audit, review, or regression re-evaluation.
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - required_evidence_narrower_than_claim
+      - proof_class_not_currently_verifiable
+    canonical_copy:
+      headline: Replay-safe execution history is preview-grade.
+      claim_text: >
+        Execution history captures task, run, and debug events under a
+        declared schema epoch; replay-safety wording is not yet earned.
+      limited_text: >
+        Replay safety is limited to single-epoch, single-tenant scopes
+        documented in the execution-history contract.
+      experimental_text: >
+        Cross-epoch replay, snapshot-fidelity beyond observed fields,
+        and non-repudiation are experimental and not claim-bearing.
+      retest_pending_text: >
+        Execution-history evidence is being refreshed; replay wording
+        holds until the refresh closes.
+      exception_recorded_text: >
+        Replay-safety is under a recorded exception and MUST render
+        the exception posture.
+      evidence_stale_text: >
+        Execution-history evidence freshness has lapsed; surfaces
+        cannot present current-proof wording.
+      not_claimed_text: >
+        Replay-safe execution history is not claimed for this scope.
+      replacement_text: >
+        This replay-history row has been superseded; route readers to
+        the successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+      client_scopes:
+        - desktop_product
+        - cli
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - docs/governance/time_semantics.md
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Vendor-asserted posture on execution-history time envelope
+          and monotonic-reference constraints.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided replay attestations.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          No runtime-observed replay fidelity evidence. Execution
+          history has not yet shipped as an end-to-end product.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - schemas/governance/timestamp_envelope.schema.json
+        known_limit_refs: []
+        note: >
+          Policy-declared envelope pins UTC wall-clock plus monotonic
+          reference for every history record; non-repudiation is out
+          of scope at this milestone.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Cross-epoch replay fidelity and non-repudiation are outside
+          current verification capability.
+    required_evidence_refs:
+      - schemas/governance/timestamp_envelope.schema.json
+      - docs/governance/time_semantics.md
+    exclusion_refs:
+      - "non_claim:replay_history.cross_epoch_determinism_not_claimed"
+      - "non_claim:replay_history.snapshot_fidelity_beyond_observed_fields_not_claimed"
+      - "non_claim:replay_history.non_repudiation_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: same_schema_epoch
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_limited
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+      - public_proof_packet
+    downgrade_triggers:
+      - trigger: required_evidence_narrower_than_claim
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - support_export
+        notes: Replay scope narrows to single-epoch single-tenant.
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - public_proof_packet
+        notes: Cross-epoch replay remains unverifiable.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first runtime-observed replay fidelity run
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:provider_integrated_review
+    claim_subject_family: provider_integrated_review
+    claim_subject_summary: >
+      Review threading that binds an Aureline review surface to an
+      upstream provider (issue tracker, code-review host, or ticketing
+      platform).
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - proof_class_not_currently_verifiable
+      - caveat_uncovered
+    canonical_copy:
+      headline: Provider-integrated review is preview-grade.
+      claim_text: >
+        Aureline's review surface can mirror provider threads under a
+        declared drift window; claim-bearing wording on hosted parity
+        is not yet earned.
+      limited_text: >
+        Provider-integrated review is limited to the configured
+        provider scope named in the deployment profile and does not
+        claim hosted parity.
+      experimental_text: >
+        Hosted-review parity, cross-provider thread fidelity, and
+        provider-side rate-limit handling are experimental.
+      retest_pending_text: >
+        Review-integration evidence is being refreshed; claim-bearing
+        wording holds until the refresh closes.
+      exception_recorded_text: >
+        Review integration is under a recorded exception and MUST
+        render the exception posture.
+      evidence_stale_text: >
+        Evidence for provider-integrated review is stale; surfaces
+        cannot present current-proof wording.
+      not_claimed_text: >
+        Provider-integrated review is not claimed for this scope.
+      replacement_text: >
+        This review row has been superseded; route readers to the
+        successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+      client_scopes:
+        - desktop_product
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs: []
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Vendor-asserted posture that the review surface MUST disclose
+          its provider scope and drift window.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided review-integration attestations.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed review parity evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - artifacts/governance/public_truth_parity_matrix.yaml
+        known_limit_refs: []
+        note: >
+          Policy requires hosted-parity posture disclosure on every
+          review surface and forbids silent drift.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Hosted-review parity across all supported providers is
+          outside current verification capability.
+    required_evidence_refs:
+      - artifacts/governance/public_truth_parity_matrix.yaml
+    exclusion_refs:
+      - "non_claim:review.hosted_parity_not_claimed"
+      - "non_claim:review.cross_provider_fidelity_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: warm_cached_allowed
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_evidence_stale
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+    downgrade_triggers:
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: Hosted parity remains unverifiable at this milestone.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+          - support_export
+        notes: Required caveats are not yet all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first runtime-observed review-parity run
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:localization_readiness
+    claim_subject_family: localization_readiness
+    claim_subject_summary: >
+      Localization readiness: translated strings, locale-aware
+      formatting, bidirectional text, and input-method-editor behavior.
+    declared_claim_class: not_claimed
+    effective_claim_class: not_claimed
+    active_downgrade_reasons: []
+    canonical_copy:
+      headline: Localization readiness is not claimed.
+      claim_text: >
+        Aureline does not claim localization readiness beyond English
+        strings at this milestone.
+      limited_text: >
+        Localization is limited to English strings and left-to-right
+        layouts.
+      experimental_text: >
+        Experimental locale handling exists only in explicitly
+        labelled preview surfaces.
+      retest_pending_text: >
+        Localization evidence is being refreshed; non-claim posture
+        holds until the refresh closes.
+      exception_recorded_text: >
+        Localization is under a recorded exception and MUST render
+        the exception posture.
+      evidence_stale_text: >
+        Localization-evidence freshness has lapsed; surfaces cannot
+        present current-proof wording.
+      not_claimed_text: >
+        Localization readiness is not claimed for this scope envelope.
+      replacement_text: >
+        This localization row has been superseded; route readers to
+        the successor assurance-claim row.
+    support_class: not_supported
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+        - beta
+        - stable
+        - lts
+        - hotfix
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+        - managed_cloud
+      client_scopes:
+        - desktop_product
+        - cli
+        - managed_admin_surface
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - docs/product/boundary_manifest_strawman.md
+        known_limit_refs: []
+        note: >
+          Policy-declared non-claim: localization beyond English is
+          explicitly out of scope at this milestone.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Locale-aware formatting, bidirectional text fidelity, and
+          IME correctness are outside current verification capability.
+    required_evidence_refs: []
+    exclusion_refs:
+      - "non_claim:localization.non_english_strings_not_claimed"
+      - "non_claim:localization.rtl_layouts_not_claimed"
+      - "non_claim:localization.locale_aware_formatting_not_claimed"
+      - "non_claim:localization.ime_behavior_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: not_applicable
+      minimum_freshness_class: not_applicable
+      behavior_when_unmet: downgrade_to_not_claimed
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_notes
+      - support_export
+    downgrade_triggers:
+      - trigger: caveat_uncovered
+        target_effective_class: not_claimed
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+        notes: >
+          Surfaces continue to render the non-claim posture while
+          localization remains out of scope.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P90D
+      freshness_state: warm_cached
+      next_review_target: localization scoping milestone
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Explicit non-claim seed row.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:export_and_offboarding_support
+    claim_subject_family: export_and_offboarding_support
+    claim_subject_summary: >
+      Export and offboarding: local-first support bundles, redaction
+      posture, and data-portability workflows.
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - required_evidence_narrower_than_claim
+      - caveat_uncovered
+    canonical_copy:
+      headline: Export and offboarding support is preview-grade.
+      claim_text: >
+        Aureline publishes local-first support bundles and redaction
+        postures; full export and offboarding claim-bearing wording is
+        not yet earned.
+      limited_text: >
+        Export is limited to the support-bundle scope and redaction
+        posture documented in the support-bundle schema.
+      experimental_text: >
+        Bulk export, vendor-neutral data migration, and automated
+        offboarding workflows are experimental and not claim-bearing.
+      retest_pending_text: >
+        Export evidence is being refreshed; claim-bearing wording
+        holds until the refresh closes.
+      exception_recorded_text: >
+        Export is under a recorded exception and MUST render the
+        exception posture.
+      evidence_stale_text: >
+        Export-evidence freshness has lapsed; surfaces cannot present
+        current-proof wording.
+      not_claimed_text: >
+        Export or offboarding support is not claimed for this scope.
+      replacement_text: >
+        This export row has been superseded; route readers to the
+        successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+      client_scopes:
+        - desktop_product
+        - cli
+        - support_center
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - artifacts/governance/storage_modes.yaml
+        known_limit_refs:
+          - docs/governance/storage_and_retention_vocabulary.md
+        note: >
+          Vendor-asserted storage and retention vocabulary frozen for
+          support-bundle exports and redaction posture.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided offboarding attestations.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed export fidelity evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - docs/governance/storage_and_retention_vocabulary.md
+        known_limit_refs: []
+        note: >
+          Policy-declared redaction posture and raw-secret exclusion
+          rule are frozen for every retained-artifact family.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Vendor-neutral data migration parity is outside current
+          verification capability.
+    required_evidence_refs:
+      - artifacts/governance/storage_modes.yaml
+      - docs/governance/storage_and_retention_vocabulary.md
+    exclusion_refs:
+      - "non_claim:export.bulk_export_not_claimed"
+      - "non_claim:export.vendor_neutral_migration_not_claimed"
+      - "non_claim:export.automated_offboarding_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: warm_cached_allowed
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_evidence_stale
+    publication_destinations:
+      - docs_site
+      - help_about
+      - support_export
+      - release_packet
+    downgrade_triggers:
+      - trigger: required_evidence_narrower_than_claim
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - support_export
+        notes: Export scope narrows to support-bundle + redaction posture.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+          - support_export
+        notes: Required caveats are not yet all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first export-parity benchmark
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:theme_package_portability
+    claim_subject_family: theme_package_portability
+    claim_subject_summary: >
+      Theme-package portability across display technologies, color
+      gamuts, high-contrast modes, and theme-package schema revisions.
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - proof_class_not_currently_verifiable
+      - caveat_uncovered
+    canonical_copy:
+      headline: Theme-package portability is preview-grade.
+      claim_text: >
+        Aureline's theme packages follow the design-system token
+        register; claim-bearing wording on cross-surface fidelity is
+        not yet earned.
+      limited_text: >
+        Theme portability is limited to the documented token set and
+        the current package schema epoch.
+      experimental_text: >
+        Cross-display-technology fidelity and backward compatibility
+        across theme-package schema revisions are experimental.
+      retest_pending_text: >
+        Theme-portability evidence is being refreshed; claim-bearing
+        wording holds until the refresh closes.
+      exception_recorded_text: >
+        Theme portability is under a recorded exception and MUST
+        render the exception posture.
+      evidence_stale_text: >
+        Theme-portability evidence freshness has lapsed; surfaces
+        cannot present current-proof wording.
+      not_claimed_text: >
+        Theme-package portability is not claimed for this scope.
+      replacement_text: >
+        This theme-portability row has been superseded; route readers
+        to the successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+      client_scopes:
+        - desktop_product
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Vendor-asserted posture on design-token register and theme-
+          package schema shape.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided theme-portability reports.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed cross-surface theme evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Policy: theme packages MUST declare their schema epoch and
+          mismatches MUST downgrade to warm-cached copy.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Cross-display-technology fidelity is outside current
+          verification capability.
+    required_evidence_refs: []
+    exclusion_refs:
+      - "non_claim:theme.cross_display_fidelity_not_claimed"
+      - "non_claim:theme.schema_revision_backward_compat_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: same_schema_epoch
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_limited
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+    downgrade_triggers:
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: Cross-display fidelity remains unverifiable.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+        notes: Required caveats are not yet all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first cross-surface theme benchmark
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:voice_privacy
+    claim_subject_family: voice_privacy
+    claim_subject_summary: >
+      Voice input, voice-driven features, and the privacy posture for
+      audio capture and transcript retention.
+    declared_claim_class: not_claimed
+    effective_claim_class: not_claimed
+    active_downgrade_reasons: []
+    canonical_copy:
+      headline: Voice privacy is not claimed because voice features are not shipped.
+      claim_text: >
+        Aureline does not ship voice input or voice-driven features at
+        this milestone and therefore makes no voice-privacy claim.
+      limited_text: >
+        Voice features are limited to explicitly labelled experimental
+        surfaces, if any; no privacy wording is earned.
+      experimental_text: >
+        Any voice capability exists only in explicitly labelled preview
+        surfaces and is not claim-bearing.
+      retest_pending_text: >
+        Voice-privacy evidence is being refreshed; the non-claim
+        posture holds until the refresh closes.
+      exception_recorded_text: >
+        Voice features are under a recorded exception and MUST render
+        the exception posture.
+      evidence_stale_text: >
+        Voice-privacy evidence freshness has lapsed; surfaces cannot
+        present current-proof wording.
+      not_claimed_text: >
+        Voice privacy is not claimed for this scope envelope.
+      replacement_text: >
+        This voice-privacy row has been superseded; route readers to
+        the successor assurance-claim row.
+    support_class: not_supported
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+        - beta
+        - stable
+        - lts
+        - hotfix
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+        - managed_cloud
+      client_scopes:
+        - desktop_product
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - docs/product/boundary_manifest_strawman.md
+        known_limit_refs: []
+        note: >
+          Policy-declared non-claim: voice features are explicitly out
+          of scope at this milestone.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          On-device audio processing, audio retention, and transcript
+          retention are outside current verification capability.
+    required_evidence_refs: []
+    exclusion_refs:
+      - "non_claim:voice.features_not_shipped"
+      - "non_claim:voice.on_device_processing_not_claimed"
+      - "non_claim:voice.audio_retention_policy_not_claimed"
+      - "non_claim:voice.transcript_retention_policy_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: not_applicable
+      minimum_freshness_class: not_applicable
+      behavior_when_unmet: downgrade_to_not_claimed
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_notes
+      - support_export
+    downgrade_triggers:
+      - trigger: caveat_uncovered
+        target_effective_class: not_claimed
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+        notes: Non-claim posture is preserved while voice features are out of scope.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P90D
+      freshness_state: warm_cached
+      next_review_target: voice scoping milestone
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Explicit non-claim seed row.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:repair_rollback_safety
+    claim_subject_family: repair_rollback_safety
+    claim_subject_summary: >
+      Repair and rollback: undo an Aureline-initiated change cleanly
+      and restore the workspace state that preceded it.
+    declared_claim_class: experimental
+    effective_claim_class: experimental
+    active_downgrade_reasons:
+      - required_evidence_narrower_than_claim
+      - proof_class_not_currently_verifiable
+    canonical_copy:
+      headline: Repair and rollback safety are preview-grade.
+      claim_text: >
+        Aureline captures rollback-scope evidence for every repair
+        path; claim-bearing wording on rollback completeness is not
+        yet earned.
+      limited_text: >
+        Rollback safety is limited to the rollback-scope documented in
+        the relevant change descriptor.
+      experimental_text: >
+        Rollback completeness across schema epochs and rollback
+        idempotence on distributed state are experimental.
+      retest_pending_text: >
+        Rollback evidence is being refreshed; claim-bearing wording
+        holds until the refresh closes.
+      exception_recorded_text: >
+        Rollback safety is under a recorded exception and MUST render
+        the exception posture.
+      evidence_stale_text: >
+        Rollback-evidence freshness has lapsed; surfaces cannot
+        present current-proof wording.
+      not_claimed_text: >
+        Repair or rollback safety is not claimed for this scope.
+      replacement_text: >
+        This rollback row has been superseded; route readers to the
+        successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+      client_scopes:
+        - desktop_product
+        - cli
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - docs/governance/time_semantics.md
+        known_limit_refs: []
+        note: >
+          Vendor-asserted posture: rollback MUST capture the pre-
+          change envelope and a rollback-scope descriptor.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No customer-provided rollback attestations.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed rollback-fidelity evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Policy-declared rollback-scope rule: a rollback MUST either
+          restore the pre-change state or surface the explicit
+          irreversibility notice.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Cross-schema-epoch rollback completeness is outside current
+          verification capability.
+    required_evidence_refs:
+      - docs/governance/time_semantics.md
+    exclusion_refs:
+      - "non_claim:rollback.cross_epoch_completeness_not_claimed"
+      - "non_claim:rollback.distributed_state_idempotence_not_claimed"
+      - "non_claim:rollback.irreversible_class_recovery_not_claimed"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_version_match:
+      minimum_match_state: same_schema_epoch
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_limited
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+    downgrade_triggers:
+      - trigger: required_evidence_narrower_than_claim
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - support_export
+        notes: Rollback scope narrows to the documented change envelope.
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: Cross-epoch completeness remains unverifiable.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: first runtime-observed rollback benchmark
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: Seed row only; this is not a live launch claim.
+
+  - schema_version: 1
+    record_kind: assurance_claim_row
+    claim_id: assurance_claim:regulated_environment_assurance
+    claim_subject_family: regulated_environment_assurance
+    claim_subject_summary: >
+      Regulated-environment posture: sovereign deployment posture,
+      customer-managed keys, no vendor-hosted AI, and the evidence
+      posture for regulated deployments.
+    declared_claim_class: limited
+    effective_claim_class: limited
+    active_downgrade_reasons:
+      - required_evidence_narrower_than_claim
+      - proof_class_not_currently_verifiable
+      - caveat_uncovered
+    canonical_copy:
+      headline: Regulated-environment posture is limited to declared scope.
+      claim_text: >
+        Regulated-environment posture is limited to the declared
+        deployment profile scope; no certification wording is claimed.
+      limited_text: >
+        Regulated posture is limited to the deployment-profile set
+        named above plus the declared no-vendor-hosted-AI default.
+      experimental_text: >
+        Sovereign posture, customer-managed keys, and regulated-deploy
+        workflows are experimental and not claim-bearing.
+      retest_pending_text: >
+        Regulated-posture evidence is being refreshed; claim-bearing
+        wording holds until the refresh closes.
+      exception_recorded_text: >
+        Regulated posture is under a recorded exception and MUST
+        render the exception posture.
+      evidence_stale_text: >
+        Regulated-posture evidence freshness has lapsed; surfaces
+        cannot present current-proof wording.
+      not_claimed_text: >
+        Regulated-environment assurance is not claimed for this scope
+        envelope.
+      replacement_text: >
+        This regulated-posture row has been superseded; route readers
+        to the successor assurance-claim row.
+    support_class: experimental
+    scope:
+      release_channels:
+        - dev_local
+        - nightly
+        - preview
+      deployment_profiles:
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+      client_scopes:
+        - desktop_product
+        - cli
+        - managed_admin_surface
+    archetype_refs: []
+    workflow_bundle_refs: []
+    proof_classes:
+      - proof_class: vendor_asserted
+        proof_presence: partial
+        evidence_refs:
+          - artifacts/governance/deployment_profiles.yaml
+        known_limit_refs:
+          - docs/product/boundary_manifest_strawman.md
+        note: >
+          Vendor-asserted posture on deployment-profile scope,
+          boundary-and-scope truth, and the local-first default.
+      - proof_class: customer_provided
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          No customer-provided attestations (for example, customer-
+          managed-key attestations) are collected at this milestone.
+      - proof_class: runtime_observed
+        proof_presence: absent
+        evidence_refs: []
+        known_limit_refs: []
+        note: No runtime-observed regulated-deploy evidence.
+      - proof_class: policy_declared
+        proof_presence: present
+        evidence_refs:
+          - artifacts/governance/deployment_profiles.yaml
+        known_limit_refs: []
+        note: >
+          Policy-declared posture: Aureline's default is local-first
+          with no vendor-hosted AI, and any regulated-deploy wording
+          MUST name the specific deployment profile and posture.
+      - proof_class: not_currently_verifiable
+        proof_presence: present
+        evidence_refs: []
+        known_limit_refs: []
+        note: >
+          Sovereign-posture certification, FedRAMP/ISO/SOC2 alignment,
+          and customer-managed-key lifecycle are outside current
+          verification capability.
+    required_evidence_refs:
+      - artifacts/governance/deployment_profiles.yaml
+    exclusion_refs:
+      - "non_claim:regulated.sovereign_posture_certification_not_claimed"
+      - "non_claim:regulated.customer_managed_keys_not_shipped"
+      - "non_claim:regulated.fedramp_iso_soc2_not_claimed"
+      - "non_claim:regulated.vendor_hosted_ai_is_default_excluded_not_certified"
+    known_limit_refs:
+      - docs/product/boundary_manifest_strawman.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+    docs_version_match:
+      minimum_match_state: warm_cached_allowed
+      minimum_freshness_class: warm_cached
+      behavior_when_unmet: downgrade_to_evidence_stale
+    publication_destinations:
+      - docs_site
+      - help_about
+      - release_packet
+      - support_export
+      - release_notes
+    downgrade_triggers:
+      - trigger: required_evidence_narrower_than_claim
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+          - support_export
+        notes: >
+          Posture narrows to the deployment-profile scope actually
+          evidenced; generic regulated-ready wording is forbidden.
+      - trigger: proof_class_not_currently_verifiable
+        target_effective_class: experimental
+        mandatory_publication_destinations:
+          - docs_site
+          - release_packet
+        notes: Sovereign certification remains unverifiable at this milestone.
+      - trigger: caveat_uncovered
+        target_effective_class: limited
+        mandatory_publication_destinations:
+          - docs_site
+          - release_notes
+          - support_export
+        notes: Required regulated-deploy caveats are not all published.
+    freshness:
+      captured_at: "2026-04-24T00:00:00Z"
+      stale_after: P30D
+      freshness_state: warm_cached
+      next_review_target: regulated-deploy scoping milestone
+    replacement_claim_row_ref: null
+    owner: "@ahmeddyounis"
+    evidence_owner: "@ahmeddyounis"
+    notes: >
+      Seed row only. This row is not a certification, a compliance
+      attestation, or a customer-managed-keys rollout; it is the
+      canonical non-claim surface for regulated-deploy wording.

@@ -1,0 +1,754 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/assurance_claim.schema.json",
+  "title": "Aureline release assurance-claim row",
+  "description": "Boundary schema for rows published through artifacts/release/assurance_claim_rows.yaml and quoted by release-evidence, shiproom, docs, support, and launch-communication surfaces. Every row binds one claim-subject family to a declared claim class, an effective claim class after automatic narrowing, a scope envelope (release channels, deployment profiles, client scopes), archetype and workflow-bundle refs, a closed proof-class breakdown, explicit exclusion and known-limit refs, a docs-version-match floor, publication destinations, downgrade triggers, and freshness. The normative narrative lives in docs/release/assurance_claim_matrix.md. Raw marketing copy, raw reviewer notes, and secret-bearing evidence never cross this boundary; the row carries stable ids, typed vocabulary, UTC timestamps, and opaque refs only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "claim_id",
+    "claim_subject_family",
+    "claim_subject_summary",
+    "declared_claim_class",
+    "effective_claim_class",
+    "active_downgrade_reasons",
+    "canonical_copy",
+    "support_class",
+    "scope",
+    "archetype_refs",
+    "workflow_bundle_refs",
+    "proof_classes",
+    "required_evidence_refs",
+    "exclusion_refs",
+    "known_limit_refs",
+    "docs_version_match",
+    "publication_destinations",
+    "downgrade_triggers",
+    "freshness",
+    "replacement_claim_row_ref",
+    "owner",
+    "evidence_owner",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the assurance-claim row record."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "assurance_claim_row",
+      "description": "Discriminator for the assurance-claim row record."
+    },
+    "claim_id": {
+      "type": "string",
+      "pattern": "^assurance_claim:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable assurance-claim id. Quoted verbatim by release packets, docs, and support exports."
+    },
+    "claim_subject_family": {
+      "$ref": "#/$defs/claim_subject_family"
+    },
+    "claim_subject_summary": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "One-sentence subject summary bounded to the scope envelope; the matrix narrative carries the normative wording."
+    },
+    "declared_claim_class": {
+      "$ref": "#/$defs/claim_class",
+      "description": "Claim class this row would carry if every required proof family were present and fresh."
+    },
+    "effective_claim_class": {
+      "$ref": "#/$defs/claim_class",
+      "description": "Claim class actually projected after automatic narrowing based on active downgrade reasons."
+    },
+    "active_downgrade_reasons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/downgrade_trigger"
+      },
+      "description": "Currently-active downgrade triggers narrowing the declared class to the effective class."
+    },
+    "canonical_copy": {
+      "$ref": "#/$defs/canonical_copy"
+    },
+    "support_class": {
+      "$ref": "#/$defs/support_class"
+    },
+    "scope": {
+      "$ref": "#/$defs/scope_envelope"
+    },
+    "archetype_refs": {
+      "$ref": "#/$defs/ref_array",
+      "description": "Certified-archetype, launch-bundle, or compatibility archetype refs the row leans on. Claim-bearing classes require at least one."
+    },
+    "workflow_bundle_refs": {
+      "$ref": "#/$defs/ref_array",
+      "description": "Workflow-bundle, benchmark-workflow, or scenario-corpus refs the row depends on. Claim-bearing classes require at least one."
+    },
+    "proof_classes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/proof_class_entry"
+      },
+      "description": "Closed proof-class breakdown. Every claim class states which proof classes must be present."
+    },
+    "required_evidence_refs": {
+      "$ref": "#/$defs/ref_array",
+      "description": "Evidence packet or row refs that back this claim. Claim-bearing classes require at least one."
+    },
+    "exclusion_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "description": "Explicit non-claim or exclusion note refs. Every row MUST carry at least one exclusion note so the absence of supporting evidence is visible."
+    },
+    "known_limit_refs": {
+      "$ref": "#/$defs/ref_array",
+      "description": "Known-limit, caveat, or migration-gap refs this row leans on."
+    },
+    "docs_version_match": {
+      "$ref": "#/$defs/docs_version_match"
+    },
+    "publication_destinations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/publication_destination"
+      },
+      "description": "Publication channels this row MUST project through. Drawn from the shared claim-manifest publication-channel vocabulary."
+    },
+    "downgrade_triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/downgrade_rule"
+      },
+      "description": "Downgrade rules this row is bound by. Each rule names a trigger and the narrower class the row falls to when the trigger fires."
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "replacement_claim_row_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^assurance_claim:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      ],
+      "description": "Successor assurance-claim id when this row has been superseded."
+    },
+    "owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Primary owner for the claim row."
+    },
+    "evidence_owner": {
+      "$ref": "#/$defs/owner_ref",
+      "description": "Owner accountable for the proof attached to this row."
+    },
+    "notes": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Short free-form guidance that does not fit a structured field."
+    }
+  },
+  "allOf": [
+    {
+      "description": "High-bar classes (certified, replacement_grade_candidate) require every claim-bearing proof family to be present and archetype plus workflow refs to be non-empty. This makes replacement-grade or certified language structurally impossible without the required proof families.",
+      "if": {
+        "properties": {
+          "declared_claim_class": {
+            "enum": [
+              "certified",
+              "replacement_grade_candidate"
+            ]
+          }
+        },
+        "required": ["declared_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "archetype_refs": {
+            "minItems": 1
+          },
+          "workflow_bundle_refs": {
+            "minItems": 1
+          },
+          "required_evidence_refs": {
+            "minItems": 1
+          },
+          "proof_classes": {
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "vendor_asserted"
+                    },
+                    "proof_presence": {
+                      "enum": ["present", "not_applicable"]
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "customer_provided"
+                    },
+                    "proof_presence": {
+                      "enum": ["present", "not_applicable"]
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "runtime_observed"
+                    },
+                    "proof_presence": {
+                      "const": "present"
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "policy_declared"
+                    },
+                    "proof_presence": {
+                      "enum": ["present", "not_applicable"]
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Supported and community classes require proof_classes to declare that either runtime-observed or customer-provided evidence is present or partial (not absent), so the row cannot present as supported while every runtime and customer proof is absent.",
+      "if": {
+        "properties": {
+          "declared_claim_class": {
+            "enum": ["supported", "community"]
+          }
+        },
+        "required": ["declared_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "proof_classes": {
+            "anyOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "runtime_observed"
+                    },
+                    "proof_presence": {
+                      "enum": ["present", "partial"]
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "proof_class": {
+                      "const": "customer_provided"
+                    },
+                    "proof_presence": {
+                      "enum": ["present", "partial"]
+                    }
+                  },
+                  "required": ["proof_class", "proof_presence"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "evidence_stale, retest_pending, and limited classes cannot present as authoritative: active_downgrade_reasons MUST be non-empty.",
+      "if": {
+        "properties": {
+          "effective_claim_class": {
+            "enum": ["evidence_stale", "retest_pending", "limited"]
+          }
+        },
+        "required": ["effective_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "active_downgrade_reasons": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "description": "not_claimed rows MUST carry a replacement_claim_row_ref of null and exclusion_refs with at least one entry; they cannot carry claim-bearing archetype or evidence refs implying live support.",
+      "if": {
+        "properties": {
+          "effective_claim_class": {
+            "const": "not_claimed"
+          }
+        },
+        "required": ["effective_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "exclusion_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "description": "replacement_grade_candidate rows MUST name the superseded row via replacement_claim_row_ref.",
+      "if": {
+        "properties": {
+          "declared_claim_class": {
+            "const": "replacement_grade_candidate"
+          }
+        },
+        "required": ["declared_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "replacement_claim_row_ref": {
+            "type": "string",
+            "pattern": "^assurance_claim:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          }
+        }
+      }
+    },
+    {
+      "description": "exception_recorded rows require an exception_ref in known_limit_refs and a non-empty active_downgrade_reasons set.",
+      "if": {
+        "properties": {
+          "effective_claim_class": {
+            "const": "exception_recorded"
+          }
+        },
+        "required": ["effective_claim_class"]
+      },
+      "then": {
+        "properties": {
+          "active_downgrade_reasons": {
+            "minItems": 1
+          },
+          "known_limit_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable handle or team alias, for example '@release-dri' or 'release-evidence@team'."
+    },
+    "claim_subject_family": {
+      "type": "string",
+      "enum": [
+        "provider_aware_language_intelligence",
+        "trustworthy_diagnostics_and_quick_fixes",
+        "replay_safe_execution_history",
+        "provider_integrated_review",
+        "localization_readiness",
+        "export_and_offboarding_support",
+        "theme_package_portability",
+        "voice_privacy",
+        "repair_rollback_safety",
+        "regulated_environment_assurance",
+        "boundary_and_scope_truth",
+        "compatibility_and_skew_truth",
+        "benchmark_publication_truth",
+        "docs_and_help_freshness_truth",
+        "supply_chain_and_provenance_truth",
+        "accessibility_readiness",
+        "other"
+      ],
+      "description": "Closed claim-subject family vocabulary. Every row binds to one subject so release, docs, support, and product owners use the same taxonomy."
+    },
+    "claim_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "limited",
+        "community",
+        "experimental",
+        "retest_pending",
+        "exception_recorded",
+        "evidence_stale",
+        "not_claimed",
+        "replacement_grade_candidate"
+      ],
+      "description": "Closed claim-class vocabulary. Ordered from strongest to weakest: certified > supported > community > limited > experimental > retest_pending > exception_recorded > evidence_stale > not_claimed. replacement_grade_candidate is a ladder-crossing class for successor rows that must inherit full certified-grade proofs."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_supported"
+      ],
+      "description": "Support-class taxonomy aligned with the compatibility qualification seed and the UX style guide. not_supported is reserved for not_claimed rows."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "required_evidence_missing",
+        "required_evidence_stale",
+        "required_evidence_narrower_than_claim",
+        "docs_version_match_unmet",
+        "docs_freshness_floor_unmet",
+        "unresolved_migration_gap",
+        "caveat_uncovered",
+        "proof_class_not_currently_verifiable",
+        "exception_window_expired",
+        "compatibility_row_degraded",
+        "support_window_expired",
+        "policy_blocked"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. Every automatic narrowing MUST name one of these reasons; surfaces may not invent new narrowing triggers."
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "vendor_asserted",
+        "customer_provided",
+        "runtime_observed",
+        "policy_declared",
+        "not_currently_verifiable"
+      ],
+      "description": "Closed proof-class breakdown. vendor_asserted: Aureline-authored evidence. customer_provided: customer-bearing evidence (configuration, key material attestation, deployment record). runtime_observed: live-observed in a reference workspace, archetype, or benchmark. policy_declared: policy / governance surface declaration with no runtime verification. not_currently_verifiable: explicitly outside the current verification capability of the product."
+    },
+    "proof_presence": {
+      "type": "string",
+      "enum": [
+        "present",
+        "partial",
+        "absent",
+        "not_applicable"
+      ],
+      "description": "Presence state of a proof class for the row. 'partial' and 'absent' MUST raise a corresponding active_downgrade_reason when the declared claim class requires this proof family."
+    },
+    "proof_class_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_class",
+        "proof_presence",
+        "evidence_refs",
+        "known_limit_refs",
+        "note"
+      ],
+      "properties": {
+        "proof_class": {
+          "$ref": "#/$defs/proof_class"
+        },
+        "proof_presence": {
+          "$ref": "#/$defs/proof_presence"
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Concrete evidence packet refs, schema refs, fixture refs, or attestation refs that back this proof class."
+        },
+        "known_limit_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Known-limit, caveat, or exclusion refs that disclose what this proof class does not cover."
+        },
+        "note": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short narrative note on what this proof class covers or why it is not currently verifiable."
+        }
+      }
+    },
+    "scope_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_channels",
+        "deployment_profiles",
+        "client_scopes"
+      ],
+      "properties": {
+        "release_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/release_channel_class"
+          }
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deployment_profile"
+          }
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/client_scope"
+          }
+        }
+      }
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Release-channel vocabulary aligned with schemas/release/waiver_packet.schema.json."
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary aligned with artifacts/compat/qualification_matrix_seed.yaml."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "managed_admin_surface",
+        "headless_agent",
+        "docs_site",
+        "support_center"
+      ],
+      "description": "Client-scope vocabulary drawn from the claim-manifest seed."
+    },
+    "publication_destination": {
+      "type": "string",
+      "enum": [
+        "docs_site",
+        "migration_notes",
+        "help_about",
+        "service_health",
+        "support_export",
+        "release_packet",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "marketplace_discovery",
+        "public_proof_packet"
+      ],
+      "description": "Publication-channel vocabulary aligned with the claim-manifest seed. Every assurance row MUST project through at least one channel."
+    },
+    "canonical_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headline",
+        "claim_text",
+        "limited_text",
+        "experimental_text",
+        "retest_pending_text",
+        "exception_recorded_text",
+        "evidence_stale_text",
+        "not_claimed_text",
+        "replacement_text"
+      ],
+      "properties": {
+        "headline": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "claim_text": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Copy rendered when the effective class is certified or supported."
+        },
+        "limited_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "experimental_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "retest_pending_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exception_recorded_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_stale_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "not_claimed_text": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "replacement_text": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "docs_version_match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_match_state",
+        "minimum_freshness_class",
+        "behavior_when_unmet"
+      ],
+      "properties": {
+        "minimum_match_state": {
+          "type": "string",
+          "enum": [
+            "exact_match",
+            "same_schema_epoch",
+            "warm_cached_allowed",
+            "not_applicable"
+          ]
+        },
+        "minimum_freshness_class": {
+          "type": "string",
+          "enum": [
+            "authoritative_live",
+            "warm_cached",
+            "stale_allowed",
+            "not_applicable"
+          ]
+        },
+        "behavior_when_unmet": {
+          "type": "string",
+          "enum": [
+            "downgrade_to_limited",
+            "downgrade_to_evidence_stale",
+            "downgrade_to_retest_pending",
+            "downgrade_to_not_claimed"
+          ]
+        }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "target_effective_class",
+        "mandatory_publication_destinations",
+        "notes"
+      ],
+      "properties": {
+        "trigger": {
+          "$ref": "#/$defs/downgrade_trigger"
+        },
+        "target_effective_class": {
+          "$ref": "#/$defs/claim_class",
+          "description": "Effective class the row projects as while this trigger is active. MUST be narrower than or equal to the declared class."
+        },
+        "mandatory_publication_destinations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/publication_destination"
+          },
+          "description": "Publication channels that MUST render the narrowed posture while this trigger is active."
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "known_issues",
+        "retest_pending",
+        "stale",
+        "community_reported",
+        "unknown"
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "stale_after",
+        "freshness_state",
+        "next_review_target"
+      ],
+      "properties": {
+        "captured_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 UTC timestamp when the row's evidence snapshot was captured."
+        },
+        "stale_after": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/non_empty_string"
+            }
+          ],
+          "description": "ISO 8601 duration or another stable freshness token."
+        },
+        "freshness_state": {
+          "$ref": "#/$defs/freshness_state"
+        },
+        "next_review_target": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Date, release train, or milestone target for the next required refresh."
+        }
+      }
+    }
+  }
+}
