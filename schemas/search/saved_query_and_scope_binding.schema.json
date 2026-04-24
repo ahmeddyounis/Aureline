@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/saved_query_and_scope_binding.schema.json",
+  "title": "Aureline saved-query, query-history, scope-binding, and search deep-link durable-artifact vocabulary",
+  "description": "Boundary schema for durable search artifacts: saved queries, query-history entries, scope bindings, and search deep links. Every durable artifact in this family points at one authoritative search run through the planner pass and result-set identity reserved in schemas/search/result_fusion_record.schema.json, and at one or more shard rows from artifacts/search/shard_rows.yaml. Durable artifacts MUST NOT invent a separate truth model: a saved query, a query-history entry, a scope binding, or a search deep link is a pointer into the planner / shard / packet vocabulary, not a parallel store of raw query text or rendered rows. Raw query bodies, raw document bodies, raw symbol definitions, and raw URLs MUST NOT appear on any record emitted against this schema; the record carries the query_classification (already frozen on schemas/search/search_result_truth.schema.json#search_session_record), the scope_filter_class, the shard_row_ids, and opaque ids only. Adding a new record kind, saved-query status class, scope-binding class, deep-link resolution class, or denial reason is additive-minor with a saved_query_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/saved_query_record" },
+    { "$ref": "#/$defs/query_history_entry_record" },
+    { "$ref": "#/$defs/scope_binding_record" },
+    { "$ref": "#/$defs/search_deep_link_binding_record" },
+    { "$ref": "#/$defs/saved_query_audit_event_record" }
+  ],
+  "$defs": {
+    "saved_query_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the saved-query / scope-binding vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "saved_query_record",
+        "query_history_entry_record",
+        "scope_binding_record",
+        "search_deep_link_binding_record",
+        "saved_query_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "shard_row_id": {
+      "type": "string",
+      "pattern": "^search_shard_row:[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable shard-row id from artifacts/search/shard_rows.yaml. Every scope binding declares at least one shard_row_id it binds to."
+    },
+
+    "lane_grouping_id": {
+      "type": "string",
+      "pattern": "^group:[a-z][a-z0-9_]*$",
+      "description": "Stable lane-grouping id from artifacts/search/shard_rows.yaml#lane_groupings."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "full_search",
+        "symbol_jump",
+        "docs_search",
+        "graph_overlay",
+        "ai_explanation_overlay",
+        "support_export"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json via the search-result-truth schema."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json via the search-result-truth schema."
+    },
+
+    "deep_link_drift_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "resolved_remapped",
+        "resolved_ambiguous",
+        "target_missing",
+        "target_moved",
+        "target_renamed",
+        "target_branch_drifted",
+        "target_policy_blocked",
+        "target_scope_excluded",
+        "index_not_ready_for_target",
+        "unresolvable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "query_classification": {
+      "type": "string",
+      "enum": [
+        "palette_command_lookup",
+        "symbol_jump_lookup",
+        "text_substring_lookup",
+        "regex_lookup",
+        "docs_topic_lookup",
+        "semantic_concept_lookup",
+        "deep_link_resolve",
+        "ai_evidence_lookup"
+      ],
+      "description": "Redacted query classification mirrored from schemas/search/search_result_truth.schema.json#search_session_record. Raw query text never crosses the boundary; every durable artifact that needs to remember the query family names it with this classification."
+    },
+
+    "saved_query_status_class": {
+      "type": "string",
+      "enum": [
+        "saved_active",
+        "saved_archived",
+        "saved_quarantined_policy",
+        "saved_quarantined_trust",
+        "saved_superseded_by_schema_bump",
+        "saved_deleted_tombstone"
+      ],
+      "description": "Frozen status class for a saved_query_record. saved_quarantined_policy / saved_quarantined_trust are the only states under which a saved query resolves but refuses to re-run; saved_deleted_tombstone is the tombstone state kept so backlinks from query-history / AI-evidence / support-export keep typed denial reasons."
+    },
+
+    "scope_binding_class": {
+      "type": "string",
+      "enum": [
+        "single_shard_binding",
+        "lane_grouping_binding",
+        "execution_context_scoped_binding",
+        "workset_scoped_binding",
+        "policy_limited_projection",
+        "provider_overlay_subset",
+        "docs_pack_subset",
+        "ephemeral_query_session_scope"
+      ],
+      "description": "Frozen scope-binding class. Every scope_binding_record declares exactly one class; the class pins how the binding interacts with trust-state transitions, policy narrowing, and workset membership."
+    },
+
+    "binding_scope_source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored",
+        "imported_from_pack",
+        "generated_by_support_export",
+        "generated_by_ai_evidence",
+        "generated_by_session_restore",
+        "generated_by_parity_audit"
+      ],
+      "description": "How the scope binding came to exist. imported_from_pack bindings MUST cite a citation_anchor_ref; generated_* bindings point back at the generator."
+    },
+
+    "saved_query_denial_reason": {
+      "type": "string",
+      "enum": [
+        "saved_query_unknown",
+        "saved_query_superseded_by_schema_bump",
+        "saved_query_quarantined_policy",
+        "saved_query_quarantined_trust",
+        "shard_row_unknown",
+        "lane_grouping_unknown",
+        "scope_binding_mismatch_with_shard_row",
+        "execution_context_expired",
+        "policy_epoch_expired",
+        "raw_body_forbidden_on_boundary",
+        "saved_query_schema_version_lagging",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary for the saved-query audit stream. Denials fail closed; silent re-run of a superseded saved query is forbidden."
+    },
+
+    "saved_query_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "saved_query_created",
+        "saved_query_updated",
+        "saved_query_archived",
+        "saved_query_deleted_tombstone",
+        "saved_query_quarantined",
+        "saved_query_rerun_opened",
+        "saved_query_rerun_refused",
+        "query_history_entry_appended",
+        "query_history_entry_pruned",
+        "scope_binding_created",
+        "scope_binding_updated",
+        "scope_binding_invalidated",
+        "search_deep_link_binding_created",
+        "search_deep_link_binding_resolved",
+        "search_deep_link_binding_drifted",
+        "saved_query_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the saved-query / history / binding / deep-link stream."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every re-run."
+    },
+
+    "planner_pass_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner_pass_id_ref", "result_set_id_ref"],
+      "properties": {
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "fused_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "query_session_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the search_session_record the planner pass was minted under. Null on durable artifacts minted outside a live session (imported packs, support-export projections)."
+        }
+      },
+      "description": "Pinned reference to one authoritative search run. Durable artifacts that point at one visible result set use this ref to reconstruct the planner pass / result set / fused row that produced it."
+    },
+
+    "saved_query_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_schema_version",
+        "saved_query_id",
+        "saved_query_status_class",
+        "query_classification",
+        "surface_class",
+        "lane_grouping_id",
+        "scope_binding_id_ref",
+        "last_planner_pass_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_record" },
+        "saved_query_schema_version": { "$ref": "#/$defs/saved_query_schema_version" },
+        "saved_query_id": { "$ref": "#/$defs/opaque_id" },
+        "saved_query_status_class": { "$ref": "#/$defs/saved_query_status_class" },
+        "query_classification": { "$ref": "#/$defs/query_classification" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "lane_grouping_id": { "$ref": "#/$defs/lane_grouping_id" },
+        "scope_binding_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the scope_binding_record the saved query binds to. The binding names the shard rows, the scope_filter_class, and the execution-context / workset membership the saved query re-runs under."
+        },
+        "last_planner_pass_ref": { "$ref": "#/$defs/planner_pass_ref" },
+        "display_label_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the user's display label for the saved query. The raw label text does NOT live on this record; the display label is resolved through the label registry so trust-state-restricted surfaces can redact it."
+        },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "tombstoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "saved_deleted_tombstone status MUST carry tombstoned_at.",
+          "if": {
+            "properties": { "saved_query_status_class": { "const": "saved_deleted_tombstone" } },
+            "required": ["saved_query_status_class"]
+          },
+          "then": {
+            "properties": { "tombstoned_at": { "$ref": "#/$defs/monotonic_timestamp" } },
+            "required": ["tombstoned_at"]
+          }
+        }
+      ],
+      "description": "Durable saved-query record. Never carries the raw query body; binds a query_classification, a lane grouping, and a scope binding to an authoritative planner pass."
+    },
+
+    "query_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_schema_version",
+        "query_history_entry_id",
+        "query_classification",
+        "surface_class",
+        "scope_filter_class",
+        "planner_pass_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "query_history_entry_record" },
+        "saved_query_schema_version": { "$ref": "#/$defs/saved_query_schema_version" },
+        "query_history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "saved_query_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the saved_query_record the entry was run from, if any. Null for ephemeral history entries that were not minted from a saved query."
+        },
+        "query_classification": { "$ref": "#/$defs/query_classification" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "planner_pass_ref": { "$ref": "#/$defs/planner_pass_ref" },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Query-history entry minted for every planner pass the user observes. The entry is the durable backlink the saved-query registry, the search deep-link registry, the AI-evidence overlay, and the support-export pipeline point at when they want to name \"the planner pass the user saw\"."
+    },
+
+    "scope_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_schema_version",
+        "scope_binding_id",
+        "scope_binding_class",
+        "binding_scope_source_class",
+        "surface_class",
+        "lane_grouping_id",
+        "scope_filter_class",
+        "shard_row_ids",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "scope_binding_record" },
+        "saved_query_schema_version": { "$ref": "#/$defs/saved_query_schema_version" },
+        "scope_binding_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_binding_class": { "$ref": "#/$defs/scope_binding_class" },
+        "binding_scope_source_class": { "$ref": "#/$defs/binding_scope_source_class" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "lane_grouping_id": { "$ref": "#/$defs/lane_grouping_id" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "shard_row_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/shard_row_id" },
+          "description": "Every shard row the binding admits. single_shard_binding MUST list exactly one row; lane_grouping_binding MUST list every shard row the grouping declares."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "ADR-0009 execution-context id the binding is scoped to. Non-null when scope_binding_class is execution_context_scoped_binding; otherwise optional."
+        },
+        "workset_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Required (non-empty) when binding_scope_source_class is imported_from_pack."
+        },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "invalidated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "single_shard_binding MUST carry exactly one shard_row_id.",
+          "if": {
+            "properties": { "scope_binding_class": { "const": "single_shard_binding" } },
+            "required": ["scope_binding_class"]
+          },
+          "then": {
+            "properties": {
+              "shard_row_ids": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "execution_context_scoped_binding MUST carry execution_context_id.",
+          "if": {
+            "properties": { "scope_binding_class": { "const": "execution_context_scoped_binding" } },
+            "required": ["scope_binding_class"]
+          },
+          "then": { "required": ["execution_context_id"] }
+        },
+        {
+          "description": "imported_from_pack bindings MUST cite at least one anchor.",
+          "if": {
+            "properties": { "binding_scope_source_class": { "const": "imported_from_pack" } },
+            "required": ["binding_scope_source_class"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Durable scope binding. Binds a saved query, a search deep link, an AI-evidence anchor, or a support-export projection to a set of shard rows and a scope_filter_class so re-runs and re-resolutions can be compared to the original planner pass field-for-field."
+    },
+
+    "search_deep_link_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_schema_version",
+        "search_deep_link_binding_id",
+        "deep_link_id_ref",
+        "originating_planner_pass_ref",
+        "scope_binding_id_ref",
+        "deep_link_drift_state_at_mint",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_deep_link_binding_record" },
+        "saved_query_schema_version": { "$ref": "#/$defs/saved_query_schema_version" },
+        "search_deep_link_binding_id": { "$ref": "#/$defs/opaque_id" },
+        "deep_link_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the search_deep_link_record in schemas/search/search_result_truth.schema.json the binding wraps. The deep-link record owns drift-state resolution; this record owns the binding to a planner pass and a scope."
+        },
+        "originating_planner_pass_ref": { "$ref": "#/$defs/planner_pass_ref" },
+        "scope_binding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "deep_link_drift_state_at_mint": { "$ref": "#/$defs/deep_link_drift_state" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "running_build_identity_ref": { "type": "string", "minLength": 1 },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_resolved_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Durable binding between a search deep link (ADR-0014 search_deep_link_record) and the planner pass / scope binding that minted it. This is the record a session-restore, an AI-evidence packet, or a support-export capture quotes when it wants to reconstruct the planner pass a deep link was generated against."
+    },
+
+    "saved_query_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "saved_query_schema_version",
+        "saved_query_audit_event_id",
+        "subject_kind",
+        "subject_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_audit_event_record" },
+        "saved_query_schema_version": { "$ref": "#/$defs/saved_query_schema_version" },
+        "saved_query_audit_event_id": { "$ref": "#/$defs/saved_query_audit_event_id" },
+        "subject_kind": {
+          "type": "string",
+          "enum": [
+            "saved_query_record",
+            "query_history_entry_record",
+            "scope_binding_record",
+            "search_deep_link_binding_record"
+          ]
+        },
+        "subject_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "saved_query_denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/saved_query_denial_reason" }
+          ],
+          "description": "Required (non-null) for *_refused / *_invalidated / *_quarantined events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted on the saved-query / history / binding / deep-link stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    }
+  }
+}

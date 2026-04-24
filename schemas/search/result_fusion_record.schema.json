@@ -1,0 +1,974 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/result_fusion_record.schema.json",
+  "title": "Aureline unified search query-planner, shard-selection, duplicate-collapse, ranking-explanation, and result-fusion record vocabulary",
+  "description": "Boundary schema for the unified search query-planner. Every invocation of the planner — whether fired by quick open, full search, symbol jump, command palette, docs search, semantic lookup, graph overlay, AI-explanation overlay, or support export — projects exactly one planner_pass_record that aggregates one query_session_id_ref, one scope_filter_class, one ordered sequence of planner_stage_executions, one ordered list of shard_candidate_contributions (each bound to a shard row in artifacts/search/shard_rows.yaml), a per-row result_fusion_record that carries the duplicate_collapse_rationale, ranking_reason_classes, result_truth_class, freshness/readiness ceiling, citation_anchor_refs, deep-link refs, and saved-query / query-history backlinks, and the outgoing search_result_packet_record projection the fused row resolves to. This schema reserves query-session and result-set identity fields (query_session_id_ref, result_set_id, planner_pass_id, shard_snapshot_id) so later search UX and support captures can point to one authoritative search run. The schema is authoritative only for the vocabulary and record shape; the eventual search / navigation crate's Rust types are the schema of record. Adding a new planner-stage id, shard-contribution class, duplicate-collapse rationale, fusion-denial reason, ranking-weight class, or streaming-frame kind is additive-minor with a result_fusion_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw query bodies, raw document bodies, raw symbol definitions, and raw URLs MUST NOT appear on any record emitted against this schema.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/planner_pass_record" },
+    { "$ref": "#/$defs/result_fusion_record" },
+    { "$ref": "#/$defs/shard_snapshot_record" },
+    { "$ref": "#/$defs/streaming_frame_record" },
+    { "$ref": "#/$defs/planner_audit_event_record" }
+  ],
+  "$defs": {
+    "result_fusion_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the result-fusion vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "planner_pass_record",
+        "result_fusion_record",
+        "shard_snapshot_record",
+        "streaming_frame_record",
+        "planner_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw query text, raw symbol definitions, raw document bodies, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "shard_row_id": {
+      "type": "string",
+      "pattern": "^search_shard_row:[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable shard-row id from artifacts/search/shard_rows.yaml. Pattern: search_shard_row:<family>.<row>. Every shard contribution names exactly one row id; candidates drawn from rows outside the registry are non-conforming."
+    },
+
+    "lane_grouping_id": {
+      "type": "string",
+      "pattern": "^group:[a-z][a-z0-9_]*$",
+      "description": "Stable lane-grouping id from artifacts/search/shard_rows.yaml#lane_groupings. Every planner pass names exactly one lane grouping; the grouping fixes the stage ordering the pass MUST honour."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "full_search",
+        "symbol_jump",
+        "docs_search",
+        "graph_overlay",
+        "ai_explanation_overlay",
+        "support_export"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011) via the search-result-truth schema."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_ready",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "result_truth_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported",
+        "heuristic",
+        "hybrid"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "ranking_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_name_match",
+        "exact_path_match",
+        "lexical_prefix_match",
+        "lexical_fuzzy_match",
+        "symbol_kind_prior",
+        "graph_neighbourhood_hop",
+        "recent_file_bias",
+        "recent_edit_bias",
+        "frequent_use_bias",
+        "imported_fact_match",
+        "heuristic_summary_cluster",
+        "semantic_embedding_neighbour",
+        "docs_anchor_match",
+        "palette_command_canonical",
+        "symbol_jump_declaration_anchor",
+        "structural_fallback",
+        "policy_hidden_placeholder"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "semantic_fallback_state": {
+      "type": "string",
+      "enum": [
+        "semantic_unavailable_lexical_only",
+        "semantic_degraded_lexical_preferred",
+        "semantic_available_as_supplement",
+        "semantic_disabled_by_policy",
+        "semantic_not_applicable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json via the search-result-truth schema."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json via the search-result-truth schema."
+    },
+
+    "planner_stage_id": {
+      "type": "string",
+      "enum": [
+        "candidate_acquisition",
+        "shard_selection",
+        "cancellation",
+        "streaming_partial_results",
+        "duplicate_merge",
+        "ranking_explanation",
+        "final_presentation"
+      ],
+      "description": "Frozen planner-stage vocabulary mirrored from artifacts/search/shard_rows.yaml#planner_stage_vocabulary. Every planner pass emits one stage_execution per stage it ran; missing a stage that its lane grouping requires refuses the pass."
+    },
+
+    "stage_outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "completed_with_partial",
+        "skipped_not_applicable",
+        "cancelled",
+        "failed_refused"
+      ],
+      "description": "Per-stage outcome. cancelled names a cooperative-cancellation ack; skipped_not_applicable names stages absent from the lane grouping's ordering; failed_refused pairs with a denial_reason on the audit stream."
+    },
+
+    "shard_contribution_role": {
+      "type": "string",
+      "enum": [
+        "primary_truth_source",
+        "supplementary_contributor",
+        "accelerator_only",
+        "duplicate_collapsed_into_primary",
+        "hidden_by_policy_or_scope",
+        "unreachable_disclosed"
+      ],
+      "description": "Role this shard played on the fused row. accelerator_only rows MUST NOT be the sole contributor of an exact fused row; duplicate_collapsed_into_primary rows name their collapse rationale; hidden_by_policy_or_scope rows name a hidden_scope_reason; unreachable_disclosed rows name a partial_truth_cause of remote_shard_unreachable or provider_overlay_unreachable."
+    },
+
+    "duplicate_collapse_rationale": {
+      "type": "string",
+      "enum": [
+        "same_canonical_entity_id",
+        "same_graph_node_id",
+        "same_path_identity",
+        "same_symbol_declaration_anchor",
+        "same_docs_anchor_id",
+        "same_provider_resource_id",
+        "same_saved_query_binding",
+        "prefix_subsumed_by_longer_match",
+        "cross_shard_name_and_path_match",
+        "no_collapse_unique_row"
+      ],
+      "description": "Frozen duplicate-collapse rationale vocabulary. Every fused row declares exactly one. no_collapse_unique_row is the baseline when the fused row has only one contributor."
+    },
+
+    "ranking_weight_class": {
+      "type": "string",
+      "enum": [
+        "primary_signal",
+        "tie_breaker",
+        "recency_bias",
+        "frequency_bias",
+        "anchor_boost",
+        "semantic_supplement",
+        "structural_fallback_bias",
+        "policy_required_inclusion"
+      ],
+      "description": "Frozen ranking-weight class vocabulary. Each ranking_reason_class on a fused row binds to exactly one weight class so parity audits can compare how contributors composed the rank without re-deriving the weight numbers."
+    },
+
+    "streaming_frame_kind": {
+      "type": "string",
+      "enum": [
+        "initial_partial_frame",
+        "additive_partial_frame",
+        "corrective_replace_frame",
+        "final_complete_frame",
+        "cancelled_final_frame"
+      ],
+      "description": "Frozen streaming-frame kinds. corrective_replace_frame is the only frame kind that invalidates previously streamed rows; the fused packet MUST re-emit the affected rows rather than silently dropping them."
+    },
+
+    "fusion_denial_reason": {
+      "type": "string",
+      "enum": [
+        "shard_row_unknown",
+        "shard_row_outside_lane_grouping",
+        "accelerator_cited_as_sole_exact",
+        "imported_pack_missing_citation_anchor",
+        "semantic_only_row_non_conforming",
+        "readiness_ceiling_violation",
+        "stale_or_partial_explanation_missing",
+        "duplicate_collapse_rationale_missing",
+        "hybrid_must_enumerate_two_contributors",
+        "cancellation_ack_missing",
+        "raw_body_forbidden_on_boundary",
+        "result_fusion_schema_version_lagging",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary for the planner-fusion audit stream. Denials fail closed; the planner MUST NOT silently downgrade to an empty result set."
+    },
+
+    "planner_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "planner_pass_opened",
+        "planner_pass_closed",
+        "planner_pass_cancelled",
+        "planner_pass_refused",
+        "result_fusion_emitted",
+        "result_fusion_refused",
+        "shard_snapshot_captured",
+        "shard_snapshot_invalidated",
+        "streaming_frame_emitted",
+        "streaming_frame_corrected",
+        "saved_query_backlink_emitted",
+        "deep_link_backlink_emitted",
+        "result_fusion_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the planner audit stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "stale_or_partial_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partial_truth_causes", "human_readable_summary"],
+      "properties": {
+        "partial_truth_causes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "hot_set_only",
+              "manifest_only",
+              "cache_only",
+              "outside_loaded_scope",
+              "indexing_in_progress",
+              "semantic_service_unavailable",
+              "remote_shard_unreachable",
+              "provider_overlay_unreachable",
+              "policy_blocked_shard",
+              "freshness_floor_unmet",
+              "stale_index_served"
+            ]
+          }
+        },
+        "human_readable_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short operator / user-facing sentence quoted verbatim from docs/search/search_readiness_vocabulary.md."
+        }
+      },
+      "description": "Typed stale-or-partial explanation mirrored from schemas/search/search_result_truth.schema.json."
+    },
+
+    "hidden_result_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hidden_result_count", "count_is_approximate", "hidden_scope_reasons"],
+      "properties": {
+        "hidden_result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "count_is_approximate": { "type": "boolean" },
+        "hidden_scope_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "trust_state_excludes_surface",
+              "policy_narrows_source",
+              "sparse_scope_excludes_root",
+              "outside_loaded_scope",
+              "excluded_by_user_filter",
+              "client_scope_excludes_surface",
+              "provider_overlay_unauthorised",
+              "pack_quarantined",
+              "redaction_narrowed",
+              "remote_shard_unreachable"
+            ]
+          }
+        }
+      },
+      "description": "Disclosure block mirrored from schemas/search/search_result_truth.schema.json."
+    },
+
+    "shard_snapshot_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shard_row_id", "shard_snapshot_id", "freshness_class", "readiness_state"],
+      "properties": {
+        "shard_row_id": { "$ref": "#/$defs/shard_row_id" },
+        "shard_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "captured_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "invalidation_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque invalidation epoch id. A later planner pass whose shard_snapshot_ref carries a different invalidation_epoch for the same shard_row_id MUST NOT be treated as the same snapshot."
+        }
+      },
+      "description": "Pinned reference to a shard snapshot the planner pass observed. Later support captures reconstruct which shard authorities produced a visible result set by walking these refs."
+    },
+
+    "shard_candidate_contribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shard_row_id",
+        "shard_snapshot_id",
+        "shard_contribution_role",
+        "ranking_reason_classes"
+      ],
+      "properties": {
+        "shard_row_id": { "$ref": "#/$defs/shard_row_id" },
+        "shard_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "shard_contribution_role": { "$ref": "#/$defs/shard_contribution_role" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ranking_reason_class" }
+        },
+        "ranking_weight_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ranking_weight_class" }
+          ]
+        },
+        "hidden_scope_reason": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "trust_state_excludes_surface",
+                "policy_narrows_source",
+                "sparse_scope_excludes_root",
+                "outside_loaded_scope",
+                "excluded_by_user_filter",
+                "client_scope_excludes_surface",
+                "provider_overlay_unauthorised",
+                "pack_quarantined",
+                "redaction_narrowed",
+                "remote_shard_unreachable"
+              ]
+            }
+          ],
+          "description": "Non-null when shard_contribution_role is hidden_by_policy_or_scope."
+        },
+        "collapsed_into_canonical_entity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Non-null when shard_contribution_role is duplicate_collapsed_into_primary. Names the canonical entity id the row was collapsed into."
+        },
+        "partial_truth_cause": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "hot_set_only",
+                "manifest_only",
+                "cache_only",
+                "outside_loaded_scope",
+                "indexing_in_progress",
+                "semantic_service_unavailable",
+                "remote_shard_unreachable",
+                "provider_overlay_unreachable",
+                "policy_blocked_shard",
+                "freshness_floor_unmet",
+                "stale_index_served"
+              ]
+            }
+          ],
+          "description": "Non-null when shard_contribution_role is unreachable_disclosed."
+        }
+      },
+      "allOf": [
+        {
+          "description": "hidden_by_policy_or_scope rows MUST name a hidden_scope_reason.",
+          "if": {
+            "properties": { "shard_contribution_role": { "const": "hidden_by_policy_or_scope" } },
+            "required": ["shard_contribution_role"]
+          },
+          "then": { "required": ["hidden_scope_reason"] }
+        },
+        {
+          "description": "duplicate_collapsed_into_primary rows MUST name the canonical entity ref.",
+          "if": {
+            "properties": { "shard_contribution_role": { "const": "duplicate_collapsed_into_primary" } },
+            "required": ["shard_contribution_role"]
+          },
+          "then": { "required": ["collapsed_into_canonical_entity_ref"] }
+        },
+        {
+          "description": "unreachable_disclosed rows MUST name a partial_truth_cause.",
+          "if": {
+            "properties": { "shard_contribution_role": { "const": "unreachable_disclosed" } },
+            "required": ["shard_contribution_role"]
+          },
+          "then": { "required": ["partial_truth_cause"] }
+        }
+      ],
+      "description": "One shard's contribution to a fused row or to a hidden-row disclosure."
+    },
+
+    "stage_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_stage_id",
+        "stage_outcome_class",
+        "started_at",
+        "finished_at"
+      ],
+      "properties": {
+        "planner_stage_id": { "$ref": "#/$defs/planner_stage_id" },
+        "stage_outcome_class": { "$ref": "#/$defs/stage_outcome_class" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "stage_notes_opaque_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a diagnostic / support export capture of the stage; never the raw diagnostic text."
+        }
+      },
+      "description": "One stage execution within a planner pass. Stages appear in the ordering the lane grouping declares; skipped_not_applicable is the only outcome that may omit work for a stage the lane grouping declares absent."
+    },
+
+    "saved_query_backlink_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backlink_kind", "backlink_ref_opaque"],
+      "properties": {
+        "backlink_kind": {
+          "type": "string",
+          "enum": [
+            "saved_query",
+            "query_history_entry",
+            "search_deep_link",
+            "bookmark",
+            "ai_evidence_anchor",
+            "support_export_quote"
+          ],
+          "description": "Frozen backlink kinds. Every durable artifact that points back at a planner pass / fused row declares its kind here."
+        },
+        "backlink_ref_opaque": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Backlink from a durable artifact (saved query, query-history entry, search deep link, bookmark, AI-evidence anchor, support-export quote) to the planner pass / fused row that produced it."
+    },
+
+    "planner_pass_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_fusion_schema_version",
+        "planner_pass_id",
+        "query_session_id_ref",
+        "result_set_id",
+        "lane_grouping_id",
+        "surface_class",
+        "scope_filter_class",
+        "client_scopes",
+        "semantic_fallback_state",
+        "readiness_state_at_open",
+        "stage_executions",
+        "shard_snapshot_refs",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "planner_pass_record" },
+        "result_fusion_schema_version": { "$ref": "#/$defs/result_fusion_schema_version" },
+        "planner_pass_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the search_session_record that opened the query (schemas/search/search_result_truth.schema.json#search_session_record). Raw query text never crosses the boundary."
+        },
+        "result_set_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the visible result set this planner pass produced. Durable artifacts (saved queries, search deep links, AI evidence anchors, support export quotes) cite this id to reconstruct which planner pass produced a visible result set."
+        },
+        "lane_grouping_id": { "$ref": "#/$defs/lane_grouping_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "semantic_fallback_state": { "$ref": "#/$defs/semantic_fallback_state" },
+        "readiness_state_at_open": { "$ref": "#/$defs/readiness_state" },
+        "stage_executions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stage_execution" },
+          "description": "Ordered sequence of stage executions. MUST match the ordering declared by the lane grouping's planner_stage_ordering; a stage absent from the ordering MUST NOT appear, and a stage present in the ordering that did not run MUST appear with stage_outcome_class = skipped_not_applicable, cancelled, or failed_refused."
+        },
+        "shard_snapshot_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/shard_snapshot_ref" },
+          "description": "Every shard snapshot the planner pass observed. Later support captures reconstruct which shard authorities produced a visible result set by walking these refs."
+        },
+        "fused_row_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Stable fused_row_id list, one per result_fusion_record the pass emitted. May be empty when every row was hidden or the pass was cancelled / refused."
+        },
+        "saved_query_backlinks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/saved_query_backlink_ref" },
+          "description": "Backlinks from saved queries / query-history entries / search deep links / bookmarks / AI-evidence anchors / support export quotes that the pass produced or updated."
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Single invocation of the unified planner. Binds one query session, one result set, one lane grouping, an ordered sequence of stage executions, the shard snapshots the pass observed, and the fused rows it emitted. Raw query text, raw document bodies, raw symbol definitions, and raw URLs never appear on this record."
+    },
+
+    "result_fusion_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_fusion_schema_version",
+        "fused_row_id",
+        "planner_pass_id_ref",
+        "result_set_id_ref",
+        "canonical_entity_id",
+        "result_truth_class",
+        "ranking_reason_classes",
+        "shard_contributions",
+        "duplicate_collapse_rationale",
+        "readiness_state",
+        "freshness_class",
+        "semantic_fallback_state",
+        "hidden_result_disclosure",
+        "stale_or_partial_explanation",
+        "citation_anchor_refs",
+        "deep_link_refs",
+        "saved_query_backlinks",
+        "search_result_packet_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "result_fusion_record" },
+        "result_fusion_schema_version": { "$ref": "#/$defs/result_fusion_schema_version" },
+        "fused_row_id": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_entity_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the fused row's canonical entity (graph node, docs anchor, palette command, provider resource, saved query). Duplicates that collapsed into this row share the same canonical_entity_id; that is why the planner fused them."
+        },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "ranking_reason_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ranking_reason_class" },
+          "description": "Every class that contributed to the ranking of this fused row. A hybrid result_truth_class MUST list at least two contributors."
+        },
+        "shard_contributions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shard_candidate_contribution" },
+          "description": "Every shard row that contributed to or was withheld from this fused row. At least one entry SHOULD have shard_contribution_role = primary_truth_source; hybrid rows enumerate additional supplementary_contributor entries, and accelerator_only / hidden_by_policy_or_scope / unreachable_disclosed entries disclose accelerators and withholds rather than hiding them."
+        },
+        "duplicate_collapse_rationale": { "$ref": "#/$defs/duplicate_collapse_rationale" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "semantic_fallback_state": { "$ref": "#/$defs/semantic_fallback_state" },
+        "hidden_result_disclosure": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hidden_result_disclosure" }
+          ],
+          "description": "Non-null whenever at least one row was withheld from the rendered result set for any reason in hidden_scope_reason."
+        },
+        "stale_or_partial_explanation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stale_or_partial_explanation" }
+          ],
+          "description": "Required (non-null) when readiness_state is not fully_indexed, result_truth_class is heuristic or hybrid, semantic_fallback_state is below semantic_available_as_supplement, or hidden_result_disclosure is non-null."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Anchor ids from schemas/docs/help_status_badge.schema.json that back the row's truth claim. Required (non-empty) when result_truth_class = imported, when the fused row draws from a shard whose remote_or_imported_posture is imported_pack, or when any contributing shard's canonical owner is docs_pack_registry / derived_explanation_session."
+        },
+        "deep_link_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to search_deep_link_record entries (schemas/search/search_result_truth.schema.json#search_deep_link_record) the fused row exposes."
+        },
+        "saved_query_backlinks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/saved_query_backlink_ref" },
+          "description": "Saved-query / query-history / bookmark / AI-evidence / support-export backlinks that point at this fused row."
+        },
+        "search_result_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the search_result_packet_record the fused row projects into (schemas/search/search_result_truth.schema.json#search_result_packet_record). The packet is the surface-facing projection; this record is the planner-internal fusion that produced the packet."
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "stale_or_partial_explanation MUST be non-null when readiness_state is not fully_indexed.",
+          "if": {
+            "properties": {
+              "readiness_state": { "not": { "const": "fully_indexed" } }
+            },
+            "required": ["readiness_state"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "stale_or_partial_explanation MUST be non-null when result_truth_class is heuristic or hybrid.",
+          "if": {
+            "properties": {
+              "result_truth_class": { "enum": ["heuristic", "hybrid"] }
+            },
+            "required": ["result_truth_class"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "hidden_result_disclosure non-null MUST carry stale_or_partial_explanation non-null.",
+          "if": {
+            "properties": { "hidden_result_disclosure": { "type": "object" } },
+            "required": ["hidden_result_disclosure"]
+          },
+          "then": {
+            "properties": { "stale_or_partial_explanation": { "$ref": "#/$defs/stale_or_partial_explanation" } },
+            "required": ["stale_or_partial_explanation"]
+          }
+        },
+        {
+          "description": "hybrid rows MUST enumerate at least two ranking reasons.",
+          "if": {
+            "properties": { "result_truth_class": { "const": "hybrid" } },
+            "required": ["result_truth_class"]
+          },
+          "then": {
+            "properties": {
+              "ranking_reason_classes": {
+                "type": "array",
+                "minItems": 2
+              }
+            }
+          }
+        },
+        {
+          "description": "imported rows MUST cite at least one anchor.",
+          "if": {
+            "properties": { "result_truth_class": { "const": "imported" } },
+            "required": ["result_truth_class"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-row fusion record. One result_fusion_record per visible (or disclosed-hidden) canonical entity the planner pass produced. The record binds the planner-internal provenance (shard_contributions, duplicate_collapse_rationale, ranking_reason_classes) to the surface-facing projection (search_result_packet_ref)."
+    },
+
+    "shard_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_fusion_schema_version",
+        "shard_snapshot_id",
+        "shard_row_id",
+        "readiness_state",
+        "freshness_class",
+        "captured_at",
+        "policy_context"
+      ],
+      "properties": {
+        "record_kind": { "const": "shard_snapshot_record" },
+        "result_fusion_schema_version": { "$ref": "#/$defs/result_fusion_schema_version" },
+        "shard_snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "shard_row_id": { "$ref": "#/$defs/shard_row_id" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "invalidation_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" }
+      },
+      "description": "Durable record of a shard snapshot the planner observed. Later support captures and parity audits resolve shard_snapshot_refs through this record."
+    },
+
+    "streaming_frame_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_fusion_schema_version",
+        "streaming_frame_id",
+        "planner_pass_id_ref",
+        "result_set_id_ref",
+        "streaming_frame_kind",
+        "frame_index",
+        "fused_row_ids",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "streaming_frame_record" },
+        "result_fusion_schema_version": { "$ref": "#/$defs/result_fusion_schema_version" },
+        "streaming_frame_id": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "streaming_frame_kind": { "$ref": "#/$defs/streaming_frame_kind" },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fused_row_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Fused rows emitted on this frame. A corrective_replace_frame names the superseded rows in superseded_fused_row_ids."
+        },
+        "superseded_fused_row_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Non-empty only on corrective_replace_frame. Names the fused rows this frame replaces; the planner MUST re-emit or withdraw each id."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "corrective_replace_frame MUST name the rows it replaces.",
+          "if": {
+            "properties": { "streaming_frame_kind": { "const": "corrective_replace_frame" } },
+            "required": ["streaming_frame_kind"]
+          },
+          "then": {
+            "properties": {
+              "superseded_fused_row_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["superseded_fused_row_ids"]
+          }
+        }
+      ],
+      "description": "One streaming frame emitted by the planner for a visible result set. Streaming frames make partial / stale / not-yet-indexed state visible rather than hidden inside a blank result set."
+    },
+
+    "planner_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "result_fusion_schema_version",
+        "planner_audit_event_id",
+        "planner_pass_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "planner_audit_event_record" },
+        "result_fusion_schema_version": { "$ref": "#/$defs/result_fusion_schema_version" },
+        "planner_audit_event_id": { "$ref": "#/$defs/planner_audit_event_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "fused_row_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "shard_snapshot_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "streaming_frame_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "fusion_denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/fusion_denial_reason" }
+          ],
+          "description": "Required (non-null) for planner_pass_refused, result_fusion_refused, and streaming_frame_corrected when the outcome was a denial."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit event emitted on the planner audit stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    }
+  }
+}

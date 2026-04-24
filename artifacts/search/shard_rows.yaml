@@ -1,0 +1,896 @@
+# Search shard topology seed.
+#
+# Machine-readable registry of every index / shard / overlay lane
+# that the unified search query-planner may consult when it emits a
+# search_result_packet_record against the vocabulary frozen in
+# docs/adr/0014-search-readiness-ranking-result-truth.md and
+# schemas/search/search_result_truth.schema.json.
+#
+# Companion to:
+#   - docs/search/query_planner_contract_seed.md (the prose seed)
+#   - schemas/search/result_fusion_record.schema.json
+#     (the record every planner pass projects into)
+#   - schemas/search/saved_query_and_scope_binding.schema.json
+#     (how saved queries, history entries, and deep links bind to a
+#     planner pass and a shard authority)
+#   - fixtures/search/planner_cases/*.json
+#     (worked planner passes that each conform to the schemas)
+#
+# Purpose: before the quick-open / full-search / symbol-jump /
+# palette / docs-search / semantic-lookup surfaces land their own
+# planner code, fix the vocabulary so every row that crosses a
+# planner output (candidate, merged result, collapsed duplicate,
+# explained rank) binds to exactly one shard row. A later parity
+# audit between palette, quick open, full search, symbol jump,
+# docs search, and semantic lookup compares emitted
+# result_fusion_record instances field-for-field against the rows
+# below without inventing additional shard semantics.
+#
+# Rules:
+#   - Every row MUST name one shard_class, one lane_class, one
+#     authority_class, one freshness_class, one truth_class_rule,
+#     and one accelerator_or_source posture. Planner stages MUST
+#     NOT mint rows outside this registry.
+#   - Rows whose accelerator_or_source is accelerator_only MUST be
+#     treated as an accelerator. They MUST NOT be cited as the sole
+#     authority for a row's truth claim; if a remote or imported
+#     index is cited as truth the result_truth_class MUST be
+#     imported (or hybrid) on the fused row.
+#   - Every row binds to exactly one canonical_owner from the
+#     artifacts/search/result_truth_labels.yaml ownership table so
+#     the no-shadow-search rule (ADR-0014) applies at the shard
+#     level too: a non-owning surface quotes the row, it does not
+#     re-derive it.
+#   - Adding a row or an enum value is additive-minor and bumps
+#     shard_rows_schema_version. Repurposing an existing row is
+#     breaking and requires a new decision row in
+#     artifacts/governance/decision_index.yaml.
+#   - Row ids follow the pattern
+#     search_shard_row:<family>.<row>. Families map to the logical
+#     lanes below.
+#
+# This file is pre-implementation scaffolding. It MUST NOT be read
+# as a commitment to ship a given index or overlay; it fixes the
+# vocabulary each one projects into when it lands.
+
+shard_rows_schema_version: 1
+
+sources:
+  adr: docs/adr/0014-search-readiness-ranking-result-truth.md
+  decision_id: D-0020
+  decision_register: artifacts/governance/decision_index.yaml
+  result_truth_labels: artifacts/search/result_truth_labels.yaml
+  result_truth_schema: schemas/search/search_result_truth.schema.json
+  result_fusion_schema: schemas/search/result_fusion_record.schema.json
+  saved_query_schema: schemas/search/saved_query_and_scope_binding.schema.json
+  planner_prose: docs/search/query_planner_contract_seed.md
+  planner_fixtures_dir: fixtures/search/planner_cases
+  graph_identity_seed: docs/graph/identity_and_query_family_seed.md
+  docs_pack_registry_schema: schemas/docs/help_status_badge.schema.json
+  execution_context_schema: schemas/runtime/execution_context.schema.json
+  capability_lifecycle_schema: schemas/governance/capability_lifecycle.schema.json
+
+related_adrs:
+  - docs/adr/0001-identity-modes.md
+  - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0009-execution-context-and-scope.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - docs/adr/0013-docs-help-service-health-truth.md
+  - docs/adr/0014-search-readiness-ranking-result-truth.md
+  - docs/adr/0018-workspace-trust-and-restricted-mode.md
+  - docs/adr/0020-remote-agent-contract.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Tooling reads these blocks; planner stages MUST NOT
+# mint tokens outside the enumerations below.
+# -----------------------------------------------------------------------------
+
+shard_class_vocabulary:
+  description: >
+    Top-level shard class. Every shard row declares exactly one
+    class. The class pins what planner passes may consult the
+    shard, what kind of truth it contributes, and how freshness
+    is computed.
+  values:
+    - per_root_lexical
+    - hot_set_lexical
+    - per_root_graph
+    - semantic_embedding
+    - docs_pack
+    - provider_overlay
+    - imported_precomputed
+    - palette_command_registry
+    - saved_query_and_history
+    - support_export_projection
+
+lane_class_vocabulary:
+  description: >
+    Logical search lane the shard participates in. A shard MAY
+    belong to exactly one lane; cross-lane membership is
+    forbidden so a later parity audit can reason about a single
+    lane per shard.
+  values:
+    - quick_open_lane
+    - full_search_lane
+    - symbol_jump_lane
+    - palette_command_lane
+    - docs_search_lane
+    - semantic_lookup_lane
+    - graph_overlay_lane
+    - ai_explanation_lane
+    - support_export_lane
+
+authority_class_vocabulary:
+  description: >
+    Authority class re-exported from ADR-0005 subscription-
+    envelope semantics. Search / navigation shards are all
+    derived_knowledge at this milestone; authoritative_runtime_state
+    is reserved for future registry-backed shards that DO hold
+    primary truth. durable_artifact_snapshot names a shard whose
+    rows cite a durable artifact (a pack, a capture, a support
+    export) rather than a live index.
+  values:
+    - derived_knowledge
+    - authoritative_runtime_state
+    - durable_artifact_snapshot
+
+accelerator_or_source_vocabulary:
+  description: >
+    Posture of the shard relative to the rendered truth claim.
+    accelerator_only rows MUST NOT be cited as the sole authority
+    for a row's truth claim; they ride alongside a local source
+    shard. truth_source rows may be cited directly. hybrid_contributor
+    names shards whose output may contribute to a hybrid
+    result_truth_class row (with at least one other contributor
+    enumerated in ranking_reason_classes).
+  values:
+    - truth_source
+    - hybrid_contributor
+    - accelerator_only
+
+truth_class_rule_vocabulary:
+  description: >
+    Maximum result_truth_class (ADR-0014) that a row drawn from
+    this shard may render as on the fused packet. A shard
+    labelled max_imported MUST NOT render as exact on a fused
+    packet; it MAY appear inside a hybrid row with at least one
+    contributor from a shard whose rule is max_exact.
+  values:
+    - max_exact
+    - max_imported
+    - max_heuristic
+    - hybrid_only
+
+canonical_owner_vocabulary:
+  description: >
+    Canonical owners re-exported verbatim from
+    artifacts/search/result_truth_labels.yaml#source_of_truth_ownership.
+    The no-shadow-search rule applies: a shard row's canonical
+    owner is the only entity that may emit the row's truth
+    claim; downstream surfaces quote it by id.
+  values:
+    - palette_command_registry
+    - search_indexer
+    - symbol_jump_resolver
+    - graph_authority
+    - docs_pack_registry
+    - derived_explanation_session
+    - support_export_pipeline
+    - deep_link_resolver
+    - semantic_embedding_service
+    - provider_overlay_registry
+    - saved_query_registry
+
+invalidation_producer_vocabulary:
+  description: >
+    Frozen invalidation-producer classes. Each shard row declares
+    the invalidation sources that would flip one of its rows
+    from fresh to stale. Planner stages MUST NOT silently keep
+    serving a shard past an invalidation event; the fused packet
+    MUST surface the readiness / freshness drop.
+  values:
+    - vfs_canonical_path_change
+    - buffer_save_commit
+    - graph_authority_edge_bump
+    - docs_pack_version_bump
+    - provider_overlay_session_refresh
+    - embedding_model_version_bump
+    - policy_epoch_bump
+    - trust_state_transition
+    - imported_pack_rebuild
+    - palette_registry_edit
+    - saved_query_registry_edit
+
+readiness_state_ceiling_vocabulary:
+  description: >
+    Ceiling on the readiness_state (ADR-0014) a fused packet may
+    render for a row drawn from this shard. A shard labelled
+    ceiling_hot_set_ready MUST NOT render fully_indexed on a
+    fused packet even if every other contributor is fully
+    indexed; the planner MUST downgrade the fused state to the
+    lowest ceiling among its contributors.
+  values:
+    - ceiling_fully_indexed
+    - ceiling_warm_index
+    - ceiling_partial_index
+    - ceiling_hot_set_ready
+    - ceiling_index_unavailable
+
+remote_or_imported_posture_vocabulary:
+  description: >
+    Explicit posture re-labelled for the accelerator-vs-truth
+    rule in ADR-0014: "Remote or imported indexes are treated as
+    accelerators, not undisclosed truth sources." Every shard
+    row declares one value. remote_accelerator MUST be paired
+    with accelerator_only; imported_pack MUST be paired with
+    max_imported and MUST cite a citation anchor on the fused
+    row.
+  values:
+    - local_live
+    - local_cached
+    - remote_accelerator
+    - imported_pack
+    - provider_remote
+    - not_applicable
+
+cancellation_participation_vocabulary:
+  description: >
+    How this shard honours the shared cancellation stage.
+    cooperative_cancellation MUST deliver a cancellation ack
+    through the planner's cancellation channel before the
+    planner closes the query session. best_effort_cancellation
+    MAY be used only by shards whose individual rows are
+    stateless and cheap. uninterruptible_short_prefix is
+    reserved for shards whose in-flight frame completes within a
+    sub-budget (e.g. palette prefix match) — the planner MUST
+    NOT rely on their mid-frame cancellation.
+  values:
+    - cooperative_cancellation
+    - best_effort_cancellation
+    - uninterruptible_short_prefix
+
+streaming_posture_vocabulary:
+  description: >
+    Whether the planner may stream partial results from this
+    shard before the shard has reached its readiness ceiling.
+    streams_partial_with_marker rows MUST emit a partial-truth
+    cause on every streamed frame. accumulates_to_completion
+    rows are not exposed to the user until the frame is done.
+  values:
+    - streams_partial_with_marker
+    - accumulates_to_completion
+    - never_streams
+
+# -----------------------------------------------------------------------------
+# Shard rows. Every row is pre-implementation vocabulary; no code binds to
+# these rows yet. The registry is the contract each lane will project into
+# when it lands.
+# -----------------------------------------------------------------------------
+
+shard_rows:
+
+  # ---------------------------------------------------------------------------
+  # Full-search lane: per-root lexical index over the loaded scope.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:full_search.per_root_lexical
+    shard_class: per_root_lexical
+    lane_class: full_search_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: search_indexer
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: local_live
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - vfs_canonical_path_change
+      - buffer_save_commit
+      - policy_epoch_bump
+      - trust_state_transition
+    consumed_by_query_families:
+      - text_substring_lookup
+      - regex_lookup
+      - palette_command_lookup
+    notes: >
+      Authoritative lexical / structural index over the loaded
+      scope. Source of truth for full-search lexical rows. Binds
+      scope through scope_filter_class (ADR-0009 execution-context
+      and workset vocabulary).
+
+  # ---------------------------------------------------------------------------
+  # Quick-open lane: hot-set lexical (recent-file + recent-edit bias) for
+  # the "become useful before the full repo is indexed" PRD MUST.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:quick_open.hot_set_lexical
+    shard_class: hot_set_lexical
+    lane_class: quick_open_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: search_indexer
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_hot_set_ready
+    remote_or_imported_posture: local_live
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - vfs_canonical_path_change
+      - buffer_save_commit
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - palette_command_lookup
+      - text_substring_lookup
+    notes: >
+      Hot set for the "product becomes useful before the full
+      repo is indexed" requirement. Readiness ceiling is
+      hot_set_ready; the planner MUST NOT render a fused packet
+      whose only contributor is this shard as fully_indexed.
+
+  # ---------------------------------------------------------------------------
+  # Symbol-jump lane: graph authority, exact facts.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:symbol_jump.graph_authority
+    shard_class: per_root_graph
+    lane_class: symbol_jump_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: symbol_jump_resolver
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: local_live
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - graph_authority_edge_bump
+      - buffer_save_commit
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - symbol_jump_lookup
+      - deep_link_resolve
+    notes: >
+      Graph authority for symbol declarations and structural
+      relations. Rows drawn from this shard may render as exact
+      on the fused packet; fallback to the parser / symbol-table
+      shard below when the graph has not confirmed the relation.
+
+  # ---------------------------------------------------------------------------
+  # Symbol-jump lane: structural fallback (parser / symbol table) when the
+  # graph could not confirm the relation.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:symbol_jump.structural_fallback
+    shard_class: per_root_graph
+    lane_class: symbol_jump_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: hybrid_contributor
+    truth_class_rule: max_heuristic
+    canonical_owner: symbol_jump_resolver
+    freshness_class: warm_cached
+    readiness_state_ceiling: ceiling_partial_index
+    remote_or_imported_posture: local_live
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - buffer_save_commit
+      - graph_authority_edge_bump
+    consumed_by_query_families:
+      - symbol_jump_lookup
+    notes: >
+      Parser / symbol-table structural fallback for the case where
+      the graph authority has not yet confirmed the relation. Rows
+      drawn from this shard are heuristic on the fused packet and
+      MUST carry the structural_fallback ranking reason.
+
+  # ---------------------------------------------------------------------------
+  # Semantic-lookup lane: semantic embeddings. Default-off, supplement only.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:semantic_lookup.embedding_neighbour
+    shard_class: semantic_embedding
+    lane_class: semantic_lookup_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: hybrid_contributor
+    truth_class_rule: hybrid_only
+    canonical_owner: semantic_embedding_service
+    freshness_class: degraded_cached
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: local_cached
+    cancellation_participation: best_effort_cancellation
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - embedding_model_version_bump
+      - buffer_save_commit
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - semantic_concept_lookup
+      - ai_evidence_lookup
+    notes: >
+      Semantic embedding neighbours. MAY appear on a fused packet
+      only as a hybrid contributor; the packet's
+      semantic_fallback_state MUST be
+      semantic_available_as_supplement. A fused packet whose only
+      contributor is this shard is non-conforming (ADR-0014).
+
+  # ---------------------------------------------------------------------------
+  # Docs-search lane: first-party docs pack.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:docs_search.first_party_pack
+    shard_class: docs_pack
+    lane_class: docs_search_lane
+    authority_class: durable_artifact_snapshot
+    accelerator_or_source: truth_source
+    truth_class_rule: max_imported
+    canonical_owner: docs_pack_registry
+    freshness_class: warm_cached
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: imported_pack
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - docs_pack_version_bump
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - docs_topic_lookup
+      - ai_evidence_lookup
+    notes: >
+      First-party docs pack (help / stdlib / framework). Rows
+      drawn from this shard render as imported on the fused
+      packet; citation_anchor_refs MUST be non-empty.
+
+  # ---------------------------------------------------------------------------
+  # Docs-search lane: mirrored / third-party docs pack.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:docs_search.mirrored_third_party_pack
+    shard_class: docs_pack
+    lane_class: docs_search_lane
+    authority_class: durable_artifact_snapshot
+    accelerator_or_source: truth_source
+    truth_class_rule: max_imported
+    canonical_owner: docs_pack_registry
+    freshness_class: degraded_cached
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: imported_pack
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - docs_pack_version_bump
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - docs_topic_lookup
+      - ai_evidence_lookup
+    notes: >
+      Mirrored / third-party docs pack. Rows render with a
+      "Mirrored" badge (docs badge vocabulary, ADR-0013) and
+      MUST cite the anchor the row quotes.
+
+  # ---------------------------------------------------------------------------
+  # Graph-overlay lane: public graph projection.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:graph_overlay.public_projection
+    shard_class: per_root_graph
+    lane_class: graph_overlay_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: graph_authority
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: local_live
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - graph_authority_edge_bump
+      - buffer_save_commit
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - symbol_jump_lookup
+      - ai_evidence_lookup
+    notes: >
+      Public graph projection (ADR-0013 / M00-149). Rows drawn
+      from this shard anchor the graph_neighbourhood_hop ranking
+      reason on the fused packet.
+
+  # ---------------------------------------------------------------------------
+  # Provider-overlay lane: connected-provider resources (issues, PRs, docs,
+  # service catalogs). Accelerator only.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:provider_overlay.connected_resources
+    shard_class: provider_overlay
+    lane_class: full_search_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: accelerator_only
+    truth_class_rule: max_imported
+    canonical_owner: provider_overlay_registry
+    freshness_class: degraded_cached
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: provider_remote
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - provider_overlay_session_refresh
+      - policy_epoch_bump
+      - trust_state_transition
+    consumed_by_query_families:
+      - text_substring_lookup
+      - docs_topic_lookup
+      - ai_evidence_lookup
+    notes: >
+      Connected-provider overlay. Treated as an accelerator only;
+      a row whose only contributor is this shard MUST render as
+      imported on the fused packet and the row's
+      hidden_scope_reason may be provider_overlay_unauthorised
+      when provider authorisation is missing.
+
+  # ---------------------------------------------------------------------------
+  # Imported / precomputed lane: mirrored index packs built offline.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:imported_precomputed.mirrored_index
+    shard_class: imported_precomputed
+    lane_class: full_search_lane
+    authority_class: durable_artifact_snapshot
+    accelerator_or_source: accelerator_only
+    truth_class_rule: max_imported
+    canonical_owner: search_indexer
+    freshness_class: degraded_cached
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: imported_pack
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - imported_pack_rebuild
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - text_substring_lookup
+      - docs_topic_lookup
+    notes: >
+      Mirrored / precomputed index shipped as a pack. Accelerator
+      only; a fused packet whose only contributor is this shard
+      renders as imported and MUST cite the pack id.
+
+  # ---------------------------------------------------------------------------
+  # Palette-command lane: palette-command registry.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:palette_command.registry
+    shard_class: palette_command_registry
+    lane_class: palette_command_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: palette_command_registry
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: local_live
+    cancellation_participation: uninterruptible_short_prefix
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - palette_registry_edit
+      - policy_epoch_bump
+      - trust_state_transition
+    consumed_by_query_families:
+      - palette_command_lookup
+    notes: >
+      Palette command-graph registry. Exact-truth owner for
+      palette rows; semantic scoring is not applicable.
+
+  # ---------------------------------------------------------------------------
+  # AI-explanation lane: derived explanation session.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:ai_explanation.derived_session
+    shard_class: semantic_embedding
+    lane_class: ai_explanation_lane
+    authority_class: derived_knowledge
+    accelerator_or_source: hybrid_contributor
+    truth_class_rule: hybrid_only
+    canonical_owner: derived_explanation_session
+    freshness_class: warm_cached
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: local_cached
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: streams_partial_with_marker
+    invalidation_producers:
+      - embedding_model_version_bump
+      - graph_authority_edge_bump
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - ai_evidence_lookup
+      - semantic_concept_lookup
+    notes: >
+      Derived explanation session. Contributes semantic-neighbour
+      evidence to an AI-explanation overlay row only as a hybrid
+      contributor; the fused packet MUST cite every contributor
+      in ranking_reason_classes and carry non-empty
+      citation_anchor_refs.
+
+  # ---------------------------------------------------------------------------
+  # Saved-query / query-history lane: saved-query registry.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:saved_query.registry
+    shard_class: saved_query_and_history
+    lane_class: full_search_lane
+    authority_class: durable_artifact_snapshot
+    accelerator_or_source: truth_source
+    truth_class_rule: max_exact
+    canonical_owner: saved_query_registry
+    freshness_class: authoritative_live
+    readiness_state_ceiling: ceiling_fully_indexed
+    remote_or_imported_posture: local_live
+    cancellation_participation: uninterruptible_short_prefix
+    streaming_posture: accumulates_to_completion
+    invalidation_producers:
+      - saved_query_registry_edit
+      - policy_epoch_bump
+      - trust_state_transition
+    consumed_by_query_families:
+      - palette_command_lookup
+      - text_substring_lookup
+      - deep_link_resolve
+    notes: >
+      Saved-query, query-history, and search-deep-link registry.
+      Rows drawn from this shard name the planner pass and the
+      shard authorities that produced a visible result set;
+      conforms to
+      schemas/search/saved_query_and_scope_binding.schema.json.
+
+  # ---------------------------------------------------------------------------
+  # Support-export lane: support-export projection. Read-only quoting.
+  # ---------------------------------------------------------------------------
+  - row_id: search_shard_row:support_export.projection
+    shard_class: support_export_projection
+    lane_class: support_export_lane
+    authority_class: durable_artifact_snapshot
+    accelerator_or_source: accelerator_only
+    truth_class_rule: max_imported
+    canonical_owner: support_export_pipeline
+    freshness_class: stale
+    readiness_state_ceiling: ceiling_warm_index
+    remote_or_imported_posture: imported_pack
+    cancellation_participation: cooperative_cancellation
+    streaming_posture: never_streams
+    invalidation_producers:
+      - imported_pack_rebuild
+      - policy_epoch_bump
+    consumed_by_query_families:
+      - text_substring_lookup
+      - ai_evidence_lookup
+    notes: >
+      Support-export projection. Read-only quoting of the canonical
+      owners above; never mints new copy. Rows drawn from this
+      shard render as imported on the fused packet and MUST
+      preserve the stale_or_partial_explanation and
+      hidden_result_disclosure of the quoted packet.
+
+# -----------------------------------------------------------------------------
+# Lane groupings. The planner stages in
+# docs/search/query_planner_contract_seed.md bind to these lane groupings so
+# the fusion stage can reason about which shards compete for the same row
+# family and which compete across families.
+# -----------------------------------------------------------------------------
+
+lane_groupings:
+
+  - group_id: group:quick_open
+    lanes: [quick_open_lane]
+    shard_row_ids:
+      - search_shard_row:quick_open.hot_set_lexical
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - streaming_partial_results
+      - duplicate_merge
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:full_search
+    lanes: [full_search_lane]
+    shard_row_ids:
+      - search_shard_row:full_search.per_root_lexical
+      - search_shard_row:imported_precomputed.mirrored_index
+      - search_shard_row:provider_overlay.connected_resources
+      - search_shard_row:saved_query.registry
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - streaming_partial_results
+      - duplicate_merge
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:symbol_jump
+    lanes: [symbol_jump_lane]
+    shard_row_ids:
+      - search_shard_row:symbol_jump.graph_authority
+      - search_shard_row:symbol_jump.structural_fallback
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - duplicate_merge
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:palette_command
+    lanes: [palette_command_lane]
+    shard_row_ids:
+      - search_shard_row:palette_command.registry
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:docs_search
+    lanes: [docs_search_lane]
+    shard_row_ids:
+      - search_shard_row:docs_search.first_party_pack
+      - search_shard_row:docs_search.mirrored_third_party_pack
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - duplicate_merge
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:semantic_lookup
+    lanes: [semantic_lookup_lane]
+    shard_row_ids:
+      - search_shard_row:semantic_lookup.embedding_neighbour
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:graph_overlay
+    lanes: [graph_overlay_lane]
+    shard_row_ids:
+      - search_shard_row:graph_overlay.public_projection
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:ai_explanation
+    lanes: [ai_explanation_lane]
+    shard_row_ids:
+      - search_shard_row:ai_explanation.derived_session
+      - search_shard_row:graph_overlay.public_projection
+      - search_shard_row:docs_search.first_party_pack
+      - search_shard_row:semantic_lookup.embedding_neighbour
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - cancellation
+      - duplicate_merge
+      - ranking_explanation
+      - final_presentation
+
+  - group_id: group:support_export
+    lanes: [support_export_lane]
+    shard_row_ids:
+      - search_shard_row:support_export.projection
+    planner_stage_ordering:
+      - candidate_acquisition
+      - shard_selection
+      - ranking_explanation
+      - final_presentation
+
+# -----------------------------------------------------------------------------
+# Planner-stage vocabulary. Re-exported for tooling and referenced by the
+# fusion schema. The ordering field on each lane grouping above names the
+# subset each lane MUST honour; omitting cancellation / streaming stages is
+# only permitted for shards whose cancellation_participation or
+# streaming_posture declares the stage absent (e.g. palette's
+# uninterruptible_short_prefix).
+# -----------------------------------------------------------------------------
+
+planner_stage_vocabulary:
+  - stage_id: candidate_acquisition
+    description: >
+      Generate candidate rows from each shard that the scope
+      filter admits. Every candidate carries the shard row id
+      it was drawn from; candidates outside the shard registry
+      are non-conforming.
+  - stage_id: shard_selection
+    description: >
+      Narrow candidates to the shards the query family allows.
+      Respects admin policy narrowing, trust-state exclusions,
+      and client-scope filtering; emits a hidden-scope disclosure
+      when rows are withheld.
+  - stage_id: cancellation
+    description: >
+      Cooperative cancellation checkpoint. Every shard whose
+      cancellation_participation is cooperative_cancellation MUST
+      deliver an ack at this stage; best_effort_cancellation
+      shards MAY drop in-flight work without an ack.
+  - stage_id: streaming_partial_results
+    description: >
+      Stream partial results from streams_partial_with_marker
+      shards. Every streamed frame carries a partial-truth cause
+      and, when hot-set-only, the hot_set_only cause on the fused
+      packet.
+  - stage_id: duplicate_merge
+    description: >
+      Collapse duplicates across shards. Emits one fused row per
+      canonical entity with a typed duplicate_collapse_rationale;
+      every collapsed input retains its shard row id.
+  - stage_id: ranking_explanation
+    description: >
+      Emit the ranking_reason_classes contribution for the row.
+      Hybrid rows MUST enumerate at least two contributors; a
+      semantic contributor MAY appear only when
+      semantic_fallback_state is semantic_available_as_supplement.
+  - stage_id: final_presentation
+    description: >
+      Project the fused row into a search_result_packet_record
+      (ADR-0014) for rendering. This stage owns the readiness /
+      freshness / truth-class / hidden-scope ceilings computed
+      across contributors.
+
+# -----------------------------------------------------------------------------
+# Conformance rules. Tooling may iterate this list to refuse a shard row
+# whose declared fields disagree with the rules below.
+# -----------------------------------------------------------------------------
+
+conformance_rules:
+  - rule_id: accelerator_only_must_not_render_as_sole_exact
+    description: >
+      A shard row whose accelerator_or_source is accelerator_only
+      MUST NOT appear as the sole contributor to a fused row
+      rendered as result_truth_class = exact. Violations refuse
+      with denial_reason = result_truth_class_unresolved
+      (ADR-0014).
+  - rule_id: imported_pack_must_cite_anchor
+    description: >
+      A shard row whose remote_or_imported_posture is imported_pack
+      MUST cite at least one citation_anchor_ref on every fused
+      row drawn from it. Violations refuse with denial_reason =
+      result_truth_class_unresolved.
+  - rule_id: semantic_only_row_non_conforming
+    description: >
+      A fused row whose only contributor is a shard in the
+      semantic_embedding class is non-conforming. The fused
+      packet MUST be refused with denial_reason =
+      semantic_fallback_state_unlabelled.
+  - rule_id: readiness_ceiling_downgrade
+    description: >
+      The fused packet's readiness_state MUST be the lowest
+      readiness_state_ceiling among the shard rows that
+      contributed to it. Reporting a higher readiness than the
+      lowest ceiling is refused with denial_reason =
+      readiness_state_unresolved.
+  - rule_id: hot_set_only_must_disclose_partial
+    description: >
+      A fused row whose only contributor is a shard whose
+      readiness_state_ceiling is ceiling_hot_set_ready MUST
+      carry partial_truth_causes including hot_set_only and MUST
+      quote copy.partial_index_still_loading or
+      copy.heuristic_only from the ADR-0014 copy guidance.
+  - rule_id: provider_unauthorised_surfaces_hidden_disclosure
+    description: >
+      A shard row in the provider_overlay class that the user is
+      not authorised for MUST emit a hidden_result_disclosure
+      with hidden_scope_reasons containing
+      provider_overlay_unauthorised rather than silently dropping
+      the row.
+  - rule_id: cancellation_ack_required_on_cooperative
+    description: >
+      Every shard row whose cancellation_participation is
+      cooperative_cancellation MUST deliver a cancellation ack
+      to the planner before the planner may close the query
+      session. Missing acks refuse the session with denial_reason
+      = readiness_state_unresolved and require a repair.
+  - rule_id: no_raw_bodies_in_rows
+    description: >
+      No shard row may project raw query bodies, raw document
+      bodies, raw symbol definitions, or raw URLs onto the fused
+      packet. Violations refuse with denial_reason =
+      raw_document_body_forbidden_on_boundary (ADR-0014).
