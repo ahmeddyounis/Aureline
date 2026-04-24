@@ -1,0 +1,988 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/recipe_manifest.schema.json",
+  "title": "Aureline recorded-macro and declarative-recipe manifest contract",
+  "description": "Boundary schema for the recorded-macro and declarative-recipe manifest contract frozen in docs/automation/recipe_and_macro_contract.md. Every recorded macro and every declarative recipe a user, workspace, or organization stores for later replay MUST publish exactly one of a recorded_macro_manifest_record or a recipe_manifest_record against this schema. The record binds one opaque id to the authoring posture (declarative-first vs recorded), the storage scope (user / workspace / organization / portable export), a closed capability-declaration set that the command graph, trust, policy, CLI / headless, and AI-tool surfaces read without minting parallel 'what can this recipe touch?' vocabularies, a trust / policy / approval / preview / dry-run posture inherited from the command descriptor contract, a step list whose entries cite a command_id / command_revision_ref and an argument provenance template exactly the way docs/commands/shareability_and_automation_contract.md freezes them, a deferred-intent / queued-action posture for steps that must ride a later connectivity or authority window, a content-address for the manifest bytes, and an export / redaction posture. Raw argv, raw URLs, raw filesystem paths, raw credential material, raw prompt text, and raw clipboard bytes never cross this boundary; the schema carries opaque ids, closed vocabulary, and short reviewable sentences only. Adding a new authoring_posture_class, storage_scope_class, automation_capability_class, trust_gate_class, approval_posture_class, dry_run_posture_class, preview_posture_class, deferred_intent_class, queueable_action_class, reconciliation_intent_class, signature_class, export_posture_class, step_kind, or recorded_macro_surface_class is additive-minor and requires a recipe_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recipe_manifest_record" },
+    { "$ref": "#/$defs/recorded_macro_manifest_record" },
+    { "$ref": "#/$defs/recipe_manifest_seed_record" }
+  ],
+  "$defs": {
+    "recipe_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "recipe_manifest_record",
+        "recorded_macro_manifest_record",
+        "recipe_manifest_seed_record"
+      ],
+      "description": "Discriminator. Every concrete payload carries exactly one kind."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw argv, raw paths, raw URLs, raw JSON payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for palette preview, CLI --describe output, docs reference pages, and support-bundle manifest previews."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from the command descriptor without modification."
+    },
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SemVer string the recipe or macro revision was minted against."
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Content-address pair binding the manifest bytes to a (digest_algorithm, digest_hex) pair. Preserved verbatim when the manifest crosses a portable profile export, an organization share, or a support bundle."
+    },
+    "authoring_posture_class": {
+      "type": "string",
+      "enum": [
+        "declarative_first_recipe",
+        "recorded_ui_or_editor_state_macro",
+        "recorded_macro_promoted_to_declarative_recipe",
+        "managed_only_template_declarative_recipe"
+      ],
+      "description": "Frozen authoring-posture vocabulary. declarative_first_recipe is the default: the manifest is an ordered list of typed, gated steps citing command descriptors. recorded_ui_or_editor_state_macro is strictly constrained to UI or editor state and forbids ambient network / process / secret access (the recorded_macro_manifest_record shape enforces the constraint mechanically). recorded_macro_promoted_to_declarative_recipe records the lineage when a macro has been re-authored as a declarative recipe; the resulting manifest is a recipe_manifest_record and cites the macro revision it was promoted from. managed_only_template_declarative_recipe denotes a template distributed through the managed-only channel (ADR-0008); users MAY instantiate it but MUST NOT silently fork to a shadow copy that loses the managed provenance."
+    },
+    "recipe_authoring_language_class": {
+      "type": "string",
+      "enum": [
+        "declarative_yaml_recipe",
+        "declarative_json_recipe",
+        "declarative_portable_profile_embedded_recipe"
+      ],
+      "description": "Frozen authoring-language vocabulary. Declarative recipes are authored as YAML or JSON; a 'shell script' recipe is non-conforming and is denied at manifest load. A portable-profile-embedded recipe rides inside an ADR-compliant portable profile export rather than as a standalone file; the embedded form is otherwise the declarative_json_recipe shape."
+    },
+    "storage_scope_class": {
+      "type": "string",
+      "enum": [
+        "user_scope_local_only",
+        "workspace_scope_local_only",
+        "organization_scope_managed_only_channel",
+        "portable_profile_export_only",
+        "support_bundle_export_only"
+      ],
+      "description": "Frozen storage-scope vocabulary. user_scope_local_only and workspace_scope_local_only are local-first scopes owned by the user or the workspace respectively; neither leaves the local device without an explicit export. organization_scope_managed_only_channel is distributed through the ADR-0008 managed-only channel and carries an organization provenance ref. portable_profile_export_only is a recipe body that rides a portable profile export and is not admissible as a live recipe until re-imported. support_bundle_export_only is a redacted, read-only projection emitted into a support bundle for support review; it is not admissible as a live recipe."
+    },
+    "automation_capability_class": {
+      "type": "string",
+      "enum": [
+        "read_only_workspace_inspection",
+        "reversible_local_editor_mutation",
+        "irreversible_local_editor_mutation",
+        "reversible_workspace_filesystem_mutation",
+        "irreversible_workspace_filesystem_mutation",
+        "network_read_on_permitted_hosts",
+        "network_mutation_on_permitted_hosts",
+        "remote_agent_invocation",
+        "credential_broker_handshake",
+        "managed_only_channel_invocation",
+        "ai_tool_invocation",
+        "extension_invocation",
+        "terminal_session_invocation",
+        "debug_session_invocation",
+        "notebook_kernel_invocation",
+        "settings_or_profile_mutation",
+        "policy_admission_revalidation",
+        "trust_state_revalidation",
+        "recorded_macro_ui_state_replay",
+        "recorded_macro_editor_state_replay",
+        "deferred_intent_hook",
+        "queued_action_hook"
+      ],
+      "description": "Frozen automation-capability vocabulary. Every step in a recipe and every step in a recorded macro MUST quote one or more capabilities from this closed set; minting a parallel capability ('shell_out', 'process_spawn', 'raw_filesystem_write') is non-conforming. recorded_macro_ui_state_replay and recorded_macro_editor_state_replay are the only capabilities admissible on a recorded_macro_manifest_record; the record shape's schema-level coupling enforces that rule. deferred_intent_hook and queued_action_hook are the two hook capabilities a step may declare when the effect must ride a later connectivity or authority window."
+    },
+    "trust_gate_class": {
+      "type": "string",
+      "enum": [
+        "no_trust_gate_required",
+        "workspace_trust_required",
+        "workspace_trust_revalidated_each_step",
+        "restricted_mode_tolerated_read_only_only",
+        "restricted_mode_denied"
+      ],
+      "description": "Frozen workspace-trust gate vocabulary. restricted_mode_tolerated_read_only_only is admissible only when every capability in capability_declarations is read_only_workspace_inspection; the schema's allOf block enforces that coupling."
+    },
+    "policy_gate_class": {
+      "type": "string",
+      "enum": [
+        "policy_not_applicable",
+        "admin_policy_observed",
+        "admin_policy_revalidated_each_step",
+        "managed_only_channel_required",
+        "kill_switch_gated"
+      ],
+      "description": "Frozen admin-policy gate vocabulary. managed_only_channel_required is admissible only on organization_scope_managed_only_channel storage."
+    },
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_required_once_per_run",
+        "approval_required_per_step",
+        "approval_required_on_every_high_blast_step",
+        "approval_required_on_every_irreversible_step",
+        "approval_denied_for_recipe"
+      ],
+      "description": "Frozen approval-posture vocabulary. approval_denied_for_recipe pins that no approval path exists; a surface MUST deny dispatch rather than route to an approval queue."
+    },
+    "dry_run_posture_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_required_before_apply",
+        "dry_run_supported",
+        "dry_run_not_applicable_read_only",
+        "dry_run_not_supported_irreversible_under_approval_only"
+      ],
+      "description": "Frozen dry-run vocabulary. dry_run_required_before_apply is the MUST on any recipe whose capability_declarations contain any irreversible, network-mutation, or remote-invocation capability; the schema's allOf block enforces the coupling."
+    },
+    "preview_posture_class": {
+      "type": "string",
+      "enum": [
+        "preview_required_before_apply",
+        "preview_supported",
+        "preview_not_applicable_read_only",
+        "preview_denial_no_safe_preview"
+      ],
+      "description": "Frozen preview-posture vocabulary. preview_denial_no_safe_preview forbids dispatch without a superseding approval row and mirrors the shareability why-unavailable reason of the same name."
+    },
+    "deferred_intent_class": {
+      "type": "string",
+      "enum": [
+        "no_deferred_intent",
+        "deferred_until_workspace_trust_granted",
+        "deferred_until_policy_admission_granted",
+        "deferred_until_connectivity_restored",
+        "deferred_until_credential_broker_handshake",
+        "deferred_until_remote_agent_available",
+        "deferred_until_managed_only_channel_open",
+        "deferred_until_kill_switch_cleared"
+      ],
+      "description": "Frozen deferred-intent vocabulary. A step that MUST wait for a later connectivity, trust, policy, credential, remote-agent, managed-channel, or kill-switch window quotes the matching class; the run record later cites the window the run waited on. Silent 'try-then-fail-then-retry' loops are non-conforming; the step MUST declare the deferred intent up front."
+    },
+    "queueable_action_class": {
+      "type": "string",
+      "enum": [
+        "not_queueable",
+        "queueable_idempotent_on_replay",
+        "queueable_with_reconciliation_receipt",
+        "queueable_with_replay_window_bound"
+      ],
+      "description": "Frozen queueable-action vocabulary. A step whose effect is safe to queue and replay on a later connectivity window declares the admissible replay posture. queueable_with_replay_window_bound carries a bounded replay window so stale authority cannot silently replay hours or days later."
+    },
+    "reconciliation_intent_class": {
+      "type": "string",
+      "enum": [
+        "reconciliation_not_applicable",
+        "reconcile_with_remote_read_before_replay",
+        "reconcile_with_local_journal_before_replay",
+        "reconcile_with_approval_ticket_before_replay",
+        "abort_on_reconciliation_drift"
+      ],
+      "description": "Frozen reconciliation-intent vocabulary. A queued or deferred step that needs to re-check reality before replay quotes the matching class; abort_on_reconciliation_drift forbids any silent resolution."
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_via_portable_profile",
+        "exportable_via_support_bundle_redacted",
+        "exportable_via_organization_share_managed_only",
+        "not_exportable_local_only",
+        "export_denied_by_policy"
+      ],
+      "description": "Frozen export-posture vocabulary. A recipe stored in organization_scope_managed_only_channel storage MUST set exportable_via_organization_share_managed_only or export_denied_by_policy; re-exporting through a portable profile export is non-conforming."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-exported redaction class drawn from the capability lifecycle / secret broker contract."
+    },
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "unsigned",
+        "author_signature",
+        "author_and_organization_signature",
+        "organization_signature_only",
+        "managed_only_channel_signature",
+        "quarantined_no_signature"
+      ],
+      "description": "Frozen signature-class vocabulary for the manifest bytes. A managed-only template MUST carry managed_only_channel_signature or organization_signature_only; the schema's allOf block enforces that coupling."
+    },
+    "recorded_macro_surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_document_state",
+        "editor_selection_and_cursor_state",
+        "editor_multi_cursor_edits",
+        "editor_find_and_replace_state",
+        "command_palette_selection_state",
+        "ui_panel_open_close_state",
+        "ui_focus_move_state",
+        "ui_layout_reshape_state",
+        "keybinding_chord_replay_state"
+      ],
+      "description": "Frozen recorded-macro surface vocabulary. Every step on a recorded_macro_manifest_record MUST quote exactly one of these surface classes; minting a parallel surface ('shell_command', 'network_fetch', 'credential_read') is non-conforming and denies manifest load. The closed set is the schema's enforcement of the rule that recorded macros are constrained to explicit UI or editor state with no ambient network, process, or secret access."
+    },
+    "argument_provenance_template_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argument_name", "inspection_kind"],
+      "properties": {
+        "argument_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "inspection_kind": {
+          "type": "string",
+          "enum": [
+            "typed_argument_slot_ref",
+            "policy_pinned_argument_ref",
+            "credential_handle_argument_ref",
+            "selection_backed_argument_ref",
+            "focused_context_backed_argument_ref",
+            "default_from_descriptor_argument_ref",
+            "ai_proposed_argument_ref",
+            "automation_recipe_supplied_argument_ref",
+            "extension_supplied_argument_ref"
+          ],
+          "description": "Re-exported argument-inspection kind from docs/commands/shareability_and_automation_contract.md without modification."
+        },
+        "default_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "recipe_step_kind": {
+      "type": "string",
+      "enum": [
+        "invoke_descriptor_command",
+        "invoke_descriptor_command_under_approval",
+        "invoke_descriptor_command_under_dry_run",
+        "emit_deferred_intent_hook",
+        "emit_queued_action_hook",
+        "checkpoint_for_reconciliation",
+        "branch_on_previous_step_outcome",
+        "abort_on_gate_denial"
+      ],
+      "description": "Frozen recipe-step-kind vocabulary. Every step is exactly one of these kinds; a step MUST NOT embed raw shell fragments, raw filesystem paths, raw URLs, or raw credential material. invoke_descriptor_command_under_approval pairs with an approval_posture_class other than no_approval_required; invoke_descriptor_command_under_dry_run pairs with a dry_run_posture_class other than dry_run_not_applicable_read_only; emit_deferred_intent_hook and emit_queued_action_hook pair with the matching deferred_intent_class or queueable_action_class; checkpoint_for_reconciliation pairs with a reconciliation_intent_class other than reconciliation_not_applicable."
+    },
+    "recipe_step_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_kind",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "capability_declarations",
+        "argument_provenance_template"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_kind": { "$ref": "#/$defs/recipe_step_kind" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/automation_capability_class" }
+        },
+        "argument_provenance_template": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argument_provenance_template_entry" }
+        },
+        "deferred_intent_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deferred_intent_class" }
+          ]
+        },
+        "queueable_action_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/queueable_action_class" }
+          ]
+        },
+        "reconciliation_intent_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reconciliation_intent_class" }
+          ]
+        },
+        "branch_on_previous_step_outcome_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "branch_on_success_only",
+                "branch_on_partial_success_only",
+                "branch_on_failure_only",
+                "branch_on_dry_run_would_have_applied_only"
+              ]
+            }
+          ]
+        },
+        "narration_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "emit_deferred_intent_hook requires a deferred_intent_class other than no_deferred_intent.",
+          "if": {
+            "properties": { "step_kind": { "const": "emit_deferred_intent_hook" } }
+          },
+          "then": {
+            "required": ["deferred_intent_class"],
+            "properties": {
+              "deferred_intent_class": {
+                "type": "string",
+                "enum": [
+                  "deferred_until_workspace_trust_granted",
+                  "deferred_until_policy_admission_granted",
+                  "deferred_until_connectivity_restored",
+                  "deferred_until_credential_broker_handshake",
+                  "deferred_until_remote_agent_available",
+                  "deferred_until_managed_only_channel_open",
+                  "deferred_until_kill_switch_cleared"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "emit_queued_action_hook requires a queueable_action_class other than not_queueable.",
+          "if": {
+            "properties": { "step_kind": { "const": "emit_queued_action_hook" } }
+          },
+          "then": {
+            "required": ["queueable_action_class"],
+            "properties": {
+              "queueable_action_class": {
+                "type": "string",
+                "enum": [
+                  "queueable_idempotent_on_replay",
+                  "queueable_with_reconciliation_receipt",
+                  "queueable_with_replay_window_bound"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "checkpoint_for_reconciliation requires a reconciliation_intent_class other than reconciliation_not_applicable.",
+          "if": {
+            "properties": { "step_kind": { "const": "checkpoint_for_reconciliation" } }
+          },
+          "then": {
+            "required": ["reconciliation_intent_class"],
+            "properties": {
+              "reconciliation_intent_class": {
+                "type": "string",
+                "enum": [
+                  "reconcile_with_remote_read_before_replay",
+                  "reconcile_with_local_journal_before_replay",
+                  "reconcile_with_approval_ticket_before_replay",
+                  "abort_on_reconciliation_drift"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "branch_on_previous_step_outcome requires a non-null branch_on_previous_step_outcome_class.",
+          "if": {
+            "properties": { "step_kind": { "const": "branch_on_previous_step_outcome" } }
+          },
+          "then": {
+            "required": ["branch_on_previous_step_outcome_class"],
+            "properties": {
+              "branch_on_previous_step_outcome_class": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Declarative recipe step row. A step cites a command_id and revision that resolve through the command descriptor schema; raw shell / raw paths / raw URLs / raw prompt text never appear."
+    },
+    "recorded_macro_step_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "surface_class",
+        "state_digest"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/recorded_macro_surface_class" },
+        "state_digest": {
+          "$ref": "#/$defs/content_address",
+          "description": "Content-address of the captured UI / editor state for this step. The macro replayer MUST refuse to drift from the captured state without an explicit reconciliation step; raw DOM / raw buffer bytes never cross this boundary."
+        },
+        "replay_posture_class": {
+          "type": "string",
+          "enum": [
+            "replay_ui_or_editor_state_only",
+            "replay_keybinding_chord_only",
+            "replay_command_palette_selection_only"
+          ],
+          "description": "Frozen replay-posture for this macro step. Every recorded-macro step is strictly UI or editor state; invoking a command descriptor from a macro step is non-conforming (that is a declarative-recipe step)."
+        },
+        "narration_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Recorded-macro step row. Every step is strictly constrained to UI or editor state; the schema enumerates the admissible surface classes in recorded_macro_surface_class, forbidding ambient network / process / secret access mechanically."
+    },
+    "recipe_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_manifest_schema_version",
+        "recipe_id",
+        "recipe_revision_ref",
+        "title",
+        "summary",
+        "authoring_posture_class",
+        "authoring_language_class",
+        "storage_scope_class",
+        "capability_declarations",
+        "trust_gate_class",
+        "policy_gate_class",
+        "approval_posture_class",
+        "dry_run_posture_class",
+        "preview_posture_class",
+        "export_posture_class",
+        "signature_class",
+        "redaction_class",
+        "manifest_content_address",
+        "steps",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_manifest_record" },
+        "recipe_manifest_schema_version": {
+          "$ref": "#/$defs/recipe_manifest_schema_version"
+        },
+        "recipe_id": { "$ref": "#/$defs/opaque_id" },
+        "recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "authoring_posture_class": {
+          "$ref": "#/$defs/authoring_posture_class"
+        },
+        "authoring_language_class": {
+          "$ref": "#/$defs/recipe_authoring_language_class"
+        },
+        "promoted_from_macro_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the recorded_macro_manifest_record this recipe was promoted from. Non-null only when authoring_posture_class is recorded_macro_promoted_to_declarative_recipe; null otherwise."
+        },
+        "storage_scope_class": {
+          "$ref": "#/$defs/storage_scope_class"
+        },
+        "organization_provenance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Organization provenance ref for managed-only templates. Non-null when storage_scope_class is organization_scope_managed_only_channel."
+        },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/automation_capability_class" },
+          "description": "Non-empty closed union of the per-step capabilities this manifest declares up front. The command graph, trust, policy, CLI / headless, and AI-tool surfaces read this set to decide whether to enable, deny, require approval, or require preview. A step whose capability is not present in this set is non-conforming."
+        },
+        "trust_gate_class": { "$ref": "#/$defs/trust_gate_class" },
+        "policy_gate_class": { "$ref": "#/$defs/policy_gate_class" },
+        "approval_posture_class": {
+          "$ref": "#/$defs/approval_posture_class"
+        },
+        "dry_run_posture_class": {
+          "$ref": "#/$defs/dry_run_posture_class"
+        },
+        "preview_posture_class": {
+          "$ref": "#/$defs/preview_posture_class"
+        },
+        "export_posture_class": {
+          "$ref": "#/$defs/export_posture_class"
+        },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "manifest_content_address": {
+          "$ref": "#/$defs/content_address"
+        },
+        "author_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "target_semver": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_step_row" },
+          "description": "Ordered step list. Every step cites a command_id and command_revision_ref resolvable against the command descriptor schema; raw shell / raw filesystem paths / raw URLs / raw credential material never appear."
+        },
+        "docs_help_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "restricted_mode_tolerated_read_only_only requires every capability to be read_only_workspace_inspection.",
+          "if": {
+            "properties": {
+              "trust_gate_class": {
+                "const": "restricted_mode_tolerated_read_only_only"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capability_declarations": {
+                "type": "array",
+                "items": { "const": "read_only_workspace_inspection" }
+              }
+            }
+          }
+        },
+        {
+          "description": "organization_scope_managed_only_channel requires a non-null organization_provenance_ref and a managed-channel-compatible signature class.",
+          "if": {
+            "properties": {
+              "storage_scope_class": {
+                "const": "organization_scope_managed_only_channel"
+              }
+            }
+          },
+          "then": {
+            "required": ["organization_provenance_ref"],
+            "properties": {
+              "organization_provenance_ref": { "$ref": "#/$defs/opaque_id" },
+              "signature_class": {
+                "enum": [
+                  "organization_signature_only",
+                  "managed_only_channel_signature",
+                  "author_and_organization_signature"
+                ]
+              },
+              "export_posture_class": {
+                "enum": [
+                  "exportable_via_organization_share_managed_only",
+                  "export_denied_by_policy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_only_template_declarative_recipe authoring posture requires organization_scope_managed_only_channel storage.",
+          "if": {
+            "properties": {
+              "authoring_posture_class": {
+                "const": "managed_only_template_declarative_recipe"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "storage_scope_class": {
+                "const": "organization_scope_managed_only_channel"
+              }
+            }
+          }
+        },
+        {
+          "description": "recorded_macro_promoted_to_declarative_recipe requires a non-null promoted_from_macro_id.",
+          "if": {
+            "properties": {
+              "authoring_posture_class": {
+                "const": "recorded_macro_promoted_to_declarative_recipe"
+              }
+            }
+          },
+          "then": {
+            "required": ["promoted_from_macro_id"],
+            "properties": {
+              "promoted_from_macro_id": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Any irreversible, remote-mutation, network-mutation, credential-broker, remote-agent, or managed-only-channel capability forces dry_run_required_before_apply (or the approval-only variant) and a preview posture other than preview_denial_no_safe_preview.",
+          "if": {
+            "properties": {
+              "capability_declarations": {
+                "type": "array",
+                "contains": {
+                  "enum": [
+                    "irreversible_local_editor_mutation",
+                    "irreversible_workspace_filesystem_mutation",
+                    "network_mutation_on_permitted_hosts",
+                    "remote_agent_invocation",
+                    "credential_broker_handshake",
+                    "managed_only_channel_invocation"
+                  ]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dry_run_posture_class": {
+                "enum": [
+                  "dry_run_required_before_apply",
+                  "dry_run_not_supported_irreversible_under_approval_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "When dry_run_posture_class is dry_run_not_supported_irreversible_under_approval_only, approval_posture_class MUST require approval.",
+          "if": {
+            "properties": {
+              "dry_run_posture_class": {
+                "const": "dry_run_not_supported_irreversible_under_approval_only"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_posture_class": {
+                "enum": [
+                  "approval_required_once_per_run",
+                  "approval_required_per_step",
+                  "approval_required_on_every_high_blast_step",
+                  "approval_required_on_every_irreversible_step"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_gate_class managed_only_channel_required is admissible only on organization_scope_managed_only_channel storage.",
+          "if": {
+            "properties": {
+              "policy_gate_class": {
+                "const": "managed_only_channel_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "storage_scope_class": {
+                "const": "organization_scope_managed_only_channel"
+              }
+            }
+          }
+        },
+        {
+          "description": "Every declared capability must appear on at least one step's capability_declarations. The schema cannot enforce quantification exhaustively across steps; surfaces that load the manifest MUST enforce this rule and deny manifests that declare unused capabilities.",
+          "type": "object"
+        }
+      ],
+      "description": "Canonical declarative recipe manifest row. Every live recipe publishes one of these; recorded macros publish a recorded_macro_manifest_record instead."
+    },
+    "recorded_macro_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_manifest_schema_version",
+        "macro_id",
+        "macro_revision_ref",
+        "title",
+        "summary",
+        "storage_scope_class",
+        "trust_gate_class",
+        "policy_gate_class",
+        "preview_posture_class",
+        "export_posture_class",
+        "signature_class",
+        "redaction_class",
+        "manifest_content_address",
+        "capability_declarations",
+        "steps",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recorded_macro_manifest_record" },
+        "recipe_manifest_schema_version": {
+          "$ref": "#/$defs/recipe_manifest_schema_version"
+        },
+        "macro_id": { "$ref": "#/$defs/opaque_id" },
+        "macro_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "storage_scope_class": {
+          "$ref": "#/$defs/storage_scope_class",
+          "description": "Recorded macros MUST live in user_scope_local_only, workspace_scope_local_only, or portable_profile_export_only. organization_scope_managed_only_channel is non-conforming on a recorded_macro_manifest_record; an organization-distributed recipe MUST be a declarative recipe."
+        },
+        "trust_gate_class": { "$ref": "#/$defs/trust_gate_class" },
+        "policy_gate_class": { "$ref": "#/$defs/policy_gate_class" },
+        "preview_posture_class": {
+          "$ref": "#/$defs/preview_posture_class"
+        },
+        "export_posture_class": {
+          "$ref": "#/$defs/export_posture_class"
+        },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "manifest_content_address": {
+          "$ref": "#/$defs/content_address"
+        },
+        "author_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "capability_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "recorded_macro_ui_state_replay",
+              "recorded_macro_editor_state_replay",
+              "read_only_workspace_inspection"
+            ]
+          },
+          "description": "Recorded macros MUST NOT declare network, process, filesystem-mutation, credential-broker, remote-agent, managed-only-channel, ai-tool, extension, terminal, debug, notebook-kernel, settings-mutation, or policy / trust revalidation capabilities. The closed subset here is the schema's mechanical enforcement of that rule."
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recorded_macro_step_row" },
+          "description": "Ordered macro step list. Every step carries a surface_class from the recorded_macro_surface_class vocabulary and a content-address of the captured UI / editor state. Raw DOM, raw buffer bytes, raw shell commands, raw URLs, raw credential material never appear."
+        },
+        "docs_help_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Recorded macros are not admissible on the managed-only channel.",
+          "properties": {
+            "storage_scope_class": {
+              "enum": [
+                "user_scope_local_only",
+                "workspace_scope_local_only",
+                "portable_profile_export_only",
+                "support_bundle_export_only"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Recorded macros never require approval or dry-run (there is no destructive side-effect permitted); the preview posture is the replay preview.",
+          "properties": {
+            "preview_posture_class": {
+              "enum": [
+                "preview_required_before_apply",
+                "preview_supported",
+                "preview_not_applicable_read_only"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Canonical recorded-macro manifest row. Strictly constrained to UI or editor state; ambient network / process / secret access is forbidden mechanically by the closed capability_declarations and recorded_macro_surface_class vocabularies."
+    },
+    "recipe_manifest_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recorded_macros_cannot_declare_network_process_or_secret_capabilities",
+        "every_recipe_step_cites_descriptor_command_id_and_revision",
+        "no_raw_shell_fragments_in_recipe_steps",
+        "no_raw_filesystem_paths_or_urls_in_recipe_steps",
+        "no_silent_forward_from_recorded_macro_to_declarative_recipe",
+        "deferred_intent_steps_declare_the_waiting_window_up_front",
+        "queueable_steps_declare_the_reconciliation_intent_up_front",
+        "managed_only_templates_ride_the_managed_only_channel",
+        "manifest_bytes_carry_a_content_address",
+        "capability_declarations_are_the_whole_union_of_per_step_capabilities"
+      ],
+      "properties": {
+        "recorded_macros_cannot_declare_network_process_or_secret_capabilities": { "const": true },
+        "every_recipe_step_cites_descriptor_command_id_and_revision": { "const": true },
+        "no_raw_shell_fragments_in_recipe_steps": { "const": true },
+        "no_raw_filesystem_paths_or_urls_in_recipe_steps": { "const": true },
+        "no_silent_forward_from_recorded_macro_to_declarative_recipe": { "const": true },
+        "deferred_intent_steps_declare_the_waiting_window_up_front": { "const": true },
+        "queueable_steps_declare_the_reconciliation_intent_up_front": { "const": true },
+        "managed_only_templates_ride_the_managed_only_channel": { "const": true },
+        "manifest_bytes_carry_a_content_address": { "const": true },
+        "capability_declarations_are_the_whole_union_of_per_step_capabilities": { "const": true }
+      },
+      "description": "Recipe / macro manifest invariants pinned as schema-level constants. Reviewers read this block to confirm the contract is enforced mechanically; a false value is non-conforming."
+    },
+    "recipe_manifest_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recipe_manifest_schema_version",
+        "seed_id",
+        "title",
+        "seed_scope_summary",
+        "source_contract_refs",
+        "command_descriptor_schema_ref",
+        "shareability_metadata_schema_ref",
+        "run_record_schema_ref",
+        "cli_output_registry_schema_ref",
+        "fixture_root",
+        "fixture_refs",
+        "invariants",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_manifest_seed_record" },
+        "recipe_manifest_schema_version": {
+          "$ref": "#/$defs/recipe_manifest_schema_version"
+        },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "seed_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "command_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shareability_metadata_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "cli_output_registry_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_root": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "invariants": { "$ref": "#/$defs/recipe_manifest_invariants_block" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/recipe_manifest_record" },
+              { "$ref": "#/$defs/recorded_macro_manifest_record" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

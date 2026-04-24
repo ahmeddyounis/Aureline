@@ -1,0 +1,420 @@
+# Automation capability-class registry.
+#
+# Machine-readable companion to docs/automation/recipe_and_macro_contract.md
+# and boundary schema schemas/automation/recipe_manifest.schema.json.
+# Every automation_capability_class value a recorded_macro_manifest_record
+# or a recipe_manifest_record declares resolves to exactly one row here;
+# the row binds the capability to a trust ceiling, a policy ceiling, a
+# dry-run posture floor, a preview posture floor, an approval posture
+# floor, a macro admissibility flag, and a deferred-intent admissibility
+# flag. The command graph, the trust contract, the admin-policy contract,
+# the CLI / headless surface, the AI-tool descriptor, the support export,
+# the portable-profile export, and the offline-reconcile queue read
+# these rows when deciding whether to enable, deny, require approval, or
+# require preview a step at run time.
+#
+# Rules.
+#   - Every capability value in
+#     schemas/automation/recipe_manifest.schema.json#/$defs/automation_capability_class
+#     MUST have exactly one row here. Minting a parallel capability
+#     elsewhere is non-conforming.
+#   - Trust / policy / dry-run / preview / approval fields are *floors*.
+#     A recipe MAY be stricter (e.g. declare approval_required_per_step
+#     when the floor is approval_required_once_per_run) but MUST NOT be
+#     looser.
+#   - macro_admissible=true means a recorded_macro_manifest_record MAY
+#     declare the capability. The closed capability subset admissible on
+#     a recorded_macro_manifest_record is enforced at schema level; this
+#     row set is the human-readable register of the same rule.
+#   - deferred_intent_admissible=true means a step declaring this
+#     capability MAY ride a deferred-intent or queued-action hook.
+#     Capabilities whose effect cannot honestly wait for a later window
+#     (e.g. interactive UI state replay) pin deferred_intent_admissible=false.
+#   - Adding a capability value is additive-minor and bumps
+#     recipe_manifest_schema_version in the same change; this file
+#     tracks the same bump.
+#   - Milestone slugs MUST NOT appear in any id, description, or note
+#     field.
+
+schema_version: 1
+schema_ref: schemas/automation/recipe_manifest.schema.json
+overview_doc: docs/automation/recipe_and_macro_contract.md
+
+source_contract_refs:
+  - docs/automation/recipe_and_macro_contract.md
+  - docs/commands/command_descriptor_contract.md
+  - docs/commands/shareability_and_automation_contract.md
+  - docs/automation/cli_surface_contract.md
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0009-execution-context-and-scope.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - docs/adr/0018-workspace-trust-and-restricted-mode.md
+
+vocabularies:
+  trust_ceiling_class:
+    - admissible_on_restricted_mode
+    - admissible_on_trusted_workspace_only
+    - admissible_only_after_trust_revalidation_each_step
+    - denied_for_automation
+  policy_ceiling_class:
+    - admissible_under_admin_policy_observed
+    - admissible_only_after_policy_revalidation_each_step
+    - admissible_only_on_managed_only_channel
+    - denied_by_policy_class
+  dry_run_posture_floor_class:
+    - dry_run_required_before_apply
+    - dry_run_supported
+    - dry_run_not_applicable_read_only
+    - dry_run_not_supported_irreversible_under_approval_only
+  preview_posture_floor_class:
+    - preview_required_before_apply
+    - preview_supported
+    - preview_not_applicable_read_only
+    - preview_denial_no_safe_preview
+  approval_posture_floor_class:
+    - no_approval_required
+    - approval_required_once_per_run
+    - approval_required_per_step
+    - approval_required_on_every_high_blast_step
+    - approval_required_on_every_irreversible_step
+    - approval_denied_for_recipe
+
+rows:
+  - capability_class: read_only_workspace_inspection
+    title: Read-only workspace inspection
+    summary: >-
+      Enumerate, search, or project workspace state (files, build
+      targets, settings, trust state, policy epoch) without mutation.
+    trust_ceiling_class: admissible_on_restricted_mode
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_not_applicable_read_only
+    preview_posture_floor_class: preview_not_applicable_read_only
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: true
+    deferred_intent_admissible: false
+    notes: >-
+      Read-only inspection is the only capability admissible on a
+      restricted-mode workspace; the matching recipe trust_gate_class
+      is restricted_mode_tolerated_read_only_only.
+
+  - capability_class: reversible_local_editor_mutation
+    title: Reversible local editor mutation
+    summary: >-
+      Edit buffers / editor state in ways the undo stack can reverse
+      without support intervention.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: false
+    deferred_intent_admissible: false
+    notes: >-
+      Recorded macros replay editor state through
+      recorded_macro_editor_state_replay; this capability is the
+      declarative-recipe equivalent that invokes a command descriptor
+      (e.g. a refactor command) rather than replaying captured state.
+
+  - capability_class: irreversible_local_editor_mutation
+    title: Irreversible local editor mutation
+    summary: >-
+      Edit buffers / editor state in ways the undo stack cannot fully
+      reverse (e.g. whole-file rewrite with disclosed lossy rewrite).
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_on_every_irreversible_step
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: reversible_workspace_filesystem_mutation
+    title: Reversible workspace filesystem mutation
+    summary: >-
+      Mutate the workspace filesystem through a descriptor whose
+      apply path is reversible via the mutation journal.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: irreversible_workspace_filesystem_mutation
+    title: Irreversible workspace filesystem mutation
+    summary: >-
+      Mutate the workspace filesystem in ways the mutation journal
+      cannot fully reverse (e.g. delete outside trash, force-overwrite
+      foreign content).
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_on_every_irreversible_step
+    macro_admissible: false
+    deferred_intent_admissible: false
+    notes: >-
+      Deferred-intent is denied: an irreversible filesystem mutation
+      queued for "later" silently replays stale authority.
+
+  - capability_class: network_read_on_permitted_hosts
+    title: Network read on permitted hosts
+    summary: >-
+      GET / equivalent read on a host admitted by admin policy. No
+      mutation and no credential-broker handshake.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: network_mutation_on_permitted_hosts
+    title: Network mutation on permitted hosts
+    summary: >-
+      POST / PUT / PATCH / DELETE equivalent on a host admitted by
+      admin policy.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+    notes: >-
+      A deferred-intent hook on this capability MUST pin a bounded
+      replay window; unbounded replay is non-conforming.
+
+  - capability_class: remote_agent_invocation
+    title: Remote agent invocation
+    summary: >-
+      Invoke a remote agent (ADR-0020). Includes remote build, remote
+      debug, remote notebook, and remote workspace open.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: credential_broker_handshake
+    title: Credential broker handshake
+    summary: >-
+      Obtain or refresh a credential handle through the secret broker
+      (ADR-0007). Raw credential material never crosses the boundary.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_not_supported_irreversible_under_approval_only
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: managed_only_channel_invocation
+    title: Managed-only channel invocation
+    summary: >-
+      Dispatch a descriptor that is gated to the managed-only channel
+      (organization policy bundle, managed-only template).
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_on_managed_only_channel
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_per_step
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: ai_tool_invocation
+    title: AI tool invocation
+    summary: >-
+      Dispatch an AI-tool descriptor (e.g. structured code modification,
+      structured search). Subject to the AI evidence-replayability and
+      audit-storage contract.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: false
+    notes: >-
+      Deferred-intent is denied: the AI evidence contract requires a
+      live provider handshake at capture time; a queued AI invocation
+      would silently capture under stale provider identity.
+
+  - capability_class: extension_invocation
+    title: Extension invocation
+    summary: >-
+      Dispatch a command registered by a WASM/WIT extension (ADR-0019).
+      Subject to extension capability admission.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: terminal_session_invocation
+    title: Terminal session invocation
+    summary: >-
+      Open or dispatch a terminal session (ADR-0021). Raw PTY bytes
+      never cross the boundary; the recipe step cites the session
+      descriptor only.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_not_supported_irreversible_under_approval_only
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_on_every_high_blast_step
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: debug_session_invocation
+    title: Debug session invocation
+    summary: >-
+      Start or attach a debug session. Breakpoints and watches ride
+      the session descriptor; raw inferior memory never crosses the
+      boundary.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: notebook_kernel_invocation
+    title: Notebook kernel invocation
+    summary: >-
+      Run a notebook kernel cell through the notebook contract
+      (ADR-0022). Subject to kernel trust admission.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: settings_or_profile_mutation
+    title: Settings or profile mutation
+    summary: >-
+      Mutate effective settings or profile entries through the
+      settings-definition contract (ADR-0008).
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: false
+
+  - capability_class: policy_admission_revalidation
+    title: Policy admission revalidation
+    summary: >-
+      Force re-validation of the admin policy bundle mid-run.
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: trust_state_revalidation
+    title: Trust state revalidation
+    summary: >-
+      Force re-validation of the workspace trust state mid-run.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_supported
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: recorded_macro_ui_state_replay
+    title: Recorded-macro UI state replay
+    summary: >-
+      Replay a captured UI state sequence (panel open/close, focus
+      move, layout reshape, palette selection, keybinding chord).
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_not_applicable_read_only
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: true
+    deferred_intent_admissible: false
+    notes: >-
+      Admissible only on recorded_macro_manifest_record; a
+      declarative recipe that declares this capability is non-
+      conforming (the descriptor for "replay captured UI state" is a
+      macro replay, not a command descriptor).
+
+  - capability_class: recorded_macro_editor_state_replay
+    title: Recorded-macro editor state replay
+    summary: >-
+      Replay a captured editor state sequence (document state,
+      selection, cursor, multi-cursor edits, find-and-replace state).
+    trust_ceiling_class: admissible_on_trusted_workspace_only
+    policy_ceiling_class: admissible_under_admin_policy_observed
+    dry_run_posture_floor_class: dry_run_not_applicable_read_only
+    preview_posture_floor_class: preview_supported
+    approval_posture_floor_class: no_approval_required
+    macro_admissible: true
+    deferred_intent_admissible: false
+
+  - capability_class: deferred_intent_hook
+    title: Deferred-intent hook
+    summary: >-
+      Mark a step as waiting for a later trust / policy / connectivity
+      / credential-broker / remote-agent / managed-channel / kill-
+      switch window. The step MUST declare the waiting window up
+      front via deferred_intent_class.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_not_applicable_read_only
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+
+  - capability_class: queued_action_hook
+    title: Queued-action hook
+    summary: >-
+      Mark a step as safe to queue and replay on a later connectivity
+      or authority window. The step MUST declare the queueable_action_class
+      and (for queueable_with_replay_window_bound) the bounded replay
+      window up front.
+    trust_ceiling_class: admissible_only_after_trust_revalidation_each_step
+    policy_ceiling_class: admissible_only_after_policy_revalidation_each_step
+    dry_run_posture_floor_class: dry_run_required_before_apply
+    preview_posture_floor_class: preview_required_before_apply
+    approval_posture_floor_class: approval_required_once_per_run
+    macro_admissible: false
+    deferred_intent_admissible: true
+    notes: >-
+      The run record enforces the staleness rule: when the bounded
+      replay window closes, the outcome transitions to
+      replay_window_expired_stale_authority_denied rather than
+      silently replaying.
+
+gates:
+  - >
+    Every capability value listed in
+    schemas/automation/recipe_manifest.schema.json#/$defs/automation_capability_class
+    MUST have exactly one row here. A new enum value that lands in the
+    schema without a row is non-conforming.
+  - >
+    macro_admissible=true is the human-readable register of the
+    closed capability subset admissible on a
+    recorded_macro_manifest_record. The schema's closed-enum coupling
+    is the mechanical enforcement; divergence between the two is a
+    conformance failure.
+  - >
+    deferred_intent_admissible=false on a capability MUST be honored
+    by the recipe loader: a step declaring such a capability alongside
+    emit_deferred_intent_hook or emit_queued_action_hook denies at
+    load.

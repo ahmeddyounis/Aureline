@@ -1,0 +1,790 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/run_record.schema.json",
+  "title": "Aureline recipe / macro run-record contract",
+  "description": "Boundary schema for the run-record contract frozen in docs/automation/recipe_and_macro_contract.md. Every attempted dispatch of a recorded_macro_manifest_record or a recipe_manifest_record (whether it fully succeeds, partially succeeds, is denied at a gate, is aborted by the user, is cancelled by kill-switch, or is queued for a later connectivity / authority window) MUST publish exactly one run_record against this schema. The record binds one opaque run_id to the manifest id and revision the run was dispatched against, the invocation-session packet refs for each step, the execution-context capsule that bounded the run, the approval tickets consumed, the effect-lineage refs for every mutation observed, the replay-posture classification, the queueability / reconciliation state when the run rode a deferred-intent or queued-action hook, and the export / support-visibility / redaction posture the run record carries into portable profile exports, support bundles, and organization-share packets. Raw argv, raw URLs, raw filesystem paths, raw buffer bytes, raw prompt text, raw credential material, and raw stdout / stderr never cross this boundary; the schema carries opaque ids, closed vocabulary, short reviewable sentences, and content-addresses only. Adding a new run_outcome_class, gate_denial_reason_class, step_outcome_class, replay_posture_class, queueability_state_class, reconciliation_state_class, export_visibility_class, or support_visibility_class is additive-minor and requires a run_record_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recipe_run_record" },
+    { "$ref": "#/$defs/macro_replay_record" },
+    { "$ref": "#/$defs/run_record_seed_record" }
+  ],
+  "$defs": {
+    "run_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "recipe_run_record",
+        "macro_replay_record",
+        "run_record_seed_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw argv, raw paths, raw URLs, raw JSON payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "run_outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed_all_steps_applied",
+        "completed_all_steps_dry_run_only",
+        "partial_success_with_warnings",
+        "denied_at_trust_gate",
+        "denied_at_policy_gate",
+        "denied_at_approval_gate",
+        "denied_at_preview_gate",
+        "denied_at_kill_switch",
+        "denied_at_credential_broker_handshake",
+        "denied_at_managed_only_channel",
+        "cancelled_by_user",
+        "cancelled_by_timeout",
+        "aborted_on_reconciliation_drift",
+        "queued_for_later_connectivity_window",
+        "queued_for_later_authority_window",
+        "queued_for_later_remote_agent_window",
+        "replayed_from_queued_action_idempotent",
+        "replayed_from_queued_action_with_reconciliation",
+        "replay_window_expired_stale_authority_denied",
+        "unrecoverable_internal_error"
+      ],
+      "description": "Frozen run-outcome vocabulary. A run MUST carry exactly one outcome; the outcome is the single axis external automation, support export, shiproom dashboard, and docs reference pages read. replay_window_expired_stale_authority_denied is the enforcement slot for 'queued actions MUST NOT silently replay stale authority': the run record fails fast rather than dispatching after the bounded replay window closes."
+    },
+    "step_outcome_class": {
+      "type": "string",
+      "enum": [
+        "success",
+        "success_no_action_taken",
+        "partial_success_with_warnings",
+        "dry_run_would_have_applied",
+        "denied_at_trust_gate",
+        "denied_at_policy_gate",
+        "denied_at_approval_gate",
+        "denied_at_preview_gate",
+        "denied_at_credential_broker_handshake",
+        "denied_at_managed_only_channel",
+        "denied_capability_not_declared_in_manifest",
+        "skipped_by_branch_on_previous_outcome",
+        "queued_for_later_window",
+        "aborted_on_reconciliation_drift",
+        "cancelled_by_user",
+        "unrecoverable_internal_error"
+      ],
+      "description": "Frozen per-step outcome vocabulary. denied_capability_not_declared_in_manifest is the mechanical enforcement of 'a step MUST NOT reach a capability that the manifest's capability_declarations did not declare up front'."
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "fully_replayable_same_environment",
+        "fully_replayable_same_workspace_only",
+        "partially_replayable_environment_drifted",
+        "partially_replayable_provider_drifted",
+        "partially_replayable_policy_drifted",
+        "partially_replayable_trust_drifted",
+        "non_replayable_raw_byte_dependent",
+        "non_replayable_mutation_already_applied",
+        "non_replayable_manifest_retired",
+        "non_replayable_stale_authority_denied"
+      ],
+      "description": "Frozen replay-posture vocabulary. Mirrors the AI evidence replayability grading (docs/ai/evidence_replayability_contract.md) so automation replay posture is graded on the same axis, not re-invented per surface."
+    },
+    "queueability_state_class": {
+      "type": "string",
+      "enum": [
+        "queueability_not_applicable",
+        "queued_waiting_on_connectivity",
+        "queued_waiting_on_authority",
+        "queued_waiting_on_credential_broker",
+        "queued_waiting_on_remote_agent",
+        "queued_waiting_on_managed_only_channel",
+        "queued_waiting_on_kill_switch_cleared",
+        "queued_replay_window_bound_remaining",
+        "queued_replay_window_expired_denied",
+        "queue_drained_on_replay_idempotent",
+        "queue_drained_on_replay_with_reconciliation"
+      ],
+      "description": "Frozen queueability-state vocabulary. Every run that involves a deferred-intent or queued-action hook MUST carry a queueability_state_class other than queueability_not_applicable."
+    },
+    "reconciliation_state_class": {
+      "type": "string",
+      "enum": [
+        "reconciliation_not_applicable",
+        "reconciled_with_remote_read_before_replay",
+        "reconciled_with_local_journal_before_replay",
+        "reconciled_with_approval_ticket_before_replay",
+        "aborted_on_reconciliation_drift",
+        "reconciliation_skipped_by_branch_on_previous_outcome"
+      ],
+      "description": "Frozen reconciliation-state vocabulary. A run that replays a queued step MUST carry a reconciliation_state_class that cites how reality was re-checked before replay; aborted_on_reconciliation_drift is the matching terminal state when drift was observed."
+    },
+    "gate_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_disabled_by_policy",
+        "managed_only_channel_required",
+        "kill_switch_tripped",
+        "credential_broker_denied",
+        "approval_denied_no_approval_path",
+        "preview_denial_no_safe_preview",
+        "preview_required_not_shown",
+        "capability_not_declared_in_manifest",
+        "reconciliation_drift_detected",
+        "replay_window_expired",
+        "unknown_descriptor_revision",
+        "publisher_not_permitted",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet"
+      ],
+      "description": "Frozen gate-denial vocabulary. Every denied or aborted run MUST cite one reason drawn from this set; silent denial with no typed reason is non-conforming. Values re-export the command descriptor / shareability why-unavailable vocabulary."
+    },
+    "export_visibility_class": {
+      "type": "string",
+      "enum": [
+        "exportable_via_portable_profile",
+        "exportable_via_support_bundle_redacted",
+        "exportable_via_organization_share_managed_only",
+        "not_exportable_local_only",
+        "export_denied_by_policy"
+      ]
+    },
+    "support_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible_in_support_bundle_redacted",
+        "visible_in_support_bundle_operator_only",
+        "visible_in_shiproom_dashboard",
+        "visible_in_organization_audit_log",
+        "not_visible_to_support",
+        "visible_to_local_user_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ]
+    },
+    "approval_ticket_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_ticket_id", "approval_posture_class"],
+      "properties": {
+        "approval_ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "approval_posture_class": {
+          "type": "string",
+          "enum": [
+            "approval_required_once_per_run",
+            "approval_required_per_step",
+            "approval_required_on_every_high_blast_step",
+            "approval_required_on_every_irreversible_step"
+          ]
+        },
+        "approver_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "granted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Approval ticket consumed by the run. The ticket id resolves through the authority-ticket / approval packet contract; raw approver identity material never appears here."
+    },
+    "step_execution_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_sequence_index",
+        "command_id",
+        "command_revision_ref",
+        "invocation_session_packet_ref",
+        "step_outcome_class"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_sequence_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "invocation_session_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the invocation_session_packet_record the step dispatched. Every step MUST cite an invocation-session packet; a step that dispatches without one is non-conforming (it bypassed the descriptor contract's session binding)."
+        },
+        "step_outcome_class": { "$ref": "#/$defs/step_outcome_class" },
+        "gate_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/gate_denial_reason_class" }
+          ]
+        },
+        "cli_exit_code_class_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the CLI output registry's exit-code class this step projects through when the step dispatched through the CLI / headless surface. Null when the step did not dispatch through CLI."
+        },
+        "effect_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to external-effect-lineage entries produced by this step. Empty when the step was read-only or denied at a gate."
+        },
+        "output_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to artifacts produced by this step (edited files, mutation-journal entries, created export packets, emitted notebooks). Raw paths and raw bytes never appear."
+        },
+        "warnings_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A denied step MUST cite a gate_denial_reason_class.",
+          "if": {
+            "properties": {
+              "step_outcome_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_at_preview_gate",
+                  "denied_at_credential_broker_handshake",
+                  "denied_at_managed_only_channel",
+                  "denied_capability_not_declared_in_manifest",
+                  "aborted_on_reconciliation_drift"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["gate_denial_reason_class"],
+            "properties": {
+              "gate_denial_reason_class": { "$ref": "#/$defs/gate_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "A denied or aborted step MUST NOT cite effect-lineage refs (no mutation can have been observed).",
+          "if": {
+            "properties": {
+              "step_outcome_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_at_preview_gate",
+                  "denied_at_credential_broker_handshake",
+                  "denied_at_managed_only_channel",
+                  "denied_capability_not_declared_in_manifest",
+                  "aborted_on_reconciliation_drift",
+                  "cancelled_by_user",
+                  "skipped_by_branch_on_previous_outcome",
+                  "queued_for_later_window"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effect_lineage_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-step execution row. Every step a run attempted MUST appear here exactly once (by step_sequence_index); silent skipping is non-conforming."
+    },
+    "recipe_run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_record_schema_version",
+        "run_id",
+        "recipe_id",
+        "recipe_revision_ref",
+        "invocation_session_root_packet_ref",
+        "execution_context_capsule_ref",
+        "run_outcome_class",
+        "gate_denial_reason_class",
+        "replay_posture_class",
+        "queueability_state_class",
+        "reconciliation_state_class",
+        "export_visibility_class",
+        "support_visibility_class",
+        "redaction_class",
+        "approvals_applied",
+        "step_executions",
+        "dispatched_at",
+        "completed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_run_record" },
+        "run_record_schema_version": {
+          "$ref": "#/$defs/run_record_schema_version"
+        },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "recipe_id": { "$ref": "#/$defs/opaque_id" },
+        "recipe_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "recipe_manifest_content_address": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_address" }
+          ],
+          "description": "Optional content-address pin of the recipe manifest bytes dispatched. Recommended on every run so support export can prove the manifest revision the run rode without re-loading the recipe store."
+        },
+        "invocation_session_root_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the root invocation-session packet the run dispatched through. Every step's invocation_session_packet_ref descends from this root so the full lineage is reconstructable."
+        },
+        "execution_context_capsule_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the execution context capsule (ADR-0009) bounding this run. A run that dispatched without an execution context capsule is non-conforming."
+        },
+        "environment_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the environment capsule that captured the environment variables, trust state, policy epoch, and kill-switch state the run observed. Non-null on every run whose replay_posture_class is anything other than non_replayable_raw_byte_dependent."
+        },
+        "run_outcome_class": { "$ref": "#/$defs/run_outcome_class" },
+        "gate_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/gate_denial_reason_class" }
+          ]
+        },
+        "replay_posture_class": {
+          "$ref": "#/$defs/replay_posture_class"
+        },
+        "queueability_state_class": {
+          "$ref": "#/$defs/queueability_state_class"
+        },
+        "reconciliation_state_class": {
+          "$ref": "#/$defs/reconciliation_state_class"
+        },
+        "replay_window_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock timestamp at which the queued replay window closes. Non-null when queueability_state_class is queued_replay_window_bound_remaining; null otherwise."
+        },
+        "export_visibility_class": {
+          "$ref": "#/$defs/export_visibility_class"
+        },
+        "support_visibility_class": {
+          "$ref": "#/$defs/support_visibility_class"
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approvals_applied": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approval_ticket_ref_entry" },
+          "description": "Approval tickets consumed by this run. Empty when the recipe's approval_posture_class was no_approval_required."
+        },
+        "step_executions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step_execution_row" }
+        },
+        "output_artifact_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Top-level artifacts the run produced (support packets, export bundles, portable profile exports). Empty when the run was denied at a gate or produced no first-class artifacts."
+        },
+        "effect_lineage_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "replay_notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a short reviewable-sentence set explaining why the run carries its replay_posture_class. Non-null when replay_posture_class is anything other than fully_replayable_same_environment."
+        },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Completion timestamp. Null only when run_outcome_class is queued_for_later_connectivity_window / queued_for_later_authority_window / queued_for_later_remote_agent_window and the run has not yet been drained."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denied / aborted / cancelled runs MUST cite a gate_denial_reason_class.",
+          "if": {
+            "properties": {
+              "run_outcome_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_at_preview_gate",
+                  "denied_at_kill_switch",
+                  "denied_at_credential_broker_handshake",
+                  "denied_at_managed_only_channel",
+                  "aborted_on_reconciliation_drift",
+                  "replay_window_expired_stale_authority_denied"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["gate_denial_reason_class"],
+            "properties": {
+              "gate_denial_reason_class": { "$ref": "#/$defs/gate_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "Queued runs MUST leave completed_at null and MUST carry a non-queueability_not_applicable queueability_state_class.",
+          "if": {
+            "properties": {
+              "run_outcome_class": {
+                "enum": [
+                  "queued_for_later_connectivity_window",
+                  "queued_for_later_authority_window",
+                  "queued_for_later_remote_agent_window"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "type": "null" },
+              "queueability_state_class": {
+                "enum": [
+                  "queued_waiting_on_connectivity",
+                  "queued_waiting_on_authority",
+                  "queued_waiting_on_credential_broker",
+                  "queued_waiting_on_remote_agent",
+                  "queued_waiting_on_managed_only_channel",
+                  "queued_waiting_on_kill_switch_cleared",
+                  "queued_replay_window_bound_remaining"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "replay_window_expired_stale_authority_denied MUST carry queued_replay_window_expired_denied.",
+          "if": {
+            "properties": {
+              "run_outcome_class": {
+                "const": "replay_window_expired_stale_authority_denied"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "queueability_state_class": {
+                "const": "queued_replay_window_expired_denied"
+              }
+            }
+          }
+        },
+        {
+          "description": "queued_replay_window_bound_remaining MUST pin a non-null replay_window_expires_at.",
+          "if": {
+            "properties": {
+              "queueability_state_class": {
+                "const": "queued_replay_window_bound_remaining"
+              }
+            }
+          },
+          "then": {
+            "required": ["replay_window_expires_at"],
+            "properties": {
+              "replay_window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        }
+      ],
+      "description": "Canonical recipe run record. Every attempted dispatch of a recipe_manifest_record publishes exactly one of these, whether the run succeeds, is denied at a gate, is queued, replays stale authority (denied), or errors."
+    },
+    "macro_replay_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_record_schema_version",
+        "run_id",
+        "macro_id",
+        "macro_revision_ref",
+        "invocation_session_root_packet_ref",
+        "execution_context_capsule_ref",
+        "run_outcome_class",
+        "replay_posture_class",
+        "export_visibility_class",
+        "support_visibility_class",
+        "redaction_class",
+        "step_executions",
+        "dispatched_at",
+        "completed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "macro_replay_record" },
+        "run_record_schema_version": {
+          "$ref": "#/$defs/run_record_schema_version"
+        },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "macro_id": { "$ref": "#/$defs/opaque_id" },
+        "macro_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "macro_manifest_content_address": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_address" }
+          ]
+        },
+        "invocation_session_root_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_capsule_ref": { "$ref": "#/$defs/opaque_id" },
+        "run_outcome_class": {
+          "type": "string",
+          "enum": [
+            "completed_all_steps_applied",
+            "partial_success_with_warnings",
+            "denied_at_trust_gate",
+            "denied_at_policy_gate",
+            "denied_at_preview_gate",
+            "denied_at_kill_switch",
+            "cancelled_by_user",
+            "cancelled_by_timeout",
+            "aborted_on_reconciliation_drift",
+            "unrecoverable_internal_error"
+          ],
+          "description": "Recorded macros never involve approval, credential broker, or managed-only channel gates (their capability set is locked to UI / editor / read-only state); the admissible run-outcome subset enforces that rule."
+        },
+        "gate_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/gate_denial_reason_class" }
+          ]
+        },
+        "replay_posture_class": {
+          "$ref": "#/$defs/replay_posture_class"
+        },
+        "export_visibility_class": {
+          "$ref": "#/$defs/export_visibility_class"
+        },
+        "support_visibility_class": {
+          "$ref": "#/$defs/support_visibility_class"
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "step_executions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "step_id",
+              "step_sequence_index",
+              "surface_class",
+              "expected_state_digest",
+              "observed_state_digest",
+              "step_outcome_class"
+            ],
+            "properties": {
+              "step_id": { "$ref": "#/$defs/opaque_id" },
+              "step_sequence_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "surface_class": {
+                "type": "string",
+                "enum": [
+                  "editor_document_state",
+                  "editor_selection_and_cursor_state",
+                  "editor_multi_cursor_edits",
+                  "editor_find_and_replace_state",
+                  "command_palette_selection_state",
+                  "ui_panel_open_close_state",
+                  "ui_focus_move_state",
+                  "ui_layout_reshape_state",
+                  "keybinding_chord_replay_state"
+                ]
+              },
+              "expected_state_digest": { "$ref": "#/$defs/content_address" },
+              "observed_state_digest": { "$ref": "#/$defs/content_address" },
+              "step_outcome_class": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "partial_success_with_warnings",
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_preview_gate",
+                  "aborted_on_reconciliation_drift",
+                  "cancelled_by_user",
+                  "unrecoverable_internal_error"
+                ]
+              },
+              "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "finished_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        "replay_notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "description": "Canonical recorded-macro replay record. Every attempted replay of a recorded_macro_manifest_record publishes exactly one of these; the schema's admissible run_outcome_class subset enforces that recorded macros never route through approval, credential broker, or managed-only channel gates."
+    },
+    "run_record_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_run_cites_manifest_id_and_revision",
+        "every_step_cites_invocation_session_packet_ref",
+        "every_run_carries_execution_context_capsule_ref",
+        "every_denied_or_aborted_run_cites_typed_gate_reason",
+        "queued_runs_never_silently_replay_stale_authority",
+        "denied_or_aborted_steps_cite_no_effect_lineage",
+        "no_raw_payload_bytes_in_run_record",
+        "macro_runs_are_limited_to_ui_or_editor_state_outcomes",
+        "export_and_support_visibility_are_distinct_axes"
+      ],
+      "properties": {
+        "every_run_cites_manifest_id_and_revision": { "const": true },
+        "every_step_cites_invocation_session_packet_ref": { "const": true },
+        "every_run_carries_execution_context_capsule_ref": { "const": true },
+        "every_denied_or_aborted_run_cites_typed_gate_reason": { "const": true },
+        "queued_runs_never_silently_replay_stale_authority": { "const": true },
+        "denied_or_aborted_steps_cite_no_effect_lineage": { "const": true },
+        "no_raw_payload_bytes_in_run_record": { "const": true },
+        "macro_runs_are_limited_to_ui_or_editor_state_outcomes": { "const": true },
+        "export_and_support_visibility_are_distinct_axes": { "const": true }
+      }
+    },
+    "run_record_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_record_schema_version",
+        "seed_id",
+        "title",
+        "seed_scope_summary",
+        "source_contract_refs",
+        "recipe_manifest_schema_ref",
+        "invocation_session_packet_schema_ref",
+        "execution_context_schema_ref",
+        "fixture_root",
+        "fixture_refs",
+        "invariants",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_record_seed_record" },
+        "run_record_schema_version": {
+          "$ref": "#/$defs/run_record_schema_version"
+        },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "seed_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "recipe_manifest_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "invocation_session_packet_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_root": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "invariants": { "$ref": "#/$defs/run_record_invariants_block" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/recipe_run_record" },
+              { "$ref": "#/$defs/macro_replay_record" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
