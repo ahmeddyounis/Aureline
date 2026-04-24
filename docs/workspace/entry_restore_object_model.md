@@ -955,6 +955,13 @@ or reasons about the records defined in §1 – §5.
   (reads the entry-restore records as the canonical record shape
   for measurement):
   [`docs/product/onboarding_measurement_plan.md`](../product/onboarding_measurement_plan.md).
+- Start Center, workspace-switcher, and open-flow disclosure
+  contract (wraps `recent_work_entry_record`,
+  `restore_prompt_record`, and the §1 entry verbs with a frozen
+  disclosure posture and zone vocabulary):
+  [`docs/ux/start_center_contract.md`](../ux/start_center_contract.md)
+  and
+  [`schemas/ux/start_center_surface.schema.json`](../../schemas/ux/start_center_surface.schema.json).
   Task-success corpus seed:
   [`artifacts/product/task_success_corpus_seed.yaml`](../../artifacts/product/task_success_corpus_seed.yaml).
   No-account switching scoreboard seed:

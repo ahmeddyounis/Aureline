@@ -606,6 +606,13 @@ most common source of ready-claim drift.
   open-without-restore, cache / index repair, restricted-
   mode fallback):
   [`/docs/support/recovery_ladder_packet.md`](../support/recovery_ladder_packet.md).
+- Start Center, workspace-switcher, and open-flow disclosure
+  contract (binds each `startup_state:*` token to the
+  disclosure posture, zone ordering, and primary-action set
+  the first-launch surface renders):
+  [`/docs/ux/start_center_contract.md`](./start_center_contract.md)
+  and
+  [`/schemas/ux/start_center_surface.schema.json`](../../schemas/ux/start_center_surface.schema.json).
 - Journey-trace schema (measurement hook target):
   [`/schemas/traces/journey_trace.schema.json`](../../schemas/traces/journey_trace.schema.json).
 - Protected-metric registry:
