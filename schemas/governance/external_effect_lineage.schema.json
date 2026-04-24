@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/external_effect_lineage.schema.json",
+  "title": "Aureline external-effect lineage vocabulary",
+  "description": "Boundary schema for the external_effect_lineage_record and the external_effect_lineage_outcome_record frozen in docs/governance/runtime_authority_contract.md. A lineage packet captures, for one external-reaching or high-risk mutating effect, the frozen tuple (actor subject and class, approval / authority ticket refs, preview hash, target identity, side-effect class, outcome, and redaction posture) that support exports, emergency-action artifacts, mutation journal groups, evidence packets, and admin reconciliation flows all reuse instead of inventing parallel approval metadata. Raw secret bytes, raw URLs, raw delegated-token bodies, raw policy payloads, raw evidence bodies, and raw preview bodies never cross this boundary; lineage carries opaque refs and fingerprints only. Adding a new actor_class, side_effect_class, outcome_class, lineage_consumer_surface, approval_source_class, reconciliation_state, or redaction_class is additive-minor and requires an external_effect_lineage_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/external_effect_lineage_record" },
+    { "$ref": "#/$defs/external_effect_lineage_outcome_record" }
+  ],
+  "$defs": {
+    "external_effect_lineage_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this external-effect lineage export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "external_effect_lineage_record",
+        "external_effect_lineage_outcome_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / emergency-action records / evidence packets. Raw secrets, raw URLs, and raw delegated-token bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class reused from schemas/integration/browser_handoff_packet.schema.json. unknown_actor_class is repair-only; surfaces MUST NOT collapse it with any other class and MUST NOT render a generic 'Connected' badge."
+    },
+
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ],
+      "description": "Frozen side-effect class vocabulary. Matches the authority_ticket side_effect_class so lineage and ticket records project onto the same axis. Every lineage record names exactly one class."
+    },
+
+    "approval_source_class": {
+      "type": "string",
+      "enum": [
+        "authority_ticket",
+        "provider_approval_ticket",
+        "remembered_decision",
+        "emergency_action_override",
+        "policy_precomputed_decision",
+        "supervisor_control_path",
+        "no_approval_required"
+      ],
+      "description": "Frozen approval-source vocabulary. Every lineage record names exactly one approval source. no_approval_required is permitted only for side_effect_class = inspect_only; any other class with no_approval_required is a contract violation and MUST be rejected at validation time."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "succeeded",
+        "succeeded_with_downgrade",
+        "partial_success",
+        "failed_before_side_effect",
+        "failed_after_side_effect",
+        "rolled_back",
+        "denied_at_spend",
+        "invalidated_by_drift",
+        "superseded_by_emergency_action"
+      ],
+      "description": "Frozen outcome vocabulary. failed_after_side_effect MUST carry a reconciliation_state; succeeded_with_downgrade and partial_success MUST carry a downgrade_reason."
+    },
+
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "provider_unreachable",
+        "scope_narrowed_by_policy",
+        "step_up_interrupted",
+        "sandbox_profile_narrowed",
+        "user_chose_local_draft",
+        "managed_copy_pending"
+      ],
+      "description": "Frozen downgrade-reason vocabulary for succeeded_with_downgrade and partial_success outcomes."
+    },
+
+    "reconciliation_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending_user_action",
+        "pending_admin_action",
+        "pending_provider_callback",
+        "reconciled_clean",
+        "reconciled_with_residual_effect",
+        "escalated_to_support",
+        "escalated_to_emergency_action"
+      ],
+      "description": "Frozen reconciliation-state vocabulary. Required on failed_after_side_effect outcomes; used by post-incident reconciliation hooks in the emergency-action model."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class shared with approval_ticket, authority_ticket, emergency_action_record, and record_state so every consumer reads the same redaction posture."
+    },
+
+    "lineage_consumer_surface": {
+      "type": "string",
+      "enum": [
+        "mutation_journal_group",
+        "support_bundle_export",
+        "evidence_packet",
+        "emergency_action_record",
+        "admin_reconciliation_console",
+        "audit_stream",
+        "publish_later_queue",
+        "post_incident_reconciliation"
+      ],
+      "description": "Frozen consumer-surface vocabulary. Every lineage record declares at least one consumer surface. Surfaces outside this vocabulary MUST NOT import lineage packets; they request the support-bundle export path instead."
+    },
+
+    "preview_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview_hash_algorithm", "preview_hash_value"],
+      "properties": {
+        "preview_hash_algorithm": {
+          "type": "string",
+          "enum": ["sha256", "blake3"],
+          "description": "Hash algorithm used to fingerprint the preview body. Raw preview bodies never cross the RPC boundary; the hash is the only artifact the lineage carries."
+        },
+        "preview_hash_value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hex-encoded hash digest of the preview body the user or admin approved against."
+        },
+        "preview_record_ref": {
+          "type": "string",
+          "description": "Optional opaque ref to the durable preview record for consumer surfaces that need to resolve the full preview through their own access control."
+        }
+      },
+      "description": "Fingerprint of the exact preview the user or admin approved. Required for every side-effect class except inspect_only and automation_admission_only; absent for those two."
+    },
+
+    "target_identity_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_identity_ref", "target_class"],
+      "properties": {
+        "target_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque target-identity ref (ADR-0009 target-identity record id, connected_provider_record id, ADR-0007 credential-handle id, ADR-0009 execution-target id, or policy-subject id)."
+        },
+        "target_class": {
+          "type": "string",
+          "enum": [
+            "local_workspace_target",
+            "provider_target",
+            "credential_subject_target",
+            "debug_target",
+            "policy_subject_target",
+            "automation_plan_target"
+          ]
+        },
+        "target_identity_fingerprint": {
+          "type": "string",
+          "description": "Opaque fingerprint of target identity at effect time. Consumers that see a mismatch against the fingerprint on the authority ticket MUST NOT silently reconcile; they raise an emergency-action reconciliation."
+        }
+      }
+    },
+
+    "approval_refs_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_source_class"],
+      "properties": {
+        "approval_source_class": { "$ref": "#/$defs/approval_source_class" },
+        "authority_ticket_ref": {
+          "type": "string",
+          "description": "Opaque authority_ticket_record id that admitted the effect. Required for approval_source_class = authority_ticket and for every approval_source_class that projects to a minted authority ticket (provider_approval_ticket, remembered_decision, policy_precomputed_decision, supervisor_control_path)."
+        },
+        "provider_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque approval_ticket_record (provider plane) id when the effect crossed a provider mutation path; empty string otherwise."
+        },
+        "remembered_decision_ref": {
+          "type": "string",
+          "description": "Opaque ref to the remembered_decision_record that narrowed the admission, when applicable; empty string otherwise."
+        },
+        "emergency_action_ref": {
+          "type": "string",
+          "description": "Opaque ref to the emergency_action_record when approval_source_class is emergency_action_override; empty string otherwise."
+        },
+        "ticket_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of predecessor authority ticket ids contributing to this effect; mirrors the authority_ticket ticket_lineage array."
+        }
+      },
+      "description": "Frozen approval-refs packet. Consumer surfaces resolve approval context through these typed refs, not by re-reading the live ticket store."
+    },
+
+    "effect_chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issued_at", "effect_started_at"],
+      "properties": {
+        "issued_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "When the authority ticket admitting the effect was issued."
+        },
+        "effect_started_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "When the runtime began executing the admitted effect."
+        },
+        "effect_completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the effect reached a terminal outcome. Absent on pending outcomes."
+        },
+        "rollback_completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When a rollback completed, when outcome is rolled_back."
+        }
+      }
+    },
+
+    "external_effect_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_effect_lineage_schema_version",
+        "lineage_id",
+        "actor_subject",
+        "actor_class",
+        "side_effect_class",
+        "target_identity",
+        "approval_refs",
+        "preview_fingerprint",
+        "effect_chronology",
+        "policy_epoch",
+        "trust_state",
+        "consumer_surfaces",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_effect_lineage_record" },
+        "external_effect_lineage_schema_version": {
+          "$ref": "#/$defs/external_effect_lineage_schema_version"
+        },
+        "lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Acting identity the effect was executed as. Opaque subject id; raw secret material does not appear."
+        },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "command_family_or_action_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable reference to the command family, provider action, credential projection, debug operation, or policy operation the lineage describes."
+        },
+        "target_identity": { "$ref": "#/$defs/target_identity_packet" },
+        "approval_refs": { "$ref": "#/$defs/approval_refs_packet" },
+        "preview_fingerprint": {
+          "oneOf": [
+            { "$ref": "#/$defs/preview_fingerprint" },
+            { "type": "null" }
+          ],
+          "description": "Required (non-null) for every side-effect class except inspect_only and automation_admission_only."
+        },
+        "effect_chronology": { "$ref": "#/$defs/effect_chronology" },
+        "workspace_or_workset_scope_ref": {
+          "type": "string",
+          "description": "ADR-0009 workset / slice / workspace id the effect applies inside; empty string for policy-plane effects with no workspace scope."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "description": "ADR-0009 execution-context id the effect ran inside."
+        },
+        "sandbox_profile_or_capability_hash": {
+          "type": "string",
+          "description": "Capability envelope the effect ran under."
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch at effect time."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lineage_consumer_surface" },
+          "description": "Surfaces that MAY consume this lineage packet. Consumer surfaces outside this list route through the support-bundle export path instead of importing the lineage directly."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "preview_fingerprint MUST be non-null for every side-effect class except inspect_only and automation_admission_only.",
+          "if": {
+            "properties": {
+              "side_effect_class": {
+                "not": {
+                  "enum": ["inspect_only", "automation_admission_only"]
+                }
+              }
+            },
+            "required": ["side_effect_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_fingerprint": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "description": "no_approval_required is admissible only for inspect_only side-effect class.",
+          "if": {
+            "properties": {
+              "approval_refs": {
+                "properties": {
+                  "approval_source_class": { "const": "no_approval_required" }
+                },
+                "required": ["approval_source_class"]
+              }
+            },
+            "required": ["approval_refs"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_class": { "const": "inspect_only" }
+            }
+          }
+        },
+        {
+          "description": "authority_ticket_ref is required on approval_refs whenever the approval projects to a minted authority ticket.",
+          "if": {
+            "properties": {
+              "approval_refs": {
+                "properties": {
+                  "approval_source_class": {
+                    "enum": [
+                      "authority_ticket",
+                      "provider_approval_ticket",
+                      "remembered_decision",
+                      "policy_precomputed_decision",
+                      "supervisor_control_path"
+                    ]
+                  }
+                },
+                "required": ["approval_source_class"]
+              }
+            },
+            "required": ["approval_refs"]
+          },
+          "then": {
+            "properties": {
+              "approval_refs": {
+                "required": ["authority_ticket_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "emergency_action_ref is required on approval_refs when approval_source_class is emergency_action_override.",
+          "if": {
+            "properties": {
+              "approval_refs": {
+                "properties": {
+                  "approval_source_class": { "const": "emergency_action_override" }
+                },
+                "required": ["approval_source_class"]
+              }
+            },
+            "required": ["approval_refs"]
+          },
+          "then": {
+            "properties": {
+              "approval_refs": {
+                "required": ["emergency_action_ref"]
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "external_effect_lineage_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_effect_lineage_schema_version",
+        "lineage_id",
+        "outcome_class",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_effect_lineage_outcome_record" },
+        "external_effect_lineage_schema_version": {
+          "$ref": "#/$defs/external_effect_lineage_schema_version"
+        },
+        "lineage_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the external_effect_lineage_record this outcome updates."
+        },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "downgrade_reason": { "$ref": "#/$defs/downgrade_reason" },
+        "reconciliation_state": { "$ref": "#/$defs/reconciliation_state" },
+        "rollback_checkpoint_ref": {
+          "type": "string",
+          "description": "Opaque ADR-0008 rollback-checkpoint ref the outcome restored, when applicable."
+        },
+        "residual_effect_summary": {
+          "type": "string",
+          "description": "Short reviewable sentence summarizing the residual effect when outcome_class is failed_after_side_effect or reconciliation_state is reconciled_with_residual_effect. Raw secret material and raw payload bytes MUST NOT appear."
+        },
+        "superseding_lineage_ref": {
+          "type": "string",
+          "description": "Opaque ref to a replacement lineage when outcome_class is superseded_by_emergency_action or when a re-run under new drift fingerprints produced a fresh lineage."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "downgrade_reason is required when outcome_class is succeeded_with_downgrade or partial_success.",
+          "if": {
+            "properties": {
+              "outcome_class": {
+                "enum": ["succeeded_with_downgrade", "partial_success"]
+              }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": { "required": ["downgrade_reason"] }
+        },
+        {
+          "description": "reconciliation_state is required when outcome_class is failed_after_side_effect.",
+          "if": {
+            "properties": {
+              "outcome_class": { "const": "failed_after_side_effect" }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": { "required": ["reconciliation_state"] }
+        },
+        {
+          "description": "superseding_lineage_ref is required when outcome_class is superseded_by_emergency_action.",
+          "if": {
+            "properties": {
+              "outcome_class": { "const": "superseded_by_emergency_action" }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": { "required": ["superseding_lineage_ref"] }
+        }
+      ],
+      "description": "Outcome update for an external_effect_lineage_record. A lineage starts at outcome_class = pending and transitions to a terminal outcome exactly once; further changes emit a superseding lineage rather than editing the terminal outcome in place."
+    }
+  }
+}
