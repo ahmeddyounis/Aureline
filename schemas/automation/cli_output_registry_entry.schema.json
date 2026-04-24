@@ -1,0 +1,904 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/cli_output_registry_entry.schema.json",
+  "title": "Aureline CLI / headless machine-output registry entry and seed manifest",
+  "description": "Boundary schema for the CLI / headless JSON-surface and machine-output stability contract frozen in docs/automation/cli_surface_contract.md. Every CLI command, headless agent verb, diagnostic / support export, route or invocation introspection packet, build-target discovery emitter, and benchmark / report automation producer that external tooling, CI adapters, or AI agents consume MUST publish exactly one cli_output_registry_entry_record. The record pins a command_id back to the descriptor frozen in schemas/commands/command_descriptor.schema.json, re-exports the authority / permission class, binds one closed machine-output-stability class, one closed machine-output-envelope class, a non-empty exit-code registry, dry-run and explain expectations, an adapter-row set for machine-consumable exports (JUnit, SARIF, TAP, LCOV, SBOM, benchmark JSON, NDJSON event streams), a deprecation-policy slot, and a parity-surface set so desktop, CLI / headless, and support / export surfaces resolve one command through one shared command_id. Raw argv, raw JSON payloads, raw URLs, raw secrets, raw paths, and raw human-output strings never cross this boundary; the schema carries opaque refs, digests, closed vocabulary, and short reviewable sentences only. Adding a new cli_surface_class, machine_output_stability_class, machine_output_envelope_class, command_family_class, exit_code_class, dry_run_support_class, explain_support_class, authority_class, adapter_class, deprecation_policy_class, deprecation_outcome_class, or parity_surface_class is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/cli_output_registry_entry_record" },
+    { "$ref": "#/$defs/cli_output_registry_seed_record" }
+  ],
+  "$defs": {
+    "cli_output_registry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "cli_output_registry_entry_record",
+        "cli_output_registry_seed_record"
+      ],
+      "description": "Discriminator. Every concrete payload carries exactly one kind."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw argv, raw paths, raw URLs, raw JSON payloads, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for CLI --describe output, docs reference pages, support-bundle manifest previews, and shiproom row summaries."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from the command descriptor without modification. A registry row whose canonical verb does not resolve to a live descriptor is rejected."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "cli_surface_class": {
+      "type": "string",
+      "enum": [
+        "cli_primary_human_plus_machine",
+        "headless_agent_machine_only",
+        "ci_exporter_only",
+        "doctor_or_diagnostic_export",
+        "route_or_invocation_introspection",
+        "build_or_target_discovery",
+        "benchmark_or_report_automation"
+      ],
+      "description": "Frozen CLI surface vocabulary. cli_primary_human_plus_machine rows ship both a human TTY rendering and an opt-in machine rendering (--json / --format=ndjson). headless_agent_machine_only rows ship no interactive TTY rendering. ci_exporter_only rows always emit the adapter format declared in adapter_rows (JUnit, SARIF, TAP). doctor_or_diagnostic_export, route_or_invocation_introspection, build_or_target_discovery, and benchmark_or_report_automation are the four example families the acceptance criteria name explicitly."
+    },
+    "command_family_class": {
+      "type": "string",
+      "enum": [
+        "command_execution",
+        "diagnostics_support_export",
+        "route_or_invocation_info",
+        "build_target_discovery",
+        "benchmark_or_report_automation",
+        "extension_or_policy_inspection",
+        "authentication_or_session_management"
+      ],
+      "description": "Frozen command-family vocabulary. Aligns with the example cases named in the acceptance criteria and is the axis desktop, CLI / headless, and support / export surfaces compare through."
+    },
+    "machine_output_stability_class": {
+      "type": "string",
+      "enum": [
+        "stable_schema_governed",
+        "preview_schema_governed_additive_minor_only",
+        "experimental_schema_governed_may_break",
+        "internal_no_stability_promise"
+      ],
+      "description": "Frozen stability vocabulary for machine output. stable_schema_governed requires a non-null output_schema_binding, a non-empty exit_code_register, and a non-null deprecation_policy; the schema enforces these couplings with an if/then block below. preview_schema_governed_additive_minor_only advertises that additive-minor schema bumps are expected. experimental_schema_governed_may_break is reserved for early surfaces that still carry a schema but are explicitly permitted to break. internal_no_stability_promise forbids stable_schema_governed projection to external automation and forbids adapter_rows beyond internal_debug adapters."
+    },
+    "human_output_posture_class": {
+      "type": "string",
+      "enum": [
+        "human_tty_not_stable",
+        "human_tty_mirror_of_machine_output",
+        "no_human_output_headless_only",
+        "human_tty_interactive_only_no_machine_output"
+      ],
+      "description": "Frozen vocabulary for the human-readable side of a CLI surface. human_tty_not_stable is the default: the human rendering is explicitly NOT a stable contract and is NOT permitted as an automation input. human_tty_mirror_of_machine_output notes that the human rendering is a projection of the machine payload (e.g. table view over the JSON) but scraping is still non-conforming. no_human_output_headless_only is required for headless_agent_machine_only surfaces. human_tty_interactive_only_no_machine_output forces machine_output_envelope_class to log_only_human_not_stable and forbids stable_schema_governed stability."
+    },
+    "machine_output_envelope_class": {
+      "type": "string",
+      "enum": [
+        "json_document_single",
+        "jsonl_line_stream",
+        "ndjson_event_stream",
+        "sarif_2_1_0_document",
+        "junit_xml_document",
+        "tap_14_stream",
+        "lcov_coverage_document",
+        "spdx_sbom_document",
+        "cyclonedx_sbom_document",
+        "benchmark_json_document",
+        "log_only_human_not_stable"
+      ],
+      "description": "Frozen machine-output envelope vocabulary. The single value a machine consumer binds against when reading the row's primary output. log_only_human_not_stable is reserved for rows with human_tty_interactive_only_no_machine_output; any other envelope class forbids that posture. Adapter exports (JUnit, SARIF, TAP, LCOV, SBOM, benchmark JSON) are first-class envelopes; adapter_rows may declare additional adapter exports the same command can produce on demand."
+    },
+    "schema_binding_kind": {
+      "type": "string",
+      "enum": [
+        "primary_machine_output_schema",
+        "event_stream_frame_schema",
+        "error_payload_schema",
+        "adapter_export_schema",
+        "none_intentional"
+      ]
+    },
+    "output_schema_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_kind",
+        "schema_ref",
+        "schema_version_slot"
+      ],
+      "properties": {
+        "binding_kind": { "$ref": "#/$defs/schema_binding_kind" },
+        "schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Repo-relative ref to the JSON Schema / adapter-schema that pins the payload shape. MUST be non-null for every binding_kind except none_intentional; the schema enforces that rule in the registry record's allOf block."
+        },
+        "schema_version_slot": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Name of the integer version field inside the payload (e.g. cli_output_payload_schema_version). The field itself lives in the bound schema; this row names it so automation consumers can find the knob without scraping the payload body."
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "exit_code_class": {
+      "type": "string",
+      "enum": [
+        "success",
+        "success_no_action_taken",
+        "partial_success_with_warnings",
+        "usage_error",
+        "input_validation_error",
+        "policy_or_trust_denied",
+        "credential_broker_denied",
+        "preview_required_not_shown",
+        "approval_required_not_granted",
+        "dry_run_would_have_applied",
+        "timeout_or_deadline_exceeded",
+        "network_or_remote_unavailable",
+        "kill_switch_active",
+        "dependency_missing_or_stale",
+        "unsupported_on_headless",
+        "cancelled_by_user",
+        "unrecoverable_internal_error"
+      ],
+      "description": "Closed exit-code vocabulary. Every exit_code_row maps one exit-code class to one numeric code; external automation reads the class, not the number, but the number is pinned for shell-level consumers. Repurposing an existing class is breaking."
+    },
+    "exit_code_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class",
+        "numeric_code",
+        "meaning_ref"
+      ],
+      "properties": {
+        "class": { "$ref": "#/$defs/exit_code_class" },
+        "numeric_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "POSIX-compatible exit code. 0 is reserved for success and success_no_action_taken; 1..127 are available for error classes; 128..255 are reserved for signal-termination."
+        },
+        "meaning_ref": { "$ref": "#/$defs/reviewable_sentence" },
+        "warnings_payload_schema_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Schema ref for the warnings payload a partial_success_with_warnings row carries. Non-null only when class is partial_success_with_warnings."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "class": { "const": "success" } }
+          },
+          "then": {
+            "properties": { "numeric_code": { "const": 0 } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "class": { "const": "success_no_action_taken" } }
+          },
+          "then": {
+            "properties": { "numeric_code": { "const": 0 } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "class": { "const": "partial_success_with_warnings" } }
+          },
+          "then": {
+            "required": ["warnings_payload_schema_ref"],
+            "properties": {
+              "warnings_payload_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+    "dry_run_support_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_required_for_high_blast",
+        "dry_run_supported",
+        "dry_run_not_applicable_read_only",
+        "dry_run_not_supported_irreversible_under_approval_only"
+      ],
+      "description": "Frozen dry-run expectation vocabulary. dry_run_required_for_high_blast MUST be set on rows whose descriptor declares an irreversible or high-blast capability scope; the schema enforces that cross-row rule through authority_class coupling. dry_run_not_applicable_read_only is the correct value for route-info, build-target-discovery, and introspection rows. dry_run_not_supported_irreversible_under_approval_only is permitted only when approval_required is the authority class."
+    },
+    "explain_support_class": {
+      "type": "string",
+      "enum": [
+        "explain_required_for_high_blast",
+        "explain_supported",
+        "explain_not_applicable_read_only"
+      ],
+      "description": "Frozen --explain expectation vocabulary. --explain is the non-interactive equivalent of the preview pane's 'why' surface. Rows that would otherwise deny in headless mode for lack of an interactive 'why' affordance MUST set explain_required_for_high_blast."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "no_authority_required",
+        "workspace_trust_required",
+        "policy_admission_required",
+        "credential_broker_required",
+        "managed_only_channel_required",
+        "approval_gate_required",
+        "remote_agent_invocation_only",
+        "kill_switch_gated"
+      ],
+      "description": "Authority / permission class re-exported from the command descriptor. Exactly one row-level value; compound requirements are expressed through the descriptor's full gating set, which this schema references without re-deciding."
+    },
+    "adapter_class": {
+      "type": "string",
+      "enum": [
+        "junit_xml_test_report",
+        "sarif_2_1_0_analysis_results",
+        "tap_14_test_results",
+        "lcov_coverage_report",
+        "spdx_sbom_export",
+        "cyclonedx_sbom_export",
+        "benchmark_json_export",
+        "ndjson_event_stream_export",
+        "otlp_trace_export",
+        "internal_debug_envelope"
+      ],
+      "description": "Frozen adapter vocabulary for machine-consumable exports. Adapter rows are additional emissions the command can produce on demand (e.g. --format=sarif, --format=junit) beyond the row's primary machine_output_envelope_class. internal_debug_envelope is the only adapter permitted on internal_no_stability_promise rows."
+    },
+    "adapter_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_class",
+        "invocation_flag_ref",
+        "schema_ref",
+        "stability_class"
+      ],
+      "properties": {
+        "adapter_class": { "$ref": "#/$defs/adapter_class" },
+        "invocation_flag_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the CLI flag or subcommand that selects the adapter format. Raw flag strings never appear; the ref resolves through the docs pack to the concrete flag spelling."
+        },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stability_class": { "$ref": "#/$defs/machine_output_stability_class" },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "deprecation_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_deprecated",
+        "deprecated_with_successor",
+        "retired_migration_bridge_only",
+        "deprecation_not_applicable_internal"
+      ],
+      "description": "Frozen deprecation-policy vocabulary. deprecated_with_successor requires a non-null successor_command_id and a non-null support_window_class. retired_migration_bridge_only forbids new automation and keeps the row discoverable only for migration bridges. deprecation_not_applicable_internal is admissible only for internal_no_stability_promise rows."
+    },
+    "support_window_class": {
+      "type": "string",
+      "enum": [
+        "one_stable_train",
+        "two_stable_trains",
+        "one_lts_train",
+        "bridge_only_no_support_window"
+      ]
+    },
+    "deprecation_outcome_class": {
+      "type": "string",
+      "enum": [
+        "deny_with_successor_pointer",
+        "warn_once_and_succeed",
+        "warn_every_invocation_and_succeed",
+        "silent_forward_to_successor_forbidden"
+      ],
+      "description": "Frozen deprecation-outcome vocabulary for how a deprecated or retired row behaves when invoked. silent_forward_to_successor_forbidden is the schema's way of pinning that a deprecated CLI verb MUST NOT silently forward to its successor; an explicit warning or denial MUST be emitted so automation can detect drift."
+    },
+    "deprecation_policy_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_class",
+        "support_window_class",
+        "successor_command_id",
+        "outcome_class"
+      ],
+      "properties": {
+        "policy_class": { "$ref": "#/$defs/deprecation_policy_class" },
+        "support_window_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/support_window_class" }
+          ]
+        },
+        "successor_command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "outcome_class": { "$ref": "#/$defs/deprecation_outcome_class" },
+        "migration_bridge_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "policy_class": { "const": "not_deprecated" }
+            }
+          },
+          "then": {
+            "properties": {
+              "support_window_class": { "type": "null" },
+              "successor_command_id": { "type": "null" },
+              "outcome_class": { "const": "silent_forward_to_successor_forbidden" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "policy_class": { "const": "deprecated_with_successor" }
+            }
+          },
+          "then": {
+            "properties": {
+              "support_window_class": { "$ref": "#/$defs/support_window_class" },
+              "successor_command_id": { "$ref": "#/$defs/opaque_id" },
+              "outcome_class": {
+                "enum": [
+                  "deny_with_successor_pointer",
+                  "warn_once_and_succeed",
+                  "warn_every_invocation_and_succeed"
+                ]
+              }
+            },
+            "required": ["support_window_class", "successor_command_id"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "policy_class": { "const": "retired_migration_bridge_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "support_window_class": { "const": "bridge_only_no_support_window" },
+              "successor_command_id": { "$ref": "#/$defs/opaque_id" },
+              "outcome_class": { "const": "deny_with_successor_pointer" }
+            },
+            "required": ["successor_command_id"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "policy_class": { "const": "deprecation_not_applicable_internal" }
+            }
+          },
+          "then": {
+            "properties": {
+              "support_window_class": { "type": "null" },
+              "successor_command_id": { "type": "null" },
+              "outcome_class": { "const": "silent_forward_to_successor_forbidden" }
+            }
+          }
+        }
+      ]
+    },
+    "parity_surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "global_application_menu",
+        "context_menu",
+        "toolbar_button",
+        "keybinding_help",
+        "ai_tool_surface",
+        "automation_recipe_surface",
+        "docs_reference_page",
+        "about_service_health_panel",
+        "support_bundle_export",
+        "shiproom_dashboard"
+      ],
+      "description": "Frozen parity-surface vocabulary. Every registry row declares the desktop and support surfaces that MUST resolve the same command through the shared command_id. A parity audit between a desktop surface's row and the CLI row MUST match command_id, authority_class, and deprecation_policy.policy_class field-for-field."
+    },
+    "parity_surface_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parity_surface_class",
+        "match_mode"
+      ],
+      "properties": {
+        "parity_surface_class": { "$ref": "#/$defs/parity_surface_class" },
+        "match_mode": {
+          "type": "string",
+          "enum": [
+            "exact_match_required",
+            "projection_match_required",
+            "informational_only"
+          ],
+          "description": "exact_match_required: command_id, authority_class, and deprecation_policy.policy_class MUST match field-for-field. projection_match_required: the listed surface projects the row via a registry-owned projection (e.g. a palette row). informational_only: the surface cites the CLI verb in text but owns no parity cell (e.g. docs_reference_page narrating a recipe)."
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "read_only_no_side_effects",
+        "reversible_local_mutation",
+        "irreversible_local_mutation",
+        "network_call_remote_read",
+        "remote_mutation",
+        "high_blast_irreversible_remote_mutation"
+      ],
+      "description": "Descriptor capability scope re-exported into the row so dry_run / explain / authority coupling invariants can be enforced at row validation time without loading the descriptor."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles",
+        "redaction_not_applicable_no_payload"
+      ]
+    },
+    "policy_context_class": {
+      "type": "string",
+      "enum": [
+        "policy_not_applicable",
+        "admin_policy_observed",
+        "managed_only_policy_observed"
+      ]
+    },
+    "stream_ownership_class": {
+      "type": "string",
+      "enum": [
+        "stdout_owns_machine_output_stderr_owns_diagnostics",
+        "stdout_owns_machine_output_stderr_owns_progress",
+        "file_out_owns_machine_output_stdout_reserved_for_human",
+        "log_only_no_stream_ownership"
+      ],
+      "description": "Frozen stream-ownership vocabulary. External automation reads this slot to decide where to redirect progress vs. machine payload. file_out_owns_machine_output_stdout_reserved_for_human is the mandatory posture for adapter-only rows (JUnit, SARIF) that MUST NOT write XML/JSON to stdout alongside human progress."
+    },
+    "locale_posture_class": {
+      "type": "string",
+      "enum": [
+        "machine_output_locale_fixed_en_us",
+        "machine_output_locale_fixed_posix_c",
+        "machine_output_locale_independent_no_text",
+        "log_only_locale_irrelevant"
+      ],
+      "description": "Frozen locale-posture vocabulary. Machine output MUST be locale-fixed so automation consumers never see localized numerals, dates, or booleans. machine_output_locale_independent_no_text is reserved for adapters (e.g. SBOM) that carry no natural-language strings."
+    },
+    "nondeterminism_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "deterministic_given_inputs",
+        "nondeterministic_order_declared",
+        "nondeterministic_timing_declared",
+        "nondeterministic_env_sampling_declared"
+      ],
+      "description": "Frozen non-determinism disclosure vocabulary. A machine output that can legitimately vary run-to-run MUST declare which axis varies so automation consumers diff intelligently."
+    },
+    "cli_output_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cli_output_registry_schema_version",
+        "registry_entry_id",
+        "title",
+        "summary",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "cli_surface_class",
+        "command_family_class",
+        "capability_scope_class",
+        "authority_class",
+        "policy_context_class",
+        "redaction_class",
+        "machine_output_stability_class",
+        "human_output_posture_class",
+        "machine_output_envelope_class",
+        "stream_ownership_class",
+        "locale_posture_class",
+        "nondeterminism_disclosure_class",
+        "output_schema_binding",
+        "exit_code_register",
+        "dry_run_support_class",
+        "explain_support_class",
+        "adapter_rows",
+        "deprecation_policy",
+        "parity_surface_rows",
+        "fixture_case_refs",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "cli_output_registry_entry_record" },
+        "cli_output_registry_schema_version": {
+          "$ref": "#/$defs/cli_output_registry_schema_version"
+        },
+        "registry_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque command_id of the descriptor this row extends. A row whose command_id does not resolve to a live descriptor is rejected by the registry."
+        },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "cli_surface_class": { "$ref": "#/$defs/cli_surface_class" },
+        "command_family_class": { "$ref": "#/$defs/command_family_class" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "policy_context_class": { "$ref": "#/$defs/policy_context_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "machine_output_stability_class": {
+          "$ref": "#/$defs/machine_output_stability_class"
+        },
+        "human_output_posture_class": {
+          "$ref": "#/$defs/human_output_posture_class"
+        },
+        "machine_output_envelope_class": {
+          "$ref": "#/$defs/machine_output_envelope_class"
+        },
+        "stream_ownership_class": { "$ref": "#/$defs/stream_ownership_class" },
+        "locale_posture_class": { "$ref": "#/$defs/locale_posture_class" },
+        "nondeterminism_disclosure_class": {
+          "$ref": "#/$defs/nondeterminism_disclosure_class"
+        },
+        "output_schema_binding": {
+          "$ref": "#/$defs/output_schema_binding"
+        },
+        "exit_code_register": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exit_code_row" },
+          "description": "Non-empty exit-code register. At minimum one success row and one error row MUST appear; rows with capability_scope_class other than read_only_no_side_effects MUST also publish either a policy_or_trust_denied or an approval_required_not_granted row."
+        },
+        "dry_run_support_class": {
+          "$ref": "#/$defs/dry_run_support_class"
+        },
+        "explain_support_class": {
+          "$ref": "#/$defs/explain_support_class"
+        },
+        "adapter_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/adapter_row" },
+          "description": "Zero or more adapter rows. Stable rows whose envelope is not already an adapter format (JUnit, SARIF, TAP, LCOV, SBOM, benchmark JSON) MAY declare adapter rows; the adapter schemas are linked here rather than in the primary binding."
+        },
+        "deprecation_policy": {
+          "$ref": "#/$defs/deprecation_policy_block"
+        },
+        "parity_surface_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/parity_surface_row" },
+          "description": "Non-empty parity-surface set. A CLI row that elides parity with every desktop / support surface is non-conforming; at minimum docs_reference_page informational_only MUST appear so the command is discoverable."
+        },
+        "fixture_case_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Repo-relative refs to fixture case JSON files under fixtures/automation/cli_output_cases/. Every stable_schema_governed or preview_schema_governed_additive_minor_only row MUST cite at least one fixture so the round-trip contract is demonstrated."
+        },
+        "notes_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Stable and preview rows carry a primary machine-output schema; internal rows forbid adapters beyond internal_debug_envelope.",
+          "if": {
+            "properties": {
+              "machine_output_stability_class": {
+                "enum": [
+                  "stable_schema_governed",
+                  "preview_schema_governed_additive_minor_only",
+                  "experimental_schema_governed_may_break"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "output_schema_binding": {
+                "properties": {
+                  "binding_kind": {
+                    "enum": [
+                      "primary_machine_output_schema",
+                      "event_stream_frame_schema",
+                      "adapter_export_schema"
+                    ]
+                  },
+                  "schema_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["schema_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Internal rows may omit the schema binding and MUST NOT declare external adapter formats beyond the internal_debug_envelope adapter.",
+          "if": {
+            "properties": {
+              "machine_output_stability_class": {
+                "const": "internal_no_stability_promise"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "adapter_rows": {
+                "items": {
+                  "properties": {
+                    "adapter_class": { "const": "internal_debug_envelope" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "log_only_human_not_stable envelopes couple to human_tty_interactive_only_no_machine_output and forbid stable stability.",
+          "if": {
+            "properties": {
+              "machine_output_envelope_class": {
+                "const": "log_only_human_not_stable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "human_output_posture_class": {
+                "const": "human_tty_interactive_only_no_machine_output"
+              },
+              "machine_output_stability_class": {
+                "enum": [
+                  "internal_no_stability_promise"
+                ]
+              },
+              "output_schema_binding": {
+                "properties": {
+                  "binding_kind": { "const": "none_intentional" },
+                  "schema_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Headless-only surfaces never emit human TTY output.",
+          "if": {
+            "properties": {
+              "cli_surface_class": { "const": "headless_agent_machine_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "human_output_posture_class": {
+                "const": "no_human_output_headless_only"
+              }
+            }
+          }
+        },
+        {
+          "description": "High-blast and remote-mutation rows MUST require dry-run and --explain.",
+          "if": {
+            "properties": {
+              "capability_scope_class": {
+                "enum": [
+                  "irreversible_local_mutation",
+                  "remote_mutation",
+                  "high_blast_irreversible_remote_mutation"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dry_run_support_class": {
+                "enum": [
+                  "dry_run_required_for_high_blast",
+                  "dry_run_not_supported_irreversible_under_approval_only"
+                ]
+              },
+              "explain_support_class": {
+                "const": "explain_required_for_high_blast"
+              }
+            }
+          }
+        },
+        {
+          "description": "Read-only rows may set dry-run to read-only-not-applicable and explain to read-only-not-applicable.",
+          "if": {
+            "properties": {
+              "capability_scope_class": {
+                "const": "read_only_no_side_effects"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "dry_run_support_class": {
+                "enum": [
+                  "dry_run_not_applicable_read_only",
+                  "dry_run_supported"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ci_exporter_only rows MUST pin stream ownership to the file-out posture and declare exactly one adapter envelope.",
+          "if": {
+            "properties": { "cli_surface_class": { "const": "ci_exporter_only" } }
+          },
+          "then": {
+            "properties": {
+              "stream_ownership_class": {
+                "const": "file_out_owns_machine_output_stdout_reserved_for_human"
+              },
+              "machine_output_envelope_class": {
+                "enum": [
+                  "sarif_2_1_0_document",
+                  "junit_xml_document",
+                  "tap_14_stream",
+                  "lcov_coverage_document",
+                  "spdx_sbom_document",
+                  "cyclonedx_sbom_document",
+                  "benchmark_json_document"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "registry_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_stable_machine_output_without_schema_binding",
+        "no_stable_machine_output_without_exit_code_register",
+        "no_stable_machine_output_without_deprecation_policy",
+        "no_silent_forward_on_deprecated_verbs",
+        "no_adapter_export_without_adapter_schema_ref",
+        "no_human_output_scraping_promise",
+        "every_row_cites_command_id_and_revision",
+        "every_row_declares_parity_surface_set",
+        "every_high_blast_row_requires_dry_run_and_explain"
+      ],
+      "properties": {
+        "no_stable_machine_output_without_schema_binding": { "const": true },
+        "no_stable_machine_output_without_exit_code_register": { "const": true },
+        "no_stable_machine_output_without_deprecation_policy": { "const": true },
+        "no_silent_forward_on_deprecated_verbs": { "const": true },
+        "no_adapter_export_without_adapter_schema_ref": { "const": true },
+        "no_human_output_scraping_promise": { "const": true },
+        "every_row_cites_command_id_and_revision": { "const": true },
+        "every_row_declares_parity_surface_set": { "const": true },
+        "every_high_blast_row_requires_dry_run_and_explain": { "const": true }
+      },
+      "description": "Registry-level invariants pinned as schema-level constants. A false value is non-conforming; the invariant block is the schema's way of freezing the rules mechanically so a seed that elides any of them is rejected at validation time."
+    },
+    "cli_output_registry_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cli_output_registry_schema_version",
+        "seed_id",
+        "title",
+        "seed_scope_summary",
+        "source_contract_refs",
+        "command_descriptor_schema_ref",
+        "shareability_metadata_schema_ref",
+        "entry_fixture_root",
+        "entry_fixture_refs",
+        "registry_invariants",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "const": "cli_output_registry_seed_record" },
+        "cli_output_registry_schema_version": {
+          "$ref": "#/$defs/cli_output_registry_schema_version"
+        },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "seed_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_contract_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Non-empty list of repo-relative refs back to the narrative contract, the command descriptor contract, the shareability contract, and any neighbouring boundary docs."
+        },
+        "command_descriptor_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "shareability_metadata_schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_fixture_root": { "$ref": "#/$defs/non_empty_string" },
+        "entry_fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "registry_invariants": { "$ref": "#/$defs/registry_invariants_block" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/cli_output_registry_entry_record" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,538 @@
+# CLI / headless machine-output registry seed.
+#
+# Machine-readable companion to docs/automation/cli_surface_contract.md
+# and boundary schema schemas/automation/cli_output_registry_entry.schema.json.
+# Every row binds one CLI / headless verb, one diagnostic or support
+# export, one route / invocation introspection emitter, one build-target
+# discovery packet, or one benchmark / report producer to exactly one
+# command_id, one authority class, one machine-output stability class,
+# one output-schema binding, one non-empty exit-code register, one
+# --dry-run expectation, one --explain expectation, an adapter-row set
+# for machine-consumable exports (JUnit, SARIF, TAP, LCOV, SBOM,
+# benchmark JSON, NDJSON event streams), one deprecation-policy block,
+# and one parity-surface set so desktop, CLI / headless, and support /
+# export surfaces resolve the same command through the shared
+# command_id.
+#
+# Rules.
+#   - Every row MUST carry one command_id that resolves to a live
+#     descriptor frozen in schemas/commands/command_descriptor.schema.json.
+#   - Every stable, preview, or experimental row MUST carry a non-null
+#     schema_ref in its output_schema_binding and MUST cite at least
+#     one fixture under fixtures/automation/cli_output_cases/.
+#   - No row may promise stable machine output from a scraped human
+#     rendering; human_tty_not_stable is the default posture for CLI
+#     rows.
+#   - Exit-code classes map 1:1 to numeric codes per row. The success
+#     and success_no_action_taken classes MUST both bind numeric_code 0;
+#     error classes bind a single numeric code per row. Reassigning a
+#     row's numeric code for an existing class is breaking.
+#   - Every high-blast row (irreversible_local_mutation, remote_mutation,
+#     high_blast_irreversible_remote_mutation) MUST bind
+#     dry_run_required_for_high_blast (or the approval-gated variant)
+#     and explain_required_for_high_blast.
+#   - Every deprecated row MUST name a successor command_id and MUST
+#     emit a typed deny or warn outcome; silent forwarding to the
+#     successor is non-conforming.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     cli_output_registry_schema_version and updating the narrative
+#     contract in the same change. Repurposing an existing value is
+#     breaking.
+
+record_kind: cli_output_registry_seed_record
+cli_output_registry_schema_version: 1
+seed_id: cli_output_registry.seed.family_examples.01
+title: CLI / headless machine-output registry seed for the five example families
+
+seed_scope_summary: >-
+  Seeds the canonical CLI / headless output registry every external
+  automation consumer (CI adapter, macro, recipe, headless agent, AI
+  tool descriptor, support bundle exporter, docs reference page) is
+  expected to read without minting per-subcommand output dialects or
+  scraping human TTY output.
+
+source_contract_refs:
+  - docs/automation/cli_surface_contract.md
+  - docs/commands/command_descriptor_contract.md
+  - docs/commands/shareability_and_automation_contract.md
+  - docs/commands/command_parity_diff.md
+  - docs/support/support_bundle_contract.md
+  - docs/release/channel_and_branch_contract.md
+  - artifacts/release/artifact_family_versioning.yaml
+
+command_descriptor_schema_ref: schemas/commands/command_descriptor.schema.json
+shareability_metadata_schema_ref: schemas/commands/shareability_metadata.schema.json
+
+entry_fixture_root: fixtures/automation/cli_output_cases
+entry_fixture_refs:
+  - fixtures/automation/cli_output_cases/command_execution_workspace_open_folder.json
+  - fixtures/automation/cli_output_cases/diagnostics_support_export_bundle.json
+  - fixtures/automation/cli_output_cases/route_info_introspection.json
+  - fixtures/automation/cli_output_cases/build_target_discovery.json
+  - fixtures/automation/cli_output_cases/benchmark_report_emit.json
+
+registry_invariants:
+  no_stable_machine_output_without_schema_binding: true
+  no_stable_machine_output_without_exit_code_register: true
+  no_stable_machine_output_without_deprecation_policy: true
+  no_silent_forward_on_deprecated_verbs: true
+  no_adapter_export_without_adapter_schema_ref: true
+  no_human_output_scraping_promise: true
+  every_row_cites_command_id_and_revision: true
+  every_row_declares_parity_surface_set: true
+  every_high_blast_row_requires_dry_run_and_explain: true
+
+entries:
+  - record_kind: cli_output_registry_entry_record
+    cli_output_registry_schema_version: 1
+    registry_entry_id: cli-output-registry:workspace.open_folder.cli_execution
+    title: Open workspace folder from CLI
+    summary: >-
+      Primary CLI / headless invocation of the workspace open-folder
+      command. Emits a single-document JSON machine envelope on stdout
+      naming the opened workspace scope, the resolved profile, and the
+      effective trust state; an NDJSON event-stream companion is
+      available for long-running resolution paths.
+    command_id: cmd:workspace.open_folder
+    command_revision_ref: cmd-rev:workspace.open_folder:2026.04.21-01
+    canonical_verb: workspace.open_folder
+    cli_surface_class: cli_primary_human_plus_machine
+    command_family_class: command_execution
+    capability_scope_class: reversible_local_mutation
+    authority_class: workspace_trust_required
+    policy_context_class: admin_policy_observed
+    redaction_class: redaction_required_on_export
+    machine_output_stability_class: stable_schema_governed
+    human_output_posture_class: human_tty_not_stable
+    machine_output_envelope_class: json_document_single
+    stream_ownership_class: stdout_owns_machine_output_stderr_owns_progress
+    locale_posture_class: machine_output_locale_fixed_en_us
+    nondeterminism_disclosure_class: deterministic_given_inputs
+    output_schema_binding:
+      binding_kind: primary_machine_output_schema
+      schema_ref: schemas/automation/cli_output_cases/workspace_open_folder_payload.schema.json
+      schema_version_slot: cli_output_payload_schema_version
+      notes_ref: note:workspace.open_folder.cli_execution:primary_schema
+    exit_code_register:
+      - class: success
+        numeric_code: 0
+        meaning_ref: >-
+          Workspace opened; machine payload carries the opened scope
+          ref and the effective trust state.
+      - class: success_no_action_taken
+        numeric_code: 0
+        meaning_ref: >-
+          Workspace already open at the requested scope; idempotent
+          re-run.
+      - class: usage_error
+        numeric_code: 2
+        meaning_ref: >-
+          Invalid argv or unknown flag; the machine payload carries a
+          typed usage_error envelope rather than a raw help dump.
+      - class: input_validation_error
+        numeric_code: 11
+        meaning_ref: >-
+          Workspace scope ref did not resolve, or the requested path
+          fell outside the admissible filesystem surface.
+      - class: policy_or_trust_denied
+        numeric_code: 13
+        meaning_ref: >-
+          Admin policy or workspace-trust state denied the open
+          operation; the payload cites the policy row and the repair
+          hook.
+      - class: cancelled_by_user
+        numeric_code: 130
+        meaning_ref: >-
+          User cancelled interactively (SIGINT) or declined the trust
+          prompt.
+      - class: unrecoverable_internal_error
+        numeric_code: 70
+        meaning_ref: >-
+          Internal error; the payload cites a support-bundle export
+          ref so the invocation can be re-read through the support
+          packet index.
+    dry_run_support_class: dry_run_supported
+    explain_support_class: explain_supported
+    adapter_rows:
+      - adapter_class: ndjson_event_stream_export
+        invocation_flag_ref: flag:automation.format:event_stream_ndjson
+        schema_ref: schemas/automation/cli_output_cases/workspace_open_folder_event_stream.schema.json
+        stability_class: preview_schema_governed_additive_minor_only
+        notes_ref: note:workspace.open_folder.cli_execution:event_stream_adapter
+    deprecation_policy:
+      policy_class: not_deprecated
+      support_window_class: null
+      successor_command_id: null
+      outcome_class: silent_forward_to_successor_forbidden
+      migration_bridge_ref: null
+      notes_ref: null
+    parity_surface_rows:
+      - parity_surface_class: command_palette
+        match_mode: exact_match_required
+        notes_ref: note:workspace.open_folder.cli_execution:palette_parity
+      - parity_surface_class: global_application_menu
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: ai_tool_surface
+        match_mode: exact_match_required
+        notes_ref: null
+      - parity_surface_class: docs_reference_page
+        match_mode: informational_only
+        notes_ref: null
+    fixture_case_refs:
+      - fixtures/automation/cli_output_cases/command_execution_workspace_open_folder.json
+    notes_ref: null
+    minted_at: '2026-04-23T00:00:00Z'
+
+  - record_kind: cli_output_registry_entry_record
+    cli_output_registry_schema_version: 1
+    registry_entry_id: cli-output-registry:support.export_bundle
+    title: Export support bundle from CLI
+    summary: >-
+      Diagnostic / support export CLI entry. Produces a support-packet-
+      index-bound JSON document on --out-file, and an SPDX SBOM export
+      adapter on demand. stdout carries human-readable progress only;
+      the machine payload never shares stdout with progress.
+    command_id: cmd:support.export_bundle
+    command_revision_ref: cmd-rev:support.export_bundle:2026.04.21-01
+    canonical_verb: support.export_bundle
+    cli_surface_class: doctor_or_diagnostic_export
+    command_family_class: diagnostics_support_export
+    capability_scope_class: read_only_no_side_effects
+    authority_class: policy_admission_required
+    policy_context_class: admin_policy_observed
+    redaction_class: redaction_required_with_secret_broker_handles
+    machine_output_stability_class: stable_schema_governed
+    human_output_posture_class: human_tty_not_stable
+    machine_output_envelope_class: json_document_single
+    stream_ownership_class: file_out_owns_machine_output_stdout_reserved_for_human
+    locale_posture_class: machine_output_locale_fixed_en_us
+    nondeterminism_disclosure_class: nondeterministic_env_sampling_declared
+    output_schema_binding:
+      binding_kind: primary_machine_output_schema
+      schema_ref: schemas/support/support_packet_index.schema.json
+      schema_version_slot: support_packet_index_schema_version
+      notes_ref: note:support.export_bundle:primary_schema
+    exit_code_register:
+      - class: success
+        numeric_code: 0
+        meaning_ref: >-
+          Support bundle assembled; machine payload cites the packet
+          families, redaction profile, and exact-build identity.
+      - class: partial_success_with_warnings
+        numeric_code: 3
+        meaning_ref: >-
+          Support bundle assembled, but one or more optional packets
+          (e.g. crash_artifact_snapshot) were unavailable; the
+          warnings payload lists the missing packets and repair hooks.
+        warnings_payload_schema_ref: schemas/support/support_packet_index.schema.json
+      - class: usage_error
+        numeric_code: 2
+        meaning_ref: Invalid argv or unknown --scope value.
+      - class: policy_or_trust_denied
+        numeric_code: 13
+        meaning_ref: >-
+          Admin policy denied the export (for example, redaction
+          profile is unavailable on a restricted-trust workspace).
+      - class: dependency_missing_or_stale
+        numeric_code: 78
+        meaning_ref: >-
+          Required support subsystem (e.g. debug_artifact manifest,
+          object handoff packet) is missing or stale; the payload
+          names the missing dependency ref.
+      - class: cancelled_by_user
+        numeric_code: 130
+        meaning_ref: User cancelled the export mid-run.
+      - class: unrecoverable_internal_error
+        numeric_code: 70
+        meaning_ref: Internal error; consult the payload's escalation anchor.
+    dry_run_support_class: dry_run_not_applicable_read_only
+    explain_support_class: explain_supported
+    adapter_rows:
+      - adapter_class: spdx_sbom_export
+        invocation_flag_ref: flag:automation.format:spdx_sbom
+        schema_ref: schemas/automation/cli_output_cases/support_export_bundle_spdx_adapter.schema.json
+        stability_class: preview_schema_governed_additive_minor_only
+        notes_ref: note:support.export_bundle:spdx_adapter
+    deprecation_policy:
+      policy_class: not_deprecated
+      support_window_class: null
+      successor_command_id: null
+      outcome_class: silent_forward_to_successor_forbidden
+      migration_bridge_ref: null
+      notes_ref: null
+    parity_surface_rows:
+      - parity_surface_class: support_bundle_export
+        match_mode: exact_match_required
+        notes_ref: note:support.export_bundle:packet_parity
+      - parity_surface_class: shiproom_dashboard
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: command_palette
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: docs_reference_page
+        match_mode: informational_only
+        notes_ref: null
+    fixture_case_refs:
+      - fixtures/automation/cli_output_cases/diagnostics_support_export_bundle.json
+    notes_ref: null
+    minted_at: '2026-04-23T00:00:00Z'
+
+  - record_kind: cli_output_registry_entry_record
+    cli_output_registry_schema_version: 1
+    registry_entry_id: cli-output-registry:route.describe
+    title: Describe a command route and invocation plan
+    summary: >-
+      Read-only route / invocation introspection emitter. Given a
+      canonical verb and an argument provenance set, emits a single
+      JSON document describing the resolved invocation plan (typed
+      arguments, gating decisions, preview posture, approval posture,
+      expected exit-code class) without dispatching the command.
+    command_id: cmd:route.describe
+    command_revision_ref: cmd-rev:route.describe:2026.04.21-01
+    canonical_verb: route.describe
+    cli_surface_class: route_or_invocation_introspection
+    command_family_class: route_or_invocation_info
+    capability_scope_class: read_only_no_side_effects
+    authority_class: no_authority_required
+    policy_context_class: policy_not_applicable
+    redaction_class: redaction_required_on_export
+    machine_output_stability_class: stable_schema_governed
+    human_output_posture_class: human_tty_mirror_of_machine_output
+    machine_output_envelope_class: json_document_single
+    stream_ownership_class: stdout_owns_machine_output_stderr_owns_diagnostics
+    locale_posture_class: machine_output_locale_fixed_en_us
+    nondeterminism_disclosure_class: deterministic_given_inputs
+    output_schema_binding:
+      binding_kind: primary_machine_output_schema
+      schema_ref: schemas/automation/cli_output_cases/route_describe_payload.schema.json
+      schema_version_slot: cli_output_payload_schema_version
+      notes_ref: note:route.describe:primary_schema
+    exit_code_register:
+      - class: success
+        numeric_code: 0
+        meaning_ref: >-
+          Route resolved; payload names the target command_id,
+          typed arguments, and gating decisions.
+      - class: usage_error
+        numeric_code: 2
+        meaning_ref: Invalid argv or unknown canonical verb.
+      - class: input_validation_error
+        numeric_code: 11
+        meaning_ref: >-
+          Canonical verb did not resolve to a live descriptor, or
+          argument provenance did not type-check.
+    dry_run_support_class: dry_run_not_applicable_read_only
+    explain_support_class: explain_not_applicable_read_only
+    adapter_rows: []
+    deprecation_policy:
+      policy_class: not_deprecated
+      support_window_class: null
+      successor_command_id: null
+      outcome_class: silent_forward_to_successor_forbidden
+      migration_bridge_ref: null
+      notes_ref: null
+    parity_surface_rows:
+      - parity_surface_class: ai_tool_surface
+        match_mode: exact_match_required
+        notes_ref: note:route.describe:ai_tool_parity
+      - parity_surface_class: automation_recipe_surface
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: docs_reference_page
+        match_mode: informational_only
+        notes_ref: null
+    fixture_case_refs:
+      - fixtures/automation/cli_output_cases/route_info_introspection.json
+    notes_ref: null
+    minted_at: '2026-04-23T00:00:00Z'
+
+  - record_kind: cli_output_registry_entry_record
+    cli_output_registry_schema_version: 1
+    registry_entry_id: cli-output-registry:build.list_targets
+    title: List build targets from CLI
+    summary: >-
+      Build-target discovery CLI emitter. Reads the workspace build
+      definitions and emits a single JSON document listing the
+      discovered targets, their kinds, their declared dependencies,
+      and their reproducibility posture. A CycloneDX SBOM adapter is
+      published alongside the primary envelope for supply-chain
+      consumers.
+    command_id: cmd:build.list_targets
+    command_revision_ref: cmd-rev:build.list_targets:2026.04.21-01
+    canonical_verb: build.list_targets
+    cli_surface_class: build_or_target_discovery
+    command_family_class: build_target_discovery
+    capability_scope_class: read_only_no_side_effects
+    authority_class: workspace_trust_required
+    policy_context_class: admin_policy_observed
+    redaction_class: no_redaction_required
+    machine_output_stability_class: stable_schema_governed
+    human_output_posture_class: human_tty_mirror_of_machine_output
+    machine_output_envelope_class: json_document_single
+    stream_ownership_class: stdout_owns_machine_output_stderr_owns_diagnostics
+    locale_posture_class: machine_output_locale_fixed_en_us
+    nondeterminism_disclosure_class: nondeterministic_order_declared
+    output_schema_binding:
+      binding_kind: primary_machine_output_schema
+      schema_ref: schemas/automation/cli_output_cases/build_list_targets_payload.schema.json
+      schema_version_slot: cli_output_payload_schema_version
+      notes_ref: note:build.list_targets:primary_schema
+    exit_code_register:
+      - class: success
+        numeric_code: 0
+        meaning_ref: >-
+          Targets listed; payload names every discovered target and
+          its reproducibility posture.
+      - class: usage_error
+        numeric_code: 2
+        meaning_ref: Invalid argv or unknown --target-kind filter.
+      - class: input_validation_error
+        numeric_code: 11
+        meaning_ref: >-
+          Workspace did not resolve, or the build definition failed
+          to parse.
+      - class: policy_or_trust_denied
+        numeric_code: 13
+        meaning_ref: >-
+          Workspace trust state or admin policy denied reading the
+          build definition.
+      - class: dependency_missing_or_stale
+        numeric_code: 78
+        meaning_ref: >-
+          A required build-definition dependency is missing (for
+          example, a referenced package group is not admitted).
+    dry_run_support_class: dry_run_not_applicable_read_only
+    explain_support_class: explain_supported
+    adapter_rows:
+      - adapter_class: cyclonedx_sbom_export
+        invocation_flag_ref: flag:automation.format:cyclonedx_sbom
+        schema_ref: schemas/automation/cli_output_cases/build_list_targets_cyclonedx_adapter.schema.json
+        stability_class: stable_schema_governed
+        notes_ref: note:build.list_targets:cyclonedx_adapter
+    deprecation_policy:
+      policy_class: not_deprecated
+      support_window_class: null
+      successor_command_id: null
+      outcome_class: silent_forward_to_successor_forbidden
+      migration_bridge_ref: null
+      notes_ref: null
+    parity_surface_rows:
+      - parity_surface_class: command_palette
+        match_mode: exact_match_required
+        notes_ref: note:build.list_targets:palette_parity
+      - parity_surface_class: ai_tool_surface
+        match_mode: exact_match_required
+        notes_ref: null
+      - parity_surface_class: automation_recipe_surface
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: docs_reference_page
+        match_mode: informational_only
+        notes_ref: null
+    fixture_case_refs:
+      - fixtures/automation/cli_output_cases/build_target_discovery.json
+    notes_ref: null
+    minted_at: '2026-04-23T00:00:00Z'
+
+  - record_kind: cli_output_registry_entry_record
+    cli_output_registry_schema_version: 1
+    registry_entry_id: cli-output-registry:benchmark.report_emit
+    title: Emit a benchmark report
+    summary: >-
+      Benchmark / report automation CLI emitter. Runs or replays a
+      benchmark lab scenario and emits a benchmark JSON document on
+      --out-file. Preview-class JUnit XML and SARIF adapters are
+      published for CI consumers; an NDJSON event-stream companion
+      carries per-iteration frames.
+    command_id: cmd:benchmark.report_emit
+    command_revision_ref: cmd-rev:benchmark.report_emit:2026.04.21-01
+    canonical_verb: benchmark.report_emit
+    cli_surface_class: benchmark_or_report_automation
+    command_family_class: benchmark_or_report_automation
+    capability_scope_class: read_only_no_side_effects
+    authority_class: no_authority_required
+    policy_context_class: policy_not_applicable
+    redaction_class: no_redaction_required
+    machine_output_stability_class: preview_schema_governed_additive_minor_only
+    human_output_posture_class: human_tty_not_stable
+    machine_output_envelope_class: benchmark_json_document
+    stream_ownership_class: file_out_owns_machine_output_stdout_reserved_for_human
+    locale_posture_class: machine_output_locale_fixed_posix_c
+    nondeterminism_disclosure_class: nondeterministic_timing_declared
+    output_schema_binding:
+      binding_kind: primary_machine_output_schema
+      schema_ref: schemas/automation/cli_output_cases/benchmark_report_payload.schema.json
+      schema_version_slot: cli_output_payload_schema_version
+      notes_ref: note:benchmark.report_emit:primary_schema
+    exit_code_register:
+      - class: success
+        numeric_code: 0
+        meaning_ref: >-
+          Benchmark report emitted; payload carries every iteration's
+          timing, throughput, and variance metric.
+      - class: usage_error
+        numeric_code: 2
+        meaning_ref: Invalid argv or unknown --scenario value.
+      - class: input_validation_error
+        numeric_code: 11
+        meaning_ref: Benchmark scenario ref did not resolve.
+      - class: timeout_or_deadline_exceeded
+        numeric_code: 124
+        meaning_ref: >-
+          Benchmark exceeded its declared wall-clock budget; the
+          partial payload retains every completed iteration.
+      - class: partial_success_with_warnings
+        numeric_code: 4
+        meaning_ref: >-
+          Some iterations crossed the variance floor or the warmup
+          budget; the warnings payload lists affected iterations.
+        warnings_payload_schema_ref: schemas/automation/cli_output_cases/benchmark_report_warnings.schema.json
+      - class: unrecoverable_internal_error
+        numeric_code: 70
+        meaning_ref: Internal error in the benchmark harness.
+    dry_run_support_class: dry_run_not_applicable_read_only
+    explain_support_class: explain_supported
+    adapter_rows:
+      - adapter_class: junit_xml_test_report
+        invocation_flag_ref: flag:automation.format:junit_xml
+        schema_ref: schemas/automation/cli_output_cases/benchmark_report_junit_adapter.schema.json
+        stability_class: preview_schema_governed_additive_minor_only
+        notes_ref: note:benchmark.report_emit:junit_adapter
+      - adapter_class: sarif_2_1_0_analysis_results
+        invocation_flag_ref: flag:automation.format:sarif_2_1_0
+        schema_ref: schemas/automation/cli_output_cases/benchmark_report_sarif_adapter.schema.json
+        stability_class: preview_schema_governed_additive_minor_only
+        notes_ref: note:benchmark.report_emit:sarif_adapter
+      - adapter_class: ndjson_event_stream_export
+        invocation_flag_ref: flag:automation.format:event_stream_ndjson
+        schema_ref: schemas/automation/cli_output_cases/benchmark_report_event_stream.schema.json
+        stability_class: preview_schema_governed_additive_minor_only
+        notes_ref: note:benchmark.report_emit:event_stream_adapter
+    deprecation_policy:
+      policy_class: not_deprecated
+      support_window_class: null
+      successor_command_id: null
+      outcome_class: silent_forward_to_successor_forbidden
+      migration_bridge_ref: null
+      notes_ref: null
+    parity_surface_rows:
+      - parity_surface_class: shiproom_dashboard
+        match_mode: projection_match_required
+        notes_ref: note:benchmark.report_emit:shiproom_parity
+      - parity_surface_class: command_palette
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: automation_recipe_surface
+        match_mode: projection_match_required
+        notes_ref: null
+      - parity_surface_class: docs_reference_page
+        match_mode: informational_only
+        notes_ref: null
+    fixture_case_refs:
+      - fixtures/automation/cli_output_cases/benchmark_report_emit.json
+    notes_ref: null
+    minted_at: '2026-04-23T00:00:00Z'
