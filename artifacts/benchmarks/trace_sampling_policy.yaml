@@ -1,0 +1,517 @@
+# Trace sampling, retention, and export policy.
+#
+# Machine-readable register of the trace-sampling profiles the
+# normalised trace-event record (schemas/traces/trace_event.schema.json)
+# resolves against by stable id. Every trace_event_record carries a
+# sampling_profile class and a sampling_profile_ref; both MUST resolve
+# against one profile row in this file.
+#
+# The goal of this file is to distinguish high-frequency local capture
+# from release-evidence / support-export retention without per-surface
+# policy drift. A profile names:
+#
+#   - the sampling rate / selection rule applied at capture time;
+#   - the retention class the captured bytes live under;
+#   - the export posture that admits the bytes to an external surface;
+#   - the redaction class that gates what fields ride out;
+#   - the applicable event classes (startup, save, ai_turn, etc.).
+#
+# Consumers MUST reconcile a trace event against the profile row at the
+# policy_revision the event cites, never by re-deriving rules from
+# context. A policy change (new profile, tightened redaction) is a
+# governed edit; see change_control at the bottom of this file.
+#
+# The human-readable companion is docs/benchmarks/trace_taxonomy.md §
+# "Sampling, retention, and export". If the two disagree, the document
+# wins and this file is updated in the same change.
+
+schema_version: 1
+policy_id: aureline.trace_sampling_policy
+policy_revision: 1
+status: seeded
+
+overview_document: docs/benchmarks/trace_taxonomy.md
+trace_event_schema_source: schemas/traces/trace_event.schema.json
+journey_segment_ids_source: artifacts/benchmarks/journey_segment_ids.yaml
+spike_timing_schema_source: schemas/traces/spike_timing.schema.json
+journey_trace_schema_source: schemas/traces/journey_trace.schema.json
+support_bundle_schema_source: schemas/support/support_bundle.schema.json
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+reference_hardware_manifest_source: artifacts/perf/reference_hardware_manifest.yaml
+lab_image_manifest_source: artifacts/perf/lab_image_manifest.yaml
+
+# -----------------------------------------------------------------------------
+# Sampling rate vocabulary.
+#
+# Closed grammar for how a profile selects which events to keep. All
+# values are deterministic (no free-form rates); a new value is additive
+# and opens a change record.
+# -----------------------------------------------------------------------------
+
+sampling_rate_vocabulary:
+  - all_events_every_run
+  - all_events_ring_buffered
+  - all_events_on_demand_snapshot
+  - tail_based_on_outcome
+  - hot_path_only
+  - manual_capture_only
+
+# -----------------------------------------------------------------------------
+# Retention class vocabulary.
+#
+# Matches schemas/traces/trace_event.schema.json#/$defs/retention_class.
+# Repeated here so this file is self-describing to a consumer that does
+# not yet parse the schema.
+# -----------------------------------------------------------------------------
+
+retention_class_vocabulary:
+  - hot_path_volatile
+  - warm_recent_local
+  - benchmark_long_retained
+  - support_bundle_frozen
+  - release_evidence_archived
+  - public_proof_archived
+  - discarded_before_export
+
+# -----------------------------------------------------------------------------
+# Export posture vocabulary.
+#
+# Matches schemas/traces/trace_event.schema.json#/$defs/export_posture_class.
+# Aligned with schemas/support/support_bundle.schema.json#/$defs/support_export_posture.
+# -----------------------------------------------------------------------------
+
+export_posture_vocabulary:
+  - local_only_ephemeral
+  - local_only_retained
+  - benchmark_lab_export
+  - support_bundle_export
+  - release_evidence_export
+  - public_proof_export
+  - excluded_by_default
+  - excluded_always
+
+# -----------------------------------------------------------------------------
+# Redaction class vocabulary.
+#
+# Re-exported from schemas/support/support_bundle.schema.json#/$defs/bundle_redaction_class.
+# -----------------------------------------------------------------------------
+
+redaction_class_vocabulary:
+  - metadata_safe_default
+  - operator_only_restricted
+  - internal_support_restricted
+  - signing_evidence_only
+
+# -----------------------------------------------------------------------------
+# Buffer-overflow vocabulary.
+#
+# When a profile caps local retention (ring buffer, warm-window), this
+# field names what happens at the cap. No profile silently drops bytes
+# without declaring the overflow policy.
+# -----------------------------------------------------------------------------
+
+buffer_overflow_vocabulary:
+  - drop_oldest_non_hot_path
+  - drop_oldest_any
+  - block_and_report
+  - promote_to_next_profile
+  - not_applicable
+
+# -----------------------------------------------------------------------------
+# Context vocabulary.
+#
+# Which run context each profile is authoritative for. Matches the run
+# contexts frozen in schemas/benchmarks/run_result.schema.json and
+# docs/benchmarks/benchmark_lab_run_results.md.
+# -----------------------------------------------------------------------------
+
+context_vocabulary:
+  - reference_capture
+  - self_capture
+  - smoke_subset
+  - integration_test
+  - developer_local
+  - live_production
+  - support_bundle_trigger
+  - release_evidence_capture
+  - public_proof_curation
+
+# -----------------------------------------------------------------------------
+# Profiles.
+#
+# Every row is authoritative for at most one sampling_profile_class
+# value on schemas/traces/trace_event.schema.json. Consumers route by
+# profile_id (the opaque sampling_profile_ref) plus policy_revision.
+# -----------------------------------------------------------------------------
+
+profiles:
+
+  - profile_id: profile.trace_sampling.benchmark_lab
+    sampling_profile_class: benchmark_lab
+    status: seeded
+    sampling_rate: all_events_every_run
+    retention_class: benchmark_long_retained
+    export_posture: benchmark_lab_export
+    redaction_class: metadata_safe_default
+    applicable_contexts:
+      - reference_capture
+      - self_capture
+      - smoke_subset
+      - integration_test
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - quick_open
+      - save
+      - restore
+      - rerun_task
+      - reconnect
+      - tool_use
+      - ai_turn
+      - fallback_resolution
+      - observability
+    required_linkage_fields:
+      - fixture_ref
+      - corpus_manifest
+      - build
+      - hardware_definition_ref
+      - environment_ref
+    buffer_overflow_policy: not_applicable
+    hot_path_priority_rule: >
+      Every event on the protected-hot-path list (ADR-0002) and every
+      event that rolls into a protected-path ledger budget is retained
+      in full. Observability-only events are retained at the same
+      fidelity so regression analysis can see the full picture.
+    public_comparison_admissibility: >
+      Benchmark-lab traces feed trend comparison. Publication as public
+      head-to-head evidence requires the public_proof profile review
+      path; benchmark_lab bytes do not ship under public_proof_export
+      without curation.
+    owner_ref: lane:benchmark_lab
+    governance_ref: docs/benchmarks/benchmark_lab_run_results.md
+
+  - profile_id: profile.trace_sampling.local_diagnostics
+    sampling_profile_class: local_diagnostics
+    status: seeded
+    sampling_rate: all_events_ring_buffered
+    retention_class: hot_path_volatile
+    export_posture: local_only_ephemeral
+    redaction_class: metadata_safe_default
+    applicable_contexts:
+      - developer_local
+      - live_production
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - quick_open
+      - save
+      - restore
+      - rerun_task
+      - reconnect
+      - tool_use
+      - ai_turn
+      - fallback_resolution
+      - observability
+    required_linkage_fields:
+      - build
+    buffer_overflow_policy: drop_oldest_non_hot_path
+    hot_path_priority_rule: >
+      Protected-hot-path events (ADR-0002) and events that cite a
+      non-sentinel budget_ref are retained ahead of observability-only
+      events when the ring buffer wraps. An overflow that drops a
+      hot-path event MUST surface a drop counter (see docs/benchmarks/trace_taxonomy.md).
+    public_comparison_admissibility: >
+      Local-diagnostics traces never ship as release or public evidence.
+      A developer who wants to promote a local trace MUST re-capture it
+      under benchmark_lab or trigger a support-bundle export.
+    owner_ref: package:aureline-runtime
+    governance_ref: docs/benchmarks/trace_taxonomy.md
+
+  - profile_id: profile.trace_sampling.ci_smoke
+    sampling_profile_class: ci_smoke
+    status: seeded
+    sampling_rate: hot_path_only
+    retention_class: warm_recent_local
+    export_posture: local_only_retained
+    redaction_class: metadata_safe_default
+    applicable_contexts:
+      - smoke_subset
+      - integration_test
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - save
+      - restore
+      - fallback_resolution
+    required_linkage_fields:
+      - fixture_ref
+      - corpus_manifest
+      - build
+    buffer_overflow_policy: drop_oldest_non_hot_path
+    hot_path_priority_rule: >
+      CI smoke runs keep hot-path events only; observability-only
+      events are discarded at capture time. A smoke run that sees an
+      unexpected observability event (for example, an atlas_eviction
+      during warm startup) escalates via the regression-trigger path
+      in schemas/benchmarks/run_result.schema.json rather than by
+      widening the sampling rate.
+    public_comparison_admissibility: >
+      CI smoke traces never ship as release or public evidence; they
+      exist to gate merges and feed the regression window.
+    owner_ref: lane:benchmark_lab
+    governance_ref: docs/benchmarks/benchmark_lab_run_results.md
+
+  - profile_id: profile.trace_sampling.support_bundle
+    sampling_profile_class: support_bundle
+    status: seeded
+    sampling_rate: all_events_on_demand_snapshot
+    retention_class: support_bundle_frozen
+    export_posture: support_bundle_export
+    redaction_class: operator_only_restricted
+    applicable_contexts:
+      - support_bundle_trigger
+      - live_production
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - quick_open
+      - save
+      - restore
+      - rerun_task
+      - reconnect
+      - tool_use
+      - ai_turn
+      - fallback_resolution
+      - observability
+    required_linkage_fields:
+      - build
+      - exact_build_identity_ref
+    buffer_overflow_policy: not_applicable
+    hot_path_priority_rule: >
+      A support-bundle snapshot captures every retained event in the
+      warm-recent-local window at snapshot time, regardless of hot-path
+      status, so a support engineer can see the full picture the user
+      saw. Redaction is applied at export time per schemas/support/support_bundle.schema.json.
+    public_comparison_admissibility: >
+      Support-bundle traces NEVER ship as public evidence. They may
+      ride inside a support bundle under the export posture the bundle
+      declares; the support bundle governs onward distribution.
+    owner_ref: lane:support_export
+    governance_ref: schemas/support/support_bundle.schema.json
+
+  - profile_id: profile.trace_sampling.release_evidence
+    sampling_profile_class: release_evidence
+    status: seeded
+    sampling_rate: manual_capture_only
+    retention_class: release_evidence_archived
+    export_posture: release_evidence_export
+    redaction_class: signing_evidence_only
+    applicable_contexts:
+      - release_evidence_capture
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - save
+      - restore
+      - fallback_resolution
+    required_linkage_fields:
+      - fixture_ref
+      - corpus_manifest
+      - build
+      - exact_build_identity_ref
+      - hardware_definition_ref
+      - environment_ref
+    buffer_overflow_policy: not_applicable
+    hot_path_priority_rule: >
+      Release-evidence captures are manual and curated. A capture that
+      omits any required_linkage_field is rejected at packet-assembly
+      time; release-evidence archives are the long-retention bar for
+      a claim the release packet will later cite.
+    public_comparison_admissibility: >
+      Release-evidence archives MAY seed a public-proof packet under
+      docs/benchmarks/public_comparison_rules.md; the release-evidence
+      bytes themselves are not published directly.
+    owner_ref: lane:release_evidence
+    governance_ref: docs/benchmarks/benchmark_publication_pack_template.md
+
+  - profile_id: profile.trace_sampling.public_proof
+    sampling_profile_class: public_proof
+    status: seeded
+    sampling_rate: manual_capture_only
+    retention_class: public_proof_archived
+    export_posture: public_proof_export
+    redaction_class: metadata_safe_default
+    applicable_contexts:
+      - public_proof_curation
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - save
+      - restore
+      - fallback_resolution
+    required_linkage_fields:
+      - fixture_ref
+      - corpus_manifest
+      - build
+      - exact_build_identity_ref
+      - hardware_definition_ref
+      - environment_ref
+    buffer_overflow_policy: not_applicable
+    hot_path_priority_rule: >
+      Public-proof captures are curated from benchmark_lab or
+      release_evidence archives; no live-run capture ships under this
+      profile. Every field that crosses the public boundary is
+      reviewed against docs/benchmarks/public_comparison_rules.md §
+      Required disclosure and § Prohibited practices.
+    public_comparison_admissibility: >
+      Authoritative for public head-to-head and aureline-only public
+      claims. A capture that does not cite a council-approved hardware
+      / environment / corpus / metrics / fitness revision is inadmissible.
+    owner_ref: lane:benchmark_lab
+    governance_ref: docs/benchmarks/public_comparison_rules.md
+
+  - profile_id: profile.trace_sampling.developer_local
+    sampling_profile_class: developer_local
+    status: seeded
+    sampling_rate: all_events_ring_buffered
+    retention_class: hot_path_volatile
+    export_posture: excluded_by_default
+    redaction_class: metadata_safe_default
+    applicable_contexts:
+      - developer_local
+    applicable_event_classes:
+      - startup
+      - first_paint
+      - input_to_paint
+      - quick_open
+      - save
+      - restore
+      - rerun_task
+      - reconnect
+      - tool_use
+      - ai_turn
+      - fallback_resolution
+      - observability
+    required_linkage_fields:
+      - build
+    buffer_overflow_policy: drop_oldest_any
+    hot_path_priority_rule: >
+      Developer-local runs keep a small ring buffer for interactive
+      debugging. No prioritisation of hot-path events; the developer
+      can inspect or promote the buffer into support_bundle or
+      benchmark_lab explicitly.
+    public_comparison_admissibility: >
+      Developer-local traces never ship anywhere. A developer who
+      wants to share a capture MUST promote it through support_bundle
+      or re-capture under benchmark_lab.
+    owner_ref: lane:developer_experience
+    governance_ref: docs/benchmarks/trace_taxonomy.md
+
+# -----------------------------------------------------------------------------
+# Cross-profile guarantees.
+#
+# Rules every profile composes against. These are asserted in the
+# schema (schemas/traces/trace_event.schema.json) and repeated here in
+# human-readable form so a reviewer reading only this file still sees
+# the constraint.
+# -----------------------------------------------------------------------------
+
+cross_profile_guarantees:
+  - id: guarantee.redaction_never_widens_on_export
+    statement: >
+      No export path widens the redaction class a capture profile
+      declared. A support-bundle snapshot that started under
+      operator_only_restricted redaction MUST NOT be re-exported as
+      metadata_safe_default; the bundle boundary is authoritative.
+  - id: guarantee.public_proof_requires_curation
+    statement: >
+      public_proof_export MUST NOT be reached from a live-run sampling
+      profile. Public-proof captures are curated from benchmark_lab or
+      release_evidence archives under docs/benchmarks/public_comparison_rules.md.
+  - id: guarantee.release_evidence_requires_exact_build
+    statement: >
+      release_evidence_export and public_proof_export require a non-
+      null exact_build_identity_ref on the trace event. A trace that
+      cannot name its exact build is inadmissible for release or public
+      claim evidence.
+  - id: guarantee.support_bundle_frozen_at_snapshot
+    statement: >
+      A support-bundle snapshot freezes retained trace-event bytes at
+      snapshot time. Subsequent local-diagnostics wraparound MUST NOT
+      rewrite the frozen bytes; the bundle carries its own copy.
+  - id: guarantee.drop_is_countable
+    statement: >
+      Any profile that can drop an event at the buffer boundary MUST
+      surface a drop counter on the next retained event so consumers
+      see the loss. Silent drop is non-conforming.
+  - id: guarantee.sentinel_budget_for_observability_only
+    statement: >
+      Trace events whose protected_journey is observability MUST cite
+      budget_ref = path.observability.none (see
+      artifacts/benchmarks/journey_segment_ids.yaml#reserved_sentinel_budget_refs).
+      Observability-only events MUST NOT roll into any budgeted
+      protected-path ledger row.
+
+# -----------------------------------------------------------------------------
+# Change control.
+#
+# Additive-minor (new profile, new applicable_event_class on an existing
+# profile, new sampling_rate vocabulary value) lands in this file,
+# docs/benchmarks/trace_taxonomy.md, and schemas/traces/trace_event.schema.json
+# (if an enum value changes) in the same change. Renaming a profile_id,
+# tightening an existing profile's redaction, or narrowing its applicable
+# event classes are breaking and open a named change record per
+# artifacts/bench/corpus_change_control.yaml.
+# -----------------------------------------------------------------------------
+
+change_control:
+  change_class_vocabulary:
+    - initial_seed
+    - profile_addition
+    - profile_retirement
+    - sampling_rate_vocabulary_addition
+    - retention_tightening
+    - export_tightening
+    - redaction_tightening
+    - applicable_event_class_addition
+    - applicable_event_class_removal
+  named_change_record_required_fields:
+    - change_id
+    - change_class
+    - recorded_on
+    - summary
+    - affected_profile_ids
+    - approvals
+    - comparability_note
+
+change_records:
+  - change_id: trace_sampling.seed.2026-04-23
+    change_class: initial_seed
+    recorded_on: "2026-04-23"
+    summary: >
+      Seed the trace-sampling policy so benchmark_lab, local_diagnostics,
+      ci_smoke, support_bundle, release_evidence, public_proof, and
+      developer_local profiles resolve through one stable id set. No
+      surface ships live-run traces under public_proof_export; that
+      posture is curated only.
+    affected_profile_ids:
+      - profile.trace_sampling.benchmark_lab
+      - profile.trace_sampling.local_diagnostics
+      - profile.trace_sampling.ci_smoke
+      - profile.trace_sampling.support_bundle
+      - profile.trace_sampling.release_evidence
+      - profile.trace_sampling.public_proof
+      - profile.trace_sampling.developer_local
+    approvals:
+      - performance_owner
+      - architecture_board_seed
+      - support_export_owner
+    comparability_note: >
+      Initial seed. No retroactive reconciliation is owed because no
+      trace-event emitter ships under a prior policy revision.

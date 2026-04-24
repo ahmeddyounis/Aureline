@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/traces/trace_event.schema.json",
+  "title": "Aureline normalised trace-event record",
+  "description": "Boundary schema for one normalised trace-event record that the spike-timing trace (schemas/traces/spike_timing.schema.json), the journey-trace harness (schemas/traces/journey_trace.schema.json), the benchmark lab, local-diagnostics capture, support-bundle export, and release-evidence / public-proof packets all compose against without inventing per-surface event names. The record pairs the ADR-0002 protected-hot-path vocabulary, the protected-journey vocabulary frozen in docs/benchmarks/spike_metric_names.md and schemas/traces/journey_trace.schema.json, and the protected-path ledger (artifacts/perf/protected_path_ledger.yaml) with a closed canonical event_class set, a closed dispatch-layer vocabulary, and a closed sampling/retention/export/redaction vocabulary. Two surfaces that emit trace events for the same protected journey cite the same event_class, journey_segment_id (resolved against artifacts/benchmarks/journey_segment_ids.yaml), and budget_ref (resolved against artifacts/perf/protected_path_ledger.yaml) so trace data becomes comparable across spike runs, benchmark-lab runs, support packets, and protected user-journey budgets. Raw log bodies, raw timer bodies, raw render-surface contents, raw tool-call payloads, raw AI prompt bodies, raw file paths outside the repository, and raw signing material never cross this boundary; the record carries opaque stable ids, typed tokens, integer ticks, and short human-readable notes only. Adding a value to any closed vocabulary is additive-minor and requires a schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/trace_event_record",
+  "$defs": {
+    "trace_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this trace-event export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "schema_token": {
+      "type": "string",
+      "const": "aureline.trace_event.v1",
+      "description": "Frozen schema discriminator. Every trace-event record carries schema = aureline.trace_event.v1 so consumers that multiplex several trace families on one parser can route by field."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "trace_event_record",
+      "description": "Frozen record-kind discriminator. Paired with schema for parsers that route by either field."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id. Used for event_id, trace_id, span_id, parent_span_id, journey_segment_id, budget_ref, fixture_ref, linked_spike_trace_refs, linked_journey_trace_refs, evidence_refs, requirement_refs, hardware_definition_ref, environment_ref, exact_build_identity_ref, and sampling_profile_ref. No raw URLs, raw file paths outside the repository, raw log bodies, raw tool-call payloads, raw AI prompt bodies, or raw signing material appear here."
+    },
+    "nonneg_tick": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative integer tick. In a harness-seeded capture this is a synthetic monotonic tick (0..N) so committed fixtures stay byte-stable; in a wall-clock run this is nanoseconds since the trace started."
+    },
+    "corpus_manifest_ref_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_id", "manifest_revision"],
+      "properties": {
+        "manifest_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id of the protected benchmark corpus manifest the fixture_ref resolves against. Currently aureline.protected_benchmark_corpus."
+        },
+        "manifest_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Manifest revision the fixture_ref was resolved against. Pinned so later comparability and trend work can tell two runs apart when the manifest rev-bumps."
+        }
+      },
+      "description": "Pins the corpus manifest revision the fixture_ref was read against so later comparability work never guesses which corpus revision a trace event was captured under."
+    },
+    "build_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crate_name", "crate_version", "rustc_target_triple"],
+      "properties": {
+        "crate_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Cargo crate name of the emitter that produced the event. Aligned with the minimum build-identity hook on schemas/traces/spike_timing.schema.json and schemas/traces/journey_trace.schema.json."
+        },
+        "crate_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Crate version string embedded at emit time (CARGO_PKG_VERSION for Rust emitters, the harness pinned version for Python emitters)."
+        },
+        "rustc_target_triple": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Compact target triple reported by the emitter (apple-darwin, unknown-linux-gnu, pc-windows-msvc, unknown). The exact-build identity record in schemas/build/exact_build_identity.schema.json is the super-set this field hooks into; the trace-event record carries only the minimum it self-reports. The full exact_build_identity_ref rides on exact_build_identity_ref below when a lane has one."
+        }
+      },
+      "description": "Minimum build-identity hook carried on every trace-event record so later taxonomy and release-evidence work can upgrade to the full exact-build identity record without renaming fields. See docs/build/exact_build_identity_model.md."
+    },
+    "backend_class": {
+      "type": "string",
+      "enum": [
+        "headless",
+        "native_window",
+        "synthesised",
+        "remote_session",
+        "not_applicable"
+      ],
+      "description": "Frozen backend-selection vocabulary. headless and native_window mirror the shell spike's CapabilityManifest.Backend and schemas/traces/journey_trace.schema.json. synthesised is reserved for events the harness composes from corpus metadata (no live emitter run). remote_session marks events captured on the remote side of a reconnect / remote-agent journey. not_applicable is admissible for events whose surface never drives a render backend (for example, background save-pipeline hops)."
+    },
+    "host_os_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux",
+        "windows",
+        "unknown"
+      ],
+      "description": "Frozen host-OS vocabulary. unknown covers build hosts that do not match the other three; it is admissible so the schema does not reject developer-local captures on niche hosts."
+    },
+    "protected_journey_class": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "first_useful_chrome",
+        "first_paint",
+        "input_to_paint",
+        "render_submission",
+        "frame_budget",
+        "placeholder_open",
+        "placeholder_edit",
+        "placeholder_save",
+        "fallback_resolution",
+        "observability",
+        "vfs_root_enumeration",
+        "save_pipeline",
+        "recovery_journal_write",
+        "recovery_journal_restore",
+        "boundary_truth_contract"
+      ],
+      "description": "Closed protected-journey vocabulary. Lifted verbatim from schemas/traces/journey_trace.schema.json#/$defs/protected_journey_class and the protected_journeys block of fixtures/benchmarks/corpus_manifest.yaml. Two events that share a protected_journey value measure against the same journey budget; an emitter MUST NOT invent a synonym."
+    },
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "first_paint",
+        "input_to_paint",
+        "quick_open",
+        "save",
+        "restore",
+        "rerun_task",
+        "reconnect",
+        "tool_use",
+        "ai_turn",
+        "fallback_resolution",
+        "observability"
+      ],
+      "description": "Frozen canonical event-class vocabulary. Every trace-event record carries exactly one event_class. startup / first_paint / input_to_paint mirror the spike-timing protected-path buckets at the user-journey level. quick_open covers the placeholder-open / file-picker family (see protected_journey placeholder_open, vfs_root_enumeration). save covers the save pipeline including recovery-journal write. restore covers the recovery-journal-replay and boundary-truth restore family. rerun_task covers terminal / task reruns that reattach to a previous environment capsule. reconnect covers remote-session resume, queue-rebind, and provider callback return. tool_use covers structured tool-call journeys the runtime dispatches on behalf of an AI broker or a recipe. ai_turn covers full AI-broker roundtrips (compose → broker request → tool invocations → response admit → paint). fallback_resolution and observability keep the ADR-0002 observability-only events on the same record family without promoting them to a protected-path budget."
+    },
+    "dispatch_layer_class": {
+      "type": "string",
+      "enum": [
+        "ui_dispatch",
+        "service_hop",
+        "adapter_layer",
+        "renderer_work",
+        "filesystem_io",
+        "recovery_replay",
+        "background_work",
+        "tooling_invocation",
+        "ai_broker_roundtrip",
+        "managed_call_optional",
+        "remote_transport",
+        "observability_hook"
+      ],
+      "description": "Closed dispatch-layer vocabulary. Names which layer of the runtime produced the event so a journey that touches several layers (for example: ui_dispatch → service_hop → adapter_layer → renderer_work) resolves one budget per layer without reinventing span names. managed_call_optional is reserved for journeys that MAY route through a managed service (AI broker, docs pack, policy distribution); an event carrying managed_call_optional MUST also cite an ai_broker_roundtrip or service_hop parent span id when the managed call actually fired. observability_hook marks events whose only purpose is trace-family observability (degraded-renderer banner, atlas eviction) and never rolls into a protected-path budget."
+    },
+    "attempt_class": {
+      "type": "string",
+      "enum": [
+        "first_attempt",
+        "rerun_attempt",
+        "reconnect_attempt",
+        "replay_attempt",
+        "synthesised_attempt"
+      ],
+      "description": "Closed attempt-class vocabulary. first_attempt is the default. rerun_attempt covers events emitted from a task / terminal / command rerun that inherits a previous environment capsule. reconnect_attempt covers events emitted when a remote session, managed-call roundtrip, or background queue reconnects after a drop. replay_attempt covers events emitted from recovery-journal replay or boundary-truth-contract replay. synthesised_attempt is reserved for harness-generated events that do not correspond to a live emitter run (matches backend_class synthesised)."
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "degraded_completed",
+        "fell_back_completed",
+        "aborted_by_user",
+        "timed_out",
+        "errored_caught",
+        "errored_uncaught",
+        "pending_open_span"
+      ],
+      "description": "Closed outcome-class vocabulary. completed is the clean-path default. degraded_completed marks events that finished while a degraded posture was visible (see degraded_posture). fell_back_completed marks events that finished through the fallback posture (see fallback_posture). pending_open_span is admissible while a span is still open; such an event MUST carry finished_tick = null and duration_ticks = null."
+    },
+    "degraded_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "reduced_chrome_only",
+        "degraded_renderer_banner_visible",
+        "responsive_fallback_active",
+        "missing_target_recovered_to_layout_only",
+        "missing_target_recovered_to_compatible",
+        "remote_session_stale",
+        "managed_call_unavailable"
+      ],
+      "description": "Closed degraded-posture vocabulary. healthy is the default when the event ran without a visible degradation. The first five values are lifted from schemas/traces/journey_trace.schema.json#/$defs/degraded_posture_class. remote_session_stale and managed_call_unavailable extend the set to cover reconnect and ai_turn events where the product-visible degradation is a remote-session stall or a managed-call outage rather than a renderer posture."
+    },
+    "fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "glyph_fallback_active",
+        "atlas_shard_rebind",
+        "atlas_eviction_observed",
+        "software_renderer_active",
+        "recovery_journal_replay_active",
+        "local_only_fallback_active",
+        "tool_call_retry_backoff"
+      ],
+      "description": "Closed fallback-posture vocabulary. Lifted from schemas/traces/journey_trace.schema.json#/$defs/fallback_posture_class and extended with local_only_fallback_active (managed-call unavailable, local-core continuity took over) and tool_call_retry_backoff (tool-use / ai_turn event fell back to a bounded retry loop) so reconnect, tool_use, and ai_turn events can declare the posture without inventing new vocabulary."
+    },
+    "sampling_profile_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_lab",
+        "local_diagnostics",
+        "ci_smoke",
+        "support_bundle",
+        "release_evidence",
+        "public_proof",
+        "developer_local"
+      ],
+      "description": "Closed sampling-profile vocabulary. Each value MUST correspond to a profile row in artifacts/benchmarks/trace_sampling_policy.yaml#profiles; that file owns the sampling rate, retention, export, and redaction policy. A trace-event record carries the profile class plus an opaque sampling_profile_ref so consumers can reconcile the record against the pinned policy revision."
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "hot_path_volatile",
+        "warm_recent_local",
+        "benchmark_long_retained",
+        "support_bundle_frozen",
+        "release_evidence_archived",
+        "public_proof_archived",
+        "discarded_before_export"
+      ],
+      "description": "Closed retention-class vocabulary. hot_path_volatile is the default for high-frequency local capture (ring buffer, never exported). warm_recent_local survives a short local window for developer diagnostics. benchmark_long_retained is the bar for benchmark-lab runs that feed trend comparison. support_bundle_frozen is the bar for a support-bundle-attached trace; the bytes are frozen at bundle-export time. release_evidence_archived and public_proof_archived are the bars for release-evidence and public-proof packet archives. discarded_before_export is admissible for trace events that were captured under a profile whose policy deletes them before any export lane ever sees them."
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_only_ephemeral",
+        "local_only_retained",
+        "benchmark_lab_export",
+        "support_bundle_export",
+        "release_evidence_export",
+        "public_proof_export",
+        "excluded_by_default",
+        "excluded_always"
+      ],
+      "description": "Closed export-posture vocabulary. Aligned with the export-posture shape on schemas/support/support_bundle.schema.json#/$defs/support_export_posture so a trace event that rides out through a support bundle lands in one posture per policy."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Closed redaction-class vocabulary re-exported from schemas/support/support_bundle.schema.json#/$defs/bundle_redaction_class. metadata_safe_default is the bar for public-proof and default local-diagnostics capture; operator_only_restricted is the bar for support-bundle export; internal_support_restricted covers internal-only traces that embed operator identifiers; signing_evidence_only is reserved for traces that carry release-signing correlation ids."
+    },
+    "span_kind_class": {
+      "type": "string",
+      "enum": [
+        "trace_root",
+        "span_start",
+        "span_end",
+        "point_event",
+        "segment_boundary"
+      ],
+      "description": "Closed span-kind vocabulary. trace_root marks the first event of a trace; span_start / span_end bracket a parent span whose duration is the difference of their ticks; point_event marks a zero-duration event (hook fire, provisional checkpoint). segment_boundary marks a checkpoint that belongs to a named journey-segment-id but does not itself open or close a span."
+    },
+    "trace_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "record_kind",
+        "event_id",
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "span_kind",
+        "event_class",
+        "protected_journey",
+        "dispatch_layer",
+        "journey_segment_id",
+        "budget_ref",
+        "attempt_class",
+        "outcome_class",
+        "degraded_posture",
+        "fallback_posture",
+        "backend",
+        "host_os",
+        "build",
+        "exact_build_identity_ref",
+        "hardware_definition_ref",
+        "environment_ref",
+        "fixture_ref",
+        "corpus_manifest",
+        "sampling_profile",
+        "sampling_profile_ref",
+        "retention_class",
+        "export_posture",
+        "redaction_class",
+        "started_tick",
+        "finished_tick",
+        "duration_ticks",
+        "linked_spike_trace_refs",
+        "linked_journey_trace_refs",
+        "evidence_refs",
+        "requirement_refs"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schema_token" },
+        "schema_version": { "$ref": "#/$defs/trace_event_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "span_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_span_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Parent span id this event belongs to, or null for trace-root events. When a managed_call_optional / tooling_invocation / ai_broker_roundtrip event is emitted, parent_span_id MUST resolve into a service_hop or ai_broker_roundtrip parent span id in the same trace."
+        },
+        "span_kind": { "$ref": "#/$defs/span_kind_class" },
+        "event_class": { "$ref": "#/$defs/event_class" },
+        "protected_journey": { "$ref": "#/$defs/protected_journey_class" },
+        "dispatch_layer": { "$ref": "#/$defs/dispatch_layer_class" },
+        "journey_segment_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable segment id that MUST resolve against artifacts/benchmarks/journey_segment_ids.yaml#segments[].segment_id. Emitters do not invent segment ids; a segment the registry does not yet list rides on segment_ids whose name starts with 'seg.provisional.' so later taxonomy work can promote without renaming."
+        },
+        "budget_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable budget id the event rolls into. MUST resolve against artifacts/perf/protected_path_ledger.yaml#paths[].path_id (for example: path.shell.launch, path.editor.save, path.workspace.restore). Events whose protected_journey is observability MAY cite path.observability.none to declare 'not on a budgeted path'."
+        },
+        "attempt_class": { "$ref": "#/$defs/attempt_class" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "degraded_posture": { "$ref": "#/$defs/degraded_posture_class" },
+        "fallback_posture": { "$ref": "#/$defs/fallback_posture_class" },
+        "backend": { "$ref": "#/$defs/backend_class" },
+        "host_os": { "$ref": "#/$defs/host_os_class" },
+        "build": { "$ref": "#/$defs/build_identity_record" },
+        "exact_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref into the full exact-build identity record (schemas/build/exact_build_identity.schema.json). Null when the lane has not yet wired one; the minimum build-identity record on build is always present."
+        },
+        "hardware_definition_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional hardware-definition ref (see schemas/benchmarks/run_result.schema.json#hardware_definition_record and artifacts/perf/reference_hardware_manifest.yaml). Null in a self-capture or developer-local run; set when a reference capture resolves against a council-approved baseline."
+        },
+        "environment_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional environment ref into artifacts/perf/lab_image_manifest.yaml#lab_images[].environment_rows[]. Null in a self-capture or developer-local run."
+        },
+        "fixture_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional fixture ref into fixtures/benchmarks/corpus_manifest.yaml#fixtures[].fixture_id. Null for live-user traces that do not resolve against a fixture; required for benchmark_lab and ci_smoke sampling profiles."
+        },
+        "corpus_manifest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/corpus_manifest_ref_record" }
+          ],
+          "description": "Corpus manifest revision pin. Null when fixture_ref is null; required when fixture_ref is non-null so comparability never guesses which corpus revision the fixture was read against."
+        },
+        "sampling_profile": { "$ref": "#/$defs/sampling_profile_class" },
+        "sampling_profile_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into artifacts/benchmarks/trace_sampling_policy.yaml#profiles[].profile_id at the policy revision active at emit time. Pinned so a later policy rev-bump can be told apart from a live-run change."
+        },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "started_tick": { "$ref": "#/$defs/nonneg_tick" },
+        "finished_tick": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/nonneg_tick" }
+          ],
+          "description": "Tick at which the event / span finished. Null for span_kind = point_event (where started_tick is the only tick) or for outcome_class = pending_open_span (where the span is still open). When non-null, finished_tick MUST be greater than or equal to started_tick."
+        },
+        "duration_ticks": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/nonneg_tick" }
+          ],
+          "description": "Tick delta between finished_tick and started_tick. Null iff finished_tick is null. Emitters MUST NOT recompute this on the consumer side; the number is authoritative at emit time so a later tick-scale change (synthetic vs wall-clock) does not silently rewrite comparability."
+        },
+        "linked_spike_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into spike-timing trace records (schemas/traces/spike_timing.schema.json#trace_id) that materialise this event. Empty when the trace-event record is synthesised or the event did not cross a spike-timing-instrumented hook."
+        },
+        "linked_journey_trace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into journey-trace records (schemas/traces/journey_trace.schema.json#trace_id) that aggregate this event into a named journey. Empty when the emitter wrote only the trace-event record without a paired journey trace."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into evidence-consumer channels (benchmark_lab.*, support_bundle.*, release_evidence.*, public_proof.*, boundary_truth.*). Reserved slot so later release-evidence, support-export, and public-proof lanes attach evidence without reshaping the record."
+        },
+        "requirement_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into PRD / ADR / TAD requirements this event covers. Reserved slot so later requirement-linkage work can compose against trace events without a schema version bump."
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Free-form short human-readable label carried over from the emitter. Not structured; the structured fields above are authoritative. MUST NOT contain raw URLs, raw file paths outside the repository, raw tokens, raw secrets, or raw log bodies."
+        }
+      },
+      "description": "One normalised trace-event record. The emitter writes one record per canonical event in one trace. A journey that crosses several dispatch layers emits several records that share trace_id but carry distinct span_ids; two records that share a journey_segment_id measure the same segment of the same budget."
+    }
+  }
+}

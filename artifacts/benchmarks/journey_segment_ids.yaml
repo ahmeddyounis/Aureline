@@ -1,0 +1,673 @@
+# Canonical journey-segment-id register.
+#
+# Machine-readable register of the canonical segment ids the normalised
+# trace-event record (schemas/traces/trace_event.schema.json), the
+# spike-timing trace (schemas/traces/spike_timing.schema.json), the
+# journey-trace harness (schemas/traces/journey_trace.schema.json), the
+# benchmark lab, the journey harness, support-bundle exports, and
+# release-evidence / public-proof packets compose against without
+# inventing per-surface segment names.
+#
+# Every trace_event_record.journey_segment_id MUST resolve against one
+# segment_id in this file. Every protected-path ledger row
+# (artifacts/perf/protected_path_ledger.yaml#paths[].segments[]) already
+# cites segment ids that live in this register; the two files cross-
+# reference by id and neither replaces the other. This file owns:
+#
+#   - segment identity and naming convention;
+#   - which protected journey (spike vocabulary) the segment rolls up to;
+#   - which dispatch layer (trace-event vocabulary) the segment lives in;
+#   - which protected-path-ledger budget the segment feeds;
+#   - whether the segment is stable or provisional.
+#
+# The human-readable companion is docs/benchmarks/trace_taxonomy.md. If
+# the two disagree, the document wins and this file is updated in the
+# same change.
+#
+# Planning / milestone slugs MUST NOT appear in any id, path, tag, or
+# note on this file. Identities here will ride into product-adjacent
+# surfaces (support bundles, release-evidence packets, public proof).
+
+schema_version: 1
+register_id: aureline.journey_segment_ids
+register_revision: 1
+status: seeded
+
+vocabulary_source: docs/benchmarks/trace_taxonomy.md
+trace_event_schema_source: schemas/traces/trace_event.schema.json
+spike_timing_schema_source: schemas/traces/spike_timing.schema.json
+journey_trace_schema_source: schemas/traces/journey_trace.schema.json
+protected_path_ledger_source: artifacts/perf/protected_path_ledger.yaml
+latency_budget_ledger_source: artifacts/perf/latency_budget_ledger.yaml
+evidence_linkage_seed_source: artifacts/perf/evidence_linkage_seed.yaml
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+
+# -----------------------------------------------------------------------------
+# Naming convention.
+#
+# Segment ids follow the grammar:
+#
+#   seg.<event_class>.<dispatch_layer>.<suffix>
+#
+# where event_class and dispatch_layer are the canonical vocabularies
+# frozen in schemas/traces/trace_event.schema.json. The suffix is a
+# short lowercase_snake_case noun phrase describing the work the segment
+# performs. Provisional ids that later taxonomy work will promote use
+# the grammar:
+#
+#   seg.provisional.<event_class>.<dispatch_layer>.<suffix>
+#
+# The provisional form is admissible in artifacts/perf/protected_path_ledger.yaml
+# today (for example seg.provisional.command_palette.invoke_to_surface_visible);
+# later taxonomy lanes can drop the provisional marker by updating both
+# files in the same change. Renaming a stable segment_id is breaking
+# and opens a decision row.
+# -----------------------------------------------------------------------------
+
+segment_status_vocabulary:
+  - stable
+  - provisional
+
+event_class_vocabulary:
+  - startup
+  - first_paint
+  - input_to_paint
+  - quick_open
+  - save
+  - restore
+  - rerun_task
+  - reconnect
+  - tool_use
+  - ai_turn
+  - fallback_resolution
+  - observability
+
+dispatch_layer_vocabulary:
+  - ui_dispatch
+  - service_hop
+  - adapter_layer
+  - renderer_work
+  - filesystem_io
+  - recovery_replay
+  - background_work
+  - tooling_invocation
+  - ai_broker_roundtrip
+  - managed_call_optional
+  - remote_transport
+  - observability_hook
+
+# -----------------------------------------------------------------------------
+# Journey groups.
+#
+# Segments are grouped by event_class for readability. Every segment
+# carries protected_journey, dispatch_layer, and budget_ref so a consumer
+# that only reads one group still knows the full resolution.
+# -----------------------------------------------------------------------------
+
+segments:
+
+  # ---- startup -------------------------------------------------------------
+
+  - segment_id: seg.startup.ui_dispatch.boot
+    status: provisional
+    event_class: startup
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - startup
+    budget_ref: path.shell.launch
+    paired_journey_trace_segment_refs:
+      - seg.startup_to_first_useful_chrome.startup
+    note: Process-entry boot up to runtime-init handoff.
+
+  - segment_id: seg.startup.service_hop.runtime_init
+    status: provisional
+    event_class: startup
+    dispatch_layer: service_hop
+    protected_journeys:
+      - startup
+    budget_ref: path.shell.launch
+    note: Runtime init (service topology, policy load, config load) before renderer bootstrap.
+
+  - segment_id: seg.startup.adapter_layer.vfs_root_enumeration
+    status: provisional
+    event_class: startup
+    dispatch_layer: adapter_layer
+    protected_journeys:
+      - startup
+      - vfs_root_enumeration
+    budget_ref: path.shell.launch
+    note: Workspace root enumeration kicked async during warm startup.
+
+  - segment_id: seg.startup.renderer_work.first_paint_compose
+    status: stable
+    event_class: startup
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - startup
+      - first_paint
+    budget_ref: path.shell.launch
+    paired_journey_trace_segment_refs:
+      - seg.startup_to_first_useful_chrome.first_paint
+    note: Renderer compose path up to first non-blank frame.
+
+  - segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+    status: provisional
+    event_class: startup
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - startup
+      - first_useful_chrome
+    budget_ref: path.shell.first_useful_chrome
+    paired_journey_trace_segment_refs:
+      - seg.provisional.shell.first_useful_chrome.palette_entry_ready
+    note: First useful chrome ready (title, sidebar, status readable; palette admittable).
+
+  # ---- first_paint --------------------------------------------------------
+
+  - segment_id: seg.first_paint.ui_dispatch.schedule_frame
+    status: stable
+    event_class: first_paint
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - first_paint
+    budget_ref: path.shell.launch
+    note: Frame schedule kick from the UI dispatcher.
+
+  - segment_id: seg.first_paint.renderer_work.compose
+    status: stable
+    event_class: first_paint
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - first_paint
+    budget_ref: path.shell.launch
+    paired_spike_hook_refs:
+      - first_paint
+    note: Renderer compose of the first submitted frame.
+
+  - segment_id: seg.first_paint.renderer_work.submit
+    status: stable
+    event_class: first_paint
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - render_submission
+    budget_ref: path.shell.launch
+    paired_spike_hook_refs:
+      - frame_submit
+    note: Compositor frame-submit leg.
+
+  # ---- input_to_paint -----------------------------------------------------
+
+  - segment_id: seg.input_to_paint.ui_dispatch.event_admitted
+    status: stable
+    event_class: input_to_paint
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - input_to_paint
+    budget_ref: path.editor.first_useful_edit
+    paired_spike_hook_refs:
+      - caret_move
+      - selection_change
+      - ime_composition_update
+      - scroll_frame
+    note: Input event admitted into the UI dispatcher (caret, selection, IME, scroll).
+
+  - segment_id: seg.input_to_paint.service_hop.intent_resolved
+    status: provisional
+    event_class: input_to_paint
+    dispatch_layer: service_hop
+    protected_journeys:
+      - input_to_paint
+    budget_ref: path.editor.first_useful_edit
+    note: Input intent routed through the command / edit service hop.
+
+  - segment_id: seg.input_to_paint.renderer_work.repaint
+    status: stable
+    event_class: input_to_paint
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - input_to_paint
+      - render_submission
+    budget_ref: path.editor.first_useful_edit
+    paired_spike_hook_refs:
+      - reflow_line_range
+      - frame_submit
+    note: Renderer repaint that reflects the input.
+
+  # ---- quick_open (placeholder-open / file-picker family) ------------------
+
+  - segment_id: seg.quick_open.ui_dispatch.invoke
+    status: provisional
+    event_class: quick_open
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - first_useful_chrome
+      - placeholder_open
+    budget_ref: path.command_palette.open
+    paired_journey_trace_segment_refs:
+      - seg.provisional.command_palette.invoke_to_surface_visible
+    note: Quick-open invocation admitted (keyboard shortcut or palette command).
+
+  - segment_id: seg.quick_open.adapter_layer.vfs_root_enumeration
+    status: provisional
+    event_class: quick_open
+    dispatch_layer: adapter_layer
+    protected_journeys:
+      - vfs_root_enumeration
+      - placeholder_open
+    budget_ref: path.command_palette.open
+    note: VFS enumeration to feed quick-open candidates.
+
+  - segment_id: seg.quick_open.service_hop.rank_candidates
+    status: provisional
+    event_class: quick_open
+    dispatch_layer: service_hop
+    protected_journeys:
+      - placeholder_open
+    budget_ref: path.command_palette.open
+    paired_journey_trace_segment_refs:
+      - seg.provisional.command_palette.surface_visible_to_first_ranked_results
+    note: Candidate ranking service hop before first ranked paint.
+
+  - segment_id: seg.quick_open.renderer_work.first_ranked_paint
+    status: provisional
+    event_class: quick_open
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - placeholder_open
+      - render_submission
+    budget_ref: path.command_palette.open
+    note: First ranked-results paint.
+
+  - segment_id: seg.quick_open.ui_dispatch.commit_selection
+    status: provisional
+    event_class: quick_open
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - placeholder_open
+    budget_ref: path.editor.placeholder_open
+    paired_journey_trace_segment_refs:
+      - seg.open_edit_save.placeholder_open
+    note: Selection commit into the placeholder-open path.
+
+  # ---- save ---------------------------------------------------------------
+
+  - segment_id: seg.save.ui_dispatch.request
+    status: stable
+    event_class: save
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - placeholder_save
+    budget_ref: path.editor.save
+    paired_journey_trace_segment_refs:
+      - seg.open_edit_save.placeholder_save
+    note: Save requested from the UI dispatcher.
+
+  - segment_id: seg.save.service_hop.recovery_journal_write
+    status: stable
+    event_class: save
+    dispatch_layer: service_hop
+    protected_journeys:
+      - save_pipeline
+      - recovery_journal_write
+    budget_ref: path.editor.save
+    paired_journey_trace_segment_refs:
+      - seg.open_edit_save.save_pipeline
+    note: Recovery-journal write leg of the save pipeline.
+
+  - segment_id: seg.save.filesystem_io.vfs_write
+    status: provisional
+    event_class: save
+    dispatch_layer: filesystem_io
+    protected_journeys:
+      - save_pipeline
+    budget_ref: path.editor.save
+    note: VFS write leg of the save pipeline.
+
+  - segment_id: seg.save.service_hop.save_pipeline_complete
+    status: stable
+    event_class: save
+    dispatch_layer: service_hop
+    protected_journeys:
+      - save_pipeline
+    budget_ref: path.editor.save
+    paired_journey_trace_segment_refs:
+      - seg.open_edit_save.save_pipeline
+    note: Save pipeline complete; continuity and intent preservation flushed.
+
+  # ---- restore ------------------------------------------------------------
+
+  - segment_id: seg.restore.ui_dispatch.prompt
+    status: stable
+    event_class: restore
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - recovery_journal_restore
+    budget_ref: path.workspace.restore
+    note: Restore prompt presented to the user.
+
+  - segment_id: seg.restore.service_hop.boundary_truth_contract
+    status: stable
+    event_class: restore
+    dispatch_layer: service_hop
+    protected_journeys:
+      - boundary_truth_contract
+    budget_ref: path.workspace.restore
+    paired_journey_trace_segment_refs:
+      - seg.restore_adjacent.boundary_truth_contract
+    note: Boundary-truth contract verification during restore.
+
+  - segment_id: seg.restore.recovery_replay.journal_replay
+    status: stable
+    event_class: restore
+    dispatch_layer: recovery_replay
+    protected_journeys:
+      - recovery_journal_restore
+    budget_ref: path.workspace.restore
+    paired_journey_trace_segment_refs:
+      - seg.restore_adjacent.recovery_journal_restore
+    note: Recovery-journal replay leg of the restore journey.
+
+  - segment_id: seg.restore.ui_dispatch.level_delivered
+    status: stable
+    event_class: restore
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - recovery_journal_restore
+      - boundary_truth_contract
+    budget_ref: path.workspace.restore
+    paired_journey_trace_segment_refs:
+      - seg.restore_adjacent.finalise
+    note: Restore level delivered; restore finalisation into the product-visible state.
+
+  # ---- rerun_task ---------------------------------------------------------
+
+  - segment_id: seg.rerun_task.ui_dispatch.invoke
+    status: provisional
+    event_class: rerun_task
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Rerun invoked from terminal / task surface. Provisional until a task-rerun budget row lands on the protected-path ledger.
+
+  - segment_id: seg.rerun_task.service_hop.environment_diff
+    status: provisional
+    event_class: rerun_task
+    dispatch_layer: service_hop
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Environment-capsule diff vs previous attempt (see schemas/runtime/environment_diff_packet.schema.json).
+
+  - segment_id: seg.rerun_task.adapter_layer.runtime_reattach
+    status: provisional
+    event_class: rerun_task
+    dispatch_layer: adapter_layer
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Runtime reattach into the prior execution context.
+
+  - segment_id: seg.rerun_task.renderer_work.output_paint
+    status: provisional
+    event_class: rerun_task
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - observability
+      - render_submission
+    budget_ref: path.observability.none
+    note: Rerun output paint in the terminal / task surface.
+
+  # ---- reconnect ----------------------------------------------------------
+
+  - segment_id: seg.reconnect.ui_dispatch.notify
+    status: provisional
+    event_class: reconnect
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Reconnect notification raised (remote session, managed call, background queue).
+
+  - segment_id: seg.reconnect.remote_transport.session_resume
+    status: provisional
+    event_class: reconnect
+    dispatch_layer: remote_transport
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Remote-session resume attempt (remote SSH, remote agent, managed workspace).
+
+  - segment_id: seg.reconnect.background_work.queue_rebind
+    status: provisional
+    event_class: reconnect
+    dispatch_layer: background_work
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Background-queue rebind after reconnect (see fixtures/runtime/queue_cases/restore_rebind_after_reconnect.json).
+
+  - segment_id: seg.reconnect.ui_dispatch.resumed_paint
+    status: provisional
+    event_class: reconnect
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Resumed-session paint after reconnect completes.
+
+  # ---- tool_use -----------------------------------------------------------
+
+  - segment_id: seg.tool_use.ui_dispatch.invoke
+    status: provisional
+    event_class: tool_use
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Tool-call invocation admitted (recipe or AI-dispatched).
+
+  - segment_id: seg.tool_use.tooling_invocation.dispatch
+    status: provisional
+    event_class: tool_use
+    dispatch_layer: tooling_invocation
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Tool dispatch leg into the runtime / adapter.
+
+  - segment_id: seg.tool_use.adapter_layer.effect
+    status: provisional
+    event_class: tool_use
+    dispatch_layer: adapter_layer
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Tool-call effect leg (VFS mutation, provider callback, network request).
+
+  - segment_id: seg.tool_use.ui_dispatch.result_admit
+    status: provisional
+    event_class: tool_use
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Tool-call result admitted back into the UI surface.
+
+  # ---- ai_turn ------------------------------------------------------------
+
+  - segment_id: seg.ai_turn.ui_dispatch.compose
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: ui_dispatch
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: User turn composed and admitted into the AI broker dispatch.
+
+  - segment_id: seg.ai_turn.ai_broker_roundtrip.request
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: ai_broker_roundtrip
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: AI-broker request leg (request roundtrip; may route through managed_call_optional).
+
+  - segment_id: seg.ai_turn.managed_call_optional.broker_egress
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: managed_call_optional
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Optional managed-call leg if the AI broker routes through a managed service. Omitted when the broker stays local.
+
+  - segment_id: seg.ai_turn.tooling_invocation.inner_tool_calls
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: tooling_invocation
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: Inner tool-call invocations the AI turn admitted; each inner call MAY also emit seg.tool_use.* segments under the same trace_id.
+
+  - segment_id: seg.ai_turn.service_hop.response_admit
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: service_hop
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    note: AI-broker response admitted back into the runtime.
+
+  - segment_id: seg.ai_turn.renderer_work.response_paint
+    status: provisional
+    event_class: ai_turn
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - observability
+      - render_submission
+    budget_ref: path.observability.none
+    note: AI-turn response paint.
+
+  # ---- fallback_resolution (observability-only) ---------------------------
+
+  - segment_id: seg.fallback_resolution.renderer_work.glyph_fallback
+    status: stable
+    event_class: fallback_resolution
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - fallback_resolution
+    budget_ref: path.observability.none
+    paired_spike_hook_refs:
+      - fallback_glyph_resolution
+    note: Shaping-fallback stage >=2 glyph resolution (ADR-0002).
+
+  - segment_id: seg.fallback_resolution.renderer_work.atlas_shard_rebind
+    status: stable
+    event_class: fallback_resolution
+    dispatch_layer: renderer_work
+    protected_journeys:
+      - fallback_resolution
+    budget_ref: path.observability.none
+    paired_spike_hook_refs:
+      - atlas_shard_rebind
+    note: Atlas shard rebind (scale / DPI bucket change).
+
+  # ---- observability ------------------------------------------------------
+
+  - segment_id: seg.observability.observability_hook.degraded_renderer_banner
+    status: stable
+    event_class: observability
+    dispatch_layer: observability_hook
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    paired_spike_hook_refs:
+      - degraded_renderer_banner
+    note: Software fallback or adapter loss banner raised (observability only; does not gate release).
+
+  - segment_id: seg.observability.observability_hook.accessibility_tree_update
+    status: stable
+    event_class: observability
+    dispatch_layer: observability_hook
+    protected_journeys:
+      - observability
+    budget_ref: path.observability.none
+    paired_spike_hook_refs:
+      - accessibility_tree_update
+    note: Accessibility-tree update (on the ADR-0002 hot-path list, but not on a journey budget today; buckets as observability for now).
+
+  - segment_id: seg.observability.observability_hook.atlas_eviction
+    status: stable
+    event_class: observability
+    dispatch_layer: observability_hook
+    protected_journeys:
+      - fallback_resolution
+    budget_ref: path.observability.none
+    paired_spike_hook_refs:
+      - atlas_eviction
+    note: Atlas eviction (observability only; does not gate release).
+
+# -----------------------------------------------------------------------------
+# Reserved budget-ref for observability-only segments.
+#
+# Trace events that belong to observability-only journeys still have to
+# cite a budget_ref (the trace-event schema requires the field). This
+# sentinel budget id is reserved in the protected-path ledger so the
+# field is never empty and consumers can filter on 'not-on-a-budget'
+# deterministically. The ledger does not carry a threshold row for this
+# id; latency_budget_ledger.yaml MUST NOT pick it up either.
+# -----------------------------------------------------------------------------
+
+reserved_sentinel_budget_refs:
+  - budget_ref: path.observability.none
+    description: >
+      Sentinel budget id for observability-only trace events. Events that
+      cite this id are declaring that the event is not on a budgeted
+      protected path (per the ADR-0002 observability-only buckets and
+      the protected-path ledger's observability family).
+
+# -----------------------------------------------------------------------------
+# Change control.
+#
+# Additive-minor (new segment id, new dispatch-layer admission on an
+# existing event class) lands in this file, docs/benchmarks/trace_taxonomy.md,
+# and schemas/traces/trace_event.schema.json (if a vocabulary value
+# changes) in the same change. Renaming a stable segment id is breaking
+# and opens a named change record per artifacts/bench/corpus_change_control.yaml.
+# -----------------------------------------------------------------------------
+
+change_records:
+  - change_id: trace_segment.seed.2026-04-23
+    change_class: initial_seed
+    recorded_on: "2026-04-23"
+    summary: >
+      Seed the canonical journey-segment-id register so spike-timing,
+      journey-trace, and normalised trace-event surfaces resolve one
+      frozen segment vocabulary. Startup, first-paint, input-to-paint,
+      save, and restore segments are stable; quick-open, rerun-task,
+      reconnect, tool-use, and ai-turn segments are provisional pending
+      full harness coverage.
+    affected_segment_families:
+      - startup
+      - first_paint
+      - input_to_paint
+      - quick_open
+      - save
+      - restore
+      - rerun_task
+      - reconnect
+      - tool_use
+      - ai_turn
+      - fallback_resolution
+      - observability
+    approvals:
+      - performance_owner
+      - architecture_board_seed
+    comparability_note: >
+      Provisional segments MAY be renamed without a schema-version bump
+      on schemas/traces/trace_event.schema.json as long as the protected
+      journey and budget_ref mappings in this file are updated in the
+      same change. Stable segments follow the full decision-record path.
