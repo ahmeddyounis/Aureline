@@ -1,0 +1,144 @@
+__fixture__:
+  name: hybrid_ai_broker_outage_narrows_profile
+  scenario: >
+    Worked narrowing example. A hybrid remote-attach deployment is
+    healthy until the managed AI broker and the browser-companion
+    notification channel both degrade at the same time. The profile
+    narrows its AI-assisted and companion claims to cached
+    last-known-good posture while local editing, save, search, local
+    git, tasks, export, and diagnostics remain available_local_safe.
+    The desktop does not turn into a hidden thin client: no surface
+    silently presents stale AI output as current, no companion
+    notification is silently dropped, and the claim-manifest row that
+    quotes this profile narrows accordingly.
+
+    This fixture is cited by the deployment-profile register's
+    narrowing_example_required coverage guard and by the
+    docs/governance/deployment_profile_truth.md narrative.
+  contract_sections:
+    - Fail-local continuity notes
+    - Public-claim allowlist (narrowed scope)
+    - Prohibited-implied-claims list (triggered)
+    - Change-trigger rules
+
+record_kind: deployment_profile_narrowing_observation
+schema_version: 1
+
+deployment_profile_id: enterprise_online
+product_facing_label: hybrid_remote_attach
+deployment_profile_register_ref: artifacts/governance/deployment_profiles.yaml#enterprise_online
+residual_dependency_ledger_ref: ledger_profile:enterprise_online
+baseline_fixture_ref: fixtures/governance/deployment_profiles/hybrid_remote_attach_baseline.yaml
+
+observation_window:
+  captured_at: "2026-04-24T10:15:00Z"
+  degraded_services:
+    - dependency_class: ai_provider
+      observed_posture_delta:
+        baseline_posture: optional
+        observed_state: unavailable
+        narrowed_to_absence_impact: narrows_to_cached_last_known_good
+        narrowed_to_continuity_fallback: replay_cached_snapshot
+      surface_labeling:
+        ai_surfaces_labeled: cached_last_known_good_stale_cache
+        live_inference_requests_blocked: true
+    - dependency_class: companion_notification_channel
+      observed_posture_delta:
+        baseline_posture: optional
+        observed_state: unavailable
+        narrowed_to_absence_impact: narrows_to_cached_last_known_good
+        narrowed_to_continuity_fallback: resume_after_reconnect
+      surface_labeling:
+        companion_surfaces_labeled: cached_last_known_good_stale_cache
+        live_notifications_queued_for_reconnect: true
+
+retained_local_core_capabilities:
+  - capability_class: local_editing
+    state: available_local_safe
+  - capability_class: local_save
+    state: available_local_safe
+  - capability_class: local_search
+    state: available_local_safe
+  - capability_class: local_git
+    state: available_local_safe
+  - capability_class: local_tasks
+    state: available_local_safe
+  - capability_class: local_export
+    state: available_local_safe
+  - capability_class: local_diagnostics
+    state: available_local_safe
+  - capability_class: local_docs_inspect
+    state: available_local_safe
+
+narrowed_public_claim_scope:
+  - "Attaches to customer-federated or vendor-managed services across devices."
+  - "Customer-pinned region, customer-managed keys, customer-shaped retention with vendor floor."
+  - "Local-core workflows keep working when hybrid services are stale or unreachable."
+  - "AI-assisted surfaces quote the cached last-known-good output under a stale_cache label; live inference is not claimed during the observed window."
+  - "Companion notifications queue for reconnect; live notification delivery is not claimed during the observed window."
+
+prohibited_implied_claims_triggered:
+  - implied_claim: "Live AI-assisted edits are current."
+    reason: >
+      The managed AI provider is unavailable; presenting cached
+      output as live would violate the managed_cloud/enterprise_online
+      narrowing rule in the ledger.
+  - implied_claim: "Companion surfaces deliver notifications in real time."
+    reason: >
+      The companion notification channel is unavailable; claims must
+      reflect queued-for-reconnect posture under a stale label.
+  - implied_claim: "The desktop has become a thin client."
+    reason: >
+      Local editing, save, search, local git, tasks, export, and
+      diagnostics remain available_local_safe. The desktop continues
+      to operate locally; only hosted surfaces narrow.
+
+change_trigger_rules_fired:
+  - rule_id: rule:residual_dependency_posture_changed
+    triggered_by:
+      - ai_provider.observed_state=unavailable
+      - companion_notification_channel.observed_state=unavailable
+    required_update_surfaces_refreshed:
+      - claim_manifest
+      - compatibility_report_template
+      - docs_help_service_health
+      - support_bundle_contract
+  - rule_id: rule:companion_surface_posture_changed
+    triggered_by:
+      - companion_notification_channel.observed_state=unavailable
+    required_update_surfaces_refreshed:
+      - claim_manifest
+      - docs_help_service_health
+      - residual_dependency_ledger
+      - support_bundle_contract
+
+continuity_packet_projection:
+  projected_record_kind: local_core_continuity_packet_record
+  data_plane_state_by_capability_class:
+    - capability_class: local_editing
+      state: available_local_safe
+    - capability_class: local_save
+      state: available_local_safe
+    - capability_class: local_search
+      state: available_local_safe
+    - capability_class: local_git
+      state: available_local_safe
+    - capability_class: local_tasks
+      state: available_local_safe
+    - capability_class: local_export
+      state: available_local_safe
+    - capability_class: local_diagnostics
+      state: available_local_safe
+    - capability_class: local_docs_inspect
+      state: available_local_safe
+  restore_class: resume_after_reconnect
+
+notes: >
+  This fixture satisfies the M00-196 acceptance criterion that at
+  least one example shows a hosted-dependency failure narrowing the
+  profile truth without turning the desktop into a hidden thin
+  client. The narrowing is expressed as (1) explicit cached
+  last-known-good labeling on the affected hosted surfaces, (2) a
+  narrowed public-claim scope, and (3) explicit prohibited-implied-
+  claims that would otherwise widen the wording. Local-core data-
+  plane capabilities stay at available_local_safe throughout.

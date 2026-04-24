@@ -1,0 +1,688 @@
+# Deployment-profile descriptor register.
+#
+# Machine-readable companion to docs/governance/deployment_profile_truth.md.
+# Pairs with the residual-dependency ledger at
+# artifacts/governance/residual_dependencies.yaml and the locality matrix at
+# artifacts/deployment/locality_matrix.yaml. Fixtures live under
+# fixtures/governance/deployment_profiles/.
+#
+# One row per launch-bearing deployment profile. Every row pins a stable
+# deployment-profile id, an owner, tenancy / residency / skew / key-mode
+# posture, a browser-companion-surface posture, a fail-local continuity
+# statement, public-claim allowlist, prohibited-implied-claims list, and
+# change-trigger rule refs. Downstream rows (compatibility, claim manifest,
+# qualification matrix, deployment drill catalog, support bundle) cite the
+# same deployment_profile_id verbatim; free-text aliasing is non-conforming.
+#
+# Rules.
+#   - Every row MUST name a deployment_profile_id drawn from
+#     deployment_profile_vocabulary below, which matches the frozen
+#     deployment_profile_vocabulary in artifacts/deployment/locality_matrix.yaml
+#     and artifacts/compat/qualification_matrix_seed.yaml one-for-one.
+#   - Every row MUST name owner_dri, owning_lane, review_cadence, and
+#     visibility_class. Silent defaults are a validation failure.
+#   - Every row MUST declare tenancy_and_residency, skew_window,
+#     browser_companion_surface_posture, fail_local_continuity_notes,
+#     public_claim_allowlist (non-empty), prohibited_implied_claims
+#     (non-empty), and change_trigger_rule_refs (non-empty).
+#   - Every row MUST cite the residual_dependency_ledger_ref for its
+#     profile; absence is a validation failure.
+#   - "Browser companion / handoff" is modeled as a cross-cutting surface
+#     posture on every profile, not as a sixth profile. The frozen
+#     deployment-profile vocabulary has five values; companion-surface
+#     truth rides the companion_surface_posture_class field.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field. Describe what the row covers, not which planning item it
+#     came from.
+#   - Adding a vocabulary value is additive-minor and must bump
+#     schema_version on this file plus the locality matrix and the
+#     qualification-matrix seed in the same change. Repurposing a value
+#     is breaking and opens a decision row under
+#     artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/governance/deployment_profile_truth.md
+residual_dependency_ledger_source: artifacts/governance/residual_dependencies.yaml
+locality_matrix_source: artifacts/deployment/locality_matrix.yaml
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+claim_manifest_source: artifacts/governance/claim_manifest_seed.yaml
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+deployment_drill_catalog_source: artifacts/support/deployment_drill_catalog_seed.yaml
+control_artifact_index_source: artifacts/governance/control_artifact_index.yaml
+fixture_home: fixtures/governance/deployment_profiles/
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.24 local-first operation"
+      - "§5.53 managed control-plane boundary"
+      - "§5.57 air-gapped operation"
+      - "Appendix AN continuity truth"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.6 managed-service separation"
+      - "§9.7 local-core resilience"
+      - "§9.8 mirror and offline posture"
+      - "§26.5 distributed compatibility and version-skew policy"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.4.2 control-plane degrade"
+      - "§11.4.3 data-plane degrade"
+      - "§9.9 mixed-version compatibility and upgrade posture"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# Adding a value is additive-minor; repurposing a value is breaking. These
+# vocabularies MUST agree verbatim with artifacts/deployment/locality_matrix.yaml
+# and artifacts/compat/qualification_matrix_seed.yaml where the names overlap.
+# -----------------------------------------------------------------------------
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+product_facing_label_vocabulary:
+  - desktop_local_first
+  - self_hosted_sovereign
+  - hybrid_remote_attach
+  - air_gapped_mirror_only
+  - browser_companion_handoff_default_home
+
+tenant_org_scope_class_vocabulary:
+  - single_user_local
+  - customer_tenant
+  - shared_multi_tenant
+  - tenant_boundary_recheck_required
+  - not_applicable
+
+region_scope_class_vocabulary:
+  - customer_region_pinned
+  - remote_target_region
+  - boundary_recheck_required
+  - not_applicable
+
+retention_class_vocabulary:
+  - no_retention_beyond_local_disk
+  - workspace_repo_retained
+  - customer_retention_window
+  - vendor_retention_window_with_customer_policy
+  - vendor_retention_window_default
+  - retention_not_applicable
+
+key_mode_class_vocabulary:
+  - os_store
+  - vendor_managed
+  - customer_managed
+  - offline_trust_root
+  - not_applicable
+
+skew_window_class_vocabulary:
+  - coordinated_artifact_set_only
+  - exact_match
+  - same_schema_epoch_additive_only
+  - declared_adjacent_window
+  - published_sdk_support_window
+  - current_plus_previous_minor_or_lts
+  - certified_report_freshness_window
+
+out_of_window_posture_vocabulary:
+  - fail_closed
+  - read_only
+  - degraded
+  - explicitly_unsupported
+
+companion_surface_posture_class_vocabulary:
+  - companion_handoff_not_applicable
+  - companion_handoff_cross_device_supported
+  - companion_handoff_cached_read_only_when_offline
+  - companion_handoff_explicitly_disallowed
+  - companion_handoff_primary_surface_home
+
+hybrid_remote_attach_posture_class_vocabulary:
+  - remote_attach_not_applicable
+  - remote_attach_supported_declared_window
+  - remote_attach_mirror_only
+  - remote_attach_explicitly_disallowed
+
+public_internet_expectation_class_vocabulary:
+  - public_internet_not_expected
+  - public_internet_optional
+  - public_internet_expected
+  - public_internet_forbidden
+
+sign_in_expectation_class_vocabulary:
+  - sign_in_not_expected
+  - sign_in_optional
+  - sign_in_expected_customer_idp
+  - sign_in_expected_vendor_idp
+
+# -----------------------------------------------------------------------------
+# Consumer bindings.
+#
+# The register exists so these four consumer families resolve against one
+# deployment_profile_id vocabulary rather than inventing parallel profile
+# aliases.
+# -----------------------------------------------------------------------------
+
+consumer_bindings:
+  qualification_matrix:
+    primary_docs:
+      - artifacts/compat/qualification_matrix_seed.yaml
+    rule: >
+      Every qualification row that names a claimed_deployment_profiles
+      list MUST cite deployment_profile_id values from this register
+      verbatim. Rows that want to narrow a profile's applicability do so
+      by listing fewer ids, not by minting aliases.
+  claim_manifest:
+    primary_docs:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - schemas/governance/claim_manifest.schema.json
+    rule: >
+      Claim rows whose environment.deployment_context names a profile
+      MUST cite deployment_profile_id values from this register. Claim
+      text that implies a profile outside the named list is a
+      prohibited_implied_claim and fails drift review.
+  compatibility_report:
+    primary_docs:
+      - docs/release/release_evidence_packet_template.md
+    rule: >
+      Release-time compatibility reports cite deployment_profile_id
+      values from this register when narrowing a claim to a profile
+      subset. Free-text wording about "hybrid", "cloud", or "offline"
+      that is not backed by a deployment_profile_id row is out of
+      window.
+  support_bundle:
+    primary_docs:
+      - docs/support/support_bundle_contract.md
+      - schemas/support/support_bundle.schema.json
+    rule: >
+      Support bundles quote the deployment_profile_id, the residual-
+      dependency ledger row id, and the linked continuity-packet drill
+      id; bundles MAY NOT describe profile degradation in prose alone.
+
+# -----------------------------------------------------------------------------
+# Deployment-profile rows.
+#
+# One row per frozen deployment profile. Every row carries tenancy and
+# residency, skew-window, browser-companion-surface, remote-attach, and
+# fail-local continuity truth, plus an explicit public-claim allowlist and
+# prohibited-implied-claims list so no surface reads a hidden default.
+# -----------------------------------------------------------------------------
+
+deployment_profile_rows:
+  - deployment_profile_id: individual_local
+    product_facing_label: desktop_local_first
+    title: Desktop-local / local-first profile
+    status: seeded
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: per_milestone
+    visibility_class: public
+    locality_matrix_ref: individual_local
+    qualification_matrix_deployment_profile_id: individual_local
+    claim_manifest_deployment_profile_id: individual_local
+    boundary_manifest_deployment_profile_id: individual_local
+    residual_dependency_ledger_ref: ledger_profile:individual_local
+    sign_in_expectation_class: sign_in_not_expected
+    public_internet_expectation_class: public_internet_optional
+    tenancy_and_residency:
+      tenant_org_scope_class: single_user_local
+      region_scope_class: not_applicable
+      retention_class: no_retention_beyond_local_disk
+      key_mode_class: os_store
+    skew_window:
+      skew_window_class: coordinated_artifact_set_only
+      out_of_window_posture: fail_closed
+      notes: >
+        A single, coordinated desktop artifact set is the only in-window
+        form. Remote agents, mirrors, and companion surfaces do not
+        apply in the baseline individual-local stance.
+    hybrid_remote_attach_posture_class: remote_attach_not_applicable
+    companion_surface_posture_class: companion_handoff_not_applicable
+    linked_drill_refs:
+      - benchmark_lab_local_only_capture
+    linked_continuity_case_refs:
+      - fixtures/deployment/continuity_cases/individual_local_baseline.json
+    fail_local_continuity_notes: >
+      Every local_core capability stays available_local_safe with no
+      network, no sign-in, and no optional service reachable. The
+      continuity story for this profile is "no remote dependency, so no
+      remote failure."
+    public_claim_allowlist:
+      - "Works on a personal device with no account and no hosted service."
+      - "Core editing, save, local git, search, tasks, export, and diagnostics remain available on device."
+      - "No residual hosted dependency is required for the claimed local-core scope."
+    prohibited_implied_claims:
+      - '"Air-gapped certified" — use the air_gapped profile row and its explicit mirror / offline-bundle continuity fields.'
+      - '"Enterprise-ready" — narrow to the enterprise_online profile with its tenancy and residency posture named.'
+      - '"Seamless cloud sync" — the individual_local profile does not claim a hosted control plane of any kind.'
+      - '"Works offline the same as online" without naming which capabilities narrow when optional docs-pack, AI provider, or companion surfaces become reachable.'
+    change_trigger_rule_refs:
+      - rule:residual_dependency_posture_changed
+      - rule:tenancy_or_residency_changed
+      - rule:skew_window_or_out_of_window_posture_changed
+      - rule:companion_surface_posture_changed
+      - rule:hybrid_remote_attach_posture_changed
+    notes: >
+      This row is the baseline local-first claim. Every other profile row
+      narrows or extends on top of it. Claim packets that describe the
+      product as "local-first" cite this row id; packets that describe
+      hosted workflows cite a different row.
+
+  - deployment_profile_id: self_hosted
+    product_facing_label: self_hosted_sovereign
+    title: Self-hosted / sovereign profile
+    status: seeded
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: per_milestone
+    visibility_class: public
+    locality_matrix_ref: self_hosted
+    qualification_matrix_deployment_profile_id: self_hosted
+    claim_manifest_deployment_profile_id: self_hosted
+    boundary_manifest_deployment_profile_id: self_hosted
+    residual_dependency_ledger_ref: ledger_profile:self_hosted
+    sign_in_expectation_class: sign_in_expected_customer_idp
+    public_internet_expectation_class: public_internet_optional
+    tenancy_and_residency:
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: customer_retention_window
+      key_mode_class: customer_managed
+    skew_window:
+      skew_window_class: declared_adjacent_window
+      out_of_window_posture: degraded
+      notes: >
+        Self-hosted control-plane and local client stay within the
+        declared adjacent support window. Out-of-window combinations
+        narrow to review-only or read-only rather than optimistic parity.
+    hybrid_remote_attach_posture_class: remote_attach_supported_declared_window
+    companion_surface_posture_class: companion_handoff_cached_read_only_when_offline
+    linked_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - mirror_import_offline_bundle_replay
+    linked_continuity_case_refs:
+      - fixtures/deployment/continuity_cases/self_hosted_stale_policy_session.json
+    fail_local_continuity_notes: >
+      When the customer-operated control plane, mirror, registry, or
+      policy service is unreachable, local editing, save, search, local
+      git, tasks, export, and diagnostics remain available_local_safe;
+      cached policy and auth sessions narrow to explicit stale-cache
+      posture instead of silently degrading to "service down." The
+      desktop never turns into a thin client when the self-hosted
+      control plane drops.
+    public_claim_allowlist:
+      - "Runs against a customer-operated control plane, mirror, relay, or registry."
+      - "Customer-managed keys, customer-pinned region, customer retention window."
+      - "Local-core capabilities keep working when the customer control plane is stale or unreachable."
+    prohibited_implied_claims:
+      - '"Vendor-managed" — the self_hosted profile explicitly does not imply a vendor control plane.'
+      - '"Air-gapped" — self_hosted permits optional public-internet egress; the air_gapped profile forbids it.'
+      - '"Zero cloud dependency" without naming which dependencies (AI broker, docs pack, companion notification) may still be required or forbidden per the ledger.'
+      - '"Single pane of glass across tenants" — the self_hosted profile is customer-tenant scoped.'
+    change_trigger_rule_refs:
+      - rule:residual_dependency_posture_changed
+      - rule:tenancy_or_residency_changed
+      - rule:skew_window_or_out_of_window_posture_changed
+      - rule:companion_surface_posture_changed
+      - rule:hybrid_remote_attach_posture_changed
+    notes: >
+      Self-hosted rows MUST carry a concrete tenant, region, key-mode,
+      and skew posture. The AI broker remains optional (not required) by
+      default because the self-hosted profile does not assume a hosted
+      inference plane.
+
+  - deployment_profile_id: enterprise_online
+    product_facing_label: hybrid_remote_attach
+    title: Hybrid / enterprise-online remote-attach profile
+    status: seeded
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: per_milestone
+    visibility_class: public
+    locality_matrix_ref: enterprise_online
+    qualification_matrix_deployment_profile_id: enterprise_online
+    claim_manifest_deployment_profile_id: enterprise_online
+    boundary_manifest_deployment_profile_id: enterprise_online
+    residual_dependency_ledger_ref: ledger_profile:enterprise_online
+    sign_in_expectation_class: sign_in_expected_customer_idp
+    public_internet_expectation_class: public_internet_expected
+    tenancy_and_residency:
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: vendor_retention_window_with_customer_policy
+      key_mode_class: customer_managed
+    skew_window:
+      skew_window_class: declared_adjacent_window
+      out_of_window_posture: degraded
+      notes: >
+        Desktop client, remote agent, browser companion, and managed
+        services stay within the declared adjacent support window; the
+        negotiated capability set is the intersection, not the union.
+    hybrid_remote_attach_posture_class: remote_attach_supported_declared_window
+    companion_surface_posture_class: companion_handoff_cross_device_supported
+    linked_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - failover_boundary_recheck_future_managed_case
+    linked_continuity_case_refs:
+      - fixtures/deployment/continuity_cases/enterprise_failover_boundary_recheck.json
+      - fixtures/deployment/continuity_cases/enterprise_policy_denies_external_export.json
+    fail_local_continuity_notes: >
+      When the remote agent, managed AI broker, or customer-federated
+      policy surface becomes unavailable, local-core editing, save,
+      search, local git, tasks, export, and diagnostics remain
+      available_local_safe. Cached policy and auth sessions continue in
+      a labeled stale_cache state; the desktop narrows feature scope
+      but does not collapse into a hidden thin client.
+    public_claim_allowlist:
+      - "Attaches to customer-federated or vendor-managed services across devices."
+      - "Customer-pinned region, customer-managed keys, customer-shaped retention with vendor floor."
+      - "Local-core workflows keep working when hybrid services are stale or unreachable."
+    prohibited_implied_claims:
+      - '"Pure local-first" — enterprise_online assumes hosted services; use individual_local to claim local-first.'
+      - '"Offline-first" — the profile expects public internet for normal operation; when the network is absent, the desktop narrows rather than advertising offline parity.'
+      - '"Sovereign" — narrow to the self_hosted profile when the customer operates the entire control plane.'
+      - '"Cross-tenant scale" — tenant scope remains customer-bounded.'
+    change_trigger_rule_refs:
+      - rule:residual_dependency_posture_changed
+      - rule:tenancy_or_residency_changed
+      - rule:skew_window_or_out_of_window_posture_changed
+      - rule:companion_surface_posture_changed
+      - rule:hybrid_remote_attach_posture_changed
+    notes: >
+      This row is the hybrid remote-attach stance. It pairs a customer
+      tenant with vendor-or-customer control-plane services. Companion
+      handoff across desktop and browser is supported; cached reads and
+      a narrowed scope are the fallback when remote services degrade.
+
+  - deployment_profile_id: air_gapped
+    product_facing_label: air_gapped_mirror_only
+    title: Air-gapped / mirror-only profile
+    status: seeded
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: per_milestone
+    visibility_class: public
+    locality_matrix_ref: air_gapped
+    qualification_matrix_deployment_profile_id: air_gapped
+    claim_manifest_deployment_profile_id: air_gapped
+    boundary_manifest_deployment_profile_id: air_gapped
+    residual_dependency_ledger_ref: ledger_profile:air_gapped
+    sign_in_expectation_class: sign_in_optional
+    public_internet_expectation_class: public_internet_forbidden
+    tenancy_and_residency:
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: customer_retention_window
+      key_mode_class: offline_trust_root
+    skew_window:
+      skew_window_class: coordinated_artifact_set_only
+      out_of_window_posture: fail_closed
+      notes: >
+        Offline bundles, signed mirrors, and local policy travel as one
+        coordinated artifact set. Anything outside that set — a partial
+        import, an unsigned mirror, a stale offline bundle past its
+        freshness horizon — fails closed rather than falling back to
+        public fetch.
+    hybrid_remote_attach_posture_class: remote_attach_mirror_only
+    companion_surface_posture_class: companion_handoff_explicitly_disallowed
+    linked_drill_refs:
+      - docs_pack_mirror_only_truth
+      - mirror_import_offline_bundle_replay
+    linked_continuity_case_refs:
+      - fixtures/deployment/continuity_cases/air_gapped_mirror_only_docs.json
+    fail_local_continuity_notes: >
+      Local editing, save, search, local git, tasks, export, and
+      diagnostics remain available_local_safe. Docs inspection, policy,
+      auth/identity, registry, and catalog are available_mirror_backed
+      against a signed mirror snapshot; when the mirror is stale the
+      surfaces narrow to their mirror-only freshness labels rather than
+      attempting a live upstream fetch. Public internet egress is a
+      validation failure.
+    public_claim_allowlist:
+      - "Runs with no public internet; mirrors and offline bundles only."
+      - "Customer-managed region, customer-managed keys, offline trust root."
+      - "Local-core capabilities keep working when the mirror snapshot is stale; docs, policy, and registry narrow to mirror-only freshness labels."
+    prohibited_implied_claims:
+      - '"Always-fresh docs" — docs pack is mirror-backed and carries explicit freshness labels.'
+      - '"Vendor-managed identity" — air_gapped profile uses an offline trust root; vendor identity is out of window.'
+      - '"Companion browser surfaces" — companion handoff is explicitly disallowed in this profile.'
+      - '"AI-assisted workflows" unless a local-only inference path is named (the hosted AI broker is forbidden on this profile).'
+    change_trigger_rule_refs:
+      - rule:residual_dependency_posture_changed
+      - rule:tenancy_or_residency_changed
+      - rule:skew_window_or_out_of_window_posture_changed
+      - rule:companion_surface_posture_changed
+      - rule:hybrid_remote_attach_posture_changed
+    notes: >
+      Air-gapped rows MUST NOT imply public-internet reachability and
+      MUST treat the signed mirror / offline bundle as the only
+      compatibility surface. When the bundle's freshness window closes,
+      consumers narrow to mirror-only labels rather than promoting a
+      cached row back to "current."
+
+  - deployment_profile_id: managed_cloud
+    product_facing_label: browser_companion_handoff_default_home
+    title: Managed-cloud SaaS (browser companion / handoff default home) profile
+    status: seeded
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: per_milestone
+    visibility_class: public
+    locality_matrix_ref: managed_cloud
+    qualification_matrix_deployment_profile_id: managed_cloud
+    claim_manifest_deployment_profile_id: managed_cloud
+    boundary_manifest_deployment_profile_id: managed_cloud
+    residual_dependency_ledger_ref: ledger_profile:managed_cloud
+    sign_in_expectation_class: sign_in_expected_vendor_idp
+    public_internet_expectation_class: public_internet_expected
+    tenancy_and_residency:
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: vendor_retention_window_default
+      key_mode_class: vendor_managed
+    skew_window:
+      skew_window_class: current_plus_previous_minor_or_lts
+      out_of_window_posture: read_only
+      notes: >
+        Vendor-operated control plane and connected clients stay within
+        the current and previous minor or LTS window. Out-of-window
+        clients narrow to read-only safe operations against cached
+        metadata instead of an optimistic parity claim.
+    hybrid_remote_attach_posture_class: remote_attach_supported_declared_window
+    companion_surface_posture_class: companion_handoff_primary_surface_home
+    linked_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - failover_boundary_recheck_future_managed_case
+    linked_continuity_case_refs:
+      - fixtures/deployment/continuity_cases/managed_cloud_relay_disconnect.json
+    fail_local_continuity_notes: >
+      When the vendor control plane, relay, managed AI broker, or
+      browser-companion notification channel becomes unavailable, local
+      editing, save, search, local git, tasks, export, and diagnostics
+      remain available_local_safe. Browser-companion surfaces narrow to
+      the cached last-known-good state with explicit freshness labeling;
+      they do not silently present stale truth as current.
+    public_claim_allowlist:
+      - "Runs against the vendor-operated managed control plane with browser companion / handoff as a first-class surface."
+      - "Customer-pinned region, vendor-managed keys by default, vendor retention window."
+      - "Local-core capabilities keep working when the managed control plane is degraded; companion surfaces narrow to cached read-only rather than hidden outage."
+    prohibited_implied_claims:
+      - '"Sovereign" — managed_cloud is vendor-operated by definition; use self_hosted for sovereignty claims.'
+      - '"Air-gapped" — managed_cloud expects public internet; the air_gapped profile forbids it.'
+      - '"No hosted residual dependency" — the ledger names several dependencies as required in this profile.'
+      - '"Works identically offline" — companion surfaces narrow to cached last-known-good, not live parity.'
+    change_trigger_rule_refs:
+      - rule:residual_dependency_posture_changed
+      - rule:tenancy_or_residency_changed
+      - rule:skew_window_or_out_of_window_posture_changed
+      - rule:companion_surface_posture_changed
+      - rule:hybrid_remote_attach_posture_changed
+    notes: >
+      Managed-cloud is the default home for browser-companion / handoff
+      flows. Browser-companion surfaces on other profiles narrow against
+      their own companion_surface_posture_class; this row establishes
+      the baseline where companion is a primary surface.
+
+# -----------------------------------------------------------------------------
+# Change-trigger rules.
+#
+# Each rule names one set of downstream update surfaces that MUST be refreshed
+# when the named profile field changes. Tooling reads these rules; the
+# narrative companion in docs/governance/deployment_profile_truth.md explains
+# why each change reclassifies public wording.
+# -----------------------------------------------------------------------------
+
+change_trigger_rules:
+  - rule_id: rule:residual_dependency_posture_changed
+    description: >
+      A dependency's per-profile posture in
+      artifacts/governance/residual_dependencies.yaml moves between
+      required, optional, cached, mirrored, or forbidden for this
+      profile.
+    required_update_surfaces:
+      - claim_manifest: artifacts/governance/claim_manifest_seed.yaml
+      - compatibility_report_template: docs/release/release_evidence_packet_template.md
+      - docs_help_service_health: docs/adr/0013-docs-help-service-health-truth.md
+      - evidence_packet_header: schemas/governance/evidence_packet_header.schema.json
+      - qualification_matrix_seed: artifacts/compat/qualification_matrix_seed.yaml
+      - support_bundle_contract: docs/support/support_bundle_contract.md
+    denial_notes: >
+      A residual-dependency posture change without a companion
+      claim-manifest and compatibility-report update is non-conforming;
+      surfaces would continue implying the old scope.
+
+  - rule_id: rule:tenancy_or_residency_changed
+    description: >
+      The profile's tenant_org_scope_class, region_scope_class,
+      retention_class, or key_mode_class changes.
+    required_update_surfaces:
+      - claim_manifest: artifacts/governance/claim_manifest_seed.yaml
+      - locality_matrix: artifacts/deployment/locality_matrix.yaml
+      - compatibility_report_template: docs/release/release_evidence_packet_template.md
+      - docs_help_service_health: docs/adr/0013-docs-help-service-health-truth.md
+      - support_bundle_contract: docs/support/support_bundle_contract.md
+    denial_notes: >
+      Tenancy and residency are claim-bearing fields. A change without
+      refreshing the locality matrix and the claim manifest is a silent
+      widening or narrowing of compliance scope.
+
+  - rule_id: rule:skew_window_or_out_of_window_posture_changed
+    description: >
+      The profile's skew_window_class or out_of_window_posture changes.
+    required_update_surfaces:
+      - qualification_matrix_seed: artifacts/compat/qualification_matrix_seed.yaml
+      - version_skew_register: artifacts/compat/version_skew_register.yaml
+      - claim_manifest: artifacts/governance/claim_manifest_seed.yaml
+      - compatibility_report_template: docs/release/release_evidence_packet_template.md
+      - evidence_packet_header: schemas/governance/evidence_packet_header.schema.json
+    denial_notes: >
+      Skew-window changes must propagate to the qualification and
+      version-skew registers in the same change; otherwise the row and
+      its register disagree.
+
+  - rule_id: rule:companion_surface_posture_changed
+    description: >
+      The profile's companion_surface_posture_class changes (for
+      example, a profile begins supporting cross-device handoff, or
+      narrows an earlier companion-allowed posture).
+    required_update_surfaces:
+      - claim_manifest: artifacts/governance/claim_manifest_seed.yaml
+      - docs_help_service_health: docs/adr/0013-docs-help-service-health-truth.md
+      - qualification_matrix_seed: artifacts/compat/qualification_matrix_seed.yaml
+      - residual_dependency_ledger: artifacts/governance/residual_dependencies.yaml
+      - support_bundle_contract: docs/support/support_bundle_contract.md
+    denial_notes: >
+      Companion-surface posture is visible public truth. Silent posture
+      drift would let browser-companion claims widen beyond their
+      in-window scope.
+
+  - rule_id: rule:hybrid_remote_attach_posture_changed
+    description: >
+      The profile's hybrid_remote_attach_posture_class changes.
+    required_update_surfaces:
+      - qualification_matrix_seed: artifacts/compat/qualification_matrix_seed.yaml
+      - version_skew_register: artifacts/compat/version_skew_register.yaml
+      - claim_manifest: artifacts/governance/claim_manifest_seed.yaml
+      - compatibility_report_template: docs/release/release_evidence_packet_template.md
+      - residual_dependency_ledger: artifacts/governance/residual_dependencies.yaml
+    denial_notes: >
+      Remote-attach posture governs how the desktop couples to a remote
+      agent. A change without refreshing the skew and claim registers
+      is a silent scope change.
+
+# -----------------------------------------------------------------------------
+# Fixture index.
+#
+# Fixtures live under fixtures/governance/deployment_profiles/ and exercise
+# one or more rows end-to-end. The narrowing fixture below is the worked
+# example required by the acceptance criteria: a hosted dependency failure
+# narrows the profile truth without turning the desktop into a hidden thin
+# client.
+# -----------------------------------------------------------------------------
+
+fixture_index:
+  - fixture_id: desktop_local_first_baseline
+    deployment_profile_id: individual_local
+    fixture_ref: fixtures/governance/deployment_profiles/desktop_local_first_baseline.yaml
+    scenario_summary: >
+      Baseline local-first descriptor instance with no residual hosted
+      dependency required.
+  - fixture_id: self_hosted_sovereign_baseline
+    deployment_profile_id: self_hosted
+    fixture_ref: fixtures/governance/deployment_profiles/self_hosted_sovereign_baseline.yaml
+    scenario_summary: >
+      Customer-operated control plane with customer-managed keys and
+      declared adjacent skew window.
+  - fixture_id: hybrid_remote_attach_baseline
+    deployment_profile_id: enterprise_online
+    fixture_ref: fixtures/governance/deployment_profiles/hybrid_remote_attach_baseline.yaml
+    scenario_summary: >
+      Hybrid remote-attach descriptor with managed AI broker available
+      and cross-device companion handoff supported.
+  - fixture_id: air_gapped_mirror_only_baseline
+    deployment_profile_id: air_gapped
+    fixture_ref: fixtures/governance/deployment_profiles/air_gapped_mirror_only_baseline.yaml
+    scenario_summary: >
+      Air-gapped descriptor with offline trust root and
+      companion-handoff explicitly disallowed.
+  - fixture_id: managed_cloud_browser_companion_baseline
+    deployment_profile_id: managed_cloud
+    fixture_ref: fixtures/governance/deployment_profiles/managed_cloud_browser_companion_baseline.yaml
+    scenario_summary: >
+      Managed-cloud descriptor with companion handoff as the primary
+      surface home and vendor-managed keys by default.
+  - fixture_id: hybrid_ai_broker_outage_narrows_profile
+    deployment_profile_id: enterprise_online
+    fixture_ref: fixtures/governance/deployment_profiles/hybrid_ai_broker_outage_narrows_profile.yaml
+    scenario_summary: >
+      Worked narrowing example. The managed AI broker and browser
+      companion notification channel both degrade; the profile narrows
+      its AI and companion claims to cached read-only posture while
+      local-core editing, save, search, local git, tasks, export, and
+      diagnostics remain available_local_safe. The desktop does not
+      turn into a hidden thin client.
+
+# -----------------------------------------------------------------------------
+# Coverage guards.
+#
+# Tooling SHOULD verify the register against the locality matrix and the
+# qualification-matrix deployment-profile vocabulary. Advisory at this
+# revision; a later milestone may promote to a required CI check.
+# -----------------------------------------------------------------------------
+
+coverage_guards:
+  deployment_profile_vocabulary_parity_required: true
+  residual_dependency_ledger_profile_parity_required: true
+  qualification_matrix_profile_id_reuse_required: true
+  claim_manifest_profile_id_reuse_required: true
+  narrowing_example_required: true

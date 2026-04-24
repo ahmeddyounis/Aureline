@@ -1,0 +1,522 @@
+# Residual-dependency ledger.
+#
+# Machine-readable companion to docs/governance/deployment_profile_truth.md
+# and artifacts/governance/deployment_profiles.yaml. Every row pins one
+# residual-dependency class against every frozen deployment profile so no
+# profile can read "quietly required" or "quietly forbidden" when it is
+# actually the other.
+#
+# One row per residual-dependency class. Each row declares a per-profile
+# posture drawn from the frozen posture vocabulary below; an absence-impact
+# narrative per profile; and a named continuity-fallback class per profile
+# so the failure mode is inspectable, not implied.
+#
+# Rules.
+#   - Every row MUST name one dependency_class from the frozen
+#     dependency_class_vocabulary.
+#   - Every row MUST declare per_profile_posture, per_profile_absence_impact,
+#     and per_profile_continuity_fallback entries for every deployment
+#     profile in
+#     artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary.
+#     Missing entries are validation failures. Silent posture defaults are
+#     forbidden; a dependency that genuinely does not apply to a profile
+#     uses posture=forbidden or posture=not_applicable_structural with an
+#     explicit reason.
+#   - Posture "forbidden" names a dependency that must NOT be used in the
+#     named profile. Surfaces that attempt to use a forbidden dependency
+#     MUST fail closed and cite this row.
+#   - Posture "cached" names a dependency whose last-known-good local
+#     state is allowed to serve reads under a stale-cache label; it does
+#     not license live fetch.
+#   - Posture "mirrored" names a dependency that must resolve against a
+#     signed mirror or offline bundle in the named profile, with freshness
+#     labeling.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     narrative field.
+#   - Adding a value to dependency_class_vocabulary,
+#     posture_class_vocabulary, absence_impact_class_vocabulary, or
+#     continuity_fallback_class_vocabulary is additive-minor and MUST bump
+#     schema_version on this file and the deployment-profile register in
+#     the same change. Repurposing a value is breaking and opens a
+#     decision row under artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/governance/deployment_profile_truth.md
+deployment_profile_register_source: artifacts/governance/deployment_profiles.yaml
+locality_matrix_source: artifacts/deployment/locality_matrix.yaml
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+claim_manifest_source: artifacts/governance/claim_manifest_seed.yaml
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+deployment_drill_catalog_source: artifacts/support/deployment_drill_catalog_seed.yaml
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.24 local-first operation"
+      - "§5.53 managed control-plane boundary"
+      - "§5.57 air-gapped operation"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.6 managed-service separation"
+      - "§9.7 local-core resilience"
+      - "§9.8 mirror and offline posture"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.4.2 control-plane degrade"
+      - "§11.4.3 data-plane degrade"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+dependency_class_vocabulary:
+  - sign_in
+  - package_registry
+  - remote_mirror
+  - remote_agent
+  - symbol_service
+  - ai_provider
+  - policy_bundle
+  - docs_pack
+  - browser_handoff
+  - companion_notification_channel
+  - hosted_control_plane_reachability
+
+posture_class_vocabulary:
+  - required
+  - optional
+  - cached
+  - mirrored
+  - forbidden
+  - not_applicable_structural
+
+absence_impact_class_vocabulary:
+  - no_impact_capability_not_claimed_for_profile
+  - narrows_to_local_core_capabilities
+  - narrows_to_mirror_backed_read_only
+  - narrows_to_cached_last_known_good
+  - narrows_to_review_only_boundary_recheck
+  - blocked_pending_reconnect
+  - blocked_pending_boundary_recheck
+  - blocked_pending_mirror_refresh
+  - blocked_by_policy
+  - fail_closed_forbidden_in_profile
+
+continuity_fallback_class_vocabulary:
+  - continue_local_no_restore
+  - replay_cached_snapshot
+  - mirror_snapshot_import
+  - resume_after_reconnect
+  - manual_reconcile_after_boundary_change
+  - fail_closed_no_fallback
+  - not_applicable_structural
+
+# -----------------------------------------------------------------------------
+# Consumer bindings.
+# -----------------------------------------------------------------------------
+
+consumer_bindings:
+  deployment_profile_register:
+    primary_docs:
+      - artifacts/governance/deployment_profiles.yaml
+    rule: >
+      Every deployment_profile_row MUST cite this ledger via
+      residual_dependency_ledger_ref. Claim-bearing narrowing text on a
+      profile row MUST NOT contradict the posture rows below.
+  claim_manifest:
+    primary_docs:
+      - artifacts/governance/claim_manifest_seed.yaml
+    rule: >
+      Claim rows that mention optional service availability MUST quote
+      the dependency_class and its per-profile posture here instead of
+      describing dependency state in prose. A claim whose allowed
+      scope contradicts a "forbidden" posture on the named profile is
+      non-conforming.
+  compatibility_report:
+    primary_docs:
+      - docs/release/release_evidence_packet_template.md
+    rule: >
+      Compatibility reports cite the dependency_class id and the
+      per-profile posture row when narrowing claim-bearing statements
+      about hosted, mirrored, cached, or optional services.
+  support_bundle:
+    primary_docs:
+      - docs/support/support_bundle_contract.md
+      - schemas/support/support_bundle.schema.json
+    rule: >
+      Support bundles quote the dependency_class id and the current
+      posture when a service impairment is in scope; "service down"
+      without a dependency_class ref is out of contract.
+  locality_matrix:
+    primary_docs:
+      - artifacts/deployment/locality_matrix.yaml
+      - schemas/deployment/local_core_continuity_packet.schema.json
+    rule: >
+      Locality-matrix degrade mappings resolve against the continuity
+      fallback class on this ledger for each (profile, dependency) pair.
+      Continuity packets cite the dependency_class id when the packet
+      captures a real-world impairment.
+
+# -----------------------------------------------------------------------------
+# Ledger rows.
+#
+# Every row covers one dependency class against every frozen profile.
+# Postures are named for each profile; no profile is silently skipped.
+# -----------------------------------------------------------------------------
+
+ledger_rows:
+  - dependency_class: sign_in
+    title: Sign-in / identity session
+    description: >
+      The user authentication and identity session required before a
+      capability may operate against a non-local surface.
+    per_profile_posture:
+      individual_local: not_applicable_structural
+      self_hosted: required
+      enterprise_online: required
+      air_gapped: optional
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: blocked_pending_reconnect
+      enterprise_online: blocked_pending_reconnect
+      air_gapped: narrows_to_local_core_capabilities
+      managed_cloud: blocked_pending_reconnect
+    per_profile_continuity_fallback:
+      individual_local: not_applicable_structural
+      self_hosted: resume_after_reconnect
+      enterprise_online: resume_after_reconnect
+      air_gapped: continue_local_no_restore
+      managed_cloud: resume_after_reconnect
+    narrative: >
+      Individual-local is a no-sign-in profile; sign-in is structurally
+      not applicable. Self-hosted and enterprise-online require a
+      customer IdP session; when the session is stale, cached policy
+      and local-core capability continue while sign-in-gated flows wait
+      for reconnect. Air-gapped permits an optional local or federated
+      sign-in backed by the offline trust root. Managed-cloud expects
+      a vendor IdP session.
+
+  - dependency_class: package_registry
+    title: Package registry / extension catalog fetch
+    description: >
+      The registry or catalog endpoint that serves extension, template,
+      docs-pack, or toolchain manifests and artifact digests.
+    per_profile_posture:
+      individual_local: optional
+      self_hosted: required
+      enterprise_online: required
+      air_gapped: mirrored
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: narrows_to_local_core_capabilities
+      self_hosted: narrows_to_cached_last_known_good
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: narrows_to_mirror_backed_read_only
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: continue_local_no_restore
+      self_hosted: replay_cached_snapshot
+      enterprise_online: replay_cached_snapshot
+      air_gapped: mirror_snapshot_import
+      managed_cloud: replay_cached_snapshot
+    narrative: >
+      Individual-local runs without a registry in its baseline form;
+      customers that point the profile at a registry pick it up as an
+      optional add-on. Self-hosted and enterprise-online require a
+      reachable or cached registry; when neither is available, surfaces
+      narrow to cached last-known-good with explicit freshness labels.
+      Air-gapped resolves the registry against a signed mirror only.
+
+  - dependency_class: remote_mirror
+    title: Signed mirror / offline bundle
+    description: >
+      A customer- or vendor-signed mirror or offline bundle that carries
+      registry, docs-pack, policy, and toolchain artifacts for
+      constrained-connectivity deployments.
+    per_profile_posture:
+      individual_local: optional
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: required
+      managed_cloud: optional
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: no_impact_capability_not_claimed_for_profile
+      enterprise_online: no_impact_capability_not_claimed_for_profile
+      air_gapped: blocked_pending_mirror_refresh
+      managed_cloud: no_impact_capability_not_claimed_for_profile
+    per_profile_continuity_fallback:
+      individual_local: continue_local_no_restore
+      self_hosted: resume_after_reconnect
+      enterprise_online: resume_after_reconnect
+      air_gapped: mirror_snapshot_import
+      managed_cloud: resume_after_reconnect
+    narrative: >
+      The mirror is the air-gapped profile's only source of registry,
+      docs-pack, policy, auth/identity, and catalog truth. Other
+      profiles may consume a mirror as an optional replay source; when
+      the mirror snapshot is stale the air-gapped row narrows to
+      mirror-only labels rather than live fetch.
+
+  - dependency_class: remote_agent
+    title: Remote agent / SSH-attached development host
+    description: >
+      The remote agent running on the customer-reachable development
+      target (SSH, container, WSL) that the desktop client attaches to.
+    per_profile_posture:
+      individual_local: not_applicable_structural
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: forbidden
+      managed_cloud: optional
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_local_core_capabilities
+      enterprise_online: narrows_to_local_core_capabilities
+      air_gapped: fail_closed_forbidden_in_profile
+      managed_cloud: narrows_to_local_core_capabilities
+    per_profile_continuity_fallback:
+      individual_local: not_applicable_structural
+      self_hosted: continue_local_no_restore
+      enterprise_online: continue_local_no_restore
+      air_gapped: fail_closed_no_fallback
+      managed_cloud: continue_local_no_restore
+    narrative: >
+      Remote-agent attach is optional on self-hosted, enterprise-online,
+      and managed-cloud, within each profile's declared remote-attach
+      posture and skew window. When the remote agent is lost, the
+      desktop remains available_local_safe for local-core workflows
+      and does not become a thin client. Air-gapped explicitly forbids
+      remote-agent egress; attempts fail closed.
+
+  - dependency_class: symbol_service
+    title: Symbol / index service
+    description: >
+      The shared code-index / symbol-resolution service that serves
+      cross-repository navigation, hover, and reference data when the
+      local workspace is not the full scope.
+    per_profile_posture:
+      individual_local: not_applicable_structural
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: mirrored
+      managed_cloud: optional
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_local_core_capabilities
+      enterprise_online: narrows_to_local_core_capabilities
+      air_gapped: narrows_to_mirror_backed_read_only
+      managed_cloud: narrows_to_local_core_capabilities
+    per_profile_continuity_fallback:
+      individual_local: not_applicable_structural
+      self_hosted: continue_local_no_restore
+      enterprise_online: continue_local_no_restore
+      air_gapped: replay_cached_snapshot
+      managed_cloud: continue_local_no_restore
+    narrative: >
+      The symbol service is an optional cross-workspace index. When
+      reachable, it widens navigation claims; when unreachable, the
+      surface narrows to local-workspace index only, never silently
+      returning stale remote hits as if they were current. Air-gapped
+      resolves against a mirrored symbol snapshot.
+
+  - dependency_class: ai_provider
+    title: Managed AI provider / broker
+    description: >
+      The managed inference-and-tool-broker surface that serves chat,
+      edit, and agent flows. Includes the managed AI-broker turn route
+      and any tenant-routed hosted inference provider.
+    per_profile_posture:
+      individual_local: optional
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: forbidden
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: narrows_to_local_core_capabilities
+      self_hosted: narrows_to_local_core_capabilities
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: fail_closed_forbidden_in_profile
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: continue_local_no_restore
+      self_hosted: continue_local_no_restore
+      enterprise_online: replay_cached_snapshot
+      air_gapped: fail_closed_no_fallback
+      managed_cloud: replay_cached_snapshot
+    narrative: >
+      The managed AI provider is optional in every local-capable
+      profile and required in managed-cloud. When the provider
+      degrades, AI surfaces narrow to cached last-known-good posture
+      with explicit freshness labeling; local editing, save, search,
+      local git, tasks, export, and diagnostics remain
+      available_local_safe. Air-gapped forbids hosted AI; attempts
+      fail closed.
+
+  - dependency_class: policy_bundle
+    title: Policy bundle / admin policy service
+    description: >
+      The signed policy bundle or admin policy service that projects
+      tenant or organization policy (egress rules, extension allow /
+      deny lists, retention policy, redaction floors).
+    per_profile_posture:
+      individual_local: optional
+      self_hosted: required
+      enterprise_online: required
+      air_gapped: mirrored
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_cached_last_known_good
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: narrows_to_mirror_backed_read_only
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: continue_local_no_restore
+      self_hosted: replay_cached_snapshot
+      enterprise_online: replay_cached_snapshot
+      air_gapped: mirror_snapshot_import
+      managed_cloud: replay_cached_snapshot
+    narrative: >
+      Policy flows through a signed bundle on every managed or
+      customer-operated profile; on air-gapped it resolves against a
+      signed mirror. When the bundle is stale, policy evaluation uses
+      the cached last-known-good version under an explicit stale label
+      rather than silently going permissive.
+
+  - dependency_class: docs_pack
+    title: Docs / help pack
+    description: >
+      The versioned docs and help pack that carries public-facing
+      reference content, release notes, and migration notes.
+    per_profile_posture:
+      individual_local: cached
+      self_hosted: cached
+      enterprise_online: cached
+      air_gapped: mirrored
+      managed_cloud: cached
+    per_profile_absence_impact:
+      individual_local: narrows_to_cached_last_known_good
+      self_hosted: narrows_to_cached_last_known_good
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: narrows_to_mirror_backed_read_only
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: replay_cached_snapshot
+      self_hosted: replay_cached_snapshot
+      enterprise_online: replay_cached_snapshot
+      air_gapped: mirror_snapshot_import
+      managed_cloud: replay_cached_snapshot
+    narrative: >
+      The docs pack ships as a local cache on every profile and travels
+      as a signed mirror on air-gapped. When the cache is stale, help
+      and release-note surfaces quote the cached posture with an
+      explicit freshness label; air-gapped surfaces quote the mirror
+      posture. A surface may not present stale docs as current.
+
+  - dependency_class: browser_handoff
+    title: Browser companion / handoff channel
+    description: >
+      The cross-device approval, preview, and handoff flow that lets a
+      browser complete or review actions started on the desktop (and
+      vice versa).
+    per_profile_posture:
+      individual_local: optional
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: forbidden
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_cached_last_known_good
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: fail_closed_forbidden_in_profile
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: continue_local_no_restore
+      self_hosted: replay_cached_snapshot
+      enterprise_online: replay_cached_snapshot
+      air_gapped: fail_closed_no_fallback
+      managed_cloud: replay_cached_snapshot
+    narrative: >
+      Browser handoff is a first-class surface in managed-cloud and an
+      optional surface in every other profile that permits public
+      internet. When the handoff channel is degraded, the companion
+      surface narrows to cached last-known-good under a freshness
+      label; the desktop does not turn into a hidden thin client.
+      Air-gapped forbids the channel.
+
+  - dependency_class: companion_notification_channel
+    title: Companion notification channel
+    description: >
+      The push / email / webhook channel that carries approval prompts,
+      review nudges, and status notifications for browser-companion and
+      remote workflows.
+    per_profile_posture:
+      individual_local: not_applicable_structural
+      self_hosted: optional
+      enterprise_online: optional
+      air_gapped: forbidden
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_cached_last_known_good
+      enterprise_online: narrows_to_cached_last_known_good
+      air_gapped: fail_closed_forbidden_in_profile
+      managed_cloud: narrows_to_cached_last_known_good
+    per_profile_continuity_fallback:
+      individual_local: not_applicable_structural
+      self_hosted: resume_after_reconnect
+      enterprise_online: resume_after_reconnect
+      air_gapped: fail_closed_no_fallback
+      managed_cloud: resume_after_reconnect
+    narrative: >
+      Companion notifications are a managed-cloud first-class surface
+      and an optional add-on on self-hosted and enterprise-online.
+      When the channel is unavailable, the surface narrows to cached
+      last-known-good under a stale label and waits for reconnect.
+      Air-gapped forbids the channel outright.
+
+  - dependency_class: hosted_control_plane_reachability
+    title: Hosted control-plane reachability
+    description: >
+      The ability of the desktop client to reach the hosted control
+      plane family (sync, relay, registry, auth/identity, catalog, AI
+      broker, telemetry sink) at all.
+    per_profile_posture:
+      individual_local: not_applicable_structural
+      self_hosted: optional
+      enterprise_online: required
+      air_gapped: forbidden
+      managed_cloud: required
+    per_profile_absence_impact:
+      individual_local: no_impact_capability_not_claimed_for_profile
+      self_hosted: narrows_to_local_core_capabilities
+      enterprise_online: narrows_to_local_core_capabilities
+      air_gapped: fail_closed_forbidden_in_profile
+      managed_cloud: narrows_to_local_core_capabilities
+    per_profile_continuity_fallback:
+      individual_local: not_applicable_structural
+      self_hosted: continue_local_no_restore
+      enterprise_online: continue_local_no_restore
+      air_gapped: fail_closed_no_fallback
+      managed_cloud: continue_local_no_restore
+    narrative: >
+      Hosted control-plane reachability is the broadest residual
+      dependency. When a profile loses it, the desktop narrows to
+      available_local_safe local-core capabilities and carries a labeled
+      stale-cache posture for everything hosted; it does not silently
+      collapse all product truth into a generic outage. Air-gapped
+      forbids hosted reachability; attempts fail closed.
+
+# -----------------------------------------------------------------------------
+# Coverage guards.
+# -----------------------------------------------------------------------------
+
+coverage_guards:
+  every_profile_covered_by_every_row_required: true
+  narrowing_vs_thin_client_distinction_required: true
+  forbidden_posture_backed_by_fail_closed_fallback_required: true
