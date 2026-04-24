@@ -1,0 +1,857 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/terminal/session_restore_metadata.schema.json",
+  "title": "Aureline terminal session-restore metadata, session-lifecycle, shell-integration signal, clipboard-event, and terminal-audit vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the terminal protocol, PTY ownership, shell-integration signals, clipboard-trust rules, and session-restore metadata reserved in docs/adr/0021-terminal-protocol-and-clipboard.md. Every record that crosses the terminal boundary (session open, lifecycle transition, shell-integration signal, clipboard event, session-restore metadata, terminal audit event) projects through this schema. The shell-integration signal registry lives at artifacts/terminal/shell_integration_signals.yaml; worked fixtures live at fixtures/terminal/protocol_cases.yaml. Raw PTY bytes, raw escape-sequence payloads, raw command lines, raw environment bytes, raw clipboard bytes, raw shell prompts, and raw URLs MUST NOT appear in any record; records carry refs only. Adding a new member to any enumerated set, a new record kind, or an additive field is additive-minor with a terminal_protocol_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/terminal_session_open_record" },
+    { "$ref": "#/$defs/terminal_session_lifecycle_transition_record" },
+    { "$ref": "#/$defs/shell_integration_signal_record" },
+    { "$ref": "#/$defs/terminal_clipboard_event_record" },
+    { "$ref": "#/$defs/terminal_session_restore_metadata_record" },
+    { "$ref": "#/$defs/terminal_audit_event_record" }
+  ],
+  "$defs": {
+    "terminal_protocol_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the terminal protocol / clipboard / restore vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "terminal_session_open_record",
+        "terminal_session_lifecycle_transition_record",
+        "shell_integration_signal_record",
+        "terminal_clipboard_event_record",
+        "terminal_session_restore_metadata_record",
+        "terminal_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (execution-context root, trust-decision packet, admin-policy epoch, target-identity witness, mutation-journal entry, credential-handle class, command-dispatch descriptor, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction-class vocabulary. Terminal records default to metadata_and_hashes_only; broadened_capture requires an explicit provenance record."
+    },
+
+    "pty_owner_class": {
+      "type": "string",
+      "enum": [
+        "host_desktop",
+        "remote_agent_primary",
+        "managed_workspace_agent",
+        "provider_side_remote_agent",
+        "compatibility_bridge_remote"
+      ],
+      "description": "Frozen PTY-owner-class vocabulary. A session declares exactly one owner class."
+    },
+
+    "terminal_session_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "session_requested",
+        "session_starting",
+        "session_active",
+        "session_idle",
+        "session_suspended",
+        "session_lost_transport",
+        "session_reconnected_same_identity",
+        "session_reconnected_identity_changed",
+        "session_kill_requested",
+        "session_kill_confirmed",
+        "session_restart_requested",
+        "session_closed",
+        "session_quarantined"
+      ],
+      "description": "Frozen terminal-session lifecycle-state vocabulary. Widening transitions are breaking and require a new decision row."
+    },
+
+    "protocol_conformance_level": {
+      "type": "string",
+      "enum": [
+        "baseline_only",
+        "baseline_plus_osc_allowlist",
+        "baseline_plus_shell_integration_optional",
+        "baseline_plus_shell_integration_required"
+      ],
+      "description": "Frozen protocol-conformance-level vocabulary. baseline_plus_shell_integration_required is reserved for future surfaces and not admitted at this milestone."
+    },
+
+    "shell_family_declared": {
+      "type": "string",
+      "enum": [
+        "bash",
+        "zsh",
+        "fish",
+        "powershell",
+        "cmd",
+        "other"
+      ],
+      "description": "Declared shell family on a signal record. Informational only; the host does not trust shell self-report for authority."
+    },
+
+    "shell_integration_signal_kind": {
+      "type": "string",
+      "enum": [
+        "prompt_begin",
+        "prompt_end",
+        "command_begin",
+        "command_end",
+        "cwd_change",
+        "virtual_environment_hint",
+        "rerun_metadata",
+        "session_title_hint",
+        "protocol_level_advertised"
+      ],
+      "description": "Frozen shell-integration signal-kind vocabulary. Additive-minor."
+    },
+
+    "terminal_clipboard_write_class": {
+      "type": "string",
+      "enum": [
+        "host_initiated_copy",
+        "host_initiated_paste",
+        "osc52_write_from_local_shell",
+        "osc52_write_from_remote_agent",
+        "osc52_read_request",
+        "remote_clipboard_bridge_write",
+        "remote_clipboard_bridge_read"
+      ],
+      "description": "Frozen terminal-clipboard-write-class vocabulary."
+    },
+
+    "terminal_clipboard_suppression_class": {
+      "type": "string",
+      "enum": [
+        "allowed_with_preview",
+        "allowed_without_preview",
+        "suppressed_by_trust",
+        "suppressed_by_policy",
+        "suppressed_by_secret_class",
+        "suppressed_by_content_class",
+        "denied_read"
+      ],
+      "description": "Frozen terminal-clipboard-suppression-class vocabulary. A silent drop is non-conforming; every action emits a terminal_clipboard_event_record with its suppression class."
+    },
+
+    "terminal_restore_level": {
+      "type": "string",
+      "enum": [
+        "restore_ui_only",
+        "restore_ui_with_transcript",
+        "restore_ui_with_transcript_and_hints",
+        "restore_declined_by_policy",
+        "restore_declined_by_trust",
+        "restore_declined_by_missing_root"
+      ],
+      "description": "Frozen terminal-restore-level vocabulary."
+    },
+
+    "terminal_restore_decision": {
+      "type": "string",
+      "enum": [
+        "restore_approved_user_initiated_fresh_session",
+        "restore_approved_evidence_only",
+        "restore_declined",
+        "restore_declined_automatic"
+      ],
+      "description": "Frozen terminal-restore-decision vocabulary."
+    },
+
+    "terminal_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "terminal_pty_owner_class_unknown",
+        "terminal_pty_allocation_failed",
+        "terminal_execution_context_root_unresolved",
+        "terminal_trust_state_denies_open",
+        "terminal_policy_pack_denies_open",
+        "terminal_protocol_violation_budget_exceeded",
+        "terminal_protocol_level_required_not_advertised",
+        "terminal_shell_integration_required_not_available",
+        "terminal_clipboard_write_suppressed_by_trust",
+        "terminal_clipboard_write_suppressed_by_policy",
+        "terminal_clipboard_write_suppressed_by_secret_class",
+        "terminal_clipboard_write_suppressed_by_content_class",
+        "terminal_clipboard_read_denied_by_default",
+        "terminal_remote_clipboard_bridge_denied",
+        "terminal_restore_declined_by_policy",
+        "terminal_restore_declined_by_trust",
+        "terminal_restore_declined_by_missing_root",
+        "terminal_restore_auto_rerun_forbidden",
+        "terminal_remote_session_failed_no_local_fallback",
+        "terminal_raw_body_forbidden_on_boundary"
+      ],
+      "description": "Frozen denial-reason vocabulary. Every denial fails closed and cites exactly one value."
+    },
+
+    "terminal_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "terminal_session_opened",
+        "terminal_session_open_denied",
+        "terminal_session_closed",
+        "terminal_session_kill_requested",
+        "terminal_session_restart_requested",
+        "terminal_session_quarantined",
+        "terminal_session_reconnect_same_identity",
+        "terminal_session_reconnect_identity_changed",
+        "terminal_shell_integration_advertised",
+        "terminal_shell_integration_signal_emitted",
+        "terminal_clipboard_write_admitted_with_preview",
+        "terminal_clipboard_write_suppressed",
+        "terminal_clipboard_read_denied",
+        "terminal_remote_clipboard_bridge_admitted_with_preview",
+        "terminal_remote_clipboard_bridge_denied",
+        "terminal_restore_offered",
+        "terminal_restore_admitted_evidence_only",
+        "terminal_restore_admitted_fresh_session",
+        "terminal_restore_declined",
+        "terminal_protocol_violation_observed"
+      ],
+      "description": "Frozen terminal audit-event id vocabulary. Raw PTY bytes, raw escape sequences, raw command lines, raw environment bytes, raw clipboard bytes, raw prompts, and raw URLs MUST NOT appear on any event."
+    },
+
+    "shell_integration_signal_payload_empty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "description": "Empty payload body for prompt_begin / prompt_end / command_begin."
+    },
+
+    "shell_integration_signal_payload_cwd_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cwd_token_ref"],
+      "properties": {
+        "cwd_token_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Canonical cwd token under ADR-0006 path identity. Remote cwds resolve through the remote-agent target identity from ADR-0020."
+        }
+      },
+      "description": "Payload for cwd_change."
+    },
+
+    "shell_integration_signal_payload_exit_status_and_duration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exit_status", "duration_monotonic_ms"],
+      "properties": {
+        "exit_status": {
+          "type": "integer",
+          "description": "Exit status as reported by the shell (POSIX exit-code space or PowerShell/cmd equivalent)."
+        },
+        "duration_monotonic_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic duration in milliseconds from the paired command_begin signal."
+        }
+      },
+      "description": "Payload for command_end."
+    },
+
+    "shell_integration_signal_payload_virtual_env_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["virtual_env_class", "virtual_env_ref"],
+      "properties": {
+        "virtual_env_class": {
+          "type": "string",
+          "enum": [
+            "venv",
+            "conda",
+            "nix_shell",
+            "managed_toolchain",
+            "other"
+          ],
+          "description": "Typed class of the virtual-environment hint."
+        },
+        "virtual_env_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the environment-capsule record from ADR-0009 execution-context snapshot."
+        }
+      },
+      "description": "Payload for virtual_environment_hint."
+    },
+
+    "shell_integration_signal_payload_rerun_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_descriptor_ref", "captured_at"],
+      "properties": {
+        "command_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the command descriptor on the command-dispatch boundary from ADR-0016. Raw command tokens MUST NOT cross here."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "exit_status_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Optional ref to the exit-status record for the prior command_end."
+        }
+      },
+      "description": "Payload for rerun_metadata. Evidence only; never carries authority to rerun."
+    },
+
+    "shell_integration_signal_payload_session_title_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title_hint"],
+      "properties": {
+        "title_hint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible session-title hint. redaction_class applies."
+        }
+      },
+      "description": "Payload for session_title_hint."
+    },
+
+    "shell_integration_signal_payload_protocol_level_advertised": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["advertised_level"],
+      "properties": {
+        "advertised_level": { "$ref": "#/$defs/protocol_conformance_level" }
+      },
+      "description": "Payload for protocol_level_advertised."
+    },
+
+    "terminal_session_open_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "session_id",
+        "pty_owner_class",
+        "execution_context_root_ref",
+        "trust_state_ref",
+        "identity_mode_ref",
+        "advertised_protocol_level",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_session_open_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "pty_owner_class": { "$ref": "#/$defs/pty_owner_class" },
+        "remote_agent_session_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the ADR-0020 remote-agent session id when pty_owner_class is not host_desktop. Null for host_desktop."
+        },
+        "execution_context_root_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0009 execution-context root that anchors cwd, environment capsule, and toolchain activator."
+        },
+        "trust_state_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0018 trust-decision record governing this open."
+        },
+        "identity_mode_ref": { "$ref": "#/$defs/opaque_ref" },
+        "admin_policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that admitted this open (terminal.manual_open or terminal.repo_recipe_launch)."
+        },
+        "advertised_protocol_level": { "$ref": "#/$defs/protocol_conformance_level" },
+        "osc_allowlist_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the OSC allow-list row bound on this session. Null when baseline_only."
+        },
+        "shell_family_declared": { "$ref": "#/$defs/shell_family_declared" },
+        "local_vs_remote_boundary_cue_visible": {
+          "type": "boolean",
+          "description": "Whether the surface renders the visible local-vs-remote boundary cue. MUST be true whenever pty_owner_class is not host_desktop."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered list of audit events emitted for this open."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Non-host-desktop sessions MUST carry the remote-agent session ref and MUST render the local-vs-remote boundary cue.",
+          "if": {
+            "properties": {
+              "pty_owner_class": {
+                "not": { "const": "host_desktop" }
+              }
+            },
+            "required": ["pty_owner_class"]
+          },
+          "then": {
+            "required": ["remote_agent_session_id_ref"],
+            "properties": {
+              "remote_agent_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+              "local_vs_remote_boundary_cue_visible": { "const": true }
+            }
+          }
+        }
+      ]
+    },
+
+    "terminal_session_lifecycle_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "session_id",
+        "from_state",
+        "to_state",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_session_lifecycle_transition_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "transition_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "from_state": { "$ref": "#/$defs/terminal_session_lifecycle_state" },
+        "to_state": { "$ref": "#/$defs/terminal_session_lifecycle_state" },
+        "reason_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the reason record for this transition (user-initiated kill, policy narrowing, trust downgrade, remote-agent reconnect decision, protocol-violation observation, etc.)."
+        },
+        "auto_rerun_forbidden": {
+          "type": "boolean",
+          "description": "MUST be true on every transition into session_reconnected_same_identity, session_reconnected_identity_changed, and on any transition that follows a restore decision. Silent replay of any prior command is forbidden under every value."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "shell_integration_signal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "signal_id",
+        "session_id",
+        "signal_kind",
+        "sequence",
+        "observed_at",
+        "shell_family_declared",
+        "protocol_level_observed",
+        "payload"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_integration_signal_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "signal_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "signal_kind": { "$ref": "#/$defs/shell_integration_signal_kind" },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic per-session sequence number."
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "shell_family_declared": { "$ref": "#/$defs/shell_family_declared" },
+        "protocol_level_observed": { "$ref": "#/$defs/protocol_conformance_level" },
+        "payload": {
+          "description": "Typed payload. The shape is determined by signal_kind; see allOf below.",
+          "oneOf": [
+            { "$ref": "#/$defs/shell_integration_signal_payload_empty" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_cwd_token" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_exit_status_and_duration" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_virtual_env_hint" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_rerun_metadata" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_session_title_hint" },
+            { "$ref": "#/$defs/shell_integration_signal_payload_protocol_level_advertised" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "cwd_change signals carry a cwd_token_ref payload.",
+          "if": {
+            "properties": { "signal_kind": { "const": "cwd_change" } },
+            "required": ["signal_kind"]
+          },
+          "then": {
+            "properties": {
+              "payload": { "$ref": "#/$defs/shell_integration_signal_payload_cwd_token" }
+            }
+          }
+        },
+        {
+          "description": "command_end signals carry exit_status and duration.",
+          "if": {
+            "properties": { "signal_kind": { "const": "command_end" } },
+            "required": ["signal_kind"]
+          },
+          "then": {
+            "properties": {
+              "payload": { "$ref": "#/$defs/shell_integration_signal_payload_exit_status_and_duration" }
+            }
+          }
+        },
+        {
+          "description": "rerun_metadata signals carry rerun_metadata payload and are evidence only.",
+          "if": {
+            "properties": { "signal_kind": { "const": "rerun_metadata" } },
+            "required": ["signal_kind"]
+          },
+          "then": {
+            "properties": {
+              "payload": { "$ref": "#/$defs/shell_integration_signal_payload_rerun_metadata" }
+            }
+          }
+        }
+      ]
+    },
+
+    "terminal_clipboard_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "event_id",
+        "session_id",
+        "write_class",
+        "suppression_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_clipboard_event_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "write_class": { "$ref": "#/$defs/terminal_clipboard_write_class" },
+        "suppression_class": { "$ref": "#/$defs/terminal_clipboard_suppression_class" },
+        "trust_state_ref_at_event": { "$ref": "#/$defs/opaque_ref" },
+        "policy_source_ref_at_event": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Remote-agent target-identity witness ref (ADR-0020). MUST be non-null when write_class is osc52_write_from_remote_agent, remote_clipboard_bridge_write, or remote_clipboard_bridge_read."
+        },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to high-risk preview classes from docs/ux/shell_interaction_safety_contract.md that apply (multiline_terminal_paste, remote_clipboard_bridge, paste_then_run, secret_access, bidi_or_invisible_formatting_reveal, confusable_identifier_reveal)."
+        },
+        "secret_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes from ADR-0007 that the payload intersects. Non-empty when suppression_class is suppressed_by_secret_class."
+        },
+        "payload_summary_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a sanitised payload-summary record (item count, aggregate byte estimate, representation class). Raw clipboard bytes MUST NOT appear."
+        },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that gated the write. MUST be non-null when suppression_class is allowed_with_preview."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/terminal_denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Typed denial reason. Non-null when suppression_class is one of the suppressed_* or denied_read values."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Remote-originated clipboard events MUST carry the target-identity witness ref.",
+          "if": {
+            "properties": {
+              "write_class": {
+                "enum": [
+                  "osc52_write_from_remote_agent",
+                  "remote_clipboard_bridge_write",
+                  "remote_clipboard_bridge_read"
+                ]
+              }
+            },
+            "required": ["write_class"]
+          },
+          "then": {
+            "required": ["target_identity_witness_ref"],
+            "properties": {
+              "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "allowed_with_preview events MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "suppression_class": { "const": "allowed_with_preview" }
+            },
+            "required": ["suppression_class"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "Secret-class suppressions MUST cite at least one secret class ref.",
+          "if": {
+            "properties": {
+              "suppression_class": { "const": "suppressed_by_secret_class" }
+            },
+            "required": ["suppression_class"]
+          },
+          "then": {
+            "properties": {
+              "secret_class_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["secret_class_refs"]
+          }
+        },
+        {
+          "description": "Every suppressed or denied event MUST cite a typed denial reason.",
+          "if": {
+            "properties": {
+              "suppression_class": {
+                "enum": [
+                  "suppressed_by_trust",
+                  "suppressed_by_policy",
+                  "suppressed_by_secret_class",
+                  "suppressed_by_content_class",
+                  "denied_read"
+                ]
+              }
+            },
+            "required": ["suppression_class"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/terminal_denial_reason_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "terminal_session_restore_metadata_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "restore_metadata_id",
+        "prior_session_id",
+        "pty_owner_class",
+        "execution_context_root_ref",
+        "trust_state_ref_at_capture",
+        "restore_level",
+        "restore_decision",
+        "auto_rerun_forbidden",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_session_restore_metadata_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "restore_metadata_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_session_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Session id the restore record refers to. A new fresh session minted after the user approves restore carries its own terminal_session_open_record and its own session id."
+        },
+        "pty_owner_class": { "$ref": "#/$defs/pty_owner_class" },
+        "remote_agent_session_id_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "execution_context_root_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state_ref_at_capture": { "$ref": "#/$defs/opaque_ref" },
+        "admin_policy_epoch_ref_at_capture": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "transcript_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to a redacted transcript snapshot. Non-null only when restore_level is restore_ui_with_transcript or restore_ui_with_transcript_and_hints."
+        },
+        "last_cwd_token_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "last_virtual_env_hint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "last_exit_status_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "last_session_title_hint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rerun_metadata_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the last rerun_metadata signal observed before capture. EVIDENCE ONLY: MUST NOT be resolved into command re-execution without an explicit user-initiated command-dispatch invocation."
+        },
+        "restore_level": { "$ref": "#/$defs/terminal_restore_level" },
+        "restore_decision": { "$ref": "#/$defs/terminal_restore_decision" },
+        "auto_rerun_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST always be true. A terminal_session_restore_metadata_record that sets this false is non-conforming regardless of any other field."
+        },
+        "user_impact_label_class": {
+          "type": "string",
+          "enum": [
+            "pending_user_review",
+            "prior_work_preserved_but_not_rerun",
+            "prior_work_not_recoverable_by_automation",
+            "no_recovery_on_irreversible_path",
+            "work_continues_with_narrowed_capability"
+          ],
+          "description": "User-impact class from docs/ux/entry_restore_truth_audit.md §5. Restore paths MUST NOT claim live_session_continued."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/terminal_denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Typed denial reason when restore_decision is restore_declined_automatic. Null otherwise."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "restore_ui_with_transcript and restore_ui_with_transcript_and_hints MUST carry a transcript ref.",
+          "if": {
+            "properties": {
+              "restore_level": {
+                "enum": [
+                  "restore_ui_with_transcript",
+                  "restore_ui_with_transcript_and_hints"
+                ]
+              }
+            },
+            "required": ["restore_level"]
+          },
+          "then": {
+            "required": ["transcript_ref"],
+            "properties": {
+              "transcript_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "restore_ui_only MUST NOT carry a transcript ref.",
+          "if": {
+            "properties": { "restore_level": { "const": "restore_ui_only" } },
+            "required": ["restore_level"]
+          },
+          "then": {
+            "properties": { "transcript_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "Automatic restore declines MUST cite a typed denial reason.",
+          "if": {
+            "properties": { "restore_decision": { "const": "restore_declined_automatic" } },
+            "required": ["restore_decision"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/terminal_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "User-approved evidence-only restores MUST carry prior_work_preserved_but_not_rerun.",
+          "if": {
+            "properties": {
+              "restore_decision": { "const": "restore_approved_evidence_only" }
+            },
+            "required": ["restore_decision"]
+          },
+          "then": {
+            "properties": {
+              "user_impact_label_class": { "const": "prior_work_preserved_but_not_rerun" }
+            },
+            "required": ["user_impact_label_class"]
+          }
+        }
+      ]
+    },
+
+    "terminal_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "terminal_protocol_schema_version",
+        "event_id",
+        "session_id",
+        "audit_event_id",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "terminal_audit_event_record" },
+        "terminal_protocol_schema_version": { "$ref": "#/$defs/terminal_protocol_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/terminal_audit_event_id" },
+        "related_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to related records (session open, lifecycle transition, signal, clipboard event, restore metadata) without carrying their raw bodies."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/terminal_denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

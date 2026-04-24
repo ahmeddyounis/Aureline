@@ -1,0 +1,316 @@
+# Shell-integration signal registry.
+#
+# Machine-readable binding from each terminal shell-integration signal
+# kind (see docs/adr/0021-terminal-protocol-and-clipboard.md) to the
+# payload shape, the protocol-conformance level it requires, and the
+# per-shell baseline-coverage posture across the claimed shell
+# families (Bash, Zsh, Fish, PowerShell, cmd.exe).
+#
+# Companion to docs/adr/0021-terminal-protocol-and-clipboard.md and
+# schemas/terminal/session_restore_metadata.schema.json. If this file
+# and the ADR disagree, the ADR wins for reviewer language and this
+# file MUST be updated in the same change.
+#
+# Rules:
+#   - Every row MUST name one signal_kind, one protocol_level_required,
+#     one payload_shape_ref, and a per-shell coverage_class for each
+#     claimed shell family.
+#   - coverage_class values are frozen in
+#     coverage_class_vocabulary. Minting new values is breaking and
+#     requires a new decision row.
+#   - A row whose baseline_usability_without_integration_class is
+#     'no_integration_required' pins that the claimed feature MUST
+#     remain usable at baseline_only / baseline_plus_osc_allowlist
+#     with a typed not_available_without_shell_integration chip.
+#   - Adding a row is additive-minor: bump
+#     shell_integration_signals_schema_version and extend this file
+#     in the same change that lands the signal.
+#   - Repurposing a row is breaking and requires a new decision row
+#     in artifacts/governance/decision_index.yaml.
+
+shell_integration_signals_schema_version: 1
+
+sources:
+  adr: docs/adr/0021-terminal-protocol-and-clipboard.md
+  schema: schemas/terminal/session_restore_metadata.schema.json
+  fixtures: fixtures/terminal/protocol_cases.yaml
+  command_dispatch_boundary: docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+  execution_context: docs/adr/0009-execution-context-and-scope.md
+  workspace_trust: docs/adr/0018-workspace-trust-and-restricted-mode.md
+  remote_agent: docs/adr/0020-remote-agent-contract.md
+  clipboard_history: docs/ux/clipboard_history_contract.md
+
+# Protocol-conformance levels re-exported from the ADR for tooling.
+protocol_conformance_level_vocabulary:
+  - baseline_only
+  - baseline_plus_osc_allowlist
+  - baseline_plus_shell_integration_optional
+  - baseline_plus_shell_integration_required
+
+# Signal kinds re-exported from the ADR.
+signal_kind_vocabulary:
+  - prompt_begin
+  - prompt_end
+  - command_begin
+  - command_end
+  - cwd_change
+  - virtual_environment_hint
+  - rerun_metadata
+  - session_title_hint
+  - protocol_level_advertised
+
+# Coverage classes binding each shell-family column.
+coverage_class_vocabulary:
+  - supported_native
+  - supported_with_opt_in_script
+  - supported_with_prompt_convention
+  - degrades_with_typed_chip
+  - not_available
+
+# Claimed shell families.
+shell_family_vocabulary:
+  - bash
+  - zsh
+  - fish
+  - powershell
+  - cmd
+
+# Payload shapes referenced by rows. The full schema for each shape
+# lives in schemas/terminal/session_restore_metadata.schema.json under
+# $defs/shell_integration_signal_payload_*.
+payload_shape_refs:
+  - id: payload_shape:empty
+    description: No payload beyond the common signal envelope.
+  - id: payload_shape:cwd_token
+    description: One cwd_token ref under ADR-0006 canonical path identity.
+  - id: payload_shape:exit_status_and_duration
+    description: Exit status integer plus a monotonic duration sub-record.
+  - id: payload_shape:virtual_env_hint
+    description: Typed venv / conda / nix-shell / managed-toolchain hint ref.
+  - id: payload_shape:rerun_metadata
+    description: Evidence-only rerun metadata (command_id_ref, captured_at, exit_status). Never an authority to rerun.
+  - id: payload_shape:session_title_hint
+    description: Human-legible session title string (redaction class applies).
+  - id: payload_shape:protocol_level_advertised
+    description: Protocol-conformance level the shell claims.
+
+# Per-shell baseline-usability posture.
+baseline_usability_class_vocabulary:
+  - no_integration_required   # feature MUST remain usable at baseline without shell-integration; degrades with typed chip
+  - shell_integration_optional # feature is better with integration but must still render a safe default
+  - shell_integration_required # feature explicitly degrades to not_available_without_shell_integration chip
+
+# Signal registry rows.
+rows:
+  - id: signal_row:prompt_begin
+    signal_kind: prompt_begin
+    payload_shape_ref: payload_shape:empty
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: not_available_without_shell_integration
+    notes: >
+      Fish emits prompt boundaries natively through fish_prompt; Bash and
+      Zsh require an opt-in script that Aureline never auto-injects.
+      PowerShell uses a prompt-convention hook. cmd.exe has no native
+      integration.
+
+  - id: signal_row:prompt_end
+    signal_kind: prompt_end
+    payload_shape_ref: payload_shape:empty
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: not_available_without_shell_integration
+    notes: Paired with prompt_begin. Same coverage.
+
+  - id: signal_row:command_begin
+    signal_kind: command_begin
+    payload_shape_ref: payload_shape:empty
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: not_available_without_shell_integration
+    notes: >
+      Command-begin is emitted when the user presses Enter at a prompt.
+      Without integration, command-boundary navigation degrades to the
+      typed chip and scrollback-only navigation.
+
+  - id: signal_row:command_end
+    signal_kind: command_end
+    payload_shape_ref: payload_shape:exit_status_and_duration
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: not_available_without_shell_integration
+    notes: >
+      Exit-status badges and duration chips depend on command_end.
+      Without integration, surfaces render the typed chip and the user
+      still sees raw output.
+
+  - id: signal_row:cwd_change
+    signal_kind: cwd_change
+    payload_shape_ref: payload_shape:cwd_token
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: no_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: degrades_with_typed_chip
+    degraded_state_chip: cwd_tracking_unavailable
+    notes: >
+      The basic terminal remains usable without cwd tracking; only the
+      cwd badge and follow-the-shell behaviour degrade. cwd tokens
+      resolve through ADR-0006 path identity; remote cwds resolve
+      through the remote-agent target identity from ADR-0020.
+
+  - id: signal_row:virtual_environment_hint
+    signal_kind: virtual_environment_hint
+    payload_shape_ref: payload_shape:virtual_env_hint
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_optional
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: degrades_with_typed_chip
+    degraded_state_chip: virtual_env_hint_unavailable
+    notes: >
+      Virtual-environment chips (venv, conda, nix-shell, managed
+      toolchain) rely on this signal; without it the session renders the
+      last known capsule from ADR-0009 execution-context snapshot
+      without claiming currency.
+
+  - id: signal_row:rerun_metadata
+    signal_kind: rerun_metadata
+    payload_shape_ref: payload_shape:rerun_metadata
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: shell_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_with_opt_in_script
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: rerun_metadata_unavailable
+    notes: >
+      Rerun metadata is EVIDENCE ONLY. A rerun affordance MUST route
+      through the command-dispatch boundary from ADR-0016 and MUST
+      preview before it executes; the session never reruns a command
+      purely because rerun metadata exists.
+
+  - id: signal_row:session_title_hint
+    signal_kind: session_title_hint
+    payload_shape_ref: payload_shape:session_title_hint
+    protocol_level_required: baseline_plus_shell_integration_optional
+    baseline_usability_without_integration_class: no_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: degrades_with_typed_chip
+    degraded_state_chip: session_title_hint_unavailable
+    notes: >
+      The session title falls back to the command-dispatch label or to
+      the execution-context root's human-legible name when no hint is
+      observed.
+
+  - id: signal_row:protocol_level_advertised
+    signal_kind: protocol_level_advertised
+    payload_shape_ref: payload_shape:protocol_level_advertised
+    protocol_level_required: baseline_plus_osc_allowlist
+    baseline_usability_without_integration_class: no_integration_required
+    shell_coverage:
+      bash: supported_with_opt_in_script
+      zsh: supported_with_opt_in_script
+      fish: supported_native
+      powershell: supported_with_prompt_convention
+      cmd: not_available
+    degraded_state_chip: protocol_level_assumed_baseline_only
+    notes: >
+      When a shell does not advertise its integration level, the host
+      assumes baseline_only and degrades every integration-dependent
+      feature with the typed chip rather than pretending integration is
+      present.
+
+# Baseline parity matrix the successor ADR MUST pass.
+#
+# For every shell in shell_family_vocabulary, a session MUST be
+# usable at baseline_only WITHOUT an injected shell integration script
+# for: output, input, copy, scrollback (host-owned), resize,
+# kill / signal / restart through command-dispatch, and a fresh-session
+# open. A shell that cannot meet this bar is non-conforming on its row.
+baseline_parity_requirements:
+  - id: baseline_parity:output_input_usable
+    claim: >
+      A baseline_only session MUST accept keyboard input, render output,
+      honour bracketed paste (default on), and preserve UTF-8 bytes
+      without requiring any shell-integration script.
+    applies_to_shells: [bash, zsh, fish, powershell, cmd]
+  - id: baseline_parity:scrollback_host_owned
+    claim: >
+      Scrollback, host-initiated copy, and find-in-scrollback MUST
+      operate at baseline_only through the command-dispatch boundary
+      from ADR-0016 without shell integration.
+    applies_to_shells: [bash, zsh, fish, powershell, cmd]
+  - id: baseline_parity:resize_propagation
+    claim: >
+      SIGWINCH / ConPTY resize MUST propagate on every pane resize
+      without shell integration.
+    applies_to_shells: [bash, zsh, fish, powershell, cmd]
+  - id: baseline_parity:kill_restart_host_controlled
+    claim: >
+      terminal.kill, terminal.signal, and terminal.restart MUST work
+      at baseline_only; a shell escape sequence MUST NOT be a kill
+      authority.
+    applies_to_shells: [bash, zsh, fish, powershell, cmd]
+  - id: baseline_parity:clipboard_osc52_denied_by_policy
+    claim: >
+      OSC-52 writes from a baseline_only session MUST resolve through
+      the clipboard-trust posture in ADR-0021; reads MUST default to
+      denied_read regardless of shell.
+    applies_to_shells: [bash, zsh, fish, powershell, cmd]
+
+# Signal budget posture for protocol-violation quarantine.
+protocol_violation_budget:
+  description: >
+    Every session carries a protocol-violation counter. Unknown escape
+    sequences, oversized writes, and malformed shell-integration
+    payloads increment the counter; exceeding the budget transitions
+    the session to session_quarantined. The concrete per-identity-
+    mode / per-trust-state ceilings are an open question in
+    docs/adr/0021-terminal-protocol-and-clipboard.md#open-questions.
+  resolution: pending_successor_adr
+
+# Audit-event linkage.
+#
+# Signals emit an audit event when observed; the event vocabulary is
+# frozen in docs/adr/0021-terminal-protocol-and-clipboard.md#audit-event-vocabulary.
+audit_event_id_refs:
+  - terminal_shell_integration_advertised
+  - terminal_shell_integration_signal_emitted
+  - terminal_protocol_violation_observed

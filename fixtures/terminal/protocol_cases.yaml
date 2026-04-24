@@ -1,0 +1,475 @@
+# Terminal protocol, shell-integration, clipboard-trust, and
+# session-restore worked cases.
+#
+# These cases are the conformance corpus that the successor ADR to
+# docs/adr/0021-terminal-protocol-and-clipboard.md MUST pass before
+# promoting the seed from Proposed to Accepted. Each case pins a
+# scenario and the expected records under
+# schemas/terminal/session_restore_metadata.schema.json.
+#
+# Rules:
+#   - Every case MUST cite at least one invariant from the ADR and
+#     one conformance test.
+#   - Raw PTY bytes, raw escape-sequence payloads, raw command lines,
+#     raw clipboard bytes, and raw shell prompts MUST NOT appear in
+#     any case.
+#   - Adding a case is additive-minor and extends this file.
+
+terminal_protocol_cases_schema_version: 1
+
+sources:
+  adr: docs/adr/0021-terminal-protocol-and-clipboard.md
+  schema: schemas/terminal/session_restore_metadata.schema.json
+  signal_registry: artifacts/terminal/shell_integration_signals.yaml
+
+cases:
+  - id: terminal_case:baseline_only_bash_usable_without_injection
+    scenario: >
+      A local host_desktop session opens against Bash with
+      advertised_protocol_level = baseline_only. No shell-integration
+      script is injected. The session MUST remain usable for input,
+      output, scrollback, host-initiated copy, and host-driven kill
+      through the command-dispatch boundary. Command-boundary
+      navigation and exit-status badges render
+      not_available_without_shell_integration chips rather than
+      disappearing.
+    exercised_invariants:
+      - baseline_parity:output_input_usable
+      - baseline_parity:scrollback_host_owned
+      - baseline_parity:kill_restart_host_controlled
+    exercised_records:
+      - terminal_session_open_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      advertised_protocol_level: baseline_only
+      shell_family_declared: bash
+    conformance_tests:
+      - id: bash_baseline_usable_without_injection
+        description: >
+          A Bash baseline_only session MUST be usable for interactive
+          shell work without requiring an injected integration script.
+      - id: bash_baseline_degrades_command_boundary_with_chip
+        description: >
+          Command-boundary navigation renders
+          not_available_without_shell_integration instead of silently
+          disappearing.
+
+  - id: terminal_case:baseline_only_cmd_usable_without_injection
+    scenario: >
+      A local host_desktop session opens against cmd.exe through
+      ConPTY with advertised_protocol_level = baseline_only. cmd.exe
+      has no shell-integration coverage in the signal registry. Every
+      integration-dependent feature degrades to the typed chip; the
+      session is still usable for basic shell work.
+    exercised_invariants:
+      - baseline_parity:output_input_usable
+      - baseline_parity:resize_propagation
+    exercised_records:
+      - terminal_session_open_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      advertised_protocol_level: baseline_only
+      shell_family_declared: cmd
+    conformance_tests:
+      - id: cmd_baseline_usable_without_integration
+        description: >
+          cmd.exe MUST remain usable at baseline_only; the absence of
+          any shell-integration coverage is not a session failure.
+
+  - id: terminal_case:shell_integration_optional_zsh_prompt_zones
+    scenario: >
+      A local host_desktop session opens against Zsh with an opt-in
+      shell-integration script installed by the user. The session
+      advertises baseline_plus_shell_integration_optional and emits
+      prompt_begin, prompt_end, command_begin, and command_end signals.
+      Command-boundary navigation and exit-status badges render
+      verbatim from the signal payloads.
+    exercised_invariants:
+      - shell_integration_is_evidence_not_authority
+    exercised_records:
+      - terminal_session_open_record
+      - shell_integration_signal_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      advertised_protocol_level: baseline_plus_shell_integration_optional
+      shell_family_declared: zsh
+      signal_kinds_emitted:
+        - prompt_begin
+        - prompt_end
+        - command_begin
+        - command_end
+    conformance_tests:
+      - id: zsh_prompt_zone_signals_render_verbatim
+        description: >
+          Prompt zones, command boundaries, and exit-status badges
+          render from the emitted signals.
+      - id: zsh_signals_are_evidence_not_authority
+        description: >
+          Rendering a signal MUST NOT invoke a command, elevate trust,
+          or bypass a preview gate.
+
+  - id: terminal_case:rerun_metadata_evidence_only_never_auto_rerun
+    scenario: >
+      A Fish session emits rerun_metadata after a command_end. The
+      user clicks a "Re-run" affordance. The affordance routes through
+      the ADR-0016 command-dispatch boundary; a preview renders the
+      prior command-descriptor ref and the execution-context; the
+      session does NOT auto-rerun purely because rerun_metadata
+      exists.
+    exercised_invariants:
+      - rerun_metadata_is_evidence_not_authority
+    exercised_records:
+      - shell_integration_signal_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      signal_kind: rerun_metadata
+      shell_family_declared: fish
+    conformance_tests:
+      - id: rerun_metadata_requires_explicit_command_dispatch_invocation
+        description: >
+          Re-run affordances route through command-dispatch, render a
+          preview, and require explicit user confirmation.
+      - id: rerun_metadata_presence_does_not_auto_execute
+        description: >
+          The session MUST NOT execute a prior command purely because
+          rerun_metadata exists in the signal stream.
+
+  - id: terminal_case:osc52_read_denied_by_default
+    scenario: >
+      A local Bash session emits an OSC-52 read request. The host
+      denies the request with denied_read regardless of trust state.
+      No clipboard bytes cross back into the PTY.
+    exercised_invariants:
+      - osc52_reads_denied_by_default
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      write_class: osc52_read_request
+      suppression_class: denied_read
+      denial_reason_class: terminal_clipboard_read_denied_by_default
+    conformance_tests:
+      - id: osc52_read_does_not_return_bytes
+        description: >
+          A shell-initiated OSC-52 read MUST NOT return clipboard bytes
+          into the PTY without an explicit, trust-scoped, policy-
+          permitted, per-session user grant.
+
+  - id: terminal_case:osc52_write_from_local_shell_allowed_with_preview
+    scenario: >
+      A local Bash session emits an OSC-52 write of a git ref. The
+      host holds the write and renders a preview chip naming the
+      representation_class and the payload summary. The user approves;
+      the write commits.
+    exercised_invariants:
+      - osc52_writes_route_through_preview
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      write_class: osc52_write_from_local_shell
+      suppression_class: allowed_with_preview
+    conformance_tests:
+      - id: osc52_write_local_emits_preview_then_admit
+        description: >
+          OSC-52 writes from a local shell are held until a preview is
+          rendered and the user approves.
+      - id: osc52_write_local_emits_audit_event_admitted_with_preview
+        description: >
+          The clipboard event emits terminal_clipboard_write_admitted_with_preview.
+
+  - id: terminal_case:osc52_write_suppressed_by_secret_class
+    scenario: >
+      A local Bash session emits an OSC-52 write whose payload
+      intersects an ssh_key_material secret class. The host suppresses
+      the write regardless of trust state and regardless of policy.
+      The session surface renders the suppression chip.
+    exercised_invariants:
+      - secret_classes_never_clipboard_bridgeable
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      write_class: osc52_write_from_local_shell
+      suppression_class: suppressed_by_secret_class
+      denial_reason_class: terminal_clipboard_write_suppressed_by_secret_class
+    conformance_tests:
+      - id: secret_class_write_denied_regardless_of_trust_state
+        description: >
+          A payload intersecting a credential-handle class from ADR-0007
+          is denied regardless of trust state or policy pack.
+      - id: secret_class_write_emits_audit_event_suppressed
+        description: >
+          The event emits terminal_clipboard_write_suppressed with the
+          secret-class ref preserved.
+
+  - id: terminal_case:osc52_write_suppressed_by_workspace_trust_restricted
+    scenario: >
+      A workspace in trust_state = restricted opens a local Bash
+      session. The shell emits an OSC-52 write of a safe payload. The
+      host suppresses the write with suppressed_by_trust and cites the
+      trust-decision packet ref.
+    exercised_invariants:
+      - restricted_mode_narrows_osc52_writes
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      write_class: osc52_write_from_local_shell
+      suppression_class: suppressed_by_trust
+      denial_reason_class: terminal_clipboard_write_suppressed_by_trust
+    conformance_tests:
+      - id: restricted_mode_blocks_osc52_write
+        description: >
+          A restricted-mode workspace suppresses OSC-52 writes and
+          emits the audit event.
+
+  - id: terminal_case:remote_clipboard_bridge_write_allowed_with_preview
+    scenario: >
+      A remote_agent_primary session surfaces a terminal and the
+      remote shell requests a clipboard bridge write. The host holds
+      the write, renders a preview chip naming the target-identity
+      witness ref from ADR-0020 and the payload summary, then admits
+      the write after user confirmation.
+    exercised_invariants:
+      - remote_clipboard_bridge_requires_preview
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: remote_agent_primary
+      write_class: remote_clipboard_bridge_write
+      suppression_class: allowed_with_preview
+    conformance_tests:
+      - id: remote_bridge_preview_names_target_identity_witness
+        description: >
+          The preview chip names the target-identity witness ref and
+          the payload summary before the write commits.
+      - id: remote_bridge_admit_emits_audit_event
+        description: >
+          The event emits
+          terminal_remote_clipboard_bridge_admitted_with_preview.
+
+  - id: terminal_case:remote_clipboard_bridge_write_denied_by_policy
+    scenario: >
+      An admin policy pack narrows remote_clipboard_bridge_write to
+      never for this workspace. A remote-agent session attempts the
+      write. The host denies with terminal_remote_clipboard_bridge_denied
+      and cites the policy source.
+    exercised_invariants:
+      - policy_narrowing_ceiling_applies_to_clipboard
+    exercised_records:
+      - terminal_clipboard_event_record
+    exercised_vocabularies:
+      pty_owner_class: remote_agent_primary
+      write_class: remote_clipboard_bridge_write
+      suppression_class: suppressed_by_policy
+      denial_reason_class: terminal_clipboard_write_suppressed_by_policy
+    conformance_tests:
+      - id: policy_narrowing_denies_remote_clipboard_bridge
+        description: >
+          A policy-narrowed workspace denies the bridge and cites the
+          policy source on the audit event.
+
+  - id: terminal_case:restore_ui_only_opens_fresh_pane_no_transcript
+    scenario: >
+      The shell restarted with a prior local Bash session. The restore
+      prompt offers restore_ui_only. The user approves. A new pane
+      opens in session_requested state with no transcript; the user
+      approves a fresh session through the command-dispatch boundary.
+    exercised_invariants:
+      - no_auto_rerun_on_restore
+    exercised_records:
+      - terminal_session_restore_metadata_record
+      - terminal_session_open_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      restore_level: restore_ui_only
+      restore_decision: restore_approved_user_initiated_fresh_session
+      user_impact_label_class: prior_work_preserved_but_not_rerun
+    conformance_tests:
+      - id: restore_ui_only_does_not_carry_transcript
+        description: >
+          restore_ui_only carries transcript_ref = null.
+      - id: restore_ui_only_requires_user_initiated_fresh_session
+        description: >
+          A fresh session is opened only after the user approves it
+          through the command-dispatch boundary.
+
+  - id: terminal_case:restore_ui_with_transcript_evidence_only
+    scenario: >
+      The shell restarted with a prior remote_agent_primary session
+      whose reconnect window expired. The restore prompt offers
+      restore_ui_with_transcript_and_hints. The user approves evidence-
+      only restore. The pane renders the redacted transcript tagged
+      evidence_only_no_rerun; no fresh remote session is opened.
+      Transcript rows are not invocable by any default accelerator.
+    exercised_invariants:
+      - transcripts_carry_no_executable_authority
+      - remote_terminals_do_not_auto_downgrade_to_local
+    exercised_records:
+      - terminal_session_restore_metadata_record
+    exercised_vocabularies:
+      pty_owner_class: remote_agent_primary
+      restore_level: restore_ui_with_transcript_and_hints
+      restore_decision: restore_approved_evidence_only
+      user_impact_label_class: prior_work_preserved_but_not_rerun
+    conformance_tests:
+      - id: transcript_rows_not_invocable_by_default_accelerator
+        description: >
+          Transcript rows in a restored pane cannot be invoked by
+          hover, by double-click, by Enter, or by any default
+          accelerator.
+      - id: remote_failed_does_not_open_local_replacement
+        description: >
+          The user must explicitly choose a fresh local session if they
+          want one; the host does not silently downgrade.
+      - id: evidence_only_restore_carries_prior_work_preserved_but_not_rerun
+        description: >
+          restore_approved_evidence_only binds
+          user_impact_label_class = prior_work_preserved_but_not_rerun.
+
+  - id: terminal_case:restore_declined_by_trust_restricted_workspace
+    scenario: >
+      A workspace whose trust_state moved to restricted between
+      capture and restart offers a restore prompt. The restore record
+      carries restore_declined_by_trust and
+      restore_decision = restore_declined_automatic. The pane opens
+      empty with a typed trust chip.
+    exercised_invariants:
+      - trust_narrowing_overrides_restore
+    exercised_records:
+      - terminal_session_restore_metadata_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      restore_level: restore_declined_by_trust
+      restore_decision: restore_declined_automatic
+      denial_reason_class: terminal_restore_declined_by_trust
+      user_impact_label_class: pending_user_review
+    conformance_tests:
+      - id: trust_restricted_declines_restore_with_reason
+        description: >
+          A trust-narrowed restore MUST carry a typed denial reason
+          and MUST NOT silently materialise the prior session.
+
+  - id: terminal_case:restore_declined_by_missing_root
+    scenario: >
+      The execution-context root for a prior local session is
+      unreachable on restart (removable volume ejected, remote root
+      unreachable). The restore record carries
+      restore_declined_by_missing_root. The pane opens with the
+      missing-root placeholder from the entry-restore object model.
+    exercised_invariants:
+      - missing_root_refuses_restore
+    exercised_records:
+      - terminal_session_restore_metadata_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      restore_level: restore_declined_by_missing_root
+      restore_decision: restore_declined_automatic
+      denial_reason_class: terminal_restore_declined_by_missing_root
+    conformance_tests:
+      - id: missing_root_refuses_restore_with_reason
+        description: >
+          A missing execution-context root declines restore with a
+          typed reason rather than silently opening a pane at a
+          different root.
+
+  - id: terminal_case:remote_session_reconnect_preserves_read_only_no_replay
+    scenario: >
+      A remote_agent_primary session held a terminal. Transport dropped
+      for eight seconds inside the reconnect window; the target-identity
+      witness matches on reconnect per ADR-0020. The terminal
+      transitions session_lost_transport -> session_reconnected_same_identity.
+      Read-only subscriptions resume; one in-flight mutation is
+      cancelled and NOT replayed; no prior command is silently
+      re-executed.
+    exercised_invariants:
+      - remote_reconnect_never_replays_commands
+    exercised_records:
+      - terminal_session_lifecycle_transition_record
+    exercised_vocabularies:
+      pty_owner_class: remote_agent_primary
+      from_state: session_lost_transport
+      to_state: session_reconnected_same_identity
+      auto_rerun_forbidden: true
+    conformance_tests:
+      - id: remote_terminal_reconnect_does_not_replay_commands
+        description: >
+          A reconnect transition MUST carry auto_rerun_forbidden = true;
+          in-flight mutations are cancelled per ADR-0020 and never
+          silently replayed.
+
+  - id: terminal_case:protocol_violation_quarantine
+    scenario: >
+      A shell inside a session emits a malformed escape-sequence
+      stream that exceeds the protocol-violation budget for the
+      current identity-mode / trust-state tier. The supervisor
+      transitions the session to session_quarantined and emits
+      terminal_protocol_violation_observed followed by
+      terminal_session_quarantined. The pane renders the typed
+      quarantine chip; re-admission requires the user to open a fresh
+      session.
+    exercised_invariants:
+      - protocol_violations_never_terminate_silently
+    exercised_records:
+      - terminal_session_lifecycle_transition_record
+      - terminal_audit_event_record
+    exercised_vocabularies:
+      pty_owner_class: host_desktop
+      from_state: session_active
+      to_state: session_quarantined
+      denial_reason_class: terminal_protocol_violation_budget_exceeded
+    conformance_tests:
+      - id: quarantine_renders_typed_chip_not_silent_exit
+        description: >
+          The session surfaces a typed quarantine chip; it MUST NOT
+          silently exit or silently drop the user's pane.
+      - id: quarantine_requires_explicit_fresh_session
+        description: >
+          Re-admission requires the user to open a fresh session
+          through the command-dispatch boundary.
+
+# The six acceptance claims the successor ADR MUST pass across the
+# cases above.
+acceptance_claims:
+  - id: acceptance:baseline_usable_across_claimed_shells
+    claim: >
+      Bash, Zsh, Fish, PowerShell, and cmd.exe are usable at
+      baseline_only without assuming shell injection.
+    covered_by:
+      - terminal_case:baseline_only_bash_usable_without_injection
+      - terminal_case:baseline_only_cmd_usable_without_injection
+      - terminal_case:shell_integration_optional_zsh_prompt_zones
+      - terminal_case:rerun_metadata_evidence_only_never_auto_rerun
+  - id: acceptance:clipboard_actions_auditable_and_suppressible
+    claim: >
+      Clipboard-affecting actions (host copy / paste, OSC-52 writes and
+      reads, remote-clipboard-bridge writes and reads) are auditable
+      and suppressible by trust class, policy class, secret class, or
+      content class.
+    covered_by:
+      - terminal_case:osc52_read_denied_by_default
+      - terminal_case:osc52_write_from_local_shell_allowed_with_preview
+      - terminal_case:osc52_write_suppressed_by_secret_class
+      - terminal_case:osc52_write_suppressed_by_workspace_trust_restricted
+      - terminal_case:remote_clipboard_bridge_write_allowed_with_preview
+      - terminal_case:remote_clipboard_bridge_write_denied_by_policy
+  - id: acceptance:session_restore_never_auto_reruns
+    claim: >
+      Session-restore metadata makes it impossible to confuse restoring
+      UI state with re-executing prior destructive commands.
+    covered_by:
+      - terminal_case:restore_ui_only_opens_fresh_pane_no_transcript
+      - terminal_case:restore_ui_with_transcript_evidence_only
+      - terminal_case:restore_declined_by_trust_restricted_workspace
+      - terminal_case:restore_declined_by_missing_root
+      - terminal_case:remote_session_reconnect_preserves_read_only_no_replay
+  - id: acceptance:local_vs_remote_boundary_cue_visible
+    claim: >
+      A terminal whose pty_owner_class is not host_desktop renders the
+      visible local-vs-remote boundary cue on every surface that
+      displays it.
+    covered_by:
+      - terminal_case:remote_clipboard_bridge_write_allowed_with_preview
+      - terminal_case:restore_ui_with_transcript_evidence_only
+      - terminal_case:remote_session_reconnect_preserves_read_only_no_replay
