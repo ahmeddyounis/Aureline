@@ -1,0 +1,798 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/private_triage_workspace_packet.schema.json",
+  "title": "Aureline private-triage workspace packet",
+  "description": "Boundary schema for the private_triage_workspace_packet_record frozen in docs/security/intake_and_triage.md. One record per triage carries the operational state the monitored SECURITY.md contact path keeps while a report moves through intake, triage, mitigation, disclosure, and postmortem. The packet pairs 1:1 with an incident_workspace_packet_record (evidence-capture companion: timeline, evidence-embedding, continuity) and 1:N with advisory_record entries; advisory-ID aliases, affected-build identity, affected-artifact identity, install-profile cards, and deployment-profile scope are shared by identity rather than adapter-specific aliases. The record carries intake_received_at, intake_acknowledged_at, current_mitigation_status, compensating_control_state, break_glass_state, disclosure_posture, redaction_posture, advisory_alias_reservation, linked_advisory_refs, linked_postmortem_refs, and linked_emergency_action_refs / linked_revocation_refs, plus the monitored_contact_ref every report resolves against. Raw binary bytes, raw signing material, raw exploit payloads, raw reporter identities, and raw secret material never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-class metadata only. Adding a new triage_status_class, current_mitigation_status_class, compensating_control_state_class, break_glass_state_class, disclosure_posture_class, or denial-reason value is additive-minor and requires a private_triage_workspace_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "$ref": "#/$defs/private_triage_workspace_packet_record",
+  "$defs": {
+    "private_triage_workspace_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this private-triage workspace packet export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "private_triage_workspace_packet_record",
+      "description": "Discriminator. Every packet carries record_kind = private_triage_workspace_packet_record so parity audits and support exports can validate payloads mechanically."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / release-evidence packets. Raw binary bytes, raw signing material, raw dependency source, raw evidence bodies, and raw reporter identities never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing a posture, note, or observation. Raw secret material and raw exploit payloads MUST NOT appear."
+    },
+
+    "security_severity_class": {
+      "type": "string",
+      "enum": [
+        "security_severity.operational_emergency",
+        "security_severity.critical",
+        "security_severity.high",
+        "security_severity.medium",
+        "security_severity.low"
+      ],
+      "description": "Frozen severity vocabulary. Mirrors schemas/security/advisory_record.schema.json and schemas/security/incident_workspace_packet.schema.json so a triage packet, its evidence-capture companion, and the advisory it feeds cannot drift on severity. See docs/security/severity_matrix.md 'Severity vocabulary'."
+    },
+
+    "triage_status_class": {
+      "type": "string",
+      "enum": [
+        "triage_open",
+        "triage_in_progress",
+        "triage_blocked_pending_reporter",
+        "triage_blocked_pending_forum",
+        "triage_resolved_to_advisory",
+        "triage_resolved_without_advisory",
+        "triage_withdrawn",
+        "triage_closed_duplicate"
+      ],
+      "description": "Frozen triage-status vocabulary. Mirrors schemas/security/incident_workspace_packet.schema.json. A packet whose status cannot be resolved fails closed with triage_status_unresolved rather than defaulting."
+    },
+
+    "private_triage_workspace_scope": {
+      "type": "string",
+      "enum": [
+        "private_security_channel",
+        "private_partner_channel",
+        "coordinated_disclosure_group",
+        "vendor_only"
+      ],
+      "description": "Frozen private-triage workspace scope. Mirrors docs/security/severity_matrix.md 'Private-triage workspace' and schemas/security/incident_workspace_packet.schema.json."
+    },
+
+    "redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public",
+        "private_triage_only"
+      ],
+      "description": "Frozen redaction-class vocabulary for this record. Mirrors schemas/security/advisory_record.schema.json and schemas/security/incident_workspace_packet.schema.json. release_public is the only class that may appear verbatim in public release notes or About / Help dialogs. private_triage_only is admissible only when the packet's private_triage_workspace_scope is set."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Frozen deployment-profile vocabulary. Mirrors docs/product/boundary_manifest_strawman.md, schemas/security/advisory_record.schema.json, and schemas/security/incident_workspace_packet.schema.json."
+    },
+
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary. Mirrors schemas/build/exact_build_identity.schema.json."
+    },
+
+    "publication_posture_class": {
+      "type": "string",
+      "enum": [
+        "online_vendor",
+        "offline_signed_bundle",
+        "customer_managed_mirror",
+        "third_party_package_index"
+      ],
+      "description": "Frozen publication-posture vocabulary. Mirrors docs/release/install_topology_plan.md 'Mirror / air-gap publication posture' and schemas/security/advisory_record.schema.json."
+    },
+
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "up_to_date",
+        "stale_within_grace",
+        "stale_past_grace",
+        "offline_expired",
+        "unknown"
+      ],
+      "description": "Frozen mirror-freshness vocabulary. Mirrors schemas/security/advisory_record.schema.json and schemas/security/incident_workspace_packet.schema.json."
+    },
+
+    "advisory_subject_kind": {
+      "type": "string",
+      "enum": [
+        "build_binary",
+        "build_symbol",
+        "docs_pack",
+        "extension",
+        "capability_gate",
+        "settings_definition",
+        "secret_class_posture",
+        "signing_material",
+        "install_profile_card",
+        "runtime_component",
+        "managed_cloud_surface",
+        "third_party_dependency",
+        "workspace_trust_policy",
+        "ai_context_assembly"
+      ],
+      "description": "Frozen advisory-subject-kind vocabulary. Mirrors schemas/security/advisory_record.schema.json so an affected-artifact ref names the same subject family the advisory record resolves against."
+    },
+
+    "affected_artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/advisory_subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional reviewable note clarifying which facet of the subject the triage observes. Raw subject bodies never appear here."
+        }
+      },
+      "description": "Typed reference to one affected artifact. The tuple (subject_kind, subject_id) resolves into the advisory_record.affected_subjects envelope without re-keying."
+    },
+
+    "cve_id_string": {
+      "type": "string",
+      "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$",
+      "description": "CVE identifier in the form CVE-YYYY-NNNN+. Mirrors schemas/security/advisory_record.schema.json."
+    },
+
+    "ghsa_id_string": {
+      "type": "string",
+      "pattern": "^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$",
+      "description": "GHSA identifier in the form GHSA-xxxx-yyyy-zzzz. Mirrors schemas/security/advisory_record.schema.json."
+    },
+
+    "aureline_advisory_id_string": {
+      "type": "string",
+      "pattern": "^AURELINE-ADV-[0-9]{4}-[0-9]{4,}$",
+      "description": "Stable Aureline advisory id. Reserved on intake, stable for the life of the triage even when the finding is reclassified. Mirrors schemas/security/advisory_record.schema.json."
+    },
+
+    "advisory_alias_reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aureline_advisory_id",
+        "cve_id",
+        "ghsa_id",
+        "additional_alias_refs"
+      ],
+      "properties": {
+        "aureline_advisory_id": { "$ref": "#/$defs/aureline_advisory_id_string" },
+        "cve_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/cve_id_string" }
+          ],
+          "description": "CVE alias. Null until a CVE is assigned. Populated in place; minting a new advisory id on alias assignment is non-conforming."
+        },
+        "ghsa_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/ghsa_id_string" }
+          ],
+          "description": "GHSA alias. Null until a GHSA is minted. Populated in place."
+        },
+        "additional_alias_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque alias refs for future disclosure schemes (for example OSV or a coordinated-disclosure group's id format). Empty by default."
+        }
+      },
+      "description": "Advisory-alias reservation envelope mirroring schemas/security/advisory_record.schema.json advisory_identity. Populated at intake so the triage packet and the downstream advisory resolve into one identity graph. aureline_advisory_id is required; CVE and GHSA slots are nullable until assigned."
+    },
+
+    "affected_install_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_exact_build_identity_refs",
+        "affected_artifact_refs",
+        "affected_install_profile_card_refs",
+        "impacted_deployment_profile_scope",
+        "affected_channel_classes",
+        "affected_publication_posture_classes",
+        "mirror_freshness_class",
+        "local_continuity_note"
+      ],
+      "properties": {
+        "affected_exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json. Free-text 'version 1.x' is non-conforming. Isomorphic with advisory_record.affected_install_linkage.exact_build_identity_refs."
+        },
+        "affected_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_artifact_ref" },
+          "description": "Typed refs to every artifact the triage observes the finding in. Resolves 1:1 into advisory_record.affected_subjects without re-keying."
+        },
+        "affected_install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. Isomorphic with advisory_record.affected_install_linkage.install_profile_card_refs."
+        },
+        "impacted_deployment_profile_scope": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment profiles the finding applies to. Drawn from the boundary-manifest deployment-profile vocabulary. Isomorphic with advisory_record.deployment_profile_scope."
+        },
+        "affected_channel_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "description": "Release channel classes the triage observes the finding in. Isomorphic with advisory_record.affected_install_linkage.channel_classes."
+        },
+        "affected_publication_posture_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/publication_posture_class" },
+          "description": "Publication postures the triage observes the finding in. Isomorphic with advisory_record.affected_install_linkage.publication_posture_classes."
+        },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "offline_expiration_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "ISO 8601 UTC timestamp when the currently-shipped offline bundle containing the affected subject expires without a fix. Null when the packet does not carry an offline / air-gapped scope."
+        },
+        "local_continuity_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, reviewable sentence describing what still works locally, under management, or offline if the affected install-profile card is disabled before the fix ships. Isomorphic with advisory_record.affected_install_linkage.local_continuity_note."
+        }
+      },
+      "description": "Affected-install linkage envelope. The triage packet carries the same vocabulary the advisory record resolves against so incident intake, signed advisories, and follow-up ownership stay attached to one chain of evidence."
+    },
+
+    "current_mitigation_status_class": {
+      "type": "string",
+      "enum": [
+        "mitigation_not_yet_drafted",
+        "mitigation_drafted",
+        "mitigation_applied_local_only",
+        "mitigation_shipped_partial",
+        "mitigation_shipped_full",
+        "mitigation_compensating_control_only",
+        "mitigation_not_required"
+      ],
+      "description": "Frozen current-mitigation-status vocabulary. Names the operational state of any mitigation for the finding. mitigation_not_required applies only at security_severity.low, duplicate closures, or withdrawn reports. See docs/security/intake_and_triage.md 'Current mitigation status'."
+    },
+
+    "compensating_control_state_class": {
+      "type": "string",
+      "enum": [
+        "compensating_control_none",
+        "compensating_control_drafted",
+        "compensating_control_applied",
+        "compensating_control_partial",
+        "compensating_control_retired"
+      ],
+      "description": "Frozen compensating-control-state vocabulary. Names the state of any non-code mitigation in place while a full fix is developed. See docs/security/intake_and_triage.md 'Compensating-control state'."
+    },
+
+    "break_glass_state_class": {
+      "type": "string",
+      "enum": [
+        "break_glass_not_invoked",
+        "break_glass_invoked_pending_reconciliation",
+        "break_glass_invoked_reconciled",
+        "break_glass_invoked_superseded"
+      ],
+      "description": "Frozen break-glass-state vocabulary. Names whether any break-glass (single-responder emergency) action has been invoked during this triage. See docs/security/intake_and_triage.md 'Break-glass state'."
+    },
+
+    "disclosure_posture_class": {
+      "type": "string",
+      "enum": [
+        "disclosure_posture_private_pending_review",
+        "disclosure_posture_public_on_fix",
+        "disclosure_posture_public_on_advisory",
+        "disclosure_posture_public_immediate",
+        "disclosure_posture_private_indefinite"
+      ],
+      "description": "Frozen disclosure-posture vocabulary. Mirrors the advisory record's disclosure_class value space 1:1 (public_on_fix, public_on_advisory, public_immediate, private_indefinite) with an intake-only prefix entry (private_pending_review) used before a public posture is decided. A packet that advances past intake_acknowledged_at without setting a posture is non-conforming (disclosure_posture_unset_post_intake)."
+    },
+
+    "compensating_control_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_ref_kind", "control_ref_id"],
+      "properties": {
+        "control_ref_kind": {
+          "type": "string",
+          "enum": [
+            "settings_change",
+            "capability_gate_narrowing",
+            "emergency_action_record",
+            "revocation_record",
+            "configuration_note",
+            "workspace_trust_narrowing",
+            "secret_class_posture_change"
+          ],
+          "description": "Frozen compensating-control-ref kind vocabulary. emergency_action_record and revocation_record values resolve into schemas/security/emergency_action_record.schema.json ids."
+        },
+        "control_ref_id": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "One compensating-control reference. Raw configuration bodies never appear on this packet; the ref resolves through its owning schema."
+    },
+
+    "break_glass_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audit_row_ref", "action_ref_kind", "action_ref_id"],
+      "properties": {
+        "audit_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the audit row in artifacts/governance/signing_quorum.yaml that records the break-glass invocation. A break-glass state that is not break_glass_not_invoked with an empty audit_row_ref is non-conforming."
+        },
+        "action_ref_kind": {
+          "type": "string",
+          "enum": [
+            "emergency_action_record",
+            "revocation_record",
+            "channel_freeze_action",
+            "update_pause_action",
+            "kill_switch_action",
+            "trust_root_rotation_action",
+            "disable_bundle_publication_action"
+          ],
+          "description": "Frozen break-glass-action-ref kind vocabulary."
+        },
+        "action_ref_id": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "One break-glass-action reference plus its audit-row anchor. Raw action payloads never appear; the ref resolves through its owning schema."
+    },
+
+    "intake_route_class": {
+      "type": "string",
+      "enum": [
+        "primary_monitored_email",
+        "private_github_advisory",
+        "coordinated_disclosure_group_intake",
+        "partner_channel_intake",
+        "vendor_self_initiated_intake"
+      ],
+      "description": "Frozen intake-route vocabulary. Names which monitored SECURITY.md route the report arrived on. vendor_self_initiated_intake covers findings opened by an Aureline maintainer without an outside reporter."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque policy-epoch ref (ADR-0008)."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "restricted",
+            "trusted",
+            "managed_admin"
+          ],
+          "description": "ADR-0009 trust state of the producing context."
+        },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Policy-context envelope re-exported from ADR-0008 / ADR-0009 so downstream lanes can reason about the packet's policy provenance without re-deriving it."
+    },
+
+    "private_triage_workspace_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_triage_workspace_packet_schema_version",
+        "record_kind",
+        "triage_packet_id",
+        "title",
+        "summary",
+        "severity_class",
+        "triage_status",
+        "private_triage_workspace_scope",
+        "monitored_contact_ref",
+        "intake_route",
+        "intake_received_at",
+        "intake_acknowledged_at",
+        "advisory_alias_reservation",
+        "affected_install_linkage",
+        "current_mitigation_status",
+        "compensating_control_state",
+        "compensating_control_refs",
+        "break_glass_state",
+        "break_glass_refs",
+        "disclosure_posture",
+        "redaction_posture",
+        "linked_advisory_refs",
+        "linked_incident_workspace_packet_ref",
+        "linked_emergency_action_refs",
+        "linked_revocation_refs",
+        "linked_postmortem_refs",
+        "policy_context",
+        "opened_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "private_triage_workspace_packet_schema_version": { "$ref": "#/$defs/private_triage_workspace_packet_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "triage_packet_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for this private-triage workspace packet. Stable for the life of the triage even when the packet is reclassified or split."
+        },
+
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable packet title. Never carries raw secret material or raw exploit payload. Used as the in-workspace heading; the public-advisory heading is the downstream advisory_record.title, not this field."
+        },
+
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+
+        "severity_class": { "$ref": "#/$defs/security_severity_class" },
+
+        "triage_status": { "$ref": "#/$defs/triage_status_class" },
+
+        "private_triage_workspace_scope": { "$ref": "#/$defs/private_triage_workspace_scope" },
+
+        "monitored_contact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the monitored SECURITY.md contact path (security_md_monitored_contact). Mirrors schemas/security/advisory_record.schema.json and schemas/security/incident_workspace_packet.schema.json. A packet with an unresolved monitored_contact_ref fails closed (unresolved_monitored_contact_ref); advisory handoff is blocked."
+        },
+
+        "intake_route": { "$ref": "#/$defs/intake_route_class" },
+
+        "intake_received_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp the monitored contact path received the report. Set once on intake and never mutated; later corrections land as decision-history rows on the companion incident workspace packet."
+        },
+
+        "intake_acknowledged_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "ISO 8601 UTC timestamp the monitored contact path acknowledged the report back to the reporter. Null while acknowledgement is pending; starts the severity clock once populated. Set once; no backdating."
+        },
+
+        "advisory_alias_reservation": { "$ref": "#/$defs/advisory_alias_reservation" },
+
+        "affected_install_linkage": { "$ref": "#/$defs/affected_install_linkage" },
+
+        "current_mitigation_status": { "$ref": "#/$defs/current_mitigation_status_class" },
+
+        "compensating_control_state": { "$ref": "#/$defs/compensating_control_state_class" },
+
+        "compensating_control_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compensating_control_ref" },
+          "description": "Opaque refs to backing compensating-control artifacts (settings change, capability gate narrowing, emergency-action record, revocation record, configuration note, workspace-trust narrowing, secret-class posture change). Empty when compensating_control_state is compensating_control_none."
+        },
+
+        "break_glass_state": { "$ref": "#/$defs/break_glass_state_class" },
+
+        "break_glass_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/break_glass_ref" },
+          "description": "Opaque refs to break-glass audit rows in artifacts/governance/signing_quorum.yaml plus the emergency-action / revocation record id the break-glass action invoked. Empty when break_glass_state is break_glass_not_invoked."
+        },
+
+        "disclosure_posture": { "$ref": "#/$defs/disclosure_posture_class" },
+
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture_class" },
+
+        "linked_advisory_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to advisory_record ids in schemas/security/advisory_record.schema.json. Every advisory the triage feeds names this triage packet as its private-triage workspace; a packet that feeds multiple advisories (split findings) names every advisory. Empty until at least one advisory is drafted."
+        },
+
+        "linked_incident_workspace_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the incident_workspace_packet_record this triage packet pairs with (schemas/security/incident_workspace_packet.schema.json). The incident workspace packet is the evidence-capture companion (timeline, evidence-embedding, continuity, handoff and export routing); the private-triage packet is the operational state. Field drift between the two packets is non-conforming (incident_workspace_packet_field_drift)."
+        },
+
+        "linked_emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to emergency_action_record ids in schemas/security/emergency_action_record.schema.json. The linked emergency action reuses the triage packet's exact-build / install identity and continuity vocabulary instead of re-deriving it."
+        },
+
+        "linked_revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to revocation_record ids in schemas/security/emergency_action_record.schema.json."
+        },
+
+        "linked_postmortem_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Reserved opaque refs to postmortem records produced after the incident closes. The postmortem schema is a later lane; the slot is reserved so follow-up ownership stays attached to the same identity chain. Non-empty only when triage_status is one of triage_resolved_to_advisory, triage_resolved_without_advisory, triage_withdrawn, or triage_closed_duplicate (postmortem_ref_before_resolution)."
+        },
+
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+
+        "opened_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp the packet was first minted. Equal to or later than intake_received_at; earlier is non-conforming."
+        },
+
+        "last_updated_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp of the most recent update to this packet. Equal to or later than opened_at; earlier is non-conforming."
+        }
+      },
+      "allOf": [
+        {
+          "description": "redaction_posture = private_triage_only requires private_triage_workspace_scope in {private_security_channel, vendor_only, private_partner_channel, coordinated_disclosure_group}.",
+          "if": {
+            "properties": { "redaction_posture": { "const": "private_triage_only" } },
+            "required": ["redaction_posture"]
+          },
+          "then": {
+            "properties": {
+              "private_triage_workspace_scope": {
+                "enum": [
+                  "private_security_channel",
+                  "vendor_only",
+                  "private_partner_channel",
+                  "coordinated_disclosure_group"
+                ]
+              }
+            },
+            "required": ["private_triage_workspace_scope"]
+          }
+        },
+        {
+          "description": "security_severity.operational_emergency, security_severity.critical, and security_severity.high packets MUST carry a non-empty affected_install_linkage.affected_exact_build_identity_refs (high_severity_without_exact_build_identity_refs).",
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_install_linkage": {
+                "properties": {
+                  "affected_exact_build_identity_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "security_severity.operational_emergency, security_severity.critical, and security_severity.high packets MUST carry a non-empty affected_install_linkage.impacted_deployment_profile_scope (deployment_profile_scope_empty_on_consequential_severity).",
+          "if": {
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_severity.operational_emergency",
+                  "security_severity.critical",
+                  "security_severity.high"
+                ]
+              }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_install_linkage": {
+                "properties": {
+                  "impacted_deployment_profile_scope": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "security_severity.low packets MUST NOT carry linked_emergency_action_refs or linked_revocation_refs entries (low_severity_with_emergency_hooks).",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "security_severity.low" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_emergency_action_refs": { "maxItems": 0 },
+              "linked_revocation_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "break_glass_state != break_glass_not_invoked requires a non-empty break_glass_refs (break_glass_without_audit_ref).",
+          "if": {
+            "properties": {
+              "break_glass_state": {
+                "enum": [
+                  "break_glass_invoked_pending_reconciliation",
+                  "break_glass_invoked_reconciled",
+                  "break_glass_invoked_superseded"
+                ]
+              }
+            },
+            "required": ["break_glass_state"]
+          },
+          "then": {
+            "properties": {
+              "break_glass_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "break_glass_state = break_glass_not_invoked forbids break_glass_refs entries.",
+          "if": {
+            "properties": { "break_glass_state": { "const": "break_glass_not_invoked" } },
+            "required": ["break_glass_state"]
+          },
+          "then": {
+            "properties": {
+              "break_glass_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "compensating_control_state != compensating_control_none requires a non-empty compensating_control_refs (compensating_control_state_without_ref).",
+          "if": {
+            "properties": {
+              "compensating_control_state": {
+                "enum": [
+                  "compensating_control_drafted",
+                  "compensating_control_applied",
+                  "compensating_control_partial",
+                  "compensating_control_retired"
+                ]
+              }
+            },
+            "required": ["compensating_control_state"]
+          },
+          "then": {
+            "properties": {
+              "compensating_control_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "compensating_control_state = compensating_control_none forbids compensating_control_refs entries.",
+          "if": {
+            "properties": { "compensating_control_state": { "const": "compensating_control_none" } },
+            "required": ["compensating_control_state"]
+          },
+          "then": {
+            "properties": {
+              "compensating_control_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "triage_status in {triage_open, triage_in_progress} forbids linked_postmortem_refs entries (postmortem_ref_before_resolution).",
+          "if": {
+            "properties": {
+              "triage_status": {
+                "enum": ["triage_open", "triage_in_progress", "triage_blocked_pending_reporter", "triage_blocked_pending_forum"]
+              }
+            },
+            "required": ["triage_status"]
+          },
+          "then": {
+            "properties": {
+              "linked_postmortem_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "triage_status = triage_in_progress (or later active state) requires a non-null intake_acknowledged_at (disclosure_posture_unset_post_intake precondition).",
+          "if": {
+            "properties": {
+              "triage_status": {
+                "enum": [
+                  "triage_in_progress",
+                  "triage_blocked_pending_reporter",
+                  "triage_blocked_pending_forum",
+                  "triage_resolved_to_advisory",
+                  "triage_resolved_without_advisory"
+                ]
+              }
+            },
+            "required": ["triage_status"]
+          },
+          "then": {
+            "properties": {
+              "intake_acknowledged_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["intake_acknowledged_at"]
+          }
+        },
+        {
+          "description": "current_mitigation_status = mitigation_not_required is admissible only at severity_class = security_severity.low or triage_status in {triage_withdrawn, triage_closed_duplicate}.",
+          "if": {
+            "properties": { "current_mitigation_status": { "const": "mitigation_not_required" } },
+            "required": ["current_mitigation_status"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "severity_class": { "const": "security_severity.low" }
+                },
+                "required": ["severity_class"]
+              },
+              {
+                "properties": {
+                  "triage_status": { "enum": ["triage_withdrawn", "triage_closed_duplicate"] }
+                },
+                "required": ["triage_status"]
+              }
+            ]
+          }
+        }
+      ],
+      "description": "Private-triage workspace packet record. One record per triage. The record carries the operational state the monitored SECURITY.md contact path keeps while a report moves through intake, triage, mitigation, disclosure, and postmortem: intake route, intake_received_at, intake_acknowledged_at, current_mitigation_status, compensating_control_state, break_glass_state, disclosure_posture, redaction_posture, the advisory-alias reservation (Aureline advisory id plus CVE / GHSA slots plus additional alias refs), the affected-install linkage (exact-build identity refs, affected-artifact refs, install-profile card refs, deployment-profile scope, channel classes, publication postures, mirror freshness), linkage refs to the companion incident workspace packet, advisory records, emergency-action records, revocation records, and reserved postmortem records, plus the monitored contact ref and policy context. Downstream advisory publication, support-bundle companions, release-evidence companions, emergency-action records, revocation records, and postmortem records resolve a single triage_packet_id into one record — no parallel identity system."
+    }
+  }
+}
