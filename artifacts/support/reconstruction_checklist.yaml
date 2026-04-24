@@ -1,0 +1,480 @@
+# Cross-packet reconstruction checklist.
+#
+# Machine-readable companion to docs/support/reconstruction_drill.md.
+# Freezes the correlation axes a reviewer must resolve per scenario
+# class, the fields classified as mandatory, derivable, or
+# intentionally absent, the escalation rule when a correlation cannot
+# be resolved, and the review-path routing for each escalation class.
+#
+# Rules:
+#   - Every scenario_class row MUST name at least one fixture_case_ref
+#     under fixtures/support/reconstruction_cases/.
+#   - Every required_field row MUST name its source_contract_ref so
+#     tooling can check the field against the authoritative schema
+#     rather than against this checklist.
+#   - Every intentionally-absent row MUST carry a typed_absent_token.
+#     A null or missing intentionally-absent field is itself an
+#     escalation (reconstruction_gap_typed_absence_missing).
+#   - Every escalation row MUST name exactly one review_path
+#     (supportability_review, release_review, security_review,
+#     governance_review) as its routing lane. An escalation that
+#     spans more than one lane MUST split into one row per lane.
+#   - Adding a new scenario_class, correlation_axis, escalation_class,
+#     or review_path value is additive-minor. Repurposing an existing
+#     token is breaking and requires a new decision row in
+#     artifacts/governance/decision_index.yaml.
+#
+# If this file and docs/support/reconstruction_drill.md disagree, the
+# narrative drill wins for reviewer language and the frozen contract
+# schemas (command_descriptor, object_handoff_packet, support_bundle,
+# exact_build_identity, destination_descriptor, docs_pack_manifest,
+# assurance_claim, known_limit_note) win for tooling.
+
+schema_version: 1
+checklist_id: support.reconstruction_drill.seed
+status: seeded
+
+narrative_source: docs/support/reconstruction_drill.md
+fixtures_dir: fixtures/support/reconstruction_cases
+supportability_home: artifacts/support/
+control_artifact_index_source: artifacts/governance/control_artifact_index.yaml
+
+# -----------------------------------------------------------------------------
+# Contract sources. Every checklist field MUST cite one of these by
+# stable ref; fields not covered by these contracts cannot be promoted
+# to mandatory without a schema or packet follow-up first.
+# -----------------------------------------------------------------------------
+contract_sources:
+  command_descriptor_contract: schemas/commands/command_descriptor.schema.json
+  command_registry_contract: schemas/commands/command_registry_entry.schema.json
+  command_diagnostic_contract: schemas/commands/diagnostic_projection.schema.json
+  origin_target_route_taxonomy: artifacts/runtime/action_origin_target_labels.yaml
+  origin_target_route_narrative: docs/runtime/origin_target_route_taxonomy.md
+  destination_descriptor_contract: schemas/docs/destination_descriptor.schema.json
+  docs_pack_manifest_contract: schemas/docs/docs_pack_manifest.schema.json
+  exact_build_identity_contract: schemas/build/exact_build_identity.schema.json
+  support_bundle_contract: schemas/support/support_bundle.schema.json
+  object_handoff_packet_contract: schemas/support/object_handoff_packet.schema.json
+  support_packet_index_contract: schemas/support/support_packet_index.schema.json
+  assurance_claim_contract: schemas/release/assurance_claim.schema.json
+  known_limit_note_contract: schemas/product/known_limit_note.schema.json
+  record_class_registry: artifacts/governance/record_class_registry.yaml
+  evidence_id_conventions: artifacts/governance/evidence_id_conventions.md
+  redaction_adr: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+
+# -----------------------------------------------------------------------------
+# Correlation axes. A complete reconstruction resolves every axis to a
+# typed id, a typed ref, or an admissible typed-absent token.
+# -----------------------------------------------------------------------------
+correlation_axes:
+  - axis_id: command
+    summary: Command identity and invocation session the user action expresses.
+    primary_source_ref: schemas/commands/command_descriptor.schema.json
+    join_fields:
+      - route_context.command_id
+      - route_context.invocation_session_id
+      - provenance_bindings.command_descriptor_ref
+      - provenance_bindings.invocation_session_ref
+    admissible_typed_absent_tokens:
+      - command_id_not_applicable
+      - invocation_session_id_not_applicable
+  - axis_id: route_target_origin_exposure
+    summary: Origin, target, route, and exposure class governing the action.
+    primary_source_ref: artifacts/runtime/action_origin_target_labels.yaml
+    join_fields:
+      - route_context.action_origin_class
+      - route_context.action_target_class
+      - route_context.action_route_class
+      - route_context.action_exposure_class
+      - scope_and_boundary_context.target_identity_ref
+      - route_context.route_summary
+    admissible_typed_absent_tokens:
+      - target_identity_ref_not_applicable
+  - axis_id: docs_version_applicability
+    summary: Docs-pack and source-version truth the action's guidance was rendered against.
+    primary_source_ref: schemas/docs/destination_descriptor.schema.json
+    join_fields:
+      - build_context.docs_pack_ref
+      - build_context.docs_version_match_state
+      - route_context.source_destination_descriptor_ref
+    admissible_typed_absent_tokens:
+      - docs_pack_ref_unknown
+  - axis_id: exact_build_identity
+    summary: Exact-build identity the acting binary resolves to.
+    primary_source_ref: schemas/build/exact_build_identity.schema.json
+    join_fields:
+      - build_context.exact_build_identity_ref
+      - build_context.related_exact_build_identity_refs
+      - build_context.install_mode_class
+      - build_context.install_channel_class
+    admissible_typed_absent_tokens: []
+  - axis_id: claim_row
+    summary: Assurance claim row governing the user-visible action.
+    primary_source_ref: schemas/release/assurance_claim.schema.json
+    join_fields:
+      - build_context.claim_row_refs
+    admissible_typed_absent_tokens:
+      - claim_row_not_applicable
+  - axis_id: known_limit_note
+    summary: Known-limit note bound to the claim row or the action scope.
+    primary_source_ref: schemas/product/known_limit_note.schema.json
+    join_fields:
+      - build_context.known_limit_refs
+    admissible_typed_absent_tokens:
+      - known_limit_refs_none_required
+
+# -----------------------------------------------------------------------------
+# Scenario classes. Every reconstruction case maps to exactly one.
+# -----------------------------------------------------------------------------
+scenario_classes:
+  - scenario_class: local_only_action
+    summary: >
+      Action ran entirely on-device with no managed control plane,
+      provider call, mirror, or offline import in scope.
+    required_fields:
+      - field: exact_build_identity_ref
+        source_contract_ref: schemas/build/exact_build_identity.schema.json
+        source_field: build_context.exact_build_identity_ref
+      - field: command_id
+        source_contract_ref: schemas/commands/command_descriptor.schema.json
+        source_field: route_context.command_id
+      - field: invocation_session_id
+        source_contract_ref: schemas/commands/command_registry_entry.schema.json
+        source_field: route_context.invocation_session_id
+      - field: action_origin_class
+        source_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        source_field: route_context.action_origin_class
+      - field: action_target_class
+        source_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        source_field: route_context.action_target_class
+      - field: docs_pack_ref
+        source_contract_ref: schemas/docs/docs_pack_manifest.schema.json
+        source_field: build_context.docs_pack_ref
+      - field: docs_version_match_state
+        source_contract_ref: schemas/docs/destination_descriptor.schema.json
+        source_field: build_context.docs_version_match_state
+      - field: redaction_choice_class
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: evidence_and_recovery_context.redaction_choice_class
+    derivable_fields:
+      - field: claim_row_refs
+        derived_from_contract_ref: schemas/release/assurance_claim.schema.json
+        derived_via: >
+          Claim row reference may resolve one hop through the
+          support-bundle `claim_manifest_ref` when the object
+          handoff omits it inline.
+      - field: known_limit_refs
+        derived_from_contract_ref: schemas/product/known_limit_note.schema.json
+        derived_via: >
+          Known-limit refs may be resolved from the claim row's
+          bound known-limit set when the object handoff does not
+          declare them inline.
+    intentionally_absent_fields:
+      - field: target_identity_ref
+        typed_absent_token: target_identity_ref_not_applicable
+        reason: Local-only actions do not cross to a remote target identity.
+      - field: browser_handoff_packet_ref
+        typed_absent_token: browser_handoff_not_applicable
+        reason: Local-only actions do not mint browser-handoff packets.
+      - field: provider_support_route_ref
+        typed_absent_token: provider_not_applicable
+        reason: No provider boundary was crossed.
+    fixture_case_refs:
+      - fixtures/support/reconstruction_cases/local_only_workspace_format_action.yaml
+  - scenario_class: provider_bearing_action
+    summary: >
+      Action crossed one or more provider boundaries (AI broker,
+      managed cloud, auth identity, remote connector, or device-code
+      browser handoff).
+    required_fields:
+      - field: exact_build_identity_ref
+        source_contract_ref: schemas/build/exact_build_identity.schema.json
+        source_field: build_context.exact_build_identity_ref
+      - field: command_id
+        source_contract_ref: schemas/commands/command_descriptor.schema.json
+        source_field: route_context.command_id
+      - field: invocation_session_id
+        source_contract_ref: schemas/commands/command_registry_entry.schema.json
+        source_field: route_context.invocation_session_id
+      - field: action_route_class
+        source_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        source_field: route_context.action_route_class
+      - field: action_exposure_class
+        source_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        source_field: route_context.action_exposure_class
+      - field: target_identity_ref
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: scope_and_boundary_context.target_identity_ref
+      - field: target_destination_descriptor_ref
+        source_contract_ref: schemas/docs/destination_descriptor.schema.json
+        source_field: destination_context.target_destination_descriptor_ref
+      - field: handoff_transport_class
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: destination_context.handoff_transport_class
+      - field: docs_pack_ref
+        source_contract_ref: schemas/docs/docs_pack_manifest.schema.json
+        source_field: build_context.docs_pack_ref
+      - field: claim_row_refs
+        source_contract_ref: schemas/release/assurance_claim.schema.json
+        source_field: build_context.claim_row_refs
+      - field: known_limit_refs
+        source_contract_ref: schemas/product/known_limit_note.schema.json
+        source_field: build_context.known_limit_refs
+    derivable_fields:
+      - field: action_origin_class
+        derived_from_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        derived_via: >
+          Origin class may be resolved from the command registry row
+          when the object handoff omits it inline, provided the
+          registry entry is exported by ref.
+    intentionally_absent_fields:
+      - field: raw_provider_payload
+        typed_absent_token: provider_payload_withheld_by_policy
+        reason: Raw provider payloads never cross the packet boundary; withheld refs carry typed reasons.
+    fixture_case_refs:
+      - fixtures/support/reconstruction_cases/provider_bearing_remote_attach.yaml
+  - scenario_class: mirrored_or_offline_action
+    summary: >
+      Action consumed an artifact that arrived through an approved
+      mirror, offline bundle, manual-import, or trust-root-rotation
+      distribution path.
+    required_fields:
+      - field: exact_build_identity_ref
+        source_contract_ref: schemas/build/exact_build_identity.schema.json
+        source_field: build_context.exact_build_identity_ref
+      - field: install_mode_class
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: build_context.install_mode_class
+      - field: install_channel_class
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: build_context.install_channel_class
+      - field: docs_pack_ref
+        source_contract_ref: schemas/docs/docs_pack_manifest.schema.json
+        source_field: build_context.docs_pack_ref
+      - field: docs_version_match_state
+        source_contract_ref: schemas/docs/destination_descriptor.schema.json
+        source_field: build_context.docs_version_match_state
+      - field: mirror_snapshot_or_manual_import_receipt_ref
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: provenance_bindings.mirror_snapshot_ref
+      - field: support_bundle_refs
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: evidence_and_recovery_context.support_bundle_refs
+      - field: known_limit_refs
+        source_contract_ref: schemas/product/known_limit_note.schema.json
+        source_field: build_context.known_limit_refs
+    derivable_fields:
+      - field: claim_row_refs
+        derived_from_contract_ref: schemas/release/assurance_claim.schema.json
+        derived_via: >
+          The claim row may be resolved through the support bundle's
+          `claim_manifest_ref` when the object handoff cites the
+          bundle by ref.
+      - field: action_target_class
+        derived_from_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        derived_via: >
+          Target class is derivable from the mirror-import receipt or
+          offline-bundle manifest when the object handoff cites the
+          receipt by ref.
+    intentionally_absent_fields:
+      - field: live_provider_session_id
+        typed_absent_token: live_provider_session_not_applicable
+        reason: Offline and mirrored paths do not own a live provider session.
+    fixture_case_refs:
+      - fixtures/support/reconstruction_cases/mirrored_offline_docs_pack_import.yaml
+  - scenario_class: wrong_target_or_degraded_state_action
+    summary: >
+      Action ran against the wrong target, under a degraded route
+      posture, or reached a recovery-rung state. The packet MUST
+      preserve the corrected target, the route-change reason, and
+      the recovery/repair linkage.
+    required_fields:
+      - field: exact_build_identity_ref
+        source_contract_ref: schemas/build/exact_build_identity.schema.json
+        source_field: build_context.exact_build_identity_ref
+      - field: command_id
+        source_contract_ref: schemas/commands/command_descriptor.schema.json
+        source_field: route_context.command_id
+      - field: invocation_session_id
+        source_contract_ref: schemas/commands/command_registry_entry.schema.json
+        source_field: route_context.invocation_session_id
+      - field: action_target_class
+        source_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        source_field: route_context.action_target_class
+      - field: target_identity_ref
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: scope_and_boundary_context.target_identity_ref
+      - field: current_state_rows_route_posture
+        source_contract_ref: schemas/support/object_handoff_packet.schema.json
+        source_field: current_state_rows[state_family_class=route_posture].state_value
+      - field: recovery_rung_class
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: evidence_and_recovery_context.recovery_rung_class
+      - field: repair_transaction_refs
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: evidence_and_recovery_context.repair_transaction_refs
+      - field: checkpoint_refs
+        source_contract_ref: schemas/support/support_bundle.schema.json
+        source_field: evidence_and_recovery_context.checkpoint_refs
+      - field: docs_pack_ref
+        source_contract_ref: schemas/docs/docs_pack_manifest.schema.json
+        source_field: build_context.docs_pack_ref
+      - field: claim_row_refs
+        source_contract_ref: schemas/release/assurance_claim.schema.json
+        source_field: build_context.claim_row_refs
+      - field: known_limit_refs
+        source_contract_ref: schemas/product/known_limit_note.schema.json
+        source_field: build_context.known_limit_refs
+    derivable_fields:
+      - field: action_origin_class
+        derived_from_contract_ref: artifacts/runtime/action_origin_target_labels.yaml
+        derived_via: >
+          Origin class may be resolved from the command invocation
+          session when the object handoff omits it inline.
+    intentionally_absent_fields:
+      - field: successful_result_artifact_ref
+        typed_absent_token: no_successful_result_produced
+        reason: A wrong-target or degraded action did not produce a success artifact.
+    fixture_case_refs:
+      - fixtures/support/reconstruction_cases/wrong_target_remote_attach_corrected.yaml
+
+# -----------------------------------------------------------------------------
+# Escalation rules. Every reconstruction gap routes to exactly one
+# escalation class. A case that hits two escalation classes MUST file
+# two follow-ups; escalations are never bundled.
+# -----------------------------------------------------------------------------
+escalation_rules:
+  - escalation_class: reconstruction_gap_export_defect
+    trigger: A mandatory field is missing from the exported packet.
+    effect: Export is classified as incomplete_refused_export.
+    follow_up_class: support_packet_schema_follow_up
+    review_path: supportability_review
+  - escalation_class: reconstruction_gap_typed_absence_missing
+    trigger: An intentionally-absent field lacks its typed absent token.
+    effect: Export must be regenerated with the typed token or the schema gate must be added.
+    follow_up_class: schema_gate_follow_up
+    review_path: governance_review
+  - escalation_class: reconstruction_gap_join_unresolvable
+    trigger: A typed ref cannot be resolved inside the export set.
+    effect: The referenced record must travel with the export or be declared by-reference with a typed unavailability.
+    follow_up_class: packet_linkage_follow_up
+    review_path: release_review
+  - escalation_class: reconstruction_gap_claim_row_mismatch
+    trigger: The resolved claim row contradicts the packet's support-class, channel, or support-window posture.
+    effect: The claim row or the object handoff must narrow until the two align.
+    follow_up_class: claim_row_alignment_follow_up
+    review_path: release_review
+  - escalation_class: reconstruction_gap_known_limit_mismatch
+    trigger: A known-limit note is superseded, stale, or missing for the bound claim.
+    effect: The known-limit note review rubric must run and the superseding note must be linked before the claim row can stay active.
+    follow_up_class: known_limit_review_follow_up
+    review_path: release_review
+  - escalation_class: reconstruction_gap_route_truth_drift
+    trigger: The route packet and the object handoff disagree on origin, target, route, or exposure class.
+    effect: The packet that disagrees with the origin/target/route taxonomy must regenerate from the taxonomy.
+    follow_up_class: route_taxonomy_follow_up
+    review_path: supportability_review
+  - escalation_class: reconstruction_gap_exact_build_unresolvable
+    trigger: The exact_build_identity_ref does not resolve to a known build identity record.
+    effect: The release must publish the exact-build identity record alongside the export.
+    follow_up_class: release_evidence_follow_up
+    review_path: release_review
+  - escalation_class: reconstruction_gap_redaction_unexplained
+    trigger: withheld_artifact_refs or redaction_choice_class cannot be explained by the record-class registry or ADR-0007.
+    effect: The redaction profile or record-class registry row must be updated so the withheld artifact has a typed reason.
+    follow_up_class: redaction_profile_follow_up
+    review_path: security_review
+  - escalation_class: reconstruction_gap_provider_boundary_drift
+    trigger: The provider boundary claimed by the packet is not represented in the destination descriptor.
+    effect: The destination descriptor must add the missing boundary posture before the packet may claim a provider-bearing route.
+    follow_up_class: destination_descriptor_follow_up
+    review_path: security_review
+  - escalation_class: reconstruction_gap_mirror_chain_broken
+    trigger: The mirror snapshot, offline-bundle, or manual-import receipt chain cannot be walked end-to-end.
+    effect: The emergency-distribution or manual-import receipt contract must export the missing link.
+    follow_up_class: emergency_distribution_follow_up
+    review_path: security_review
+
+# -----------------------------------------------------------------------------
+# Review-path bindings. Each review path MUST cite this drill when it
+# claims an export is reconstructable.
+# -----------------------------------------------------------------------------
+review_path_bindings:
+  - review_path: supportability_review
+    summary: >
+      Support bundles, object-handoff packets, field runbooks, and
+      Project Doctor escalation-packet completeness cases cite this
+      drill when claiming an export is reconstructable from typed
+      fields alone.
+    primary_docs:
+      - docs/support/support_bundle_contract.md
+      - docs/support/object_handoff_packet.md
+      - docs/support/project_doctor_packet.md
+    handles_escalation_classes:
+      - reconstruction_gap_export_defect
+      - reconstruction_gap_route_truth_drift
+  - review_path: release_review
+    summary: >
+      Release-evidence packets, shiproom review, and claim-row
+      promotion cite this drill when a support class or known-limit
+      narrowing depends on a concrete reconstruction.
+    primary_docs:
+      - docs/release/assurance_claim_matrix.md
+      - docs/release/release_evidence_packet_template.md
+      - docs/release/shiproom_runbook.md
+    handles_escalation_classes:
+      - reconstruction_gap_join_unresolvable
+      - reconstruction_gap_claim_row_mismatch
+      - reconstruction_gap_known_limit_mismatch
+      - reconstruction_gap_exact_build_unresolvable
+  - review_path: security_review
+    summary: >
+      Incident workspaces, emergency-action distributions,
+      manual-import receipts, and redaction profiles cite this drill
+      when confirming a trust, provider-boundary, mirror-import, or
+      redaction case is reviewable from the export alone.
+    primary_docs:
+      - docs/security/intake_and_triage.md
+      - docs/security/emergency_action_model.md
+      - docs/security/emergency_distribution_policy.md
+    handles_escalation_classes:
+      - reconstruction_gap_redaction_unexplained
+      - reconstruction_gap_provider_boundary_drift
+      - reconstruction_gap_mirror_chain_broken
+  - review_path: governance_review
+    summary: >
+      Schema-gate follow-ups from missing typed-absent tokens route to
+      governance so the fix lands as an allOf gate or schema update
+      rather than an export-time repair.
+    primary_docs:
+      - artifacts/governance/control_artifact_index.yaml
+      - artifacts/governance/schema_families.yaml
+    handles_escalation_classes:
+      - reconstruction_gap_typed_absence_missing
+
+# -----------------------------------------------------------------------------
+# Acceptance criteria (matches the drill narrative).
+# -----------------------------------------------------------------------------
+acceptance_criteria:
+  seeded_scenario_classes_with_reconstructable_case:
+    required_minimum: 3
+    current_count: 4
+    scenarios:
+      - local_only_action
+      - provider_bearing_action
+      - mirrored_or_offline_action
+      - wrong_target_or_degraded_state_action
+  missing_correlation_produces_follow_up:
+    rule: >
+      Any missing correlation MUST map to exactly one escalation
+      class with a typed follow_up_class, never to ad-hoc prose.
+  drill_linked_into_review_paths:
+    rule: >
+      The drill is linked from supportability, release, and security
+      review paths and from the governance review path that owns
+      schema-gate follow-ups.
+    linked_from_review_paths:
+      - supportability_review
+      - release_review
+      - security_review
+      - governance_review

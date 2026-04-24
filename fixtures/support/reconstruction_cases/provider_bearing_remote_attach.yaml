@@ -1,0 +1,144 @@
+# Reconstruction case: provider-bearing remote attach.
+#
+# Companion to docs/support/reconstruction_drill.md §Scenario classes
+# and artifacts/support/reconstruction_checklist.yaml
+# scenario_class:provider_bearing_action.
+#
+# The reviewer is reconstructing a user-visible "remote attach"
+# invocation that crossed a managed control plane and a system-browser
+# authentication handoff. The packet preserves the typed handoff
+# transport, the destination descriptor, and the provider support
+# route by typed ref — the reviewer never reads raw provider payloads.
+
+schema_version: 1
+case_id: reconstruction_case:provider_bearing.remote_attach
+scenario_class: provider_bearing_action
+checklist_row_ref: artifacts/support/reconstruction_checklist.yaml#scenario_classes/provider_bearing_action
+drill_source_ref: docs/support/reconstruction_drill.md
+reconstruction_outcome: reconstructable_without_gap
+
+root_packet:
+  record_kind: object_handoff_packet_record
+  support_packet_family_class: object_issue_handoff
+  source_surface_class: command_detail_sheet
+  report_intent_class: support_request
+  packet_handle: object_handoff.provider_bearing.remote_attach
+
+linked_packet_refs:
+  command_descriptor_ref: cmd:workspace.remote.attach
+  invocation_session_ref: invocation-session:workspace.remote.attach:00b2
+  execution_context_ref: execution-context:workspace.remote.attach:00b2
+  exact_build_identity_ref: build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33
+  docs_pack_ref: docs-pack:aureline:stable:1.0.3
+  source_destination_descriptor_ref: dest:docs:help-about:online-authenticated
+  target_destination_descriptor_ref: dest:support:official-portal
+  browser_handoff_packet_ref: browser-handoff:workspace.remote.attach:00b2
+  support_bundle_ref: support-bundle:remote-attach:provider-bearing:00b2
+  support_route_ref: support_route.private_partner_channel.official_support_portal
+  claim_row_ref: claim-row:workspace.remote.attach.support_class.managed_supported
+  known_limit_ref: known-limit:workspace.remote.attach.requires_active_provider_session
+  provider_boundary_refs:
+    - destination-descriptor:identity-broker:oauth-device-code
+    - destination-descriptor:managed-control-plane:payments-prod
+
+correlation_axes:
+  - axis_id: command
+    resolved_via:
+      - route_context.command_id = "workspace.remote.attach"
+      - route_context.invocation_session_id = "invocation-session:workspace.remote.attach:00b2"
+    resolution_class: typed_id
+  - axis_id: route_target_origin_exposure
+    resolved_via:
+      - route_context.action_origin_class = "user_keystroke_local"
+      - route_context.action_target_class = "managed_workspace_target"
+      - route_context.action_route_class = "managed_control_plane_route"
+      - route_context.action_exposure_class = "workspace_visible_mutation"
+      - scope_and_boundary_context.target_identity_ref = "managed-workspace:payments-prod"
+      - destination_context.handoff_transport_class = "system_browser_review"
+      - destination_context.target_destination_descriptor_ref = "dest:support:official-portal"
+    resolution_class: typed_id
+  - axis_id: docs_version_applicability
+    resolved_via:
+      - build_context.docs_pack_ref = "docs-pack:aureline:stable:1.0.3"
+      - build_context.docs_version_match_state = "exact_build_match"
+      - route_context.source_destination_descriptor_ref = "dest:docs:help-about:online-authenticated"
+    resolution_class: typed_id
+  - axis_id: exact_build_identity
+    resolved_via:
+      - build_context.exact_build_identity_ref = "build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33"
+      - build_context.install_mode_class = "managed_deployed"
+      - build_context.install_channel_class = "stable"
+    resolution_class: typed_id
+  - axis_id: claim_row
+    resolved_via:
+      - build_context.claim_row_refs = ["claim-row:workspace.remote.attach.support_class.managed_supported"]
+    resolution_class: typed_id
+  - axis_id: known_limit_note
+    resolved_via:
+      - build_context.known_limit_refs = ["known-limit:workspace.remote.attach.requires_active_provider_session"]
+    resolution_class: typed_id
+
+intentionally_absent_present:
+  - field: evidence_and_recovery_context.raw_provider_payload
+    typed_absent_token: provider_payload_withheld_by_policy
+
+derivable_field_resolutions:
+  - field: action_origin_class
+    derived_from: provenance_bindings.command_registry_entry_ref
+    reason: >
+      Origin class can also be resolved from the exported command
+      registry entry; the object handoff already declares it inline so
+      derivation is recorded as a cross-check rather than a required
+      hop.
+
+redaction:
+  redaction_choice_class: support_bundle_by_reference
+  withheld_artifact_refs:
+    - "terminal-history:payments-prod:00b2"
+    - "provider-session-token:oauth:00b2"
+  redaction_posture_summary: >
+    The provider payload and raw terminal history stay withheld; the
+    provider boundary is represented through the destination
+    descriptor and the browser-handoff packet ref, both carried by
+    typed id only.
+
+reconstructed_sentence: >
+  On 2026-04-23 a local user invocation of command
+  `workspace.remote.attach` (invocation session
+  `invocation-session:workspace.remote.attach:00b2`) ran under
+  exact-build
+  `build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33`
+  on install-mode `managed_deployed`, channel `stable`, reaching
+  managed workspace `managed-workspace:payments-prod` through a
+  `managed_control_plane_route` with a `system_browser_review`
+  handoff to destination `dest:support:official-portal`; docs pack
+  `docs-pack:aureline:stable:1.0.3` resolved `exact_build_match`,
+  claim row
+  `claim-row:workspace.remote.attach.support_class.managed_supported`
+  governed the action, and known-limit
+  `known-limit:workspace.remote.attach.requires_active_provider_session`
+  was bound to the claim.
+
+reviewer_read_order:
+  - open_root_object_handoff_packet
+  - follow_command_descriptor_and_invocation_session_refs
+  - read_route_and_destination_blocks
+  - follow_browser_handoff_packet_ref_and_destination_descriptors
+  - follow_exact_build_identity_and_docs_pack_refs
+  - follow_claim_row_and_known_limit_refs
+  - confirm_withheld_refs_have_typed_reasons
+
+escalations_filed: []
+
+forbidden_reviewer_steps:
+  - reading_raw_provider_payload
+  - reading_raw_terminal_history
+  - reading_raw_source_code
+  - paging_original_operator
+
+notes: >
+  Demonstrates that the provider boundary is fully represented through
+  typed refs (browser-handoff packet, destination descriptor, support
+  route) and that the raw provider payload stays withheld with a typed
+  reason rather than appearing in the packet.
+emitted_at: 2026-04-24T00:00:00Z

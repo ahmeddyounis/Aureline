@@ -1,0 +1,168 @@
+# Reconstruction case: mirrored / offline docs-pack import.
+#
+# Companion to docs/support/reconstruction_drill.md §Scenario classes
+# and artifacts/support/reconstruction_checklist.yaml
+# scenario_class:mirrored_or_offline_action.
+#
+# The reviewer is reconstructing a user-visible "refresh docs pack
+# from offline bundle" action whose artifact arrived through an
+# approved mirror snapshot and a signed offline-bundle manual import.
+# The reviewer must walk the manual-import receipt chain end-to-end
+# from the exported packet set without reading the offline bundle
+# bytes.
+
+schema_version: 1
+case_id: reconstruction_case:mirrored_offline.docs_pack_import
+scenario_class: mirrored_or_offline_action
+checklist_row_ref: artifacts/support/reconstruction_checklist.yaml#scenario_classes/mirrored_or_offline_action
+drill_source_ref: docs/support/reconstruction_drill.md
+reconstruction_outcome: reconstructable_with_typed_absence
+
+root_packet:
+  record_kind: object_handoff_packet_record
+  support_packet_family_class: object_issue_handoff
+  source_surface_class: docs_help_surface
+  report_intent_class: support_request
+  packet_handle: object_handoff.mirrored_offline.docs_pack_import
+
+linked_packet_refs:
+  command_descriptor_ref: cmd:docs.pack.import.offline
+  invocation_session_ref: invocation-session:docs.pack.import.offline:00c3
+  execution_context_ref: execution-context:docs.pack.import.offline:00c3
+  exact_build_identity_ref: build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33
+  docs_pack_ref: docs-pack:aureline:stable:1.0.3
+  docs_pack_mirror_snapshot_ref: mirror-snapshot:docs-pack:aureline:stable:1.0.3:snapshot-04
+  manual_import_receipt_ref: manual-import-receipt:docs-pack:aureline:stable:1.0.3:snapshot-04
+  offline_bundle_ref: offline-bundle:docs-pack:aureline:stable:1.0.3:snapshot-04
+  emergency_action_or_revocation_ref: null
+  support_bundle_ref: support-bundle:docs-pack-offline-import:00c3
+  claim_row_ref: claim-row:docs.pack.offline_import.support_class.mirror_supported
+  known_limit_ref: known-limit:docs.pack.offline_import.support_window_narrowed_to_snapshot_freshness
+
+correlation_axes:
+  - axis_id: command
+    resolved_via:
+      - route_context.command_id = "docs.pack.import.offline"
+      - route_context.invocation_session_id = "invocation-session:docs.pack.import.offline:00c3"
+    resolution_class: typed_id
+  - axis_id: route_target_origin_exposure
+    resolved_via:
+      - route_context.action_origin_class = "user_keystroke_local"
+      - route_context.action_route_class = "offline_transfer_channel"
+      - route_context.action_exposure_class = "workspace_visible_mutation"
+      - provenance_bindings.offline_bundle_ref = "offline-bundle:docs-pack:aureline:stable:1.0.3:snapshot-04"
+    resolution_class: typed_with_admitted_absence
+    admitted_absent_tokens:
+      - target_identity_ref_not_applicable
+  - axis_id: docs_version_applicability
+    resolved_via:
+      - build_context.docs_pack_ref = "docs-pack:aureline:stable:1.0.3"
+      - build_context.docs_version_match_state = "mirror_snapshot_unexpired"
+      - provenance_bindings.mirror_snapshot_ref = "mirror-snapshot:docs-pack:aureline:stable:1.0.3:snapshot-04"
+    resolution_class: typed_id
+  - axis_id: exact_build_identity
+    resolved_via:
+      - build_context.exact_build_identity_ref = "build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33"
+      - build_context.install_mode_class = "self_hosted_install"
+      - build_context.install_channel_class = "stable"
+    resolution_class: typed_id
+  - axis_id: claim_row
+    resolved_via:
+      - build_context.claim_row_refs = ["claim-row:docs.pack.offline_import.support_class.mirror_supported"]
+    resolution_class: typed_id
+  - axis_id: known_limit_note
+    resolved_via:
+      - build_context.known_limit_refs = ["known-limit:docs.pack.offline_import.support_window_narrowed_to_snapshot_freshness"]
+    resolution_class: typed_id
+
+intentionally_absent_present:
+  - field: route_context.live_provider_session_id
+    typed_absent_token: live_provider_session_not_applicable
+  - field: scope_and_boundary_context.target_identity_ref
+    typed_absent_token: target_identity_ref_not_applicable
+
+derivable_field_resolutions:
+  - field: action_target_class
+    derived_from: provenance_bindings.manual_import_receipt_ref
+    reason: >
+      The manual-import receipt carries the target class
+      (`docs_pack_local_cache_target`); the object handoff cites the
+      receipt by ref and a one-hop read resolves the target class
+      without leaving the exported packet set.
+  - field: claim_row_refs
+    derived_from: support_bundle.claim_manifest_ref
+    reason: >
+      Fallback cross-check: when the object handoff omits the claim
+      row inline, the exported support bundle's claim manifest ref
+      resolves the governing claim row.
+
+mirror_chain_walk:
+  - step: 1
+    artifact_class: offline_bundle_ref
+    ref: offline-bundle:docs-pack:aureline:stable:1.0.3:snapshot-04
+    reads: >
+      The offline bundle manifest names the docs-pack content address
+      and the signing identity used at mirror snapshot time.
+  - step: 2
+    artifact_class: manual_import_receipt_ref
+    ref: manual-import-receipt:docs-pack:aureline:stable:1.0.3:snapshot-04
+    reads: >
+      The manual-import receipt records the detached signature
+      verification outcome, the applied state, and the follow-up
+      obligations the operator accepted at import time.
+  - step: 3
+    artifact_class: mirror_snapshot_ref
+    ref: mirror-snapshot:docs-pack:aureline:stable:1.0.3:snapshot-04
+    reads: >
+      The mirror snapshot record ties the offline bundle back to the
+      authoritative origin channel and pins freshness to
+      mirror_snapshot_unexpired for this snapshot epoch.
+
+redaction:
+  redaction_choice_class: metadata_only_embedded
+  withheld_artifact_refs: []
+  redaction_posture_summary: >
+    The packet quotes mirror and manual-import ids; the offline bundle
+    bytes stay outside the packet boundary and are referenced by
+    content-addressed ref instead.
+
+reconstructed_sentence: >
+  On 2026-04-23 a local user invocation of command
+  `docs.pack.import.offline` (invocation session
+  `invocation-session:docs.pack.import.offline:00c3`) ran under
+  exact-build
+  `build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33`
+  on install-mode `self_hosted_install`, channel `stable`, to import
+  docs pack `docs-pack:aureline:stable:1.0.3` from manual-import
+  receipt
+  `manual-import-receipt:docs-pack:aureline:stable:1.0.3:snapshot-04`
+  anchored to mirror snapshot
+  `mirror-snapshot:docs-pack:aureline:stable:1.0.3:snapshot-04`;
+  docs_version_match_state resolved `mirror_snapshot_unexpired`, claim
+  row
+  `claim-row:docs.pack.offline_import.support_class.mirror_supported`
+  governed the action, and known-limit
+  `known-limit:docs.pack.offline_import.support_window_narrowed_to_snapshot_freshness`
+  narrowed the support window to the snapshot's freshness epoch.
+
+reviewer_read_order:
+  - open_root_object_handoff_packet
+  - follow_command_descriptor_and_invocation_session_refs
+  - walk_mirror_chain_offline_bundle_then_manual_import_receipt_then_mirror_snapshot
+  - follow_docs_pack_and_exact_build_identity_refs
+  - follow_claim_row_and_known_limit_refs
+
+escalations_filed: []
+
+forbidden_reviewer_steps:
+  - reading_offline_bundle_bytes
+  - reading_raw_docs_authoring_source
+  - trusting_freshness_without_mirror_chain_walk
+  - paging_original_operator
+
+notes: >
+  Demonstrates that the full mirror / manual-import chain is walkable
+  from the exported packet set by typed ref, and that the docs
+  support window is narrowed by a typed known-limit note rather than
+  by prose.
+emitted_at: 2026-04-24T00:00:00Z

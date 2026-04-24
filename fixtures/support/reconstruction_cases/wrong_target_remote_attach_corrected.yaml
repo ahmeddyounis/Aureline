@@ -1,0 +1,167 @@
+# Reconstruction case: wrong-target remote attach corrected.
+#
+# Companion to docs/support/reconstruction_drill.md §Scenario classes
+# and artifacts/support/reconstruction_checklist.yaml
+# scenario_class:wrong_target_or_degraded_state_action.
+#
+# The reviewer is reconstructing a user-visible "remote attach" action
+# that initially resolved to the wrong managed workspace, was detected
+# as wrong-target by the route packet, and was corrected through a
+# repair transaction and a checkpoint reattach. The case verifies that
+# the corrected target identity, the route-change reason, the recovery
+# rung, and the repair + checkpoint refs are all preserved on the
+# exported packet set without reading the live runtime.
+
+schema_version: 1
+case_id: reconstruction_case:wrong_target.remote_attach_corrected
+scenario_class: wrong_target_or_degraded_state_action
+checklist_row_ref: artifacts/support/reconstruction_checklist.yaml#scenario_classes/wrong_target_or_degraded_state_action
+drill_source_ref: docs/support/reconstruction_drill.md
+reconstruction_outcome: reconstructable_without_gap
+
+root_packet:
+  record_kind: object_handoff_packet_record
+  support_packet_family_class: object_issue_handoff
+  source_surface_class: command_detail_sheet
+  report_intent_class: support_request
+  packet_handle: object_handoff.wrong_target.remote_attach_corrected
+
+linked_packet_refs:
+  command_descriptor_ref: cmd:workspace.remote.attach
+  invocation_session_ref: invocation-session:workspace.remote.attach:00d4
+  execution_context_ref: execution-context:workspace.remote.attach:00d4
+  exact_build_identity_ref: build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33
+  docs_pack_ref: docs-pack:aureline:stable:1.0.3
+  route_packet_ref: route-packet:workspace.remote.attach:00d4
+  corrected_target_identity_ref: managed-workspace:payments-prod
+  originally_selected_target_identity_ref: managed-workspace:payments-staging
+  support_bundle_ref: support-bundle:remote-attach:wrong-target:00d4
+  repair_transaction_ref: repair:remote-attach:correct-target:00d4
+  checkpoint_ref: checkpoint:remote-attach:pre-attach:00d4
+  claim_row_ref: claim-row:workspace.remote.attach.support_class.managed_supported
+  known_limit_ref: known-limit:workspace.remote.attach.requires_reapproval_on_target_correction
+
+correlation_axes:
+  - axis_id: command
+    resolved_via:
+      - route_context.command_id = "workspace.remote.attach"
+      - route_context.invocation_session_id = "invocation-session:workspace.remote.attach:00d4"
+    resolution_class: typed_id
+  - axis_id: route_target_origin_exposure
+    resolved_via:
+      - route_context.action_origin_class = "user_keystroke_local"
+      - route_context.action_target_class = "managed_workspace_target"
+      - route_context.action_route_class = "managed_control_plane_route"
+      - route_context.action_exposure_class = "workspace_visible_mutation"
+      - scope_and_boundary_context.target_identity_ref = "managed-workspace:payments-prod"
+      - current_state_rows[state_family_class=route_posture].state_value = "route_changed_wrong_target_detected"
+    resolution_class: typed_id
+  - axis_id: docs_version_applicability
+    resolved_via:
+      - build_context.docs_pack_ref = "docs-pack:aureline:stable:1.0.3"
+      - build_context.docs_version_match_state = "exact_build_match"
+    resolution_class: typed_id
+  - axis_id: exact_build_identity
+    resolved_via:
+      - build_context.exact_build_identity_ref = "build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33"
+      - build_context.install_mode_class = "managed_deployed"
+      - build_context.install_channel_class = "stable"
+    resolution_class: typed_id
+  - axis_id: claim_row
+    resolved_via:
+      - build_context.claim_row_refs = ["claim-row:workspace.remote.attach.support_class.managed_supported"]
+    resolution_class: typed_id
+  - axis_id: known_limit_note
+    resolved_via:
+      - build_context.known_limit_refs = ["known-limit:workspace.remote.attach.requires_reapproval_on_target_correction"]
+    resolution_class: typed_id
+
+recovery_and_repair_context:
+  recovery_rung_class: restricted_reopen
+  repair_transaction_refs:
+    - repair:remote-attach:correct-target:00d4
+  checkpoint_refs:
+    - checkpoint:remote-attach:pre-attach:00d4
+  repair_class: reapprove_target_or_route
+  preview_required: true
+  rollback_expectation_class: compensating_action_available
+
+current_state_rows_required:
+  - state_family_class: route_posture
+    state_value: route_changed_wrong_target_detected
+    source_field: route_change_reason_code
+    source_ref: route-packet:workspace.remote.attach:00d4
+  - state_family_class: approval_posture
+    state_value: approval_required
+    source_field: authority_gate
+    source_ref: route-packet:workspace.remote.attach:00d4
+  - state_family_class: health
+    state_value: degraded
+    source_field: route_health_state
+    source_ref: route-packet:workspace.remote.attach:00d4
+
+intentionally_absent_present:
+  - field: evidence_and_recovery_context.successful_result_artifact_ref
+    typed_absent_token: no_successful_result_produced
+
+derivable_field_resolutions:
+  - field: action_origin_class
+    derived_from: route-packet:workspace.remote.attach:00d4
+    reason: >
+      The route packet also declares the action origin class; the
+      object handoff already declares it inline so derivation is
+      recorded as a cross-check rather than a required hop.
+
+redaction:
+  redaction_choice_class: support_bundle_by_reference
+  withheld_artifact_refs:
+    - "terminal-history:payments-prod:00d4"
+  redaction_posture_summary: >
+    The wrong-target correction is reconstructed from typed route and
+    state rows; raw terminal history stays withheld with a typed
+    reason.
+
+reconstructed_sentence: >
+  On 2026-04-23 a local user invocation of command
+  `workspace.remote.attach` (invocation session
+  `invocation-session:workspace.remote.attach:00d4`) ran under
+  exact-build
+  `build-id:aureline:stable:1.0.3:linux-x86_64:release:aa11bb22cc33`
+  on install-mode `managed_deployed`, channel `stable`, initially
+  selected originally-intended target
+  `managed-workspace:payments-staging` but route posture
+  `route_changed_wrong_target_detected` fired and the corrected
+  target identity `managed-workspace:payments-prod` was resolved
+  through repair transaction `repair:remote-attach:correct-target:00d4`
+  from checkpoint `checkpoint:remote-attach:pre-attach:00d4`; docs
+  pack `docs-pack:aureline:stable:1.0.3` resolved
+  `exact_build_match`, claim row
+  `claim-row:workspace.remote.attach.support_class.managed_supported`
+  governed the action, and known-limit
+  `known-limit:workspace.remote.attach.requires_reapproval_on_target_correction`
+  was bound to the claim; the invocation did not produce a success
+  artifact, which is declared as a typed-absent token.
+
+reviewer_read_order:
+  - open_root_object_handoff_packet
+  - follow_command_descriptor_and_invocation_session_refs
+  - read_current_state_rows_for_route_posture_approval_and_health
+  - follow_route_packet_ref_and_confirm_route_change_reason_code
+  - follow_repair_transaction_and_checkpoint_refs
+  - follow_exact_build_identity_docs_pack_claim_row_and_known_limit_refs
+
+escalations_filed: []
+
+forbidden_reviewer_steps:
+  - reading_raw_terminal_history
+  - replaying_live_remote_session
+  - paging_original_operator
+  - inventing_free_text_to_describe_the_corrected_target
+
+notes: >
+  Demonstrates that a corrected-target failure case remains fully
+  reconstructable from typed route, state, repair, and checkpoint
+  refs. The originally-selected target is preserved alongside the
+  corrected target so the reviewer sees the mismatch rather than only
+  the outcome.
+emitted_at: 2026-04-24T00:00:00Z
