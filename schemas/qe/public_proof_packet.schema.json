@@ -1,0 +1,965 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/qe/public_proof_packet.schema.json",
+  "title": "Aureline public-proof packet",
+  "description": "Boundary schema for one public-proof packet emitted by any of the seven scoreboard families registered in artifacts/qe/workflow_bundle_ids.yaml. Every packet pins one scoreboard_family_id, one packet_shape, one versioned workflow_bundle_id, one versioned archetype_row_ref, one exact_build_identity_ref, one docs/help version-match state, one freshness envelope, a closed task-script or success-criterion block, a known-limits-or-exclusions block, and a result-diff-versus-prior-claim-state block so narrowing, downgrade, and repeatability decisions can read one schema family rather than diverging per-lane dialects. Raw marketing copy, raw trace bodies, raw log bodies, and raw credential material never cross this boundary; the record carries opaque refs, typed vocabulary, UTC timestamps, and enumerated classes only. Adding a new scoreboard_family, packet_shape, result_class, publication_posture, docs_version_match_state, or known_limit_class is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row. The normative narrative lives in docs/qe/public_proof_scoreboards.md.",
+  "$ref": "#/$defs/public_proof_packet_record",
+  "$defs": {
+    "public_proof_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the public-proof packet. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "public_proof_packet_record",
+      "description": "Frozen discriminator. Every record carries record_kind = public_proof_packet_record so consumers that multiplex several packet families on one parser can route by field."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id. Used for packet_id, fixture_owner_ref, evidence_owner_ref, prior_claim_state_ref, task_script_ref, and other upstream handles. No raw URLs, raw file paths outside the repo, raw logs, or raw credential material appear in this field."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "measured_date": {
+      "type": "string",
+      "format": "date",
+      "description": "YYYY-MM-DD date the packet was captured."
+    },
+    "scoreboard_family_id": {
+      "type": "string",
+      "enum": [
+        "bootstrap_and_entry_parity_scoreboard",
+        "migration_fidelity_scoreboard",
+        "task_run_test_debug_parity_scoreboard",
+        "extension_or_package_bridge_parity_scoreboard",
+        "workflow_bundle_or_archetype_proof_scoreboard",
+        "benchmark_and_public_proof_packet_scoreboard",
+        "docs_known_limits_support_copy_alignment_scoreboard"
+      ],
+      "description": "Scoreboard family the packet is emitted through. Mirrors scoreboard_family_vocabulary in artifacts/qe/workflow_bundle_ids.yaml verbatim."
+    },
+    "packet_shape": {
+      "type": "string",
+      "enum": [
+        "bootstrap_entry_parity_packet",
+        "migration_fidelity_packet",
+        "task_run_test_debug_parity_packet",
+        "extension_or_package_bridge_parity_packet",
+        "workflow_bundle_or_archetype_proof_packet",
+        "benchmark_public_proof_packet",
+        "docs_known_limits_support_copy_alignment_packet"
+      ],
+      "description": "Packet shape this record emits. Each shape pairs 1:1 with a scoreboard_family_id; the allOf gate below enforces the pairing."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental"
+      ],
+      "description": "Support class quoted verbatim from artifacts/compat/archetype_rubric.yaml."
+    },
+    "packet_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "publishable",
+        "narrowed",
+        "retest_pending",
+        "quarantined",
+        "withdrawn",
+        "superseded"
+      ],
+      "description": "Packet lifecycle state. Only publishable packets MAY be cited by publishable claim rows; every other state is narrower."
+    },
+    "publication_posture": {
+      "type": "string",
+      "enum": [
+        "internal_only",
+        "methodology_only",
+        "aureline_only_claim",
+        "public_head_to_head_comparison",
+        "quarantined_not_comparable"
+      ],
+      "description": "Publication posture. Only packet_shape = benchmark_public_proof_packet MAY carry public_head_to_head_comparison; every other shape MUST NOT."
+    },
+    "docs_version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build",
+        "not_applicable"
+      ],
+      "description": "Docs / help / service-health version-match state for this packet, quoted verbatim from docs/benchmarks/benchmark_publication_pack_template.md."
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "pass_full_proof",
+        "pass_with_known_limit",
+        "pass_on_narrow_scope",
+        "narrow_claim_before_publish",
+        "retest_pending",
+        "fail_claim_blocked",
+        "quarantined",
+        "waived_with_expiry",
+        "not_yet_measured"
+      ],
+      "description": "Closed result class. Mirrors scoreboard_result_class_vocabulary in artifacts/qe/workflow_bundle_ids.yaml verbatim."
+    },
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "required_evidence_missing",
+        "required_evidence_stale",
+        "required_evidence_narrower_than_claim",
+        "docs_version_match_unmet",
+        "docs_freshness_floor_unmet",
+        "unresolved_migration_gap",
+        "caveat_uncovered",
+        "proof_class_not_currently_verifiable",
+        "exception_window_expired",
+        "compatibility_row_degraded",
+        "support_window_expired",
+        "policy_blocked",
+        "benchmark_corpus_missing_or_stale",
+        "certified_archetype_report_missing_or_stale",
+        "compatibility_report_missing_or_stale",
+        "migration_note_missing_or_stale",
+        "known_limit_note_missing",
+        "support_export_cannot_redact_persona_workspace",
+        "persona_workflow_floor_broken",
+        "claim_manifest_row_missing_or_narrowed"
+      ],
+      "description": "Downgrade-trigger vocabulary re-exported from artifacts/qe/workflow_bundle_ids.yaml and from the assurance-claim matrix."
+    },
+    "known_limit_class": {
+      "type": "string",
+      "enum": [
+        "scope_caveat_noted",
+        "platform_narrowed",
+        "workflow_narrowed",
+        "persona_narrowed",
+        "corpus_narrowed",
+        "competitor_parity_narrowed",
+        "docs_drift_active",
+        "support_export_narrowed",
+        "migration_path_limited",
+        "no_limits_declared"
+      ],
+      "description": "Closed vocabulary for the known-limits / exclusions block. Rows citing no_limits_declared MUST also carry an empty known_limit_notes list."
+    },
+    "freshness_cadence": {
+      "type": "string",
+      "enum": [
+        "each_change",
+        "each_release",
+        "weekly_plus_release_candidate",
+        "per_milestone"
+      ],
+      "description": "Freshness cadence quoted verbatim from artifacts/governance/evidence_freshness_slos.yaml."
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_publication_proof",
+        "compatibility_report_proof",
+        "docs_claim_truth_proof",
+        "continuity_drill_proof",
+        "support_scenario_quality_proof",
+        "migration_parity_proof",
+        "security_response_proof",
+        "transport_governance_proof"
+      ],
+      "description": "Proof class the packet resolves against, quoted verbatim from evidence_freshness_slos.yaml."
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:\\d+Y)?(?:\\d+M)?(?:\\d+W)?(?:\\d+D)?(?:T(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$",
+      "description": "ISO-8601 duration string, e.g. P14D, used for stale_after ceilings."
+    },
+    "archetype_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archetype_row_id",
+        "archetype_revision"
+      ],
+      "properties": {
+        "archetype_row_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable archetype id from artifacts/compat/reference_workspace_rows.yaml."
+        },
+        "archetype_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Archetype revision this packet was measured against."
+        }
+      },
+      "description": "Versioned archetype reference. Mirrors workflow_bundles[].archetype_row_refs in artifacts/qe/workflow_bundle_ids.yaml."
+    },
+    "workflow_bundle_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_id",
+        "bundle_revision"
+      ],
+      "properties": {
+        "bundle_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable workflow-bundle id from artifacts/qe/workflow_bundle_ids.yaml."
+        },
+        "bundle_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Workflow-bundle revision this packet was measured against."
+        }
+      },
+      "description": "Versioned workflow-bundle reference."
+    },
+    "environment_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "release_channel_class",
+        "workspace_version"
+      ],
+      "properties": {
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to schemas/build/exact_build_identity.schema.json#exact_build_identity_ref."
+        },
+        "release_channel_class": {
+          "type": "string",
+          "enum": [
+            "dev_local",
+            "nightly",
+            "preview",
+            "beta",
+            "stable",
+            "lts",
+            "hotfix"
+          ],
+          "description": "Release channel. Mirrors schemas/build/exact_build_identity.schema.json#release_channel_class."
+        },
+        "workspace_version": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Rendered workspace.package version string copied from the exact-build identity."
+        },
+        "hardware_definition_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque hardware-definition pin. Required for benchmark_public_proof_packet; admissible as null for packet shapes that are hardware-independent."
+        },
+        "environment_definition_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque benchmark-environment pin. Required for benchmark_public_proof_packet; admissible as null for packet shapes that are environment-independent."
+        },
+        "deployment_profile_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Deployment-profile ids this packet applies to, quoted verbatim from artifacts/governance/deployment_profiles.yaml."
+        }
+      },
+      "description": "Environment / build-identity envelope. The packet keys repeatability off exact_build_identity_ref, not off free-text version labels."
+    },
+    "task_script_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_script_kind",
+        "task_summary_ref"
+      ],
+      "properties": {
+        "task_script_kind": {
+          "type": "string",
+          "enum": [
+            "quoted_command_line",
+            "quoted_task_step_list",
+            "recorded_macro_ref",
+            "named_workflow_scenario",
+            "named_fixture_probe",
+            "declarative_success_criterion",
+            "not_applicable_self_capture"
+          ],
+          "description": "Closed task-script kind. Benchmark and task / run / test / debug packets typically use quoted_command_line or named_workflow_scenario; docs and support packets typically use declarative_success_criterion."
+        },
+        "task_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the human-readable task summary (command line, task step list, or success criterion). Free-form bytes never cross this boundary."
+        },
+        "success_criterion_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the success criterion when the task is not script-reproducible."
+        },
+        "corpus_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Corpus ids from fixtures/benchmarks/corpus_manifest.yaml this packet exercised."
+        },
+        "reference_workspace_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Reference-workspace ids from fixtures/workspaces/reference/ this packet exercised."
+        },
+        "protected_path_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Protected-path ids from artifacts/perf/protected_path_ledger.yaml this packet cites when the claim is path-level."
+        }
+      },
+      "description": "Task script / success-criterion block. Every packet MUST declare exactly one script-or-criterion even when the scoreboard family is docs-copy-only; the criterion can be declarative."
+    },
+    "prior_claim_diff_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_claim_state_class",
+        "diff_summary_ref"
+      ],
+      "properties": {
+        "prior_claim_state_class": {
+          "type": "string",
+          "enum": [
+            "first_emission_no_prior_claim",
+            "unchanged_vs_prior_claim",
+            "widened_vs_prior_claim",
+            "narrowed_vs_prior_claim",
+            "superseded_vs_prior_claim",
+            "withdrawn_vs_prior_claim"
+          ],
+          "description": "Closed diff class against the prior published claim state. widened_vs_prior_claim MUST NOT appear on a packet in state narrowed, retest_pending, quarantined, or withdrawn."
+        },
+        "prior_claim_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prior claim-state packet this row diffs against. Required on every class except first_emission_no_prior_claim."
+        },
+        "diff_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to a structured diff summary (bundle_revision delta, archetype_revision delta, support_class delta, docs_version_match delta, result_class delta). Free-form bytes never cross this boundary."
+        },
+        "result_class_delta": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["from", "to"],
+              "properties": {
+                "from": { "$ref": "#/$defs/result_class" },
+                "to": { "$ref": "#/$defs/result_class" }
+              }
+            }
+          ],
+          "description": "Typed result_class delta against the prior packet. Null on first emission."
+        },
+        "support_class_delta": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["from", "to"],
+              "properties": {
+                "from": { "$ref": "#/$defs/support_class" },
+                "to": { "$ref": "#/$defs/support_class" }
+              }
+            }
+          ],
+          "description": "Typed support_class delta against the prior packet. Null on first emission."
+        }
+      },
+      "description": "Result diff versus prior claim state. Packets carry this so narrowing / downgrade / repeatability decisions can be audited without re-reading every prior packet body."
+    },
+    "known_limit_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "known_limit_class",
+        "known_limit_summary_ref"
+      ],
+      "properties": {
+        "known_limit_class": { "$ref": "#/$defs/known_limit_class" },
+        "known_limit_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the known-limits or caveat note (typically a row in docs known-limits pages or an exclusion note in the benchmark-publication pack)."
+        },
+        "exclusion_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Explicit exclusion ids this packet inherits from the bound cutline's exclusion_refs list."
+        }
+      },
+      "description": "One known-limit / exclusion entry. Packets MAY carry zero entries only when known_limits_and_exclusions.declared_class = no_limits_declared."
+    },
+    "known_limits_and_exclusions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_class",
+        "notes"
+      ],
+      "properties": {
+        "declared_class": { "$ref": "#/$defs/known_limit_class" },
+        "notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/known_limit_note" },
+          "description": "Ordered list of typed known-limit notes. A packet with declared_class = no_limits_declared MUST carry an empty list; every other class MUST carry at least one note."
+        }
+      },
+      "description": "Known-limits / exclusions block. Every caveat that would otherwise end up in oral explanation belongs here."
+    },
+    "docs_help_version_match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "pack_revision_ref"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/docs_version_match_state" },
+        "pack_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque docs-pack revision pin. Required on every state except not_applicable."
+        },
+        "caveat_or_repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the caveat or repair hook when state is compatible_minor_drift, incompatible_drift_detected, or pre_release_unverified."
+        }
+      },
+      "description": "Docs/help version-match envelope. Packets that would otherwise misalign docs truth with the measured claim MUST switch to stale / limited / mismatch state rather than projecting the claim."
+    },
+    "freshness_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "stale_after",
+        "cadence_class",
+        "proof_class",
+        "rerun_trigger_refs"
+      ],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/iso_duration" }
+          ],
+          "description": "ISO-8601 duration after which the packet expires. Null only when cadence_class = each_change and the proof class explicitly admits null."
+        },
+        "cadence_class": { "$ref": "#/$defs/freshness_cadence" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "rerun_trigger_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Ordered list of trigger ids from artifacts/governance/evidence_rerun_triggers.yaml. Every packet names at least one trigger so a mismatch expires the packet immediately even while stale_after remains in window."
+        },
+        "expires_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Absolute expiry timestamp derived from captured_at + stale_after. Convenience field; consumers MAY recompute from the other two fields."
+        }
+      },
+      "description": "Freshness envelope. Evaluators read this block alone to decide whether the packet is current."
+    },
+    "competitor_settings_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "competitor_product_ref",
+        "task_parity_note_ref"
+      ],
+      "properties": {
+        "competitor_product_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the competitor product / version identity. Raw product names or license keys never cross this boundary; the ref resolves to a governed row."
+        },
+        "plugin_or_extension_set_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "install_posture_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "task_parity_note_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the task-parity note (how parity was enforced, or why the comparison is intentionally narrow)."
+        }
+      },
+      "description": "Competitor-settings block. Only packets with publication_posture = public_head_to_head_comparison MAY carry this; every other posture MUST NOT."
+    },
+    "publication_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_posture",
+        "proof_surfaces"
+      ],
+      "properties": {
+        "publication_posture": { "$ref": "#/$defs/publication_posture" },
+        "proof_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "start_center_and_open_flow",
+              "first_useful_edit_measurement",
+              "migration_dry_run_review",
+              "task_event_run_panel",
+              "test_runner_panel",
+              "debug_session_panel",
+              "terminal_and_repl_panel",
+              "extension_or_package_bridge_surface",
+              "reference_workspace_checkout",
+              "certified_archetype_report",
+              "benchmark_lab_run_result",
+              "benchmark_publication_pack",
+              "release_evidence_packet",
+              "docs_reference_page",
+              "help_about_page",
+              "known_limits_note_page",
+              "release_notes_pack",
+              "support_export_bundle",
+              "service_health_page",
+              "claim_manifest_row_projection"
+            ]
+          },
+          "description": "Ordered list of surfaces the packet projects through. Every surface MUST appear in the scoreboard family's admissible_proof_surfaces list in artifacts/qe/workflow_bundle_ids.yaml."
+        },
+        "competitor_settings": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/competitor_settings_block" }
+          ]
+        }
+      },
+      "description": "Publication envelope. Packets declare which surfaces MAY render them and whether a competitor comparison is in scope."
+    },
+    "public_proof_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_proof_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "packet_state",
+        "scoreboard_family_id",
+        "packet_shape",
+        "workflow_bundle_ref",
+        "archetype_row_ref",
+        "cutline_ref",
+        "persona_ref",
+        "support_class",
+        "environment_ref",
+        "task_script",
+        "result_class",
+        "active_downgrade_reasons",
+        "prior_claim_diff",
+        "known_limits_and_exclusions",
+        "docs_help_version_match",
+        "freshness",
+        "publication_envelope",
+        "fixture_owner_ref",
+        "evidence_owner_ref",
+        "owner_ref",
+        "captured_on",
+        "notes"
+      ],
+      "properties": {
+        "public_proof_packet_schema_version": { "$ref": "#/$defs/public_proof_packet_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^public_proof_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable packet id. Quoted verbatim by claim rows and release-evidence packets that cite this proof."
+        },
+        "packet_state": { "$ref": "#/$defs/packet_state" },
+        "scoreboard_family_id": { "$ref": "#/$defs/scoreboard_family_id" },
+        "packet_shape": { "$ref": "#/$defs/packet_shape" },
+        "workflow_bundle_ref": { "$ref": "#/$defs/workflow_bundle_ref" },
+        "archetype_row_ref": { "$ref": "#/$defs/archetype_ref" },
+        "cutline_ref": {
+          "type": "string",
+          "pattern": "^cutline:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Cutline row this packet qualifies. Quoted verbatim from artifacts/product/replacement_grade_cutlines.yaml."
+        },
+        "persona_ref": {
+          "type": "string",
+          "pattern": "^persona:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Persona row this packet qualifies. Quoted verbatim from artifacts/product/p0_persona_rows.yaml."
+        },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "environment_ref": { "$ref": "#/$defs/environment_ref" },
+        "task_script": { "$ref": "#/$defs/task_script_block" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "active_downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "description": "Downgrade triggers currently active on this packet. MUST be empty when result_class = pass_full_proof; MUST be non-empty when result_class is narrow_claim_before_publish, retest_pending, fail_claim_blocked, or quarantined."
+        },
+        "prior_claim_diff": { "$ref": "#/$defs/prior_claim_diff_block" },
+        "known_limits_and_exclusions": { "$ref": "#/$defs/known_limits_and_exclusions" },
+        "docs_help_version_match": { "$ref": "#/$defs/docs_help_version_match" },
+        "freshness": { "$ref": "#/$defs/freshness_envelope" },
+        "publication_envelope": { "$ref": "#/$defs/publication_envelope" },
+        "fixture_owner_ref": {
+          "type": "string",
+          "pattern": "^(?:@[a-z0-9_.-]+|lane:[a-z0-9_.-]+)$",
+          "description": "Owner DRI for the fixture or archetype this packet exercised. Resolves through artifacts/governance/ownership_matrix.yaml."
+        },
+        "evidence_owner_ref": {
+          "type": "string",
+          "pattern": "^(?:@[a-z0-9_.-]+|lane:[a-z0-9_.-]+)$",
+          "description": "Owner DRI for the evidence body the packet was captured from. Distinct from owner_ref when the evidence originates in a different lane than the publishing owner."
+        },
+        "owner_ref": {
+          "type": "string",
+          "pattern": "^(?:@[a-z0-9_.-]+|lane:[a-z0-9_.-]+)$",
+          "description": "Primary owner DRI for this packet row."
+        },
+        "captured_on": { "$ref": "#/$defs/measured_date" },
+        "superseded_by_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^public_proof_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+            }
+          ],
+          "description": "Successor packet id when this record is superseded. Required when packet_state = superseded."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Optional one-sentence reviewer note. Free-form prose bodies live outside this boundary."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Scoreboard family and packet shape MUST pair.",
+          "oneOf": [
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "bootstrap_and_entry_parity_scoreboard" },
+                "packet_shape": { "const": "bootstrap_entry_parity_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "migration_fidelity_scoreboard" },
+                "packet_shape": { "const": "migration_fidelity_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "task_run_test_debug_parity_scoreboard" },
+                "packet_shape": { "const": "task_run_test_debug_parity_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "extension_or_package_bridge_parity_scoreboard" },
+                "packet_shape": { "const": "extension_or_package_bridge_parity_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "workflow_bundle_or_archetype_proof_scoreboard" },
+                "packet_shape": { "const": "workflow_bundle_or_archetype_proof_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "benchmark_and_public_proof_packet_scoreboard" },
+                "packet_shape": { "const": "benchmark_public_proof_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            },
+            {
+              "properties": {
+                "scoreboard_family_id": { "const": "docs_known_limits_support_copy_alignment_scoreboard" },
+                "packet_shape": { "const": "docs_known_limits_support_copy_alignment_packet" }
+              },
+              "required": ["scoreboard_family_id", "packet_shape"]
+            }
+          ]
+        },
+        {
+          "description": "Only benchmark_public_proof_packet MAY carry publication_posture = public_head_to_head_comparison; every other shape MUST NOT.",
+          "if": {
+            "properties": {
+              "publication_envelope": {
+                "properties": {
+                  "publication_posture": { "const": "public_head_to_head_comparison" }
+                },
+                "required": ["publication_posture"]
+              }
+            },
+            "required": ["publication_envelope"]
+          },
+          "then": {
+            "properties": {
+              "packet_shape": { "const": "benchmark_public_proof_packet" }
+            },
+            "required": ["packet_shape"]
+          }
+        },
+        {
+          "description": "public_head_to_head_comparison MUST carry a competitor_settings block; every other posture MUST NOT.",
+          "if": {
+            "properties": {
+              "publication_envelope": {
+                "properties": {
+                  "publication_posture": { "const": "public_head_to_head_comparison" }
+                },
+                "required": ["publication_posture"]
+              }
+            },
+            "required": ["publication_envelope"]
+          },
+          "then": {
+            "properties": {
+              "publication_envelope": {
+                "properties": {
+                  "competitor_settings": {
+                    "not": { "type": "null" }
+                  }
+                },
+                "required": ["competitor_settings"]
+              }
+            },
+            "required": ["publication_envelope"]
+          },
+          "else": {
+            "properties": {
+              "publication_envelope": {
+                "properties": {
+                  "competitor_settings": { "type": "null" }
+                },
+                "required": ["competitor_settings"]
+              }
+            },
+            "required": ["publication_envelope"]
+          }
+        },
+        {
+          "description": "pass_full_proof forbids active downgrade reasons; narrow_claim_before_publish / retest_pending / fail_claim_blocked / quarantined require at least one.",
+          "oneOf": [
+            {
+              "properties": {
+                "result_class": { "const": "pass_full_proof" },
+                "active_downgrade_reasons": { "maxItems": 0 }
+              },
+              "required": ["result_class", "active_downgrade_reasons"]
+            },
+            {
+              "properties": {
+                "result_class": { "enum": ["narrow_claim_before_publish", "retest_pending", "fail_claim_blocked", "quarantined"] },
+                "active_downgrade_reasons": { "minItems": 1 }
+              },
+              "required": ["result_class", "active_downgrade_reasons"]
+            },
+            {
+              "properties": {
+                "result_class": { "enum": ["pass_with_known_limit", "pass_on_narrow_scope", "waived_with_expiry", "not_yet_measured"] }
+              },
+              "required": ["result_class"]
+            }
+          ]
+        },
+        {
+          "description": "Packets in state superseded MUST cite a successor packet id.",
+          "if": {
+            "properties": {
+              "packet_state": { "const": "superseded" }
+            },
+            "required": ["packet_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_packet_ref": {
+                "type": "string"
+              }
+            },
+            "required": ["superseded_by_packet_ref"]
+          }
+        },
+        {
+          "description": "known_limits_and_exclusions.declared_class = no_limits_declared MUST carry an empty notes list; every other class MUST carry at least one note.",
+          "oneOf": [
+            {
+              "properties": {
+                "known_limits_and_exclusions": {
+                  "properties": {
+                    "declared_class": { "const": "no_limits_declared" },
+                    "notes": { "maxItems": 0 }
+                  },
+                  "required": ["declared_class", "notes"]
+                }
+              },
+              "required": ["known_limits_and_exclusions"]
+            },
+            {
+              "properties": {
+                "known_limits_and_exclusions": {
+                  "properties": {
+                    "declared_class": {
+                      "not": { "const": "no_limits_declared" }
+                    },
+                    "notes": { "minItems": 1 }
+                  },
+                  "required": ["declared_class", "notes"]
+                }
+              },
+              "required": ["known_limits_and_exclusions"]
+            }
+          ]
+        },
+        {
+          "description": "docs_help_version_match = not_applicable forbids a pack_revision_ref; every other state requires one.",
+          "oneOf": [
+            {
+              "properties": {
+                "docs_help_version_match": {
+                  "properties": {
+                    "state": { "const": "not_applicable" },
+                    "pack_revision_ref": { "type": "null" }
+                  },
+                  "required": ["state", "pack_revision_ref"]
+                }
+              },
+              "required": ["docs_help_version_match"]
+            },
+            {
+              "properties": {
+                "docs_help_version_match": {
+                  "properties": {
+                    "state": {
+                      "not": { "const": "not_applicable" }
+                    },
+                    "pack_revision_ref": {
+                      "not": { "type": "null" }
+                    }
+                  },
+                  "required": ["state", "pack_revision_ref"]
+                }
+              },
+              "required": ["docs_help_version_match"]
+            }
+          ]
+        },
+        {
+          "description": "prior_claim_diff.prior_claim_state_class = first_emission_no_prior_claim MUST carry null prior_claim_state_ref; every other class MUST carry a non-null ref.",
+          "oneOf": [
+            {
+              "properties": {
+                "prior_claim_diff": {
+                  "properties": {
+                    "prior_claim_state_class": { "const": "first_emission_no_prior_claim" },
+                    "prior_claim_state_ref": { "type": "null" }
+                  },
+                  "required": ["prior_claim_state_class", "prior_claim_state_ref"]
+                }
+              },
+              "required": ["prior_claim_diff"]
+            },
+            {
+              "properties": {
+                "prior_claim_diff": {
+                  "properties": {
+                    "prior_claim_state_class": {
+                      "not": { "const": "first_emission_no_prior_claim" }
+                    },
+                    "prior_claim_state_ref": {
+                      "not": { "type": "null" }
+                    }
+                  },
+                  "required": ["prior_claim_state_class", "prior_claim_state_ref"]
+                }
+              },
+              "required": ["prior_claim_diff"]
+            }
+          ]
+        },
+        {
+          "description": "benchmark_public_proof_packet MUST carry non-null hardware_definition_ref and environment_definition_ref; other packet shapes MAY carry null.",
+          "if": {
+            "properties": {
+              "packet_shape": { "const": "benchmark_public_proof_packet" }
+            },
+            "required": ["packet_shape"]
+          },
+          "then": {
+            "properties": {
+              "environment_ref": {
+                "properties": {
+                  "hardware_definition_ref": {
+                    "not": { "type": "null" }
+                  },
+                  "environment_definition_ref": {
+                    "not": { "type": "null" }
+                  }
+                },
+                "required": ["hardware_definition_ref", "environment_definition_ref"]
+              }
+            },
+            "required": ["environment_ref"]
+          }
+        }
+      ],
+      "description": "One public-proof packet record. The packet is the single source of truth for one (scoreboard_family_id, workflow_bundle_ref, archetype_row_ref, exact_build_identity_ref) tuple."
+    }
+  }
+}
