@@ -1,0 +1,598 @@
+# Fault-domain restart-budget, authority-revocation, and escalation
+# packet. Companion to docs/runtime/fault_domains_and_restart_policy.md
+# and schemas/runtime/forensic_packet.schema.json. Every row joins back
+# to a host class declared in runtime_host_classes.yaml; host-class
+# identity is authoritative there. Strike windows reuse the shared
+# governor windows declared in resource_governor_thresholds.yaml.
+
+schema_version: 1
+artifact_id: aureline.runtime.restart_budgets
+title: Fault-domain restart budgets, escalation ceilings, and ticket-revocation rules
+overview_document: docs/runtime/fault_domains_and_restart_policy.md
+
+companion_refs:
+  runtime_host_classes_ref: artifacts/architecture/runtime_host_classes.yaml
+  service_ownership_matrix_ref: artifacts/architecture/service_ownership_matrix.yaml
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  resource_governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+  resource_governor_doc_ref: docs/runtime/resource_governor_contract.md
+  forensic_packet_schema_ref: schemas/runtime/forensic_packet.schema.json
+  emergency_action_doc_ref: docs/security/emergency_action_model.md
+  subscription_envelope_schema_ref: schemas/runtime/subscription_envelope.schema.json
+  execution_context_schema_ref: schemas/runtime/execution_context.schema.json
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# These vocabularies are frozen by this packet. Adding a value is an
+# additive-minor change that MUST bump schema_version only when it
+# changes payload shape; repurposing a value is breaking.
+# --------------------------------------------------------------------------
+
+strike_window_classes:
+  - id: short_window
+    seconds: 5
+    summary: >
+      Tight crash-loop detection. An exit that re-enters within 5 s
+      of the prior exit increments the short-window counter.
+  - id: medium_window
+    seconds: 30
+    summary: >
+      Persistent instability detection. Used for stall (missed
+      heartbeat), RPC-contract mismatch, and repeated-restart
+      quarantine gating.
+  - id: long_window
+    seconds: 120
+    summary: >
+      Drifting instability detection. Used for remote connectors,
+      AI brokers, and extension hosts where intermittent failure is
+      the dominant mode.
+
+escalation_state_vocabulary:
+  - id: ready
+    summary: Host running nominally. No active escalation.
+  - id: warming
+    summary: >
+      Host is restarting after a prior failure and has not yet
+      reached a heartbeat.
+    auto_clears_on: first_heartbeat_or_first_stable_response
+  - id: degraded
+    summary: >
+      Host is running with narrowed capability after one or more
+      restarts inside the short window.
+    auto_clears_on: short_window_counter_drains
+  - id: disabled
+    summary: >
+      Host is stopped by declared policy (kill switch, policy
+      narrowing, user pause). Not a failure state per se; restart
+      is policy-gated.
+    auto_clears_on: explicit_policy_change_or_emergency_supersession
+  - id: quarantined
+    summary: >
+      Host exhausted its restart budget inside the medium window;
+      automatic restart is paused pending review.
+    auto_clears_on: explicit_user_or_admin_resume
+  - id: offline
+    summary: >
+      Remote or managed dependency host is unreachable past the
+      offline threshold; local-safe paths remain.
+    auto_clears_on: reachability_restored
+  - id: lost
+    summary: >
+      Shell interaction core exited. The application is no longer
+      present; no automatic recovery path exists.
+    auto_clears_on: user_relaunch
+
+escalation_state_precedence:
+  - lost
+  - disabled
+  - quarantined
+  - offline
+  - degraded
+  - warming
+  - ready
+
+backoff_profile_classes:
+  - id: no_auto_restart
+    summary: >
+      Host is never silently restarted. Used by
+      shell_interaction_core.
+  - id: linear_short
+    summary: >
+      Linear backoff starting at 250 ms, stepping by 250 ms, capped
+      at 2 s. Used inside session-scoped helpers where the user is
+      actively watching.
+  - id: exponential_capped
+    summary: >
+      Exponential backoff starting at 500 ms, doubling, capped at
+      30 s. Used by worker pools and managed boundaries.
+  - id: exponential_jittered
+    summary: >
+      Exponential backoff starting at 1 s, doubling, capped at 60 s,
+      with +/-20 percent jitter. Used by remote connectors and AI
+      brokers to avoid retry stampedes.
+  - id: manual_only
+    summary: >
+      No automatic restart. User or admin MUST explicitly resume.
+      Used after a quarantine is tripped.
+
+ticket_revocation_classes:
+  - id: subscription_authority_envelope
+    summary: >
+      Authority envelopes on reactive subscriptions. On revocation,
+      consumers receive a resync_required frame with host_restart
+      reason. Quotes subscription_envelope.schema.json.
+  - id: capability_envelope
+    summary: >
+      Target capability envelopes (PTY allocation, GPU access,
+      network egress, filesystem watcher handle). Quotes
+      execution_context.schema.json capability_envelope_ref.
+  - id: extension_permission_manifest
+    summary: >
+      Wasm and external-extension permission manifests. Re-admission
+      requires policy re-evaluation; silent re-grant is forbidden.
+  - id: remote_transport_session
+    summary: >
+      SSH / container / agent transport sessions held by the
+      remote connector. Reconnect starts from warming.
+  - id: credential_alias_handle
+    summary: >
+      Credential aliases held by Git, remote connectors, or AI
+      brokers. Invalidated on restart; the credential broker
+      re-issues.
+  - id: ai_provider_conversation_handle
+    summary: >
+      Provider conversation handles held by the AI runtime. New
+      conversations start under re-evaluated policy.
+  - id: session_lifecycle_handle
+    summary: >
+      Per-session helper session ids (language server, DAP, Git,
+      PTY). A restart marks the prior session terminated; the user
+      re-initiates.
+  - id: support_export_assembly_handle
+    summary: >
+      In-flight support-bundle / export assembly state. Revoked
+      on collector restart; pending exports are reissued.
+
+forensic_trigger_classes:
+  - id: exit
+    summary: Host terminated (clean or crash).
+  - id: stall_detected
+    summary: Supervisor detected a missed heartbeat past the declared interval.
+  - id: escalation
+    summary: Escalation state transition (ready -> degraded, warming -> quarantined, etc.).
+  - id: recovery_transition
+    summary: >
+      Host cleared an escalation state (quarantined -> ready after
+      explicit resume, degraded -> ready after short-window drain).
+
+recovery_owner_classes:
+  - id: supervisor_auto_clear
+    summary: Supervisor clears the state when a metric window elapses.
+  - id: user_via_visible_action
+    summary: End user clicks Resume / Retry / Relaunch.
+  - id: local_admin_action
+    summary: Local admin explicitly clears the quarantine.
+  - id: superseding_emergency_action
+    summary: A later emergency-action record supersedes the disabled state.
+  - id: policy_change
+    summary: A policy bundle change lifts a policy-gated disable.
+
+# --------------------------------------------------------------------------
+# Fault-domain rows.
+#
+# Seven fault domains, frozen. Every restartable host class is placed
+# in exactly one row. Adding a domain is an ADR-gated change that
+# MUST also update fault_domains_and_restart_policy.md,
+# runtime_host_classes.yaml, and service_ownership_matrix.yaml.
+# --------------------------------------------------------------------------
+fault_domains:
+
+  - fault_domain_id: shell_interaction_core
+    title: Shell interaction core
+    summary: >
+      One per desktop session; the visible editor, input, render,
+      and command-routing core. Never silently restarted; loss is
+      visible app loss.
+    host_class_ids:
+      - desktop_shell
+    primary_supervisor_host_class: null
+    supervisor_role: self_supervised_peer_of_local_supervisor
+    failure_isolation_class: shell_critical
+    restart_class: never_auto_restart
+    strike_window: short_window
+    budget:
+      automatic_restarts_in_window: 0
+      rationale: >
+        The shell is never silently restarted. Any crash is
+        surfaced; the user chooses relaunch.
+    backoff_profile: no_auto_restart
+    default_escalation_ceiling: lost
+    supported_escalation_states:
+      - ready
+      - lost
+    heartbeat_expectation:
+      interval_seconds: 1
+      missed_heartbeat_stall_threshold: 5
+      stall_action: surface_unresponsive_ui_and_force_quit_prompt
+    revoke_before_rehydrate: []
+    revoke_on_loss:
+      - subscription_authority_envelope
+      - capability_envelope
+      - extension_permission_manifest
+      - remote_transport_session
+      - credential_alias_handle
+      - ai_provider_conversation_handle
+      - session_lifecycle_handle
+      - support_export_assembly_handle
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+    recovery_owner: user_via_visible_action
+    notes: >
+      On shell loss, the supervisor preserves durable state
+      (dirty buffers, local history checkpoints) and the next
+      launch projects warming until caret / selection and focus
+      rehydrate from the last-good checkpoint.
+
+  - fault_domain_id: workspace_knowledge_workers
+    title: Workspace knowledge workers
+    summary: >
+      Cancellable worker pool responsible for canonical-path
+      identity, watcher truth, index shards, and the semantic
+      graph. Partial / stale answers are surfaced; crash-loop
+      projects a visible degraded knowledge lane.
+    host_class_ids:
+      - index_workers
+    primary_supervisor_host_class: local_supervisor
+    supervisor_role: child_of_local_supervisor
+    failure_isolation_class: worker_pool_cancellable
+    restart_class: restart_with_backoff
+    strike_window: medium_window
+    budget:
+      automatic_restarts_in_window: 3
+      rationale: >
+        Three restarts inside 30 seconds indicates a persistent
+        ingest failure; the lane moves to quarantine so the shell
+        surfaces stale / partial knowledge rather than spinning.
+    backoff_profile: exponential_capped
+    default_escalation_ceiling: quarantined
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 5
+      missed_heartbeat_stall_threshold: 3
+      stall_action: kill_and_restart_with_stall_forensic_packet
+    revoke_before_rehydrate:
+      - subscription_authority_envelope
+      - capability_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: supervisor_auto_clear
+    notes: >
+      Worker state is worker_owned_authoritative_knowledge; a
+      rehydrated worker rebuilds from disk truth with a warming
+      freshness lane. The shell never blocks on ingest.
+
+  - fault_domain_id: session_scoped_execution_hosts
+    title: Session-scoped execution hosts
+    summary: >
+      One helper per user-visible session (language server, debug
+      adapter, Git operation, terminal). Crash isolates to that
+      session; repeated crashes quarantine the session kind.
+    host_class_ids:
+      - language_hosts
+      - debug_hosts
+      - git_worker
+      - pty_host
+    primary_supervisor_host_class: local_supervisor
+    supervisor_role: child_of_local_supervisor
+    failure_isolation_class: per_session_helper
+    restart_class: per_session_restart
+    strike_window: medium_window
+    budget:
+      automatic_restarts_in_window: 3
+      rationale: >
+        Three session-level restarts inside 30 seconds surfaces a
+        visible quarantine so the user chooses whether to retry
+        with a different toolchain / target.
+    backoff_profile: linear_short
+    default_escalation_ceiling: quarantined
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 2
+      missed_heartbeat_stall_threshold: 3
+      stall_action: kill_and_restart_session_with_forensic_packet
+    revoke_before_rehydrate:
+      - session_lifecycle_handle
+      - capability_envelope
+      - credential_alias_handle
+      - subscription_authority_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: user_via_visible_action
+    per_host_class_notes:
+      - host_class_id: language_hosts
+        restart_class_override: quarantine_after_budget
+        note: >
+          LSP crash-loops quarantine the language; the user can
+          pick a different toolchain before retry.
+      - host_class_id: debug_hosts
+        note: >
+          DAP sessions are per-session; crashing one session MUST
+          NOT affect concurrent sessions.
+      - host_class_id: git_worker
+        note: >
+          Long-running Git operations never block the input
+          path; a stalled worker is killed with a stall forensic
+          packet.
+      - host_class_id: pty_host
+        note: >
+          PTY scrollback hands off to the observability
+          collector through typed events before restart.
+
+  - fault_domain_id: extension_and_tool_hosts
+    title: Extension and tool hosts
+    summary: >
+      Sandboxed Wasm slots and per-process extension hosts.
+      Crash-loop disables the component with a typed reason and
+      re-admits the permission manifest from scratch on resume.
+    host_class_ids:
+      - wasm_host_pool
+      - external_extension_hosts
+    primary_supervisor_host_class: local_supervisor
+    supervisor_role: child_of_local_supervisor
+    failure_isolation_class: per_extension_sandbox_or_per_external_extension_process
+    restart_class: quarantine_after_budget
+    strike_window: long_window
+    budget:
+      automatic_restarts_in_window: 3
+      rationale: >
+        Three crashes inside 120 seconds disables the extension
+        until the user reviews. Prevents misbehaved extensions
+        from cycling silently.
+    backoff_profile: exponential_capped
+    default_escalation_ceiling: disabled
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - disabled
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 5
+      missed_heartbeat_stall_threshold: 3
+      stall_action: kill_and_quarantine_with_forensic_packet
+    revoke_before_rehydrate:
+      - extension_permission_manifest
+      - capability_envelope
+      - subscription_authority_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: user_via_visible_action
+    notes: >
+      Neither sandbox nor external extension inherits ambient
+      shell, workspace, identity, or transport privilege on
+      resume; every capability passes through declared manifest
+      plus admission plus permission gates again.
+
+  - fault_domain_id: ai_and_external_tool_brokers
+    title: AI and external-tool brokers
+    summary: >
+      AI context composition, provider routing, tool planning,
+      and broker egress. Narrows capability on failure; never
+      blocks visible edits, saves, or caret / selection.
+    host_class_ids:
+      - ai_runtime
+    primary_supervisor_host_class: local_supervisor
+    supervisor_role: child_of_local_supervisor
+    failure_isolation_class: managed_boundary_or_helper
+    restart_class: restart_with_backoff
+    strike_window: long_window
+    budget:
+      automatic_restarts_in_window: 4
+      rationale: >
+        Intermittent provider or transport impairment is the
+        dominant mode; four restarts inside 120 seconds before
+        quarantine keeps the broker out of the protected path.
+    backoff_profile: exponential_jittered
+    default_escalation_ceiling: quarantined
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - offline
+      - disabled
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 10
+      missed_heartbeat_stall_threshold: 3
+      stall_action: narrow_to_offline_and_restart_with_forensic_packet
+    revoke_before_rehydrate:
+      - ai_provider_conversation_handle
+      - capability_envelope
+      - credential_alias_handle
+      - subscription_authority_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: supervisor_auto_clear
+    notes: >
+      Provider or policy impairment projects as degraded or
+      offline per the resource-governor vocabulary. An
+      emergency-action channel freeze or kill switch projects as
+      disabled with the emergency-action id as the repair path.
+
+  - fault_domain_id: remote_connectors
+    title: Remote connectors
+    summary: >
+      SSH / container / agent transport, mount metadata, and
+      remote service bridging. Disconnect degrades remote
+      capability; it never degrades local stability.
+    host_class_ids:
+      - remote_connector
+    primary_supervisor_host_class: local_supervisor
+    supervisor_role: child_of_local_supervisor
+    failure_isolation_class: managed_boundary_or_helper
+    restart_class: restart_with_backoff
+    strike_window: long_window
+    budget:
+      automatic_restarts_in_window: 4
+      rationale: >
+        Remote transport is intermittent by nature. Four
+        restart / reconnect attempts inside 120 seconds before
+        quarantine keeps the reconnect loop bounded.
+    backoff_profile: exponential_jittered
+    default_escalation_ceiling: offline
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - offline
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 10
+      missed_heartbeat_stall_threshold: 3
+      stall_action: drop_remote_session_and_project_offline
+    revoke_before_rehydrate:
+      - remote_transport_session
+      - capability_envelope
+      - credential_alias_handle
+      - subscription_authority_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: supervisor_auto_clear
+    notes: >
+      Offline threshold (disconnect_duration_seconds.offline_at = 15)
+      comes from resource_governor_thresholds.yaml. Local editing
+      and cached file reads remain available while offline.
+
+  - fault_domain_id: policy_entitlement_and_verifier_helpers
+    title: Policy / entitlement / verifier helpers
+    summary: >
+      Local supervisor (lifecycle root, typed RPC routing, policy
+      admission queries) and observability collector (audit
+      ingest, support-bundle assembly). Supervisor loss forces
+      shell-visible degraded mode; collector is non-blocking.
+    host_class_ids:
+      - local_supervisor
+      - observability_collector
+    primary_supervisor_host_class: null
+    supervisor_role: lifecycle_root_and_collector_helper
+    failure_isolation_class: supervisor_lifecycle_or_collector_bounded
+    restart_class: mixed_restart_children_on_exit_and_restart_with_backoff
+    strike_window: medium_window
+    budget:
+      automatic_restarts_in_window: 2
+      rationale: >
+        Supervisor loss is immediately shell-visible; two
+        restarts inside 30 seconds is the ceiling before the
+        shell declares degraded lifecycle and asks the user to
+        relaunch. The collector restarts with the same budget
+        but never blocks emitters.
+    backoff_profile: exponential_capped
+    default_escalation_ceiling: degraded
+    supported_escalation_states:
+      - ready
+      - warming
+      - degraded
+      - disabled
+      - quarantined
+    heartbeat_expectation:
+      interval_seconds: 2
+      missed_heartbeat_stall_threshold: 3
+      stall_action: shell_projects_degraded_lifecycle_and_offers_relaunch
+    revoke_before_rehydrate:
+      - support_export_assembly_handle
+      - subscription_authority_envelope
+    forensic_packet_triggers:
+      - exit
+      - stall_detected
+      - escalation
+      - recovery_transition
+    recovery_owner: supervisor_auto_clear
+    per_host_class_notes:
+      - host_class_id: local_supervisor
+        note: >
+          Supervisor death is shell-visible. On rehydrate, typed
+          RPC routing is re-established and child hosts are
+          respawned per their own fault-domain rules.
+      - host_class_id: observability_collector
+        note: >
+          Collector back-pressure drops or buffers bounded data.
+          A stalled collector MUST NOT serialize behind the
+          protected paths.
+
+# --------------------------------------------------------------------------
+# Coverage invariants tooling can enforce.
+# --------------------------------------------------------------------------
+invariants:
+  - id: every_host_class_is_in_exactly_one_fault_domain
+    summary: >
+      Every host_class_id declared in
+      artifacts/architecture/runtime_host_classes.yaml MUST
+      appear in exactly one fault_domains[].host_class_ids row.
+  - id: every_fault_domain_declares_an_escalation_ceiling
+    summary: >
+      Every fault_domains row MUST declare a
+      default_escalation_ceiling drawn from
+      escalation_state_vocabulary. No restartable class is
+      allowed to run without a named ceiling.
+  - id: shell_is_the_only_lossy_domain
+    summary: >
+      Only fault_domain_id = shell_interaction_core is permitted
+      to declare default_escalation_ceiling = lost.
+  - id: every_domain_names_a_recovery_owner
+    summary: >
+      Every fault_domains row MUST declare a recovery_owner
+      drawn from recovery_owner_classes. No escalation state may
+      sit owner-less.
+  - id: tickets_revoke_before_rehydrate_or_on_loss
+    summary: >
+      Every host that declared a ticket class in
+      revoke_before_rehydrate or revoke_on_loss MUST emit the
+      revoked ticket id set in the forensic packet before the
+      next spawn.
+  - id: repeated_failure_is_visible_state
+    summary: >
+      A domain that exhausts its budget MUST project its
+      default_escalation_ceiling through the visible
+      escalation_state_vocabulary. Silent auto-restart after
+      budget exhaustion is non-conforming.
+  - id: collector_is_non_blocking
+    summary: >
+      observability_collector restarts MUST NOT block protected
+      paths. Emitters buffer or drop bounded telemetry; they MUST
+      NOT serialize on the collector's availability.
+  - id: forensic_packets_own_repeat_history
+    summary: >
+      Every escalation transition MUST emit a forensic packet
+      with a degraded_state_lineage entry. The in-memory counter
+      is not the record of truth.
+  - id: forensic_packet_owner_is_observability_collector
+    summary: >
+      All forensic packets MUST flow to
+      observability_collector through one of the allowed IPC
+      families (audit_event_stream, event_stream,
+      typed_binary_rpc). Side-channel assembly is forbidden.

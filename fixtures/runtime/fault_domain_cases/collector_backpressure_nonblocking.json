@@ -1,0 +1,150 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "collector_backpressure_nonblocking",
+    "fault_domain_id": "policy_entitlement_and_verifier_helpers",
+    "scenario": "The observability_collector restarts after an internal OOM; the supervisor restarts it with exponential-capped backoff. Emitters (shell, supervisor, workers, helpers) keep emitting to bounded buffers while the collector is warming. The forensic packet for the collector's own restart is emitted immediately on respawn; the summary confirms that back-pressure dropped bounded data rather than serializing behind the collector. Support-bundle export assembly state is revoked; pending bundles are reissued.",
+    "exercised": {
+      "trigger_class": "exit",
+      "exit_reason_class": "crash_allocation_failure",
+      "escalation_transition": "ready -> warming",
+      "non_blocking_invariant": true
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T202211Z:0020",
+  "fault_domain_id": "policy_entitlement_and_verifier_helpers",
+  "host_class_id": "observability_collector",
+  "host_instance_id": "host:observability_collector:20260423T170005Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "exit",
+  "trigger_observed_at": "2026-04-23T20:22:11Z",
+  "host_spawn_at": "2026-04-23T17:00:05Z",
+
+  "exit_reason_class": "crash_allocation_failure",
+  "stall_reason_class": null,
+
+  "escalation_state_before": "ready",
+  "escalation_state_after": "warming",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 1,
+      "budget_in_window": 2
+    },
+    {
+      "window_class": "medium_window",
+      "window_seconds": 30,
+      "count_at_trigger": 1,
+      "budget_in_window": 2
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "heartbeated_at_least_once",
+    "declared_interval_seconds": 2,
+    "missed_heartbeats": 0,
+    "last_heartbeat_at": "2026-04-23T20:22:09Z",
+    "advertised_rpc_contract_version": "1",
+    "note": "Collector heartbeated up to the moment of allocation failure."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 14.4,
+    "resident_memory_mib": 788.2,
+    "peak_resident_memory_mib": 1024.0,
+    "open_file_handles": 192,
+    "open_socket_handles": 0,
+    "queue_depth_foreground": 0,
+    "queue_depth_interactive_background": 0,
+    "queue_depth_maintenance": 24,
+    "queue_depth_provider_overlay": 0,
+    "queue_depth_upload_replication": 8,
+    "io_wait_ms_per_second": 22.8,
+    "governor_state_at_trigger": "constrained",
+    "note": "Collector maintenance lane was at the constrained band; peak resident memory reached its hard cap before allocation failure."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:localhost:darwin-arm64",
+    "subscription_envelope_refs": [],
+    "extension_permission_manifest_refs": [],
+    "remote_transport_session_refs": [],
+    "credential_alias_refs": [],
+    "ai_provider_conversation_refs": [],
+    "session_lifecycle_refs": [],
+    "note": "Collector ingests typed streams; it does not hold subscription envelopes."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "support_bundle_schema",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Support-bundle contract current."
+    },
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Audit-event-stream and typed RPC contracts current."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "collector_ingested_checkpoint",
+    "checkpoint_ref": "ckpt:observability_collector:retention_window:20260423T202000Z",
+    "epoch": 772,
+    "captured_at": "2026-04-23T20:20:00Z",
+    "note": "Retention-window checkpoint preserved on disk; bounded buffers resume from here on restart."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "warming",
+      "cause_class": "restart_inside_short_window",
+      "observed_at": "2026-04-23T20:22:11Z",
+      "note": "Collector respawned; emitters continue to write to bounded buffers."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "support_export_assembly_handle",
+      "ticket_ref": "supx:assembly:wks:aureline:20260423T201955Z",
+      "revoked_at": "2026-04-23T20:22:11Z",
+      "note": "In-flight support-bundle assembly revoked; any pending export is reissued after collector reaches ready."
+    },
+    {
+      "ticket_class": "support_export_assembly_handle",
+      "ticket_ref": "supx:assembly:wks:aureline:20260423T202108Z",
+      "revoked_at": "2026-04-23T20:22:11Z",
+      "note": "Second in-flight bundle also revoked."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency action; internal allocation failure."
+  },
+
+  "workspace_scope": {
+    "workspace_id": null,
+    "profile_id": null,
+    "execution_context_id": null,
+    "note": "Collector is ambient; not bound to a workspace, profile, or execution context."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "Observability collector crashed on allocation failure and respawned with a preserved retention-window checkpoint; emitters continued to fill bounded buffers without serializing behind the collector, satisfying the collector_is_non_blocking invariant."
+}

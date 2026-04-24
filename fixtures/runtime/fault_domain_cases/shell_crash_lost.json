@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "shell_crash_lost",
+    "fault_domain_id": "shell_interaction_core",
+    "scenario": "Desktop shell process exits on an unhandled panic while the user was typing. The shell has restart_class = never_auto_restart; the supervisor does NOT silently respawn it. The forensic packet carries the exit reason, the revoked ticket set (all shell-held subscriptions, capability envelopes, and extension permission manifests), the last-good checkpoint on dirty buffers and local history, and projects escalation_state_after = lost so the next launch starts from warming. No exit_reason_class is retried inside a short window because the shell is never auto-restarted.",
+    "exercised": {
+      "trigger_class": "exit",
+      "exit_reason_class": "crash_unhandled_panic",
+      "escalation_transition": "ready -> lost",
+      "default_escalation_ceiling": "lost",
+      "budget_exhausted": false,
+      "revoke_on_loss_present": true
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T174502Z:0001",
+  "fault_domain_id": "shell_interaction_core",
+  "host_class_id": "desktop_shell",
+  "host_instance_id": "host:desktop_shell:20260423T170012Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "exit",
+  "trigger_observed_at": "2026-04-23T17:45:02Z",
+  "host_spawn_at": "2026-04-23T17:00:12Z",
+
+  "exit_reason_class": "crash_unhandled_panic",
+  "stall_reason_class": null,
+
+  "escalation_state_before": "ready",
+  "escalation_state_after": "lost",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 1,
+      "budget_in_window": 0
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "not_applicable",
+    "declared_interval_seconds": null,
+    "missed_heartbeats": 0,
+    "last_heartbeat_at": null,
+    "advertised_rpc_contract_version": null,
+    "note": "Shell does not heartbeat to the supervisor on a child lifecycle line; the supervisor observes shell exit via desktop-session wait."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 42.5,
+    "resident_memory_mib": 812.4,
+    "peak_resident_memory_mib": 1204.8,
+    "open_file_handles": 87,
+    "open_socket_handles": 9,
+    "queue_depth_foreground": 0,
+    "queue_depth_interactive_background": 0,
+    "queue_depth_maintenance": 0,
+    "queue_depth_provider_overlay": 0,
+    "queue_depth_upload_replication": 0,
+    "io_wait_ms_per_second": 12.0,
+    "governor_state_at_trigger": "nominal",
+    "note": "Background CPU / IO were nominal; crash was a localized panic in the command-routing path."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:localhost:darwin-arm64",
+    "subscription_envelope_refs": [
+      "sub:editor.buffer_snapshot:wks:aureline:root:0",
+      "sub:vfs.tree:wks:aureline:root:0",
+      "sub:search.results:wks:aureline:root:0"
+    ],
+    "extension_permission_manifest_refs": [
+      "ext:manifest:example.cargo_lens",
+      "ext:manifest:example.yaml_linter"
+    ],
+    "remote_transport_session_refs": [],
+    "credential_alias_refs": [],
+    "ai_provider_conversation_refs": [],
+    "session_lifecycle_refs": [],
+    "note": "Shell held editor, vfs, and search subscription envelopes plus two extension permission manifests at the moment of crash."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Typed RPC contract is current."
+    },
+    {
+      "contract_domain": "subscription_envelope",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Subscription envelope version matches."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "disk_persisted_checkpoint",
+    "checkpoint_ref": "ckpt:local_history:wks:aureline:20260423T174458Z",
+    "epoch": 4812,
+    "captured_at": "2026-04-23T17:44:58Z",
+    "note": "Dirty buffers and local history checkpoints were persisted 4 seconds before the crash; the user's in-flight typing is recoverable on next launch."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "lost",
+      "cause_class": "user_relaunched_application",
+      "observed_at": "2026-04-23T17:45:02Z",
+      "note": "Shell exited; supervisor projects lost. Recovery owner is the user via relaunch."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:editor.buffer_snapshot:wks:aureline:root:0",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "Editor buffer subscription revoked on shell loss; consumers will see resync_required with host_restart on next launch."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:vfs.tree:wks:aureline:root:0",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "VFS subscription revoked."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:search.results:wks:aureline:root:0",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "Search subscription revoked."
+    },
+    {
+      "ticket_class": "extension_permission_manifest",
+      "ticket_ref": "ext:manifest:example.cargo_lens",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "Extension permission manifest revoked; re-admission required on next launch."
+    },
+    {
+      "ticket_class": "extension_permission_manifest",
+      "ticket_ref": "ext:manifest:example.yaml_linter",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "Extension permission manifest revoked."
+    },
+    {
+      "ticket_class": "capability_envelope",
+      "ticket_ref": "cap:localhost:darwin-arm64",
+      "revoked_at": "2026-04-23T17:45:02Z",
+      "note": "Target capability envelope invalidated; re-issued on next launch under policy admission."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency-action record linked to this crash; cause is a localized unhandled panic."
+  },
+
+  "workspace_scope": {
+    "workspace_id": "wks:aureline",
+    "profile_id": "prof:ahmeddyounis.default",
+    "execution_context_id": null,
+    "note": "Shell was not bound to a resolved execution context at the moment of crash."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "Desktop shell crashed on an unhandled panic; supervisor projects lost, revokes all shell-held subscriptions, capability envelopes, and extension permission manifests, and preserves the last-good local-history checkpoint for the next launch."
+}

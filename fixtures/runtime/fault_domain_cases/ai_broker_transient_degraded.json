@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "ai_broker_transient_degraded",
+    "fault_domain_id": "ai_and_external_tool_brokers",
+    "scenario": "The AI runtime / broker host times out on its provider heartbeat past the medium-window threshold. The supervisor kills the stalled host with a watchdog_forced_kill_after_stall and restarts with exponential-jittered backoff. Capability narrows from ready to degraded; provider conversation handles are revoked. The editor and knowledge lanes are unaffected (ai_and_remote_failures_never_block_editing invariant).",
+    "exercised": {
+      "trigger_class": "stall_detected",
+      "stall_reason_class": "provider_unreachable_past_budget",
+      "escalation_transition": "ready -> degraded",
+      "default_escalation_ceiling": "quarantined",
+      "budget_exhausted": false
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T193045Z:0011",
+  "fault_domain_id": "ai_and_external_tool_brokers",
+  "host_class_id": "ai_runtime",
+  "host_instance_id": "host:ai_runtime:broker:20260423T190000Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "stall_detected",
+  "trigger_observed_at": "2026-04-23T19:30:45Z",
+  "host_spawn_at": "2026-04-23T19:00:00Z",
+
+  "exit_reason_class": null,
+  "stall_reason_class": "provider_unreachable_past_budget",
+
+  "escalation_state_before": "ready",
+  "escalation_state_after": "degraded",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 0,
+      "budget_in_window": 4
+    },
+    {
+      "window_class": "medium_window",
+      "window_seconds": 30,
+      "count_at_trigger": 1,
+      "budget_in_window": 4
+    },
+    {
+      "window_class": "long_window",
+      "window_seconds": 120,
+      "count_at_trigger": 1,
+      "budget_in_window": 4
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "missed_heartbeat_window",
+    "declared_interval_seconds": 10,
+    "missed_heartbeats": 3,
+    "last_heartbeat_at": "2026-04-23T19:30:13Z",
+    "advertised_rpc_contract_version": "1",
+    "note": "Broker missed three heartbeats; supervisor enforces watchdog kill past threshold."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 0.8,
+    "resident_memory_mib": 148.4,
+    "peak_resident_memory_mib": 201.3,
+    "open_file_handles": 22,
+    "open_socket_handles": 4,
+    "queue_depth_foreground": 0,
+    "queue_depth_interactive_background": 0,
+    "queue_depth_maintenance": 3,
+    "queue_depth_provider_overlay": 14,
+    "queue_depth_upload_replication": 0,
+    "io_wait_ms_per_second": 0.0,
+    "governor_state_at_trigger": "degraded",
+    "note": "provider_overlay lane was in the degraded band; broker stalled awaiting a remote provider response."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:localhost:darwin-arm64",
+    "subscription_envelope_refs": [
+      "sub:ai.tool_calls:wks:aureline",
+      "sub:ai.provider_route_posture:wks:aureline"
+    ],
+    "extension_permission_manifest_refs": [],
+    "remote_transport_session_refs": [],
+    "credential_alias_refs": [
+      "cred:alias:ai_provider:primary"
+    ],
+    "ai_provider_conversation_refs": [
+      "aiconv:20260423T192855Z:0006"
+    ],
+    "session_lifecycle_refs": [],
+    "note": "Broker held two subscription envelopes, one credential alias, and one in-flight provider conversation; conversation handle revoked."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Typed RPC contract is current."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "no_checkpoint_declared",
+    "checkpoint_ref": null,
+    "epoch": null,
+    "captured_at": null,
+    "note": "AI broker is a managed boundary; no local checkpoint semantics."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "degraded",
+      "cause_class": "stall_detected_past_threshold",
+      "observed_at": "2026-04-23T19:30:45Z",
+      "note": "Supervisor killed the broker after three missed heartbeats; capability narrows to degraded and will move to offline if restart fails."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "ai_provider_conversation_handle",
+      "ticket_ref": "aiconv:20260423T192855Z:0006",
+      "revoked_at": "2026-04-23T19:30:45Z",
+      "note": "In-flight provider conversation revoked; any user retry starts a new conversation under re-evaluated policy."
+    },
+    {
+      "ticket_class": "credential_alias_handle",
+      "ticket_ref": "cred:alias:ai_provider:primary",
+      "revoked_at": "2026-04-23T19:30:45Z",
+      "note": "Credential alias invalidated; broker requests a new alias on restart."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:ai.tool_calls:wks:aureline",
+      "revoked_at": "2026-04-23T19:30:45Z",
+      "note": "AI tool-call subscription revoked; surfaces project degraded with last failure reason."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:ai.provider_route_posture:wks:aureline",
+      "revoked_at": "2026-04-23T19:30:45Z",
+      "note": "Provider-route posture subscription revoked; visible disclosure updates on reconnect."
+    },
+    {
+      "ticket_class": "capability_envelope",
+      "ticket_ref": "cap:localhost:darwin-arm64",
+      "revoked_at": "2026-04-23T19:30:45Z",
+      "note": "Broker capability envelope revoked; re-issued after policy admission on restart."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency action; transient provider stall."
+  },
+
+  "workspace_scope": {
+    "workspace_id": "wks:aureline",
+    "profile_id": "prof:ahmeddyounis.default",
+    "execution_context_id": null,
+    "note": "AI broker is workspace-scoped but runs as a managed boundary, not a resolved execution context."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "AI broker stalled past the provider heartbeat budget; supervisor killed and restarted with jittered backoff, revoked the in-flight conversation handle and credential alias, and narrowed capability to degraded. Core editing is unaffected."
+}

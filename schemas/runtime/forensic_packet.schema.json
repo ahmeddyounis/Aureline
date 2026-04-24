@@ -1,0 +1,859 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/forensic_packet.schema.json",
+  "title": "Aureline fault-domain forensic packet",
+  "description": "Boundary schema for the forensic packet every supervised host emits on exit, stall, escalation, or recovery transition. See docs/runtime/fault_domains_and_restart_policy.md and artifacts/runtime/restart_budgets.yaml. One packet shape flows from emitter host classes to the observability_collector (the declared packet owner in service_ownership_matrix.yaml) and from there into support-bundle, evidence-packet, mutation-journal, and replay surfaces. Raw process memory, raw stdio bodies, raw stack traces, raw secret material, and raw provider payloads never cross this boundary; the packet carries typed counters, opaque refs into execution_context / subscription_envelope / emergency_action_record / advisory_record, and redaction-safe summary sentences only. Adding a new trigger class, exit reason class, stall reason class, heartbeat class, escalation state, ticket-revocation class, contract-domain class, checkpoint-class, or redaction-class value is additive-minor and MUST bump forensic_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/forensic_packet_record",
+  "$defs": {
+    "forensic_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this forensic-packet export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, and admin exports. Raw bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source at the emitter or supervisor observation point."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, lineage, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "forensic_packet_record",
+      "description": "Discriminator. Always forensic_packet_record for packets conforming to this schema."
+    },
+    "fault_domain_id": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "extension_and_tool_hosts",
+        "ai_and_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_and_verifier_helpers"
+      ],
+      "description": "Frozen fault-domain vocabulary. Joins back to artifacts/runtime/restart_budgets.yaml fault_domains rows."
+    },
+    "host_class_id": {
+      "type": "string",
+      "enum": [
+        "desktop_shell",
+        "local_supervisor",
+        "index_workers",
+        "language_hosts",
+        "debug_hosts",
+        "git_worker",
+        "pty_host",
+        "wasm_host_pool",
+        "external_extension_hosts",
+        "ai_runtime",
+        "remote_connector",
+        "observability_collector"
+      ],
+      "description": "Frozen host-class vocabulary. Joins back to artifacts/architecture/runtime_host_classes.yaml host_classes rows."
+    },
+    "host_instance_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "supervisor_session_id": {
+      "$ref": "#/$defs/opaque_id"
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "exit",
+        "stall_detected",
+        "escalation",
+        "recovery_transition"
+      ],
+      "description": "Why this packet was emitted."
+    },
+    "exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "clean_shutdown",
+        "supervisor_requested_stop",
+        "user_requested_stop",
+        "policy_narrowing_requested_stop",
+        "emergency_action_requested_stop",
+        "crash_segfault_or_signal",
+        "crash_unhandled_panic",
+        "crash_allocation_failure",
+        "crash_abort_on_assertion",
+        "crash_resource_quota_exceeded",
+        "crash_sandbox_denial",
+        "rpc_contract_mismatch",
+        "credential_rotation_requested_stop",
+        "host_os_terminated",
+        "watchdog_forced_kill_after_stall",
+        "unknown_nonclean_exit"
+      ],
+      "description": "Frozen exit-reason vocabulary. unknown_nonclean_exit is admissible only when the supervisor cannot classify; forensic packets MUST still carry a lineage."
+    },
+    "stall_reason_class": {
+      "type": "string",
+      "enum": [
+        "missed_heartbeat",
+        "rpc_timeout",
+        "protected_path_deadline_breach",
+        "queue_depth_stalled_past_window",
+        "resource_waiter_starved",
+        "provider_unreachable_past_budget",
+        "transport_disconnect_past_budget",
+        "unknown_stall"
+      ],
+      "description": "Frozen stall-reason vocabulary."
+    },
+    "escalation_state_class": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "disabled",
+        "quarantined",
+        "offline",
+        "lost"
+      ],
+      "description": "Frozen escalation-state vocabulary. Matches escalation_state_vocabulary in restart_budgets.yaml."
+    },
+    "strike_window_class": {
+      "type": "string",
+      "enum": [
+        "short_window",
+        "medium_window",
+        "long_window"
+      ],
+      "description": "Frozen strike-window vocabulary. Matches strike_window_classes in restart_budgets.yaml."
+    },
+    "strike_counter_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_class",
+        "window_seconds",
+        "count_at_trigger",
+        "budget_in_window"
+      ],
+      "properties": {
+        "window_class": {
+          "$ref": "#/$defs/strike_window_class"
+        },
+        "window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "count_at_trigger": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of qualifying incidents (exits + stalls) counted inside this window at the moment the packet was observed."
+        },
+        "budget_in_window": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Configured automatic-restart budget for this window, per restart_budgets.yaml. 0 means no auto-restart (shell)."
+        }
+      },
+      "description": "One strike-window counter snapshot."
+    },
+    "heartbeat_class": {
+      "type": "string",
+      "enum": [
+        "never_heartbeated",
+        "heartbeated_at_least_once",
+        "missed_heartbeat_window",
+        "heartbeat_contract_mismatch",
+        "not_applicable"
+      ],
+      "description": "Heartbeat posture at trigger. not_applicable is reserved for host classes that do not heartbeat (for example shell_interaction_core)."
+    },
+    "heartbeat_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "heartbeat_class",
+        "declared_interval_seconds",
+        "missed_heartbeats",
+        "last_heartbeat_at",
+        "advertised_rpc_contract_version",
+        "note"
+      ],
+      "properties": {
+        "heartbeat_class": {
+          "$ref": "#/$defs/heartbeat_class"
+        },
+        "declared_interval_seconds": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Declared heartbeat interval per restart_budgets.yaml. Null for not_applicable."
+        },
+        "missed_heartbeats": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_heartbeat_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "advertised_rpc_contract_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "The RPC contract version the host last advertised. Compared against the supervisor-held version; a drift produces heartbeat_contract_mismatch."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "resource_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_percent",
+        "resident_memory_mib",
+        "peak_resident_memory_mib",
+        "open_file_handles",
+        "open_socket_handles",
+        "queue_depth_foreground",
+        "queue_depth_interactive_background",
+        "queue_depth_maintenance",
+        "queue_depth_provider_overlay",
+        "queue_depth_upload_replication",
+        "io_wait_ms_per_second",
+        "governor_state_at_trigger",
+        "note"
+      ],
+      "properties": {
+        "cpu_percent": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Sampled CPU percent for this host at trigger time. Bounded; raw perf counters never cross the boundary."
+        },
+        "resident_memory_mib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "peak_resident_memory_mib": {
+          "type": "number",
+          "minimum": 0
+        },
+        "open_file_handles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_socket_handles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_depth_foreground": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_depth_interactive_background": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_depth_maintenance": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_depth_provider_overlay": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "queue_depth_upload_replication": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "io_wait_ms_per_second": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Rolling I/O wait in milliseconds per second. Bounded summary metric."
+        },
+        "governor_state_at_trigger": {
+          "type": "string",
+          "enum": [
+            "nominal",
+            "constrained",
+            "degraded",
+            "protect_core",
+            "recovery"
+          ],
+          "description": "The shared resource-governor state the emitter observed at trigger time. Joins back to resource_governor_thresholds.yaml governor_health_state_vocabulary."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Bounded resource snapshot sampled at trigger time. Never carries raw process memory or raw perf bodies."
+    },
+    "capability_envelope_snapshot_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_envelope_ref",
+        "subscription_envelope_refs",
+        "extension_permission_manifest_refs",
+        "remote_transport_session_refs",
+        "credential_alias_refs",
+        "ai_provider_conversation_refs",
+        "session_lifecycle_refs",
+        "note"
+      ],
+      "properties": {
+        "capability_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into execution_context.schema.json capability_envelope_ref the host held at trigger time."
+        },
+        "subscription_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into subscription_envelope.schema.json authority envelopes held at trigger."
+        },
+        "extension_permission_manifest_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "remote_transport_session_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "credential_alias_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Credential alias handles (ADR-0007). Raw credential material never appears; only aliases do."
+        },
+        "ai_provider_conversation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "session_lifecycle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Per-session helper session ids (language, DAP, Git, PTY)."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "The authority and capability envelopes the host held at trigger time. The supervisor uses this block to determine which tickets to revoke before rehydrate."
+    },
+    "contract_domain_class": {
+      "type": "string",
+      "enum": [
+        "rpc_transport",
+        "subscription_envelope",
+        "execution_context",
+        "vfs_save_envelope",
+        "extension_manifest",
+        "permission_manifest",
+        "emergency_action_record",
+        "advisory_record",
+        "support_bundle_schema",
+        "resource_governor_thresholds",
+        "restart_budgets"
+      ],
+      "description": "Named contract domains whose versions the host advertises. Extends with the repo's current schema families."
+    },
+    "contract_version_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_domain",
+        "advertised_version",
+        "supervisor_expected_version",
+        "compatibility_class",
+        "note"
+      ],
+      "properties": {
+        "contract_domain": {
+          "$ref": "#/$defs/contract_domain_class"
+        },
+        "advertised_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supervisor_expected_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compatibility_class": {
+          "type": "string",
+          "enum": [
+            "exact_match",
+            "additive_compatible",
+            "mismatch_breaking",
+            "unknown"
+          ],
+          "description": "Whether the advertised version and the supervisor-expected version are compatible."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "One contract-version pair recorded at trigger. RPC contract mismatch MUST surface here, not only in stdio logs."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "no_checkpoint_declared",
+        "supervisor_acknowledged_epoch",
+        "disk_persisted_checkpoint",
+        "collector_ingested_checkpoint",
+        "session_handoff_checkpoint",
+        "unknown"
+      ],
+      "description": "What kind of last-good checkpoint the host declared (if any)."
+    },
+    "last_good_checkpoint_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_class",
+        "checkpoint_ref",
+        "epoch",
+        "captured_at",
+        "note"
+      ],
+      "properties": {
+        "checkpoint_class": {
+          "$ref": "#/$defs/checkpoint_class"
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the checkpoint the host last confirmed. Null for hosts without a checkpoint (shell, PTY scrollback-only)."
+        },
+        "epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "captured_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "degraded_state_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_state",
+        "to_state",
+        "cause_class",
+        "observed_at",
+        "note"
+      ],
+      "properties": {
+        "from_state": {
+          "$ref": "#/$defs/escalation_state_class"
+        },
+        "to_state": {
+          "$ref": "#/$defs/escalation_state_class"
+        },
+        "cause_class": {
+          "type": "string",
+          "enum": [
+            "first_heartbeat_received",
+            "short_window_counter_drained",
+            "restart_inside_short_window",
+            "budget_exhausted_inside_medium_window",
+            "stall_detected_past_threshold",
+            "emergency_action_record_tripped",
+            "policy_change_tripped",
+            "remote_reachability_changed",
+            "user_resumed_host",
+            "user_disabled_host",
+            "superseding_emergency_action",
+            "supervisor_auto_cleared",
+            "user_relaunched_application"
+          ],
+          "description": "Why this transition happened."
+        },
+        "observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "One escalation-state transition this host traversed during the current supervisor session."
+    },
+    "degraded_state_lineage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/degraded_state_transition_record"
+      },
+      "description": "Ordered list of escalation-state transitions traversed by this host during the current supervisor session, oldest first."
+    },
+    "revoked_ticket_class": {
+      "type": "string",
+      "enum": [
+        "subscription_authority_envelope",
+        "capability_envelope",
+        "extension_permission_manifest",
+        "remote_transport_session",
+        "credential_alias_handle",
+        "ai_provider_conversation_handle",
+        "session_lifecycle_handle",
+        "support_export_assembly_handle"
+      ],
+      "description": "Frozen ticket-class vocabulary the supervisor revokes before the next rehydrate."
+    },
+    "revoked_ticket_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ticket_class",
+        "ticket_ref",
+        "revoked_at",
+        "note"
+      ],
+      "properties": {
+        "ticket_class": {
+          "$ref": "#/$defs/revoked_ticket_class"
+        },
+        "ticket_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "revoked_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "emergency_action_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emergency_action_record_refs",
+        "advisory_refs",
+        "incident_workspace_packet_refs",
+        "note"
+      ],
+      "properties": {
+        "emergency_action_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/security/emergency_action_record.schema.json records that gated this escalation."
+        },
+        "advisory_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "incident_workspace_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Linkage to advisory / emergency-action / incident records that caused this escalation (for example a kill switch). Empty arrays when no such record applies."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "default_redacted",
+        "verbose_user_opt_in",
+        "admin_export_redacted",
+        "incident_lockdown_redacted"
+      ],
+      "description": "Redaction posture the support collector applies when this packet is folded into a support bundle or admin export."
+    },
+    "workspace_scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id",
+        "profile_id",
+        "execution_context_id",
+        "note"
+      ],
+      "properties": {
+        "workspace_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "profile_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Opaque ref into execution_context.schema.json when the host was bound to a resolved execution context."
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "description": "Workspace / profile / execution-context scope the host was operating under at trigger time. Null fields indicate unscoped ambient hosts (supervisor, collector)."
+    },
+    "forensic_packet_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "forensic_packet_schema_version",
+        "packet_id",
+        "fault_domain_id",
+        "host_class_id",
+        "host_instance_id",
+        "supervisor_session_id",
+        "trigger_class",
+        "trigger_observed_at",
+        "host_spawn_at",
+        "exit_reason_class",
+        "stall_reason_class",
+        "escalation_state_before",
+        "escalation_state_after",
+        "strike_counters",
+        "heartbeat_snapshot",
+        "resource_snapshot",
+        "capability_envelope_snapshot",
+        "contract_versions",
+        "last_good_checkpoint",
+        "degraded_state_lineage",
+        "revoked_tickets",
+        "emergency_action_linkage",
+        "workspace_scope",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "forensic_packet_schema_version": {
+          "$ref": "#/$defs/forensic_packet_schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "fault_domain_id": {
+          "$ref": "#/$defs/fault_domain_id"
+        },
+        "host_class_id": {
+          "$ref": "#/$defs/host_class_id"
+        },
+        "host_instance_id": {
+          "$ref": "#/$defs/host_instance_id"
+        },
+        "supervisor_session_id": {
+          "$ref": "#/$defs/supervisor_session_id"
+        },
+        "trigger_class": {
+          "$ref": "#/$defs/trigger_class"
+        },
+        "trigger_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "host_spawn_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "exit_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/exit_reason_class" }
+          ],
+          "description": "Required on trigger_class = exit. Null on stall_detected, escalation, and recovery_transition triggers."
+        },
+        "stall_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stall_reason_class" }
+          ],
+          "description": "Required on trigger_class = stall_detected. Null otherwise."
+        },
+        "escalation_state_before": {
+          "$ref": "#/$defs/escalation_state_class"
+        },
+        "escalation_state_after": {
+          "$ref": "#/$defs/escalation_state_class"
+        },
+        "strike_counters": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/strike_counter_record"
+          },
+          "description": "Strike-window counter snapshots at trigger time. At minimum the short_window counter MUST appear; medium and long-window counters MUST appear when the host declares those windows."
+        },
+        "heartbeat_snapshot": {
+          "$ref": "#/$defs/heartbeat_snapshot"
+        },
+        "resource_snapshot": {
+          "$ref": "#/$defs/resource_snapshot"
+        },
+        "capability_envelope_snapshot": {
+          "$ref": "#/$defs/capability_envelope_snapshot_ref"
+        },
+        "contract_versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contract_version_record"
+          },
+          "description": "Contract-version rows recorded at trigger time. Empty arrays are permitted only for trigger_class = recovery_transition where the host has not re-advertised contracts yet."
+        },
+        "last_good_checkpoint": {
+          "$ref": "#/$defs/last_good_checkpoint_ref"
+        },
+        "degraded_state_lineage": {
+          "$ref": "#/$defs/degraded_state_lineage"
+        },
+        "revoked_tickets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/revoked_ticket_record"
+          },
+          "description": "Every ticket the supervisor revoked before (or will revoke before) the next rehydrate of this host instance."
+        },
+        "emergency_action_linkage": {
+          "$ref": "#/$defs/emergency_action_linkage"
+        },
+        "workspace_scope": {
+          "$ref": "#/$defs/workspace_scope_ref"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "allOf": [
+        {
+          "description": "exit triggers carry an exit_reason_class and no stall_reason_class.",
+          "if": {
+            "properties": {
+              "trigger_class": { "const": "exit" }
+            },
+            "required": ["trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "exit_reason_class": {
+                "not": { "type": "null" }
+              },
+              "stall_reason_class": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "description": "stall_detected triggers carry a stall_reason_class and no exit_reason_class.",
+          "if": {
+            "properties": {
+              "trigger_class": { "const": "stall_detected" }
+            },
+            "required": ["trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "stall_reason_class": {
+                "not": { "type": "null" }
+              },
+              "exit_reason_class": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation and recovery_transition triggers do not carry exit_reason_class or stall_reason_class; the lineage carries the cause.",
+          "if": {
+            "properties": {
+              "trigger_class": {
+                "enum": ["escalation", "recovery_transition"]
+              }
+            },
+            "required": ["trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "exit_reason_class": { "const": null },
+              "stall_reason_class": { "const": null },
+              "degraded_state_lineage": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "shell_interaction_core forbids the quarantined / disabled / offline escalation states; only ready and lost are permitted on the escalation fields.",
+          "if": {
+            "properties": {
+              "fault_domain_id": {
+                "const": "shell_interaction_core"
+              }
+            },
+            "required": ["fault_domain_id"]
+          },
+          "then": {
+            "properties": {
+              "escalation_state_before": {
+                "enum": ["ready", "lost"]
+              },
+              "escalation_state_after": {
+                "enum": ["ready", "lost"]
+              }
+            }
+          }
+        },
+        {
+          "description": "lost is permitted only on shell_interaction_core.",
+          "if": {
+            "properties": {
+              "escalation_state_after": { "const": "lost" }
+            },
+            "required": ["escalation_state_after"]
+          },
+          "then": {
+            "properties": {
+              "fault_domain_id": { "const": "shell_interaction_core" }
+            }
+          }
+        }
+      ],
+      "description": "One forensic packet. Emitted on every exit, stall, escalation, or recovery transition and delivered to the observability_collector host class through one of the allowed IPC families (audit_event_stream, event_stream, typed_binary_rpc). Raw bodies never cross this boundary; opaque refs and typed counters only."
+    }
+  }
+}

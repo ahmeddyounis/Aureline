@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "remote_connector_disconnect_offline",
+    "fault_domain_id": "remote_connectors",
+    "scenario": "An SSH remote connector loses its transport past the offline threshold (disconnect_duration_seconds.offline_at = 15). The supervisor drops the remote session and projects escalation_state_after = offline. Local editing and cached reads remain available; remote task launches surface an offline chip with the local-safe alternative and the reconnect owner. The forensic packet records the transport-disconnect-past-budget stall reason.",
+    "exercised": {
+      "trigger_class": "stall_detected",
+      "stall_reason_class": "transport_disconnect_past_budget",
+      "escalation_transition": "degraded -> offline",
+      "default_escalation_ceiling": "offline"
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T200332Z:0015",
+  "fault_domain_id": "remote_connectors",
+  "host_class_id": "remote_connector",
+  "host_instance_id": "host:remote_connector:ssh:devbox.example.com:20260423T195500Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "stall_detected",
+  "trigger_observed_at": "2026-04-23T20:03:32Z",
+  "host_spawn_at": "2026-04-23T19:55:00Z",
+
+  "exit_reason_class": null,
+  "stall_reason_class": "transport_disconnect_past_budget",
+
+  "escalation_state_before": "degraded",
+  "escalation_state_after": "offline",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 0,
+      "budget_in_window": 4
+    },
+    {
+      "window_class": "long_window",
+      "window_seconds": 120,
+      "count_at_trigger": 2,
+      "budget_in_window": 4
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "missed_heartbeat_window",
+    "declared_interval_seconds": 10,
+    "missed_heartbeats": 3,
+    "last_heartbeat_at": "2026-04-23T20:03:02Z",
+    "advertised_rpc_contract_version": "1",
+    "note": "Connector missed three heartbeats across 30 seconds; underlying transport confirmed disconnected."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 0.2,
+    "resident_memory_mib": 58.2,
+    "peak_resident_memory_mib": 92.4,
+    "open_file_handles": 12,
+    "open_socket_handles": 0,
+    "queue_depth_foreground": 0,
+    "queue_depth_interactive_background": 0,
+    "queue_depth_maintenance": 0,
+    "queue_depth_provider_overlay": 7,
+    "queue_depth_upload_replication": 2,
+    "io_wait_ms_per_second": 0.0,
+    "governor_state_at_trigger": "degraded",
+    "note": "Provider-overlay lane is holding remote-bound traffic while the connector is disconnected."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:remote:ssh:devbox.example.com",
+    "subscription_envelope_refs": [
+      "sub:remote.mount.state:devbox.example.com"
+    ],
+    "extension_permission_manifest_refs": [],
+    "remote_transport_session_refs": [
+      "rt:ssh:devbox.example.com:20260423T195500Z"
+    ],
+    "credential_alias_refs": [
+      "cred:alias:ssh:devbox.example.com"
+    ],
+    "ai_provider_conversation_refs": [],
+    "session_lifecycle_refs": [],
+    "note": "Remote mount subscription, SSH session, and credential alias were in use at disconnect."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Remote proxy bridge contract is current."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "supervisor_acknowledged_epoch",
+    "checkpoint_ref": "ckpt:remote.mount.state:devbox.example.com:epoch_331",
+    "epoch": 331,
+    "captured_at": "2026-04-23T20:02:15Z",
+    "note": "Remote mount metadata snapshot preserved; reconnect starts from this epoch and emits warming."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "degraded",
+      "cause_class": "remote_reachability_changed",
+      "observed_at": "2026-04-23T20:02:48Z",
+      "note": "First heartbeat miss; RTT and error rate entered the degraded band."
+    },
+    {
+      "from_state": "degraded",
+      "to_state": "offline",
+      "cause_class": "remote_reachability_changed",
+      "observed_at": "2026-04-23T20:03:32Z",
+      "note": "Disconnect duration crossed offline_at; supervisor projects offline and pauses active provider-overlay work."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "remote_transport_session",
+      "ticket_ref": "rt:ssh:devbox.example.com:20260423T195500Z",
+      "revoked_at": "2026-04-23T20:03:32Z",
+      "note": "SSH session torn down; reconnect will establish a new session id."
+    },
+    {
+      "ticket_class": "credential_alias_handle",
+      "ticket_ref": "cred:alias:ssh:devbox.example.com",
+      "revoked_at": "2026-04-23T20:03:32Z",
+      "note": "Credential alias invalidated on transport loss; broker re-issues on reconnect after policy admission."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:remote.mount.state:devbox.example.com",
+      "revoked_at": "2026-04-23T20:03:32Z",
+      "note": "Remote mount subscription revoked; consumers receive resync_required with host_restart reason."
+    },
+    {
+      "ticket_class": "capability_envelope",
+      "ticket_ref": "cap:remote:ssh:devbox.example.com",
+      "revoked_at": "2026-04-23T20:03:32Z",
+      "note": "Remote capability envelope revoked; reachability and capability posture re-negotiate on reconnect."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency action; routine transport disconnect."
+  },
+
+  "workspace_scope": {
+    "workspace_id": "wks:aureline",
+    "profile_id": "prof:ahmeddyounis.default",
+    "execution_context_id": null,
+    "note": "Connector runs at the workspace scope; execution contexts bound to this connector are now unreachable and surface offline."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "Remote connector lost its SSH transport past the offline threshold; supervisor dropped the session, revoked transport and credential handles, preserved the mount-state checkpoint, and projected offline while local editing and cached reads remain unaffected."
+}

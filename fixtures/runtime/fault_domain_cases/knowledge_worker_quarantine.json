@@ -1,0 +1,173 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "knowledge_worker_quarantine",
+    "fault_domain_id": "workspace_knowledge_workers",
+    "scenario": "An index worker crashes three times inside the medium window while ingesting a malformed semantic-graph input. The supervisor has already observed two prior exits; this fourth escalation packet lifts escalation_state from degraded to quarantined. The search and graph surfaces project partial state with a repair path; the shell continues typing and saving with no freshness claim on affected shards. Authority envelopes are revoked before any future rehydrate; automatic restart is paused until the user or local admin explicitly resumes.",
+    "exercised": {
+      "trigger_class": "escalation",
+      "escalation_transition": "degraded -> quarantined",
+      "default_escalation_ceiling": "quarantined",
+      "budget_exhausted": true
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T181507Z:0003",
+  "fault_domain_id": "workspace_knowledge_workers",
+  "host_class_id": "index_workers",
+  "host_instance_id": "host:index_workers:pool_slot_2:20260423T181118Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "escalation",
+  "trigger_observed_at": "2026-04-23T18:15:07Z",
+  "host_spawn_at": "2026-04-23T18:11:18Z",
+
+  "exit_reason_class": null,
+  "stall_reason_class": null,
+
+  "escalation_state_before": "degraded",
+  "escalation_state_after": "quarantined",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 1,
+      "budget_in_window": 3
+    },
+    {
+      "window_class": "medium_window",
+      "window_seconds": 30,
+      "count_at_trigger": 4,
+      "budget_in_window": 3
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "heartbeated_at_least_once",
+    "declared_interval_seconds": 5,
+    "missed_heartbeats": 0,
+    "last_heartbeat_at": "2026-04-23T18:15:03Z",
+    "advertised_rpc_contract_version": "1",
+    "note": "Worker heartbeated before each crash; cause is ingest data, not liveness."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 18.0,
+    "resident_memory_mib": 210.4,
+    "peak_resident_memory_mib": 498.1,
+    "open_file_handles": 412,
+    "open_socket_handles": 1,
+    "queue_depth_foreground": 0,
+    "queue_depth_interactive_background": 11,
+    "queue_depth_maintenance": 36,
+    "queue_depth_provider_overlay": 0,
+    "queue_depth_upload_replication": 0,
+    "io_wait_ms_per_second": 48.2,
+    "governor_state_at_trigger": "constrained",
+    "note": "Maintenance-lane depth was above the constrained band; worker was reading a repeatedly-rejected semantic-graph input."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:localhost:darwin-arm64",
+    "subscription_envelope_refs": [
+      "sub:search.results:wks:aureline:root:0",
+      "sub:semantic_graph.shards:wks:aureline:root:0"
+    ],
+    "extension_permission_manifest_refs": [],
+    "remote_transport_session_refs": [],
+    "credential_alias_refs": [],
+    "ai_provider_conversation_refs": [],
+    "session_lifecycle_refs": [],
+    "note": "Worker held search and semantic-graph authority envelopes; both revoked on quarantine."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "RPC contract is current; cause is input data."
+    },
+    {
+      "contract_domain": "subscription_envelope",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Subscription envelope version matches."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "supervisor_acknowledged_epoch",
+    "checkpoint_ref": "ckpt:index_workers:hot_set:epoch_4810",
+    "epoch": 4810,
+    "captured_at": "2026-04-23T18:11:12Z",
+    "note": "Hot-set checkpoint preserved; rehydrate on resume restarts from this epoch and rebuilds the rejected graph shard."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "warming",
+      "cause_class": "restart_inside_short_window",
+      "observed_at": "2026-04-23T18:14:22Z",
+      "note": "First crash at 18:14:22; supervisor respawns the worker."
+    },
+    {
+      "from_state": "warming",
+      "to_state": "degraded",
+      "cause_class": "restart_inside_short_window",
+      "observed_at": "2026-04-23T18:14:48Z",
+      "note": "Second crash inside the short window; surfaces mark search and graph degraded with a repair path."
+    },
+    {
+      "from_state": "degraded",
+      "to_state": "quarantined",
+      "cause_class": "budget_exhausted_inside_medium_window",
+      "observed_at": "2026-04-23T18:15:07Z",
+      "note": "Third crash in the medium window exhausts the budget (3 restarts / 30 s); automatic restart paused."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:search.results:wks:aureline:root:0",
+      "revoked_at": "2026-04-23T18:15:07Z",
+      "note": "Consumers receive resync_required with host_restart; search surfaces project partial with a repair hint."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:semantic_graph.shards:wks:aureline:root:0",
+      "revoked_at": "2026-04-23T18:15:07Z",
+      "note": "Semantic-graph subscription revoked; graph surface projects partial."
+    },
+    {
+      "ticket_class": "capability_envelope",
+      "ticket_ref": "cap:localhost:darwin-arm64",
+      "revoked_at": "2026-04-23T18:15:07Z",
+      "note": "Worker capability envelope revoked; re-issued on user-resume only after policy admission."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency action gated the quarantine; cause is repeated ingest failure on a specific graph shard."
+  },
+
+  "workspace_scope": {
+    "workspace_id": "wks:aureline",
+    "profile_id": "prof:ahmeddyounis.default",
+    "execution_context_id": null,
+    "note": "Worker is scoped to the workspace; no execution context is bound because it is a background knowledge-maintenance worker."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "Index worker exhausted its restart budget (3 crashes in 30 s); supervisor escalates from degraded to quarantined, revokes search and graph authority envelopes, and pauses automatic restart until the user or admin explicitly resumes."
+}

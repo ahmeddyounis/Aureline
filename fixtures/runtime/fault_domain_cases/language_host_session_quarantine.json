@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../schemas/runtime/forensic_packet.schema.json",
+  "__fixture__": {
+    "name": "language_host_session_quarantine",
+    "fault_domain_id": "session_scoped_execution_hosts",
+    "scenario": "A Rust analyzer LSP session crashes three times inside 30 seconds on a malformed project manifest. The supervisor escalates the session from degraded to quarantined; the user sees why the language host cannot be used on this workspace and picks a different toolchain. Other language server sessions running in the same workspace (typescript, python) are unaffected because session_scoped_execution_hosts isolates failure per session.",
+    "exercised": {
+      "trigger_class": "escalation",
+      "escalation_transition": "degraded -> quarantined",
+      "default_escalation_ceiling": "quarantined",
+      "per_session_isolation": true,
+      "restart_class_override": "quarantine_after_budget"
+    }
+  },
+
+  "record_kind": "forensic_packet_record",
+  "forensic_packet_schema_version": 1,
+  "packet_id": "fp:20260423T183322Z:0005",
+  "fault_domain_id": "session_scoped_execution_hosts",
+  "host_class_id": "language_hosts",
+  "host_instance_id": "host:language_hosts:session:rust_analyzer:wks:aureline:20260423T183221Z",
+  "supervisor_session_id": "sup:20260423T170000Z",
+
+  "trigger_class": "escalation",
+  "trigger_observed_at": "2026-04-23T18:33:22Z",
+  "host_spawn_at": "2026-04-23T18:32:21Z",
+
+  "exit_reason_class": null,
+  "stall_reason_class": null,
+
+  "escalation_state_before": "degraded",
+  "escalation_state_after": "quarantined",
+
+  "strike_counters": [
+    {
+      "window_class": "short_window",
+      "window_seconds": 5,
+      "count_at_trigger": 1,
+      "budget_in_window": 3
+    },
+    {
+      "window_class": "medium_window",
+      "window_seconds": 30,
+      "count_at_trigger": 3,
+      "budget_in_window": 3
+    }
+  ],
+
+  "heartbeat_snapshot": {
+    "heartbeat_class": "heartbeated_at_least_once",
+    "declared_interval_seconds": 2,
+    "missed_heartbeats": 0,
+    "last_heartbeat_at": "2026-04-23T18:33:20Z",
+    "advertised_rpc_contract_version": "1",
+    "note": "LSP session heartbeated before each crash; cause is manifest ingest, not liveness."
+  },
+
+  "resource_snapshot": {
+    "cpu_percent": 9.4,
+    "resident_memory_mib": 122.7,
+    "peak_resident_memory_mib": 204.1,
+    "open_file_handles": 58,
+    "open_socket_handles": 1,
+    "queue_depth_foreground": 1,
+    "queue_depth_interactive_background": 4,
+    "queue_depth_maintenance": 0,
+    "queue_depth_provider_overlay": 0,
+    "queue_depth_upload_replication": 0,
+    "io_wait_ms_per_second": 6.3,
+    "governor_state_at_trigger": "nominal",
+    "note": "No pressure indicator; failure is workspace-manifest specific."
+  },
+
+  "capability_envelope_snapshot": {
+    "capability_envelope_ref": "cap:localhost:darwin-arm64",
+    "subscription_envelope_refs": [
+      "sub:lsp.diagnostics:wks:aureline:root:0:rust_analyzer",
+      "sub:lsp.hover:wks:aureline:root:0:rust_analyzer"
+    ],
+    "extension_permission_manifest_refs": [],
+    "remote_transport_session_refs": [],
+    "credential_alias_refs": [],
+    "ai_provider_conversation_refs": [],
+    "session_lifecycle_refs": [
+      "sess:rust_analyzer:wks:aureline:20260423T183221Z"
+    ],
+    "note": "Per-session helper scope. Other LSP sessions (typescript, python) are unaffected."
+  },
+
+  "contract_versions": [
+    {
+      "contract_domain": "rpc_transport",
+      "advertised_version": "1",
+      "supervisor_expected_version": "1",
+      "compatibility_class": "exact_match",
+      "note": "Typed RPC proxy for jsonrpc_compat is current."
+    }
+  ],
+
+  "last_good_checkpoint": {
+    "checkpoint_class": "no_checkpoint_declared",
+    "checkpoint_ref": null,
+    "epoch": null,
+    "captured_at": null,
+    "note": "LSP sessions are per_session_ephemeral; no checkpoint is expected."
+  },
+
+  "degraded_state_lineage": [
+    {
+      "from_state": "ready",
+      "to_state": "warming",
+      "cause_class": "restart_inside_short_window",
+      "observed_at": "2026-04-23T18:32:47Z",
+      "note": "First crash on manifest parse; supervisor respawns session."
+    },
+    {
+      "from_state": "warming",
+      "to_state": "degraded",
+      "cause_class": "restart_inside_short_window",
+      "observed_at": "2026-04-23T18:33:04Z",
+      "note": "Second crash; session marked degraded. User sees narrowed rust-analyzer capability."
+    },
+    {
+      "from_state": "degraded",
+      "to_state": "quarantined",
+      "cause_class": "budget_exhausted_inside_medium_window",
+      "observed_at": "2026-04-23T18:33:22Z",
+      "note": "Third crash; budget exhausted. Session quarantined; other LSP sessions unaffected."
+    }
+  ],
+
+  "revoked_tickets": [
+    {
+      "ticket_class": "session_lifecycle_handle",
+      "ticket_ref": "sess:rust_analyzer:wks:aureline:20260423T183221Z",
+      "revoked_at": "2026-04-23T18:33:22Z",
+      "note": "Session marked terminated; a new session id is required if the user retries."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:lsp.diagnostics:wks:aureline:root:0:rust_analyzer",
+      "revoked_at": "2026-04-23T18:33:22Z",
+      "note": "Rust diagnostic subscription revoked; surfaces project partial for rust files."
+    },
+    {
+      "ticket_class": "subscription_authority_envelope",
+      "ticket_ref": "sub:lsp.hover:wks:aureline:root:0:rust_analyzer",
+      "revoked_at": "2026-04-23T18:33:22Z",
+      "note": "Rust hover subscription revoked."
+    },
+    {
+      "ticket_class": "capability_envelope",
+      "ticket_ref": "cap:localhost:darwin-arm64",
+      "revoked_at": "2026-04-23T18:33:22Z",
+      "note": "Session capability envelope revoked; re-issued on user-resume only after policy admission re-evaluates."
+    }
+  ],
+
+  "emergency_action_linkage": {
+    "emergency_action_record_refs": [],
+    "advisory_refs": [],
+    "incident_workspace_packet_refs": [],
+    "note": "No emergency action; local manifest cause."
+  },
+
+  "workspace_scope": {
+    "workspace_id": "wks:aureline",
+    "profile_id": "prof:ahmeddyounis.default",
+    "execution_context_id": "exec:20260423T183221Z:0007",
+    "note": "Session was bound to a resolved execution context; context id is preserved so support can replay the failing resolve."
+  },
+
+  "redaction_class": "default_redacted",
+  "summary": "Rust analyzer LSP session quarantined after three crashes in 30 s on manifest ingest; concurrent typescript and python sessions continue running under their own per-session budgets."
+}
