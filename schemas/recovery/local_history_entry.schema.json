@@ -1,0 +1,1031 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/local_history_entry.schema.json",
+  "title": "Aureline local-history entry, group, and clear-scope record",
+  "description": "Cross-tool boundary schema for the local-history recovery timeline. The local-history lane is a first-class recovery timeline — distinct from Git history, the dirty-buffer recovery journal, autosave journals, review-state checkpoints, and synced or provider history. Every local-history surface (timeline lane, compare, restore preview, support-bundle export, clear-history review, evidence packet) reads one of the three record shapes defined here: `local_history_entry`, `local_history_group_record`, or `local_history_clear_scope_record`. Actor, source, reversal, redaction, and checkpoint vocabularies are reused from schemas/workspace/mutation_journal.schema.json and are NOT redefined here; a local-history entry always references one mutation-journal entry (or group) by id rather than duplicating its attribution. Filesystem-identity rides in by reference to schemas/filesystem/save_target_token.schema.json#filesystem_identity_record. The timeline is local-first and excluded from sync by default; a support export, handoff, or evidence packet references entry ids rather than embedding raw bodies. See docs/reliability/local_history_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/local_history_entry" },
+    { "$ref": "#/$defs/local_history_group_record" },
+    { "$ref": "#/$defs/local_history_clear_scope_record" }
+  ],
+  "$defs": {
+    "local_history_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the local-history payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "local_history_entry",
+        "local_history_group_record",
+        "local_history_clear_scope_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for timeline rows, compare / restore handles, support exports, and evidence-packet references. Raw filesystem paths, credentials, and live authority tokens never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque at this boundary; readers order entries by the timestamps the producer emits rather than by wall-clock."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before crossing this boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "originator_class": { "type": "string", "minLength": 1 },
+        "actor_classes_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "source_classes_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "snapshot_classes_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "truth_source_classes_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Not read by production consumers."
+    },
+
+    "truth_source_class": {
+      "type": "string",
+      "enum": [
+        "local_history",
+        "autosave_journal",
+        "git_history",
+        "automation_lineage",
+        "external_change_record",
+        "synced_or_provider_history",
+        "review_checkpoint"
+      ],
+      "description": "Closed truth-source vocabulary the timeline lane, compare surface, and export paths render verbatim. Every local_history_entry and local_history_group_record carries `truth_source_class: local_history`. Adjacent records (autosave journals, Git commits, automation recipe lineage, external-change events, sync / provider histories, review checkpoints) appear on the same timeline lane under their own truth-source-class label so users never confuse an uncommitted recovery point with a branch commit, a journal replay, or a sync source of truth."
+    },
+
+    "snapshot_class": {
+      "type": "string",
+      "enum": [
+        "edit_save_checkpoint",
+        "workspace_mutation_checkpoint",
+        "automation_ai_checkpoint",
+        "external_state_checkpoint",
+        "restore_rollback_checkpoint",
+        "capture_omitted_stub",
+        "policy_redacted_stub"
+      ],
+      "description": "Closed snapshot-class vocabulary. Mirrors the Appendix CP checkpoint taxonomy (edit/save, workspace mutation group, automation/AI, external-state, restore/rollback) and adds two stub classes for entries whose body capture was omitted or policy-redacted. A capture_omitted_stub or policy_redacted_stub MUST still render on the timeline so the user can see that a change occurred even though bytes are unavailable."
+    },
+
+    "capture_mode": {
+      "type": "string",
+      "enum": [
+        "content_addressed_snapshot",
+        "metadata_plus_reference_only",
+        "group_manifest_only",
+        "external_cause_metadata_only"
+      ],
+      "description": "How the entry's body was captured. `content_addressed_snapshot`: the entry addresses one or more content-hashed blobs in the object store. `metadata_plus_reference_only`: the entry captures identity / delta metadata and a stable reference (typically an in-workspace path or an upstream artifact digest) rather than a captured blob — used for large, binary, generated, or managed artifacts. `group_manifest_only`: the entry is a group record that stores a member manifest but no bytes of its own. `external_cause_metadata_only`: the entry is an external-state checkpoint that records the cause and before-visible state without storing a bytes-level snapshot."
+    },
+
+    "capture_omission_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_omitted",
+        "omitted_too_large",
+        "omitted_binary_class_metadata_only",
+        "omitted_generated_artifact_use_lineage",
+        "omitted_managed_external_artifact",
+        "omitted_excluded_path",
+        "omitted_policy_redacted_secret_adjacent",
+        "omitted_quota_exceeded",
+        "omitted_unsupported_filesystem_semantics"
+      ],
+      "description": "Why (if at all) body capture was omitted. Every omission class is user-visible on the timeline so a reviewer can distinguish 'we did not capture bytes because policy blocked it' from 'we did not capture bytes because the artifact is generated and the canonical source carries the real lineage'."
+    },
+
+    "capture_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture_mode", "omission_reason", "body_available"],
+      "properties": {
+        "capture_mode": { "$ref": "#/$defs/capture_mode" },
+        "omission_reason": { "$ref": "#/$defs/capture_omission_reason_class" },
+        "body_available": {
+          "type": "boolean",
+          "description": "True when compare / restore can read the captured body directly; false when the entry carries only metadata or a reference."
+        },
+        "body_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque object-store refs for the captured body, when `capture_mode` is content_addressed_snapshot. Content-addressed; never a raw path."
+        },
+        "reference_digest": {
+          "type": ["string", "null"],
+          "description": "Opaque stable reference digest (upstream artifact digest, generator output digest, external revision token) when `capture_mode` is metadata_plus_reference_only. The timeline uses this to explain what was referenced in lieu of a captured body."
+        },
+        "bytes_estimated": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional estimated uncaptured size when the entry is a metadata_plus_reference_only or omitted entry. Used by the timeline to render an 'about N MB omitted' affordance."
+        },
+        "omission_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short redaction-aware note the timeline quotes verbatim when explaining omission or redaction."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "const": "content_addressed_snapshot" }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": true },
+              "body_object_refs": {
+                "type": "array",
+                "minItems": 1
+              },
+              "omission_reason": { "const": "not_omitted" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "const": "metadata_plus_reference_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": false }
+            },
+            "required": ["reference_digest"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "const": "external_cause_metadata_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "capture_mode": { "const": "group_manifest_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "body_available": { "const": false }
+            }
+          }
+        }
+      ],
+      "description": "Capture descriptor. Explains what was captured, what was referenced, and what was omitted for one local-history entry."
+    },
+
+    "logical_document_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_document_id",
+        "current_filesystem_identity",
+        "rename_move_history"
+      ],
+      "properties": {
+        "logical_document_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable logical document id that follows the document across rename and move. Allocated on first capture and reused forever; support bundles and restore handles cite this id rather than a path."
+        },
+        "current_filesystem_identity": {
+          "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record",
+          "description": "Current filesystem-identity record (ADR 0006 layers 1-4) for the document at the moment this entry was captured. Required for file-backed entries. Buffer-only drafts still carry the buffer-identity slot of the filesystem-identity record."
+        },
+        "canonical_identity_drift": {
+          "type": ["string", "null"],
+          "enum": [
+            "no_drift",
+            "rename_detected",
+            "move_detected",
+            "rename_and_move_detected",
+            "device_inode_reuse_detected",
+            "provider_object_id_rotated",
+            "canonical_identity_unknown",
+            null
+          ],
+          "description": "Drift class between the logical document id and the current canonical filesystem object. Drives the restore-preview minimum-fields requirement."
+        },
+        "rename_move_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "at", "previous_presentation_label"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "created",
+                  "renamed",
+                  "moved",
+                  "renamed_and_moved",
+                  "restored_from_local_history",
+                  "reattached_after_identity_drift"
+                ]
+              },
+              "at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "previous_presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+              "new_presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+              "mutation_journal_entry_ref": { "$ref": "#/$defs/opaque_id" },
+              "note": { "$ref": "#/$defs/redaction_aware_text" }
+            }
+          },
+          "description": "Append-only rename/move log for the logical document. The timeline reads this to explain, for example, 'this checkpoint was written when the file was still called Notes.md in /old/path'. Empty on fresh documents captured under the current name."
+        }
+      },
+      "description": "Logical-document identity that follows a document across rename, move, and identity drift. A restore preview that crosses a rename / move / drift MUST cite `canonical_identity_drift` and the last relevant `rename_move_history` entry."
+    },
+
+    "branch_worktree_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["context_class"],
+      "properties": {
+        "context_class": {
+          "type": "string",
+          "enum": [
+            "no_vcs_context",
+            "git_branch",
+            "git_worktree",
+            "git_detached_head",
+            "git_rebase_in_progress",
+            "git_merge_in_progress",
+            "git_cherry_pick_in_progress",
+            "external_vcs",
+            "review_workspace_branch"
+          ],
+          "description": "Branch / worktree context class in effect when the entry was captured. Drives how the timeline labels adjacent external-state checkpoints (merge / rebase / branch switch)."
+        },
+        "branch_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque branch id (never a raw branch name)."
+        },
+        "worktree_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque worktree id."
+        },
+        "base_commit_digest": {
+          "type": ["string", "null"],
+          "description": "Opaque base-commit content hash in effect when the entry was captured."
+        },
+        "parent_commit_digests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Opaque parent-commit content hashes when the context was a merge or rebase in progress."
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Branch / worktree context the document lived in when the entry was captured. A restore preview that crosses a branch or worktree switch MUST cite this."
+    },
+
+    "mutation_journal_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linked_kind", "linked_id"],
+      "properties": {
+        "linked_kind": {
+          "type": "string",
+          "enum": [
+            "mutation_journal_entry",
+            "mutation_group_record",
+            "no_mutation_journal_entry_external_cause"
+          ],
+          "description": "How this local-history record resolves back into the mutation journal. `no_mutation_journal_entry_external_cause` is reserved for external-state checkpoints whose cause is a branch switch, external overwrite, or other non-mutating event; those still carry a cause record but not a mutation-journal id."
+        },
+        "linked_id": {
+          "type": "string",
+          "description": "Mutation-journal entry id or group id this local-history record cites. The single lineage id shared by the undo-history row, the reopen-history row, the activity-centre durable job row, the local-history compare row, and every support-bundle / evidence-packet export (see docs/ux/clipboard_history_contract.md §10). May be the empty string when `linked_kind` is `no_mutation_journal_entry_external_cause`."
+        },
+        "actor_class": {
+          "type": "string",
+          "enum": [
+            "user_keystroke",
+            "user_command",
+            "multi_cursor_command",
+            "refactor_engine",
+            "formatter",
+            "save_participant",
+            "ai_apply",
+            "code_action",
+            "scaffolding",
+            "settings_import",
+            "workspace_migration",
+            "external_reload",
+            "decode_recovery",
+            "build_runner",
+            "codegen_runner",
+            "preview_regenerator",
+            "review_apply",
+            "replay_import",
+            "vendor_import",
+            "paste_or_drop_import",
+            "automation_recipe_runner",
+            "external_change_detector",
+            "restore_rollback_runner"
+          ],
+          "description": "Re-exports the mutation-journal actor_class taxonomy for the timeline lane, adding `paste_or_drop_import` (clipboard/drag-drop/import attribution required by docs/ux/clipboard_history_contract.md), `automation_recipe_runner` (macro / recipe lineage), `external_change_detector` (authored the external-state checkpoint), and `restore_rollback_runner` (authored a restore checkpoint). Consumers that need the full original mutation-journal record resolve the `linked_id`."
+        },
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "human_local",
+            "human_remote_session",
+            "machine_local",
+            "machine_remote_agent",
+            "ai_local_model",
+            "ai_hosted_provider",
+            "imported_external",
+            "replayed_capture",
+            "policy_driven"
+          ],
+          "description": "Re-exports the mutation-journal source_class taxonomy unchanged. Carried on every local-history record so the timeline, compare, and restore surfaces can render provenance without loading the full mutation-journal entry."
+        },
+        "reversal_class": {
+          "type": "string",
+          "enum": [
+            "exact_undo",
+            "compensating_undo",
+            "regenerate_or_recompute",
+            "restore_from_checkpoint",
+            "audit_only",
+            "no_reversal_external_event"
+          ],
+          "description": "Reversal class the timeline renders for this row. Re-exports the mutation-journal reversal-class set and adds `no_reversal_external_event` for external-state checkpoints that are observation-only (branch switch, external overwrite detected). Display copy never shows a bare 'Undo' for anything other than exact_undo."
+        },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "environment_adjacent",
+            "code_adjacent",
+            "high_risk"
+          ],
+          "description": "Redaction class for the captured body when exported through a support bundle, AI evidence packet, or replay capture. Consumers compare this against their export policy before materializing bytes."
+        }
+      },
+      "description": "Link back to the mutation-journal record that produced this local-history entry. A local-history entry does not duplicate the mutation-journal body; it cites the id."
+    },
+
+    "restore_preview_required_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_entry_ref",
+        "last_known_canonical_identity_ref",
+        "current_canonical_identity_ref",
+        "canonical_identity_drift",
+        "rename_move_chain_ref",
+        "resulting_snapshot_class",
+        "new_checkpoint_entry_ref"
+      ],
+      "properties": {
+        "source_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Local-history entry id the restore is reading from."
+        },
+        "last_known_canonical_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the filesystem-identity record captured at source time. Used by the preview to say 'this snapshot was captured when the file was identified as <X>'."
+        },
+        "current_canonical_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the filesystem-identity record observed right now. The restore preview compares these two to name drift explicitly."
+        },
+        "canonical_identity_drift": {
+          "type": "string",
+          "enum": [
+            "no_drift",
+            "rename_detected",
+            "move_detected",
+            "rename_and_move_detected",
+            "device_inode_reuse_detected",
+            "provider_object_id_rotated",
+            "canonical_identity_unknown"
+          ],
+          "description": "Drift class between source-time identity and current identity. The restore preview MUST render the drift class verbatim before any destructive-looking wording."
+        },
+        "rename_move_chain_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the rename/move history chain that connects source-time identity to current identity (if any)."
+        },
+        "body_availability": {
+          "type": "string",
+          "enum": [
+            "body_captured_in_object_store",
+            "body_available_from_reference_only",
+            "body_unavailable_metadata_only",
+            "body_unavailable_policy_redacted",
+            "body_unavailable_capture_omitted"
+          ],
+          "description": "What the preview can actually show. A body-unavailable state MUST still let the user open a metadata-only compare rather than silently doing nothing."
+        },
+        "resulting_snapshot_class": {
+          "type": "string",
+          "enum": [
+            "restore_rollback_checkpoint"
+          ],
+          "description": "Every successful restore produces a new local-history entry whose `snapshot_class` is restore_rollback_checkpoint. The restore never invisibly rewrites the prior trail."
+        },
+        "new_checkpoint_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Entry id of the new restore_rollback_checkpoint that the restore will write on apply. The preview shows this id before apply."
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Minimum-field set a restore preview MUST carry so the user can tell what bytes are about to come back, what identity drifted, and what new checkpoint the restore itself will emit."
+    },
+
+    "retention_scope_class": {
+      "type": "string",
+      "enum": [
+        "retained_by_policy_window",
+        "retained_by_explicit_user_pin",
+        "retained_by_evidence_reference",
+        "retained_by_support_case_reference",
+        "retained_by_release_reference",
+        "retained_by_review_pack_reference",
+        "stub_only_after_expiry",
+        "stub_only_after_redaction"
+      ],
+      "description": "Why the entry is still on the timeline. `retained_by_policy_window` is the default local-history retention. The `retained_by_*_reference` values pin an entry while an evidence packet, support case, release manifest, or review pack still cites it. `stub_only_*` means only the metadata stub remains."
+    },
+
+    "clear_history_scope_class": {
+      "type": "string",
+      "enum": [
+        "this_file",
+        "this_workspace",
+        "this_profile",
+        "this_device"
+      ],
+      "description": "Closed clear-history scope vocabulary. `this_file` scopes to one logical document; `this_workspace` scopes to one workspace root set; `this_profile` scopes to the user's profile-wide local history across workspaces; `this_device` scopes to the whole device. No clear-history operation combines scopes silently."
+    },
+
+    "clear_history_confirmation_class": {
+      "type": "string",
+      "enum": [
+        "export_before_delete_completed",
+        "export_before_delete_declined_by_user",
+        "export_before_delete_declined_by_policy",
+        "export_before_delete_not_offered_metadata_only",
+        "metadata_stub_preserved_for_audit"
+      ],
+      "description": "What the clear-history review ultimately did about the export-before-delete option. Metadata-only stubs may remain even after a clear if policy requires audit retention; the confirmation class explains why."
+    },
+
+    "timeline_distinction_label": {
+      "type": "string",
+      "enum": [
+        "distinct_from_git_history",
+        "distinct_from_autosave_journal",
+        "distinct_from_automation_lineage",
+        "distinct_from_external_change_record",
+        "distinct_from_synced_or_provider_history",
+        "distinct_from_review_checkpoint"
+      ],
+      "description": "Optional explicit distinction label the timeline can attach to a row when the surrounding rows might be confused with it. For example, a local-history entry written while a rebase is in progress may carry `distinct_from_git_history` so the user cannot read it as a Git commit."
+    },
+
+    "local_only_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_only_by_default", "sync_exclusion", "ordinary_cache_clear_exclusion"],
+      "properties": {
+        "local_only_by_default": {
+          "type": "boolean",
+          "const": true,
+          "description": "Local history is local-first by default. The record carries this invariant verbatim so downstream exporters, sync engines, and support-bundle writers cannot silently flip it."
+        },
+        "sync_exclusion": {
+          "type": "string",
+          "enum": [
+            "excluded_from_sync_by_default",
+            "opt_in_export_only",
+            "support_bundle_by_entry_ref_only"
+          ],
+          "description": "How the entry crosses the sync and export boundary. No mode silently publishes bodies; even opt-in export ships structured JSON/Markdown with raw deltas separable from metadata."
+        },
+        "ordinary_cache_clear_exclusion": {
+          "type": "boolean",
+          "const": true,
+          "description": "Ordinary 'clear caches' flows MUST NOT touch a local-history entry. Class-specific clear-history flows (see local_history_clear_scope_record) are the only path that may."
+        }
+      },
+      "description": "Local-only and ordinary-cache-clear exclusion posture. Frozen on every record."
+    },
+
+    "local_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_history_schema_version",
+        "entry_id",
+        "snapshot_class",
+        "captured_at",
+        "truth_source_class",
+        "logical_document_identity",
+        "branch_worktree_context",
+        "capture_descriptor",
+        "mutation_journal_link",
+        "retention_scope",
+        "local_only_posture"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "local_history_entry" },
+        "local_history_schema_version": { "$ref": "#/$defs/local_history_schema_version" },
+        "entry_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable entry id. Support bundles, evidence packets, compare handles, restore previews, and the clear-scope review cite this id."
+        },
+        "group_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Group id when the entry is a member of a named operation (refactor, AI apply, migration, automation recipe, generated-artifact refresh). Matches the `group_id` on the companion local_history_group_record."
+        },
+        "snapshot_class": { "$ref": "#/$defs/snapshot_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "truth_source_class": {
+          "$ref": "#/$defs/truth_source_class",
+          "description": "Entries produced by the local-history lane always carry `local_history`. Adjacent timeline rows (autosave, Git, automation lineage, external change, sync / provider history, review checkpoint) render under their own truth-source-class so the UI never collapses them into one generic 'edited' state."
+        },
+        "timeline_distinction_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/timeline_distinction_label" },
+          "uniqueItems": true
+        },
+        "logical_document_identity": { "$ref": "#/$defs/logical_document_identity" },
+        "branch_worktree_context": { "$ref": "#/$defs/branch_worktree_context" },
+        "capture_descriptor": { "$ref": "#/$defs/capture_descriptor" },
+        "mutation_journal_link": { "$ref": "#/$defs/mutation_journal_link" },
+        "restore_of_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["restored_from_entry_id", "restore_preview"],
+          "properties": {
+            "restored_from_entry_id": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Source local-history entry id the restore read from."
+            },
+            "restore_preview": { "$ref": "#/$defs/restore_preview_required_fields" }
+          },
+          "description": "Populated only on restore_rollback_checkpoint entries. Every restore creates a new attributable entry and cites the entry it restored from — the prior trail is never invisibly rewritten."
+        },
+        "retention_scope": {
+          "$ref": "#/$defs/retention_scope_class"
+        },
+        "local_only_posture": { "$ref": "#/$defs/local_only_posture" },
+        "side_effect_summary": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short redaction-aware summary the timeline quotes verbatim. Product, CLI, and support render the same text."
+        },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "snapshot_class": { "const": "restore_rollback_checkpoint" }
+            }
+          },
+          "then": {
+            "required": ["restore_of_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "snapshot_class": { "const": "external_state_checkpoint" }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_descriptor": {
+                "properties": {
+                  "capture_mode": { "const": "external_cause_metadata_only" }
+                }
+              },
+              "mutation_journal_link": {
+                "properties": {
+                  "linked_kind": { "const": "no_mutation_journal_entry_external_cause" },
+                  "reversal_class": { "const": "no_reversal_external_event" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "snapshot_class": { "const": "capture_omitted_stub" }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_descriptor": {
+                "properties": {
+                  "body_available": { "const": false },
+                  "omission_reason": {
+                    "not": { "const": "not_omitted" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "snapshot_class": { "const": "policy_redacted_stub" }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_descriptor": {
+                "properties": {
+                  "body_available": { "const": false },
+                  "omission_reason": { "const": "omitted_policy_redacted_secret_adjacent" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One local-history entry. Every capture, omission stub, redaction stub, and restore writes exactly one entry."
+    },
+
+    "local_history_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_history_schema_version",
+        "group_id",
+        "group_kind",
+        "snapshot_class",
+        "opened_at",
+        "resolved_at",
+        "resolution",
+        "truth_source_class",
+        "member_entry_ids",
+        "mutation_journal_link",
+        "retention_scope",
+        "local_only_posture"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "local_history_group_record" },
+        "local_history_schema_version": { "$ref": "#/$defs/local_history_schema_version" },
+        "group_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable group id shared by a named operation (refactor apply, AI patch, scaffolding run, migration import, bulk replace, generated-artifact refresh, automation recipe run, multi-file rename, import/paste group)."
+        },
+        "group_kind": {
+          "type": "string",
+          "enum": [
+            "refactor_single_file",
+            "refactor_multi_file",
+            "format_on_save",
+            "save_participant_group",
+            "ai_patch",
+            "bulk_replace",
+            "multi_file_rename",
+            "scaffolding_run",
+            "migration_import",
+            "settings_import",
+            "generated_artifact_refresh",
+            "preview_regeneration",
+            "external_reload_group",
+            "review_apply_group",
+            "automation_recipe_run",
+            "paste_or_drop_import_group",
+            "restore_rollback_group"
+          ],
+          "description": "Named group class. Consumers render this label directly; they never derive it from member entries."
+        },
+        "snapshot_class": {
+          "$ref": "#/$defs/snapshot_class",
+          "description": "Snapshot class for the group as a whole. Typically `workspace_mutation_checkpoint` or `automation_ai_checkpoint`; `restore_rollback_checkpoint` when the group is a restore of a prior group."
+        },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolution": {
+          "type": "string",
+          "enum": [
+            "applied",
+            "aborted",
+            "reverted",
+            "partially_applied_and_rolled_back"
+          ]
+        },
+        "truth_source_class": {
+          "$ref": "#/$defs/truth_source_class",
+          "description": "Groups authored by the local-history lane always carry `local_history`."
+        },
+        "member_entry_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Entry ids of every local_history_entry that is a member of this group."
+        },
+        "mutation_journal_link": {
+          "$ref": "#/$defs/mutation_journal_link",
+          "description": "Link to the mutation-journal group record (or, when the named operation was not itself a mutation, the originating journal entry)."
+        },
+        "restore_of_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["restored_from_group_id", "restore_preview"],
+          "properties": {
+            "restored_from_group_id": { "$ref": "#/$defs/opaque_id" },
+            "restore_preview": { "$ref": "#/$defs/restore_preview_required_fields" }
+          },
+          "description": "Populated only on restore_rollback_group groups. A group-scoped restore emits a new attributable group record; the original group trail is never rewritten."
+        },
+        "retention_scope": { "$ref": "#/$defs/retention_scope_class" },
+        "local_only_posture": { "$ref": "#/$defs/local_only_posture" },
+        "side_effect_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "group_kind": { "const": "restore_rollback_group" }
+            }
+          },
+          "then": {
+            "required": ["restore_of_ref"],
+            "properties": {
+              "snapshot_class": { "const": "restore_rollback_checkpoint" }
+            }
+          }
+        }
+      ],
+      "description": "One local-history group record. Named operations open one group, emit member entries, and close with a resolution."
+    },
+
+    "local_history_clear_scope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_history_schema_version",
+        "clear_scope_id",
+        "scope_class",
+        "scoped_target_ref",
+        "requested_at",
+        "executed_at",
+        "confirmation_class",
+        "export_before_delete",
+        "entries_removed_count",
+        "entries_stubbed_count",
+        "entries_skipped_due_to_retention_reference",
+        "ordinary_cache_clear_origin",
+        "local_only_posture",
+        "actor_ref"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "local_history_clear_scope_record" },
+        "local_history_schema_version": { "$ref": "#/$defs/local_history_schema_version" },
+        "clear_scope_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for this clear-history action. Support bundles and audit exports cite this id."
+        },
+        "scope_class": { "$ref": "#/$defs/clear_history_scope_class" },
+        "scoped_target_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target_kind", "target_id"],
+          "properties": {
+            "target_kind": {
+              "type": "string",
+              "enum": [
+                "logical_document",
+                "workspace",
+                "profile",
+                "device"
+              ],
+              "description": "Kind of target this clear action is scoped to."
+            },
+            "target_id": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Opaque target id. Never a raw path or device identifier."
+            },
+            "target_label": {
+              "$ref": "#/$defs/redaction_aware_text",
+              "description": "Redaction-aware display label the clear-scope review quoted."
+            }
+          },
+          "description": "What the clear action was scoped to. Must line up with `scope_class` (logical_document for this_file, workspace for this_workspace, profile for this_profile, device for this_device)."
+        },
+        "requested_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "executed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "confirmation_class": { "$ref": "#/$defs/clear_history_confirmation_class" },
+        "export_before_delete": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["offered", "completed"],
+          "properties": {
+            "offered": {
+              "type": "boolean",
+              "description": "True when the review sheet offered an export-before-delete option. Offering is the default for every scope; a false value must be explained via `reason_not_offered`."
+            },
+            "completed": {
+              "type": "boolean",
+              "description": "True when an export artifact was produced before delete."
+            },
+            "reason_not_offered": {
+              "type": ["string", "null"],
+              "enum": [
+                "metadata_only_stub_scope",
+                "policy_blocks_export",
+                "admin_declined_export",
+                null
+              ],
+              "description": "Why the review did not offer export-before-delete. Null when `offered` is true."
+            },
+            "export_artifact_ref": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Ref to the produced export artifact, when `completed` is true."
+            },
+            "export_redaction_class": {
+              "type": ["string", "null"],
+              "enum": [
+                "metadata_only",
+                "environment_adjacent",
+                "code_adjacent",
+                "high_risk",
+                null
+              ],
+              "description": "Redaction class applied to the export artifact."
+            }
+          },
+          "description": "Export-before-delete decision for this scope. Every clear-history action records this explicitly."
+        },
+        "entries_removed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of local-history entries removed by this clear action."
+        },
+        "entries_stubbed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of local-history entries the clear replaced with metadata-only stubs because policy requires retention."
+        },
+        "entries_skipped_due_to_retention_reference": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of entries the clear did not touch because they are pinned by an evidence packet, support case, release manifest, or review pack. The review sheet quotes this count verbatim so the user knows the clear was not comprehensive."
+        },
+        "ordinary_cache_clear_origin": {
+          "type": "boolean",
+          "const": false,
+          "description": "Invariant: no clear-history action is ever authored by an ordinary 'clear caches' flow. A true value is a contract violation."
+        },
+        "local_only_posture": { "$ref": "#/$defs/local_only_posture" },
+        "actor_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["display_name"],
+          "properties": {
+            "display_name": { "$ref": "#/$defs/redaction_aware_text" },
+            "stable_id": { "$ref": "#/$defs/opaque_id" },
+            "role": { "type": "string" }
+          },
+          "description": "Who requested the clear-history action. Redaction-aware."
+        },
+        "policy_context_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the policy / retention context in effect when the clear action was executed."
+        },
+        "side_effect_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope_class": { "const": "this_file" }
+            }
+          },
+          "then": {
+            "properties": {
+              "scoped_target_ref": {
+                "properties": {
+                  "target_kind": { "const": "logical_document" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope_class": { "const": "this_workspace" }
+            }
+          },
+          "then": {
+            "properties": {
+              "scoped_target_ref": {
+                "properties": {
+                  "target_kind": { "const": "workspace" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope_class": { "const": "this_profile" }
+            }
+          },
+          "then": {
+            "properties": {
+              "scoped_target_ref": {
+                "properties": {
+                  "target_kind": { "const": "profile" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope_class": { "const": "this_device" }
+            }
+          },
+          "then": {
+            "properties": {
+              "scoped_target_ref": {
+                "properties": {
+                  "target_kind": { "const": "device" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One scoped clear-history action. Records scope, target, confirmation, export-before-delete decision, removed / stubbed / skipped counts, and the invariant that no ordinary cache-clear flow authored the action."
+    }
+  }
+}
