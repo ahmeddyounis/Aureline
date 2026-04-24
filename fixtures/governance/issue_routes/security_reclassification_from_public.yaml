@@ -1,0 +1,92 @@
+__fixture__:
+  name: security_reclassification_from_public
+  scenario: >
+    A contributor files what they believed was an ordinary bug on
+    the public tracker. A reviewer reading the reproducer realises
+    the failure enables a trust-boundary bypass in a specific
+    deployment profile. Security trust review reclassifies the
+    issue by citing the public_to_private_reclassification
+    transition: the public issue is locked and redacted, a pointer
+    to the pending advisory is posted, and the raw content is moved
+    into the private triage workspace.
+  contract_sections:
+    - issue_classes.oss_bug
+    - issue_classes.security_issue
+    - disclosure_transitions.public_to_private_reclassification
+  pairs_with:
+    - security_issue_private_with_advisory
+
+record_kind: issue_route_example
+schema_version: 1
+
+fixture_id: security_reclassification_from_public
+issue_class: oss_bug
+reclassified_to_issue_class: security_issue
+owner_dri: "@ahmeddyounis"
+owning_lane: governance_packets
+visibility_class: internal
+status: seeded
+
+initial_routing:
+  default_route_class: public_issue_tracker
+  privacy_class: public
+  disclosure_class: public_immediate
+  public_summary_expectation: recommended
+  redaction_class: field_safe_default
+  owning_forum: architecture_council
+
+resolved_routing:
+  default_route_class: private_security_channel
+  privacy_class: private_with_public_advisory
+  disclosure_class: public_on_advisory
+  public_summary_expectation: required
+  redaction_class: security_redaction_raw_allowed_under_pgp
+  owning_forum: security_trust_review
+
+resolved_escalation_chain:
+  primary:
+    - security_trust_review
+  topical:
+    - architecture_council
+    - compatibility_ecosystem_review
+  release_gate:
+    - release_council
+    - shiproom_executive_scope_review
+
+filing_contract:
+  intake_surface: public_issue_then_security_reclassification
+  required_report_fields:
+    - original_public_issue_ref
+    - reclassification_note_ref
+    - private_triage_workspace_ref
+  forbidden_report_fields:
+    - silent_deletion_of_public_issue
+    - continuing_public_discussion_after_reclassification
+
+disclosure_transition_cited:
+  transition_id: public_to_private_reclassification
+  authorised_forum: security_trust_review
+  authorised_roles:
+    - security_dri
+  required_records:
+    - reclassification_note_in_decision_index
+    - public_issue_locked_or_redacted_with_visible_pointer_to_advisory
+  required_preconditions:
+    - reviewer_believes_raw_report_enables_exploitation
+
+consistency_rule_checks:
+  - rule_ref: rule:security_route_owns_raw_secret_payloads
+    outcome: satisfied
+    evidence: >
+      Raw reproducer is moved into the private triage workspace under
+      the security route; public comments are locked.
+  - rule_ref: rule:private_class_never_silently_public
+    outcome: not_applicable
+    evidence: >
+      Transition direction is public to private; the rule governing
+      private-to-public silent moves does not apply.
+  - rule_ref: rule:release_gate_co_sign
+    outcome: satisfied
+    evidence: >
+      Release-gate forums are named in the escalation chain; the
+      release carrying the advisory must record their outcome.

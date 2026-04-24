@@ -1,0 +1,86 @@
+__fixture__:
+  name: security_issue_private_with_advisory
+  scenario: >
+    A researcher reports a potential signed-binary chain bypass to
+    the private security mailbox under PGP. The report carries a
+    redacted repro and references raw exploit material available
+    under the published key. Raw bytes never land in the public
+    tracker. At fix time the security-trust review records a
+    published advisory and a release-packet entry and the
+    disclosure moves from private_with_public_advisory to public via
+    the private_security_to_public_advisory transition.
+  contract_sections:
+    - issue_classes.security_issue
+    - escalation_paths.private_security_channel
+    - disclosure_transitions.private_security_to_public_advisory
+  pairs_with:
+    - security_reclassification_from_public
+
+record_kind: issue_route_example
+schema_version: 1
+
+fixture_id: security_issue_private_with_advisory
+issue_class: security_issue
+owner_dri: "@ahmeddyounis"
+owning_lane: governance_packets
+visibility_class: internal
+status: seeded
+
+resolved_routing:
+  default_route_class: private_security_channel
+  privacy_class: private_with_public_advisory
+  disclosure_class: public_on_advisory
+  public_summary_expectation: required
+  redaction_class: security_redaction_raw_allowed_under_pgp
+  owning_forum: security_trust_review
+
+resolved_escalation_chain:
+  primary:
+    - security_trust_review
+  topical:
+    - architecture_council
+    - compatibility_ecosystem_review
+  release_gate:
+    - release_council
+    - shiproom_executive_scope_review
+
+filing_contract:
+  intake_surface: security_contact_mailbox_or_github_advisory
+  required_report_fields:
+    - affected_artifact_identity
+    - impact_summary
+    - repro_steps_or_placeholder
+    - reporter_contact_for_acknowledgement
+  forbidden_report_fields:
+    - raw_secret_in_public_mirror
+    - public_issue_comment_leak
+
+disclosure_transition_cited:
+  transition_id: private_security_to_public_advisory
+  authorised_forum: security_trust_review
+  authorised_roles:
+    - security_dri
+  required_records:
+    - published_advisory_in_docs_security
+    - release_note_or_release_packet_entry
+  required_preconditions:
+    - fix_or_mitigation_shipped_or_embargo_agreed
+    - reporter_notified_of_planned_disclosure
+
+consistency_rule_checks:
+  - rule_ref: rule:security_route_owns_raw_secret_payloads
+    outcome: satisfied
+    evidence: >
+      Raw exploit material stays under the published PGP key. No raw
+      bytes are mirrored to a public lane.
+  - rule_ref: rule:private_class_never_silently_public
+    outcome: satisfied
+    evidence: >
+      Move from private_with_public_advisory to public cites the
+      private_security_to_public_advisory transition with all required
+      records and preconditions.
+  - rule_ref: rule:release_gate_co_sign
+    outcome: satisfied
+    evidence: >
+      Release-gate forums are named in the escalation chain; the
+      release carrying the advisory must record their outcome.

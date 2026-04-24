@@ -1,0 +1,81 @@
+__fixture__:
+  name: supportability_escalation_private_support
+  scenario: >
+    A design-partner user reports a workspace-corruption pattern
+    that reproduces only with their actual workspace attached. A
+    support bundle must travel; the bundle contains account and
+    workspace content too sensitive for the public tracker but the
+    issue is not currently believed to be a security issue. Report
+    lands on the private support channel; product scope review owns
+    triage. Mid-triage the reviewer suspects trust-boundary impact
+    and cites the private_support_to_private_security transition to
+    move the case into the security channel.
+  contract_sections:
+    - issue_classes.supportability_escalation
+    - escalation_paths.private_support_channel
+    - disclosure_transitions.private_support_to_private_security
+  pairs_with:
+    - supportability_issue_public_tracker
+
+record_kind: issue_route_example
+schema_version: 1
+
+fixture_id: supportability_escalation_private_support
+issue_class: supportability_escalation
+owner_dri: "@ahmeddyounis"
+owning_lane: governance_packets
+visibility_class: internal
+status: seeded
+
+resolved_routing:
+  default_route_class: private_support_channel
+  privacy_class: private_support_only
+  disclosure_class: private_indefinite
+  public_summary_expectation: none
+  redaction_class: support_bundle_redaction_profile
+  owning_forum: product_scope_review
+
+resolved_escalation_chain:
+  primary:
+    - product_scope_review
+  topical:
+    - security_trust_review
+    - compatibility_ecosystem_review
+    - open_community_sync
+  release_gate:
+    - release_council
+
+filing_contract:
+  intake_surface: support_intake_or_doctor_export
+  required_report_fields:
+    - support_bundle_hash
+    - redaction_profile_ref
+    - exact_build_identity_ref
+    - deployment_profile_id
+  forbidden_report_fields:
+    - public_tracker_cross_post_with_raw_bundle
+    - unredacted_account_identifier
+
+disclosure_transition_cited:
+  transition_id: private_support_to_private_security
+  authorised_forum: security_trust_review
+  authorised_roles:
+    - security_dri
+    - supportability_dri
+  required_records:
+    - handoff_note_in_private_triage_workspace
+  required_preconditions:
+    - supportability_reviewer_suspects_security_impact
+
+consistency_rule_checks:
+  - rule_ref: rule:private_class_never_silently_public
+    outcome: satisfied
+    evidence: >
+      No move to a public privacy_class happens in this case; the
+      mid-triage move is private_support_only to
+      private_with_public_advisory via the named transition.
+  - rule_ref: rule:security_route_owns_raw_secret_payloads
+    outcome: satisfied
+    evidence: >
+      Raw bundle is not circulated to engineers outside the private
+      security channel.

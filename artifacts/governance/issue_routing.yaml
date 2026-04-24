@@ -1,91 +1,451 @@
-# Issue-routing seed.
+# Issue-routing matrix.
 #
-# Seed routing table mapping every issue class Aureline expects to receive
-# to a default public or private lane, with its privacy / disclosure class,
-# public-summary expectation, and owning forum placeholder. Referenced by
-# control_artifact_index.yaml#issue_routing and described narratively in
-# docs/governance/control_artifact_index.md.
+# Canonical public/private routing table for every issue, RFC, dispute,
+# escalation, and private-case class Aureline expects to receive before
+# the project widens its public contribution or benchmark / public-proof
+# lanes. The machine-readable matrix is this file; the normative
+# narrative lives in docs/governance/issue_routing_matrix.md; worked
+# examples live under fixtures/governance/issue_routes/.
 #
-# Scope. This file is a seed: it names routes, forums, and disclosure
-# classes so that an incoming issue can be routed mechanically to a public
-# or private lane without losing ownership or disclosure state. It is not a
-# triage runbook, not a SLO register, and not a substitute for the full
-# security-response policy. Those are separate artifacts that land later.
+# Scope. This file names routes, forums, disclosure states, redaction
+# classes, state-transition authority rules, and escalation paths so
+# that an incoming report can be routed mechanically to a public or
+# private lane without losing ownership or disclosure posture. It is
+# not a triage runbook, not an SLO register, not a security-response
+# policy, and not a replacement for the benchmark-council charter,
+# forum matrix, or private security intake runbook. Those are separate
+# artifacts that this matrix cites.
 #
-# Rules.
-#   - Every issue class MUST name a default_route_class, a privacy_class, a
-#     disclosure_class, a public_summary_expectation, and an
-#     owning_forum_placeholder. No silent blanks.
-#   - owning_forum_placeholder MUST either cite a forum id from
+# Contract.
+#   - Every issue_class MUST name a default_route_class, a
+#     privacy_class, a disclosure_class, a public_summary_expectation,
+#     a redaction_class, and an owning_forum. No silent blanks.
+#   - owning_forum MUST cite a forum id from
 #     ownership_matrix.decision_forums[] or use the sentinel
 #     "tbd_<reason>" so the missing forum is explicit.
-#   - privacy_class records whether the raw report may circulate publicly.
-#     disclosure_class records the eventual public-disclosure expectation
-#     even when the raw report starts private (for example a security
-#     report that later produces a public advisory).
+#   - privacy_class records whether the raw report may circulate
+#     publicly. disclosure_class records the eventual public-disclosure
+#     expectation even when the raw report starts private.
 #   - public_summary_expectation records whether a public-facing summary
-#     is required (required), recommended (recommended), not expected
-#     (none), or forbidden for this class (forbidden).
+#     is required, recommended, not expected (none), or forbidden.
+#   - redaction_class records the redaction posture applied to artefacts
+#     travelling with the report (logs, support bundles, repro cases).
+#   - A sensitive route (private_security_channel, private_partner_channel,
+#     private_support_channel) MUST NOT flip into a public lane without
+#     an explicit disclosure-state transition authorised by the
+#     transition rules below. Matrix tooling MUST reject any close, tag,
+#     or cross-post action that would effectively publicise a
+#     private-class report without such a transition row.
+#
+# Relation to other artifacts.
+#   - artifacts/governance/ownership_matrix.yaml defines the forum ids
+#     owning_forum cites.
+#   - artifacts/governance/forum_matrix.yaml defines forum cadences,
+#     packet profiles, and escalation chains; escalation_paths below
+#     reuse those chains.
+#   - docs/security/intake_and_triage.md owns the concrete private
+#     security intake path and PGP / mailbox operator identity.
+#   - docs/governance/benchmark_council_charter.md owns benchmark-council
+#     voting rules. This matrix only routes disputes to that queue.
+#   - docs/governance/dogfood_issue_taxonomy.md owns the dogfood
+#     sub-taxonomy; this matrix routes dogfood classes using the top-level
+#     issue-class ids below.
+#   - CONTRIBUTING.md owns contributor-facing "where do I file this?"
+#     guidance; it cites issue_class ids defined here rather than
+#     reinventing route names.
 
-schema_version: 1
+schema_version: 2
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - docs/governance/control_artifact_index.md
+  - docs/governance/forum_charters.md
+  - docs/governance/benchmark_council_charter.md
+  - docs/security/intake_and_triage.md
+
+related_artifacts:
+  - artifacts/governance/ownership_matrix.yaml
+  - artifacts/governance/forum_matrix.yaml
+  - docs/governance/issue_routing_matrix.md
+  - docs/governance/dogfood_issue_taxonomy.md
+  - docs/security/intake_and_triage.md
+  - docs/security/severity_matrix.md
+  - CONTRIBUTING.md
+  - SECURITY.md
 
 # -----------------------------------------------------------------------------
 # Route-class vocabulary.
+#
+# A route_class is a lane into which a report is filed. Every
+# issue_class.default_route_class MUST name one id below.
 # -----------------------------------------------------------------------------
 route_classes:
   - id: public_issue_tracker
+    kind: public
     description: >
-      Public issue tracker on the project's repository host. Default route
-      for OSS-facing reports.
+      Public issue tracker on the project's repository host. Default
+      route for OSS-facing reports where the raw content is safe to
+      publish at filing time.
+    intake_surface: repo_issue_tracker
+    default_visibility_on_file: public
+
   - id: public_rfc_forum
+    kind: public
     description: >
-      Public RFC forum hosting the /docs/rfc/ process. Default route for
-      scoped design proposals open to community input.
+      Public RFC forum hosting the /docs/rfc/ process. Default route
+      for scoped design proposals open to community input.
+    intake_surface: docs_rfc_pr
+    default_visibility_on_file: public
+
   - id: private_security_channel
+    kind: private
     description: >
       Private security-report channel with an eventual public advisory.
-      Raw reports are not published; the public advisory is the eventual
-      disclosure surface.
+      Raw reports are not published; the public advisory is the only
+      acceptable public surface for the report's content.
+    intake_surface: security_contact_mailbox_or_github_advisory
+    default_visibility_on_file: private
+    requires_explicit_disclosure_transition_before_public: true
+
   - id: private_partner_channel
+    kind: private
     description: >
-      Private partner / support channel. Raw reports stay private;
-      sanitised patterns may surface in public docs only with the
-      partner's consent.
+      Private partner / design-partner channel. Raw reports stay
+      private; sanitised patterns may surface in public docs only with
+      the partner's written consent.
+    intake_surface: partner_contractual_channel
+    default_visibility_on_file: private
+    requires_explicit_disclosure_transition_before_public: true
+
+  - id: private_support_channel
+    kind: private
+    description: >
+      Private support / dogfood case channel for field-facing reports
+      that carry device, account, or workspace content too sensitive for
+      the public tracker but not severe enough for the security channel.
+    intake_surface: support_intake_or_doctor_export
+    default_visibility_on_file: private
+    requires_explicit_disclosure_transition_before_public: true
+
   - id: benchmark_council_queue
+    kind: public
     description: >
-      Queue reviewed by the benchmark council. Used for benchmark
-      disputes and protected-fitness waiver requests.
+      Queue reviewed by the benchmark council. Default for benchmark
+      disputes, protected-fitness waiver requests, and benchmark corpus
+      validity questions.
+    intake_surface: benchmark_council_intake
+    default_visibility_on_file: public
+
   - id: governance_packet_queue
+    kind: public
     description: >
-      Governance-packet queue for waiver requests, docs-truth defects,
-      and supportability-artifact defects.
+      Governance-packet queue for waivers, docs-truth defects reported
+      via the verification-packet family, and supportability-artifact
+      defects that need a packet trail rather than a live bug thread.
+    intake_surface: governance_packet_pr
+    default_visibility_on_file: public
 
 # -----------------------------------------------------------------------------
-# Privacy / disclosure vocabulary.
+# Privacy-class vocabulary.
+#
+# Whether the raw report may circulate publicly.
 # -----------------------------------------------------------------------------
 privacy_classes:
-  - public
-  - private_with_public_advisory
-  - private_partner_only
+  - id: public
+    description: >
+      Raw report is safe to publish at filing time. Authors file in a
+      public tracker or public RFC forum.
+  - id: private_with_public_advisory
+    description: >
+      Raw report is private. The eventual public surface is a
+      published advisory, not the raw report.
+  - id: private_with_public_summary
+    description: >
+      Raw report is private but a sanitised public summary is expected
+      at disclosure time. Used for confirmed partner, support, or
+      compatibility cases with broad community impact.
+  - id: private_partner_only
+    description: >
+      Raw report stays private indefinitely. Sanitised summaries may
+      surface only with the partner's written consent.
+  - id: private_support_only
+    description: >
+      Raw report stays private indefinitely. Sanitised patterns may
+      surface only through the docs_public_truth lane after explicit
+      reporter consent; no automatic public summary is published.
 
+# -----------------------------------------------------------------------------
+# Disclosure-class vocabulary.
+#
+# When, if ever, a public surface is expected.
+# -----------------------------------------------------------------------------
 disclosure_classes:
-  - public_immediate
-  - public_on_fix
-  - public_on_advisory
-  - private_indefinite
+  - id: public_immediate
+    description: >
+      Filed public; no disclosure transition needed.
+  - id: public_on_fix
+    description: >
+      Private (or embargoed public) until a fix ships, then public
+      summary in release notes or the docs-truth family.
+  - id: public_on_advisory
+    description: >
+      Private until a coordinated advisory is published. Used by the
+      security channel.
+  - id: public_sanitised_summary_on_fix
+    description: >
+      Private at filing; sanitised summary published at fix time with
+      partner or reporter consent. Raw content stays private.
+  - id: private_indefinite
+    description: >
+      No scheduled public surface. Raw content stays private unless the
+      owning forum records an explicit disclosure transition.
 
+# -----------------------------------------------------------------------------
+# Public-summary-expectation vocabulary.
+# -----------------------------------------------------------------------------
 public_summary_expectations:
-  - required
-  - recommended
-  - none
-  - forbidden
+  - id: required
+    description: Public summary MUST land at disclosure time.
+  - id: recommended
+    description: Public summary SHOULD land at disclosure time.
+  - id: none
+    description: No public summary expected by default.
+  - id: forbidden
+    description: >
+      Public summary is explicitly forbidden for this class at this
+      route (for example partner-NDA-bound raw reports). A summary can
+      still be published only through an explicit state-transition
+      authorising publication.
+
+# -----------------------------------------------------------------------------
+# Redaction-class vocabulary.
+#
+# How the route treats attached artefacts (logs, support bundles,
+# screenshots, repro cases). Redaction is orthogonal to disclosure: a
+# public-immediate issue can still require field-safe redaction on
+# attached artefacts, and a private route can still require
+# provenance-preserved artefacts.
+# -----------------------------------------------------------------------------
+redaction_classes:
+  - id: field_safe_default
+    description: >
+      Standard public-tracker redaction posture: redact tokens, keys,
+      hostnames, and PII per ADR-0007 defaults before attaching.
+  - id: field_safe_with_route_metadata
+    description: >
+      Public-tracker redaction posture plus route/origin/target/build
+      metadata preserved for dogfood and compatibility diagnosis.
+  - id: security_redaction_raw_allowed_under_pgp
+    description: >
+      Private security channel: raw secrets and exploit payloads may
+      be attached only under the published PGP key and the intake
+      runbook. Public mirrors MUST strip raw bytes.
+  - id: partner_contractual_redaction
+    description: >
+      Partner-agreement redaction: partner-provided artefacts obey the
+      partner NDA; aureline-side summaries redact partner identity
+      unless explicit consent is on record.
+  - id: support_bundle_redaction_profile
+    description: >
+      Support-bundle redaction profile (metadata_safe_default) applied
+      to any attached support bundle per the support-bundle contract.
+  - id: no_raw_attachments
+    description: >
+      Raw artefacts MUST NOT be attached on this route; references
+      (hashes, tickets, bundle ids) are allowed.
+
+# -----------------------------------------------------------------------------
+# Disclosure-state-transition authority.
+#
+# Who may change the disclosure posture of an issue once it has been
+# filed, and which transitions require a paired record. A sensitive
+# route cannot silently leak into a public lane: every public-facing
+# move from a private_* privacy_class MUST cite one of the rules below.
+# -----------------------------------------------------------------------------
+disclosure_transitions:
+  - id: private_security_to_public_advisory
+    from_privacy_class: private_with_public_advisory
+    to_privacy_class: public
+    authorised_forums:
+      - security_trust_review
+    authorised_roles:
+      - security_dri
+      - release_council_chair_for_embargoed_release
+    required_records:
+      - published_advisory_in_docs_security
+      - release_note_or_release_packet_entry
+    required_preconditions:
+      - fix_or_mitigation_shipped_or_embargo_agreed
+      - reporter_notified_of_planned_disclosure
+    forbidden_shortcuts:
+      - public_issue_comment_announcing_content
+      - social_media_announcement_before_advisory
+
+  - id: private_partner_to_public_sanitised_summary
+    from_privacy_class: private_partner_only
+    to_privacy_class: private_with_public_summary
+    authorised_forums:
+      - compatibility_ecosystem_review
+      - product_scope_review
+    authorised_roles:
+      - partner_dri
+      - docs_public_truth_dri
+    required_records:
+      - partner_written_consent_on_file
+      - docs_public_truth_update_or_release_note
+    required_preconditions:
+      - sanitised_summary_reviewed_by_partner
+    forbidden_shortcuts:
+      - docs_update_without_partner_consent
+      - sanitised_summary_that_reveals_partner_identity_without_consent
+
+  - id: private_support_to_public_docs_truth
+    from_privacy_class: private_support_only
+    to_privacy_class: private_with_public_summary
+    authorised_forums:
+      - open_community_sync
+      - product_scope_review
+    authorised_roles:
+      - docs_public_truth_dri
+      - supportability_dri
+    required_records:
+      - reporter_consent_recorded
+      - docs_public_truth_update
+    required_preconditions:
+      - personally_identifying_content_removed
+    forbidden_shortcuts:
+      - copying_raw_support_bundle_content_to_public_tracker
+
+  - id: public_to_private_reclassification
+    from_privacy_class: public
+    to_privacy_class: private_with_public_advisory
+    authorised_forums:
+      - security_trust_review
+    authorised_roles:
+      - security_dri
+    required_records:
+      - reclassification_note_in_decision_index
+      - public_issue_locked_or_redacted_with_visible_pointer_to_advisory
+    required_preconditions:
+      - reviewer_believes_raw_report_enables_exploitation
+    forbidden_shortcuts:
+      - silent_deletion_of_public_issue
+
+  - id: private_support_to_private_security
+    from_privacy_class: private_support_only
+    to_privacy_class: private_with_public_advisory
+    authorised_forums:
+      - security_trust_review
+    authorised_roles:
+      - security_dri
+      - supportability_dri
+    required_records:
+      - handoff_note_in_private_triage_workspace
+    required_preconditions:
+      - supportability_reviewer_suspects_security_impact
+    forbidden_shortcuts:
+      - handing_raw_bundle_to_engineer_outside_private_security_channel
+
+# -----------------------------------------------------------------------------
+# Escalation paths by route class.
+#
+# For every route_class above, names the standing forum chain reports
+# can escalate into. Forum ids MUST resolve in
+# artifacts/governance/ownership_matrix.yaml#decision_forums.
+# -----------------------------------------------------------------------------
+escalation_paths:
+  - route_class: public_issue_tracker
+    primary_forums:
+      - architecture_council
+    topical_forums:
+      - accessibility_review       # accessibility defects
+      - performance_council        # performance regressions / fitness-budget disputes
+      - compatibility_ecosystem_review  # compatibility regressions, migration defects
+      - product_scope_review       # docs-truth defects, scope conflicts
+      - open_community_sync        # public-roadmap or contributor-facing visibility
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - route_class: public_rfc_forum
+    primary_forums:
+      - architecture_council
+    topical_forums:
+      - security_trust_review
+      - compatibility_ecosystem_review
+      - accessibility_review
+      - performance_council
+      - product_scope_review
+    release_gate_forums:
+      - release_council
+
+  - route_class: private_security_channel
+    primary_forums:
+      - security_trust_review
+    topical_forums:
+      - architecture_council         # protected-lane shape
+      - compatibility_ecosystem_review  # embargoed SDK / bridge impact
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - route_class: private_partner_channel
+    primary_forums:
+      - compatibility_ecosystem_review
+    topical_forums:
+      - security_trust_review
+      - accessibility_review
+      - performance_council
+      - product_scope_review
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - route_class: private_support_channel
+    primary_forums:
+      - product_scope_review
+    topical_forums:
+      - security_trust_review
+      - accessibility_review
+      - compatibility_ecosystem_review
+      - open_community_sync
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - route_class: benchmark_council_queue
+    primary_forums:
+      - performance_council
+    topical_forums:
+      - architecture_council
+      - compatibility_ecosystem_review
+      - open_community_sync
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
+
+  - route_class: governance_packet_queue
+    primary_forums:
+      - architecture_council
+    topical_forums:
+      - security_trust_review
+      - performance_council
+      - accessibility_review
+      - compatibility_ecosystem_review
+      - product_scope_review
+      - open_community_sync
+    release_gate_forums:
+      - release_council
+      - shiproom_executive_scope_review
 
 # -----------------------------------------------------------------------------
 # Issue classes.
 #
-# Every class below is routable mechanically: given a class id, tooling can
-# resolve the default lane, privacy posture, summary expectation, and
-# owning forum without consulting a human.
+# Every class is routable mechanically: given a class id, tooling can
+# resolve the default lane, privacy posture, disclosure posture,
+# redaction posture, summary expectation, and owning forum without
+# consulting a human.
 # -----------------------------------------------------------------------------
 issue_classes:
   - id: oss_bug
@@ -94,10 +454,16 @@ issue_classes:
     privacy_class: public
     disclosure_class: public_immediate
     public_summary_expectation: recommended
-    owning_forum_placeholder: architecture_council
+    redaction_class: field_safe_default
+    owning_forum: architecture_council
+    contributor_hint: >
+      File in the public issue tracker. Reproduce on an in-tree build
+      and attach the redacted log excerpt, exact-build id, and
+      deployment-profile id. Use the dogfood taxonomy labels where they
+      apply.
     notes: >
       Functional defects filed against any non-security surface.
-      Resolution lands as a pull request and a release note; a public
+      Resolution lands as a pull request plus a release note; a public
       summary is recommended when the bug is user-visible.
 
   - id: perf_regression
@@ -106,7 +472,12 @@ issue_classes:
     privacy_class: public
     disclosure_class: public_immediate
     public_summary_expectation: required
-    owning_forum_placeholder: performance_council
+    redaction_class: field_safe_with_route_metadata
+    owning_forum: performance_council
+    contributor_hint: >
+      File in the public issue tracker and attach the benchmark name,
+      fitness-function id, corpus id, hardware class, and the budget
+      delta. The performance council owns the triage.
     notes: >
       Regressions of protected fitness functions route to the
       performance council. A public summary is required because
@@ -114,16 +485,19 @@ issue_classes:
       owner.
 
   - id: rfc
-    title: Request for comment
+    title: Public RFC
     default_route_class: public_rfc_forum
     privacy_class: public
     disclosure_class: public_immediate
     public_summary_expectation: required
-    owning_forum_placeholder: architecture_council
+    redaction_class: field_safe_default
+    owning_forum: architecture_council
+    contributor_hint: >
+      Open a pull request against /docs/rfc/ using the RFC template.
+      The RFC is itself the public summary; any accepted ADR closes
+      the decision row in artifacts/governance/decision_index.yaml.
     notes: >
-      Scoped design proposals follow the /docs/rfc/ process. The RFC is
-      itself the public summary; any linked ADR closes the decision row
-      in the decision index.
+      Scoped design proposals follow the /docs/rfc/ process.
 
   - id: security_issue
     title: Security issue
@@ -131,24 +505,57 @@ issue_classes:
     privacy_class: private_with_public_advisory
     disclosure_class: public_on_advisory
     public_summary_expectation: required
-    owning_forum_placeholder: security_trust_review
+    redaction_class: security_redaction_raw_allowed_under_pgp
+    owning_forum: security_trust_review
+    contributor_hint: >
+      Do NOT file on the public tracker. Use the private intake path
+      in SECURITY.md; full PGP fingerprint and mailbox operator
+      identity are in docs/security/intake_and_triage.md.
     notes: >
       Raw reports stay in the private security channel. A public
       advisory is required at disclosure; it is the only acceptable
-      public surface for the report's content.
+      public surface for the report's content. Moving a report out of
+      this lane requires the private_security_to_public_advisory
+      transition.
 
   - id: supportability_issue
-    title: Supportability issue
+    title: Supportability issue (non-sensitive)
     default_route_class: public_issue_tracker
     privacy_class: public
     disclosure_class: public_on_fix
     public_summary_expectation: recommended
-    owning_forum_placeholder: tbd_support_council_not_seeded
+    redaction_class: field_safe_with_route_metadata
+    owning_forum: product_scope_review
+    contributor_hint: >
+      File in the public issue tracker. Quote the doctor probe id,
+      support-bundle id (hash only), recovery-ladder step, and the
+      exact-build id. Cases containing live device / account / workspace
+      content belong in supportability_escalation, not here.
     notes: >
-      Field-facing defects (doctor probes, export bundles, recovery
-      ladder). Private partner cases with supportability content route
-      to `private_partner_case` instead. Forum placeholder pending seed
-      of a support council.
+      Field-facing defects that can be reported in public (doctor
+      probes, export bundle manifests, recovery ladder prompts).
+      Private cases with live field content route to
+      supportability_escalation instead.
+
+  - id: supportability_escalation
+    title: Private supportability escalation
+    default_route_class: private_support_channel
+    privacy_class: private_support_only
+    disclosure_class: private_indefinite
+    public_summary_expectation: none
+    redaction_class: support_bundle_redaction_profile
+    owning_forum: product_scope_review
+    contributor_hint: >
+      File through the private support channel when a support bundle,
+      device-bound log, or account-bound workspace is needed to
+      reproduce. Raw content stays private; the private_support_to_
+      public_docs_truth transition is the only route to a public
+      sanitised summary.
+    notes: >
+      Used for dogfood, design-partner, and paying-customer cases that
+      carry live device, account, or workspace content. Escalates into
+      the security channel via private_support_to_private_security
+      when a reviewer suspects a security impact.
 
   - id: docs_truth_defect
     title: Documentation / public-truth defect
@@ -156,25 +563,70 @@ issue_classes:
     privacy_class: public
     disclosure_class: public_immediate
     public_summary_expectation: required
-    owning_forum_placeholder: product_scope_review
+    redaction_class: field_safe_default
+    owning_forum: product_scope_review
+    contributor_hint: >
+      File in the public issue tracker and quote the docs URL or file
+      path plus the observed runtime behaviour or claim-manifest id.
+      Correction either updates the docs, adds the missing claim row,
+      or withdraws the claim.
     notes: >
       A claim in public docs does not match observed behaviour, or a
-      claim has no cited evidence owner. Resolution either corrects the
-      claim, adds the missing claim-manifest entry, or withdraws the
-      claim.
+      claim has no cited evidence owner.
 
-  - id: design_system_defect
-    title: Design-system defect
+  - id: design_review_issue
+    title: Design-review issue
     default_route_class: public_issue_tracker
     privacy_class: public
     disclosure_class: public_on_fix
     public_summary_expectation: recommended
-    owning_forum_placeholder: tbd_design_review_not_seeded
+    redaction_class: field_safe_default
+    owning_forum: accessibility_review
+    contributor_hint: >
+      File in the public issue tracker and cite the design-system token,
+      component id, or surface id. Accessibility-specific defects should
+      additionally carry an a11y:* label so they are routed into the
+      accessibility review queue.
     notes: >
-      Token drift, component-reference mismatches, or accessibility
-      defects in the seeded design system. Accessibility defects may
-      additionally route to the `accessibility_input_review` lane.
-      Forum placeholder pending seed of a design review forum.
+      Token drift, component-reference mismatches, design-system
+      regressions, and launch-surface design defects. Accessibility
+      sub-class is accessibility_defect.
+
+  - id: accessibility_defect
+    title: Accessibility defect
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_on_fix
+    public_summary_expectation: required
+    redaction_class: field_safe_default
+    owning_forum: accessibility_review
+    contributor_hint: >
+      File in the public issue tracker with an a11y:* secondary label
+      (see docs/accessibility/review_charter.md). Keyboard, screen
+      reader, IME, and focus defects on launch-critical surfaces are
+      blockers; attach the step-by-step repro, AT, and locale.
+    notes: >
+      Surfaces the Accessibility review lane owns. Launch-critical
+      accessibility failures are release blockers; the accessibility
+      council may force narrowing of launch claims.
+
+  - id: compatibility_regression
+    title: Compatibility regression
+    default_route_class: public_issue_tracker
+    privacy_class: public
+    disclosure_class: public_on_fix
+    public_summary_expectation: required
+    redaction_class: field_safe_with_route_metadata
+    owning_forum: compatibility_ecosystem_review
+    contributor_hint: >
+      File in the public issue tracker. Quote the importer id, bridge
+      id, SDK surface id, or migration id; include the prior-version
+      behaviour, the current behaviour, and the affected archetype.
+    notes: >
+      A previously-supported importer, bridge, SDK surface, or
+      migration path regresses. Partner-bound regressions move to
+      design_partner_case; embargoed SDK regressions may route through
+      the security channel when trust-boundary impact is suspected.
 
   - id: waiver_request
     title: Waiver request
@@ -182,12 +634,16 @@ issue_classes:
     privacy_class: public
     disclosure_class: public_immediate
     public_summary_expectation: required
-    owning_forum_placeholder: architecture_council
+    redaction_class: field_safe_default
+    owning_forum: architecture_council
+    contributor_hint: >
+      Open a governance-packet PR using the waiver template. Name the
+      protected lane, the expiry, the mitigation, and the correction
+      intent. Do not request a waiver via a PR comment or an issue
+      body.
     notes: >
       Any request to open, renew, or close a waiver. The waiver itself
-      is public; the eventual correction programme is public. Sub-type
-      waivers may require a co-signing forum per the authority table in
-      docs/governance/dri_map.md.
+      is public; the eventual correction programme is public.
 
   - id: benchmark_dispute
     title: Benchmark dispute
@@ -195,52 +651,210 @@ issue_classes:
     privacy_class: public
     disclosure_class: public_on_fix
     public_summary_expectation: required
-    owning_forum_placeholder: performance_council
+    redaction_class: field_safe_default
+    owning_forum: performance_council
+    contributor_hint: >
+      File through the benchmark-council intake. Cite the benchmark
+      id, corpus id, protected-fitness id, hardware class, and the
+      claim manifest row if the dispute affects a public claim.
     notes: >
       Disputes about benchmark results, protected-fitness thresholds,
-      or corpus validity. Routed mechanically to the benchmark council
-      per docs/governance/benchmark_council_charter.md; a public
-      summary is required so the adjudication has an audit trail.
+      or corpus validity route mechanically to the benchmark council
+      per docs/governance/benchmark_council_charter.md.
 
   - id: private_partner_case
-    title: Private partner / support case
+    title: Private partner / design-partner case
     default_route_class: private_partner_channel
     privacy_class: private_partner_only
     disclosure_class: private_indefinite
     public_summary_expectation: none
-    owning_forum_placeholder: tbd_support_council_not_seeded
+    redaction_class: partner_contractual_redaction
+    owning_forum: compatibility_ecosystem_review
+    contributor_hint: >
+      Use the private partner channel under the signed partner
+      agreement. Raw content stays private indefinitely; sanitised
+      summaries are only published via the
+      private_partner_to_public_sanitised_summary transition with
+      written partner consent.
     notes: >
-      Cases filed under a private partner or support agreement. Raw
-      content stays private indefinitely. Sanitised patterns may
-      surface in public docs only with the partner's written consent
-      and only through the docs_public_truth lane.
+      Cases filed under a private partner or design-partner agreement.
+      Raw content never surfaces in the public tracker.
+
+  - id: design_partner_case
+    title: Design-partner evaluation case
+    default_route_class: private_partner_channel
+    privacy_class: private_partner_only
+    disclosure_class: private_indefinite
+    public_summary_expectation: none
+    redaction_class: partner_contractual_redaction
+    owning_forum: compatibility_ecosystem_review
+    contributor_hint: >
+      Use the private partner channel. Design-partner evaluations may
+      produce aggregated, partner-anonymised compatibility evidence
+      but no raw partner content appears in public docs.
+    notes: >
+      Evaluation cases from named design partners. Share the same
+      privacy and disclosure posture as private_partner_case; kept as
+      a separate class so partner-contract reporting can distinguish
+      incident-style cases from evaluation feedback.
 
 # -----------------------------------------------------------------------------
-# Worked example.
+# Class-to-route consistency rules.
 #
-# Demonstrates mechanical routing: a reviewer receiving a
-# `benchmark_dispute` class issue can resolve, without further lookup:
-#   - default route      -> benchmark_council_queue
-#   - privacy class      -> public
-#   - disclosure class   -> public_on_fix
-#   - public summary     -> required
-#   - owning forum       -> performance_council
-# without losing ownership (performance_council) or disclosure state
-# (public_on_fix). Acceptance criterion `at least one example issue class
-# can be routed mechanically to a public or private lane without losing
-# ownership or disclosure state` is met by this row.
+# Guard rails that make a silent leak from a private class into a
+# public lane a validation failure. Tooling that mutates issue state
+# MUST check these.
+# -----------------------------------------------------------------------------
+consistency_rules:
+  - id: rule:private_class_never_silently_public
+    statement: >
+      Any issue whose current privacy_class resolves to private_* MUST
+      cite a disclosure_transitions.id when its privacy_class moves to
+      public. Tooling MUST reject the transition if no row is cited.
+
+  - id: rule:public_summary_forbidden_requires_transition
+    statement: >
+      Issues whose class has public_summary_expectation = none or
+      forbidden cannot produce a public summary without a recorded
+      disclosure_transitions row authorising the summary (for example
+      private_partner_to_public_sanitised_summary).
+
+  - id: rule:security_route_owns_raw_secret_payloads
+    statement: >
+      Raw secret material, raw exploit payloads, and raw trust-root
+      bytes only belong on private_security_channel with the
+      security_redaction_raw_allowed_under_pgp posture. Any other
+      route that receives such content MUST reclassify via
+      public_to_private_reclassification or private_support_to_private_
+      security before the content is circulated further.
+
+  - id: rule:partner_identity_requires_consent
+    statement: >
+      Partner identity MUST NOT appear in a public summary unless
+      partner_written_consent_on_file is recorded. Sanitised patterns
+      may describe the problem shape without naming the partner.
+
+  - id: rule:release_gate_co_sign
+    statement: >
+      When an issue class sits in a release-blocking forum chain
+      (escalation_paths.release_gate_forums), a release cannot go
+      without that forum's recorded outcome on the issue.
+
+# -----------------------------------------------------------------------------
+# Contributor self-service summary.
+#
+# A contributor unsure where to file can answer two questions and
+# resolve the lane. Tooling that powers an "issue chooser" UI reads the
+# rows below. The fields reference issue_class ids above; privacy and
+# disclosure semantics come from the class rows.
+# -----------------------------------------------------------------------------
+contributor_chooser:
+  - question_kind: concern
+    options:
+      - label: Functional bug or crash
+        resolves_issue_class: oss_bug
+      - label: Performance regression
+        resolves_issue_class: perf_regression
+      - label: Docs or claim does not match behaviour
+        resolves_issue_class: docs_truth_defect
+      - label: Visual / token / component defect
+        resolves_issue_class: design_review_issue
+      - label: Keyboard / screen-reader / IME / focus defect
+        resolves_issue_class: accessibility_defect
+      - label: Previously-working importer / bridge / SDK / migration broke
+        resolves_issue_class: compatibility_regression
+      - label: I think this is a security issue
+        resolves_issue_class: security_issue
+      - label: I am a partner under NDA
+        resolves_issue_class: private_partner_case
+      - label: I am a design partner giving evaluation feedback
+        resolves_issue_class: design_partner_case
+      - label: I need to share a support bundle / device log / account content
+        resolves_issue_class: supportability_escalation
+      - label: Supportability defect I can describe in public
+        resolves_issue_class: supportability_issue
+      - label: I want to propose a design change
+        resolves_issue_class: rfc
+      - label: I am requesting a waiver or freeze exception
+        resolves_issue_class: waiver_request
+      - label: I am disputing a benchmark result or threshold
+        resolves_issue_class: benchmark_dispute
+
+# -----------------------------------------------------------------------------
+# Worked examples.
+#
+# Each row demonstrates mechanical routing end-to-end. Extended
+# examples live under fixtures/governance/issue_routes/.
 # -----------------------------------------------------------------------------
 worked_examples:
   - issue_class: benchmark_dispute
     resolved_route: benchmark_council_queue
-    resolved_forum: performance_council
     resolved_privacy: public
     resolved_disclosure: public_on_fix
     resolved_summary: required
+    resolved_redaction: field_safe_default
+    resolved_forum: performance_council
+    resolved_escalation_chain:
+      - performance_council
+      - architecture_council
+      - release_council
 
   - issue_class: security_issue
     resolved_route: private_security_channel
-    resolved_forum: security_trust_review
     resolved_privacy: private_with_public_advisory
     resolved_disclosure: public_on_advisory
     resolved_summary: required
+    resolved_redaction: security_redaction_raw_allowed_under_pgp
+    resolved_forum: security_trust_review
+    resolved_escalation_chain:
+      - security_trust_review
+      - release_council
+      - shiproom_executive_scope_review
+
+  - issue_class: private_partner_case
+    resolved_route: private_partner_channel
+    resolved_privacy: private_partner_only
+    resolved_disclosure: private_indefinite
+    resolved_summary: none
+    resolved_redaction: partner_contractual_redaction
+    resolved_forum: compatibility_ecosystem_review
+    resolved_escalation_chain:
+      - compatibility_ecosystem_review
+      - product_scope_review
+      - release_council
+
+  - issue_class: supportability_escalation
+    resolved_route: private_support_channel
+    resolved_privacy: private_support_only
+    resolved_disclosure: private_indefinite
+    resolved_summary: none
+    resolved_redaction: support_bundle_redaction_profile
+    resolved_forum: product_scope_review
+    resolved_escalation_chain:
+      - product_scope_review
+      - security_trust_review
+      - release_council
+
+  - issue_class: compatibility_regression
+    resolved_route: public_issue_tracker
+    resolved_privacy: public
+    resolved_disclosure: public_on_fix
+    resolved_summary: required
+    resolved_redaction: field_safe_with_route_metadata
+    resolved_forum: compatibility_ecosystem_review
+    resolved_escalation_chain:
+      - compatibility_ecosystem_review
+      - architecture_council
+      - release_council
+
+  - issue_class: accessibility_defect
+    resolved_route: public_issue_tracker
+    resolved_privacy: public
+    resolved_disclosure: public_on_fix
+    resolved_summary: required
+    resolved_redaction: field_safe_default
+    resolved_forum: accessibility_review
+    resolved_escalation_chain:
+      - accessibility_review
+      - product_scope_review
+      - release_council

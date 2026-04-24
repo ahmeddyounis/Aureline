@@ -12,7 +12,11 @@ Companion artifacts:
   — machine-readable register. Tooling reads this file; the narrative
   below describes the same rows.
 - [`/artifacts/governance/issue_routing.yaml`](../../artifacts/governance/issue_routing.yaml)
-  — seed routing table for public and private issue classes.
+  — canonical public/private issue-and-RFC routing matrix, disclosure
+  transitions, and escalation paths. Normative narrative lives in
+  [`./issue_routing_matrix.md`](./issue_routing_matrix.md); worked
+  examples live under
+  [`/fixtures/governance/issue_routes/`](../../fixtures/governance/issue_routes/).
 - [`./feature_flag_policy.md`](./feature_flag_policy.md)
   — normative policy for experiments, feature flags, Labs inventory,
   rollouts, policy disables, and kill switches.
