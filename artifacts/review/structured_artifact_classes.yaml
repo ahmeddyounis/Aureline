@@ -1,0 +1,557 @@
+# Structured-artifact review-and-merge classes.
+#
+# Machine-readable companion to docs/review/structured_artifact_review_seed.md
+# and the schema at schemas/review/review_surface_record.schema.json. Each
+# review_row binds one review_artifact_class to exactly one review_surface,
+# one merge_posture, one visible posture_reason, one canonical-source rule,
+# one unknown-metadata survival rule, one trust / sandbox constraint set,
+# one set of notebook review presets (not_applicable on every non-notebook
+# row), one generated-source back-link state, and one git-merge-driver
+# admission decision. The narrative seed is the story; this matrix is what
+# tooling reads. If the two disagree, the seed wins and this file updates
+# in the same change.
+#
+# Scope. This matrix freezes review posture for non-line-oriented artifacts
+# so notebook, generated, config, ecosystem, evidence, and release-review
+# surfaces stop accumulating unsafe text-only assumptions. It does NOT
+# implement any notebook / config / image / evidence renderer; it states
+# the row shape and the closed rules every later review lane must honour.
+#
+# Rules.
+#   - Every review_row MUST name exactly one review_artifact_class drawn
+#     from the closed vocabulary in
+#     schemas/review/review_surface_record.schema.json. Inventing a new
+#     class is breaking and opens a decision row in
+#     artifacts/governance/decision_index.yaml.
+#   - Every review_row MUST name exactly one review_surface_class,
+#     merge_posture_class, posture_reason_class,
+#     canonical_source_rule_class, unknown_metadata_survival_class, and
+#     git_merge_driver_admission_class. Rows that elide any slot are
+#     non-conforming.
+#   - Exactly one visible posture_reason_class per row states why the row
+#     resolves to its merge posture. Reviewers read this token rather
+#     than free-text justification.
+#   - semantic_merge_where_safe and regenerate_or_review MUST be
+#     distinguishable by that one reason code.
+#   - jupyter_notebook rows MUST set notebook_review_presets to non-
+#     not_applicable values and MUST set cell_id_stability_required =
+#     true. Every other row MUST set both presets to not_applicable and
+#     cell_id_stability_required = false.
+#   - generated_source_artifact rows MUST carry generated_source_backlink
+#     = required_link_to_safe_edit_posture_record. source_map_or_debug_
+#     sidecar rows MUST carry generated_source_backlink =
+#     required_link_to_debug_artifact_manifest. Every other row MUST
+#     carry generated_source_backlink = not_applicable.
+#   - Any permitted_* value for git_merge_driver_admission_class REQUIRES
+#     a non-null paired_text_representation.round_trip_corpus_ref and a
+#     non-null conformance_corpus_ref.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version in the schema, bumping matrix_schema_version here,
+#     and updating the seed narrative in the same change. Repurposing an
+#     existing value is breaking.
+
+matrix_schema_version: 1
+matrix_id: aureline.structured_artifact_review_matrix
+status: seeded
+
+seed_doc_ref: docs/review/structured_artifact_review_seed.md
+record_schema_ref: schemas/review/review_surface_record.schema.json
+fixtures_ref: fixtures/review/structured_diff_cases
+
+related_seed_refs:
+  safe_edit_posture_policy_ref: docs/architecture/generated_artifact_safe_edit_policy.md
+  safe_edit_posture_schema_ref: schemas/generated/artifact_edit_posture.schema.json
+  row_lineage_hint_packet_ref: docs/generated/lineage_hint_packet.md
+  debug_artifact_resolution_seed_ref: docs/debug/artifact_resolution_seed.md
+  debug_artifact_manifest_schema_ref: schemas/debug/debug_artifact_manifest.schema.json
+  suspicious_content_packet_ref: docs/security/suspicious_content_packet.md
+  install_review_packet_ref: docs/verification/install_review_packet.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§16.7.1 Structured artifact diff, merge, and review architecture"
+      - "§20 Notebook and Interactive Computing Architecture"
+      - "Appendix AC Structured Artifact Review Corpus and Conformance Rules"
+      - "Appendix AX Notebook Kernel, Trust, and Reproducibility Matrix"
+      - "Appendix AY Content-Integrity and Safe-Preview Matrix"
+      - "Appendix CJ Review Workspace, Anchoring, and Merge-Queue Matrix"
+      - "Appendix DE Generated Artifact Provenance, Regeneration, and Writable-Boundary Matrix"
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "diff, merge, and review surfaces normalized-view guidance"
+      - "structured documents unknown-key preservation guidance"
+      - ".ipynb canonical open document format rules"
+      - "cell-aware diff / metadata filtering / output collapse"
+
+# ---------------------------------------------------------------------
+# Closed vocabularies re-declared for local parity. A row that uses a
+# token outside these lists is non-conforming until the schema adds it.
+# ---------------------------------------------------------------------
+
+review_artifact_class_vocabulary:
+  - jupyter_notebook
+  - structured_config_json
+  - structured_config_yaml
+  - structured_config_toml
+  - lockfile_or_dependency_manifest
+  - coverage_profile_artifact
+  - sbom_or_generated_metadata
+  - source_map_or_debug_sidecar
+  - image_or_design_snapshot
+  - evidence_packet
+  - generated_source_artifact
+
+review_surface_class_vocabulary:
+  - pure_viewer
+  - cell_aware_compare_viewer
+  - semantic_compare_viewer
+  - structure_aware_compare_viewer
+  - sidecar_bind_viewer
+  - perceptual_or_side_by_side_viewer
+  - evidence_reader_viewer
+
+merge_posture_class_vocabulary:
+  - no_auto_merge
+  - semantic_merge_where_safe
+  - regenerate_or_review
+  - compare_only
+
+posture_reason_class_vocabulary:
+  - cell_and_output_identity_at_risk
+  - schema_support_proven_with_unknown_field_survival
+  - schema_support_partial_structure_aware_only
+  - solver_meaning_may_change_under_normalization
+  - generated_from_canonical_source
+  - round_trip_unproven_for_bytes
+  - sidecar_requires_build_identity_match
+  - binary_or_opaque_payload
+  - evidence_immutability_required
+
+canonical_source_rule_class_vocabulary:
+  - single_canonical_source
+  - paired_text_representation_with_canonical_direction
+  - derived_from_canonical_source
+  - not_applicable_mirror_or_evidence
+
+unknown_metadata_survival_class_vocabulary:
+  - required_survival
+  - survival_recommended
+  - not_applicable
+
+trust_sandbox_constraint_class_vocabulary:
+  - no_additional_trust_constraints
+  - notebook_active_outputs_sandboxed
+  - untrusted_rich_content_sanitized
+  - binary_preview_sandboxed
+  - secrets_or_policy_tokens_may_require_redaction
+  - evidence_read_only_redaction_applies
+
+notebook_metadata_filter_preset_class_vocabulary:
+  - preserve_jupyter_and_aureline_namespaces_only
+  - preserve_all_vendor_metadata
+  - not_applicable
+
+notebook_output_handling_preset_class_vocabulary:
+  - ignore_outputs_by_default_with_opt_in_inclusion
+  - collapse_outputs_by_default
+  - include_outputs_with_trust_gate
+  - not_applicable
+
+generated_source_backlink_state_class_vocabulary:
+  - required_link_to_safe_edit_posture_record
+  - required_link_to_debug_artifact_manifest
+  - not_applicable
+
+git_merge_driver_admission_class_vocabulary:
+  - permitted_with_round_trip_corpus
+  - permitted_where_semantics_defined
+  - forbidden_until_round_trip_proven
+  - forbidden_compare_only_surface
+
+# ---------------------------------------------------------------------
+# Review rows. Exactly one row per review_artifact_class.
+# ---------------------------------------------------------------------
+
+review_rows:
+  - review_surface_id: review.surface.jupyter_notebook
+    review_artifact_class: jupyter_notebook
+    review_surface_class: cell_aware_compare_viewer
+    merge_posture_class: semantic_merge_where_safe
+    posture_reason_class: cell_and_output_identity_at_risk
+    canonical_source_rule_class: single_canonical_source
+    paired_text_representation:
+      pair_state: export_only_no_round_trip
+      canonical_direction_ref: "canonical-direction:notebook->export_script:v1"
+      round_trip_corpus_ref: "round-trip-corpus:jupyter_notebook:v1"
+    unknown_metadata_survival_class: required_survival
+    trust_sandbox_constraints:
+      - notebook_active_outputs_sandboxed
+    notebook_review_presets:
+      metadata_filter_preset: preserve_jupyter_and_aureline_namespaces_only
+      output_handling_preset: ignore_outputs_by_default_with_opt_in_inclusion
+      cell_id_stability_required: true
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: permitted_with_round_trip_corpus
+    conformance_corpus_ref: "conformance-corpus:review.jupyter_notebook:v1"
+    summary: >
+      Jupyter .ipynb opens on a cell-aware compare viewer with stable cell
+      identity; structured merge is permitted only behind a round-trip
+      corpus and only after unknown-metadata survival is proven.
+
+  - review_surface_id: review.surface.structured_config_json
+    review_artifact_class: structured_config_json
+    review_surface_class: semantic_compare_viewer
+    merge_posture_class: semantic_merge_where_safe
+    posture_reason_class: schema_support_proven_with_unknown_field_survival
+    canonical_source_rule_class: single_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: "round-trip-corpus:structured_config_json:v1"
+    unknown_metadata_survival_class: required_survival
+    trust_sandbox_constraints:
+      - secrets_or_policy_tokens_may_require_redaction
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: permitted_where_semantics_defined
+    conformance_corpus_ref: "conformance-corpus:review.structured_config_json:v1"
+    summary: >
+      JSON config opens on a key-aware semantic compare; semantic merge is
+      admissible only where the schema defines it and unknown fields round
+      trip without loss.
+
+  - review_surface_id: review.surface.structured_config_yaml
+    review_artifact_class: structured_config_yaml
+    review_surface_class: semantic_compare_viewer
+    merge_posture_class: semantic_merge_where_safe
+    posture_reason_class: schema_support_partial_structure_aware_only
+    canonical_source_rule_class: single_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: "round-trip-corpus:structured_config_yaml:v1"
+    unknown_metadata_survival_class: required_survival
+    trust_sandbox_constraints:
+      - secrets_or_policy_tokens_may_require_redaction
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: permitted_where_semantics_defined
+    conformance_corpus_ref: "conformance-corpus:review.structured_config_yaml:v1"
+    summary: >
+      YAML config opens on a key-aware compare with comment and ordering
+      preservation; semantic merge covers documented keys and falls back
+      to structure-aware compare for unknown sections.
+
+  - review_surface_id: review.surface.structured_config_toml
+    review_artifact_class: structured_config_toml
+    review_surface_class: semantic_compare_viewer
+    merge_posture_class: semantic_merge_where_safe
+    posture_reason_class: schema_support_partial_structure_aware_only
+    canonical_source_rule_class: single_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: "round-trip-corpus:structured_config_toml:v1"
+    unknown_metadata_survival_class: required_survival
+    trust_sandbox_constraints:
+      - secrets_or_policy_tokens_may_require_redaction
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: permitted_where_semantics_defined
+    conformance_corpus_ref: "conformance-corpus:review.structured_config_toml:v1"
+    summary: >
+      TOML config opens on a key-aware compare; semantic merge is admitted
+      only for documented tables and unknown tables round trip with
+      formatting and comment preservation.
+
+  - review_surface_id: review.surface.lockfile_or_dependency_manifest
+    review_artifact_class: lockfile_or_dependency_manifest
+    review_surface_class: structure_aware_compare_viewer
+    merge_posture_class: regenerate_or_review
+    posture_reason_class: solver_meaning_may_change_under_normalization
+    canonical_source_rule_class: paired_text_representation_with_canonical_direction
+    paired_text_representation:
+      pair_state: paired_with_canonical_direction
+      canonical_direction_ref: "canonical-direction:manifest->lockfile:v1"
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: survival_recommended
+    trust_sandbox_constraints:
+      - no_additional_trust_constraints
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: forbidden_until_round_trip_proven
+    conformance_corpus_ref: null
+    summary: >
+      Lockfiles render on a package-centric compare with transitive impact
+      hints; conflicts route to regenerate-from-manifest or to explicit
+      review, never to byte-level auto-merge.
+
+  - review_surface_id: review.surface.coverage_profile_artifact
+    review_artifact_class: coverage_profile_artifact
+    review_surface_class: sidecar_bind_viewer
+    merge_posture_class: compare_only
+    posture_reason_class: sidecar_requires_build_identity_match
+    canonical_source_rule_class: derived_from_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: not_applicable
+    trust_sandbox_constraints:
+      - binary_preview_sandboxed
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: forbidden_compare_only_surface
+    conformance_corpus_ref: null
+    summary: >
+      Coverage and profile artifacts render a compare viewer bound to a
+      verified run / build identity; they never claim accurate mapping
+      without the bind and they never write back.
+
+  - review_surface_id: review.surface.sbom_or_generated_metadata
+    review_artifact_class: sbom_or_generated_metadata
+    review_surface_class: structure_aware_compare_viewer
+    merge_posture_class: compare_only
+    posture_reason_class: round_trip_unproven_for_bytes
+    canonical_source_rule_class: derived_from_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: required_survival
+    trust_sandbox_constraints:
+      - untrusted_rich_content_sanitized
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: forbidden_until_round_trip_proven
+    conformance_corpus_ref: null
+    summary: >
+      SBOMs and generated metadata render on a structure-aware compare
+      that preserves unknown vendor fields; write-back stays compare-only
+      until round-trip is proven.
+
+  - review_surface_id: review.surface.source_map_or_debug_sidecar
+    review_artifact_class: source_map_or_debug_sidecar
+    review_surface_class: sidecar_bind_viewer
+    merge_posture_class: no_auto_merge
+    posture_reason_class: generated_from_canonical_source
+    canonical_source_rule_class: derived_from_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: not_applicable
+    trust_sandbox_constraints:
+      - no_additional_trust_constraints
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: required_link_to_debug_artifact_manifest
+    git_merge_driver_admission_class: forbidden_compare_only_surface
+    conformance_corpus_ref: null
+    summary: >
+      Source maps and debug sidecars render a compare viewer bound to a
+      debug_artifact_entry_record; review surfaces cite the debug-artifact
+      manifest rather than claiming independent mapping truth.
+
+  - review_surface_id: review.surface.image_or_design_snapshot
+    review_artifact_class: image_or_design_snapshot
+    review_surface_class: perceptual_or_side_by_side_viewer
+    merge_posture_class: no_auto_merge
+    posture_reason_class: binary_or_opaque_payload
+    canonical_source_rule_class: single_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: not_applicable
+    trust_sandbox_constraints:
+      - binary_preview_sandboxed
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: forbidden_compare_only_surface
+    conformance_corpus_ref: null
+    summary: >
+      Images and design snapshots render on a perceptual or side-by-side
+      viewer without rewriting binary bytes; merge is never silent.
+
+  - review_surface_id: review.surface.evidence_packet
+    review_artifact_class: evidence_packet
+    review_surface_class: evidence_reader_viewer
+    merge_posture_class: no_auto_merge
+    posture_reason_class: evidence_immutability_required
+    canonical_source_rule_class: not_applicable_mirror_or_evidence
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: not_applicable
+    trust_sandbox_constraints:
+      - evidence_read_only_redaction_applies
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: not_applicable
+    git_merge_driver_admission_class: forbidden_compare_only_surface
+    conformance_corpus_ref: null
+    summary: >
+      Support bundles, release-evidence, AI-evidence, and contract-gate
+      evidence packets open on an immutable read-only reader; edits,
+      merges, and silent rewrites are forbidden by construction.
+
+  - review_surface_id: review.surface.generated_source_artifact
+    review_artifact_class: generated_source_artifact
+    review_surface_class: structure_aware_compare_viewer
+    merge_posture_class: regenerate_or_review
+    posture_reason_class: generated_from_canonical_source
+    canonical_source_rule_class: derived_from_canonical_source
+    paired_text_representation:
+      pair_state: none
+      canonical_direction_ref: null
+      round_trip_corpus_ref: null
+    unknown_metadata_survival_class: survival_recommended
+    trust_sandbox_constraints:
+      - no_additional_trust_constraints
+    notebook_review_presets:
+      metadata_filter_preset: not_applicable
+      output_handling_preset: not_applicable
+      cell_id_stability_required: false
+    generated_source_backlink:
+      backlink_state: required_link_to_safe_edit_posture_record
+    git_merge_driver_admission_class: forbidden_until_round_trip_proven
+    conformance_corpus_ref: null
+    summary: >
+      Generated source opens on a structure-aware compare whose posture
+      is projected from the artifact_edit_posture_record; conflicts route
+      to regenerate-from-canonical-source rather than silent auto-merge.
+
+# ---------------------------------------------------------------------
+# Matrix-wide invariants. Reviewers read these when auditing the rows.
+# ---------------------------------------------------------------------
+
+matrix_invariants:
+  - id: inv.review.exactly_one_row_per_class
+    statement: >
+      Exactly one review_row is declared per review_artifact_class. Adding
+      a new class is additive-minor; repurposing an existing class is
+      breaking.
+
+  - id: inv.review.single_visible_reason_per_row
+    statement: >
+      Every review_row names exactly one posture_reason_class. Reviewers
+      reading the row see one stable token explaining the merge posture
+      rather than free-text justification.
+
+  - id: inv.review.semantic_versus_regenerate_distinguishable
+    statement: >
+      semantic_merge_where_safe rows carry a posture_reason of
+      schema_support_proven_with_unknown_field_survival,
+      schema_support_partial_structure_aware_only, or
+      cell_and_output_identity_at_risk. regenerate_or_review rows carry
+      solver_meaning_may_change_under_normalization or
+      generated_from_canonical_source. The two postures are never reached
+      through the same reason code.
+
+  - id: inv.review.notebook_preset_required_only_on_notebooks
+    statement: >
+      jupyter_notebook rows MUST set metadata_filter_preset and
+      output_handling_preset to non-not_applicable values and MUST set
+      cell_id_stability_required = true. Every other row MUST set both
+      presets to not_applicable and cell_id_stability_required = false.
+
+  - id: inv.review.generated_source_backlink_required_on_derived_classes
+    statement: >
+      generated_source_artifact rows MUST carry generated_source_backlink
+      = required_link_to_safe_edit_posture_record.
+      source_map_or_debug_sidecar rows MUST carry generated_source_backlink
+      = required_link_to_debug_artifact_manifest. Every other row MUST
+      carry generated_source_backlink = not_applicable.
+
+  - id: inv.review.paired_representation_requires_canonical_direction
+    statement: >
+      Any row whose paired_text_representation.pair_state is
+      paired_with_canonical_direction or export_only_no_round_trip MUST
+      name a non-null canonical_direction_ref so round-trip write-back
+      through the derived side is explicitly forbidden.
+
+  - id: inv.review.git_merge_driver_admission_requires_corpus
+    statement: >
+      Any row whose git_merge_driver_admission_class is
+      permitted_with_round_trip_corpus or permitted_where_semantics_defined
+      MUST carry a non-null conformance_corpus_ref and a non-null
+      paired_text_representation.round_trip_corpus_ref so a merge driver
+      cannot register without corpus-backed round-trip evidence.
+
+  - id: inv.review.compare_only_classes_forbid_merge_driver
+    statement: >
+      Every row whose merge_posture_class is compare_only or no_auto_merge
+      MUST declare git_merge_driver_admission_class =
+      forbidden_compare_only_surface or forbidden_until_round_trip_proven.
+      A compare-only surface never acquires a merge driver by implication.
+
+  - id: inv.review.evidence_immutable_by_construction
+    statement: >
+      evidence_packet rows declare merge_posture_class = no_auto_merge,
+      review_surface_class = evidence_reader_viewer, and
+      trust_sandbox_constraints includes evidence_read_only_redaction_applies.
+      Support bundles, release-evidence packets, AI-evidence packets, and
+      contract-gate evidence packets cannot be silently rewritten by any
+      review surface.
+
+  - id: inv.review.unknown_metadata_survival_declared
+    statement: >
+      Every row declares unknown_metadata_survival_class. required_survival
+      is mandatory on jupyter_notebook, every structured_config_*, and
+      sbom_or_generated_metadata. survival_recommended is mandatory on
+      lockfile_or_dependency_manifest and generated_source_artifact.
+      not_applicable is admissible only on binary, sidecar, or evidence
+      rows.
+
+  - id: inv.review.trust_sandbox_constraints_declared
+    statement: >
+      Every row declares a non-empty trust_sandbox_constraints list drawn
+      from the closed vocabulary. jupyter_notebook rows MUST include
+      notebook_active_outputs_sandboxed. image_or_design_snapshot and
+      coverage_profile_artifact rows MUST include binary_preview_sandboxed.
+      evidence_packet rows MUST include evidence_read_only_redaction_applies.
+
+  - id: inv.review.milestone_slugs_forbidden
+    statement: >
+      Milestone slugs never appear in id, path, description, or summary
+      fields. Planning metadata stays in the planning tree.

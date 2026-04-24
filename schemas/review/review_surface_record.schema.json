@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/review_surface_record.schema.json",
+  "title": "Aureline structured-artifact review-surface record",
+  "description": "Boundary schema for the review_surface_record frozen in docs/review/structured_artifact_review_seed.md. One record pins the default review surface, merge posture, single reason code, canonical-source rule, unknown-metadata survival rule, trust/sandbox constraints, notebook cell-aware review presets, generated-source back-links, and git-merge-driver admission decision for one structured-artifact class. It is the compact row consumed by review, diff, merge, Git provider, support-export, AI-review, and release-evidence surfaces so non-line-oriented artifacts (notebooks, structured configs, lockfiles / dependency manifests, coverage / profile artifacts, SBOMs, source maps, images and design snapshots, evidence packets, and generated source) cannot silently be treated as plain text. Raw artifact bytes, raw paths, raw secrets, raw notebook outputs, and raw generator argv never cross this boundary; the record carries opaque refs, closed vocabulary tokens, and one short reviewable sentence per row. Adding a review_artifact_class, review_surface_class, merge_posture_class, posture_reason_class, canonical_source_rule_class, unknown_metadata_survival_class, trust_sandbox_constraint_class, notebook_metadata_filter_preset_class, notebook_output_handling_preset_class, generated_source_backlink_state_class, or git_merge_driver_admission_class value is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_surface_record" }
+  ],
+  "$defs": {
+    "review_surface_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "review_surface_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe inside review / diff / merge state, Git-provider integrations, support bundles, and release-evidence packets. Raw absolute paths, raw URLs, raw notebook output bytes, raw generator argv, and raw package-registry URLs never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short human-readable sentence intended for review surface hints, Git-provider annotations, and support-bundle manifest previews."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "review_artifact_class": {
+      "type": "string",
+      "enum": [
+        "jupyter_notebook",
+        "structured_config_json",
+        "structured_config_yaml",
+        "structured_config_toml",
+        "lockfile_or_dependency_manifest",
+        "coverage_profile_artifact",
+        "sbom_or_generated_metadata",
+        "source_map_or_debug_sidecar",
+        "image_or_design_snapshot",
+        "evidence_packet",
+        "generated_source_artifact"
+      ],
+      "description": "Closed review-artifact-class vocabulary. jupyter_notebook covers .ipynb. structured_config_{json,yaml,toml} cover key-aware configs whose canonical source is the structured text itself. lockfile_or_dependency_manifest covers resolved lockfiles (npm / pnpm / Cargo / Poetry / Maven / Gradle) and their paired manifests. coverage_profile_artifact covers LCOV / gcov / llvm-cov / pprof / perfetto / flamegraph outputs. sbom_or_generated_metadata covers SPDX, CycloneDX, codegen manifests, and deployment descriptors. source_map_or_debug_sidecar covers JS / TS / CSS source maps and debug sidecars reviewed on their own (the full debug-artifact manifest governs debugger-side review). image_or_design_snapshot covers screenshots, exported diagrams, and snapshot baselines. evidence_packet covers support bundles, release-evidence packets, AI-evidence packets, and contract-gate evidence packets. generated_source_artifact covers generated-source siblings whose full safe-edit posture lives in schemas/generated/artifact_edit_posture.schema.json."
+    },
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "pure_viewer",
+        "cell_aware_compare_viewer",
+        "semantic_compare_viewer",
+        "structure_aware_compare_viewer",
+        "sidecar_bind_viewer",
+        "perceptual_or_side_by_side_viewer",
+        "evidence_reader_viewer"
+      ],
+      "description": "Default review surface class. pure_viewer renders read-only with no compare affordance and no edit path. cell_aware_compare_viewer renders .ipynb compare with stable cell identity, metadata filters, and output handling presets. semantic_compare_viewer renders key-aware compare for schema-supported structured configs. structure_aware_compare_viewer renders package / section / field compare without claiming byte-level semantic merge (lockfiles, SBOMs, generated code). sidecar_bind_viewer renders compare only when the sidecar binds to a verified build / run identity (source maps, coverage, profiles). perceptual_or_side_by_side_viewer renders images / design snapshots without rewriting binary bytes. evidence_reader_viewer renders immutable evidence packets read-only with no write-back."
+    },
+    "merge_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_auto_merge",
+        "semantic_merge_where_safe",
+        "regenerate_or_review",
+        "compare_only"
+      ],
+      "description": "Default merge posture. no_auto_merge forbids any automated merge; conflicts route to a manual review surface. semantic_merge_where_safe admits a content-aware merge only when the schema support, unknown-metadata preservation, and round-trip corpus for the class are proven (see git_merge_driver_admission). regenerate_or_review routes conflicts to regenerating the derived artifact from canonical inputs or to explicit human review rather than byte-level auto-merge. compare_only disables write-back entirely; the surface is a viewer."
+    },
+    "posture_reason_class": {
+      "type": "string",
+      "enum": [
+        "cell_and_output_identity_at_risk",
+        "schema_support_proven_with_unknown_field_survival",
+        "schema_support_partial_structure_aware_only",
+        "solver_meaning_may_change_under_normalization",
+        "generated_from_canonical_source",
+        "round_trip_unproven_for_bytes",
+        "sidecar_requires_build_identity_match",
+        "binary_or_opaque_payload",
+        "evidence_immutability_required"
+      ],
+      "description": "Exactly one visible reason code per class stating why the row resolves to its merge posture. cell_and_output_identity_at_risk keeps notebook merge behind a cell-aware surface. schema_support_proven_with_unknown_field_survival clears a structured config for semantic merge. schema_support_partial_structure_aware_only keeps a structured config on structure-aware compare because semantic merge would over-claim. solver_meaning_may_change_under_normalization keeps lockfiles on regenerate-or-review. generated_from_canonical_source keeps generated source and debug sidecars derived rather than merged in place. round_trip_unproven_for_bytes keeps SBOMs and similar generated metadata on compare-only until round-trip is proven. sidecar_requires_build_identity_match keeps source maps / coverage / profiles bound to a verified build. binary_or_opaque_payload covers images / design snapshots. evidence_immutability_required covers support and release evidence packets."
+    },
+    "canonical_source_rule_class": {
+      "type": "string",
+      "enum": [
+        "single_canonical_source",
+        "paired_text_representation_with_canonical_direction",
+        "derived_from_canonical_source",
+        "not_applicable_mirror_or_evidence"
+      ],
+      "description": "Canonical-source-of-truth rule for the row. single_canonical_source means the artifact is itself the source of truth (notebooks, structured configs). paired_text_representation_with_canonical_direction names a canonical direction across a manifest / lockfile or notebook / exported-script pair and forbids silent round-trip write-back through the derived side. derived_from_canonical_source covers generated source, source maps, SBOMs, and generated metadata. not_applicable_mirror_or_evidence covers immutable evidence packets and mirrored artifacts where the row has no local canonical source."
+    },
+    "unknown_metadata_survival_class": {
+      "type": "string",
+      "enum": [
+        "required_survival",
+        "survival_recommended",
+        "not_applicable"
+      ],
+      "description": "Unknown-metadata / vendor-extension survival rule. required_survival means the class MUST round-trip unknown metadata through open / save / diff / merge unless the user deliberately strips it (notebooks, JSON/YAML/TOML configs, SBOMs). survival_recommended applies where the class has room for vendor extensions but the authoring tool already governs them (lockfiles). not_applicable covers binary payloads and evidence packets with no user-authored metadata."
+    },
+    "trust_sandbox_constraint_class": {
+      "type": "string",
+      "enum": [
+        "no_additional_trust_constraints",
+        "notebook_active_outputs_sandboxed",
+        "untrusted_rich_content_sanitized",
+        "binary_preview_sandboxed",
+        "secrets_or_policy_tokens_may_require_redaction",
+        "evidence_read_only_redaction_applies"
+      ],
+      "description": "Trust / sandbox constraint the review surface MUST honour. Values mirror the safe-preview and structured-rich vocabulary: notebook_active_outputs_sandboxed inherits notebook trust rules; untrusted_rich_content_sanitized covers SBOM / generated-metadata previews whose embedded HTML or JS must be sanitized; binary_preview_sandboxed covers images and design snapshots; secrets_or_policy_tokens_may_require_redaction covers structured configs; evidence_read_only_redaction_applies keeps evidence packets immutable and subject to the redaction posture matrix."
+    },
+    "notebook_metadata_filter_preset_class": {
+      "type": "string",
+      "enum": [
+        "preserve_jupyter_and_aureline_namespaces_only",
+        "preserve_all_vendor_metadata",
+        "not_applicable"
+      ],
+      "description": "Default metadata-filter preset for cell-aware notebook review. preserve_jupyter_and_aureline_namespaces_only preserves documented Jupyter namespaces and metadata.aureline while filtering unrelated vendor metadata from the compare view (it does not strip from disk). preserve_all_vendor_metadata shows every metadata namespace verbatim. not_applicable is required on every non-notebook row."
+    },
+    "notebook_output_handling_preset_class": {
+      "type": "string",
+      "enum": [
+        "ignore_outputs_by_default_with_opt_in_inclusion",
+        "collapse_outputs_by_default",
+        "include_outputs_with_trust_gate",
+        "not_applicable"
+      ],
+      "description": "Default output-handling preset for cell-aware notebook review. ignore_outputs_by_default_with_opt_in_inclusion is the diff default. collapse_outputs_by_default keeps outputs available on expand. include_outputs_with_trust_gate opts outputs into the compare view only when the notebook is trusted (Section 20 trust rules still apply). not_applicable is required on every non-notebook row."
+    },
+    "generated_source_backlink_state_class": {
+      "type": "string",
+      "enum": [
+        "required_link_to_safe_edit_posture_record",
+        "required_link_to_debug_artifact_manifest",
+        "not_applicable"
+      ],
+      "description": "Generated-source back-link rule. required_link_to_safe_edit_posture_record requires the row to carry generated_source_backlink.safe_edit_posture_ref pointing at a record validated by schemas/generated/artifact_edit_posture.schema.json. required_link_to_debug_artifact_manifest requires the row to carry generated_source_backlink.debug_artifact_ref pointing at schemas/debug/debug_artifact_manifest.schema.json. not_applicable covers rows whose canonical source lives inside the artifact itself."
+    },
+    "git_merge_driver_admission_class": {
+      "type": "string",
+      "enum": [
+        "permitted_with_round_trip_corpus",
+        "permitted_where_semantics_defined",
+        "forbidden_until_round_trip_proven",
+        "forbidden_compare_only_surface"
+      ],
+      "description": "Whether a Git merge driver may be registered for this class. permitted_with_round_trip_corpus matches TAD Appendix AC: classes with unknown-field preservation and corpus-backed round-trip tests may register a driver (notebooks). permitted_where_semantics_defined covers schema-supported structured configs. forbidden_until_round_trip_proven keeps lockfiles, SBOMs, and generated metadata out of auto-merge until round-trip is proven. forbidden_compare_only_surface covers coverage / profile / source-map / image / evidence rows whose review surface never writes back."
+    },
+    "paired_text_representation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pair_state"],
+      "properties": {
+        "pair_state": {
+          "type": "string",
+          "enum": [
+            "none",
+            "export_only_no_round_trip",
+            "paired_with_canonical_direction"
+          ],
+          "description": "Paired-text state. none means the class does not support a paired text representation. export_only_no_round_trip covers classes that may export a paired text view (e.g. notebook-to-script export) but forbid silent round-trip back to the structured form. paired_with_canonical_direction covers lockfile / manifest pairs where edits flow through the canonical direction and the derived side regenerates."
+        },
+        "canonical_direction_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the canonical-direction record (e.g. 'canonical:manifest->lockfile' or 'canonical:notebook->export_script'). Required non-null when pair_state is paired_with_canonical_direction or export_only_no_round_trip."
+        },
+        "round_trip_corpus_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the corpus-backed round-trip test set (fixtures / review / structured_diff_cases or equivalent). Required non-null whenever git_merge_driver_admission_class is permitted_with_round_trip_corpus or permitted_where_semantics_defined."
+        }
+      },
+      "description": "Paired-text representation declaration. Closed together with canonical_source_rule_class so a lockfile row cannot silently claim the lockfile itself is canonical and a notebook row cannot silently claim the exported script is canonical."
+    },
+    "notebook_review_presets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metadata_filter_preset",
+        "output_handling_preset",
+        "cell_id_stability_required"
+      ],
+      "properties": {
+        "metadata_filter_preset": { "$ref": "#/$defs/notebook_metadata_filter_preset_class" },
+        "output_handling_preset": { "$ref": "#/$defs/notebook_output_handling_preset_class" },
+        "cell_id_stability_required": {
+          "type": "boolean",
+          "description": "Whether stable cell identity is required for this row. MUST be true for jupyter_notebook rows and false for every other class."
+        }
+      },
+      "description": "Notebook-specific review presets. jupyter_notebook rows MUST set metadata_filter_preset and output_handling_preset to non-not_applicable values and MUST set cell_id_stability_required = true. Every other row MUST set both presets to not_applicable and cell_id_stability_required = false."
+    },
+    "generated_source_backlink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backlink_state"],
+      "properties": {
+        "backlink_state": { "$ref": "#/$defs/generated_source_backlink_state_class" },
+        "safe_edit_posture_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to an artifact_edit_posture_record validated by schemas/generated/artifact_edit_posture.schema.json. Required non-null when backlink_state is required_link_to_safe_edit_posture_record."
+        },
+        "debug_artifact_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a debug_artifact_entry_record validated by schemas/debug/debug_artifact_manifest.schema.json. Required non-null when backlink_state is required_link_to_debug_artifact_manifest."
+        }
+      },
+      "description": "Generated-source back-link. Keeps generated source and debug sidecars linked to the provenance / drift / resolution record rather than re-minting a parallel vocabulary here."
+    },
+    "trust_sandbox_constraints": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/trust_sandbox_constraint_class" },
+      "description": "Closed list of trust / sandbox constraints that apply on this row. Every row MUST list at least one token; rows with no incremental constraints list no_additional_trust_constraints."
+    },
+    "review_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_surface_schema_version",
+        "review_surface_id",
+        "review_artifact_class",
+        "review_surface_class",
+        "merge_posture_class",
+        "posture_reason_class",
+        "canonical_source_rule_class",
+        "paired_text_representation",
+        "unknown_metadata_survival_class",
+        "trust_sandbox_constraints",
+        "notebook_review_presets",
+        "generated_source_backlink",
+        "git_merge_driver_admission_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "review_surface_schema_version": { "$ref": "#/$defs/review_surface_schema_version" },
+        "review_surface_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id naming this row across review, diff, merge, Git-provider, support-export, AI-review, and release-evidence surfaces."
+        },
+        "review_artifact_class": { "$ref": "#/$defs/review_artifact_class" },
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "merge_posture_class": { "$ref": "#/$defs/merge_posture_class" },
+        "posture_reason_class": { "$ref": "#/$defs/posture_reason_class" },
+        "canonical_source_rule_class": { "$ref": "#/$defs/canonical_source_rule_class" },
+        "paired_text_representation": { "$ref": "#/$defs/paired_text_representation" },
+        "unknown_metadata_survival_class": { "$ref": "#/$defs/unknown_metadata_survival_class" },
+        "trust_sandbox_constraints": { "$ref": "#/$defs/trust_sandbox_constraints" },
+        "notebook_review_presets": { "$ref": "#/$defs/notebook_review_presets" },
+        "generated_source_backlink": { "$ref": "#/$defs/generated_source_backlink" },
+        "git_merge_driver_admission_class": { "$ref": "#/$defs/git_merge_driver_admission_class" },
+        "conformance_corpus_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the corpus-backed conformance manifest for this class (see fixtures/review/structured_diff_cases). Required non-null whenever merge_posture_class is semantic_merge_where_safe or git_merge_driver_admission_class is any permitted_* value."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Row shape consumed by review, diff, merge, Git-provider, support-export, AI-review, and release-evidence surfaces. Exactly one row per review_artifact_class."
+    }
+  }
+}
