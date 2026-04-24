@@ -1,0 +1,116 @@
+{
+  "$comment": "Boundary-case fixture for the distributed-boundary matrix. Not a live release packet. See docs/compat/boundary_matrix.md.",
+  "fixture_schema_version": 1,
+  "fixture_kind": "boundary_matrix_example_case",
+  "example_case_id": "boundary_case:refuse_attach.desktop_cli_and_remote_agent",
+  "example_case_class": "refuse_attach",
+  "boundary_row_ref": "boundary_row:desktop_cli_and_remote_agent",
+  "boundary_family": "desktop_cli_and_remote_agent",
+  "artifact_or_protocol_boundary_label": "boundary.remote.agent_attach_envelope",
+  "qualification_row_ref": "compat_row:remote.attach_envelope_and_drift",
+  "skew_window_declaration_ref": "skew_window:desktop_cli_and_remote_agent.declared_adjacent_window",
+  "version_skew_register_ref": "skew_register:remote.attach_envelope_and_drift",
+  "mixed_version_envelope_fixture_ref": "fixtures/compat/mixed_version_cases/downgrade_required.json",
+  "owner_ref": "lane:release_evidence",
+  "source_of_truth_manifest_locations": [
+    {
+      "kind": "boundary_matrix",
+      "path": "artifacts/compat/boundary_matrix.yaml",
+      "ref": "boundary_row:desktop_cli_and_remote_agent"
+    },
+    {
+      "kind": "skew_window_declaration",
+      "path": "artifacts/compat/skew_windows.yaml",
+      "ref": "skew_window:desktop_cli_and_remote_agent.declared_adjacent_window"
+    },
+    {
+      "kind": "qualification_row",
+      "path": "artifacts/compat/qualification_matrix_seed.yaml",
+      "ref": "compat_row:remote.attach_envelope_and_drift"
+    },
+    {
+      "kind": "mixed_version_envelope_schema",
+      "path": "schemas/compat/mixed_version_envelope.schema.json",
+      "ref": "$defs.reserved_boundary_fields.desktop_cli_and_remote_agent"
+    },
+    {
+      "kind": "service_placement_rows",
+      "path": "artifacts/runtime/service_placement_rows.yaml",
+      "ref": null
+    }
+  ],
+  "scenario": "Desktop/CLI client is two minors ahead of the remote agent's declared adjacent window. The boundary cannot open a mutating attach; it refuses the mutating session and offers file-or-review-only mode plus typed repair hints for downgrading the client or upgrading the agent.",
+  "current_state": {
+    "client_version": "client@2026.06-preview",
+    "agent_version": "agent@2026.02",
+    "min_protocol": "protocol@2026.02",
+    "max_protocol": "protocol@2026.04",
+    "toolchain_manifest_epoch": "toolchain_manifest@2026.04",
+    "skew_window_status": "out_of_window_degraded",
+    "upgrade_order_compliance": "violated_consumer_behind_producer",
+    "rollback_order_compliance": "rollback_not_attempted",
+    "fail_closed_active": true,
+    "fail_closed_posture": "degraded"
+  },
+  "supported_skew_window": {
+    "window_class": "declared_adjacent_window",
+    "summary": "Client and agent stay within the declared adjacent support window and negotiate the capability intersection, never the optimistic superset."
+  },
+  "upgrade_order": {
+    "declared_order": [
+      "desktop_or_cli_client",
+      "remote_agent"
+    ],
+    "notes": "Upgrade the control surface first where possible; violation surfaces as a visible reason and a typed repair hint."
+  },
+  "rollback_order": {
+    "declared_order": [
+      "remote_agent",
+      "desktop_or_cli_client"
+    ],
+    "notes": "Roll the agent back first on regressions so the control surface stays adjacent to the last known-good agent."
+  },
+  "unsupported_state_behavior": {
+    "behavior_class": "refuse_attach_or_degrade_to_review_only",
+    "outside_window_posture": "degraded",
+    "contract_rule": "Refuse attach or degrade to file-or-review-only mode with a visible upgrade or downgrade hint. Never partially load the mutating session."
+  },
+  "what_happens_when_upgrade_order_violated": "If the client is promoted past the declared adjacent window before the remote agent is upgraded, the mutating attach is refused. The user surface renders the declared adjacent window, names the detected client and agent versions, and offers typed downgrade_component / upgrade_component / use_file_or_review_only_mode repair hints. Review-only or file-only attach remains available.",
+  "what_happens_when_skew_window_exceeded": "Mutating attach is refused; file-or-review-only mode is offered as a degrade path. The agent is never partially loaded into a session it cannot sustain. Rollback order pulls the agent back first on regressions so the client remains adjacent to the last known-good agent.",
+  "repair_hints_expected": [
+    {
+      "kind": "downgrade_component",
+      "target_component": "desktop_or_cli_client",
+      "reversible": true
+    },
+    {
+      "kind": "use_file_or_review_only_mode",
+      "target_component": "remote_agent",
+      "reversible": true
+    },
+    {
+      "kind": "upgrade_component",
+      "target_component": "remote_agent",
+      "reversible": true
+    },
+    {
+      "kind": "reattach_session",
+      "target_component": "remote_agent",
+      "reversible": true
+    }
+  ],
+  "visible_fail_closed_reason_example": "Your desktop or CLI client is ahead of the remote agent's declared adjacent window. Attach is available in file or review-only mode; mutating attach is refused until the boundary returns to the adjacent window.",
+  "map_back_to": {
+    "qualification_row_refs": [
+      "compat_row:remote.attach_envelope_and_drift"
+    ],
+    "claim_manifest_projection_source": "artifacts/governance/claim_manifest_seed.yaml",
+    "release_evidence_packet_template": "docs/release/release_evidence_packet_template.md",
+    "downstream_consumers": [
+      "compatibility_report",
+      "claim_manifest",
+      "support_bundle"
+    ]
+  },
+  "notes": "Illustrative seed boundary case; this is not a live release packet. Also exemplifies the refuse-attach contract for boundary_row:extension_host_and_sdk (disable_or_quarantine_extension) where the extension is not loaded when the published SDK support window cannot be satisfied."
+}

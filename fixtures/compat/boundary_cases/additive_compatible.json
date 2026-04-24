@@ -1,0 +1,104 @@
+{
+  "$comment": "Boundary-case fixture for the distributed-boundary matrix. Not a live release packet. See docs/compat/boundary_matrix.md.",
+  "fixture_schema_version": 1,
+  "fixture_kind": "boundary_matrix_example_case",
+  "example_case_id": "boundary_case:additive_compatible.schema_or_state_bundle",
+  "example_case_class": "additive_compatible",
+  "boundary_row_ref": "boundary_row:schema_or_state_bundle",
+  "boundary_family": "schema_or_state_bundle",
+  "artifact_or_protocol_boundary_label": "boundary.profile.portable_profile_and_layout_restore",
+  "qualification_row_ref": "compat_row:state.profile_layout_schema",
+  "skew_window_declaration_ref": "skew_window:schema_or_state_bundle.additive_epoch",
+  "version_skew_register_ref": "skew_register:state.profile_layout_schema",
+  "mixed_version_envelope_fixture_ref": "fixtures/compat/mixed_version_cases/compatible.json",
+  "owner_ref": "lane:support_export",
+  "source_of_truth_manifest_locations": [
+    {
+      "kind": "boundary_matrix",
+      "path": "artifacts/compat/boundary_matrix.yaml",
+      "ref": "boundary_row:schema_or_state_bundle"
+    },
+    {
+      "kind": "skew_window_declaration",
+      "path": "artifacts/compat/skew_windows.yaml",
+      "ref": "skew_window:schema_or_state_bundle.additive_epoch"
+    },
+    {
+      "kind": "qualification_row",
+      "path": "artifacts/compat/qualification_matrix_seed.yaml",
+      "ref": "compat_row:state.profile_layout_schema"
+    },
+    {
+      "kind": "mixed_version_envelope_schema",
+      "path": "schemas/compat/mixed_version_envelope.schema.json",
+      "ref": "$defs.reserved_boundary_fields.schema_or_state_bundle"
+    },
+    {
+      "kind": "portable_profile_schema",
+      "path": "schemas/profile/portable_profile.schema.json",
+      "ref": null
+    }
+  ],
+  "scenario": "A profile-layout producer emits an additive field (a remembered-layout detail) ahead of a consumer that was built against the prior additive frontier. Both sides sit in schema epoch 1 and the consumer preserves unknown additive fields. The capability intersection is the full advertised set; the producer leads within the additive frontier, the consumer continues at its prior frontier without breaking state.",
+  "current_state": {
+    "schema_family": "profile_layout",
+    "schema_epoch": "1",
+    "producer_additive_frontier": "1.3",
+    "consumer_additive_frontier": "1.2",
+    "additive_field_posture": "additive_only",
+    "skew_window_status": "in_window_supported",
+    "upgrade_order_compliance": "compliant",
+    "rollback_order_compliance": "compliant",
+    "fail_closed_active": false
+  },
+  "supported_skew_window": {
+    "window_class": "same_schema_epoch_additive_only",
+    "summary": "Producer and consumer preserve one schema epoch with additive-field tolerance; unknown additive fields are preserved, required-field or meaning-changing drift is out of window."
+  },
+  "upgrade_order": {
+    "declared_order": [
+      "schema_producer",
+      "schema_consumer"
+    ],
+    "notes": "Producers may ship additive fields ahead of consumers provided consumers preserve unknown additive fields. Breaking epoch moves require consumer upgrades first."
+  },
+  "rollback_order": {
+    "declared_order": [
+      "schema_producer",
+      "schema_consumer"
+    ],
+    "notes": "Roll the producer back to the prior additive frontier before rolling the consumer back so the consumer is never asked to parse a future-only field during rollback."
+  },
+  "unsupported_state_behavior": {
+    "behavior_class": "attributed_error_refuse_ingest",
+    "outside_window_posture": "fail_closed",
+    "contract_rule": "Consumers that cannot attribute a required field refuse the payload with an attributed error. Silent truncation is forbidden. Explicitly excluded or admin-owned state rendered as portable user truth fails closed."
+  },
+  "what_happens_when_upgrade_order_violated": "If the consumer is promoted past the producer across an epoch boundary (consumer at epoch 2 reading producer epoch 1), the boundary refuses ingest with an attributed error rather than guessing meanings for renamed or repurposed fields. Cross-epoch downgrade is a separate migration packet.",
+  "what_happens_when_skew_window_exceeded": "If the payload carries a required field the consumer cannot attribute, the consumer refuses with an attributed error. There is no silent truncation or best-guess rewrite. Unknown additive fields are preserved round-trip so the producer's frontier remains intact.",
+  "repair_hints_expected": [
+    {
+      "kind": "upgrade_component",
+      "target_component": "schema_consumer",
+      "reversible": true
+    },
+    {
+      "kind": "reissue_skew_snapshot",
+      "target_component": "schema_producer",
+      "reversible": true
+    }
+  ],
+  "map_back_to": {
+    "qualification_row_refs": [
+      "compat_row:state.profile_layout_schema"
+    ],
+    "claim_manifest_projection_source": "artifacts/governance/claim_manifest_seed.yaml",
+    "release_evidence_packet_template": "docs/release/release_evidence_packet_template.md",
+    "downstream_consumers": [
+      "compatibility_report",
+      "support_bundle",
+      "deployment_profile_artifact"
+    ]
+  },
+  "notes": "Illustrative seed boundary case; this is not a live release packet. Also exemplifies boundary_row:audit_or_event_producer_consumer and boundary_row:cli_or_export_boundary which share the same additive-epoch contract."
+}

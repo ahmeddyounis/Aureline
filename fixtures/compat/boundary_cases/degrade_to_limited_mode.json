@@ -1,0 +1,113 @@
+{
+  "$comment": "Boundary-case fixture for the distributed-boundary matrix. Not a live release packet. See docs/compat/boundary_matrix.md.",
+  "fixture_schema_version": 1,
+  "fixture_kind": "boundary_matrix_example_case",
+  "example_case_id": "boundary_case:degrade_to_limited_mode.managed_control_plane",
+  "example_case_class": "degrade_to_limited_mode",
+  "boundary_row_ref": "boundary_row:managed_control_plane",
+  "boundary_family": "managed_control_plane",
+  "artifact_or_protocol_boundary_label": "boundary.provider.service_api_family",
+  "qualification_row_ref": "compat_row:provider.service_api_and_browser_handoff",
+  "skew_window_declaration_ref": "skew_window:managed_control_plane.current_plus_previous_minor_or_lts",
+  "version_skew_register_ref": "skew_register:provider.service_api_and_browser_handoff",
+  "mixed_version_envelope_fixture_ref": "fixtures/compat/mixed_version_cases/out_of_window.json",
+  "owner_ref": "lane:release_evidence",
+  "source_of_truth_manifest_locations": [
+    {
+      "kind": "boundary_matrix",
+      "path": "artifacts/compat/boundary_matrix.yaml",
+      "ref": "boundary_row:managed_control_plane"
+    },
+    {
+      "kind": "skew_window_declaration",
+      "path": "artifacts/compat/skew_windows.yaml",
+      "ref": "skew_window:managed_control_plane.current_plus_previous_minor_or_lts"
+    },
+    {
+      "kind": "qualification_row",
+      "path": "artifacts/compat/qualification_matrix_seed.yaml",
+      "ref": "compat_row:provider.service_api_and_browser_handoff"
+    },
+    {
+      "kind": "mixed_version_envelope_schema",
+      "path": "schemas/compat/mixed_version_envelope.schema.json",
+      "ref": "$defs.reserved_boundary_fields.managed_control_plane"
+    },
+    {
+      "kind": "service_api_surface_rows",
+      "path": "artifacts/service/api_surface_rows.yaml",
+      "ref": null
+    }
+  ],
+  "scenario": "A desktop client targets a managed control plane API family two minors past the declared current_plus_previous_minor_or_lts window. The service refuses privileged writes but retains the cached read-only posture so prior reads remain attributable. The client surfaces the fail-closed reason verbatim and renders cached safe operations only.",
+  "current_state": {
+    "api_version": "service_api@2025.10",
+    "tenancy_region_epoch": "tenancy_region@2026.04",
+    "capability_policy_ref": "capability_policy:managed_control_plane.default",
+    "skew_window_status": "out_of_window_read_only",
+    "upgrade_order_compliance": "violated_consumer_behind_producer",
+    "rollback_order_compliance": "rollback_not_attempted",
+    "fail_closed_active": true,
+    "fail_closed_posture": "read_only"
+  },
+  "supported_skew_window": {
+    "window_class": "current_plus_previous_minor_or_lts",
+    "summary": "Current published service family plus the declared previous minor or LTS window. Control-plane additive evolution may move ahead of clients; breaking moves must stage by region or ring."
+  },
+  "upgrade_order": {
+    "declared_order": [
+      "managed_control_plane",
+      "desktop_cli_or_browser_client"
+    ],
+    "notes": "Control plane ahead of clients only for additive evolution; breaking moves stage by region or ring before any client update."
+  },
+  "rollback_order": {
+    "declared_order": [
+      "managed_control_plane",
+      "desktop_cli_or_browser_client"
+    ],
+    "notes": "Roll control plane back first when a region or ring regresses; clients stay on the cached read-only posture until the rollback completes."
+  },
+  "unsupported_state_behavior": {
+    "behavior_class": "read_only_cached_safe_operations",
+    "outside_window_posture": "read_only",
+    "contract_rule": "Cached read-only safe operations only; privileged writes are blocked with an explicit incompatibility reason."
+  },
+  "what_happens_when_upgrade_order_violated": "If the managed control plane advances past the published adjacent window before clients are updated, privileged writes refuse with an attributed reason and a staged-rollout hint. The client remains functional for cached read-only operations. Same visible contract applies when the rollout is staged by region and the current client is targeting an un-rolled region.",
+  "what_happens_when_skew_window_exceeded": "Privileged writes targeting the out-of-window API family fail closed; cached reads remain available where the prior window supported them. The surface renders the declared read-only posture plus a typed upgrade or wait-for-staged-rollout hint. No silent widening to the new family.",
+  "repair_hints_expected": [
+    {
+      "kind": "use_cached_read_only_mode",
+      "target_component": "desktop_cli_or_browser_client",
+      "reversible": true
+    },
+    {
+      "kind": "upgrade_component",
+      "target_component": "desktop_cli_or_browser_client",
+      "reversible": true
+    },
+    {
+      "kind": "wait_for_staged_rollout",
+      "target_component": "managed_control_plane",
+      "reversible": true
+    },
+    {
+      "kind": "contact_admin_or_support",
+      "target_component": "managed_control_plane",
+      "reversible": true
+    }
+  ],
+  "map_back_to": {
+    "qualification_row_refs": [
+      "compat_row:provider.service_api_and_browser_handoff"
+    ],
+    "claim_manifest_projection_source": "artifacts/governance/claim_manifest_seed.yaml",
+    "release_evidence_packet_template": "docs/release/release_evidence_packet_template.md",
+    "downstream_consumers": [
+      "compatibility_report",
+      "claim_manifest",
+      "deployment_profile_artifact"
+    ]
+  },
+  "notes": "Illustrative seed boundary case; this is not a live release packet. The same degrade-to-limited-mode contract also covers boundary_row:provider_linked_packet and boundary_row:browser_companion_and_remote_or_review_session."
+}

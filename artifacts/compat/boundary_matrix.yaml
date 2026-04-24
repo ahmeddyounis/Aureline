@@ -1,0 +1,811 @@
+# Distributed-boundary matrix seed.
+#
+# Reviewer-facing projection of the distributed or file/schema boundaries
+# that every mixed-version envelope, compatibility report, claim manifest,
+# release-evidence packet, and support bundle extends by reference. The
+# qualification matrix names which rows exist and what they claim. The
+# skew-window declaration is the mechanical contract each envelope binds
+# to. The version-skew register names the supported, best-effort, untested,
+# and unsupported cases per row. This file is the one-row-per-boundary
+# matrix a reviewer can read at a glance, with named owner,
+# source-of-truth manifest locations, per-boundary negotiated fields,
+# supported skew window, upgrade order, rollback order, and
+# unsupported-state behavior in one place.
+#
+# The narrative companion lives in docs/compat/boundary_matrix.md. Worked
+# example cases exercising coordinated-upgrade-only, additive-compatible,
+# degrade-to-limited-mode, and explicit refuse-start / refuse-attach
+# behaviors live under fixtures/compat/boundary_cases/. If this file and
+# the narrative disagree, this file is authoritative and the narrative
+# must be updated in the same change.
+#
+# Rules.
+#   - Every boundary row names exactly one boundary_family from the
+#     reserved vocabulary in
+#     schemas/compat/mixed_version_envelope.schema.json, one
+#     owner_ref resolvable in artifacts/governance/ownership_matrix.yaml,
+#     one qualification_row_ref from
+#     artifacts/compat/qualification_matrix_seed.yaml, one
+#     version_skew_register_ref from
+#     artifacts/compat/version_skew_register.yaml, and one
+#     skew_window_declaration_ref from
+#     artifacts/compat/skew_windows.yaml.
+#   - source_of_truth_manifest_locations is a non-empty list pointing at
+#     the binding machine-readable artifacts for that row. "Source of
+#     truth" means the file that tooling reads; a prose-only reference is
+#     not a source of truth.
+#   - negotiated_fields is the per-boundary reserved field list aligned
+#     with schemas/compat/mixed_version_envelope.schema.json
+#     $defs.reserved_boundary_fields.<boundary_family>. Adding a field
+#     here requires extending the envelope schema in the same change.
+#   - unsupported_state_behavior MUST name exactly one behavior_class
+#     from unsupported_state_behavior_class_vocabulary, exactly one
+#     outside_window_posture from outside_window_posture_vocabulary, and
+#     a contract_rule string that tooling renders verbatim. Silent
+#     undefined behavior is non-conforming.
+#   - example_case_class is drawn from example_case_class_vocabulary and
+#     must match the class of the fixture at
+#     example_case_fixture_ref. example_case_fixture_ref points at a
+#     fixtures/compat/boundary_cases/*.json file; mixed_version_envelope_
+#     fixture_ref points at a fixtures/compat/mixed_version_cases/*.json
+#     file.
+#   - Later compatibility reports, claim manifests, and release-evidence
+#     packets extend rows by boundary_row_id. Renaming or aliasing a row
+#     is non-conforming.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/compat/boundary_matrix.md
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+skew_windows_source: artifacts/compat/skew_windows.yaml
+version_skew_register_source: artifacts/compat/version_skew_register.yaml
+envelope_schema_source: schemas/compat/mixed_version_envelope.schema.json
+boundary_case_fixtures_source: fixtures/compat/boundary_cases/
+mixed_version_case_fixtures_source: fixtures/compat/mixed_version_cases/
+ownership_matrix_source: artifacts/governance/ownership_matrix.yaml
+compatibility_report_template_source: docs/release/compatibility_report_template.md
+claim_manifest_seed_source: artifacts/governance/claim_manifest_seed.yaml
+release_evidence_packet_template_source: docs/release/release_evidence_packet_template.md
+
+boundary_family_vocabulary:
+  - launcher_and_local_sidecars
+  - desktop_cli_and_remote_agent
+  - managed_control_plane
+  - extension_host_and_sdk
+  - schema_or_state_bundle
+  - provider_linked_packet
+  - audit_or_event_producer_consumer
+  - cli_or_export_boundary
+  - browser_companion_and_remote_or_review_session
+
+outside_window_posture_vocabulary:
+  - fail_closed
+  - read_only
+  - degraded
+  - explicitly_unsupported
+
+unsupported_state_behavior_class_vocabulary:
+  - coordinated_rollback_or_refuse_start
+  - refuse_attach_or_degrade_to_review_only
+  - read_only_cached_safe_operations
+  - disable_or_quarantine_extension
+  - attributed_error_refuse_ingest
+  - refuse_export_unknown_family
+  - hand_off_to_desktop_or_review_only
+  - privileged_write_refuse_cached_read_remains
+
+example_case_class_vocabulary:
+  - coordinated_upgrade_only
+  - additive_compatible
+  - degrade_to_limited_mode
+  - refuse_start
+  - refuse_attach
+
+downstream_consumer_vocabulary:
+  - compatibility_report
+  - claim_manifest
+  - certified_archetype_packet
+  - deployment_profile_artifact
+  - shiproom
+  - support_bundle
+  - benchmark_report
+
+projection_contract:
+  compatibility_report:
+    extends_rows_by_reference: true
+    required_reference_fields:
+      - boundary_row_id
+      - boundary_family
+      - qualification_row_ref
+      - skew_window_declaration_ref
+    notes: >
+      Release-time compatibility reports attach fresh evidence, migration
+      notes, and verdicts to these boundary_row_ids. They do not rename
+      boundary families or collapse mixed-version status into prose.
+  claim_manifest:
+    extends_rows_by_reference: true
+    required_reference_fields:
+      - boundary_row_id
+      - boundary_family
+      - qualification_row_ref
+    notes: >
+      Public wording resolves through the boundary row, then the
+      qualification row, then release evidence. A claim-manifest row
+      without a boundary_row_ref or qualification_row_ref is
+      non-conforming.
+  release_evidence_packet:
+    extends_rows_by_reference: true
+    required_reference_fields:
+      - boundary_row_id
+      - mixed_version_envelope_fixture_ref
+    notes: >
+      Release-evidence packets carry envelope ids for each boundary
+      under qualification; qualification and compatibility reports
+      consume the same ids without alias drift.
+  support_bundle:
+    extends_rows_by_reference: true
+    required_reference_fields:
+      - boundary_row_id
+      - unsupported_state_behavior
+    notes: >
+      Support bundles quote envelope ids, visible reasons, and repair
+      hints verbatim so user-visible state, CLI diagnostics, and admin
+      docs tell one story.
+
+boundary_rows:
+
+  - boundary_row_id: boundary_row:launcher_and_local_sidecars
+    boundary_family: launcher_and_local_sidecars
+    producer_surface: desktop_launcher
+    consumer_surface: local_sidecars_and_helper_processes
+    qualification_row_ref: compat_row:launcher.local_helper_contracts
+    skew_window_declaration_ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+    version_skew_register_ref: skew_register:launcher.local_helper_contracts
+    artifact_or_protocol_boundary_label: boundary.runtime.launcher_local_sidecars
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    owner_ref: lane:release_evidence
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:launcher_and_local_sidecars.coordinated_artifact_set
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:launcher.local_helper_contracts
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:launcher.local_helper_contracts
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.launcher_and_local_sidecars"
+    negotiated_fields:
+      - coordinated_artifact_set_ref
+      - contract_version
+      - schema_epoch
+    supported_skew_window:
+      window_class: coordinated_artifact_set_only
+      summary: >
+        Launcher and helper binaries come from one coordinated artifact
+        set with shared build identity, contract version, and schema
+        epoch. Rolling upgrades are not a claim on this boundary.
+    upgrade_order:
+      declared_order:
+        - coordinated_artifact_set.launcher_and_helpers
+      notes: >
+        Promote the full launcher-plus-helpers artifact graph together;
+        mixed startup outside the coordinated set is refused, not warned.
+    rollback_order:
+      declared_order:
+        - coordinated_artifact_set.launcher_and_helpers
+      notes: Rollback restores the prior coordinated set, never a partial mix.
+    downgrade_behavior:
+      support_class: downgrade_requires_coordinated_artifact_set
+      state_preservation_note: >
+        Local-only workspace state preserved across rollback; mid-flight
+        helper sessions are refused rather than migrated.
+    unsupported_state_behavior:
+      behavior_class: coordinated_rollback_or_refuse_start
+      outside_window_posture: fail_closed
+      contract_rule: >
+        Refuse mixed launcher/helper startup with a visible reason;
+        offer rollback to the prior coordinated artifact set.
+    example_case_class: refuse_start
+    example_case_fixture_ref: fixtures/compat/boundary_cases/refuse_start.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/upgrade_order_violation.json
+    downstream_consumers:
+      - compatibility_report
+      - shiproom
+      - support_bundle
+
+  - boundary_row_id: boundary_row:desktop_cli_and_remote_agent
+    boundary_family: desktop_cli_and_remote_agent
+    producer_surface: desktop_cli_client
+    consumer_surface: remote_agent
+    qualification_row_ref: compat_row:remote.attach_envelope_and_drift
+    skew_window_declaration_ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+    version_skew_register_ref: skew_register:remote.attach_envelope_and_drift
+    artifact_or_protocol_boundary_label: boundary.remote.agent_attach_envelope
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - managed_cloud
+    owner_ref: lane:release_evidence
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:remote.attach_envelope_and_drift
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:remote.attach_envelope_and_drift
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.desktop_cli_and_remote_agent"
+      - kind: service_placement_rows
+        path: artifacts/runtime/service_placement_rows.yaml
+        ref: null
+    negotiated_fields:
+      - client_version
+      - agent_version
+      - min_protocol
+      - max_protocol
+      - toolchain_manifest_epoch
+    supported_skew_window:
+      window_class: declared_adjacent_window
+      summary: >
+        Client and agent stay within the declared adjacent support
+        window and negotiate the capability intersection, never the
+        optimistic superset.
+    upgrade_order:
+      declared_order:
+        - desktop_or_cli_client
+        - remote_agent
+      notes: >
+        Upgrade the control surface first where possible; violation
+        surfaces as a visible reason and a typed repair hint.
+    rollback_order:
+      declared_order:
+        - remote_agent
+        - desktop_or_cli_client
+      notes: >
+        Roll the agent back first on regressions so the control surface
+        stays adjacent to the last known-good agent.
+    downgrade_behavior:
+      support_class: downgrade_best_effort
+      state_preservation_note: >
+        Review-only and file-only attach remain available during
+        downgrade; mutating attach may narrow.
+    unsupported_state_behavior:
+      behavior_class: refuse_attach_or_degrade_to_review_only
+      outside_window_posture: degraded
+      contract_rule: >
+        Refuse attach or degrade to file-or-review-only mode with a
+        visible upgrade or downgrade hint. Never partially load the
+        mutating session.
+    example_case_class: refuse_attach
+    example_case_fixture_ref: fixtures/compat/boundary_cases/refuse_attach.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/downgrade_required.json
+    downstream_consumers:
+      - compatibility_report
+      - claim_manifest
+      - support_bundle
+
+  - boundary_row_id: boundary_row:managed_control_plane
+    boundary_family: managed_control_plane
+    producer_surface: managed_control_plane_api
+    consumer_surface: desktop_cli_or_browser_client
+    qualification_row_ref: compat_row:provider.service_api_and_browser_handoff
+    skew_window_declaration_ref: skew_window:managed_control_plane.current_plus_previous_minor_or_lts
+    version_skew_register_ref: skew_register:provider.service_api_and_browser_handoff
+    artifact_or_protocol_boundary_label: boundary.provider.service_api_family
+    claimed_deployment_profiles:
+      - enterprise_online
+      - managed_cloud
+    owner_ref: lane:release_evidence
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:managed_control_plane.current_plus_previous_minor_or_lts
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:provider.service_api_and_browser_handoff
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:provider.service_api_and_browser_handoff
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.managed_control_plane"
+      - kind: service_api_surface_rows
+        path: artifacts/service/api_surface_rows.yaml
+        ref: null
+    negotiated_fields:
+      - api_version
+      - tenancy_region_epoch
+      - capability_policy_ref
+    supported_skew_window:
+      window_class: current_plus_previous_minor_or_lts
+      summary: >
+        Current published service family plus the declared previous minor
+        or LTS window. Control-plane additive evolution may move ahead of
+        clients; breaking moves must stage by region or ring.
+    upgrade_order:
+      declared_order:
+        - managed_control_plane
+        - desktop_cli_or_browser_client
+      notes: >
+        Control plane ahead of clients only for additive evolution;
+        breaking moves stage by region or ring before any client update.
+    rollback_order:
+      declared_order:
+        - managed_control_plane
+        - desktop_cli_or_browser_client
+      notes: >
+        Roll control plane back first when a region or ring regresses;
+        clients stay on the cached read-only posture until the rollback
+        completes.
+    downgrade_behavior:
+      support_class: downgrade_best_effort
+      state_preservation_note: >
+        Cached read-only state remains usable; privileged write paths
+        are refused rather than partially executed.
+    unsupported_state_behavior:
+      behavior_class: read_only_cached_safe_operations
+      outside_window_posture: read_only
+      contract_rule: >
+        Cached read-only safe operations only; privileged writes are
+        blocked with an explicit incompatibility reason.
+    example_case_class: degrade_to_limited_mode
+    example_case_fixture_ref: fixtures/compat/boundary_cases/degrade_to_limited_mode.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/out_of_window.json
+    downstream_consumers:
+      - compatibility_report
+      - claim_manifest
+      - deployment_profile_artifact
+
+  - boundary_row_id: boundary_row:extension_host_and_sdk
+    boundary_family: extension_host_and_sdk
+    producer_surface: extension_host_and_runtime
+    consumer_surface: extension_guest_and_sdk_consumer
+    qualification_row_ref: compat_row:extension_host.sdk_wit_permission_window
+    skew_window_declaration_ref: skew_window:extension_host_and_sdk.published_sdk_support_window
+    version_skew_register_ref: skew_register:extension_host.sdk_wit_permission_window
+    artifact_or_protocol_boundary_label: boundary.extensions.host_contract_and_permission_vocab
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    owner_ref: lane:governance_packets
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:extension_host_and_sdk.published_sdk_support_window
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:extension_host.sdk_wit_permission_window
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:extension_host.sdk_wit_permission_window
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.extension_host_and_sdk"
+      - kind: adr
+        path: docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        ref: null
+    negotiated_fields:
+      - sdk_range
+      - wit_abi_version
+      - permission_vocabulary_version
+    supported_skew_window:
+      window_class: published_sdk_support_window
+      summary: >
+        Manifest SDK range, WIT ABI version, and permission vocabulary
+        all fall within the published support window.
+    upgrade_order:
+      declared_order:
+        - extension_host_and_runtime
+        - extension
+      notes: >
+        Upgrade host and runtime before extensions so the host can still
+        parse or quarantine older extensions; extensions never lead host
+        upgrades on this boundary.
+    rollback_order:
+      declared_order:
+        - extension
+        - extension_host_and_runtime
+      notes: >
+        Roll the extension back first on regressions; only roll the host
+        back when the regression is host-owned.
+    downgrade_behavior:
+      support_class: downgrade_unsupported
+      state_preservation_note: >
+        Host downgrade disables or quarantines extensions that expect
+        newer permission vocabulary rather than partially loading them.
+    unsupported_state_behavior:
+      behavior_class: disable_or_quarantine_extension
+      outside_window_posture: explicitly_unsupported
+      contract_rule: >
+        Extension is disabled or quarantined. Never partially loaded in
+        ambiguous mode. Required WIT world, permission version, or SDK
+        floor outside the published window is a refusal, not a warning.
+    example_case_class: refuse_attach
+    example_case_fixture_ref: fixtures/compat/boundary_cases/refuse_attach.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/partial_feature_narrowing.json
+    downstream_consumers:
+      - compatibility_report
+      - claim_manifest
+      - support_bundle
+
+  - boundary_row_id: boundary_row:schema_or_state_bundle
+    boundary_family: schema_or_state_bundle
+    producer_surface: schema_or_state_producer
+    consumer_surface: schema_or_state_consumer
+    qualification_row_ref: compat_row:state.profile_layout_schema
+    skew_window_declaration_ref: skew_window:schema_or_state_bundle.additive_epoch
+    version_skew_register_ref: skew_register:state.profile_layout_schema
+    artifact_or_protocol_boundary_label: boundary.profile.portable_profile_and_layout_restore
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    owner_ref: lane:support_export
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:schema_or_state_bundle.additive_epoch
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:state.profile_layout_schema
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:state.profile_layout_schema
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.schema_or_state_bundle"
+      - kind: portable_profile_schema
+        path: schemas/profile/portable_profile.schema.json
+        ref: null
+    negotiated_fields:
+      - schema_family
+      - schema_epoch
+      - additive_field_posture
+    supported_skew_window:
+      window_class: same_schema_epoch_additive_only
+      summary: >
+        Producer and consumer preserve one schema epoch with
+        additive-field tolerance; unknown additive fields are preserved,
+        required-field or meaning-changing drift is out of window.
+    upgrade_order:
+      declared_order:
+        - schema_producer
+        - schema_consumer
+      notes: >
+        Producers may ship additive fields ahead of consumers provided
+        consumers preserve unknown additive fields. Breaking epoch moves
+        require consumer upgrades first.
+    rollback_order:
+      declared_order:
+        - schema_producer
+        - schema_consumer
+      notes: >
+        Roll the producer back to the prior additive frontier before
+        rolling the consumer back so the consumer is never asked to
+        parse a future-only field during rollback.
+    downgrade_behavior:
+      support_class: downgrade_supported
+      state_preservation_note: >
+        Additive-only downgrade preserves user-authored durable truth.
+        Meaning-changing downgrades refuse rather than rewrite state.
+    unsupported_state_behavior:
+      behavior_class: attributed_error_refuse_ingest
+      outside_window_posture: fail_closed
+      contract_rule: >
+        Consumers that cannot attribute a required field refuse the
+        payload with an attributed error. Silent truncation is
+        forbidden. Explicitly excluded or admin-owned state rendered as
+        portable user truth fails closed.
+    example_case_class: additive_compatible
+    example_case_fixture_ref: fixtures/compat/boundary_cases/additive_compatible.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/compatible.json
+    downstream_consumers:
+      - compatibility_report
+      - support_bundle
+      - deployment_profile_artifact
+
+  - boundary_row_id: boundary_row:provider_linked_packet
+    boundary_family: provider_linked_packet
+    producer_surface: provider_service_family
+    consumer_surface: provider_linked_client
+    qualification_row_ref: compat_row:provider.service_api_and_browser_handoff
+    skew_window_declaration_ref: skew_window:provider_linked_packet.service_family_window
+    version_skew_register_ref: skew_register:provider.service_api_and_browser_handoff
+    artifact_or_protocol_boundary_label: boundary.provider.service_api_family
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - managed_cloud
+    owner_ref: lane:release_evidence
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:provider_linked_packet.service_family_window
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:provider.service_api_and_browser_handoff
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:provider.service_api_and_browser_handoff
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.provider_linked_packet"
+      - kind: browser_handoff_packet_schema
+        path: schemas/integration/browser_handoff_packet.schema.json
+        ref: null
+    negotiated_fields:
+      - provider_service_family_ref
+      - service_api_version
+      - previous_minor_or_lts_window
+    supported_skew_window:
+      window_class: current_plus_previous_minor_or_lts
+      summary: >
+        Provider-linked packet lanes stay within the current published
+        service family plus the declared previous minor or LTS window.
+    upgrade_order:
+      declared_order:
+        - provider_service_family
+        - provider_linked_client
+      notes: >
+        Provider service upgrades ahead of clients only for additive
+        evolution.
+    rollback_order:
+      declared_order:
+        - provider_service_family
+        - provider_linked_client
+      notes: >
+        Roll the service family back first when a privileged-write lane
+        regresses; clients retain cached metadata in the meantime.
+    downgrade_behavior:
+      support_class: downgrade_best_effort
+      state_preservation_note: >
+        Cached metadata and safe read paths remain rendered; privileged
+        writes refuse.
+    unsupported_state_behavior:
+      behavior_class: privileged_write_refuse_cached_read_remains
+      outside_window_posture: read_only
+      contract_rule: >
+        Privileged or approval-bearing writes targeting an API family
+        outside the window fail closed; cached reads remain available
+        where the prior window supported them.
+    example_case_class: degrade_to_limited_mode
+    example_case_fixture_ref: fixtures/compat/boundary_cases/degrade_to_limited_mode.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/out_of_window.json
+    downstream_consumers:
+      - compatibility_report
+      - claim_manifest
+      - support_bundle
+
+  - boundary_row_id: boundary_row:audit_or_event_producer_consumer
+    boundary_family: audit_or_event_producer_consumer
+    producer_surface: task_test_debug_or_audit_event_producer
+    consumer_surface: support_export_replay_or_release_event_consumer
+    qualification_row_ref: compat_row:tooling.task_event_envelope
+    skew_window_declaration_ref: skew_window:audit_or_event_producer_consumer.additive_epoch
+    version_skew_register_ref: skew_register:tooling.task_event_envelope
+    artifact_or_protocol_boundary_label: boundary.tooling.task_event_envelope
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    owner_ref: lane:support_export
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:audit_or_event_producer_consumer.additive_epoch
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:tooling.task_event_envelope
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:tooling.task_event_envelope
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.audit_or_event_producer_consumer"
+    negotiated_fields:
+      - event_schema_epoch
+      - required_capability_set
+      - retention_class
+    supported_skew_window:
+      window_class: same_schema_epoch_additive_only
+      summary: >
+        Task-event and audit-event producers and consumers preserve one
+        stable epoch with additive-only evolution. Consumers may lag
+        producers within an epoch if unknown fields are preserved.
+    upgrade_order:
+      declared_order:
+        - event_producer
+        - event_consumer
+      notes: >
+        Producers may ship additive fields ahead of consumers. Consumers
+        that cannot preserve unknown additive fields must upgrade before
+        the producer moves.
+    rollback_order:
+      declared_order:
+        - event_producer
+        - event_consumer
+      notes: >
+        Roll producers back to the prior additive frontier before
+        rolling consumers back so retention and privacy class remain
+        attributable.
+    downgrade_behavior:
+      support_class: downgrade_supported
+      state_preservation_note: >
+        Audit continuity preserved across additive downgrades; no silent
+        truncation.
+    unsupported_state_behavior:
+      behavior_class: attributed_error_refuse_ingest
+      outside_window_posture: fail_closed
+      contract_rule: >
+        Consumers that cannot attribute required payload kind or
+        retention class refuse ingest with an attributed error. Silent
+        truncation is forbidden.
+    example_case_class: additive_compatible
+    example_case_fixture_ref: fixtures/compat/boundary_cases/additive_compatible.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/compatible.json
+    downstream_consumers:
+      - compatibility_report
+      - support_bundle
+      - benchmark_report
+
+  - boundary_row_id: boundary_row:cli_or_export_boundary
+    boundary_family: cli_or_export_boundary
+    producer_surface: cli_or_export_producer
+    consumer_surface: cli_or_export_reader
+    qualification_row_ref: compat_row:automation.cli_headless_contract
+    skew_window_declaration_ref: skew_window:cli_or_export_boundary.additive_epoch
+    version_skew_register_ref: skew_register:automation.cli_headless_contract
+    artifact_or_protocol_boundary_label: boundary.automation.cli_headless_contract
+    claimed_deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    owner_ref: lane:shell_command_system
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:cli_or_export_boundary.additive_epoch
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:automation.cli_headless_contract
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:automation.cli_headless_contract
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.cli_or_export_boundary"
+      - kind: command_descriptor_schema
+        path: schemas/commands/command_descriptor.schema.json
+        ref: null
+    negotiated_fields:
+      - export_schema_family
+      - export_schema_version
+      - return_code_family_ref
+    supported_skew_window:
+      window_class: same_schema_epoch_additive_only
+      summary: >
+        CLI structured output and export schemas stay within one
+        additive epoch; return-code family and command descriptors
+        remain aligned.
+    upgrade_order:
+      declared_order:
+        - cli_export_producer
+        - cli_export_reader
+      notes: >
+        Producers may emit additive fields ahead of readers when the
+        reader preserves unknown additive fields.
+    rollback_order:
+      declared_order:
+        - cli_export_producer
+        - cli_export_reader
+      notes: Roll producers back first so readers never parse a future-only field.
+    downgrade_behavior:
+      support_class: downgrade_supported
+      state_preservation_note: >
+        Export payloads preserve structured truth across additive
+        downgrade; no field meanings change silently.
+    unsupported_state_behavior:
+      behavior_class: refuse_export_unknown_family
+      outside_window_posture: fail_closed
+      contract_rule: >
+        A packet or tool that invents a return-code family or command
+        family outside the canonical seed fails closed. Readers refuse
+        the export with an attributed reason.
+    example_case_class: additive_compatible
+    example_case_fixture_ref: fixtures/compat/boundary_cases/additive_compatible.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/compatible.json
+    downstream_consumers:
+      - compatibility_report
+      - support_bundle
+
+  - boundary_row_id: boundary_row:browser_companion_and_remote_or_review_session
+    boundary_family: browser_companion_and_remote_or_review_session
+    producer_surface: remote_or_review_service
+    consumer_surface: browser_companion
+    qualification_row_ref: compat_row:remote.attach_envelope_and_drift
+    skew_window_declaration_ref: skew_window:browser_companion_and_remote_or_review_session.service_family_window
+    version_skew_register_ref: skew_register:remote.attach_envelope_and_drift
+    artifact_or_protocol_boundary_label: boundary.remote.agent_attach_envelope
+    claimed_deployment_profiles:
+      - individual_local
+      - enterprise_online
+      - managed_cloud
+    owner_ref: lane:release_evidence
+    source_of_truth_manifest_locations:
+      - kind: skew_window_declaration
+        path: artifacts/compat/skew_windows.yaml
+        ref: skew_window:browser_companion_and_remote_or_review_session.service_family_window
+      - kind: qualification_row
+        path: artifacts/compat/qualification_matrix_seed.yaml
+        ref: compat_row:remote.attach_envelope_and_drift
+      - kind: version_skew_register
+        path: artifacts/compat/version_skew_register.yaml
+        ref: skew_register:remote.attach_envelope_and_drift
+      - kind: mixed_version_envelope_schema
+        path: schemas/compat/mixed_version_envelope.schema.json
+        ref: "$defs.reserved_boundary_fields.browser_companion_and_remote_or_review_session"
+    negotiated_fields:
+      - session_protocol_version
+      - scoped_capability_manifest_ref
+      - previous_service_family_window
+    supported_skew_window:
+      window_class: current_plus_previous_minor_or_lts
+      summary: >
+        Browser companion stays within the current service family plus
+        the declared previous service-family window; session protocol
+        and scoped capability manifest negotiate the intersection.
+    upgrade_order:
+      declared_order:
+        - remote_or_review_service
+        - browser_companion
+      notes: >
+        Upgrade the remote or review service ahead of the companion
+        surface so the companion can degrade to a handoff path rather
+        than a partial session.
+    rollback_order:
+      declared_order:
+        - remote_or_review_service
+        - browser_companion
+      notes: >
+        Roll the service back first on session regressions; the
+        companion falls back to desktop handoff in the meantime.
+    downgrade_behavior:
+      support_class: downgrade_best_effort
+      state_preservation_note: >
+        Review-only continuity preserved; mutating session paths refuse.
+    unsupported_state_behavior:
+      behavior_class: hand_off_to_desktop_or_review_only
+      outside_window_posture: degraded
+      contract_rule: >
+        Hand off to desktop or degrade to a review-only fallback rather
+        than continuing a partial session.
+    example_case_class: degrade_to_limited_mode
+    example_case_fixture_ref: fixtures/compat/boundary_cases/degrade_to_limited_mode.json
+    mixed_version_envelope_fixture_ref: fixtures/compat/mixed_version_cases/downgrade_required.json
+    downstream_consumers:
+      - compatibility_report
+      - support_bundle
