@@ -1,0 +1,285 @@
+# Managed-service retention and deletion-semantics rows.
+#
+# Machine-readable companion to docs/service/managed_service_seed.md.
+# Each row narrows a record class from
+# artifacts/governance/record_class_registry.yaml into a managed-service
+# retention, export, legal-hold, and customer-exit posture that later
+# managed claims, admin explainers, and offboarding packets cite
+# directly.
+#
+# Conformance: every row is a managed_service_retention_row. The
+# narrative seed is authoritative; tooling MAY validate the row shape
+# against the frozen vocabularies below.
+#
+# Rules:
+#   - Every row MUST name record_class_id, managed_copy_kind,
+#     data_class_summary, service_surface_refs (non-empty),
+#     retention_window, export_posture, legal_hold_eligibility,
+#     customer_exit_posture, and deletion_semantics.
+#   - Every record_class_id MUST resolve to a row in
+#     artifacts/governance/record_class_registry.yaml. The class-level
+#     posture on that row is the ceiling; this row narrows.
+#   - Every service_surface_refs id MUST resolve to a row in
+#     artifacts/service/slo_rows.yaml whose linked_record_class_ids
+#     includes this record_class_id.
+#   - legal_hold_eligibility here MUST be consistent with the
+#     hold_posture.eligible field on the corresponding record-class
+#     row; a row MAY narrow eligibility to false when the managed
+#     surface never produces hold-eligible copies.
+#   - deletion_semantics.local_and_managed_actions_are_distinct MUST
+#     be true whenever a managed copy exists.
+#   - Adding a retention_window, customer_exit_posture, or
+#     managed_copy_kind value is additive-minor and bumps
+#     schema_version. Repurposing a value is breaking.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     note field.
+
+schema_version: 1
+status: seeded
+
+seed_doc: docs/service/managed_service_seed.md
+slo_rows_ref: artifacts/service/slo_rows.yaml
+deletion_job_schema_ref: schemas/service/deletion_job_record.schema.json
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+record_state_model_ref: docs/governance/record_state_and_policy_simulation_models.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+managed_copy_kind_vocabulary:
+  - no_managed_copy
+  - support_export_copy
+  - collaboration_archive_copy
+  - ai_retained_evidence_copy
+  - usage_export_copy
+  - offboarding_exit_copy
+  - destruction_receipt_copy
+
+retention_window_vocabulary:
+  - no_managed_retention
+  - session_scoped
+  - case_scoped_until_close
+  - packet_expiry_timer
+  - billing_period_scoped
+  - contract_term_scoped
+  - retention_floor_minimum
+  - legal_hold_bounded_extension
+
+export_posture_vocabulary:
+  - not_exportable
+  - exportable_on_request
+  - local_export_only
+  - packet_is_export
+  - receipt_emitted_on_action
+
+customer_exit_posture_vocabulary:
+  - local_copy_survives_managed_exit
+  - managed_copy_deleted_on_exit
+  - managed_copy_retained_under_legal_hold_only
+  - managed_copy_retained_under_policy_minimum
+  - exit_packet_replaces_managed_copy
+
+completion_evidence_vocabulary:
+  - not_applicable
+  - tombstone_or_summary
+  - destruction_receipt
+  - destruction_receipt_with_retained_subset
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per managed-copy-bearing record class in scope at this seed.
+# -----------------------------------------------------------------------------
+
+rows:
+  - record_class_id: crash_diagnostic_payload
+    managed_copy_kind: support_export_copy
+    data_class_summary: >
+      Crash dumps and diagnostic sidecars attached to a managed
+      support case. Local crash artifacts remain user-owned and are
+      not implicitly mirrored to the managed copy.
+    service_surface_refs:
+      - managed_support_export
+    retention_window: case_scoped_until_close
+    export_posture: exportable_on_request
+    legal_hold_eligibility: true
+    customer_exit_posture: managed_copy_retained_under_policy_minimum
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 72 hours of request acknowledgement
+      remaining_location_notes:
+        - A managed copy may remain in the support case store until the case closes.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+        - Local copies under the user's control are not affected by the managed delete job.
+
+  - record_class_id: support_bundle_archive
+    managed_copy_kind: support_export_copy
+    data_class_summary: >
+      Managed-case attached support bundle assembled locally and
+      uploaded under the support-export surface. Export is the bundle
+      itself; managed retention follows case closure, packet expiry,
+      or a stricter policy hold.
+    service_surface_refs:
+      - managed_support_export
+    retention_window: packet_expiry_timer
+    export_posture: packet_is_export
+    legal_hold_eligibility: true
+    customer_exit_posture: managed_copy_deleted_on_exit
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 72 hours of request acknowledgement
+      remaining_location_notes:
+        - A managed bundle copy may remain in the support-case store under the packet-expiry timer.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+        - Local bundle files remain user-controlled regardless of the managed delete job.
+
+  - record_class_id: collaboration_evidence_packet
+    managed_copy_kind: collaboration_archive_copy
+    data_class_summary: >
+      Durable archive of collaboration and review evidence produced
+      through the managed collaboration archive service. Local replay
+      caches remain a separate posture.
+    service_surface_refs:
+      - managed_collaboration_review
+      - managed_relay
+    retention_window: contract_term_scoped
+    export_posture: packet_is_export
+    legal_hold_eligibility: true
+    customer_exit_posture: exit_packet_replaces_managed_copy
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 7 days of request acknowledgement
+      remaining_location_notes:
+        - Managed archive copies remain under the collaboration archive retention window until destroyed.
+        - Local replay caches remain user-controlled and are not proof that the managed archive was erased.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+
+  - record_class_id: ai_retained_evidence_packet
+    managed_copy_kind: ai_retained_evidence_copy
+    data_class_summary: >
+      AI retained evidence packets produced through the managed AI
+      broker, including route and spend receipts and citation
+      anchors. Raw prompt bodies never cross the managed boundary.
+    service_surface_refs:
+      - managed_ai_broker
+    retention_window: packet_expiry_timer
+    export_posture: packet_is_export
+    legal_hold_eligibility: true
+    customer_exit_posture: exit_packet_replaces_managed_copy
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 72 hours of request acknowledgement
+      remaining_location_notes:
+        - Managed evidence packets may remain in the AI retained-evidence store under the packet-expiry timer.
+        - Already-exported packets the user downloaded remain user-controlled.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+
+  - record_class_id: entitlement_usage_export_packet
+    managed_copy_kind: usage_export_copy
+    data_class_summary: >
+      Entitlement and usage export packets produced through the
+      managed entitlement-usage surface, the managed settings-sync
+      surface, and the managed auth-identity surface for admin and
+      user access flows.
+    service_surface_refs:
+      - managed_entitlement_usage
+      - managed_settings_sync
+      - managed_auth_identity
+      - managed_offboarding_export
+    retention_window: billing_period_scoped
+    export_posture: packet_is_export
+    legal_hold_eligibility: true
+    customer_exit_posture: managed_copy_retained_under_policy_minimum
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 14 days of request acknowledgement
+      remaining_location_notes:
+        - Managed aggregates follow finance, audit, or entitlement-policy retention even after a local export file is deleted.
+        - Entitlement snapshot caches on the user's device continue to apply within their freshness floor until invalidated.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+
+  - record_class_id: offboarding_exit_packet
+    managed_copy_kind: offboarding_exit_copy
+    data_class_summary: >
+      Offboarding and access-end exit packet produced through the
+      managed offboarding export surface. The packet inventories
+      managed artifacts, usage and policy exports, held-data notes,
+      and the access-end date.
+    service_surface_refs:
+      - managed_offboarding_export
+    retention_window: retention_floor_minimum
+    export_posture: packet_is_export
+    legal_hold_eligibility: true
+    customer_exit_posture: managed_copy_retained_under_policy_minimum
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 30 days of request acknowledgement
+      remaining_location_notes:
+        - The managed exit-packet copy remains available long enough for the user or admin to verify access-end claims.
+        - A destruction-receipt ledger entry is retained after payload destruction.
+        - Local copies of the exit packet remain user-controlled regardless of managed retention.
+
+  - record_class_id: destruction_receipt_record
+    managed_copy_kind: destruction_receipt_copy
+    data_class_summary: >
+      Managed destruction receipts emitted when a delete or redaction
+      action completes against a managed copy. Receipts are integrity-
+      preserving; they never carry a resurrection path to the
+      destroyed payload.
+    service_surface_refs:
+      - managed_offboarding_export
+      - managed_support_export
+    retention_window: contract_term_scoped
+    export_posture: receipt_emitted_on_action
+    legal_hold_eligibility: true
+    customer_exit_posture: managed_copy_retained_under_legal_hold_only
+    deletion_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      completion_evidence: tombstone_or_summary
+      hold_blocks_completion: true
+      default_expected_next_state_change_window: within 30 days of request acknowledgement
+      remaining_location_notes:
+        - The managed destruction-receipt ledger may be append-only and survive the payload it references.
+        - Local receipt exports remain user-controlled.
+        - Legal hold may extend retention beyond the default window.
+
+  - record_class_id: telemetry_contract_schema
+    managed_copy_kind: no_managed_copy
+    data_class_summary: >
+      Telemetry schema and taxonomy descriptor rows. The managed
+      telemetry sink consumes events governed by these rows; the
+      descriptor itself remains local-or-export-only.
+    service_surface_refs:
+      - managed_telemetry_sink
+    retention_window: no_managed_retention
+    export_posture: exportable_on_request
+    legal_hold_eligibility: false
+    customer_exit_posture: local_copy_survives_managed_exit
+    deletion_semantics:
+      request_supported: false
+      local_and_managed_actions_are_distinct: false
+      completion_evidence: not_applicable
+      hold_blocks_completion: false
+      default_expected_next_state_change_window: not_applicable
+      remaining_location_notes:
+        - Descriptor rows remain in the repository and in emitted support bundles or exports that reference them.
+        - The managed telemetry sink never retains a copy of the descriptor separate from the event stream.

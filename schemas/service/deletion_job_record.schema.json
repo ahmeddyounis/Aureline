@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/service/deletion_job_record.schema.json",
+  "title": "Aureline managed-service deletion-job record",
+  "description": "Boundary schema for the deletion_job_record produced whenever a delete path touches a managed-service copy. The record binds a per-class delete request to a typed deletion_job_state, a non-empty remaining_location_notes set on every non-terminal state, an expected_next_state_change_at RFC 3339 UTC timestamp on every non-terminal state (null on terminal states), and a typed deletion_blocker_class set with inspectable artifact_ref or policy_ref pointers on blocked_* states. Composes over docs/governance/record_state_and_policy_simulation_models.md and the class-level posture in artifacts/governance/record_class_registry.yaml; narrows through the SLO row in artifacts/service/slo_rows.yaml and the retention row in artifacts/service/retention_rows.yaml. Raw payload bytes never cross this boundary. Narrative companion: docs/service/managed_service_seed.md. Adding a deletion_job_state, deletion_blocker_class, managed_copy_kind, remaining_location_kind, or completion_evidence value is additive-minor and bumps schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "job_id",
+    "record_class_id",
+    "managed_copy_kind",
+    "service_surface_refs",
+    "requested_at",
+    "state",
+    "expected_next_state_change_at",
+    "remaining_location_notes",
+    "blockers",
+    "destruction_receipt_refs",
+    "links"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this record. Additive-minor changes bump this integer."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "deletion_job_record",
+      "description": "Discriminator for this payload shape."
+    },
+    "job_id": {
+      "$ref": "#/$defs/stable_token",
+      "description": "Stable deletion-job id. Snake_case. MUST NOT contain milestone slugs, raw user names, raw emails, or raw ticket numbers."
+    },
+    "record_class_id": {
+      "$ref": "#/$defs/lower_snake_id",
+      "description": "Record class id resolving to a row in artifacts/governance/record_class_registry.yaml. The class-level posture there is the ceiling; this job narrows through the retention row in artifacts/service/retention_rows.yaml."
+    },
+    "managed_copy_kind": {
+      "$ref": "#/$defs/managed_copy_kind",
+      "description": "Which managed-copy kind the job targets. no_managed_copy is valid only on jobs that assert no managed-side action is required (for example a telemetry-descriptor confirmation)."
+    },
+    "service_surface_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/service_id" },
+      "description": "Service ids from artifacts/service/slo_rows.yaml that this job touches. Every id MUST be admissible under the row's linked_record_class_ids."
+    },
+    "requested_at": {
+      "$ref": "#/$defs/monotonic_timestamp",
+      "description": "Request submission timestamp, RFC 3339 UTC."
+    },
+    "acknowledged_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ],
+      "description": "When the managed surface acknowledged the request. Null while the job is still requested_not_acknowledged."
+    },
+    "state": {
+      "$ref": "#/$defs/deletion_job_state",
+      "description": "Typed deletion-job state. Terminal states are completed_all, completed_partial_hold, completed_partial_policy_retention, cancelled_by_user, and cancelled_by_admin."
+    },
+    "state_entered_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ],
+      "description": "When the current state was entered. MAY be null while acknowledged_at is null."
+    },
+    "expected_next_state_change_at": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ],
+      "description": "When the job is expected to transition next, RFC 3339 UTC. MUST be non-null on every non-terminal state; MUST be null on terminal completed_* and cancelled_* states. Jobs that cannot honestly predict the next change MUST route through state = unknown_pending_recheck."
+    },
+    "remaining_location_notes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/remaining_location_note" },
+      "description": "Structured notes naming where the data may continue to live until the job terminates. MUST be non-empty on every non-terminal state; MAY be empty on completed_all; MUST be non-empty on completed_partial_hold, completed_partial_policy_retention, and every non-terminal state. Raw path bytes, raw URLs, raw credentials, and raw payload bytes do not appear here."
+    },
+    "blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/deletion_blocker" },
+      "description": "Typed blockers. MUST be non-empty on blocked_* states and on completed_partial_hold / completed_partial_policy_retention; MUST be empty on completed_all, cancelled_by_user, and cancelled_by_admin."
+    },
+    "destruction_receipt_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stable_token" },
+      "description": "Destruction-receipt ids emitted by the job so terminal claims cite inspectable proof. MUST be non-empty when completion_evidence resolves to destruction_receipt or destruction_receipt_with_retained_subset on the job's retention row."
+    },
+    "links": { "$ref": "#/$defs/links" },
+    "notes": {
+      "type": "string",
+      "description": "Optional short operator-reviewable note. MUST NOT carry raw user names, raw emails, raw URLs, raw payload bytes, or milestone slugs."
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block; never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Terminal completed_all, cancelled_by_user, and cancelled_by_admin MUST NOT carry blockers and MUST set expected_next_state_change_at to null.",
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "completed_all",
+              "cancelled_by_user",
+              "cancelled_by_admin"
+            ]
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": { "maxItems": 0 },
+          "expected_next_state_change_at": { "type": "null" }
+        }
+      }
+    },
+    {
+      "description": "Partial-completion states MUST carry at least one blocker naming why the job is not completed_all, and MUST set expected_next_state_change_at to null (the job is terminal with a retained subset).",
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "completed_partial_hold",
+              "completed_partial_policy_retention"
+            ]
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": { "minItems": 1 },
+          "expected_next_state_change_at": { "type": "null" },
+          "remaining_location_notes": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "Blocked_* states MUST carry at least one blocker and a non-null expected_next_state_change_at.",
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "blocked_by_hold",
+              "blocked_by_policy_retention",
+              "blocked_by_entitlement_expired",
+              "blocked_by_service_unavailable"
+            ]
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": { "minItems": 1 },
+          "remaining_location_notes": { "minItems": 1 },
+          "expected_next_state_change_at": {
+            "not": { "type": "null" }
+          }
+        }
+      }
+    },
+    {
+      "description": "Non-terminal in-progress states MUST carry a non-null expected_next_state_change_at and non-empty remaining_location_notes.",
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "requested_not_acknowledged",
+              "acknowledged_scheduled",
+              "in_progress_local_only",
+              "in_progress_managed",
+              "in_progress_mixed_local_and_managed",
+              "unknown_pending_recheck"
+            ]
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "remaining_location_notes": { "minItems": 1 },
+          "expected_next_state_change_at": {
+            "not": { "type": "null" }
+          }
+        }
+      }
+    },
+    {
+      "description": "blocked_by_hold MUST cite at least one hold-class blocker.",
+      "if": {
+        "properties": { "state": { "const": "blocked_by_hold" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "contains": {
+              "properties": {
+                "blocker_class": {
+                  "enum": [
+                    "administrative_legal_hold",
+                    "support_investigation_hold",
+                    "export_pending_hold",
+                    "downstream_dependency_hold"
+                  ]
+                }
+              },
+              "required": ["blocker_class"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "blocked_by_policy_retention MUST cite a retention-minimum or policy-freeze-window blocker.",
+      "if": {
+        "properties": { "state": { "const": "blocked_by_policy_retention" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "contains": {
+              "properties": {
+                "blocker_class": {
+                  "enum": [
+                    "retention_minimum_policy",
+                    "policy_freeze_window"
+                  ]
+                }
+              },
+              "required": ["blocker_class"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "blocked_by_entitlement_expired MUST cite the matching blocker.",
+      "if": {
+        "properties": { "state": { "const": "blocked_by_entitlement_expired" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "contains": {
+              "properties": {
+                "blocker_class": { "const": "entitlement_expired" }
+              },
+              "required": ["blocker_class"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "blocked_by_service_unavailable MUST cite a service-unavailable or boundary-recheck blocker.",
+      "if": {
+        "properties": { "state": { "const": "blocked_by_service_unavailable" } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "contains": {
+              "properties": {
+                "blocker_class": {
+                  "enum": [
+                    "service_unavailable_retry_later",
+                    "boundary_recheck_required"
+                  ]
+                }
+              },
+              "required": ["blocker_class"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence suitable for admin explain, support, and offboarding review surfaces. MUST NOT carry raw user names, raw emails, raw URLs, raw path bytes, raw payload bytes, or milestone slugs."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Snake_case stable token. Does not contain milestone slugs."
+    },
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Lower_snake identifier drawn from an upstream vocabulary row (record class id, service id, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+    "managed_copy_kind": {
+      "type": "string",
+      "enum": [
+        "no_managed_copy",
+        "support_export_copy",
+        "collaboration_archive_copy",
+        "ai_retained_evidence_copy",
+        "usage_export_copy",
+        "offboarding_exit_copy",
+        "destruction_receipt_copy"
+      ],
+      "description": "Managed-copy kind the job targets. Mirrors the managed_copy_kind vocabulary in artifacts/service/retention_rows.yaml."
+    },
+    "service_id": {
+      "type": "string",
+      "enum": [
+        "managed_settings_sync",
+        "managed_marketplace",
+        "managed_ai_broker",
+        "managed_relay",
+        "managed_auth_identity",
+        "managed_policy_distribution",
+        "managed_docs_pack",
+        "managed_catalog",
+        "managed_telemetry_sink",
+        "managed_collaboration_review",
+        "managed_support_export",
+        "managed_entitlement_usage",
+        "managed_offboarding_export"
+      ],
+      "description": "Service id drawn from artifacts/service/slo_rows.yaml#service_id_vocabulary."
+    },
+    "deletion_job_state": {
+      "type": "string",
+      "enum": [
+        "requested_not_acknowledged",
+        "acknowledged_scheduled",
+        "in_progress_local_only",
+        "in_progress_managed",
+        "in_progress_mixed_local_and_managed",
+        "completed_all",
+        "completed_partial_hold",
+        "completed_partial_policy_retention",
+        "blocked_by_hold",
+        "blocked_by_policy_retention",
+        "blocked_by_entitlement_expired",
+        "blocked_by_service_unavailable",
+        "cancelled_by_user",
+        "cancelled_by_admin",
+        "unknown_pending_recheck"
+      ],
+      "description": "Closed deletion-job state vocabulary."
+    },
+    "deletion_blocker_class": {
+      "type": "string",
+      "enum": [
+        "administrative_legal_hold",
+        "support_investigation_hold",
+        "retention_minimum_policy",
+        "policy_freeze_window",
+        "export_pending_hold",
+        "entitlement_expired",
+        "service_unavailable_retry_later",
+        "boundary_recheck_required",
+        "downstream_dependency_hold"
+      ],
+      "description": "Closed deletion-blocker vocabulary. A job MAY carry more than one blocker; every blocker MUST cite an artifact_ref or a policy_ref."
+    },
+    "deletion_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_class"],
+      "properties": {
+        "blocker_class": { "$ref": "#/$defs/deletion_blocker_class" },
+        "artifact_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative or registry-ref pointer to an inspectable artifact that names the blocker (for example a hold-class row, a retention-minimum row, or a policy-bundle decision)."
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative or registry-ref pointer to the governing policy row or decision."
+        },
+        "entered_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "expected_clear_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional per-blocker prediction of when the blocker clears. Null when the blocker has no honest prediction."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "anyOf": [
+        { "required": ["artifact_ref"] },
+        { "required": ["policy_ref"] }
+      ]
+    },
+    "remaining_location_kind": {
+      "type": "string",
+      "enum": [
+        "local_device_store",
+        "customer_operated_store",
+        "vendor_operated_store",
+        "support_case_store",
+        "ai_retained_evidence_store",
+        "collaboration_archive_store",
+        "entitlement_usage_store",
+        "offboarding_exit_packet_store",
+        "destruction_receipt_ledger",
+        "mirror_snapshot",
+        "air_gap_offline_bundle",
+        "backup_retention_window"
+      ],
+      "description": "Closed storage-surface vocabulary for remaining-location notes. Raw paths and raw URLs never appear; rows cite a storage surface by class."
+    },
+    "remaining_location_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["location_kind", "note"],
+      "properties": {
+        "location_kind": { "$ref": "#/$defs/remaining_location_kind" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "cleared_by_next_state": {
+          "type": "boolean",
+          "description": "Whether the next expected state change is expected to clear this location."
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_row_ref",
+        "record_class_registry_ref"
+      ],
+      "properties": {
+        "retention_row_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Pointer to the row in artifacts/service/retention_rows.yaml this job narrows."
+        },
+        "record_class_registry_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Pointer to the class-level row in artifacts/governance/record_class_registry.yaml."
+        },
+        "record_state_model_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Optional pointer to docs/governance/record_state_and_policy_simulation_models.md or a specific state-machine section."
+        },
+        "slo_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional pointers to rows in artifacts/service/slo_rows.yaml for every service_surface_refs entry."
+        },
+        "continuity_packet_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Optional pointer to a local_core_continuity_packet_record (raw file or packet id) explaining the managed-service state at the time of the job."
+        }
+      }
+    }
+  }
+}

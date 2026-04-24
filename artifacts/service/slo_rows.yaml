@@ -1,0 +1,735 @@
+# Managed-service SLO / SLI rows.
+#
+# Machine-readable companion to docs/service/managed_service_seed.md.
+# Per-service rows name the scope, opt-in posture, availability and
+# freshness SLO, admissible degradation modes, per-mode recovery cue,
+# last-known-good fallback, record classes touched, and the local-core
+# non-dependence clause every managed or optional control-plane surface
+# MUST preserve.
+#
+# Conformance: every row is a managed_service_slo_row. The narrative
+# seed is authoritative; tooling MAY validate the row shape against the
+# frozen vocabularies below. Service ids align with the control-plane
+# service vocabulary re-exported from
+# artifacts/deployment/locality_matrix.yaml.
+#
+# Rules:
+#   - Every row MUST name service_id, title, description, owner_dri,
+#     owning_lane, scope, service_opt_in_posture, availability_slo,
+#     freshness_slo, degradation_modes (non-empty), recovery_cues (one
+#     per mode), last_known_good_fallback_note, local_core_blocking
+#     (MUST be false), linked_record_class_ids.
+#   - local_core_blocking MUST be false on every row in this file.
+#     Reviewers block any change that flips a row to true without a
+#     new decision row and a removal-of-claim on the local-core floor.
+#   - Every linked_record_class_id MUST resolve to a row in
+#     artifacts/governance/record_class_registry.yaml and MUST have a
+#     matching row in artifacts/service/retention_rows.yaml.
+#   - Adding a service_id, degradation_mode, availability_slo,
+#     freshness_slo, or service_opt_in_posture value is additive-minor
+#     and bumps schema_version. Repurposing a value is breaking.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     note field.
+
+schema_version: 1
+status: seeded
+
+seed_doc: docs/service/managed_service_seed.md
+retention_rows_ref: artifacts/service/retention_rows.yaml
+deletion_job_schema_ref: schemas/service/deletion_job_record.schema.json
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+locality_matrix_ref: artifacts/deployment/locality_matrix.yaml
+identity_adr_ref: docs/adr/0001-identity-modes.md
+continuity_packet_schema_ref: schemas/deployment/local_core_continuity_packet.schema.json
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# Adding a value is additive-minor; repurposing a value is breaking.
+# -----------------------------------------------------------------------------
+
+service_id_vocabulary:
+  - managed_settings_sync
+  - managed_marketplace
+  - managed_ai_broker
+  - managed_relay
+  - managed_auth_identity
+  - managed_policy_distribution
+  - managed_docs_pack
+  - managed_catalog
+  - managed_telemetry_sink
+  - managed_collaboration_review
+  - managed_support_export
+  - managed_entitlement_usage
+  - managed_offboarding_export
+
+service_opt_in_posture_vocabulary:
+  - always_off_unless_opted_in
+  - off_until_account_created
+  - on_when_entitled
+  - on_with_per_surface_consent
+
+availability_slo_vocabulary:
+  - best_effort_no_slo
+  - reachability_target_99_0
+  - reachability_target_99_5
+  - reachability_target_99_9
+  - mirror_backed_bounded_stale
+  - customer_operated_self_hosted_sla
+
+freshness_slo_vocabulary:
+  - fresh_required
+  - bounded_stale_labeled
+  - bounded_stale_with_floor_ref
+  - unbounded_stale_with_rationale
+  - freshness_not_applicable
+
+degradation_mode_vocabulary:
+  - healthy
+  - degraded_slow
+  - degraded_stale_cache
+  - unavailable_retry_later
+  - unavailable_quota_exhausted
+  - unavailable_entitlement_expired
+  - unavailable_policy_blocked
+  - mirror_only
+  - boundary_recheck_required
+
+identity_mode_vocabulary:
+  - account_free_local
+  - self_hosted_org
+  - managed_convenience
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per optional control-plane / managed-service surface.
+# -----------------------------------------------------------------------------
+
+rows:
+  - service_id: managed_settings_sync
+    title: Managed settings sync
+    description: >
+      Optional managed surface that synchronizes user-scope settings
+      across devices for signed-in users. Never resolves workspace or
+      machine-scope settings and never blocks local settings
+      resolution.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    scope:
+      control_plane_service_class: sync_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: off_until_account_created
+    availability_slo: reachability_target_99_5
+    freshness_slo: bounded_stale_labeled
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - unavailable_entitlement_expired
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Settings sync is live; last synced timestamp is shown on the sync strip.
+      - mode: degraded_slow
+        cue: Sync is slow; last-known-good settings apply; pending writes are queued locally.
+      - mode: degraded_stale_cache
+        cue: Using cached settings as of the last successful sync; the staleness label is surfaced on the sync strip.
+      - mode: unavailable_retry_later
+        cue: Sync is unreachable; local settings remain authoritative and changes queue for retry.
+      - mode: unavailable_entitlement_expired
+        cue: Managed sync entitlement lapsed; settings continue to resolve locally and the user or admin is pointed at entitlement renewal.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; sync holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      User settings stay on disk and resolve locally. Pending writes
+      queue under the workspace and are replayed when sync is healthy
+      again.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_drill_refs: []
+    notes: >
+      Managed sync never resolves workspace-scope or machine-scope
+      settings. Its absence narrows the user-sync claim and nothing
+      else.
+
+  - service_id: managed_marketplace
+    title: Managed marketplace / extensions catalog
+    description: >
+      Hosted extensions browsing, search, and install surface. Not
+      required for installing extensions from a local bundle or a
+      self-hosted mirror. Never activates extensions automatically.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: catalog_service
+      identity_modes_in_scope:
+        - account_free_local
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: always_off_unless_opted_in
+    availability_slo: reachability_target_99_5
+    freshness_slo: bounded_stale_with_floor_ref
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - mirror_only
+      - unavailable_policy_blocked
+    recovery_cues:
+      - mode: healthy
+        cue: Marketplace search and install are live.
+      - mode: degraded_slow
+        cue: Marketplace search is slow; already-installed extensions are unaffected.
+      - mode: degraded_stale_cache
+        cue: Catalog results reflect the last refresh; the freshness floor is surfaced on the results list.
+      - mode: unavailable_retry_later
+        cue: Catalog is unreachable; installed extensions run; install-from-local-bundle remains available.
+      - mode: mirror_only
+        cue: Catalog resolves against the signed mirror snapshot; live publisher fetches are blocked.
+      - mode: unavailable_policy_blocked
+        cue: Marketplace access is blocked by workspace or org policy; the policy explain surface names the blocker.
+    last_known_good_fallback_note: >
+      Installed extensions run from local disk. Install-from-bundle and
+      self-hosted mirror install remain usable; marketplace browsing
+      narrows to the cached result set with a freshness label.
+    local_core_blocking: false
+    linked_record_class_ids: []
+    linked_drill_refs: []
+    notes: >
+      Extension activation rules and trust-posture gating are governed
+      by the workspace-trust ADR; this row never overrides them.
+
+  - service_id: managed_ai_broker
+    title: Managed AI broker
+    description: >
+      Optional hosted broker that routes AI requests to managed
+      providers under customer or vendor key mode. Never a
+      prerequisite for local models or BYOK providers; its absence
+      narrows AI claims without blocking AI use.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: ai_broker_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_with_per_surface_consent
+    availability_slo: reachability_target_99_5
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_quota_exhausted
+      - unavailable_entitlement_expired
+      - unavailable_policy_blocked
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: AI broker is live; the route and spend receipt row is emitted on every turn.
+      - mode: degraded_slow
+        cue: Broker is slow; the current route is labeled as slow and local or BYOK providers remain reachable.
+      - mode: unavailable_retry_later
+        cue: Broker is unreachable; local or BYOK providers remain reachable; pending turns surface a retry option.
+      - mode: unavailable_quota_exhausted
+        cue: Managed AI quota is exhausted; the user or admin is pointed at quota lift or a fallback provider.
+      - mode: unavailable_entitlement_expired
+        cue: Managed AI entitlement lapsed; local or BYOK providers remain reachable; the user or admin is pointed at entitlement renewal.
+      - mode: unavailable_policy_blocked
+        cue: Broker access is blocked by policy; the policy explain surface names the narrowing reason.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; broker holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Local models and BYOK providers continue to resolve AI turns.
+      Managed retained-evidence packets already emitted remain
+      available per record-class retention.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - ai_retained_evidence_packet
+    linked_drill_refs: []
+
+  - service_id: managed_relay
+    title: Managed relay (collaboration / remote-agent transport)
+    description: >
+      Optional hosted relay that brokers collaboration sessions and
+      remote-agent transport. Never required for local editing or
+      local Git; its absence narrows live-collaboration claims only.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: relay_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_with_per_surface_consent
+    availability_slo: reachability_target_99_5
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_policy_blocked
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Relay is live; collaboration session is connected.
+      - mode: degraded_slow
+        cue: Relay is slow; session stays connected with a latency label and local work remains primary.
+      - mode: unavailable_retry_later
+        cue: Relay is unreachable; the collaboration session holds read-only and local work continues; queued presence events surface on reconnect.
+      - mode: unavailable_policy_blocked
+        cue: Relay access is blocked by policy; the policy explain surface names the narrowing reason.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; relay holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Local editing, save, undo, search, and Git continue. The
+      collaboration session freezes to read-only until relay recovery.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - collaboration_evidence_packet
+    linked_drill_refs: []
+
+  - service_id: managed_auth_identity
+    title: Managed auth and identity (OIDC / SCIM front door)
+    description: >
+      Optional hosted identity surface layered over the self-hosted
+      OIDC / SCIM protocols. Never reclassifies local workspace trust.
+      Its absence narrows managed-session claims only.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: auth_identity_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: off_until_account_created
+    availability_slo: reachability_target_99_9
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_policy_blocked
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Managed identity is live; sign-in and SCIM provisioning are current.
+      - mode: degraded_slow
+        cue: Sign-in is slow; existing sessions continue under the entitlement snapshot cache.
+      - mode: unavailable_retry_later
+        cue: Sign-in is unreachable; existing local sessions continue under the entitlement snapshot cache and local work is unaffected.
+      - mode: unavailable_policy_blocked
+        cue: Sign-in is blocked by policy; the policy explain surface names the narrowing reason.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; sign-in holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Entitlement snapshot cache continues to resolve per the freshness
+      floor pinned by the continuity seed. Local-only work runs under
+      account_free_local as usual.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_drill_refs: []
+
+  - service_id: managed_policy_distribution
+    title: Managed policy distribution
+    description: >
+      Optional hosted distribution of signed policy bundles. Never
+      replaces the local policy-bundle cache; its absence narrows
+      freshness of policy, not policy enforcement itself.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: policy_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_when_entitled
+    availability_slo: reachability_target_99_5
+    freshness_slo: bounded_stale_with_floor_ref
+    degradation_modes:
+      - healthy
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - mirror_only
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Policy bundle is fresh; last refresh timestamp is available on the policy explain surface.
+      - mode: degraded_stale_cache
+        cue: Cached policy bundle applies; the freshness floor is surfaced on the policy explain surface.
+      - mode: unavailable_retry_later
+        cue: Policy distribution is unreachable; the cached bundle continues to apply inside its freshness floor.
+      - mode: mirror_only
+        cue: Policy bundle resolves against the signed mirror snapshot; live distribution fetches are blocked.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; policy enforcement holds at the last-known-good bundle until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Cached signed policy bundle remains authoritative within its
+      freshness floor. Stale cache is labeled; it never surfaces as
+      live.
+    local_core_blocking: false
+    linked_record_class_ids: []
+    linked_drill_refs: []
+
+  - service_id: managed_docs_pack
+    title: Managed docs-pack / help service
+    description: >
+      Optional hosted docs-pack delivery surface. Local docs-pack
+      bundle continues to resolve help content; managed delivery
+      narrows freshness of help, not availability of help.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    scope:
+      control_plane_service_class: docs_pack_service
+      identity_modes_in_scope:
+        - account_free_local
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+        - managed_cloud
+    service_opt_in_posture: always_off_unless_opted_in
+    availability_slo: mirror_backed_bounded_stale
+    freshness_slo: bounded_stale_with_floor_ref
+    degradation_modes:
+      - healthy
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - mirror_only
+    recovery_cues:
+      - mode: healthy
+        cue: Docs-pack is fresh; last refresh timestamp is available on help topics.
+      - mode: degraded_stale_cache
+        cue: Cached docs-pack applies; the freshness floor is surfaced on help topics.
+      - mode: unavailable_retry_later
+        cue: Docs delivery is unreachable; cached docs-pack continues to resolve inside its freshness floor.
+      - mode: mirror_only
+        cue: Docs-pack resolves against the signed mirror snapshot; live docs delivery fetches are blocked.
+    last_known_good_fallback_note: >
+      Bundled docs-pack and mirror snapshot continue to resolve help
+      content. Stale cache is labeled; it never surfaces as live.
+    local_core_blocking: false
+    linked_record_class_ids: []
+    linked_drill_refs: []
+
+  - service_id: managed_catalog
+    title: Managed runtime catalog
+    description: >
+      Optional hosted runtime catalog for toolchains, language-pack
+      manifests, and companion binaries. Installed artifacts continue
+      running; its absence narrows the fetch-new-artifacts claim only.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: catalog_service
+      identity_modes_in_scope:
+        - account_free_local
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - air_gapped
+        - managed_cloud
+    service_opt_in_posture: always_off_unless_opted_in
+    availability_slo: reachability_target_99_0
+    freshness_slo: bounded_stale_labeled
+    degradation_modes:
+      - healthy
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - mirror_only
+    recovery_cues:
+      - mode: healthy
+        cue: Catalog is fresh; new toolchain or language-pack entries are reachable.
+      - mode: degraded_stale_cache
+        cue: Cached catalog applies; the staleness label is surfaced on catalog lookups.
+      - mode: unavailable_retry_later
+        cue: Catalog is unreachable; installed artifacts continue running; new fetches are blocked.
+      - mode: mirror_only
+        cue: Catalog resolves against the signed mirror snapshot; live catalog fetches are blocked.
+    last_known_good_fallback_note: >
+      Installed toolchains and language packs run from local disk.
+      Fetch-new is blocked under stale_cache or mirror_only with a
+      label.
+    local_core_blocking: false
+    linked_record_class_ids: []
+    linked_drill_refs: []
+
+  - service_id: managed_telemetry_sink
+    title: Managed telemetry sink
+    description: >
+      Optional hosted sink for opt-in telemetry streams. Never
+      required to run the product. Its absence queues events locally
+      and, when quota or entitlement is exhausted, drops per policy
+      with disclosure.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: support_export
+    scope:
+      control_plane_service_class: telemetry_sink_service
+      identity_modes_in_scope:
+        - account_free_local
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - individual_local
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: always_off_unless_opted_in
+    availability_slo: best_effort_no_slo
+    freshness_slo: freshness_not_applicable
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_quota_exhausted
+      - unavailable_policy_blocked
+    recovery_cues:
+      - mode: healthy
+        cue: Telemetry sink is accepting events.
+      - mode: degraded_slow
+        cue: Telemetry sink is slow; events queue locally and backpressure applies.
+      - mode: unavailable_retry_later
+        cue: Telemetry sink is unreachable; events queue locally up to the queue floor and then drop with disclosure.
+      - mode: unavailable_quota_exhausted
+        cue: Telemetry quota is exhausted; further events drop with a disclosure counter until quota resets.
+      - mode: unavailable_policy_blocked
+        cue: Telemetry is blocked by workspace or org policy; the policy explain surface names the narrowing reason.
+    last_known_good_fallback_note: >
+      Events remain queued under the support-bundle retention rules
+      and surface on diagnostics or handoff flows. No payload is
+      uploaded without opt-in.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - telemetry_contract_schema
+    linked_drill_refs: []
+
+  - service_id: managed_collaboration_review
+    title: Managed collaboration / review archive
+    description: >
+      Optional hosted archive for collaboration and review evidence.
+      Never required for local review or local replay; its absence
+      narrows durable-archive claims only.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: relay_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_with_per_surface_consent
+    availability_slo: reachability_target_99_5
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_policy_blocked
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Archive is live; durable session evidence is being retained.
+      - mode: degraded_slow
+        cue: Archive writes are slow; local replay cache continues.
+      - mode: unavailable_retry_later
+        cue: Archive is unreachable; local replay cache continues and a reconcile note is surfaced.
+      - mode: unavailable_policy_blocked
+        cue: Archive access is blocked by policy; the policy explain surface names the narrowing reason.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; archive holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Local replay cache and export-on-request continue under the
+      collaboration_evidence_packet record class.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - collaboration_evidence_packet
+    linked_drill_refs: []
+
+  - service_id: managed_support_export
+    title: Managed support export surface
+    description: >
+      Optional hosted surface that accepts uploaded support bundles
+      and attaches them to managed cases. Local support bundles remain
+      user-owned; this surface never reaches into local storage.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: support_export
+    scope:
+      control_plane_service_class: telemetry_sink_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_with_per_surface_consent
+    availability_slo: reachability_target_99_5
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_policy_blocked
+    recovery_cues:
+      - mode: healthy
+        cue: Support export is accepting uploads; case attachment is live.
+      - mode: degraded_slow
+        cue: Support export is slow; uploads queue locally with a progress label.
+      - mode: unavailable_retry_later
+        cue: Support export is unreachable; bundles remain local and can be attached later.
+      - mode: unavailable_policy_blocked
+        cue: Support export is blocked by workspace or org policy; the policy explain surface names the narrowing reason.
+    last_known_good_fallback_note: >
+      Local support bundle remains available. Upload is queued under
+      the support_bundle_archive record class with the export-pending
+      hold class applied as needed.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - support_bundle_archive
+      - crash_diagnostic_payload
+    linked_drill_refs: []
+
+  - service_id: managed_entitlement_usage
+    title: Managed entitlement and usage export surface
+    description: >
+      Optional hosted surface that produces entitlement snapshots and
+      usage export packets for signed-in users and admins. Local
+      entitlement cache and usage counters remain authoritative for
+      local work.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: auth_identity_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: off_until_account_created
+    availability_slo: reachability_target_99_5
+    freshness_slo: bounded_stale_labeled
+    degradation_modes:
+      - healthy
+      - degraded_stale_cache
+      - unavailable_retry_later
+      - unavailable_entitlement_expired
+      - unavailable_policy_blocked
+    recovery_cues:
+      - mode: healthy
+        cue: Entitlement and usage export are live.
+      - mode: degraded_stale_cache
+        cue: Cached entitlement snapshot applies; the staleness label is surfaced on the entitlement strip.
+      - mode: unavailable_retry_later
+        cue: Entitlement service is unreachable; the snapshot cache continues to apply inside its freshness floor.
+      - mode: unavailable_entitlement_expired
+        cue: Entitlement lapsed; managed features narrow and the user or admin is pointed at renewal.
+      - mode: unavailable_policy_blocked
+        cue: Entitlement export is blocked by policy; the policy explain surface names the narrowing reason.
+    last_known_good_fallback_note: >
+      Local entitlement snapshot remains authoritative for local
+      policy decisions inside its freshness floor. Usage counters
+      continue to accumulate locally and export on recovery.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - entitlement_usage_export_packet
+    linked_drill_refs: []
+
+  - service_id: managed_offboarding_export
+    title: Managed offboarding and access-end export surface
+    description: >
+      Optional hosted surface that assembles the offboarding exit
+      packet, the associated destruction receipt ledger, and the
+      access-end claims. Never a prerequisite for local-core
+      operation; its absence narrows offboarding claims, not local
+      work.
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    scope:
+      control_plane_service_class: auth_identity_service
+      identity_modes_in_scope:
+        - self_hosted_org
+        - managed_convenience
+      deployment_profiles_in_scope:
+        - self_hosted
+        - enterprise_online
+        - managed_cloud
+    service_opt_in_posture: on_when_entitled
+    availability_slo: reachability_target_99_5
+    freshness_slo: fresh_required
+    degradation_modes:
+      - healthy
+      - degraded_slow
+      - unavailable_retry_later
+      - unavailable_policy_blocked
+      - boundary_recheck_required
+    recovery_cues:
+      - mode: healthy
+        cue: Offboarding export is live; exit packet and destruction receipts are being assembled.
+      - mode: degraded_slow
+        cue: Offboarding export is slow; the user or admin sees assembled partial progress.
+      - mode: unavailable_retry_later
+        cue: Offboarding export is unreachable; already-assembled artifacts remain available and the remaining work queues for retry.
+      - mode: unavailable_policy_blocked
+        cue: Offboarding export is blocked by policy; the policy explain surface names the narrowing reason.
+      - mode: boundary_recheck_required
+        cue: Region or tenant posture changed; export holds until the boundary recheck completes.
+    last_known_good_fallback_note: >
+      Local copies of the offboarding exit packet and destruction
+      receipts remain available under the corresponding record
+      classes. Managed-only surfaces narrow to cached exit-packet
+      truth with a freshness label.
+    local_core_blocking: false
+    linked_record_class_ids:
+      - offboarding_exit_packet
+      - destruction_receipt_record
+      - entitlement_usage_export_packet
+    linked_drill_refs: []
