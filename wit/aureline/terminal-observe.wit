@@ -1,0 +1,87 @@
+// aureline:terminal-observe@0.1.0
+//
+// Subscribe to an existing terminal's observable surface: line output,
+// status, exit code. Launching a terminal, running a repo-owned
+// recipe, or injecting input are out of scope (ADR-0018 binds those
+// to `terminal_repo_recipe_launch` and `terminal_manual_open`; the
+// host affordance is the only launcher).
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Permission-scope projection (ADR-0012):
+//   - subscription_subscribe.
+//
+// Budgets (ADR-0019):
+//   - terminal_observe_budget_class: attached_sessions_only (default).
+//   - subscription_fanout_budget_class: bounded_per_subscription
+//     (default).
+//   - wall_clock_budget_class: streaming_bounded (default; output
+//     observation runs for the duration of the attached session).
+//
+// Invariants (ADR-0019, binding):
+//   - No launch capability on this surface.
+//   - No input-injection capability on this surface.
+//   - Only terminals the host has attached for this negotiation are
+//     observable; detach invalidates the handle.
+//   - Every capability resolves the ADR-0018 trust-decision packet.
+
+package aureline:terminal-observe@0.1.0;
+
+interface terminal-observe {
+    /// Opaque handle to a host-attached terminal session. Handles are
+    /// negotiation-scoped; detach or trust-state downgrade invalidates
+    /// them.
+    resource terminal-handle {
+        /// Terminal identity (opaque, safe to log).
+        id: func() -> string;
+        /// Last observed exit code, or none if the terminal is still
+        /// running.
+        exit-code: func() -> option<s32>;
+        /// Request the next batch of output lines. Returns an empty
+        /// list when no new lines are available; the host paces the
+        /// stream.
+        next-output-batch: func() -> result<list<output-line>, observe-error>;
+    }
+
+    /// One observed output line. The host may coalesce short writes
+    /// into one line or split very long lines; the shape is stable
+    /// regardless.
+    record output-line {
+        /// Zero-based line sequence in the attached session.
+        sequence: u64,
+        /// Output text. Raw secret material the host knows about MUST
+        /// be redacted by the host before the line crosses this
+        /// boundary.
+        text: string,
+        /// Logical stream (stdout / stderr / status).
+        stream: output-stream,
+    }
+
+    /// Output-stream variant. Additive-minor.
+    variant output-stream {
+        stdout,
+        stderr,
+        status,
+    }
+
+    /// Typed observe-error vocabulary. Additive-minor.
+    variant observe-error {
+        /// The handle is no longer valid (detached, renegotiated, or
+        /// trust-state downgraded).
+        handle-invalidated,
+        /// Trust state denied the observation.
+        trust-state-denied,
+        /// Admin policy pack denied the observation.
+        policy-pack-denied,
+        /// The host has paused the stream; retry later.
+        stream-paused,
+    }
+
+    /// List the terminals currently attached for this negotiation.
+    list-attached-terminals: func() -> list<terminal-handle>;
+
+    /// Resolve an attached terminal by identity. Returns none when the
+    /// identity is unknown for this negotiation.
+    lookup-terminal: func(id: string) -> option<terminal-handle>;
+}

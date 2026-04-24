@@ -1,0 +1,105 @@
+// aureline:editor-read@0.1.0
+//
+// Read-only access to the active editor buffer(s) surfaced to the
+// extension: cursor position, selection, text in a bounded range, and
+// syntax-scope hints. Write, apply, or mutate paths are out of scope
+// for this world; those route through `aureline:diff-apply-preview`.
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Permission-scope projection (ADR-0012):
+//   - ui_command_contribute (when the extension surfaces a command
+//     that reads from the editor).
+//   - subscription_subscribe (when the extension subscribes to a
+//     selection-change or cursor-move stream).
+//
+// Budgets (ADR-0019):
+//   - wall_clock_budget_class: short_bounded (default).
+//   - memory_budget_class: small_fixed (default).
+//   - subscription_fanout_budget_class: bounded_per_subscription
+//     (default when subscribe is used).
+//
+// Invariants (ADR-0019, binding):
+//   - No write, apply, or save capability on this surface.
+//   - Raw file bytes outside the currently-visible editor surface are
+//     out of scope; use `aureline:workspace-read` for file reads.
+//   - Every capability resolves the ADR-0018 trust-decision packet
+//     before firing; admission narrows under `restricted`.
+
+package aureline:editor-read@0.1.0;
+
+/// Read-only editor surface. All operations are bounded, side-effect
+/// free, and must resolve the host-negotiation packet before use.
+interface editor-read {
+    /// Opaque, stable handle to an editor the host has surfaced for
+    /// the extension. Handles are negotiation-scoped; they do not
+    /// survive a renegotiation or a trust-state downgrade.
+    resource editor-handle {
+        /// Editor identity (opaque, safe to log). The same editor
+        /// retains the same identity across content-only edits but
+        /// mints a new identity after a close / reopen.
+        id: func() -> string;
+
+        /// Path identity (ADR-0006) of the backing workspace file, or
+        /// none if the editor is not backed by a workspace file.
+        path-identity: func() -> option<string>;
+
+        /// Current cursor positions in the editor (multi-cursor safe).
+        cursors: func() -> list<cursor-position>;
+
+        /// Current selections (multi-cursor safe).
+        selections: func() -> list<selection-range>;
+
+        /// Bounded read of the editor text for a given range.
+        /// Ranges exceeding the host's per-invocation byte ceiling
+        /// deny with `range-exceeds-ceiling`.
+        read-range: func(range: text-range) -> result<string, read-error>;
+
+        /// Syntax-scope hint at a position (e.g. "comment.line",
+        /// "string.quoted.double"). Hints are host-advisory; they do
+        /// not commit the host to a particular grammar.
+        syntax-scope-at: func(position: cursor-position) -> option<string>;
+    }
+
+    /// Zero-based line / column position inside an editor.
+    record cursor-position {
+        line: u32,
+        column: u32,
+    }
+
+    /// Half-open range [from, to) in editor coordinates. from <= to.
+    record selection-range {
+        from: cursor-position,
+        to: cursor-position,
+    }
+
+    /// Half-open text range in editor coordinates. from <= to.
+    record text-range {
+        from: cursor-position,
+        to: cursor-position,
+    }
+
+    /// Typed read-error vocabulary. Additive-minor.
+    variant read-error {
+        /// The requested range exceeds the host's per-invocation
+        /// byte ceiling.
+        range-exceeds-ceiling,
+        /// The editor handle is no longer valid (closed, renegotiated,
+        /// or trust-state downgraded).
+        handle-invalidated,
+        /// Trust state denied the read.
+        trust-state-denied,
+        /// Admin policy pack denied the read.
+        policy-pack-denied,
+    }
+
+    /// List the editors currently surfaced for this negotiation.
+    /// Returns handles valid for the current negotiation only.
+    list-open-editors: func() -> list<editor-handle>;
+
+    /// Resolve an editor handle by identity. Returns none when the
+    /// identity is unknown for this negotiation or has been
+    /// invalidated.
+    lookup-editor: func(id: string) -> option<editor-handle>;
+}

@@ -1,0 +1,138 @@
+// aureline:network-egress@0.1.0
+//
+// Outbound network egress, bounded to a declared host allow-list. The
+// host applies the ADR-0012 `egress_host_narrowing` policy-pack
+// constraint at admission and again at every egress call; a host that
+// narrowed an allow-list after admission denies in-flight egress
+// rather than draining.
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Permission-scope projection (ADR-0012):
+//   - network_egress (required).
+//
+// Budgets (ADR-0019):
+//   - network_egress_budget_class: metered_per_session (default);
+//     metered_per_invocation when the manifest declares per-call
+//     metering.
+//   - wall_clock_budget_class: short_bounded (default) or
+//     medium_bounded when the manifest declares it.
+//   - memory_budget_class: medium_fixed (default).
+//
+// Invariants (ADR-0019, binding):
+//   - Every egress resolves the declared host allow-list at call time.
+//     Policy narrowing can drop an allow-list entry mid-session; the
+//     next call denies with `host-not-in-allow-list`.
+//   - Every call resolves the ADR-0018 trust-decision packet before
+//     firing. A handle issued under `trusted` MUST NOT survive
+//     downgrade to `restricted`.
+//   - Raw credentials never cross this boundary; credential material
+//     projects through the ADR-0007 secret-broker handle classes
+//     only.
+//   - Raw response bodies exceeding the host's per-invocation ceiling
+//     are truncated and deny with `response-exceeds-ceiling`.
+
+package aureline:network-egress@0.1.0;
+
+interface network-egress {
+    /// HTTP request method vocabulary. Additive-minor.
+    variant request-method {
+        get,
+        head,
+        post,
+        put,
+        patch,
+        delete,
+    }
+
+    /// A typed HTTP request. The host resolves DNS, applies the
+    /// allow-list, and applies the policy-pack narrowing before
+    /// dispatch.
+    record http-request {
+        method: request-method,
+        /// Target URL; host component MUST match a declared allow-list
+        /// entry for this negotiation.
+        url: string,
+        /// Request headers. Raw secret material forbidden; use a
+        /// credential-handle alias from ADR-0007.
+        headers: list<header-pair>,
+        /// Request body as a UTF-8 string. Binary bodies are out of
+        /// scope for this seed (successor-ADR binds a binary-body
+        /// capability).
+        body: option<string>,
+    }
+
+    /// One HTTP header pair. Names are case-insensitive at the host;
+    /// the host normalises.
+    record header-pair {
+        name: string,
+        value: string,
+    }
+
+    /// A typed HTTP response. Bodies exceeding the host's per-
+    /// invocation ceiling are not returned verbatim; the response
+    /// denies with `response-exceeds-ceiling`.
+    record http-response {
+        status: u16,
+        headers: list<header-pair>,
+        body: string,
+    }
+
+    /// Typed egress-error vocabulary. Additive-minor.
+    variant egress-error {
+        /// The request target host is not in the current allow-list
+        /// for this negotiation. The list may have narrowed after
+        /// admission; re-negotiate to discover the new set.
+        host-not-in-allow-list,
+        /// The request body exceeds the host's per-invocation byte
+        /// ceiling.
+        request-exceeds-ceiling,
+        /// The response body exceeds the host's per-invocation byte
+        /// ceiling.
+        response-exceeds-ceiling,
+        /// The egress budget for this session has been exhausted.
+        budget-exhausted,
+        /// Trust state denied the egress.
+        trust-state-denied,
+        /// Admin policy pack denied the egress.
+        policy-pack-denied,
+        /// The host detected a malformed request (invalid URL, invalid
+        /// header name, invalid method) before dispatch.
+        malformed-request,
+        /// The network operation timed out within the wall-clock
+        /// budget.
+        timed-out,
+        /// The host could not reach the target.
+        unreachable,
+    }
+
+    /// Dispatch a typed HTTP request. The call blocks until the host
+    /// resolves the response or a typed error.
+    ///
+    /// The host re-resolves the declared allow-list at call time.
+    dispatch-http: func(request: http-request) -> result<http-response, egress-error>;
+
+    /// Report the current egress budget remaining for this session.
+    /// Returned values are advisory; a subsequent call may still deny
+    /// with `budget-exhausted` under policy narrowing.
+    remaining-budget: func() -> remaining-budget-report;
+
+    /// Advisory budget report. Additive-minor.
+    record remaining-budget-report {
+        /// Remaining calls before the host re-applies admission.
+        remaining-calls-hint: option<u32>,
+        /// Remaining bytes before the host re-applies admission.
+        remaining-bytes-hint: option<u64>,
+        /// The budget class the host applied on admission.
+        admitted-budget-class: egress-budget-class,
+    }
+
+    /// Egress budget class, projected from the ADR-0019 budget
+    /// vocabulary.
+    variant egress-budget-class {
+        none,
+        metered-per-session,
+        metered-per-invocation,
+    }
+}

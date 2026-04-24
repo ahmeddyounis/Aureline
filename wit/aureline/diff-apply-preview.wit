@@ -1,0 +1,109 @@
+// aureline:diff-apply-preview@0.1.0
+//
+// Propose a typed text-edit diff against the active editor or a
+// workspace file. Application is host-side and requires the ADR-0012
+// `filesystem_write` scope plus the host approval affordance. The
+// preview path is free of side effects; the apply path never fires
+// without explicit host-side admission.
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Permission-scope projection (ADR-0012):
+//   - filesystem_write (required for the apply path).
+//   - ui_command_contribute (for the extension-surfaced command).
+//   - subscription_subscribe (for apply-result streams).
+//
+// Budgets (ADR-0019):
+//   - filesystem_write_budget_class: declared_prefix_preview_only
+//     (default). declared_prefix_metered when metered apply is
+//     declared.
+//   - wall_clock_budget_class: medium_bounded (default).
+//   - memory_budget_class: medium_fixed (default).
+//
+// Invariants (ADR-0019, binding):
+//   - An extension MUST NOT rely on `apply-edit` firing. The host
+//     may deny application under trust state, admin policy, or user
+//     decline without violating the contract.
+//   - Edits resolve through the ADR-0006 VFS path identity.
+//   - Every capability resolves the ADR-0018 trust-decision packet.
+
+package aureline:diff-apply-preview@0.1.0;
+
+interface diff-apply-preview {
+    /// VFS path identity (ADR-0006). Extensions never supply raw
+    /// filesystem paths.
+    type path-identity = string;
+
+    /// A single typed text edit in VFS-identity space.
+    record text-edit {
+        /// Target path. Must be within the manifest's declared
+        /// filesystem_write prefix set.
+        target: path-identity,
+        /// Inclusive-exclusive byte offsets in the target's current
+        /// state. The host re-resolves against the latest editor
+        /// state before applying.
+        from-offset: u64,
+        to-offset: u64,
+        /// Replacement text.
+        replacement: string,
+    }
+
+    /// An edit proposal. The extension groups edits into one proposal
+    /// so the host can render a coherent preview.
+    record edit-proposal {
+        /// Opaque proposal id. Safe to log.
+        proposal-id: string,
+        /// Edits in proposal order.
+        edits: list<text-edit>,
+        /// Human-legible summary rendered on the host approval
+        /// affordance. Raw user secrets forbidden.
+        summary-label: string,
+    }
+
+    /// Typed preview-error vocabulary. Additive-minor.
+    variant preview-error {
+        /// An edit targets a path outside the declared
+        /// filesystem_write prefix set.
+        target-outside-declared-prefix,
+        /// An edit range is inconsistent (to-offset < from-offset) or
+        /// exceeds the current target length.
+        invalid-range,
+        /// The proposal exceeds the host's per-invocation edit count
+        /// or byte ceiling.
+        proposal-exceeds-ceiling,
+        /// Trust state denied the preview.
+        trust-state-denied,
+        /// Admin policy pack denied the preview.
+        policy-pack-denied,
+    }
+
+    /// A typed apply outcome returned after the host resolves the
+    /// proposal. Additive-minor.
+    variant apply-outcome {
+        /// The user or host approved the proposal and the edits were
+        /// applied. Carries the host-minted apply id.
+        applied(string),
+        /// The user declined the proposal.
+        declined-by-user,
+        /// The host declined because trust state is restricted.
+        declined-by-trust-state,
+        /// The host declined because an admin policy narrowed the
+        /// filesystem_write scope below what the proposal required.
+        declined-by-policy-pack,
+        /// The host declined because the proposal superseded itself
+        /// (e.g. the target file changed out from under the proposal).
+        superseded,
+    }
+
+    /// Compute a typed preview for a proposal. Side-effect free; the
+    /// host may cache the preview so the approval affordance renders
+    /// without re-running the extension.
+    preview-edit: func(proposal: edit-proposal) -> result<string, preview-error>;
+
+    /// Submit the proposal for application. The host resolves the
+    /// approval affordance, trust state, and admin policy, then
+    /// either applies the edits or returns a typed decline. The
+    /// apply path NEVER fires without explicit host-side admission.
+    apply-edit: func(proposal-id: string) -> apply-outcome;
+}

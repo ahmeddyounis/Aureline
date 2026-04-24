@@ -1,0 +1,181 @@
+# yaml-language-server: $schema=../../../schemas/extensions/host_negotiation.schema.json
+__fixture__:
+  name: declared_vs_negotiated_example
+  scenario: >
+    A Wasm component-model extension "acme-labs/prose-helper" at
+    version 1.4.2 declares all five reserved Aureline capability
+    worlds: aureline:editor-read@0.1.0,
+    aureline:workspace-read@0.1.0,
+    aureline:diff-apply-preview@0.1.0,
+    aureline:terminal-observe@0.1.0, and
+    aureline:network-egress@0.1.0. The workspace is opened in
+    restricted mode (ADR-0018 trust_state = restricted), so the host
+    narrows the offered world set to the three read-only /
+    side-effect-free worlds (editor-read, workspace-read,
+    terminal-observe). Admin policy additionally narrows the declared
+    network-egress allow-list via egress_host_narrowing; because the
+    negotiation rejects the write / egress worlds under restricted,
+    both worlds fall out of the negotiated set with typed
+    narrowing_reasons. One declared world (diff-apply-preview) also
+    records a world_admission_decision_record. The compatibility-
+    bridge binding is not used. Nothing in the fixture embeds raw
+    component bytes, raw helper-binary invocation bodies, raw bridge-
+    shim payloads, raw signing-key material, or raw policy-bundle
+    bytes; every such field is an opaque ref.
+  adr_section: >
+    Host-negotiation packet; Narrowing reasons;
+    Unsupported-world behavior; Capability narrowing.
+  exercised_classes_summary:
+    host_contract_families: [wasm_component_model]
+    world_slugs:
+      - editor-read
+      - workspace-read
+      - diff-apply-preview
+      - terminal-observe
+      - network-egress
+    permission_scope_kinds:
+      - filesystem_read
+      - filesystem_write
+      - network_egress
+      - subscription_subscribe
+      - ui_command_contribute
+      - workspace_settings_read
+    budget_classes:
+      - short_bounded
+      - medium_bounded
+      - streaming_bounded
+      - small_fixed
+      - medium_fixed
+      - declared_prefix_only
+      - declared_prefix_preview_only
+      - metered_per_session
+      - attached_sessions_only
+      - bounded_per_subscription
+    narrowing_reason_kinds:
+      - workspace_trust_restricted
+      - admin_policy_egress_host_narrowing
+    audit_event_ids:
+      - host_negotiation_opened
+      - host_negotiation_worlds_narrowed
+      - host_negotiation_world_denied
+      - host_negotiation_trust_state_denied
+      - host_negotiation_completed
+
+---
+
+# Host-negotiation packet
+record_kind: host_negotiation_packet
+host_negotiation_schema_version: 1
+world_vocabulary_version: 1
+negotiation_id: neg-prose-helper-2026-04-23-0001
+extension_identity_ref: "acme-labs/prose-helper"
+extension_version: "1.4.2"
+host_contract_family: wasm_component_model
+declared_capability_worlds:
+  - "aureline:editor-read@0.1.0"
+  - "aureline:workspace-read@0.1.0"
+  - "aureline:diff-apply-preview@0.1.0"
+  - "aureline:terminal-observe@0.1.0"
+  - "aureline:network-egress@0.1.0"
+offered_capability_worlds:
+  - "aureline:editor-read@0.1.0"
+  - "aureline:workspace-read@0.1.0"
+  - "aureline:terminal-observe@0.1.0"
+negotiated_capability_worlds:
+  - "aureline:editor-read@0.1.0"
+  - "aureline:workspace-read@0.1.0"
+  - "aureline:terminal-observe@0.1.0"
+host_abi_range: "component-model 0.2.x"
+guest_abi_range: "component-model 0.2.x"
+permission_vocabulary_version: 1
+budget_declarations:
+  - wall_clock_budget_class: short_bounded
+    memory_budget_class: small_fixed
+    subscription_fanout_budget_class: bounded_per_subscription
+    reason_label: "Editor-read budget under restricted trust."
+  - wall_clock_budget_class: short_bounded
+    memory_budget_class: small_fixed
+    filesystem_read_budget_class: declared_prefix_only
+    subscription_fanout_budget_class: bounded_per_subscription
+    reason_label: "Workspace-read budget under declared prefix."
+  - wall_clock_budget_class: streaming_bounded
+    memory_budget_class: small_fixed
+    terminal_observe_budget_class: attached_sessions_only
+    subscription_fanout_budget_class: bounded_per_subscription
+    reason_label: "Terminal-observe budget for already-attached sessions."
+narrowing_reasons:
+  - declared_world_ref: "aureline:diff-apply-preview@0.1.0"
+    reason_kind: workspace_trust_restricted
+    source_reason_refs:
+      - trust-decision-restricted-workspace-2026-04-23
+    reason_label: >
+      Workspace opened in restricted mode; diff-apply-preview is
+      blocked_in_restricted under capability_worlds.yaml.
+  - declared_world_ref: "aureline:network-egress@0.1.0"
+    reason_kind: workspace_trust_restricted
+    source_reason_refs:
+      - trust-decision-restricted-workspace-2026-04-23
+    reason_label: >
+      Workspace opened in restricted mode; network-egress is
+      blocked_in_restricted under capability_worlds.yaml.
+  - declared_world_ref: "aureline:network-egress@0.1.0"
+    reason_kind: admin_policy_egress_host_narrowing
+    source_reason_refs:
+      - policy-acme-org-default-v3#egress_host_narrowing
+    reason_label: >
+      Admin policy narrowed the egress allow-list; the narrowed set
+      does not overlap the manifest's declared egress targets, so
+      the world is denied once trust is granted.
+trust_state_ref: trust-decision-restricted-workspace-2026-04-23
+identity_mode_ref: identity-mode-account-free-local
+policy_pack_constraint_refs:
+  - policy-acme-org-default-v3#egress_host_narrowing
+audit_event_refs:
+  - audit-host-negotiation-opened-prose-helper
+  - audit-host-negotiation-worlds-narrowed-prose-helper
+  - audit-host-negotiation-trust-state-denied-prose-helper-diff-apply
+  - audit-host-negotiation-trust-state-denied-prose-helper-egress
+  - audit-host-negotiation-policy-pack-denied-prose-helper-egress
+  - audit-host-negotiation-completed-prose-helper
+redaction_class: support_bundle
+computed_at: "2026-04-23T15:00:00Z"
+
+---
+
+# Per-world admission decision record for diff-apply-preview
+record_kind: world_admission_decision_record
+host_negotiation_schema_version: 1
+negotiation_id: neg-prose-helper-2026-04-23-0001
+declared_world_ref: "aureline:diff-apply-preview@0.1.0"
+admission_outcome: denied
+narrowing_reason_refs:
+  - trust-decision-restricted-workspace-2026-04-23
+denial_reason: host_negotiation_trust_state_denies_world
+repair_affordance_label: >
+  Grant workspace trust to admit diff-apply-preview. Restricted mode
+  blocks write / apply capabilities by design; editor-read,
+  workspace-read, and terminal-observe remain available.
+audit_event_refs:
+  - audit-host-negotiation-trust-state-denied-prose-helper-diff-apply
+computed_at: "2026-04-23T15:00:00Z"
+
+---
+
+# Per-world admission decision record for network-egress
+record_kind: world_admission_decision_record
+host_negotiation_schema_version: 1
+negotiation_id: neg-prose-helper-2026-04-23-0001
+declared_world_ref: "aureline:network-egress@0.1.0"
+admission_outcome: denied
+narrowing_reason_refs:
+  - trust-decision-restricted-workspace-2026-04-23
+  - policy-acme-org-default-v3#egress_host_narrowing
+denial_reason: host_negotiation_trust_state_denies_world
+repair_affordance_label: >
+  Grant workspace trust and lift the admin egress_host_narrowing
+  constraint for api.acme-labs.example before network-egress can
+  admit. Both gates apply; lifting only one does not admit.
+audit_event_refs:
+  - audit-host-negotiation-trust-state-denied-prose-helper-egress
+  - audit-host-negotiation-policy-pack-denied-prose-helper-egress
+computed_at: "2026-04-23T15:00:00Z"

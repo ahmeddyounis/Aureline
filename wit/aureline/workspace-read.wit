@@ -1,0 +1,105 @@
+// aureline:workspace-read@0.1.0
+//
+// Read-only workspace traversal: list declared-prefix paths, read
+// declared-prefix bytes up to a bounded size, read workspace settings
+// through the ADR-0008 resolver. Write paths are out of scope; those
+// route through `aureline:diff-apply-preview` for edit proposals or
+// through the host affordance for settings writes.
+//
+// Authoritative: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+// Narrative: docs/extensions/wit_host_contract_seed.md
+//
+// Permission-scope projection (ADR-0012):
+//   - filesystem_read (required).
+//   - workspace_settings_read (when settings are read).
+//   - subscription_subscribe (when the extension subscribes to a
+//     workspace-change stream).
+//
+// Budgets (ADR-0019):
+//   - filesystem_read_budget_class: declared_prefix_only (default);
+//     declared_prefix_metered when the extension requests metered
+//     reads.
+//   - wall_clock_budget_class: short_bounded (default).
+//   - memory_budget_class: small_fixed (default).
+//
+// Invariants (ADR-0019, binding):
+//   - Paths resolve through the ADR-0006 VFS path-identity contract.
+//     Extensions never crawl disk directly.
+//   - Reads are bounded to the manifest's declared filesystem_read
+//     scope_target prefixes; any path outside the declared set denies
+//     with `path-outside-declared-prefix`.
+//   - Every capability resolves the ADR-0018 trust-decision packet
+//     before firing.
+
+package aureline:workspace-read@0.1.0;
+
+interface workspace-read {
+    /// VFS-identity string (opaque; the host owns the identity rule).
+    /// Paths are never raw filesystem bytes; they are identity tokens
+    /// that resolve through ADR-0006.
+    type path-identity = string;
+
+    /// Typed workspace-read error vocabulary. Additive-minor.
+    variant read-error {
+        /// The requested path is outside the manifest's declared
+        /// filesystem_read prefix set.
+        path-outside-declared-prefix,
+        /// The path does not exist in the workspace VFS.
+        path-not-found,
+        /// The requested byte range exceeds the host's per-invocation
+        /// ceiling.
+        range-exceeds-ceiling,
+        /// Trust state denied the read.
+        trust-state-denied,
+        /// Admin policy pack denied the read.
+        policy-pack-denied,
+    }
+
+    /// A directory entry. Listing is bounded to declared prefixes; the
+    /// host may page very large directories.
+    record directory-entry {
+        path: path-identity,
+        kind: entry-kind,
+        byte-length-hint: option<u64>,
+    }
+
+    /// Entry kind. Additive-minor; repurposing requires a new decision
+    /// row.
+    variant entry-kind {
+        file,
+        directory,
+        symlink,
+        other,
+    }
+
+    /// List the immediate children of a directory identity. Paths
+    /// outside the manifest's declared prefix set deny.
+    list-directory: func(directory: path-identity) -> result<list<directory-entry>, read-error>;
+
+    /// Read bytes from a file identity within a bounded range. Paths
+    /// outside the manifest's declared prefix set deny. Returns the
+    /// bytes as a UTF-8 string; binary reads are out of scope for
+    /// this seed (successor-ADR binds a binary-read capability).
+    read-file-range: func(
+        file: path-identity,
+        offset: u64,
+        length: u64,
+    ) -> result<string, read-error>;
+
+    /// Read a workspace setting through the ADR-0008 resolver. The
+    /// setting-id is an opaque id; the resolved value is the
+    /// effective setting under the active scope.
+    ///
+    /// Raw JSONC bytes never cross this boundary; the resolver owns
+    /// parsing.
+    read-setting: func(setting-id: string) -> result<setting-value, read-error>;
+
+    /// Typed setting-value. The successor ADR may add additional
+    /// variants (e.g. typed objects, arrays). Additive-minor.
+    variant setting-value {
+        null-value,
+        bool-value(bool),
+        int-value(s64),
+        string-value(string),
+    }
+}

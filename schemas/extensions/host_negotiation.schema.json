@@ -1,0 +1,623 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/host_negotiation.schema.json",
+  "title": "Aureline extension-host capability-world, host-negotiation, and compatibility-bridge vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the capability-world row, the host-negotiation packet, the world-admission decision record, and the compatibility-bridge profile row reserved in docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md. This is an ADR-seed schema: the vocabulary and field set are pinned so the extension-runtime, SDK, registry-mirror, install-review, and permission-inspector lanes at a later milestone do not invent extension-host-shaped fields ad hoc. The WIT files at wit/aureline/*.wit are the normative source of truth for the capability-world interfaces themselves; the capability-world registry at artifacts/extensions/capability_worlds.yaml binds worlds to host families, lifecycle rows, and permission-scope projections; this schema is the cross-tool boundary every non-owning surface reads at this milestone. Adding a new member to any enumerated set, a new world slug, or an additive field is additive-minor with a host_negotiation_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw Wasm component bytes, raw core module bytes, raw external-host launch bodies, raw helper-binary invocation bodies, raw bridge-shim payloads, raw signing-key material, and raw policy-bundle bytes MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/capability_world_row" },
+    { "$ref": "#/$defs/host_negotiation_packet" },
+    { "$ref": "#/$defs/world_admission_decision_record" },
+    { "$ref": "#/$defs/compatibility_bridge_profile_row" }
+  ],
+  "$defs": {
+    "host_negotiation_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this host-negotiation vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "world_vocabulary_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Integer vocabulary version for the capability-world slug enumeration and the host-negotiation vocabulary. Bumped additive-minor when a new world slug, a new budget class, a new narrowing reason, a new unsupported-world reason, a new audit event id, or a new denial reason is added."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "capability_world_row",
+        "host_negotiation_packet",
+        "world_admission_decision_record",
+        "compatibility_bridge_profile_row"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "world_identity": {
+      "type": "string",
+      "pattern": "^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Capability-world identity under the reserved aureline namespace. Pattern: aureline:<slug>@<MAJOR.MINOR.PATCH>. Third-party worlds MUST NOT mint identities under this namespace; a separate schema version will admit third-party identities once the successor ADR lands."
+    },
+
+    "world_slug": {
+      "type": "string",
+      "enum": [
+        "editor-read",
+        "workspace-read",
+        "diff-apply-preview",
+        "terminal-observe",
+        "network-egress"
+      ],
+      "description": "Frozen capability-world slug vocabulary reserved by the ADR seed. Additional slugs are additive-minor with a world_vocabulary_version bump."
+    },
+
+    "world_semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version for a capability world (MAJOR.MINOR.PATCH). Minor bumps are additive; major bumps are breaking and require a new decision row."
+    },
+
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Frozen host-contract-family vocabulary inherited from docs/adr/0012-extension-manifest-permission-publisher-policy.md. Binding shape per family is reserved in artifacts/extensions/capability_worlds.yaml."
+    },
+
+    "permission_scope_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Frozen permission-scope vocabulary inherited from docs/adr/0012-extension-manifest-permission-publisher-policy.md. Additional kinds are additive-minor with a permission_vocabulary_version bump."
+    },
+
+    "wall_clock_budget_class": {
+      "type": "string",
+      "enum": ["short_bounded", "medium_bounded", "long_bounded", "streaming_bounded"]
+    },
+
+    "memory_budget_class": {
+      "type": "string",
+      "enum": ["small_fixed", "medium_fixed", "streaming_bounded"]
+    },
+
+    "network_egress_budget_class": {
+      "type": "string",
+      "enum": ["none", "metered_per_session", "metered_per_invocation"]
+    },
+
+    "filesystem_read_budget_class": {
+      "type": "string",
+      "enum": ["none", "declared_prefix_only", "declared_prefix_metered"]
+    },
+
+    "filesystem_write_budget_class": {
+      "type": "string",
+      "enum": ["none", "declared_prefix_preview_only", "declared_prefix_metered"]
+    },
+
+    "subscription_fanout_budget_class": {
+      "type": "string",
+      "enum": ["none", "bounded_per_session", "bounded_per_subscription"]
+    },
+
+    "terminal_observe_budget_class": {
+      "type": "string",
+      "enum": ["none", "attached_sessions_only", "attached_sessions_metered"]
+    },
+
+    "budget_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Declared budget classes for one negotiation. A class that is not declared is treated as 'host default'; the successor ADR binds exact defaults. Policy packs and trust state MAY narrow any class further; widening is denied.",
+      "properties": {
+        "wall_clock_budget_class": { "$ref": "#/$defs/wall_clock_budget_class" },
+        "memory_budget_class": { "$ref": "#/$defs/memory_budget_class" },
+        "network_egress_budget_class": { "$ref": "#/$defs/network_egress_budget_class" },
+        "filesystem_read_budget_class": { "$ref": "#/$defs/filesystem_read_budget_class" },
+        "filesystem_write_budget_class": { "$ref": "#/$defs/filesystem_write_budget_class" },
+        "subscription_fanout_budget_class": { "$ref": "#/$defs/subscription_fanout_budget_class" },
+        "terminal_observe_budget_class": { "$ref": "#/$defs/terminal_observe_budget_class" },
+        "reason_label": {
+          "type": "string",
+          "description": "Human-legible reason label for the budget declaration. Raw secret material forbidden."
+        }
+      }
+    },
+
+    "narrowing_reason_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "admin_policy_deny_list",
+        "admin_policy_permission_floor",
+        "admin_policy_egress_host_narrowing",
+        "capability_lifecycle_degraded",
+        "world_vocabulary_version_unknown",
+        "host_abi_range_mismatch",
+        "guest_abi_range_mismatch",
+        "compatibility_bridge_profile_unbound",
+        "budget_declaration_unacceptable"
+      ],
+      "description": "Frozen narrowing-reason vocabulary. Additive-minor."
+    },
+
+    "narrowing_reason_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_world_ref", "reason_kind"],
+      "properties": {
+        "declared_world_ref": { "$ref": "#/$defs/world_identity" },
+        "reason_kind": { "$ref": "#/$defs/narrowing_reason_kind" },
+        "source_reason_refs": {
+          "type": "array",
+          "description": "Refs to the source rows that produced the narrowing: policy-pack constraint rows, ADR-0011 dependency markers, ADR-0018 trust-decision records, or ADR-0012 host-contract binding rows. Raw bundle bytes never included.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reason_label": {
+          "type": "string",
+          "description": "Human-legible narrowing label. Raw secret material forbidden."
+        }
+      }
+    },
+
+    "unsupported_world_reason_kind": {
+      "type": "string",
+      "enum": [
+        "world_retired",
+        "world_not_shipped_on_host",
+        "bridge_refused",
+        "host_abi_range_mismatch",
+        "guest_abi_range_mismatch",
+        "world_vocabulary_version_unknown"
+      ],
+      "description": "Frozen unsupported-world reason vocabulary. Additive-minor."
+    },
+
+    "unsupported_world_decision_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_world_ref", "unsupported_reason", "repair_affordance_label"],
+      "properties": {
+        "declared_world_ref": { "$ref": "#/$defs/world_identity" },
+        "unsupported_reason": { "$ref": "#/$defs/unsupported_world_reason_kind" },
+        "successor_world_ref": { "$ref": "#/$defs/world_identity" },
+        "repair_affordance_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible repair affordance (e.g. 'grant trust', 'lift admin deny-list', 'upgrade extension ABI'). Rendered on install-review and permission-inspector surfaces; silent fallback to a generic 'unavailable' chip is forbidden."
+        },
+        "audit_event_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "host_negotiation_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "host_negotiation_opened",
+        "host_negotiation_worlds_narrowed",
+        "host_negotiation_world_denied",
+        "host_negotiation_budget_narrowed",
+        "host_negotiation_abi_mismatch",
+        "host_negotiation_world_vocabulary_mismatch",
+        "host_negotiation_compatibility_bridge_applied",
+        "host_negotiation_compatibility_bridge_refused_world",
+        "host_negotiation_completed",
+        "host_negotiation_retired_world_denied",
+        "host_negotiation_trust_state_denied",
+        "host_negotiation_policy_pack_denied",
+        "host_negotiation_remote_side_component_denied",
+        "host_negotiation_helper_binary_launch_denied"
+      ],
+      "description": "Frozen host-negotiation audit-event-id vocabulary reserved by the ADR seed. Additional ids are additive-minor."
+    },
+
+    "host_negotiation_denial_reason": {
+      "type": "string",
+      "enum": [
+        "host_negotiation_world_unknown_to_host",
+        "host_negotiation_world_retired",
+        "host_negotiation_host_abi_range_mismatch",
+        "host_negotiation_guest_abi_range_mismatch",
+        "host_negotiation_world_vocabulary_version_unknown",
+        "host_negotiation_budget_declaration_unacceptable",
+        "host_negotiation_compatibility_bridge_refused_world",
+        "host_negotiation_compatibility_bridge_profile_unbound",
+        "host_negotiation_remote_side_component_client_scope_mismatch",
+        "host_negotiation_helper_binary_launch_refused",
+        "host_negotiation_trust_state_denies_world",
+        "host_negotiation_policy_pack_denies_world",
+        "host_negotiation_disclosure_incomplete"
+      ],
+      "description": "Frozen host-negotiation denial-reason vocabulary reserved by the ADR seed. These narrow ADR-0012's existing denial set for host-negotiation failures; silent downgrade to a generic 'unavailable' chip is forbidden."
+    },
+
+    "trust_state_gating_posture": {
+      "type": "string",
+      "enum": ["admitted_in_restricted", "blocked_in_restricted"],
+      "description": "Per-world trust-state gating posture. admitted_in_restricted worlds MAY run under ADR-0018 restricted states but remain read-only and side-effect free; blocked_in_restricted worlds MUST NOT admit any capability under restricted states."
+    },
+
+    "client_scope_default": {
+      "type": "string",
+      "enum": ["host_only", "host_and_remote_agent", "remote_agent_only"],
+      "description": "Default client scope for the world row. Projects onto the ADR-0011 client-scope axis. Remote-scoped worlds require the remote agent's identity-mode envelope at negotiation time."
+    },
+
+    "retirement_status": {
+      "type": "string",
+      "enum": ["active", "deprecated", "retired"],
+      "description": "Retirement status for a capability-world row. Retired slugs are never reused; the successor world (if any) is named in successor_world_ref."
+    },
+
+    "bridge_translation_class": {
+      "type": "string",
+      "enum": [
+        "vs_code_compatible",
+        "language_server_protocol_only",
+        "debug_adapter_protocol_only",
+        "generic_helper_wrapper",
+        "bespoke_profile"
+      ],
+      "description": "Frozen compatibility-bridge translation-class vocabulary reserved by the ADR seed. The concrete profile set ships in the successor ADR."
+    },
+
+    "bridge_world_disposition": {
+      "type": "string",
+      "enum": ["honoured", "translated", "refused"],
+      "description": "Per-world disposition under a compatibility-bridge profile. 'honoured' exposes the world verbatim; 'translated' maps a foreign surface onto the world; 'refused' denies with compatibility_bridge_required_not_present."
+    },
+
+    "capability_world_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "host_negotiation_schema_version",
+        "world_vocabulary_version",
+        "world_identity",
+        "world_slug",
+        "world_semver",
+        "wit_package_ref",
+        "supported_host_families",
+        "permission_scope_projection",
+        "default_budget_classes",
+        "trust_state_gating_posture",
+        "capability_lifecycle_row_ref",
+        "client_scope_default",
+        "retirement_status"
+      ],
+      "properties": {
+        "record_kind": { "const": "capability_world_row" },
+        "host_negotiation_schema_version": { "$ref": "#/$defs/host_negotiation_schema_version" },
+        "world_vocabulary_version": { "$ref": "#/$defs/world_vocabulary_version" },
+        "world_identity": { "$ref": "#/$defs/world_identity" },
+        "world_slug": { "$ref": "#/$defs/world_slug" },
+        "world_semver": { "$ref": "#/$defs/world_semver" },
+        "wit_package_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to the WIT seed for this world. Canonical source of truth for the interface."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short reviewer-facing summary of the world."
+        },
+        "supported_host_families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/host_contract_family" },
+          "description": "Host families that MAY surface this world. Declaring a family outside the ADR-0012 enum is non-conforming."
+        },
+        "permission_scope_projection": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/permission_scope_kind" },
+          "description": "Permission-scope set the world projects onto at admission time. Every member MUST come from the ADR-0012 permission-scope vocabulary."
+        },
+        "default_budget_classes": { "$ref": "#/$defs/budget_declaration" },
+        "trust_state_gating_posture": { "$ref": "#/$defs/trust_state_gating_posture" },
+        "capability_lifecycle_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0011 capability-lifecycle row for this world. Projects the five-axis readiness / support / channel / freshness / client-scope markers."
+        },
+        "client_scope_default": { "$ref": "#/$defs/client_scope_default" },
+        "retirement_status": { "$ref": "#/$defs/retirement_status" },
+        "successor_world_ref": { "$ref": "#/$defs/world_identity" }
+      }
+    },
+
+    "host_negotiation_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "host_negotiation_schema_version",
+        "world_vocabulary_version",
+        "negotiation_id",
+        "extension_identity_ref",
+        "extension_version",
+        "host_contract_family",
+        "declared_capability_worlds",
+        "offered_capability_worlds",
+        "negotiated_capability_worlds",
+        "host_abi_range",
+        "guest_abi_range",
+        "permission_vocabulary_version",
+        "budget_declarations",
+        "trust_state_ref",
+        "identity_mode_ref",
+        "computed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "host_negotiation_packet" },
+        "host_negotiation_schema_version": { "$ref": "#/$defs/host_negotiation_schema_version" },
+        "world_vocabulary_version": { "$ref": "#/$defs/world_vocabulary_version" },
+        "negotiation_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ref to the ADR-0012 extension_manifest_row."
+        },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SemVer string the manifest declared at negotiation time."
+        },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "declared_capability_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Ordered list of capability-world identities the manifest declared."
+        },
+        "offered_capability_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Ordered list of capability-world identities the host is prepared to surface for this session. MAY be narrower than declared."
+        },
+        "negotiated_capability_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Ordered list of capability-world identities admitted for this session. Always a subset of both declared and offered; widening is denied."
+        },
+        "host_abi_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Declared host-side ABI range (e.g. 'component-model 0.2.x', 'core-module linking-model 1.0')."
+        },
+        "guest_abi_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Declared guest-side ABI range (carried by the manifest)."
+        },
+        "permission_vocabulary_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ADR-0012 permission-vocabulary version used to project capability scopes."
+        },
+        "budget_declarations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/budget_declaration" }
+        },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason_entry" },
+          "description": "One entry per declared world that was not admitted. Hosts that silently drop a declaration are non-conforming."
+        },
+        "unsupported_world_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_world_decision_entry" },
+          "description": "One entry per declared world the host does not implement at this ABI range, retired, or refused by a bridge."
+        },
+        "trust_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0018 trust_decision_record gating the negotiation."
+        },
+        "identity_mode_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0001 identity-mode envelope."
+        },
+        "execution_context_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0009 execution-context id when any admitted world binds to the shell / task surface. Null otherwise."
+        },
+        "policy_pack_constraint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of ADR-0012 policy-pack constraint rows that narrowed the negotiation."
+        },
+        "compatibility_bridge_binding_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the compatibility-bridge binding row when host_contract_family = compatibility_bridge. Null otherwise."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of host-negotiation audit events emitted for this negotiation."
+        },
+        "redaction_class": {
+          "type": "string",
+          "description": "Redaction-class label; MUST match the ADR-0012 redaction_class vocabulary."
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Compatibility-bridge binding ref is required when the host family is compatibility_bridge.",
+          "if": {
+            "properties": {
+              "host_contract_family": { "const": "compatibility_bridge" }
+            }
+          },
+          "then": {
+            "required": ["compatibility_bridge_binding_ref"]
+          }
+        },
+        {
+          "description": "Negotiated worlds MUST be a non-widening subset of declared worlds; declared-but-not-negotiated worlds MUST resolve to either a narrowing_reasons entry or an unsupported_world_decisions entry. Enforcement is host-side; this schema pins the shape so downstream surfaces can rely on one of the two arrays being present when negotiated worlds diverge from declared worlds.",
+          "if": {
+            "properties": {
+              "negotiated_capability_worlds": { "type": "array", "minItems": 0 }
+            }
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["narrowing_reasons"] },
+              { "required": ["unsupported_world_decisions"] },
+              {
+                "not": {
+                  "properties": {
+                    "declared_capability_worlds": { "type": "array" },
+                    "negotiated_capability_worlds": { "type": "array" }
+                  },
+                  "required": ["declared_capability_worlds", "negotiated_capability_worlds"]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+
+    "world_admission_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "host_negotiation_schema_version",
+        "negotiation_id",
+        "declared_world_ref",
+        "admission_outcome",
+        "audit_event_refs",
+        "computed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "world_admission_decision_record" },
+        "host_negotiation_schema_version": { "$ref": "#/$defs/host_negotiation_schema_version" },
+        "negotiation_id": { "$ref": "#/$defs/opaque_id" },
+        "declared_world_ref": { "$ref": "#/$defs/world_identity" },
+        "admission_outcome": {
+          "type": "string",
+          "enum": ["admitted", "narrowed", "denied"],
+          "description": "Per-world admission outcome. 'admitted' means the world entered the negotiated set intact; 'narrowed' means a capability inside the world was narrowed (budget, permission-scope projection, or client scope); 'denied' means the world did not enter the negotiated set."
+        },
+        "narrowing_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to narrowing-reason entries in the parent host-negotiation packet."
+        },
+        "unsupported_world_decision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to an unsupported_world_decision_entry when admission_outcome = 'denied' for an unsupported-world reason."
+        },
+        "denial_reason": { "$ref": "#/$defs/host_negotiation_denial_reason" },
+        "repair_affordance_label": {
+          "type": "string",
+          "description": "Human-legible repair affordance rendered to review surfaces."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "compatibility_bridge_profile_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "host_negotiation_schema_version",
+        "bridge_profile_id",
+        "bridge_translation_class",
+        "honoured_worlds",
+        "translated_worlds",
+        "refused_worlds"
+      ],
+      "properties": {
+        "record_kind": { "const": "compatibility_bridge_profile_row" },
+        "host_negotiation_schema_version": { "$ref": "#/$defs/host_negotiation_schema_version" },
+        "bridge_profile_id": { "$ref": "#/$defs/opaque_id" },
+        "bridge_translation_class": { "$ref": "#/$defs/bridge_translation_class" },
+        "honoured_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Worlds the bridge exposes to the foreign extension verbatim."
+        },
+        "translated_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Worlds the bridge exposes under a translation layer. The bridge MAY NOT widen the world; translation is surface-only."
+        },
+        "refused_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/world_identity" },
+          "description": "Worlds the bridge does not expose. A manifest declaring one denies with compatibility_bridge_required_not_present (ADR-0012) or host_negotiation_compatibility_bridge_refused_world (this seed)."
+        },
+        "budget_translation_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["foreign_budget_label", "aureline_budget_class"],
+            "properties": {
+              "foreign_budget_label": {
+                "type": "string",
+                "description": "Opaque label for a foreign budget axis the bridge translates from."
+              },
+              "aureline_budget_class": {
+                "type": "string",
+                "description": "Aureline budget class the foreign axis translates to. MUST be one of the enumerated classes in this schema; repurposing is breaking."
+              }
+            }
+          }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

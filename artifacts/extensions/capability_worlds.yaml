@@ -1,0 +1,461 @@
+# Capability-world registry for the Wasm / WIT extension host.
+#
+# Machine-readable registry backing ADR 0019
+# (docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md).
+#
+# Every capability_world_row binds one reserved Aureline capability
+# world (identity pattern `aureline:<slug>@<semver>`) to:
+#   - the host-family binding it MAY run under,
+#   - the WIT package source of truth,
+#   - the ADR-0012 permission-scope projection,
+#   - the ADR-0019 budget-declaration defaults,
+#   - the ADR-0011 capability-lifecycle row ref,
+#   - the ADR-0018 trust-state gating posture.
+#
+# Tooling (extension manifest indexer, install-review sheet,
+# permission-inspector, support-export, mutation-journal,
+# compatibility-bridge loader, SDK bindgen seed) MAY read this
+# registry rather than invent capability-world vocabulary per-lane.
+#
+# adr_source is the canonical human-readable form. If tooling and
+# the ADR disagree, the ADR wins and this file must be updated in
+# the same change.
+#
+# Invariants (ADR 0019, binding):
+#
+#   I1. Every capability_world_row carries a `world_identity` of the
+#       form `aureline:<slug>@<semver>` under the reserved `aureline`
+#       namespace. Third-party worlds MUST NOT mint identities under
+#       this namespace.
+#   I2. Every row cites exactly one `wit_package_ref` as the source
+#       of truth for its interface. Breaking an interface requires a
+#       new decision row; additive changes are minor with a
+#       `world_semver` bump.
+#   I3. Every row declares `supported_host_families` as a subset of
+#       the ADR-0012 host_contract_family enum. Declaring a family
+#       this seed does not reserve is non-conforming.
+#   I4. Every row declares a `permission_scope_projection` set whose
+#       members come from the ADR-0012 permission_scope_kind enum.
+#   I5. Every row declares `default_budget_classes` for each budget
+#       axis in the ADR-0019 vocabulary. Omitting an axis means the
+#       world does not consume that budget.
+#   I6. Every row declares `trust_state_gating_posture`. A world
+#       whose posture is `blocked_in_restricted` MUST NOT admit any
+#       capability under ADR-0018 `restricted` states; a world whose
+#       posture is `admitted_in_restricted` is limited to read-only,
+#       side-effect-free capabilities.
+#   I7. Every row carries a `capability_lifecycle_row_ref` that binds
+#       the world to the ADR-0011 five-axis lifecycle markers.
+#   I8. Retired world slugs are never reused; a retirement row
+#       preserves the identity and names the successor (if any).
+
+schema_version: 1
+
+adr_source: docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+decision_id: D-0024
+decision_register: artifacts/governance/decision_index.yaml
+negotiation_schema_ref: schemas/extensions/host_negotiation.schema.json
+root_wit_package_ref: wit/aureline/aureline.wit
+world_vocabulary_version: 1
+
+# -----------------------------------------------------------------------------
+# Host-family binding shape.
+#
+# Every ADR-0012 host_contract_family resolves to one binding kind.
+# The binding names what a manifest's host_contract_identity_ref
+# resolves to for that family; the concrete sandbox contract lands
+# in the successor ADR.
+# -----------------------------------------------------------------------------
+host_family_bindings:
+  - host_contract_family: wasm_component_model
+    binding_kind: wit_package_and_world
+    identity_ref_shape: "wit_package_id:world_id@world_semver"
+    component_model_abi_range: "0.2.x"
+    carries:
+      - capability_world_ref_list
+      - wit_package_id
+      - world_version
+      - declared_budgets
+      - permission_scope_projection
+      - runtime_posture_marker
+
+  - host_contract_family: wasm_core_module
+    binding_kind: host_imports_ref
+    identity_ref_shape: "host_imports_ref:<curated_import_bundle_id>"
+    core_module_abi_range: "1.0"
+    notes: >
+      Core modules do not carry WIT worlds natively; the host-side
+      adapter projects the named world set onto imports. The
+      successor ADR binds the curated import-signature bundle.
+    carries:
+      - host_imports_ref
+      - core_module_abi_range
+      - declared_budgets
+      - permission_scope_projection
+      - runtime_posture_marker
+
+  - host_contract_family: external_host_process
+    binding_kind: process_contract_and_rpc_surface
+    identity_ref_shape: "process_contract_id:<opaque_id>"
+    carries:
+      - process_contract_id
+      - capability_world_ref_list
+      - declared_launch_class
+      - declared_budgets
+      - permission_scope_projection
+      - runtime_posture_marker
+
+  - host_contract_family: helper_binary
+    binding_kind: helper_binary_contract
+    identity_ref_shape: "helper_binary_contract_id:<opaque_id>"
+    notes: >
+      Helper binaries are short-lived, kill-switch-capable, and
+      narrow to a subset of the declared world set. The successor
+      ADR binds the kill-switch cadence and stdio isolation rules.
+    carries:
+      - helper_binary_contract_id
+      - capability_world_ref_list_narrowed
+      - declared_budgets
+      - permission_scope_projection
+      - runtime_posture_marker
+
+  - host_contract_family: remote_side_component
+    binding_kind: remote_side_component_contract
+    identity_ref_shape: "remote_side_component_contract_id:<opaque_id>"
+    notes: >
+      Remote-side components execute on an attached remote agent and
+      inherit the remote's identity-mode envelope. Client scope
+      (ADR-0011) is pinned to `remote_agent`.
+    carries:
+      - remote_side_component_contract_id
+      - capability_world_ref_list_remote_scoped
+      - inherited_identity_mode_ref
+      - declared_budgets
+      - permission_scope_projection
+
+  - host_contract_family: compatibility_bridge
+    binding_kind: bridge_profile
+    identity_ref_shape: "bridge_profile_id:<opaque_id>"
+    notes: >
+      Bridges translate existing extension ecosystems onto the
+      reserved Aureline capability-world set. A bridge MAY NOT widen
+      a world, mint a new aureline-namespace identity, or substitute
+      ADR-0012 publisher-continuity / signature / digest invariants.
+    carries:
+      - bridge_profile_id
+      - bridge_translation_ref
+      - declared_budgets
+      - permission_scope_projection
+      - runtime_posture_marker
+
+# -----------------------------------------------------------------------------
+# Capability-world rows.
+#
+# Five seeded worlds. Adding a world is additive-minor with a
+# world_vocabulary_version bump; retiring a world preserves the row
+# and names a successor.
+# -----------------------------------------------------------------------------
+capability_worlds:
+  - world_identity: "aureline:editor-read@0.1.0"
+    world_slug: editor-read
+    world_semver: "0.1.0"
+    wit_package_ref: wit/aureline/editor-read.wit
+    summary: >
+      Read-only access to the editor buffer(s) surfaced to the
+      extension: cursor position, selection, bounded text reads,
+      and syntax-scope hints. No write, apply, or mutate paths;
+      those route through aureline:diff-apply-preview.
+    supported_host_families:
+      - wasm_component_model
+      - wasm_core_module
+      - external_host_process
+      - helper_binary
+      - remote_side_component
+      - compatibility_bridge
+    permission_scope_projection:
+      - ui_command_contribute
+      - subscription_subscribe
+    default_budget_classes:
+      wall_clock_budget_class: short_bounded
+      memory_budget_class: small_fixed
+      subscription_fanout_budget_class: bounded_per_subscription
+    trust_state_gating_posture: admitted_in_restricted
+    capability_lifecycle_row_ref: cap-world-editor-read
+    client_scope_default: host_and_remote_agent
+    retirement_policy:
+      status: active
+      successor_world_ref: null
+
+  - world_identity: "aureline:workspace-read@0.1.0"
+    world_slug: workspace-read
+    world_semver: "0.1.0"
+    wit_package_ref: wit/aureline/workspace-read.wit
+    summary: >
+      Read-only workspace traversal: list declared-prefix paths,
+      read declared-prefix bytes up to a bounded size, and read
+      workspace settings through the ADR-0008 resolver. Paths
+      resolve through the ADR-0006 VFS path-identity contract.
+    supported_host_families:
+      - wasm_component_model
+      - wasm_core_module
+      - external_host_process
+      - helper_binary
+      - remote_side_component
+      - compatibility_bridge
+    permission_scope_projection:
+      - filesystem_read
+      - workspace_settings_read
+      - subscription_subscribe
+    default_budget_classes:
+      wall_clock_budget_class: short_bounded
+      memory_budget_class: small_fixed
+      filesystem_read_budget_class: declared_prefix_only
+      subscription_fanout_budget_class: bounded_per_subscription
+    trust_state_gating_posture: admitted_in_restricted
+    capability_lifecycle_row_ref: cap-world-workspace-read
+    client_scope_default: host_and_remote_agent
+    retirement_policy:
+      status: active
+      successor_world_ref: null
+
+  - world_identity: "aureline:diff-apply-preview@0.1.0"
+    world_slug: diff-apply-preview
+    world_semver: "0.1.0"
+    wit_package_ref: wit/aureline/diff-apply-preview.wit
+    summary: >
+      Propose a typed text-edit diff against the active editor or a
+      workspace file. Application is host-side and requires the
+      ADR-0012 filesystem_write scope plus the host approval
+      affordance. An extension MUST NOT rely on the apply path
+      firing.
+    supported_host_families:
+      - wasm_component_model
+      - wasm_core_module
+      - external_host_process
+      - helper_binary
+      - remote_side_component
+      - compatibility_bridge
+    permission_scope_projection:
+      - filesystem_write
+      - ui_command_contribute
+      - subscription_subscribe
+    default_budget_classes:
+      wall_clock_budget_class: medium_bounded
+      memory_budget_class: medium_fixed
+      filesystem_write_budget_class: declared_prefix_preview_only
+      subscription_fanout_budget_class: bounded_per_subscription
+    trust_state_gating_posture: blocked_in_restricted
+    capability_lifecycle_row_ref: cap-world-diff-apply-preview
+    client_scope_default: host_only
+    retirement_policy:
+      status: active
+      successor_world_ref: null
+
+  - world_identity: "aureline:terminal-observe@0.1.0"
+    world_slug: terminal-observe
+    world_semver: "0.1.0"
+    wit_package_ref: wit/aureline/terminal-observe.wit
+    summary: >
+      Subscribe to an existing terminal's observable surface: line
+      output, status, exit code. Launching a terminal, running a
+      repo-owned recipe, or injecting input are out of scope; the
+      host affordance is the only launcher.
+    supported_host_families:
+      - wasm_component_model
+      - wasm_core_module
+      - external_host_process
+      - helper_binary
+      - remote_side_component
+      - compatibility_bridge
+    permission_scope_projection:
+      - subscription_subscribe
+    default_budget_classes:
+      wall_clock_budget_class: streaming_bounded
+      memory_budget_class: small_fixed
+      terminal_observe_budget_class: attached_sessions_only
+      subscription_fanout_budget_class: bounded_per_subscription
+    trust_state_gating_posture: admitted_in_restricted
+    capability_lifecycle_row_ref: cap-world-terminal-observe
+    client_scope_default: host_and_remote_agent
+    retirement_policy:
+      status: active
+      successor_world_ref: null
+
+  - world_identity: "aureline:network-egress@0.1.0"
+    world_slug: network-egress
+    world_semver: "0.1.0"
+    wit_package_ref: wit/aureline/network-egress.wit
+    summary: >
+      Outbound network egress, bounded to a declared host allow-list.
+      The host applies the ADR-0012 egress_host_narrowing policy-pack
+      constraint at admission and again at every call; a host that
+      narrowed an allow-list after admission denies in-flight egress.
+    supported_host_families:
+      - wasm_component_model
+      - wasm_core_module
+      - external_host_process
+      - helper_binary
+      - remote_side_component
+      - compatibility_bridge
+    permission_scope_projection:
+      - network_egress
+    default_budget_classes:
+      wall_clock_budget_class: short_bounded
+      memory_budget_class: medium_fixed
+      network_egress_budget_class: metered_per_session
+    trust_state_gating_posture: blocked_in_restricted
+    capability_lifecycle_row_ref: cap-world-network-egress
+    client_scope_default: host_and_remote_agent
+    retirement_policy:
+      status: active
+      successor_world_ref: null
+
+# -----------------------------------------------------------------------------
+# Compatibility-bridge scope envelope.
+#
+# Shape reserved by the seed; profile set lands in the successor ADR.
+# A bridge MAY NOT widen a world, mint a new aureline-namespace
+# identity, or substitute ADR-0012 publisher-continuity / signature /
+# digest invariants.
+# -----------------------------------------------------------------------------
+compatibility_bridge_scope:
+  bridge_translation_classes_reserved:
+    - vs_code_compatible
+    - language_server_protocol_only
+    - debug_adapter_protocol_only
+    - generic_helper_wrapper
+    - bespoke_profile
+  profile_row_shape:
+    required_fields:
+      - bridge_profile_id
+      - bridge_translation_class
+      - honoured_worlds
+      - translated_worlds
+      - refused_worlds
+      - schema_version
+    optional_fields:
+      - budget_translation_rules
+  never_permitted:
+    - widen_a_world_beyond_its_declared_aureline_surface
+    - mint_a_new_world_identity_under_the_aureline_namespace
+    - substitute_adr_0012_publisher_continuity_signature_or_digest_invariants
+    - bypass_adr_0018_trust_state_packet
+    - bypass_adr_0008_admin_policy_narrowing_ceiling
+
+# -----------------------------------------------------------------------------
+# Budget-declaration vocabulary.
+#
+# The classes below are the minimum every host-negotiation packet
+# MAY name. Quantitative ceilings per class land in the successor
+# ADR.
+# -----------------------------------------------------------------------------
+budget_vocabulary:
+  wall_clock_budget_class:
+    - short_bounded
+    - medium_bounded
+    - long_bounded
+    - streaming_bounded
+  memory_budget_class:
+    - small_fixed
+    - medium_fixed
+    - streaming_bounded
+  network_egress_budget_class:
+    - none
+    - metered_per_session
+    - metered_per_invocation
+  filesystem_read_budget_class:
+    - none
+    - declared_prefix_only
+    - declared_prefix_metered
+  filesystem_write_budget_class:
+    - none
+    - declared_prefix_preview_only
+    - declared_prefix_metered
+  subscription_fanout_budget_class:
+    - none
+    - bounded_per_session
+    - bounded_per_subscription
+  terminal_observe_budget_class:
+    - none
+    - attached_sessions_only
+    - attached_sessions_metered
+
+# -----------------------------------------------------------------------------
+# Narrowing-reason vocabulary.
+#
+# Every declared-but-not-admitted world carries one typed narrowing
+# reason. Additive-minor.
+# -----------------------------------------------------------------------------
+narrowing_reasons:
+  - workspace_trust_restricted
+  - admin_policy_deny_list
+  - admin_policy_permission_floor
+  - admin_policy_egress_host_narrowing
+  - capability_lifecycle_degraded
+  - world_vocabulary_version_unknown
+  - host_abi_range_mismatch
+  - guest_abi_range_mismatch
+  - compatibility_bridge_profile_unbound
+  - budget_declaration_unacceptable
+
+# -----------------------------------------------------------------------------
+# Unsupported-world decision reasons.
+#
+# When a declared world cannot be admitted, the host records one of
+# these reasons plus a nullable successor-world ref and a human-
+# legible repair affordance.
+# -----------------------------------------------------------------------------
+unsupported_world_reasons:
+  - world_retired
+  - world_not_shipped_on_host
+  - bridge_refused
+  - host_abi_range_mismatch
+  - guest_abi_range_mismatch
+  - world_vocabulary_version_unknown
+
+# -----------------------------------------------------------------------------
+# Audit events reserved.
+#
+# Emitted on the extension_host_negotiation stream. Raw component
+# bytes, raw helper-binary invocation bodies, raw bridge-shim
+# payloads, raw process launch bodies, raw signing-key material, and
+# raw policy-bundle bytes MUST NOT appear on any event.
+# -----------------------------------------------------------------------------
+audit_events:
+  - host_negotiation_opened
+  - host_negotiation_worlds_narrowed
+  - host_negotiation_world_denied
+  - host_negotiation_budget_narrowed
+  - host_negotiation_abi_mismatch
+  - host_negotiation_world_vocabulary_mismatch
+  - host_negotiation_compatibility_bridge_applied
+  - host_negotiation_compatibility_bridge_refused_world
+  - host_negotiation_completed
+  - host_negotiation_retired_world_denied
+  - host_negotiation_trust_state_denied
+  - host_negotiation_policy_pack_denied
+  - host_negotiation_remote_side_component_denied
+  - host_negotiation_helper_binary_launch_denied
+
+# -----------------------------------------------------------------------------
+# Denial reasons.
+#
+# Reserved in addition to the ADR-0012 set. Silent downgrade to a
+# generic "unavailable" chip is forbidden; every denial emits the
+# corresponding audit event with a typed reason and a repair
+# affordance.
+# -----------------------------------------------------------------------------
+denial_reasons:
+  - host_negotiation_world_unknown_to_host
+  - host_negotiation_world_retired
+  - host_negotiation_host_abi_range_mismatch
+  - host_negotiation_guest_abi_range_mismatch
+  - host_negotiation_world_vocabulary_version_unknown
+  - host_negotiation_budget_declaration_unacceptable
+  - host_negotiation_compatibility_bridge_refused_world
+  - host_negotiation_compatibility_bridge_profile_unbound
+  - host_negotiation_remote_side_component_client_scope_mismatch
+  - host_negotiation_helper_binary_launch_refused
+  - host_negotiation_trust_state_denies_world
+  - host_negotiation_policy_pack_denies_world
+  - host_negotiation_disclosure_incomplete
