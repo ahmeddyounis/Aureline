@@ -1,0 +1,137 @@
+__fixture__:
+  name: support_bundle_local_only_retained
+  scenario: >
+    A user assembles a support bundle for local review after a
+    repeated startup failure. The bundle body stays on the device;
+    no upload or mirror has happened yet. The operating-system
+    keychain holds the AI provider credential, so the bundle
+    references a handle plus an alias and asserts that raw secrets
+    are excluded. Every row names all three axes; no row uses a
+    "saved securely" substitute.
+  contract_sections:
+    - credential_storage_mode rows
+    - artifact_storage_mode rows
+    - retention_mode rows
+    - consumer_mapping_rows.support_bundle
+  pairs_with:
+    - support_bundle_uploaded_copy_opt_in   # same logical bundle, after upload consent.
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: support_bundle_local_only_retained
+consumer_id: support_bundle
+consumer_schema_ref: schemas/support/support_bundle.schema.json
+consumer_contract_ref: docs/support/support_bundle_contract.md
+record_class_ref: support_bundle_archive
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: individual_local
+  redaction_profile_ref: metadata_safe_default
+  policy_epoch: 1
+
+bundle_header_section:
+  artifact_entry_id: entry.bundle_header
+  bundle_section_class: governance_and_export_controls
+  artifact_kind_class: exact_build_identity_manifest
+  credential_storage_mode: handle_only
+  artifact_storage_mode: local_only
+  retention_mode: expiring
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "On this device"
+    retention: "Expires on case close"
+  materialization:
+    local_retention_ref: local_ref.bundle_header
+  decision_note: >
+    Header is the bundle's local-review entry point. It stays on the
+    device until a consent-recorded upload promotes the bundle to a
+    different artifact_storage_mode.
+
+manifest_rows:
+  - artifact_entry_id: entry.ai_provider_token
+    bundle_section_class: governance_and_export_controls
+    artifact_kind_class: secret_broker_state
+    subject_matter: ai_provider_token (via broker)
+    credential_storage_mode: system_credential_store
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: os_keychain
+    projection_mode_refs:
+      - alias_only
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "System credential store"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      The bundle names the credential by class and alias only; the
+      raw token is never embedded. Exclusion is visible in the
+      manifest, not silent.
+
+  - artifact_entry_id: entry.crash_envelope
+    bundle_section_class: fault_domain_and_restart_truth
+    artifact_kind_class: crash_envelope
+    credential_storage_mode: handle_only
+    artifact_storage_mode: local_only
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "On this device"
+      retention: "Expires on case close"
+    materialization:
+      local_retention_ref: local_ref.crash_envelope
+    decision_note: >
+      Crash envelope is available for local inspection. Upload is
+      deferred until an explicit consent marker is captured; see the
+      paired uploaded-copy fixture.
+
+  - artifact_entry_id: entry.log_capture
+    bundle_section_class: logs_traces_and_manifests
+    artifact_kind_class: log_capture
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "Raw secrets excluded"
+    materialization:
+      embedded_member_ref: bundle_member.redacted_log_tail
+    decision_note: >
+      Log tail is embedded because the redaction pass has already
+      run. Raw secret values, known header / query / body fields,
+      and known secret-shape strings are excluded per the ADR-0007
+      logs_local rule.
+
+combination_rule_checks:
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: Embedded log_capture row carries raw_secret_excluded_asserted = true.
+  - rule_ref: rule:local_only_is_never_exportable
+    outcome: satisfied
+    evidence: No local_only row claims retention_mode = exportable.
+  - rule_ref: rule:intentionally_excluded_is_visible
+    outcome: satisfied
+    evidence: ai_provider_token row cites omission_reason_class prohibited_secret_or_token.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

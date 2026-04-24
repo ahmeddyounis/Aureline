@@ -1,0 +1,125 @@
+__fixture__:
+  name: sync_payload_handle_only_mirrored
+  scenario: >
+    Settings sync moves a user's preferences, keybindings, and
+    connected-provider aliases across their own devices through a
+    managed sync mirror. The payload rides mirrored_copy; the local
+    device holds a cached view. Credentials project as handle_only
+    aliases and MUST NEVER appear as raw bytes. The payload also
+    names a not_configured credential row so the receiving device
+    sees that a connected-provider slot is intentionally empty
+    rather than silently absent.
+  contract_sections:
+    - consumer_mapping_rows.sync_payload
+    - credential_storage_mode_rows.handle_only
+    - credential_storage_mode_rows.not_configured
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: sync_payload_handle_only_mirrored
+consumer_id: sync_payload
+consumer_schema_ref: schemas/settings/settings_sync_payload.schema.json
+consumer_contract_ref: docs/settings/settings_sync_contract.md
+record_class_ref: null
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: enterprise_online
+  policy_epoch: 1
+
+bundle_header_section:
+  artifact_entry_id: entry.sync_header
+  credential_storage_mode: handle_only
+  artifact_storage_mode: mirrored_copy
+  retention_mode: expiring
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Mirrored to managed store"
+    retention: "Expires on version replace"
+  materialization:
+    managed_reference_ref: managed_ref.settings_mirror_opaque_id
+  decision_note: >
+    Sync header is mirrored to the managed settings store. Local
+    devices pull a cached view; the managed copy is source of
+    record for cross-device sync.
+
+manifest_rows:
+  - artifact_entry_id: entry.preferences_and_keybindings
+    credential_storage_mode: handle_only
+    artifact_storage_mode: mirrored_copy
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Mirrored to managed store"
+      retention: "Expires on version replace"
+    materialization:
+      managed_reference_ref: managed_ref.settings_prefs_opaque_id
+    decision_note: >
+      User preferences and keybindings ride the mirror. No
+      credentials referenced.
+
+  - artifact_entry_id: entry.ai_provider_connection
+    subject_matter: ai_provider_token
+    credential_storage_mode: handle_only
+    artifact_storage_mode: mirrored_copy
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: os_keychain
+    projection_mode_refs:
+      - alias_only
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Mirrored to managed store"
+      retention: "Raw secrets excluded"
+    materialization:
+      managed_reference_ref: managed_ref.provider_alias_opaque_id
+    decision_note: >
+      AI provider connection is carried as a user-stable alias.
+      Each receiving device rebinds the alias to its own secret-
+      broker handle before resolving the token.
+
+  - artifact_entry_id: entry.code_host_connection_not_configured
+    subject_matter: code_host_token slot
+    credential_storage_mode: not_configured
+    artifact_storage_mode: mirrored_copy
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Not configured"
+      artifact: "Mirrored to managed store"
+      retention: "Raw secrets excluded"
+    materialization:
+      managed_reference_ref: managed_ref.code_host_slot_opaque_id
+    decision_note: >
+      The user has not connected a code host; the sync payload
+      records the absence explicitly. Receiving devices render
+      "Not configured" rather than hiding the slot or defaulting
+      to an ambient vendor.
+
+combination_rule_checks:
+  - rule_ref: rule:not_configured_is_visible
+    outcome: satisfied
+    evidence: code_host_connection_not_configured row renders "Not configured" label and does not pair with exportable, pinned, policy_held, or audit_only.
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: No row embeds raw credential material.
+  - rule_ref: rule:session_only_never_persists
+    outcome: not_applicable
+    evidence: No session_only rows.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "secured automatically"
+    occurrences: 0

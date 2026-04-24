@@ -1,0 +1,139 @@
+__fixture__:
+  name: issue_package_uploaded_policy_held
+  scenario: >
+    A reproduction package for a failing task is routed to a
+    managed issue tracker under explicit consent. The package body
+    is copied to the issue tracker (uploaded_copy) and held under
+    retention_minimum while the issue is open (policy_held). The
+    AI assistant the user consulted has an enterprise-secret-store
+    credential; the package excludes raw bytes and includes a
+    handle-only reference for audit.
+  contract_sections:
+    - consumer_mapping_rows.issue_package
+    - credential_storage_mode_rows.enterprise_secret_store
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: issue_package_uploaded_policy_held
+consumer_id: issue_package
+consumer_schema_ref: schemas/support/object_handoff_packet.schema.json
+consumer_contract_ref: docs/support/issue_package_contract.md
+record_class_ref: support_bundle_archive
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: self_hosted
+  policy_epoch: 1
+
+consent_markers:
+  - consent_id: consent.upload.issue_tracker_opaque_id
+    consent_scope_class: optional_upload_authorized
+    decision_class: approved
+    captured_via: support_center_preview
+    note: >
+      User approved routing the repro package to the customer-
+      hosted issue tracker.
+
+bundle_header_section:
+  artifact_entry_id: entry.issue_header
+  credential_storage_mode: handle_only
+  artifact_storage_mode: uploaded_copy
+  retention_mode: policy_held
+  hold_class_ref: retention_minimum
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Uploaded to support"
+    retention: "On legal / policy hold"
+  materialization:
+    optional_upload_ref: managed_ref.issue_tracker_opaque_id
+    local_retention_ref: local_ref.issue_header
+  decision_note: >
+    Header is the top-level issue packet. The customer-hosted issue
+    tracker holds the uploaded copy; the local cache is retained
+    for the user's reopen path.
+
+manifest_rows:
+  - artifact_entry_id: entry.repro_transcript
+    subject_matter: redacted terminal transcript from the failing task
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: policy_held
+    hold_class_ref: retention_minimum
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "On legal / policy hold"
+    materialization:
+      embedded_member_ref: bundle_member.redacted_transcript
+    decision_note: >
+      Terminal transcript embeds redacted content only; env-var
+      injections, command-line token shapes, and agent prompt
+      echoes were removed per the ADR-0007 terminal_transcript
+      rule.
+
+  - artifact_entry_id: entry.ai_assistant_handle
+    subject_matter: ai_provider_token (via enterprise broker)
+    credential_storage_mode: enterprise_secret_store
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: enterprise_vault_adapter
+    projection_mode_refs:
+      - alias_only
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "Enterprise secret store"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      The AI assistant credential lives in the customer's
+      enterprise vault adapter. The issue package names the class
+      and alias for audit; the raw token never rides the upload.
+
+  - artifact_entry_id: entry.repair_transaction_preview
+    artifact_kind_class: repair_transaction_preview
+    credential_storage_mode: handle_only
+    artifact_storage_mode: by_reference_evidence
+    retention_mode: audit_only
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Referenced, not embedded"
+      retention: "Audit only"
+    materialization:
+      managed_reference_ref: managed_ref.repair_transaction_opaque_id
+    decision_note: >
+      The repair-transaction log is retained for audit in the
+      managed archive. The issue packet points at it by reference;
+      the body is not embedded because audit_only requires a
+      single managed source of record.
+
+combination_rule_checks:
+  - rule_ref: rule:audit_only_requires_managed_source
+    outcome: satisfied
+    evidence: repair_transaction_preview uses by_reference_evidence with a managed_reference_ref.
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: ai_assistant_handle is intentionally_excluded; repro_transcript embeds redacted content only.
+  - rule_ref: rule:local_only_is_never_exportable
+    outcome: not_applicable
+    evidence: No local_only rows after upload.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "handled securely"
+    occurrences: 0
+  - phrase: "encrypted at rest"
+    occurrences: 0

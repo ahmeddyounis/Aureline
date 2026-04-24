@@ -1,0 +1,987 @@
+# Storage-mode, retention-mode, and raw-secret-exclusion vocabulary register.
+#
+# Machine-readable companion to
+# docs/governance/storage_and_retention_vocabulary.md. One explainable
+# vocabulary that credentials, support bundles, sync payloads, profile
+# exports, issue / incident packages, AI evidence packets, and other
+# retained artifacts share verbatim. Downstream consumers cite the stable
+# ids defined here instead of minting parallel storage labels or vague
+# phrasing such as "saved securely."
+#
+# This register composes three orthogonal axes — not one collapsed
+# lifecycle string:
+#
+#   1. credential_storage_mode: where a secret or credential materialises
+#      (system_credential_store, enterprise_secret_store, session_only,
+#      handle_only, delegated, not_configured).
+#   2. artifact_storage_mode: where an exported or retained artifact body
+#      actually lives (local_only, uploaded_copy, mirrored_copy,
+#      embedded_evidence, by_reference_evidence, intentionally_excluded).
+#   3. retention_mode: how long the record or export lasts and whether
+#      raw secrets are excluded (expiring, pinned, policy_held,
+#      exportable, audit_only, raw_secret_excluded).
+#
+# Every consumer must declare all three axes on every export row. Silent
+# defaults and free-text substitutes ("saved securely", "kept on your
+# device", "handled safely") are non-conforming.
+#
+# Rules.
+#   - Adding a vocabulary value is additive-minor and bumps
+#     schema_version on this file in the same change.
+#   - Repurposing a vocabulary value is breaking and opens a decision
+#     row under artifacts/governance/decision_index.yaml.
+#   - credential_storage_mode rows reuse the frozen trust-store classes
+#     and projection modes from
+#     docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md;
+#     aliasing them is non-conforming.
+#   - artifact_storage_mode rows agree value-for-value with the
+#     artifact_storage_mode and evidence_embedding_state enums frozen in
+#     schemas/support/support_bundle.schema.json. The pair_with_* fields
+#     on each row pin the corresponding enum values.
+#   - retention_mode rows agree with the retention posture shape frozen
+#     in artifacts/governance/record_class_registry.yaml and the
+#     retention_class_vocabulary frozen in
+#     artifacts/governance/deployment_profiles.yaml. This register does
+#     not replace per-record-class retention posture; it names the
+#     user-visible retention mode that each record-class row projects
+#     onto.
+#   - consumer_mapping_rows name the default credential_storage_mode,
+#     artifact_storage_mode, and retention_mode for every retained-
+#     artifact consumer family (support bundle, sync payload, profile
+#     export, issue package, incident bundle, AI evidence packet,
+#     generic retained evidence). Consumers MAY narrow the default;
+#     they MAY NOT widen past it without a named decision row.
+#   - raw_secret_excluded is a mandatory retention marker on every
+#     exportable row that references a credential class; it is NOT a
+#     storage mode.
+#   - The literal string "saved securely" and equivalent vague phrasing
+#     ("stored safely", "kept private", "handled securely") MUST NOT
+#     appear in any user-facing surface, any export manifest, or any
+#     docs/help page that cites this register.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field. Describe what the row covers, not which planning item it
+#     came from.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/governance/storage_and_retention_vocabulary.md
+fixture_home: fixtures/governance/export_redaction_examples/
+control_artifact_index_source: artifacts/governance/control_artifact_index.yaml
+record_class_registry_source: artifacts/governance/record_class_registry.yaml
+deployment_profiles_source: artifacts/governance/deployment_profiles.yaml
+support_bundle_schema_source: schemas/support/support_bundle.schema.json
+secret_broker_adr_source: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+ai_evidence_schema_sources:
+  - schemas/ai/evidence_packet.schema.json
+  - schemas/ai/evidence_replay_packet.schema.json
+  - schemas/ai/audit_storage_manifest.schema.json
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.24 local-first operation"
+      - "§5.53 managed control-plane boundary"
+      - "§5.57 air-gapped operation"
+      - "Appendix AN continuity truth"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.6 managed-service separation"
+      - "§9.7 local-core resilience"
+      - "§9.8 mirror and offline posture"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.4.2 control-plane degrade"
+      - "§11.4.3 data-plane degrade"
+  - path: .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+    anchors:
+      - "Credential-state presentation rows"
+      - "Retention-state presentation rows"
+  - path: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+    anchors:
+      - "Trust-store classes (frozen)"
+      - "Projection modes (frozen)"
+      - "Redaction defaults (frozen)"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# Adding a value is additive-minor; repurposing a value is breaking.
+# -----------------------------------------------------------------------------
+
+credential_storage_mode_vocabulary:
+  - system_credential_store
+  - enterprise_secret_store
+  - session_only
+  - handle_only
+  - delegated
+  - not_configured
+
+artifact_storage_mode_vocabulary:
+  - local_only
+  - uploaded_copy
+  - mirrored_copy
+  - embedded_evidence
+  - by_reference_evidence
+  - intentionally_excluded
+
+retention_mode_vocabulary:
+  - expiring
+  - pinned
+  - policy_held
+  - exportable
+  - audit_only
+  - raw_secret_excluded
+
+# Cross-register pins. The artifact-mode enum on this register is
+# isomorphic to the support-bundle schema's artifact_storage_mode plus
+# evidence_embedding_state pair. The table below names the canonical
+# support_bundle.schema.json enum value every artifact_storage_mode row
+# projects onto so the two schemas stay in lockstep.
+artifact_storage_mode_support_bundle_pins:
+  local_only:
+    support_bundle_artifact_storage_mode: local_only_copy_retained
+    support_bundle_evidence_embedding_state: by_reference
+  uploaded_copy:
+    support_bundle_artifact_storage_mode: optional_upload_candidate
+    support_bundle_evidence_embedding_state: by_reference
+  mirrored_copy:
+    support_bundle_artifact_storage_mode: managed_reference_only
+    support_bundle_evidence_embedding_state: by_reference
+  embedded_evidence:
+    support_bundle_artifact_storage_mode: embedded_export_copy
+    support_bundle_evidence_embedding_state: embedded
+  by_reference_evidence:
+    support_bundle_artifact_storage_mode: managed_reference_only
+    support_bundle_evidence_embedding_state: by_reference
+  intentionally_excluded:
+    support_bundle_artifact_storage_mode: intentionally_excluded
+    support_bundle_evidence_embedding_state: omitted
+
+# Forbidden phrasing. These strings MUST NOT appear in any user-facing
+# surface, export manifest, or docs / help page that cites this
+# register. The register itself is the only place this list may appear
+# verbatim, so drift scans can find it.
+forbidden_user_facing_phrases:
+  - "saved securely"
+  - "stored safely"
+  - "kept private"
+  - "handled securely"
+  - "secured automatically"
+  - "encrypted at rest"   # not a storage mode; use a credential_storage_mode_id plus a retention_mode_id.
+
+# -----------------------------------------------------------------------------
+# Credential-storage-mode rows.
+#
+# Each row names one place a secret or credential may materialise, the
+# ADR-0007 trust-store class it is backed by, the projection modes that
+# resolve against it, the required user-facing label, and the set of
+# retention modes that are valid alongside it. handle_only and
+# not_configured rows are not storage modes in the literal sense; they
+# are truth states the UI MUST render instead of hiding the secret
+# under a vague default.
+# -----------------------------------------------------------------------------
+
+credential_storage_mode_rows:
+  - credential_storage_mode_id: system_credential_store
+    title: System credential store
+    required_user_facing_label: "System credential store"
+    summary: >
+      The host operating-system secret store (macOS Keychain, Windows
+      Credential Manager / DPAPI, Linux libsecret / kwallet / GNOME
+      Keyring) holds the material. Unlock follows the platform login
+      plus per-item prompts where the platform supports them.
+    trust_store_class_refs:
+      - os_keychain
+    typical_projection_mode_refs:
+      - alias_only
+      - broker_callback
+      - request_header_signer
+      - inspect_metadata
+      - reveal_on_demand
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - exportable   # raw material from a system credential store never projects into an export body.
+    forbidden_combinations:
+      - "Pairing system_credential_store with artifact_storage_mode embedded_evidence on a row that references raw credential bytes."
+      - "Describing this mode as 'saved securely' or any phrase on forbidden_user_facing_phrases."
+    notes: >
+      Preferred for user-class secrets on desktop. When the store is
+      locked, surfaces render the unlock state from ADR-0007 (locked,
+      unlocking, step_up_required, degraded_session_only, unavailable);
+      they do not invent a secondary status string.
+
+  - credential_storage_mode_id: enterprise_secret_store
+    title: Enterprise secret store
+    required_user_facing_label: "Enterprise secret store"
+    summary: >
+      A brokered integration to an enterprise secret manager, vault, or
+      KMS / HSM surface holds the material. Unlock is governed by the
+      enterprise session plus policy-bound re-auth. Customer-managed
+      tenants prefer this mode.
+    trust_store_class_refs:
+      - enterprise_vault_adapter
+      - hsm_or_kms_backed
+    typical_projection_mode_refs:
+      - alias_only
+      - broker_callback
+      - sign_only
+      - decrypt_only
+      - token_exchange
+      - inspect_metadata
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - exportable
+    forbidden_combinations:
+      - "Exporting raw enterprise-vault material in any artifact_storage_mode; the only valid shape is handle_only plus raw_secret_excluded."
+      - "Describing this mode as a 'cloud password'; name the adapter class and the unlock state verbatim."
+    notes: >
+      HSM / KMS-backed signing keys have no alternative and MUST NOT
+      fall back to session_only. Signing rows fail closed when
+      enterprise_secret_store is unavailable.
+
+  - credential_storage_mode_id: session_only
+    title: Session only
+    required_user_facing_label: "Session only"
+    summary: >
+      Material lives in the broker's in-memory cache for the current
+      process life only. Never written to disk. Used as a degraded
+      fallback when the preferred secure store is unavailable, and as
+      the normal lifetime for ephemeral operation tokens.
+    trust_store_class_refs:
+      - session_memory_cache
+    typical_projection_mode_refs:
+      - broker_callback
+      - request_header_signer
+      - ephemeral_fd
+      - env_var_isolated_child
+      - token_exchange
+      - inspect_metadata
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - expiring
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - pinned
+      - policy_held
+      - audit_only
+      - exportable
+    forbidden_combinations:
+      - "Using session_only for signing_key_material; signing without a stronger store is forbidden by ADR-0007."
+      - "Silently upgrading session_only to a persistent store when a store returns; re-auth is required."
+    notes: >
+      Surfaces render session_only with a visible, non-dismissable
+      badge. The mode clears on process exit, trust-state change,
+      policy-epoch roll, or explicit user lock.
+
+  - credential_storage_mode_id: handle_only
+    title: Handle only
+    required_user_facing_label: "Handle only"
+    summary: >
+      The consumer holds a broker-minted credential handle and / or a
+      user-stable alias. No raw material is present on the consumer
+      side. This is the default shape on profiles, recipes, sync
+      payloads, support bundles, and mutation-journal entries.
+    trust_store_class_refs: []
+    typical_projection_mode_refs:
+      - alias_only
+      - inspect_metadata
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids: []
+    forbidden_combinations:
+      - "Embedding raw bytes alongside a handle_only row; the presence of raw bytes promotes the row to a different credential_storage_mode and fails drift review."
+    notes: >
+      handle_only is the only credential_storage_mode valid on
+      profile_export and sync_payload consumers. The handle itself
+      MUST NOT be persisted in workspace files, sync exports, recipes,
+      or support bundles; profiles carry aliases, not handles.
+
+  - credential_storage_mode_id: delegated
+    title: Delegated
+    required_user_facing_label: "Delegated"
+    summary: >
+      A platform agent (SSH agent, platform smartcard / YubiKey agent,
+      OS biometric agent) or a managed policy injector materialises a
+      narrow ephemeral credential at call time. The broker never holds
+      the raw material; it holds only the delegation reference.
+    trust_store_class_refs:
+      - platform_agent
+      - managed_policy_injector
+    typical_projection_mode_refs:
+      - sign_only
+      - decrypt_only
+      - policy_materialised
+      - token_exchange
+      - inspect_metadata
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - exportable
+    forbidden_combinations:
+      - "Claiming delegated mode while the broker actually caches raw bytes in session memory; that is session_only, not delegated."
+    notes: >
+      Delegated rows carry a delegation ref, not raw material. Managed-
+      policy-injector variants are approval-ticket-gated per use and
+      MUST NOT be treated as a long-lived store.
+
+  - credential_storage_mode_id: not_configured
+    title: Not configured
+    required_user_facing_label: "Not configured"
+    summary: >
+      No credential has been registered for this capability. Surfaces
+      render "Not configured" and name the capability that would
+      register one; they do not render an empty state or a silent
+      default.
+    trust_store_class_refs: []
+    typical_projection_mode_refs: []
+    raw_material_in_exports: never
+    allowed_retention_mode_ids:
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+    forbidden_combinations:
+      - "Rendering 'not_configured' as 'saved securely' or any phrase on forbidden_user_facing_phrases."
+      - "Emitting a raw_secret_excluded export row for not_configured without explicitly labelling the capability absence."
+    notes: >
+      not_configured is a distinct truth state, not an error. Consumers
+      MUST NOT fall through to a vague 'unknown' label or hide the
+      capability; the absence is itself the declared posture.
+
+# -----------------------------------------------------------------------------
+# Artifact-storage-mode rows.
+#
+# Each row names where an exported or retained artifact body actually
+# lives, pairs against the support-bundle schema's artifact_storage_mode
+# and evidence_embedding_state enums, and declares which retention
+# modes and which embedding states may coexist on the same row.
+# -----------------------------------------------------------------------------
+
+artifact_storage_mode_rows:
+  - artifact_storage_mode_id: local_only
+    title: Local only
+    required_user_facing_label: "On this device"
+    summary: >
+      The artifact body stays on the local device. The export manifest
+      carries a reference, not bytes. Uploading, mirroring, or
+      embedding the body requires an explicit consent decision that
+      promotes the row to a different mode.
+    pair_with_support_bundle_artifact_storage_mode: local_only_copy_retained
+    pair_with_support_bundle_evidence_embedding_state: by_reference
+    bytes_leave_device: false
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - audit_only   # audit_only implies durable managed retention; local_only does not guarantee it.
+    forbidden_combinations:
+      - "Marking a local_only row 'exportable' without also promoting the storage mode to uploaded_copy or mirrored_copy in the same change."
+    notes: >
+      Retained local evidence (crash payloads awaiting support-case
+      creation, draft support bundles, unrouted issue packages, AI
+      replay caches) sits here until an explicit consent decision
+      promotes it to an uploaded_copy, mirrored_copy, or embedded
+      shape.
+
+  - artifact_storage_mode_id: uploaded_copy
+    title: Uploaded copy
+    required_user_facing_label: "Uploaded to support"
+    summary: >
+      A copy of the artifact body has been uploaded to a managed
+      support, issue, or incident destination under explicit consent.
+      The local copy may or may not be retained; this mode describes
+      the uploaded body.
+    pair_with_support_bundle_artifact_storage_mode: optional_upload_candidate
+    pair_with_support_bundle_evidence_embedding_state: by_reference
+    bytes_leave_device: true
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids: []
+    forbidden_combinations:
+      - "Promoting local_only → uploaded_copy without a consent_marker on the bundle; consent must be recorded."
+      - "Declaring uploaded_copy while the body is not actually reachable from the manifest; this is a drift failure."
+    notes: >
+      Uploaded-copy rows cite a managed destination ref and a consent
+      id. Rotating the local copy never rotates the uploaded copy; the
+      two retention timers are separately governed.
+
+  - artifact_storage_mode_id: mirrored_copy
+    title: Mirrored copy
+    required_user_facing_label: "Mirrored to managed store"
+    summary: >
+      The artifact body lives in a managed remote store (support
+      archive, incident store, tenant evidence locker, SBOM mirror).
+      The exported manifest carries a reference to the managed copy;
+      the local device carries at most a preview.
+    pair_with_support_bundle_artifact_storage_mode: managed_reference_only
+    pair_with_support_bundle_evidence_embedding_state: by_reference
+    bytes_leave_device: true
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids: []
+    forbidden_combinations:
+      - "Presenting a mirrored_copy row as local_only in a preview; the preview MUST name the managed store."
+    notes: >
+      Mirrored-copy rows are the default for collaboration evidence
+      packets, incident bundles, and offboarding exit packets whose
+      managed archive is the source of record.
+
+  - artifact_storage_mode_id: embedded_evidence
+    title: Embedded evidence
+    required_user_facing_label: "Embedded in this export"
+    summary: >
+      The artifact body is embedded inside the export bundle as a
+      bundle member. Readers open the bundle and see the body; no
+      external fetch is required.
+    pair_with_support_bundle_artifact_storage_mode: embedded_export_copy
+    pair_with_support_bundle_evidence_embedding_state: embedded
+    bytes_leave_device: true
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - audit_only   # audit_only implies a single source-of-record; embedded duplicates that source.
+    forbidden_combinations:
+      - "Embedding raw credential bytes under any credential_storage_mode; raw_secret_excluded must be asserted."
+      - "Embedding content that the manifest also lists as intentionally_excluded elsewhere."
+    notes: >
+      Embedded evidence is the only shape that actually puts bytes
+      inside the exported container. Every embedded row MUST assert
+      raw_secret_excluded when any credential reference is adjacent.
+
+  - artifact_storage_mode_id: by_reference_evidence
+    title: By-reference evidence
+    required_user_facing_label: "Referenced, not embedded"
+    summary: >
+      The bundle points at evidence that lives elsewhere (managed
+      archive, sibling packet, prior bundle). Readers follow the
+      reference to retrieve the body. The reference itself is stable
+      and safe to log.
+    pair_with_support_bundle_artifact_storage_mode: managed_reference_only
+    pair_with_support_bundle_evidence_embedding_state: by_reference
+    bytes_leave_device: false
+    allowed_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+      - raw_secret_excluded
+    forbidden_retention_mode_ids: []
+    forbidden_combinations:
+      - "Claiming by_reference_evidence without naming the managed store, prior bundle, or sibling packet that resolves the reference."
+    notes: >
+      By-reference evidence is the preferred shape for AI evidence
+      packets whose source-of-record lives in the AI audit-storage
+      manifest, and for incident bundles that cite a shared emergency-
+      action record rather than duplicating it.
+
+  - artifact_storage_mode_id: intentionally_excluded
+    title: Intentionally excluded
+    required_user_facing_label: "Intentionally excluded"
+    summary: >
+      The artifact class is named in the manifest so reviewers can see
+      what is absent and why. The body is not embedded, not uploaded,
+      not mirrored, and not referenced.
+    pair_with_support_bundle_artifact_storage_mode: intentionally_excluded
+    pair_with_support_bundle_evidence_embedding_state: omitted
+    bytes_leave_device: false
+    allowed_retention_mode_ids:
+      - raw_secret_excluded
+    forbidden_retention_mode_ids:
+      - expiring
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+    forbidden_combinations:
+      - "Silently omitting an artifact class without a row here and a decision_reason_class from the support-bundle manifest."
+    notes: >
+      Exclusions are visible, not invisible. Every intentionally_
+      excluded row cites an omission_reason_class from the support-
+      bundle schema so the absence is as auditable as the inclusion.
+
+# -----------------------------------------------------------------------------
+# Retention-mode rows.
+#
+# Each row names one retention posture: how long the record or export
+# body lasts, whether raw secrets are excluded, and which storage modes
+# it is valid against. retention_mode rows compose over the per-record-
+# class retention posture in record_class_registry.yaml; they do not
+# replace it.
+# -----------------------------------------------------------------------------
+
+retention_mode_rows:
+  - retention_mode_id: expiring
+    title: Expiring
+    required_user_facing_label: "Expires on {trigger}"
+    summary: >
+      The record or export body is cleared when its default retention
+      trigger fires (packet expiry, case close, session end, version
+      replace, user reset). Every row names its trigger in the
+      record-class row it projects from.
+    default_trigger_class_refs:
+      - packet_expiry_or_case_close
+      - case_close_or_policy_timer
+      - session_end_or_archive_seal
+      - version_replace_or_user_reset
+      - billing_period_close_or_policy_event
+    hold_eligibility: eligible_if_record_class_allows
+    allowed_storage_mode_ids:
+      - local_only
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    forbidden_storage_mode_ids:
+      - intentionally_excluded
+    notes: >
+      Expiring is the default retention mode for every support bundle,
+      sync payload, and AI evidence packet unless a stricter posture
+      (pinned, policy_held, audit_only) is declared.
+
+  - retention_mode_id: pinned
+    title: Pinned
+    required_user_facing_label: "Pinned"
+    summary: >
+      The user or admin has pinned the record past its default
+      expiry trigger. Pinned rows MUST carry the original expiry
+      trigger on the row they projected from, so the preview explains
+      what would have expired without the pin.
+    default_trigger_class_refs:
+      - user_pin
+      - admin_pin
+    hold_eligibility: not_applicable
+    allowed_storage_mode_ids:
+      - local_only
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    forbidden_storage_mode_ids:
+      - intentionally_excluded
+    notes: >
+      Pinning a local_only record does not upload it. Pinning a
+      mirrored_copy record does not duplicate the managed copy. The
+      pin is a retention marker, not a storage promotion.
+
+  - retention_mode_id: policy_held
+    title: Policy held
+    required_user_facing_label: "On legal / policy hold"
+    summary: >
+      The record is retained under an administrative, legal, support-
+      investigation, retention-minimum, or export-pending hold drawn
+      from the record-class registry. Deletion requests succeed only
+      when the hold clears; the destruction receipt retains the held
+      subset explicitly.
+    default_trigger_class_refs:
+      - hold_release
+    hold_eligibility: required_by_row
+    allowed_storage_mode_ids:
+      - local_only
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    forbidden_storage_mode_ids:
+      - intentionally_excluded
+    notes: >
+      policy_held carries a hold class from record_class_registry
+      (administrative_legal, support_investigation, retention_minimum,
+      export_pending) and a hold owner. Previews name the hold class;
+      they do not hide it behind a generic "locked" label.
+
+  - retention_mode_id: exportable
+    title: Exportable
+    required_user_facing_label: "Exportable"
+    summary: >
+      The record is included in the active export packet (support
+      bundle, offboarding packet, issue package, incident bundle, AI
+      evidence packet, usage export). exportable is a marker on the
+      record, not a promise that any particular consumer will read it.
+    default_trigger_class_refs:
+      - export_packet_scope
+    hold_eligibility: not_applicable
+    allowed_storage_mode_ids:
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    forbidden_storage_mode_ids:
+      - local_only
+      - intentionally_excluded
+    notes: >
+      exportable is only valid on rows whose bytes actually leave the
+      device (uploaded_copy / mirrored_copy / embedded_evidence /
+      by_reference_evidence). local_only rows are not exportable by
+      definition; promote the storage mode first.
+
+  - retention_mode_id: audit_only
+    title: Audit only
+    required_user_facing_label: "Audit only"
+    summary: >
+      The record is retained for audit, compliance, or forensic
+      lineage only. Review, preview, and export surfaces render the
+      record by reference or as redacted metadata; raw body retrieval
+      requires a separate policy-authorised flow.
+    default_trigger_class_refs:
+      - audit_retention_floor
+      - compliance_retention_floor
+    hold_eligibility: eligible_if_record_class_allows
+    allowed_storage_mode_ids:
+      - mirrored_copy
+      - by_reference_evidence
+    forbidden_storage_mode_ids:
+      - local_only
+      - uploaded_copy
+      - embedded_evidence
+      - intentionally_excluded
+    notes: >
+      audit_only rows live in the managed audit store. Embedding the
+      body inside a user-facing export is forbidden; previews quote
+      the audit reference plus redacted metadata.
+
+  - retention_mode_id: raw_secret_excluded
+    title: Raw secret excluded
+    required_user_facing_label: "Raw secrets excluded"
+    summary: >
+      The record, body, or export contains NO raw secret material of
+      any class. Handles, aliases, consumer ids, class names, failure
+      codes, signed proofs, and attestations MAY appear; raw bytes,
+      raw headers, raw env-var values, raw private keys, raw
+      notarization creds, and raw release-publish tokens MUST NOT.
+    default_trigger_class_refs:
+      - secret_redaction_default
+    hold_eligibility: not_applicable
+    allowed_storage_mode_ids:
+      - local_only
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+      - intentionally_excluded
+    forbidden_storage_mode_ids: []
+    notes: >
+      raw_secret_excluded is mandatory on every exportable row whose
+      subject matter references any credential class from ADR-0007.
+      The marker is asserted on the row and on the governance-and-
+      export-controls section of the support-bundle manifest; it is
+      NOT a storage mode and MUST NOT be conflated with handle_only.
+
+# -----------------------------------------------------------------------------
+# Consumer-mapping rows.
+#
+# One row per retained-artifact consumer family (support bundle, sync
+# payload, profile export, issue package, incident bundle, AI evidence
+# packet, generic retained evidence). Each row names the default
+# credential_storage_mode, artifact_storage_mode, and retention_mode
+# that consumer family projects, plus the schemas / docs that cite
+# this register. Consumers MAY narrow the default; they MAY NOT widen
+# past it without a named decision row.
+# -----------------------------------------------------------------------------
+
+consumer_mapping_rows:
+  - consumer_id: support_bundle
+    title: Support bundle
+    schema_refs:
+      - schemas/support/support_bundle.schema.json
+    contract_doc_refs:
+      - docs/support/support_bundle_contract.md
+    record_class_ref: support_bundle_archive
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: local_only
+    default_retention_mode: expiring
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - pinned
+      - policy_held
+      - exportable
+    forbidden_combinations:
+      - "Promoting local_only → uploaded_copy without a consent_marker on the bundle."
+      - "Emitting a support bundle that embeds raw credential bytes under any class."
+    notes: >
+      Support bundles are the baseline consumer. Local review is
+      local_only + expiring. Escalation to a managed support case
+      promotes the storage mode to uploaded_copy or mirrored_copy and
+      typically promotes retention to pinned or policy_held.
+
+  - consumer_id: sync_payload
+    title: Sync payload
+    schema_refs:
+      - schemas/settings/settings_sync_payload.schema.json
+    contract_doc_refs:
+      - docs/settings/settings_sync_contract.md
+    record_class_ref: null
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: mirrored_copy
+    default_retention_mode: expiring
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - pinned
+      - policy_held
+    forbidden_combinations:
+      - "Placing any credential_storage_mode other than handle_only on a sync_payload row."
+      - "Embedding raw bytes in a sync payload; sync payloads are alias-only by ADR-0007."
+    notes: >
+      Sync payloads move settings, profile state, and preferences
+      across the user's own devices through a managed mirror. Raw
+      secrets never ride the payload; aliases do.
+
+  - consumer_id: profile_export
+    title: Profile export
+    schema_refs:
+      - schemas/profile/profile_export.schema.json
+    contract_doc_refs:
+      - docs/profile/profile_export_contract.md
+    record_class_ref: null
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: embedded_evidence
+    default_retention_mode: exportable
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - pinned
+      - policy_held
+    forbidden_combinations:
+      - "Placing any credential_storage_mode other than handle_only on a profile_export row."
+      - "Claiming exportable on a row whose bytes still live in local_only."
+    notes: >
+      Profile exports are a user-initiated portable snapshot of the
+      user's own configuration. Bodies embed directly; credentials
+      project as aliases only.
+
+  - consumer_id: issue_package
+    title: Issue package
+    schema_refs:
+      - schemas/support/object_handoff_packet.schema.json
+    contract_doc_refs:
+      - docs/support/issue_package_contract.md
+    record_class_ref: support_bundle_archive
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: uploaded_copy
+    default_retention_mode: policy_held
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - mirrored_copy
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - audit_only
+    forbidden_combinations:
+      - "Rendering an issue-package row as local_only after an issue has been filed; the upload already happened."
+    notes: >
+      Issue packages are bundles routed to a managed issue, support
+      case, or vendor contact under explicit consent. The default is
+      uploaded_copy + policy_held because the managed receiver owns
+      the retention timer.
+
+  - consumer_id: incident_bundle
+    title: Incident bundle
+    schema_refs:
+      - schemas/security/incident_workspace_packet.schema.json
+    contract_doc_refs:
+      - docs/support/incident_workspace_contract.md
+    record_class_ref: collaboration_evidence_packet
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: mirrored_copy
+    default_retention_mode: policy_held
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - audit_only
+      - pinned
+    forbidden_combinations:
+      - "Embedding raw incident bytes in a local_only row; incident evidence lives in the managed incident store."
+    notes: >
+      Incident bundles live in the managed incident store with a
+      tenant-scoped retention floor. Local previews are by-reference
+      only; policy_held is the normal retention posture while the
+      incident is open.
+
+  - consumer_id: ai_evidence_packet
+    title: AI evidence packet
+    schema_refs:
+      - schemas/ai/evidence_packet.schema.json
+      - schemas/ai/evidence_replay_packet.schema.json
+      - schemas/ai/audit_storage_manifest.schema.json
+    contract_doc_refs:
+      - docs/ai/context_assembly_contract.md
+      - docs/ai/evidence_replayability_contract.md
+    record_class_ref: ai_retained_evidence_packet
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: by_reference_evidence
+    default_retention_mode: expiring
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - embedded_evidence
+      - mirrored_copy
+    allowed_retention_mode_promotions:
+      - pinned
+      - policy_held
+      - audit_only
+    forbidden_combinations:
+      - "Embedding raw AI-provider tokens or route-spend receipts containing raw secrets; raw_secret_excluded is mandatory."
+    notes: >
+      AI evidence packets default to by_reference because the AI
+      audit-storage manifest is the source of record. Embedded
+      variants include the citation body but still exclude raw
+      credentials.
+
+  - consumer_id: retained_evidence_generic
+    title: Retained evidence (generic)
+    schema_refs:
+      - schemas/governance/evidence_packet_header.schema.json
+    contract_doc_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/record_state_and_policy_simulation_models.md
+    record_class_ref: null
+    default_credential_storage_mode: handle_only
+    default_artifact_storage_mode: local_only
+    default_retention_mode: expiring
+    raw_secret_excluded_required: true
+    allowed_artifact_storage_mode_promotions:
+      - uploaded_copy
+      - mirrored_copy
+      - embedded_evidence
+      - by_reference_evidence
+    allowed_retention_mode_promotions:
+      - pinned
+      - policy_held
+      - exportable
+      - audit_only
+    forbidden_combinations:
+      - "Emitting a retained-evidence row without naming a record_class_id from artifacts/governance/record_class_registry.yaml."
+    notes: >
+      Fallback row for retained-evidence classes not yet named by a
+      dedicated consumer. Every such row MUST eventually cite a
+      record_class_id from the record-class registry so retention
+      lineage is explicit.
+
+# -----------------------------------------------------------------------------
+# Combination rules.
+#
+# Cross-axis allowed / forbidden combinations. These rules are
+# validation-relevant; tooling that emits an export manifest MUST
+# refuse to emit a row that violates a forbidden combination.
+# -----------------------------------------------------------------------------
+
+combination_rules:
+  - rule_id: rule:raw_secrets_never_embedded
+    description: >
+      A row whose artifact_storage_mode is embedded_evidence and whose
+      subject matter names any credential class MUST assert
+      raw_secret_excluded. Embedding raw credential bytes is forbidden
+      under every credential_storage_mode in this register.
+    forbidden_pairs:
+      - credential_storage_mode: any_with_credential_reference
+        artifact_storage_mode: embedded_evidence
+        retention_mode: not raw_secret_excluded
+  - rule_id: rule:local_only_is_never_exportable
+    description: >
+      A local_only row cannot carry the exportable retention mode.
+      Promote the storage mode first.
+    forbidden_pairs:
+      - artifact_storage_mode: local_only
+        retention_mode: exportable
+  - rule_id: rule:audit_only_requires_managed_source
+    description: >
+      audit_only retention requires a managed source of record
+      (mirrored_copy or by_reference_evidence). Local-only, uploaded,
+      or embedded shapes do not satisfy the single-source-of-record
+      requirement.
+    forbidden_pairs:
+      - artifact_storage_mode: local_only
+        retention_mode: audit_only
+      - artifact_storage_mode: uploaded_copy
+        retention_mode: audit_only
+      - artifact_storage_mode: embedded_evidence
+        retention_mode: audit_only
+      - artifact_storage_mode: intentionally_excluded
+        retention_mode: audit_only
+  - rule_id: rule:session_only_never_persists
+    description: >
+      session_only credential material MUST NOT be paired with
+      retention modes that imply persistence (pinned, policy_held,
+      audit_only, exportable). The only valid retention modes are
+      expiring and raw_secret_excluded.
+    forbidden_pairs:
+      - credential_storage_mode: session_only
+        retention_mode: pinned
+      - credential_storage_mode: session_only
+        retention_mode: policy_held
+      - credential_storage_mode: session_only
+        retention_mode: audit_only
+      - credential_storage_mode: session_only
+        retention_mode: exportable
+  - rule_id: rule:not_configured_is_visible
+    description: >
+      not_configured rows MUST render the required_user_facing_label
+      "Not configured" and cite the capability that would register
+      one. Silent empty states and "saved securely" substitutes are
+      non-conforming.
+    forbidden_pairs:
+      - credential_storage_mode: not_configured
+        retention_mode: pinned
+      - credential_storage_mode: not_configured
+        retention_mode: policy_held
+      - credential_storage_mode: not_configured
+        retention_mode: exportable
+      - credential_storage_mode: not_configured
+        retention_mode: audit_only
+  - rule_id: rule:intentionally_excluded_is_visible
+    description: >
+      An intentionally_excluded row MUST carry an omission_reason_class
+      drawn from the support-bundle schema's omission_reason_class
+      enum. Silent exclusions are non-conforming.
+    required_pairs:
+      - artifact_storage_mode: intentionally_excluded
+        retention_mode: raw_secret_excluded

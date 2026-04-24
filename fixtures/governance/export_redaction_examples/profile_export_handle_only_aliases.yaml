@@ -1,0 +1,123 @@
+__fixture__:
+  name: profile_export_handle_only_aliases
+  scenario: >
+    A user exports their personal profile (themes, keybindings,
+    connected-provider aliases, recipe shortcuts) to a portable
+    archive. The archive embeds user-authored settings; credentials
+    project as handle_only aliases. No raw token, SSH key, client
+    certificate, or AI-provider bearer is embedded, uploaded, or
+    mirrored.
+  contract_sections:
+    - consumer_mapping_rows.profile_export
+    - combination_rules.rule:raw_secrets_never_embedded
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: profile_export_handle_only_aliases
+consumer_id: profile_export
+consumer_schema_ref: schemas/profile/profile_export.schema.json
+consumer_contract_ref: docs/profile/profile_export_contract.md
+record_class_ref: null
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: individual_local
+  policy_epoch: 1
+
+bundle_header_section:
+  artifact_entry_id: entry.profile_header
+  credential_storage_mode: handle_only
+  artifact_storage_mode: embedded_evidence
+  retention_mode: exportable
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Embedded in this export"
+    retention: "Exportable"
+  materialization:
+    embedded_member_ref: bundle_member.profile_header
+  decision_note: >
+    Profile header is the portable top-level record; it embeds the
+    user's identity alias and the export timestamp.
+
+manifest_rows:
+  - artifact_entry_id: entry.themes_and_keybindings
+    subject_matter: user themes and keybindings
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: exportable
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "Exportable"
+    materialization:
+      embedded_member_ref: bundle_member.ui_prefs
+    decision_note: >
+      User-authored preferences. No credentials referenced; raw_
+      secret_excluded is still asserted per the profile_export
+      consumer contract.
+
+  - artifact_entry_id: entry.connected_provider_aliases
+    subject_matter: connected ai_provider_token and code_host_token entries (aliases only)
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: exportable
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: os_keychain
+    projection_mode_refs:
+      - alias_only
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "Raw secrets excluded"
+    materialization:
+      embedded_member_ref: bundle_member.provider_aliases
+    decision_note: >
+      Provider connections ride the export as user-stable aliases
+      only (ADR-0007 alias_only projection). The receiving device
+      re-registers the secrets through its own credential broker.
+
+  - artifact_entry_id: entry.ssh_key_reference
+    subject_matter: ssh_key_material
+    credential_storage_mode: handle_only
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: platform_agent
+    projection_mode_refs:
+      - alias_only
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      SSH private keys live in the platform agent and never ride a
+      profile export. The profile names the key by alias; the
+      receiving device rebinds to its own agent.
+
+combination_rule_checks:
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: connected_provider_aliases row embeds aliases only; ssh_key_reference is intentionally_excluded.
+  - rule_ref: rule:local_only_is_never_exportable
+    outcome: satisfied
+    evidence: No local_only rows in a profile export by design.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

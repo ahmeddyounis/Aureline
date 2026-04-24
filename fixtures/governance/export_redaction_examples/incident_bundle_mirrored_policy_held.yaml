@@ -1,0 +1,137 @@
+__fixture__:
+  name: incident_bundle_mirrored_policy_held
+  scenario: >
+    A security incident opens an incident workspace packet. The
+    bundle body lives in the managed incident store (mirrored_copy)
+    and is retained under administrative_legal hold while the
+    investigation is open (policy_held). A signing key used during
+    the incident is named by delegated credential mode (HSM-backed
+    agent); raw bytes never ride the bundle. A session_only browser
+    token captured during the incident is named as a distinct
+    transient row — expiring + raw_secret_excluded — so reviewers
+    see the session material and the durable audit evidence
+    separately.
+  contract_sections:
+    - consumer_mapping_rows.incident_bundle
+    - credential_storage_mode_rows.delegated
+    - credential_storage_mode_rows.session_only
+    - combination_rules.rule:session_only_never_persists
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: incident_bundle_mirrored_policy_held
+consumer_id: incident_bundle
+consumer_schema_ref: schemas/security/incident_workspace_packet.schema.json
+consumer_contract_ref: docs/support/incident_workspace_contract.md
+record_class_ref: collaboration_evidence_packet
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: enterprise_online
+  policy_epoch: 1
+
+bundle_header_section:
+  artifact_entry_id: entry.incident_header
+  credential_storage_mode: handle_only
+  artifact_storage_mode: mirrored_copy
+  retention_mode: policy_held
+  hold_class_ref: administrative_legal
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Mirrored to managed store"
+    retention: "On legal / policy hold"
+  materialization:
+    managed_reference_ref: managed_ref.incident_store_opaque_id
+  decision_note: >
+    The incident header lives in the managed incident store with
+    an administrative_legal hold; local previews retrieve by
+    reference.
+
+manifest_rows:
+  - artifact_entry_id: entry.signing_key_delegation
+    subject_matter: signing_key_material used during the incident response
+    credential_storage_mode: delegated
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: hsm_or_kms_backed
+    projection_mode_refs:
+      - sign_only
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "Delegated"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      Signing key lives in the HSM. The incident bundle names the
+      signer identity and the signature bytes; raw private-key
+      material is never included, even under signing-class
+      handling.
+
+  - artifact_entry_id: entry.ephemeral_session_token
+    subject_matter: ephemeral_operation_token captured during incident triage
+    credential_storage_mode: session_only
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: session_memory_cache
+    projection_mode_refs:
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "Session only"
+      artifact: "Intentionally excluded"
+      retention: "Expires on session end"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      The browser-handoff token used during triage was minted
+      session-only and expired with the triage session. The bundle
+      names the class and the failure code; raw bytes are excluded
+      and session_only is never paired with a persistent retention
+      mode.
+
+  - artifact_entry_id: entry.redacted_console_capture
+    artifact_kind_class: log_capture
+    credential_storage_mode: handle_only
+    artifact_storage_mode: by_reference_evidence
+    retention_mode: audit_only
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Referenced, not embedded"
+      retention: "Audit only"
+    materialization:
+      managed_reference_ref: managed_ref.incident_audit_log_opaque_id
+    decision_note: >
+      The redacted console-capture timeline lives in the incident
+      audit store. Previews and reviewers follow the reference; no
+      embedded copy exists in the user-facing incident preview.
+
+combination_rule_checks:
+  - rule_ref: rule:session_only_never_persists
+    outcome: satisfied
+    evidence: ephemeral_session_token uses retention_mode = expiring; no persistent retention modes applied to session_only rows.
+  - rule_ref: rule:audit_only_requires_managed_source
+    outcome: satisfied
+    evidence: redacted_console_capture uses by_reference_evidence against the managed audit store.
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: All credential rows are intentionally_excluded; no raw material rides the bundle.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "kept private"
+    occurrences: 0

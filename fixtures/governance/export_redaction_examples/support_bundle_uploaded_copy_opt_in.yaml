@@ -1,0 +1,146 @@
+__fixture__:
+  name: support_bundle_uploaded_copy_opt_in
+  scenario: >
+    The same support bundle from support_bundle_local_only_retained
+    has been attached to a managed support case after the user
+    reviewed the preview and approved the upload. The bundle body
+    has been copied to the support-case store; the local copy is
+    retained and pinned so the user can reopen the bundle after the
+    case closes. Retention shifts from expiring to pinned on the
+    local side and to policy_held on the managed side. The
+    credential row remains system_credential_store + raw_secret_
+    excluded; no raw material rode the upload.
+  contract_sections:
+    - consumer_mapping_rows.support_bundle
+    - combination_rules.rule:local_only_is_never_exportable
+  pairs_with:
+    - support_bundle_local_only_retained   # pre-upload state of the same bundle.
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: support_bundle_uploaded_copy_opt_in
+consumer_id: support_bundle
+consumer_schema_ref: schemas/support/support_bundle.schema.json
+consumer_contract_ref: docs/support/support_bundle_contract.md
+record_class_ref: support_bundle_archive
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: enterprise_online
+  redaction_profile_ref: operator_only_restricted
+  policy_epoch: 1
+
+consent_markers:
+  - consent_id: consent.upload.support_case_opaque_id
+    consent_scope_class: optional_upload_authorized
+    decision_class: approved
+    captured_via: support_center_preview
+    note: >
+      User reviewed the preview and approved uploading to the
+      managed support case. Consent is recorded on the bundle.
+
+bundle_header_section:
+  artifact_entry_id: entry.bundle_header
+  bundle_section_class: governance_and_export_controls
+  artifact_kind_class: exact_build_identity_manifest
+  credential_storage_mode: handle_only
+  artifact_storage_mode: uploaded_copy
+  retention_mode: pinned
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Uploaded to support"
+    retention: "Pinned"
+  materialization:
+    optional_upload_ref: managed_ref.support_case_opaque_id
+    local_retention_ref: local_ref.bundle_header
+  decision_note: >
+    Header now carries two references: the uploaded copy in the
+    managed support case and the pinned local copy for user reopen.
+
+manifest_rows:
+  - artifact_entry_id: entry.ai_provider_token
+    bundle_section_class: governance_and_export_controls
+    artifact_kind_class: secret_broker_state
+    subject_matter: ai_provider_token (via broker)
+    credential_storage_mode: system_credential_store
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: os_keychain
+    projection_mode_refs:
+      - alias_only
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "System credential store"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      Upload promotes the bundle; it does not promote the secret.
+      The AI provider token remains in the OS keychain and is
+      named by class plus alias in the exported manifest.
+
+  - artifact_entry_id: entry.crash_envelope
+    bundle_section_class: fault_domain_and_restart_truth
+    artifact_kind_class: crash_envelope
+    credential_storage_mode: handle_only
+    artifact_storage_mode: uploaded_copy
+    retention_mode: policy_held
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Uploaded to support"
+      retention: "On legal / policy hold"
+    hold_class_ref: support_investigation
+    materialization:
+      optional_upload_ref: managed_ref.crash_envelope_opaque_id
+      local_retention_ref: local_ref.crash_envelope
+    decision_note: >
+      Crash envelope is now in the support case and is policy_held
+      for the investigation window. Local copy remains for user
+      reopen; the two retention timers are governed separately.
+
+  - artifact_entry_id: entry.log_capture
+    bundle_section_class: logs_traces_and_manifests
+    artifact_kind_class: log_capture
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: exportable
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "Exportable"
+    materialization:
+      embedded_member_ref: bundle_member.redacted_log_tail
+    decision_note: >
+      Embedded log tail rides the upload as an embedded bundle
+      member. Redaction from the pre-upload fixture still applies.
+
+combination_rule_checks:
+  - rule_ref: rule:local_only_is_never_exportable
+    outcome: satisfied
+    evidence: No row pairs local_only with exportable; pinned is used on the retained local copy instead.
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: log_capture is embedded with raw_secret_excluded_asserted = true; ai_provider_token is intentionally_excluded.
+  - rule_ref: rule:audit_only_requires_managed_source
+    outcome: not_applicable
+    evidence: No audit_only rows in this bundle.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "stored safely"
+    occurrences: 0
+  - phrase: "encrypted at rest"
+    occurrences: 0

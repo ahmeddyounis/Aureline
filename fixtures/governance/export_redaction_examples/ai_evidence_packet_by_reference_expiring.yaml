@@ -1,0 +1,135 @@
+__fixture__:
+  name: ai_evidence_packet_by_reference_expiring
+  scenario: >
+    An AI evidence packet captured during a code-review conversation
+    is preserved for replay. The canonical body lives in the AI
+    audit-storage manifest; the evidence packet points at it by
+    reference and expires on packet-expiry. The AI provider token
+    is enterprise_secret_store + raw_secret_excluded. A separate
+    row shows the AI-context-capture redaction applied at capture
+    time: the prompt, tool call, and retrieval log retained the
+    redaction marks and class / alias breadcrumbs without durable-
+    caching any raw material.
+  contract_sections:
+    - consumer_mapping_rows.ai_evidence_packet
+    - credential_storage_mode_rows.enterprise_secret_store
+    - retention_mode_rows.raw_secret_excluded
+
+record_kind: export_redaction_example
+schema_version: 1
+
+fixture_id: ai_evidence_packet_by_reference_expiring
+consumer_id: ai_evidence_packet
+consumer_schema_refs:
+  - schemas/ai/evidence_packet.schema.json
+  - schemas/ai/evidence_replay_packet.schema.json
+  - schemas/ai/audit_storage_manifest.schema.json
+consumer_contract_refs:
+  - docs/ai/context_assembly_contract.md
+  - docs/ai/evidence_replayability_contract.md
+record_class_ref: ai_retained_evidence_packet
+
+owner_dri: "@ahmeddyounis"
+owning_lane: release_evidence
+review_cadence: each_change
+visibility_class: internal
+status: seeded
+
+assembly_context:
+  exact_build_identity_ref: build_identity:desktop_stable_opaque_id
+  deployment_profile_id: managed_cloud
+  policy_epoch: 1
+
+bundle_header_section:
+  artifact_entry_id: entry.ai_evidence_header
+  credential_storage_mode: handle_only
+  artifact_storage_mode: by_reference_evidence
+  retention_mode: expiring
+  raw_secret_excluded_asserted: true
+  required_user_facing_labels:
+    credential: "Handle only"
+    artifact: "Referenced, not embedded"
+    retention: "Expires on packet expiry"
+  materialization:
+    managed_reference_ref: managed_ref.ai_audit_storage_manifest_opaque_id
+  decision_note: >
+    The AI evidence header references the AI audit-storage manifest
+    as the source of record. Expiry follows the packet-expiry timer
+    governed by the ai_retained_evidence_packet record class.
+
+manifest_rows:
+  - artifact_entry_id: entry.ai_provider_credential
+    subject_matter: ai_provider_token
+    credential_storage_mode: enterprise_secret_store
+    artifact_storage_mode: intentionally_excluded
+    retention_mode: raw_secret_excluded
+    raw_secret_excluded_asserted: true
+    trust_store_class_ref: enterprise_vault_adapter
+    projection_mode_refs:
+      - alias_only
+      - broker_callback
+      - inspect_metadata
+    required_user_facing_labels:
+      credential: "Enterprise secret store"
+      artifact: "Intentionally excluded"
+      retention: "Raw secrets excluded"
+    materialization:
+      omission_reason_class: prohibited_secret_or_token
+    decision_note: >
+      The AI provider credential lives in the enterprise vault
+      adapter and is quoted by class plus alias plus failure-code
+      metadata only.
+
+  - artifact_entry_id: entry.prompt_and_tool_call_trace
+    subject_matter: captured prompt, tool-call, and retrieval log (redacted)
+    credential_storage_mode: handle_only
+    artifact_storage_mode: by_reference_evidence
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Referenced, not embedded"
+      retention: "Expires on packet expiry"
+    materialization:
+      managed_reference_ref: managed_ref.ai_context_capture_opaque_id
+    decision_note: >
+      The context capture lives in the managed AI audit store under
+      the ai_context_capture redaction class. Redaction ran at
+      capture time; no durable cache of raw secret material exists
+      in the evidence packet.
+
+  - artifact_entry_id: entry.citation_anchor_set
+    subject_matter: citation anchors for source documents the model consulted
+    credential_storage_mode: handle_only
+    artifact_storage_mode: embedded_evidence
+    retention_mode: expiring
+    raw_secret_excluded_asserted: true
+    required_user_facing_labels:
+      credential: "Handle only"
+      artifact: "Embedded in this export"
+      retention: "Expires on packet expiry"
+    materialization:
+      embedded_member_ref: bundle_member.citation_anchors
+    decision_note: >
+      Citation anchors are small enough to embed directly and carry
+      no credential material; embedding avoids an extra managed
+      fetch for the reviewer.
+
+combination_rule_checks:
+  - rule_ref: rule:raw_secrets_never_embedded
+    outcome: satisfied
+    evidence: ai_provider_credential is intentionally_excluded; citation_anchor_set embeds only non-credential content.
+  - rule_ref: rule:audit_only_requires_managed_source
+    outcome: not_applicable
+    evidence: No audit_only rows; retention is expiring per the packet-expiry timer.
+  - rule_ref: rule:session_only_never_persists
+    outcome: not_applicable
+    evidence: No session_only rows.
+
+forbidden_user_facing_phrase_audit:
+  - phrase: "saved securely"
+    occurrences: 0
+  - phrase: "handled securely"
+    occurrences: 0
+  - phrase: "encrypted at rest"
+    occurrences: 0
