@@ -1,0 +1,458 @@
+# Launch-wedge replacement-grade cutlines.
+#
+# Machine-readable launch-wedge contract. Binds every cutline row to one
+# workflow bundle, one certified-archetype row, one P0 persona row, and
+# the closed proof families a row MUST carry before any replacement-
+# grade, daily-driver, or certified wording is admissible. Also carries
+# the narrowing rules that fire when staffing, benchmark proof, migration
+# proof, or supportability depth is insufficient — so a slipping row
+# demotes on a mechanical rule rather than by tribal memory.
+#
+# Tooling reads this file. The narrative companion is
+# docs/product/launch_wedge_contract.md. If the two disagree, this file
+# is authoritative and the narrative is updated in the same change.
+#
+# Rules.
+#   - Every cutline row carries a stable cutline_id, exactly one
+#     persona_ref from artifacts/product/p0_persona_rows.yaml, at least
+#     one workflow_bundle_ref, exactly one archetype_row_ref, and the
+#     closed required_proof_families list naming every proof row the
+#     cutline extends.
+#   - Every row names exactly one cutline_class drawn from
+#     cutline_class_vocabulary so a reviewer can see at a glance which
+#     wording class the row admits (daily-driver, certified, or
+#     replacement-grade) and which wording it actively blocks.
+#   - Every row names exactly one narrowing_posture drawn from
+#     narrowing_posture_vocabulary so a slipping row narrows or cuts on
+#     a mechanical rule. Silent removal is non-conforming.
+#   - Every row lists the downgrade_triggers that fire before the
+#     narrowing_posture activates, drawn from
+#     downgrade_trigger_vocabulary; a cutline missing a trigger for a
+#     proof family it requires is non-conforming.
+#   - Every row resolves owner_allocation through the three lane roles
+#     (selection_owner, evidence_owner, publication_owner) drawn from
+#     artifacts/governance/ownership_matrix.yaml#governance_lanes.
+#   - Top-level product claims cite one cutline_id plus the persona_id
+#     the cutline binds to. Free-text "replacement for X" or "daily
+#     driver for X" wording without the pair is non-conforming.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/product/launch_wedge_contract.md
+p0_persona_rows_source: artifacts/product/p0_persona_rows.yaml
+language_bundle_rows_source: artifacts/product/language_bundle_rows.yaml
+archetype_rubric_source: artifacts/compat/archetype_rubric.yaml
+archetype_rows_source: artifacts/compat/reference_workspace_rows.yaml
+assurance_claim_rows_source: artifacts/release/assurance_claim_rows.yaml
+claim_manifest_source: artifacts/governance/claim_manifest_seed.yaml
+ownership_matrix_source: artifacts/governance/ownership_matrix.yaml
+cut_classes_source: artifacts/milestones/cut_classes.yaml
+kill_criteria_source: artifacts/milestones/kill_criteria.yaml
+descoping_policy_source: docs/governance/descoping_policy.md
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml. Tightening the wording on a
+# value already in the set is additive-minor and lands here in the same
+# change as the rule update.
+# -----------------------------------------------------------------------------
+
+cutline_class_vocabulary:
+  - replacement_grade_cutline    # a full "switch to Aureline" replacement-grade wording gate
+  - daily_driver_cutline         # daily-driver wording gate (narrower than replacement-grade)
+  - self_host_cutline            # internal self-host wording gate (migration proof intentionally waived)
+
+proof_family_vocabulary:
+  - compatibility_report_current         # a current compatibility-report row names the archetype
+  - certified_archetype_report_current   # a current certified-archetype report names the archetype
+  - benchmark_corpus_current             # protected corpus scenario rows cite the bundle
+  - migration_note_current               # migration notes or corpus row name the competing tool
+  - docs_version_match_current           # docs pages carry an exact-build identity match
+  - support_class_current                # bundles hold the cutline's support_class_floor
+  - known_limit_note_current             # known-limits note enumerates the row's scope caveats
+  - claim_manifest_row_current           # a published claim-manifest row cites the bundle
+  - support_export_covers_persona        # support_export redacts the persona's workspace honestly
+  - persona_workflow_floor_current       # every persona target_workflow has a current corpus / fixture
+
+narrowing_posture_vocabulary:
+  - protect_through_m1_m2                          # cut other breadth before narrowing this row
+  - narrow_support_class_before_cutting            # fall one class first, do not delete
+  - demote_to_daily_driver_before_cutting          # drop replacement-grade wording before cutting daily-driver
+  - demote_to_supported_with_caveats_before_cutting # drop daily-driver wording before cutting the row
+  - demote_to_preview_before_cutting               # drop to preview wording before cutting
+  - cut_first_if_m1_slips                          # primary cut target if M1 scope slips
+  - cut_first_if_m2_slips                          # primary cut target if M2 scope slips
+  - remove_from_launch_set_if_either_slips         # withdraw the row from the public launch set
+
+downgrade_trigger_vocabulary:
+  - compatibility_report_missing_or_stale
+  - certified_archetype_report_missing_or_stale
+  - benchmark_corpus_missing_or_stale
+  - migration_note_missing_or_stale
+  - docs_version_match_broken
+  - support_class_below_floor_on_bound_bundle
+  - known_limit_note_missing
+  - claim_manifest_row_missing_or_narrowed
+  - support_export_cannot_redact_persona_workspace
+  - persona_workflow_floor_broken
+  - staffing_below_bundle_demand
+  - supportability_below_support_class_floor
+
+insufficiency_class_vocabulary:
+  - staffing_insufficient                # the bundle's staffed lane cannot hold the cadence
+  - benchmark_proof_insufficient         # corpus scenarios are absent, stale, or narrower than claim
+  - migration_proof_insufficient         # migration notes or migration corpus absent or stale
+  - supportability_depth_insufficient    # support_export cannot carry the persona's failure modes
+  - docs_freshness_insufficient          # docs cannot hold exact-build identity match
+  - remote_or_container_mode_unproven    # required non-local mode not yet demonstrated
+  - design_partner_signal_withdrawn      # a promoting design-partner signal was withdrawn
+
+# -----------------------------------------------------------------------------
+# Narrowing rules.
+#
+# Closed-set rules stating what gets cut first when an insufficiency
+# class fires. The rules read top-down: the first rule whose
+# insufficiency_class matches the live condition selects the cutline
+# action. A cutline row MUST extend one of these rules via its
+# narrowing_posture; inventing a new narrowing path inline is non-
+# conforming.
+# -----------------------------------------------------------------------------
+narrowing_rules:
+
+  - rule_id: rule:staffing_insufficient.breadth_before_wedge
+    insufficiency_class: staffing_insufficient
+    ordered_cuts:
+      - step: 1
+        cut: Cut held personas from the roadmap outlook before touching any P0 persona.
+      - step: 2
+        cut: Cut breadth-row bundles (c_or_cpp_native, notebook-first, dotnet) before the Python persona.
+      - step: 3
+        cut: Narrow the Python persona from replacement-grade to daily-driver cutline before narrowing the TypeScript wedge.
+      - step: 4
+        cut: Narrow the TypeScript wedge from replacement-grade to daily-driver cutline before narrowing Rust self-host.
+      - step: 5
+        cut: Narrow the Rust self-host cutline from self-host-daily-driver to internal-only wording before any wedge is removed entirely.
+    backstop: >
+      If every step above has been taken and staffing still cannot hold
+      the wedge cadence, the program opens a rebaseline decision row
+      rather than silently dropping a cutline.
+
+  - rule_id: rule:benchmark_proof_insufficient.corpus_before_wording
+    insufficiency_class: benchmark_proof_insufficient
+    ordered_cuts:
+      - step: 1
+        cut: Withdraw replacement-grade wording from every cutline whose benchmark_corpus_current is missing or stale.
+      - step: 2
+        cut: Demote the affected cutline to daily-driver posture and cite the narrowed claim-manifest row.
+      - step: 3
+        cut: Hold the bundle at its current support_class until a corpus refresh lands.
+    backstop: >
+      A cutline may not be re-promoted to replacement-grade on a bundle
+      whose benchmark corpus row is still reservation_only, even if
+      other proof families are current.
+
+  - rule_id: rule:migration_proof_insufficient.cut_migration_claim_first
+    insufficiency_class: migration_proof_insufficient
+    ordered_cuts:
+      - step: 1
+        cut: Withdraw replacement-grade wording that names the competing tool from the affected cutline.
+      - step: 2
+        cut: Demote the cutline to daily-driver or supported-with-caveats wording until migration corpus / notes land.
+      - step: 3
+        cut: Leave the self-host cutline alone; migration_note_current is intentionally waived for that class.
+    backstop: >
+      The replacement_target_note on the persona row MUST be updated in
+      the same change as the demotion so the migration target is not
+      silently renamed.
+
+  - rule_id: rule:supportability_depth_insufficient.narrow_support_class
+    insufficiency_class: supportability_depth_insufficient
+    ordered_cuts:
+      - step: 1
+        cut: Narrow the affected bundle one support_class step (certified → supported; supported → community) before cutting the cutline.
+      - step: 2
+        cut: Demote the cutline class in lockstep (replacement-grade → daily-driver → supported-with-caveats).
+      - step: 3
+        cut: Block the cutline entirely only when support_export cannot redact the persona's workspace at any class.
+    backstop: >
+      A support_export regression that blocks redaction is a hard block;
+      no cutline may ship without support_export coverage even at
+      supported class.
+
+  - rule_id: rule:docs_freshness_insufficient.version_match_before_wording
+    insufficiency_class: docs_freshness_insufficient
+    ordered_cuts:
+      - step: 1
+        cut: Withdraw certified and replacement-grade wording when docs_version_match_current is broken on any bound bundle.
+      - step: 2
+        cut: Route to stale-docs copy on every channel the claim propagates to before the wording is re-asserted.
+    backstop: >
+      Docs freshness is a claim-narrowing trigger, never a silent-
+      optimism fallback.
+
+# -----------------------------------------------------------------------------
+# Cutline rows.
+#
+# One row per wording gate the launch-wedge contract admits at this
+# milestone. Rows are ordered so the external replacement-grade
+# TypeScript wedge comes first, the external replacement-grade Python
+# wedge second, and the internal Rust self-host cutline third.
+# -----------------------------------------------------------------------------
+cutlines:
+
+  - cutline_id: cutline:replacement_grade.typescript_web_app_developer
+    cutline_class: replacement_grade_cutline
+    public_label: Replacement-grade cutline for the TypeScript / JavaScript web-app persona
+    persona_ref: persona:p0.typescript_web_app_developer
+    workflow_bundle_refs:
+      - launch_bundle:typescript_web_app.seed
+    archetype_row_ref: archetype_row:ts_web_app_or_service
+    claim_manifest_row_refs:
+      - claim_row:certification.launch_wedge_typescript_web
+    support_class_floor: certified
+    required_proof_families:
+      - compatibility_report_current
+      - certified_archetype_report_current
+      - benchmark_corpus_current
+      - migration_note_current
+      - docs_version_match_current
+      - support_class_current
+      - known_limit_note_current
+      - claim_manifest_row_current
+      - support_export_covers_persona
+      - persona_workflow_floor_current
+    downgrade_triggers:
+      - compatibility_report_missing_or_stale
+      - certified_archetype_report_missing_or_stale
+      - benchmark_corpus_missing_or_stale
+      - migration_note_missing_or_stale
+      - docs_version_match_broken
+      - support_class_below_floor_on_bound_bundle
+      - known_limit_note_missing
+      - claim_manifest_row_missing_or_narrowed
+      - support_export_cannot_redact_persona_workspace
+      - persona_workflow_floor_broken
+    narrowing_posture: protect_through_m1_m2
+    demotion_path:
+      - from: replacement_grade
+        to: daily_driver
+        trigger_class: migration_proof_insufficient
+      - from: replacement_grade
+        to: daily_driver
+        trigger_class: benchmark_proof_insufficient
+      - from: daily_driver
+        to: supported_with_caveats
+        trigger_class: supportability_depth_insufficient
+      - from: any
+        to: withdrawn
+        trigger_class: docs_freshness_insufficient
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+      - lane:shiproom_executive_scope_review
+    unresolved_blockers:
+      - remote_or_container_mode_unproven
+      - benchmark_proof_insufficient
+    notes: >
+      The replacement-grade cutline for the launch wedge. "Switch your
+      TypeScript work to Aureline" wording is structurally blocked
+      until every listed proof family is current. Breadth cuts land on
+      other cutlines before this row narrows.
+
+  - cutline_id: cutline:replacement_grade.python_service_or_data_app_developer
+    cutline_class: replacement_grade_cutline
+    public_label: Replacement-grade cutline for the Python service / data-app persona
+    persona_ref: persona:p0.python_service_or_data_app_developer
+    workflow_bundle_refs:
+      - launch_bundle:python_service_or_data_app.seed
+    archetype_row_ref: archetype_row:python_service_or_data_app
+    claim_manifest_row_refs: []
+    support_class_floor: certified
+    required_proof_families:
+      - compatibility_report_current
+      - certified_archetype_report_current
+      - benchmark_corpus_current
+      - migration_note_current
+      - docs_version_match_current
+      - support_class_current
+      - known_limit_note_current
+      - claim_manifest_row_current
+      - support_export_covers_persona
+      - persona_workflow_floor_current
+    downgrade_triggers:
+      - compatibility_report_missing_or_stale
+      - certified_archetype_report_missing_or_stale
+      - benchmark_corpus_missing_or_stale
+      - migration_note_missing_or_stale
+      - docs_version_match_broken
+      - support_class_below_floor_on_bound_bundle
+      - known_limit_note_missing
+      - claim_manifest_row_missing_or_narrowed
+      - support_export_cannot_redact_persona_workspace
+      - persona_workflow_floor_broken
+    narrowing_posture: narrow_support_class_before_cutting
+    demotion_path:
+      - from: replacement_grade
+        to: daily_driver
+        trigger_class: staffing_insufficient
+      - from: replacement_grade
+        to: daily_driver
+        trigger_class: benchmark_proof_insufficient
+      - from: daily_driver
+        to: supported_with_caveats
+        trigger_class: supportability_depth_insufficient
+      - from: any
+        to: withdrawn
+        trigger_class: docs_freshness_insufficient
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+      - lane:shiproom_executive_scope_review
+    unresolved_blockers:
+      - claim_manifest_row_missing_or_narrowed
+      - benchmark_corpus_missing_or_stale
+      - remote_or_container_mode_unproven
+    notes: >
+      The Python persona's replacement-grade cutline. Narrowing runs
+      through support class first: certified → supported wording is a
+      reviewable demotion, not a silent one. A canonical package-
+      manager decision (uv, venv, or Poetry) is a blocking precondition
+      for this cutline.
+
+  - cutline_id: cutline:self_host.rust_self_host_developer
+    cutline_class: self_host_cutline
+    public_label: Self-host daily-driver cutline for the Rust self-host persona
+    persona_ref: persona:p0.rust_self_host_developer
+    workflow_bundle_refs:
+      - launch_bundle:rust_workspace.seed
+    archetype_row_ref: archetype_row:rust_workspace
+    claim_manifest_row_refs: []
+    support_class_floor: certified
+    required_proof_families:
+      - compatibility_report_current
+      - certified_archetype_report_current
+      - benchmark_corpus_current
+      - docs_version_match_current
+      - support_class_current
+      - known_limit_note_current
+      - claim_manifest_row_current
+      - support_export_covers_persona
+      - persona_workflow_floor_current
+    waived_proof_families:
+      - family: migration_note_current
+        waiver_reason: >
+          The Rust self-host persona is the self-host claim, not a
+          switching wedge. Migration-target wording is wording-
+          ineligible for this cutline and the waiver is recorded here
+          so the absence is never treated as a silent weakening.
+    downgrade_triggers:
+      - compatibility_report_missing_or_stale
+      - certified_archetype_report_missing_or_stale
+      - benchmark_corpus_missing_or_stale
+      - docs_version_match_broken
+      - support_class_below_floor_on_bound_bundle
+      - known_limit_note_missing
+      - claim_manifest_row_missing_or_narrowed
+      - support_export_cannot_redact_persona_workspace
+      - persona_workflow_floor_broken
+    narrowing_posture: protect_through_m1_m2
+    demotion_path:
+      - from: self_host_daily_driver
+        to: internal_only_wording
+        trigger_class: supportability_depth_insufficient
+      - from: self_host_daily_driver
+        to: internal_only_wording
+        trigger_class: benchmark_proof_insufficient
+      - from: any
+        to: withdrawn
+        trigger_class: docs_freshness_insufficient
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+    unresolved_blockers:
+      - claim_manifest_row_missing_or_narrowed
+    notes: >
+      The Rust self-host cutline is a distinct class: it admits "self-
+      host daily driver" wording gated on every non-migration proof
+      family, and no amount of Rust corpus ever promotes this row to a
+      replacement-grade class against a competing Rust IDE. The
+      waived_proof_families entry makes the omission auditable.
+
+# -----------------------------------------------------------------------------
+# Launch-wedge contract invariants.
+#
+# Validators that read this file should treat each invariant as a
+# closed-world rule. Adding an invariant is breaking; removing one is a
+# decision row.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:every_cutline_binds_persona_bundle_archetype
+    statement: >
+      Every entry in cutlines names exactly one persona_ref that
+      resolves to artifacts/product/p0_persona_rows.yaml#p0_personas,
+      at least one workflow_bundle_ref that resolves to
+      artifacts/product/language_bundle_rows.yaml#language_bundles,
+      and exactly one archetype_row_ref that resolves to
+      artifacts/compat/reference_workspace_rows.yaml.
+  - invariant_id: invariant:every_cutline_states_required_proof_families
+    statement: >
+      Every entry in cutlines carries a non-empty
+      required_proof_families list drawn from
+      proof_family_vocabulary. A cutline that intentionally waives a
+      family (for example the Rust self-host cutline waiving
+      migration_note_current) records the waiver in
+      waived_proof_families with a non-empty waiver_reason rather
+      than dropping the entry silently.
+  - invariant_id: invariant:replacement_grade_cutline_requires_full_proof_set
+    statement: >
+      A cutline of class replacement_grade_cutline MUST carry every
+      entry in proof_family_vocabulary in its required_proof_families
+      list and MUST NOT use waived_proof_families. Silent waiving is
+      non-conforming.
+  - invariant_id: invariant:every_cutline_has_narrowing_posture
+    statement: >
+      Every entry in cutlines carries exactly one value from
+      narrowing_posture_vocabulary. Silent removal is non-conforming.
+  - invariant_id: invariant:every_cutline_lists_downgrade_triggers_matching_proof
+    statement: >
+      For every entry in a cutline's required_proof_families list,
+      the cutline's downgrade_triggers list carries at least one
+      trigger that can fire for that family. A missing trigger is
+      non-conforming because it means a stale proof family would fail
+      to demote the cutline.
+  - invariant_id: invariant:narrowing_posture_extends_one_named_rule
+    statement: >
+      Every cutline's narrowing_posture MUST correspond to a rule in
+      narrowing_rules (via the insufficiency_class the posture
+      implies). Cutlines MAY NOT invent a narrowing path inline.
+  - invariant_id: invariant:scope_expansion_requires_persona_and_proof_update
+    statement: >
+      Widening a cutline (adding a workflow_bundle_ref, adding an
+      archetype_row_ref, lowering the support_class_floor, or
+      relaxing a required_proof_families entry) opens a decision row
+      in artifacts/governance/decision_index.yaml and requires a
+      matching update to the persona_ref row and, where applicable,
+      a new claim-manifest row. Silent scope expansion is non-
+      conforming.
+  - invariant_id: invariant:top_level_claims_quote_cutline_and_persona
+    statement: >
+      Top-level product wording that names a replacement-grade,
+      daily-driver, or self-host claim cites exactly one cutline_id
+      plus the persona_id the cutline binds to. Free-text "daily
+      driver for X" or "replacement for X" wording without the pair
+      is non-conforming.

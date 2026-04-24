@@ -1,0 +1,618 @@
+# Canonical P0 persona rows.
+#
+# Machine-readable inventory of the P0 personas the product is willing to
+# name as daily-driver targets at the first stable cut. Every P0 persona
+# row binds to one or more launch-language bundles, one or more archetype
+# rows, and a closed set of capability families. The inventory is
+# complete: personas the rubric intentionally excludes at foundations are
+# named as held_persona rows so the set is never a silent omission.
+#
+# Tooling reads this file. The narrative companion is
+# docs/product/launch_wedge_contract.md. If the two disagree, this file
+# is authoritative and the narrative is updated in the same change.
+#
+# Rules.
+#   - Every active P0 persona row carries a stable persona_id, at least
+#     one launch_bundle_ref that resolves to
+#     artifacts/product/language_bundle_rows.yaml#language_bundles, at
+#     least one archetype_row_ref that resolves to
+#     artifacts/compat/reference_workspace_rows.yaml, at least one
+#     target_workflow drawn from workflow_vocabulary, and exactly one
+#     value from capability_family_vocabulary per required family.
+#   - Every row states a daily_driver_criteria block naming the closed
+#     workflow set the persona runs every day, the closed support-class
+#     floor the persona's bundles MUST hold, and the failure modes that
+#     demote the persona from daily-driver to held.
+#   - Every row states a replacement_grade_criteria block enumerating
+#     the full closed proof set from
+#     replacement_grade_evidence_vocabulary in
+#     artifacts/product/language_bundle_rows.yaml that the persona's
+#     bundles MUST carry before any replacement-grade wording is
+#     admissible for that persona.
+#   - Every row carries one cut_first_posture value so the persona is
+#     narrowed, held, or cut on a mechanical rule rather than tribal
+#     memory. Silent removal is non-conforming.
+#   - Scope expansion (adding a new active P0 persona row, promoting a
+#     held_persona row, widening a persona's target_workflows list, or
+#     lowering a persona's support_class_floor) opens a decision row in
+#     artifacts/governance/decision_index.yaml; the rubric does not
+#     admit silent expansion.
+#   - Top-level product claims that name a daily-driver or replacement-
+#     grade persona cite one persona_id. Free-text "built for X
+#     developers" wording without the cite is non-conforming.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/product/launch_wedge_contract.md
+language_bundle_rows_source: artifacts/product/language_bundle_rows.yaml
+archetype_rubric_source: artifacts/compat/archetype_rubric.yaml
+archetype_rows_source: artifacts/compat/reference_workspace_rows.yaml
+replacement_grade_cutlines_source: artifacts/product/replacement_grade_cutlines.yaml
+claim_manifest_source: artifacts/governance/claim_manifest_seed.yaml
+ownership_matrix_source: artifacts/governance/ownership_matrix.yaml
+descoping_policy_source: docs/governance/descoping_policy.md
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml. Tightening the wording on a
+# value already in the set is additive-minor and lands here in the same
+# change as the rule update.
+# -----------------------------------------------------------------------------
+
+persona_kind_vocabulary:
+  - external_daily_driver        # external developer the product markets as a daily-driver target
+  - internal_self_host           # internal self-host persona the project relies on to dogfood
+  - held_persona                 # named but intentionally excluded from P0 at this milestone
+
+support_class_vocabulary:
+  - certified
+  - supported
+  - community
+  - experimental
+
+capability_family_vocabulary:
+  - edit_and_navigate            # open, edit, save, search, rename across the workspace
+  - run_tests                    # run-tests workflow against an in-repo runner
+  - run_or_debug                 # launch-and-debug workflow with live variables / breakpoints
+  - git_daily_loop               # clone, branch, diff, commit, review, merge
+  - language_intelligence        # completions, hovers, diagnostics, rename-refactor, quick-fix
+  - build_and_tasks              # run the repo's build / task pipeline end-to-end
+  - package_and_dependency       # install, upgrade, audit packages; inspect dependency tree
+  - terminal_and_repl            # integrated shell, REPL, scratchpad
+  - notebook_execution           # notebook kernel run / restart / paired-module handoff
+  - remote_and_container         # remote-workspace, devcontainer, or container attach
+  - recovery_and_restore         # undo, local history, safe mode, restore from checkpoint
+  - support_export               # export redacted support bundle for diagnosis
+
+workflow_vocabulary:
+  - open
+  - search
+  - rename
+  - run_tests
+  - debug
+  - run_or_debug
+  - git_review
+  - api_request_run
+  - interpreter_select
+  - refactor_basics
+  - notebook_handoff
+  - import
+  - index
+  - dependency_insight
+  - first_useful_edit
+  - startup
+  - support_export_run
+
+cut_first_posture_vocabulary:
+  - protect_through_m1_m2                        # cut other personas before narrowing this one
+  - narrow_support_class_before_cutting          # fall one class first, do not remove
+  - cut_first_if_m1_slips                        # primary cut target if M1 scope slips
+  - cut_first_if_m2_slips                        # primary cut target if M2 scope slips
+  - remove_from_launch_set_if_either_slips       # withdraw the persona from public launch
+  - held_off_launch_set                          # reservation only; not an active P0 at this milestone
+
+replacement_grade_evidence_vocabulary:
+  - benchmark_corpus_linked        # protected corpus scenarios cite the persona's bundle
+  - compatibility_report_linked    # a current compatibility report names the persona's archetype row
+  - migration_evidence_linked      # migration notes or corpus row name the persona's competing tool
+  - docs_version_match_linked      # docs pages carry an exact-build identity match
+  - known_limit_note_linked        # a known-limits note names the persona's scope caveats
+  - support_class_floor_met        # every bundle the persona binds to holds the support_class_floor
+
+daily_driver_failure_mode_vocabulary:
+  - workflow_scenario_missing_or_stale
+  - support_class_below_floor_on_any_bound_bundle
+  - required_archetype_report_missing_or_stale
+  - docs_version_match_broken
+  - support_export_cannot_redact_persona_workspace
+  - required_remote_or_container_mode_unproven
+
+held_reason_vocabulary:
+  - not_on_stated_wedge_for_foundations
+  - bundle_target_class_below_certified
+  - reference_workspace_reservation_only
+  - benchmark_corpus_reservation_only
+  - compile_database_or_toolchain_posture_unresolved
+  - design_partner_signal_required
+  - post_stable_reservation
+
+# -----------------------------------------------------------------------------
+# Active P0 persona rows.
+#
+# Each row is a canonical entry the launch-wedge contract admits as a
+# daily-driver target at the first stable cut. Rows are ordered so the
+# external launch wedge (TypeScript web-app) comes first, the paired
+# second wedge (Python service / data app) second, and the internal
+# self-host persona third.
+# -----------------------------------------------------------------------------
+p0_personas:
+
+  - persona_id: persona:p0.typescript_web_app_developer
+    persona_kind: external_daily_driver
+    public_label: TypeScript / JavaScript web-app developer
+    summary: >
+      The developer building, testing, and shipping a TypeScript or
+      JavaScript web app or service as their primary day-to-day work.
+      This is the named launch wedge.
+    launch_bundle_refs:
+      - launch_bundle:typescript_web_app.seed
+    archetype_row_refs:
+      - archetype_row:ts_web_app_or_service
+    claim_manifest_row_refs:
+      - claim_row:certification.launch_wedge_typescript_web
+    target_workflows:
+      - open
+      - search
+      - rename
+      - run_tests
+      - debug
+      - git_review
+      - api_request_run
+      - first_useful_edit
+    required_capability_families:
+      - edit_and_navigate
+      - language_intelligence
+      - run_tests
+      - run_or_debug
+      - git_daily_loop
+      - package_and_dependency
+      - terminal_and_repl
+      - build_and_tasks
+      - recovery_and_restore
+      - support_export
+    daily_driver_criteria:
+      workflow_floor:
+        - open
+        - search
+        - rename
+        - run_tests
+        - debug
+        - git_review
+      support_class_floor: supported
+      remote_mode_floor: local_plus_one_remote_mode
+      required_bound_bundles:
+        - launch_bundle:typescript_web_app.seed
+      demoting_failure_modes:
+        - workflow_scenario_missing_or_stale
+        - support_class_below_floor_on_any_bound_bundle
+        - required_remote_or_container_mode_unproven
+        - support_export_cannot_redact_persona_workspace
+    replacement_grade_criteria:
+      support_class_floor: certified
+      required_proof:
+        - benchmark_corpus_linked
+        - compatibility_report_linked
+        - migration_evidence_linked
+        - docs_version_match_linked
+        - known_limit_note_linked
+        - support_class_floor_met
+      replacement_target_note: >
+        The competing tool the persona is named as a replacement for is
+        the dominant third-party TypeScript/JavaScript IDE baseline; the
+        migration_evidence_linked item MUST name that target explicitly.
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+      - lane:shiproom_executive_scope_review
+    unresolved_blockers:
+      - required_remote_or_container_mode_unproven
+      - workflow_scenario_missing_or_stale
+    cut_first_posture: protect_through_m1_m2
+    notes: >
+      The TypeScript web-app developer is the named launch wedge and the
+      only persona with a published claim-manifest row at this milestone.
+      Breadth cuts land on other personas before narrowing this one.
+
+  - persona_id: persona:p0.python_service_or_data_app_developer
+    persona_kind: external_daily_driver
+    public_label: Python service / data-app developer
+    summary: >
+      The developer building and running a Python service or data app
+      (FastAPI / Django services, data pipelines) whose daily loop pairs
+      with the notebook-first workflow through the notebook_handoff
+      workflow.
+    launch_bundle_refs:
+      - launch_bundle:python_service_or_data_app.seed
+    archetype_row_refs:
+      - archetype_row:python_service_or_data_app
+    claim_manifest_row_refs: []
+    target_workflows:
+      - open
+      - search
+      - rename
+      - interpreter_select
+      - run_tests
+      - debug
+      - refactor_basics
+      - notebook_handoff
+      - git_review
+      - first_useful_edit
+    required_capability_families:
+      - edit_and_navigate
+      - language_intelligence
+      - run_tests
+      - run_or_debug
+      - git_daily_loop
+      - package_and_dependency
+      - terminal_and_repl
+      - notebook_execution
+      - remote_and_container
+      - recovery_and_restore
+      - support_export
+    daily_driver_criteria:
+      workflow_floor:
+        - open
+        - search
+        - interpreter_select
+        - run_tests
+        - debug
+        - notebook_handoff
+        - git_review
+      support_class_floor: supported
+      remote_mode_floor: local_plus_devcontainer_or_container
+      required_bound_bundles:
+        - launch_bundle:python_service_or_data_app.seed
+      demoting_failure_modes:
+        - workflow_scenario_missing_or_stale
+        - support_class_below_floor_on_any_bound_bundle
+        - required_remote_or_container_mode_unproven
+        - support_export_cannot_redact_persona_workspace
+    replacement_grade_criteria:
+      support_class_floor: certified
+      required_proof:
+        - benchmark_corpus_linked
+        - compatibility_report_linked
+        - migration_evidence_linked
+        - docs_version_match_linked
+        - known_limit_note_linked
+        - support_class_floor_met
+      replacement_target_note: >
+        Replacement-grade wording for this persona names the Python-
+        specific competing tool baseline the migration corpus row cites;
+        "switch your Python work" copy is structurally blocked until the
+        canonical package-manager decision and the devcontainer matrix
+        dimension are demonstrated.
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+      - lane:shiproom_executive_scope_review
+    unresolved_blockers:
+      - workflow_scenario_missing_or_stale
+      - required_remote_or_container_mode_unproven
+      - support_class_below_floor_on_any_bound_bundle
+    cut_first_posture: narrow_support_class_before_cutting
+    notes: >
+      The Python persona narrows support class before it is cut. The
+      canonical package-manager choice (uv, venv, or Poetry) is the
+      dominant unresolved daily-driver blocker and gates any replacement-
+      grade wording for this persona.
+
+  - persona_id: persona:p0.rust_self_host_developer
+    persona_kind: internal_self_host
+    public_label: Rust self-host / systems developer
+    summary: >
+      The internal persona the project dogfoods on: a Rust developer
+      working on the Aureline workspace itself or comparable systems
+      work. The row is P0 because the self-host slice is load-bearing
+      live corpus evidence.
+    launch_bundle_refs:
+      - launch_bundle:rust_workspace.seed
+    archetype_row_refs:
+      - archetype_row:rust_workspace
+    claim_manifest_row_refs: []
+    target_workflows:
+      - open
+      - search
+      - rename
+      - run_tests
+      - debug
+      - git_review
+      - startup
+      - first_useful_edit
+    required_capability_families:
+      - edit_and_navigate
+      - language_intelligence
+      - run_tests
+      - run_or_debug
+      - git_daily_loop
+      - build_and_tasks
+      - package_and_dependency
+      - terminal_and_repl
+      - recovery_and_restore
+      - support_export
+    daily_driver_criteria:
+      workflow_floor:
+        - open
+        - search
+        - rename
+        - run_tests
+        - debug
+        - git_review
+        - startup
+      support_class_floor: supported
+      remote_mode_floor: local_only
+      required_bound_bundles:
+        - launch_bundle:rust_workspace.seed
+      demoting_failure_modes:
+        - workflow_scenario_missing_or_stale
+        - support_class_below_floor_on_any_bound_bundle
+        - required_archetype_report_missing_or_stale
+        - support_export_cannot_redact_persona_workspace
+    replacement_grade_criteria:
+      support_class_floor: certified
+      required_proof:
+        - benchmark_corpus_linked
+        - compatibility_report_linked
+        - docs_version_match_linked
+        - known_limit_note_linked
+        - support_class_floor_met
+      replacement_target_note: >
+        The Rust self-host persona is intentionally excluded from
+        migration-evidence-linked proof: this persona is the self-host
+        claim, not a switching wedge. Replacement-grade wording is
+        therefore wording-ineligible against a named competing Rust IDE
+        and is admissible only as "self-host daily driver" wording gated
+        on the remaining five proof items.
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    co_required_approvers:
+      - lane:compatibility_ecosystem_review
+      - lane:docs_public_truth
+    unresolved_blockers: []
+    cut_first_posture: protect_through_m1_m2
+    notes: >
+      The Rust self-host persona is protected through M1 and M2 because
+      the self-host slice is the live corpus the project ships against.
+      Migration-evidence-linked proof is intentionally not required; the
+      replacement_target_note records why so no future reviewer treats
+      the absence as a silent weakening.
+
+# -----------------------------------------------------------------------------
+# Held personas.
+#
+# Personas the rubric names but intentionally leaves outside the P0 set
+# at this milestone. Each row records the held reason, the minimum
+# inclusion target, and the launch bundles the persona would bind to on
+# admission so the inventory is complete and a later promotion is a
+# reviewable change, not a silent addition.
+# -----------------------------------------------------------------------------
+held_personas:
+
+  - persona_id: persona:held.java_or_kotlin_service_developer
+    persona_kind: held_persona
+    public_label: Java / Kotlin service developer
+    held_reasons:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - design_partner_signal_required
+    launch_bundle_refs:
+      - launch_bundle:java_or_kotlin_service.seed
+    archetype_row_refs:
+      - archetype_row:java_or_kotlin_service
+    inclusion_target_if_admitted: first_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a reservation so the inventory is complete. Promotion to
+      active P0 requires the Java/Kotlin bundle's reference workspace,
+      benchmark corpus, and design-partner signal to land — without them
+      JDK-selection and wrapper-trust cost is higher than the launch-
+      wedge persona set can absorb at current staffing.
+
+  - persona_id: persona:held.go_service_developer
+    persona_kind: held_persona
+    public_label: Go service / monorepo developer
+    held_reasons:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+    launch_bundle_refs:
+      - launch_bundle:go_service_or_monorepo_slice.seed
+    archetype_row_refs:
+      - archetype_row:go_service_or_monorepo_slice
+    inclusion_target_if_admitted: first_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a reservation. Go is a cut-first-if-M2-slips bundle; the
+      persona stays held until module-resolution and debugger-trust
+      workflow rows seed.
+
+  - persona_id: persona:held.c_or_cpp_native_developer
+    persona_kind: held_persona
+    public_label: C / C++ native-project developer
+    held_reasons:
+      - compile_database_or_toolchain_posture_unresolved
+      - reference_workspace_reservation_only
+      - bundle_target_class_below_certified
+    launch_bundle_refs:
+      - launch_bundle:c_or_cpp_native_project.seed
+    archetype_row_refs:
+      - archetype_row:c_or_cpp_native_project
+    inclusion_target_if_admitted: first_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a reservation. Compile-database trust and debugger
+      posture are still unresolved; the persona stays held so the
+      C/C++ bundle's preview-only demotion lands as narrowing rather
+      than silent removal.
+
+  - persona_id: persona:held.dotnet_service_developer
+    persona_kind: held_persona
+    public_label: .NET service / app developer
+    held_reasons:
+      - bundle_target_class_below_certified
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+    launch_bundle_refs:
+      - launch_bundle:dotnet_service_or_app.seed
+    archetype_row_refs:
+      - archetype_row:dotnet_service_or_app
+    inclusion_target_if_admitted: first_beta
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a reservation. The .NET bundle targets supported rather
+      than certified for the first stable cut, so the persona cannot
+      carry a daily-driver-at-certified claim; the row is held and the
+      bundle narrows support class before cutting.
+
+  - persona_id: persona:held.notebook_first_data_scientist
+    persona_kind: held_persona
+    public_label: Notebook-first data scientist
+    held_reasons:
+      - bundle_target_class_below_certified
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+    launch_bundle_refs:
+      - launch_bundle:notebook_first_data_workflow.seed
+    archetype_row_refs:
+      - archetype_row:notebook_first_data_workflow
+    inclusion_target_if_admitted: first_beta
+    cut_first_posture: held_off_launch_set
+    notes: >
+      The notebook-first workflow is reached through the Python persona
+      via notebook_handoff. The notebook-first persona itself is held
+      until the notebook bundle reaches certified and the cell-aware
+      compare and kernel-isolation surfaces are corpus-backed.
+
+  - persona_id: persona:held.ruby_rails_service_developer
+    persona_kind: held_persona
+    public_label: Ruby / Rails service developer
+    held_reasons:
+      - not_on_stated_wedge_for_foundations
+      - post_stable_reservation
+    launch_bundle_refs:
+      - launch_bundle:ruby_rails_service.reserved
+    archetype_row_refs: []
+    inclusion_target_if_admitted: post_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a post-stable reservation so the inventory is complete.
+      The corresponding language bundle is on the excluded list.
+
+  - persona_id: persona:held.php_service_developer
+    persona_kind: held_persona
+    public_label: PHP service developer
+    held_reasons:
+      - not_on_stated_wedge_for_foundations
+      - post_stable_reservation
+    launch_bundle_refs:
+      - launch_bundle:php_service.reserved
+    archetype_row_refs: []
+    inclusion_target_if_admitted: post_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Named as a post-stable reservation. Admission enters through the
+      community archetype class first.
+
+  - persona_id: persona:held.swift_native_apple_developer
+    persona_kind: held_persona
+    public_label: Swift native (Apple platforms) developer
+    held_reasons:
+      - not_on_stated_wedge_for_foundations
+      - post_stable_reservation
+    launch_bundle_refs:
+      - launch_bundle:swift_native_apple.reserved
+    archetype_row_refs: []
+    inclusion_target_if_admitted: post_stable
+    cut_first_posture: held_off_launch_set
+    notes: >
+      Apple-platform-only native Swift is a post-stable reservation;
+      foundations commits to cross-platform bundles only.
+
+# -----------------------------------------------------------------------------
+# Persona inventory invariants.
+#
+# Validators that read this file should treat each invariant as a
+# closed-world rule. Adding an invariant is breaking; removing one is a
+# decision row.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:every_active_persona_binds_launch_bundle_and_archetype
+    statement: >
+      Every entry in p0_personas carries at least one
+      launch_bundle_ref resolving to a bundle_id in
+      artifacts/product/language_bundle_rows.yaml#language_bundles and
+      at least one archetype_row_ref resolving to an archetype_row_id
+      in artifacts/compat/reference_workspace_rows.yaml.
+  - invariant_id: invariant:every_active_persona_has_capability_families
+    statement: >
+      Every entry in p0_personas carries a non-empty
+      required_capability_families list drawn from
+      capability_family_vocabulary. Missing capability families are
+      non-conforming.
+  - invariant_id: invariant:every_active_persona_has_workflow_floor
+    statement: >
+      Every entry in p0_personas carries a non-empty
+      daily_driver_criteria.workflow_floor drawn from
+      workflow_vocabulary. The floor is the closed set of workflows
+      the persona MUST run every day.
+  - invariant_id: invariant:every_active_persona_states_replacement_grade_proof
+    statement: >
+      Every entry in p0_personas carries a
+      replacement_grade_criteria.required_proof list drawn from
+      replacement_grade_evidence_vocabulary. A persona that is
+      intentionally ineligible for one proof item (for example the
+      Rust self-host persona and migration_evidence_linked) records
+      the omission explicitly in replacement_target_note rather than
+      silently dropping the item from the list.
+  - invariant_id: invariant:every_active_persona_has_cut_first_posture
+    statement: >
+      Every entry in p0_personas carries exactly one value from
+      cut_first_posture_vocabulary. Silent removal is non-conforming.
+  - invariant_id: invariant:every_held_persona_states_held_reason
+    statement: >
+      Every entry in held_personas carries a non-empty held_reasons
+      list drawn from held_reason_vocabulary and an
+      inclusion_target_if_admitted so the row is never a silent
+      omission.
+  - invariant_id: invariant:top_level_claims_quote_persona_id
+    statement: >
+      Top-level product claims that name a persona (daily-driver or
+      replacement-grade wording) cite exactly one persona_id. Free-
+      text "built for <role>" wording without the cite is non-
+      conforming.
+  - invariant_id: invariant:scope_expansion_requires_decision_row
+    statement: >
+      Adding an active P0 persona row, promoting a held_persona to
+      P0, widening a persona's target_workflows list, or lowering a
+      persona's support_class_floor opens a decision row in
+      artifacts/governance/decision_index.yaml. Silent expansion is
+      non-conforming.
+  - invariant_id: invariant:persona_support_class_floor_matches_bound_bundle_target
+    statement: >
+      A persona's daily_driver_criteria.support_class_floor MUST be
+      a value from support_class_vocabulary and MUST NOT exceed the
+      target_support_class_id of any bundle the persona binds to.
+      replacement_grade_criteria.support_class_floor MUST be
+      certified for every active P0 persona.
