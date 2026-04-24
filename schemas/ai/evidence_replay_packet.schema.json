@@ -1,0 +1,815 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/evidence_replay_packet.schema.json",
+  "title": "Aureline AI evidence-replayability contract",
+  "description": "Boundary schema for the ai_replay_packet_record, the ai_replay_capture_coverage_record, the ai_replay_provider_availability_record, the ai_replay_mutation_lineage_record, and the ai_replay_audit_event_record frozen in docs/ai/evidence_replayability_contract.md. Every retained AI turn (inline, background branch-agent, review-handoff, or support-replay-only reconstruction) emits exactly one ai_replay_packet_record that cites the originating ai_context_assembly_record, ai_evidence_packet_record, retained receipts, tainted-content fences, mutation-journal entries, interaction-safety packets, and downstream handoffs by id. Raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw paths, raw URLs, and raw credential material never cross the RPC boundary; this schema carries ids and typed vocabulary only. Adding a new replay_grade, capture_class, capture_posture, omission_reason, provider_availability, mutation_status, audit-event id, or denial reason is additive-minor and requires an ai_replay_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_replay_packet_record" },
+    { "$ref": "#/$defs/ai_replay_capture_coverage_record" },
+    { "$ref": "#/$defs/ai_replay_provider_availability_record" },
+    { "$ref": "#/$defs/ai_replay_mutation_lineage_record" },
+    { "$ref": "#/$defs/ai_replay_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_replay_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI replay-packet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_replay_packet_record",
+        "ai_replay_capture_coverage_record",
+        "ai_replay_provider_availability_record",
+        "ai_replay_mutation_lineage_record",
+        "ai_replay_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets / audit-storage manifests. Raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw paths, raw URLs, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "replay_grade": {
+      "type": "string",
+      "enum": [
+        "full_replay",
+        "partial_replay_provider_unavailable",
+        "partial_replay_model_version_lost",
+        "partial_replay_tool_unavailable",
+        "partial_replay_context_narrowed_by_policy",
+        "partial_replay_context_expired_by_retention",
+        "partial_replay_redaction_widened",
+        "partial_replay_mutation_already_applied",
+        "non_replayable_mutation_lost",
+        "non_replayable_context_lost",
+        "non_replayable_raw_byte_dependent",
+        "non_replayable_cross_session_branch",
+        "non_replayable_consent_withdrawn"
+      ],
+      "description": "Frozen replay-grade vocabulary. Replayability is graded, not binary. full_replay is reachable only when every required capture class was captured, the provider / model identity is reachable at reachable_same_identity_same_version, every tool call is re-invokable, and no retained context segment has since been narrowed or expired. partial_replay_* grades admit a single degraded axis; non_replayable_* grades admit that reconstructing the output is not possible while preserving evidence honesty — the packet still names what exists."
+    },
+
+    "capture_class": {
+      "type": "string",
+      "enum": [
+        "input_user_turn_prompt",
+        "composer_plan_directive",
+        "system_scaffold_fragment",
+        "instruction_bundle",
+        "check_bundle",
+        "context_segment_set",
+        "mention_set",
+        "attachment_set",
+        "tool_call_lineage",
+        "tool_call_return_value",
+        "route_plan",
+        "spend_plan",
+        "route_receipt",
+        "spend_receipt",
+        "provider_identity",
+        "model_identity",
+        "approval_ticket",
+        "mutation_journal_entry",
+        "save_manifest",
+        "interaction_safety_packet",
+        "downstream_handoff",
+        "evidence_packet",
+        "tainted_content_fence",
+        "running_build_identity",
+        "policy_context"
+      ],
+      "description": "Frozen capture-class vocabulary. Each axis is addressed separately on the replay packet; collapsing axes into one captured boolean is non-conforming."
+    },
+
+    "capture_posture": {
+      "type": "string",
+      "enum": [
+        "required_captured",
+        "required_captured_reference_only",
+        "required_omitted_with_disclosure",
+        "required_missing_deny",
+        "optional_captured",
+        "optional_omitted_without_loss",
+        "not_applicable"
+      ],
+      "description": "Frozen capture-posture vocabulary. required_captured_reference_only is the default for every raw-body source class because raw bodies never cross the RPC boundary. required_omitted_with_disclosure names a capture class the contract refuses to store raw — the row MUST carry a matching omission_reason. required_missing_deny names a capture class that MUST have been captured but was not; this denies the replay packet with required_capture_missing."
+    },
+
+    "omission_reason": {
+      "type": "string",
+      "enum": [
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_prompt_text_forbidden_on_boundary",
+        "raw_credential_material_forbidden",
+        "raw_user_supplied_text_forbidden_unless_separately_retained",
+        "retention_window_expired",
+        "user_deleted_local_copy",
+        "managed_copy_withdrawn_by_policy",
+        "redaction_class_exceeds_sink",
+        "policy_quarantined_source_body_forbidden",
+        "provider_did_not_disclose",
+        "never_captured_by_design"
+      ],
+      "description": "Frozen omission-reason vocabulary. Every capture-posture row whose posture is required_omitted_with_disclosure or optional_omitted_without_loss MUST name exactly one reason. never_captured_by_design is the reason every raw body is marked; it is not a bug, it is the contract."
+    },
+
+    "provider_availability": {
+      "type": "string",
+      "enum": [
+        "reachable_same_identity_same_version",
+        "reachable_same_identity_newer_version",
+        "reachable_different_identity",
+        "unreachable_temporary",
+        "unreachable_retired",
+        "unreachable_policy_denied",
+        "unreachable_entitlement_expired",
+        "not_applicable_mocked"
+      ],
+      "description": "Frozen provider-availability vocabulary graded at replay time. full_replay requires reachable_same_identity_same_version; any other value forces a partial_replay_* or non_replayable_* grade. not_applicable_mocked is reachable only for provider_class = mocked_test_provider assemblies."
+    },
+
+    "mutation_status": {
+      "type": "string",
+      "enum": [
+        "not_a_mutation_turn",
+        "mutation_plan_captured_and_applied",
+        "mutation_plan_captured_not_applied",
+        "mutation_plan_captured_reverted",
+        "mutation_plan_lost",
+        "mutation_plan_superseded"
+      ],
+      "description": "Frozen mutation-status vocabulary. mutation_plan_lost forces non_replayable_mutation_lost; the packet still exists for evidence honesty and names which mutation-journal entry id was lost. mutation_plan_superseded names the superseding mutation-journal entry."
+    },
+
+    "replay_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_replay_packet_minted",
+        "ai_replay_capture_coverage_recorded",
+        "ai_replay_provider_availability_assessed",
+        "ai_replay_mutation_lineage_recorded",
+        "ai_replay_degradation_disclosed",
+        "ai_replay_denial_emitted",
+        "ai_replay_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_replay audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "replay_denial_reason": {
+      "type": "string",
+      "enum": [
+        "assembly_ref_missing",
+        "evidence_packet_ref_missing",
+        "required_capture_missing",
+        "replay_grade_unresolved",
+        "provider_availability_unresolved",
+        "mutation_status_unresolved",
+        "omission_reason_missing_on_omitted_capture",
+        "tainted_fence_dropped_on_replay",
+        "audit_storage_manifest_ref_missing",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_prompt_text_forbidden_on_boundary",
+        "ai_replay_packet_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort replay packet is forbidden."
+    },
+
+    "dispatch_target_class": {
+      "type": "string",
+      "enum": [
+        "inline_composer",
+        "background_branch_agent",
+        "review_handoff",
+        "support_replay_only"
+      ],
+      "description": "Re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "ai_replay_capture_coverage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_replay_packet_schema_version",
+        "capture_coverage_id",
+        "replay_packet_ref",
+        "capture_class",
+        "capture_posture",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_replay_capture_coverage_record" },
+        "ai_replay_packet_schema_version": { "$ref": "#/$defs/ai_replay_packet_schema_version" },
+        "capture_coverage_id": { "$ref": "#/$defs/opaque_id" },
+        "replay_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "capture_class": { "$ref": "#/$defs/capture_class" },
+        "capture_posture": { "$ref": "#/$defs/capture_posture" },
+        "captured_ref_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the retained artifacts that back this capture class (assembly id, segment id, mention id, attachment id, tool-call-lineage id, route-receipt id, spend-receipt id, mutation-journal entry id, save-manifest id, interaction-safety-packet id, evidence-packet id, tainted-fence id, downstream-handoff id, running-build-identity id). Empty when posture is required_omitted_with_disclosure, optional_omitted_without_loss, required_missing_deny, or not_applicable."
+        },
+        "omission_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/omission_reason" }
+          ],
+          "description": "Required (non-null) when capture_posture ∈ {required_omitted_with_disclosure, optional_omitted_without_loss}; null otherwise."
+        },
+        "audit_storage_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the ai_audit_storage_manifest_record that governs the retained artifacts backing this capture class. Null only when capture_posture is required_missing_deny or not_applicable."
+        },
+        "degradation_note_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a typed degradation note entity (never a free-form string). Present when this row is the one that drove the replay grade away from full_replay."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "omission_reason MUST be non-null when capture_posture is required_omitted_with_disclosure or optional_omitted_without_loss.",
+          "if": {
+            "properties": {
+              "capture_posture": {
+                "enum": [
+                  "required_omitted_with_disclosure",
+                  "optional_omitted_without_loss"
+                ]
+              }
+            },
+            "required": ["capture_posture"]
+          },
+          "then": {
+            "properties": { "omission_reason": { "$ref": "#/$defs/omission_reason" } },
+            "required": ["omission_reason"]
+          }
+        },
+        {
+          "description": "captured_ref_ids MUST be non-empty when capture_posture is required_captured, required_captured_reference_only, or optional_captured.",
+          "if": {
+            "properties": {
+              "capture_posture": {
+                "enum": [
+                  "required_captured",
+                  "required_captured_reference_only",
+                  "optional_captured"
+                ]
+              }
+            },
+            "required": ["capture_posture"]
+          },
+          "then": {
+            "properties": {
+              "captured_ref_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["captured_ref_ids"]
+          }
+        },
+        {
+          "description": "captured_ref_ids MUST be empty when capture_posture is required_omitted_with_disclosure, optional_omitted_without_loss, required_missing_deny, or not_applicable.",
+          "if": {
+            "properties": {
+              "capture_posture": {
+                "enum": [
+                  "required_omitted_with_disclosure",
+                  "optional_omitted_without_loss",
+                  "required_missing_deny",
+                  "not_applicable"
+                ]
+              }
+            },
+            "required": ["capture_posture"]
+          },
+          "then": {
+            "properties": {
+              "captured_ref_ids": { "maxItems": 0 }
+            }
+          }
+        }
+      ],
+      "description": "One row per capture class on the replay packet. Every capture class listed in the frozen capture_class vocabulary is addressed separately; a replay packet whose coverage set is missing any required capture class is denied with required_capture_missing at audit time."
+    },
+
+    "ai_replay_provider_availability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_replay_packet_schema_version",
+        "provider_availability_id",
+        "replay_packet_ref",
+        "provider_availability",
+        "provider_identity_ref",
+        "model_identity_ref",
+        "assessed_at",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_replay_provider_availability_record" },
+        "ai_replay_packet_schema_version": { "$ref": "#/$defs/ai_replay_packet_schema_version" },
+        "provider_availability_id": { "$ref": "#/$defs/opaque_id" },
+        "replay_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_availability": { "$ref": "#/$defs/provider_availability" },
+        "provider_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the provider identity recorded on the originating ai_route_plan_record / ai_route_receipt_record. Raw provider URLs, raw tenant tokens, and raw credentials never appear."
+        },
+        "model_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the model identity (family + version pin) recorded on the originating ai_route_plan_record / ai_route_receipt_record."
+        },
+        "current_provider_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the provider identity the replay path would route to now. Non-null only when provider_availability = reachable_different_identity; null otherwise."
+        },
+        "current_model_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the model identity the replay path would route to now. Non-null only when provider_availability ∈ {reachable_same_identity_newer_version, reachable_different_identity}; null otherwise."
+        },
+        "unreachable_since": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the originating provider / model identity became unreachable, when known. Null when the record was not unreachable or when the provider does not disclose this metadata."
+        },
+        "assessed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "current_provider_identity_ref MUST be non-null when provider_availability = reachable_different_identity.",
+          "if": {
+            "properties": { "provider_availability": { "const": "reachable_different_identity" } },
+            "required": ["provider_availability"]
+          },
+          "then": {
+            "properties": { "current_provider_identity_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["current_provider_identity_ref"]
+          }
+        },
+        {
+          "description": "current_model_identity_ref MUST be non-null when provider_availability is reachable_same_identity_newer_version or reachable_different_identity.",
+          "if": {
+            "properties": {
+              "provider_availability": {
+                "enum": [
+                  "reachable_same_identity_newer_version",
+                  "reachable_different_identity"
+                ]
+              }
+            },
+            "required": ["provider_availability"]
+          },
+          "then": {
+            "properties": { "current_model_identity_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["current_model_identity_ref"]
+          }
+        }
+      ],
+      "description": "Provider / model availability assessment recorded at replay time. One record per replay packet. The grading drives the replay grade but is recorded separately so reviewers can tell 'the provider is gone' from 'the model was deprecated but the vendor still exists'."
+    },
+
+    "ai_replay_mutation_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_replay_packet_schema_version",
+        "mutation_lineage_id",
+        "replay_packet_ref",
+        "mutation_status",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_replay_mutation_lineage_record" },
+        "ai_replay_packet_schema_version": { "$ref": "#/$defs/ai_replay_packet_schema_version" },
+        "mutation_lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "replay_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "mutation_status": { "$ref": "#/$defs/mutation_status" },
+        "mutation_journal_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the mutation-journal entries the turn produced. Non-empty when mutation_status is mutation_plan_captured_and_applied, mutation_plan_captured_not_applied, or mutation_plan_captured_reverted. Empty on not_a_mutation_turn. A lost / superseded entry still lists its original id alongside any superseding id."
+        },
+        "superseding_mutation_journal_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when mutation_status = mutation_plan_superseded; null otherwise. Names the entry that replaced the original mutation."
+        },
+        "interaction_safety_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the interaction_safety_packet_records covering apply / revert. Non-empty when the original turn applied a mutation against ai_apply_canvas."
+        },
+        "save_manifest_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to save manifests (ADR-0006) that record the mutation at save time."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "superseding_mutation_journal_entry_ref MUST be non-null when mutation_status = mutation_plan_superseded.",
+          "if": {
+            "properties": { "mutation_status": { "const": "mutation_plan_superseded" } },
+            "required": ["mutation_status"]
+          },
+          "then": {
+            "properties": { "superseding_mutation_journal_entry_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["superseding_mutation_journal_entry_ref"]
+          }
+        },
+        {
+          "description": "mutation_journal_entry_refs MUST be empty when mutation_status = not_a_mutation_turn.",
+          "if": {
+            "properties": { "mutation_status": { "const": "not_a_mutation_turn" } },
+            "required": ["mutation_status"]
+          },
+          "then": {
+            "properties": {
+              "mutation_journal_entry_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "mutation_journal_entry_refs MUST be non-empty when mutation_status is a captured / reverted / lost / superseded value.",
+          "if": {
+            "properties": {
+              "mutation_status": {
+                "enum": [
+                  "mutation_plan_captured_and_applied",
+                  "mutation_plan_captured_not_applied",
+                  "mutation_plan_captured_reverted",
+                  "mutation_plan_lost",
+                  "mutation_plan_superseded"
+                ]
+              }
+            },
+            "required": ["mutation_status"]
+          },
+          "then": {
+            "properties": {
+              "mutation_journal_entry_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["mutation_journal_entry_refs"]
+          }
+        }
+      ],
+      "description": "Mutation lineage recorded at replay time. One record per replay packet. A replay that would otherwise be a full_replay downgrades to partial_replay_mutation_already_applied when the mutation has been applied since capture."
+    },
+
+    "ai_replay_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_replay_packet_schema_version",
+        "replay_packet_id",
+        "assembly_id_ref",
+        "evidence_packet_ref",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "dispatch_target_class",
+        "replay_grade",
+        "provider_availability_ref",
+        "mutation_lineage_ref",
+        "capture_coverage_refs",
+        "audit_storage_manifest_ref",
+        "degraded_capture_classes",
+        "freshness_class",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_replay_packet_record" },
+        "ai_replay_packet_schema_version": { "$ref": "#/$defs/ai_replay_packet_schema_version" },
+        "replay_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "dispatch_target_class": { "$ref": "#/$defs/dispatch_target_class" },
+        "replay_grade": { "$ref": "#/$defs/replay_grade" },
+        "provider_availability_ref": { "$ref": "#/$defs/opaque_id" },
+        "mutation_lineage_ref": { "$ref": "#/$defs/opaque_id" },
+        "capture_coverage_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the ai_replay_capture_coverage_record entries that describe, per capture_class, whether the class was captured, captured reference-only, intentionally omitted with disclosure, or missing-and-denied. Every required capture class listed in the contract MUST appear on exactly one capture-coverage row."
+        },
+        "audit_storage_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "tainted_fence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the ai_tainted_content_fence_record entries inherited from the originating evidence packet. Every tainted fence on the originating packet MUST appear here; dropping a fence at replay time denies with tainted_fence_dropped_on_replay."
+        },
+        "source_reference_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the ai_evidence_source_reference_record entries on the originating evidence packet. Every user-visible claim the turn made is addressable from the replay packet by id."
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = background_branch_agent."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = review_handoff."
+        },
+        "downstream_handoff_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to downstream packets the replay packet was handed off to (review / diff canvas packets, mutation-journal entries, support bundles, claim manifests, nested replay packets). Every handoff MUST preserve every tainted_usage_constraint the underlying evidence packet carries."
+        },
+        "degraded_capture_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capture_class" },
+          "description": "The capture classes whose capture_posture forced the replay grade away from full_replay. Empty when replay_grade = full_replay; non-empty otherwise. A surface that reports a partial or non-replayable grade with an empty degraded_capture_classes set is non-conforming."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011) at the moment the original turn dispatched. Support-replay-only reconstructions reuse the identity recorded on the originating assembly."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when dispatch_target_class = background_branch_agent.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "background_branch_agent" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when dispatch_target_class = review_handoff.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "review_handoff" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        },
+        {
+          "description": "degraded_capture_classes MUST be empty when replay_grade = full_replay.",
+          "if": {
+            "properties": { "replay_grade": { "const": "full_replay" } },
+            "required": ["replay_grade"]
+          },
+          "then": {
+            "properties": {
+              "degraded_capture_classes": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "degraded_capture_classes MUST be non-empty when replay_grade is a partial_replay_* or non_replayable_* value.",
+          "if": {
+            "properties": {
+              "replay_grade": {
+                "not": { "const": "full_replay" }
+              }
+            },
+            "required": ["replay_grade"]
+          },
+          "then": {
+            "properties": {
+              "degraded_capture_classes": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/capture_class" }
+              }
+            },
+            "required": ["degraded_capture_classes"]
+          }
+        }
+      ],
+      "description": "Per-turn AI replay packet. Every retained AI turn — including support_replay_only reconstructions — emits exactly one ai_replay_packet_record that cites the originating ai_context_assembly_record, ai_evidence_packet_record, the retained receipts, the tainted-content fences, the mutation lineage, and the audit-storage manifest by id. Replayability is graded, not binary; the packet names exactly one replay_grade and enumerates which capture classes forced the grade."
+    },
+
+    "ai_replay_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_replay_packet_schema_version",
+        "audit_event_id",
+        "replay_packet_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_replay_audit_event_record" },
+        "ai_replay_packet_schema_version": { "$ref": "#/$defs/ai_replay_packet_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/replay_audit_event_id" },
+        "replay_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "evidence_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "capture_coverage_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "provider_availability_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "mutation_lineage_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "degraded_capture_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/capture_class" }
+          ],
+          "description": "Present on ai_replay_degradation_disclosed events; names the capture class that drove the replay grade away from full_replay."
+        },
+        "replay_grade": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/replay_grade" }
+          ],
+          "description": "Present on ai_replay_packet_minted and ai_replay_degradation_disclosed events; records the grade at event time."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/replay_denial_reason" }
+          ],
+          "description": "Required (non-null) on ai_replay_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for ai_replay_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "ai_replay_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/replay_denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the ai_replay audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, or raw credential material."
+    }
+  }
+}

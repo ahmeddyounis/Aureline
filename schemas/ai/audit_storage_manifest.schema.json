@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/audit_storage_manifest.schema.json",
+  "title": "Aureline AI audit-storage manifest contract",
+  "description": "Boundary schema for the ai_audit_storage_manifest_record, the ai_audit_storage_artifact_record, and the ai_audit_storage_audit_event_record frozen in docs/ai/evidence_replayability_contract.md. The manifest is the typed register that describes which retained artifacts back a retained AI turn, what storage-object kind each artifact is (conversation history, derived cache, first-class evidence packet, receipt packet, audit-event stream, replay packet), what sensitivity / retention / export / delete / redaction posture each carries, and which artifacts/governance/record_class_registry.yaml row governs it. Raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw paths, raw URLs, and raw credential material never cross the RPC boundary; this schema carries ids and typed vocabulary only. Adding a new storage_object_kind, retention_posture_class, export_posture_class, delete_posture_class, redaction_posture, audit-event id, or denial reason is additive-minor and requires an ai_audit_storage_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_audit_storage_manifest_record" },
+    { "$ref": "#/$defs/ai_audit_storage_artifact_record" },
+    { "$ref": "#/$defs/ai_audit_storage_audit_event_record" }
+  ],
+  "$defs": {
+    "ai_audit_storage_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI audit-storage manifest vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "ai_audit_storage_manifest_record",
+        "ai_audit_storage_artifact_record",
+        "ai_audit_storage_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets / replay packets. Raw prompt text, raw document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw paths, raw URLs, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "storage_object_kind": {
+      "type": "string",
+      "enum": [
+        "conversation_history",
+        "derived_cache",
+        "first_class_evidence_packet",
+        "receipt_packet",
+        "audit_event_stream",
+        "replay_packet"
+      ],
+      "description": "Frozen storage-object-kind vocabulary. conversation_history = raw-reference-only store of user turns / AI responses / tool-call envelopes. derived_cache = a cache authoritative for nothing. first_class_evidence_packet = a retained ai_evidence_packet_record with the full tainted_fence / source_reference / citation_anchor set addressable separately. receipt_packet = a retained ai_route_receipt_record or ai_spend_receipt_record. audit_event_stream = the local / managed audit-event backing for the ai_context / ai_evidence / ai_replay / ai_audit_storage streams. replay_packet = the retained ai_replay_packet_record. Silent re-classification between the six kinds is non-conforming."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_ephemeral_session_scoped",
+        "local_retained_until_user_reset",
+        "local_retained_until_case_close",
+        "managed_retained_until_packet_expiry",
+        "managed_retained_until_case_close",
+        "retained_under_legal_hold",
+        "destruction_receipt_required_on_delete"
+      ],
+      "description": "Frozen retention-posture vocabulary for retained AI artifacts. Values compose over (and do not override) the record-class row the artifact cites; a manifest that widens retention beyond the cited row is non-conforming."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "packet_is_export",
+        "exportable_on_request",
+        "local_only_not_exportable",
+        "export_denied_by_policy"
+      ],
+      "description": "Frozen export-posture vocabulary. packet_is_export names an artifact whose mint is already the export surface (e.g. a first-class evidence packet or a replay packet); exportable_on_request names an artifact that requires an explicit export action before it crosses a sink boundary."
+    },
+
+    "delete_posture_class": {
+      "type": "string",
+      "enum": [
+        "request_supported",
+        "request_blocks_on_hold",
+        "request_denied_by_policy",
+        "not_applicable"
+      ],
+      "description": "Frozen delete-posture vocabulary. request_blocks_on_hold fires when an active legal / support / retention hold blocks terminal delete completion; the record-class registry row governs which hold classes apply."
+    },
+
+    "redaction_posture": {
+      "type": "string",
+      "enum": [
+        "broker_redaction_pass_applied_at_capture",
+        "broker_redaction_pass_applied_at_export",
+        "broker_redaction_pass_to_be_reapplied_on_replay",
+        "no_redaction_required_metadata_only"
+      ],
+      "description": "Frozen redaction-posture vocabulary. The broker-owned redaction pass (ADR-0007) runs on every write and on every export rewrite; no_redaction_required_metadata_only is legal only for rows whose sensitivity_class = metadata_safe_default and that carry no redactable content."
+    },
+
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Frozen sensitivity-class vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json (ADR-0011) without modification."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "audit_storage_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "ai_audit_storage_manifest_minted",
+        "ai_audit_storage_artifact_retained",
+        "ai_audit_storage_artifact_expired",
+        "ai_audit_storage_artifact_held",
+        "ai_audit_storage_artifact_released_from_hold",
+        "ai_audit_storage_artifact_deleted",
+        "ai_audit_storage_artifact_exported",
+        "ai_audit_storage_denial_emitted",
+        "ai_audit_storage_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_audit_storage audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "audit_storage_denial_reason": {
+      "type": "string",
+      "enum": [
+        "storage_object_kind_unresolved",
+        "sensitivity_class_unresolved",
+        "record_class_ref_missing",
+        "retention_posture_unresolved",
+        "export_posture_unresolved",
+        "delete_posture_unresolved",
+        "redaction_posture_unresolved",
+        "build_identity_ref_missing",
+        "provider_identity_ref_missing_for_conversation_history",
+        "model_identity_ref_missing_for_conversation_history",
+        "retention_widens_beyond_record_class",
+        "export_widens_beyond_record_class",
+        "delete_widens_beyond_record_class",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_prompt_text_forbidden_on_boundary",
+        "ai_audit_storage_manifest_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort manifest is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "ai_audit_storage_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_audit_storage_manifest_schema_version",
+        "artifact_id",
+        "manifest_ref",
+        "storage_object_kind",
+        "retained_object_ref",
+        "record_class_ref",
+        "sensitivity_class",
+        "retention_posture_class",
+        "export_posture_class",
+        "delete_posture_class",
+        "redaction_posture",
+        "exact_build_identity_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_audit_storage_artifact_record" },
+        "ai_audit_storage_manifest_schema_version": { "$ref": "#/$defs/ai_audit_storage_manifest_schema_version" },
+        "artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "storage_object_kind": { "$ref": "#/$defs/storage_object_kind" },
+        "retained_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the retained object (ai_context_assembly_record id, ai_evidence_packet_record id, ai_route_receipt_record id, ai_spend_receipt_record id, ai_replay_packet_record id, audit-event stream id, derived-cache entry id, conversation-history slot id). Raw bodies never appear."
+        },
+        "record_class_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pointer into artifacts/governance/record_class_registry.yaml (e.g. 'ai_retained_evidence_packet'). A retained artifact without a record_class_ref is non-conforming because its retention / hold / delete / export / offboarding posture would be invented per-surface."
+        },
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "redaction_posture": { "$ref": "#/$defs/redaction_posture" },
+        "exact_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running-build identity (D-0011) the artifact was minted under."
+        },
+        "provider_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the provider identity the artifact was produced by. Required (non-null) when storage_object_kind ∈ {conversation_history, first_class_evidence_packet, receipt_packet}; null otherwise."
+        },
+        "model_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the model identity the artifact was produced by. Required (non-null) when storage_object_kind ∈ {conversation_history, first_class_evidence_packet, receipt_packet}; null otherwise."
+        },
+        "retained_since": { "$ref": "#/$defs/monotonic_timestamp" },
+        "retention_window_ends_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp at which the retention window closes. Null when the retention window is open-ended (e.g. retained_under_legal_hold) or when the posture is not yet resolved."
+        },
+        "hold_classes_active": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "administrative_legal",
+              "user_pending_review",
+              "policy_freeze_window",
+              "support_investigation",
+              "system_integrity",
+              "retention_minimum",
+              "export_pending"
+            ]
+          },
+          "description": "Hold classes currently applied to the artifact. Empty when no hold is active. Re-exported from schemas/governance/record_class.schema.json without modification."
+        },
+        "companion_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when export_posture_class = packet_is_export AND the referenced record-class row sets manifest_required = true; null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "provider_identity_ref and model_identity_ref MUST be non-null when storage_object_kind is conversation_history.",
+          "if": {
+            "properties": { "storage_object_kind": { "const": "conversation_history" } },
+            "required": ["storage_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "provider_identity_ref": { "$ref": "#/$defs/opaque_id" },
+              "model_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["provider_identity_ref", "model_identity_ref"]
+          }
+        },
+        {
+          "description": "First-class evidence packet artifacts MUST carry broker_redaction_pass_applied_at_capture or broker_redaction_pass_applied_at_export. A metadata-only redaction posture is non-conforming.",
+          "if": {
+            "properties": { "storage_object_kind": { "const": "first_class_evidence_packet" } },
+            "required": ["storage_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "redaction_posture": {
+                "enum": [
+                  "broker_redaction_pass_applied_at_capture",
+                  "broker_redaction_pass_applied_at_export"
+                ]
+              }
+            },
+            "required": ["redaction_posture"]
+          }
+        },
+        {
+          "description": "conversation_history, first_class_evidence_packet, and receipt_packet rows MUST carry provider_identity_ref and model_identity_ref.",
+          "if": {
+            "properties": {
+              "storage_object_kind": {
+                "enum": [
+                  "conversation_history",
+                  "first_class_evidence_packet",
+                  "receipt_packet"
+                ]
+              }
+            },
+            "required": ["storage_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "provider_identity_ref": { "$ref": "#/$defs/opaque_id" },
+              "model_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["provider_identity_ref", "model_identity_ref"]
+          }
+        }
+      ],
+      "description": "One retained artifact backing the AI turn. Every retained evidence / receipt / replay / audit-stream / cache / conversation-history object the manifest covers appears as one row. Retention / hold / delete / export / offboarding posture is inherited from the cited record-class registry row; a row that widens any posture beyond the record-class row denies with retention_widens_beyond_record_class (or the matching export / delete denial)."
+    },
+
+    "ai_audit_storage_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_audit_storage_manifest_schema_version",
+        "manifest_id",
+        "assembly_id_ref",
+        "evidence_packet_ref",
+        "replay_packet_ref",
+        "artifact_refs",
+        "freshness_class",
+        "client_scopes",
+        "running_build_identity_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_audit_storage_manifest_record" },
+        "ai_audit_storage_manifest_schema_version": { "$ref": "#/$defs/ai_audit_storage_manifest_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "replay_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to the ai_audit_storage_artifact_record rows covered by this manifest. Every retained object backing the replay packet appears as one row; a retained turn with no artifact rows is non-conforming."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity (D-0011) at the moment the manifest was minted."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed register of every retained artifact backing one AI turn. The replay packet (ai_replay_packet_record) quotes this manifest by id; downstream support / parity / claim surfaces read the manifest instead of re-deriving the retained-artifact set."
+    },
+
+    "ai_audit_storage_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ai_audit_storage_manifest_schema_version",
+        "audit_event_id",
+        "manifest_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_audit_storage_audit_event_record" },
+        "ai_audit_storage_manifest_schema_version": { "$ref": "#/$defs/ai_audit_storage_manifest_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_storage_audit_event_id" },
+        "manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "storage_object_kind": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/storage_object_kind" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/audit_storage_denial_reason" }
+          ],
+          "description": "Required (non-null) on ai_audit_storage_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for ai_audit_storage_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "ai_audit_storage_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/audit_storage_denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the ai_audit_storage audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    }
+  }
+}
