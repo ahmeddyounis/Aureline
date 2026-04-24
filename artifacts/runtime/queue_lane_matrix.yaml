@@ -1,0 +1,664 @@
+# Shared queue-lane, workload-lane, job-kind, collapse-policy,
+# checkpoint-policy, staleness-policy, cancellation-contract, and
+# budget-domain matrix plus seeded diagnostic scenarios.
+#
+# Companion to docs/runtime/background_queue_contract.md and
+# schemas/runtime/background_job.schema.json. The runtime may
+# implement these values through different internal schedulers or
+# counters, but every surface, QA fixture, support export, and
+# future scheduler MUST project back to the ids declared here.
+
+schema_version: 1
+artifact_id: aureline.runtime.queue_lane_matrix
+title: Background-work queue lanes, workload lanes, job kinds, collapse / checkpoint / cancel contracts, and seeded diagnostics
+
+contract_source: docs/runtime/background_queue_contract.md
+
+related_docs:
+  - docs/runtime/resource_governor_contract.md
+  - docs/perf/efficiency_state_policy.md
+  - docs/runtime/execution_context_vocabulary.md
+  - docs/runtime/fault_domains_and_restart_policy.md
+
+companion_refs:
+  resource_governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+  forensic_packet_schema_ref: schemas/runtime/forensic_packet.schema.json
+  background_job_schema_ref: schemas/runtime/background_job.schema.json
+  execution_context_schema_ref: schemas/runtime/execution_context.schema.json
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# These vocabularies are frozen by this packet. Adding a value is an
+# additive-minor change that MUST bump schema_version only when it
+# changes payload shape; repurposing a value is breaking.
+# --------------------------------------------------------------------------
+
+queue_lane_vocabulary:
+  - foreground
+  - interactive_background
+  - maintenance
+  - provider_overlay
+  - upload_replication
+
+work_class_vocabulary:
+  - core_interaction
+  - core_navigation
+  - short_foreground_task
+  - background_knowledge_work
+  - optional_assistance
+  - upload_and_replication
+
+budget_domain_vocabulary:
+  - hot_path_interactive_budget
+  - foreground_task_budget
+  - knowledge_refresh_budget
+  - maintenance_budget
+  - provider_overlay_budget
+  - replication_budget
+
+workload_lane_vocabulary:
+  - startup_restore
+  - hot_set_scan
+  - graph_warmup
+  - provider_refresh
+  - restore_rebind
+  - workspace_index_full
+  - extension_timer
+  - ai_context_expansion
+  - telemetry_forward
+
+collapse_policy_vocabulary:
+  - coalesce_stale_duplicates
+  - replace_superseded
+  - restart_after_supersede
+  - serialize_exact_duplicates
+  - none
+
+checkpoint_policy_vocabulary:
+  - none
+  - explicit_phase_boundary
+  - item_or_time_boundary
+  - resumable_chunk_boundary
+
+staleness_policy_vocabulary:
+  - drop_if_stale
+  - re_queue_if_still_relevant
+  - refresh_on_resume
+  - never_stale
+
+cancellation_contract_vocabulary:
+  - cancel_immediate
+  - checkpoint_then_cancel
+  - cancel_after_phase
+  - no_inflight_cancel
+
+initiating_source_vocabulary:
+  - user_action
+  - session_startup
+  - workspace_open
+  - profile_change
+  - policy_change
+  - focus_change
+  - file_change_notification
+  - remote_reconnect
+  - scheduler_timer
+  - extension_request
+  - ai_tool_call
+  - support_export_request
+  - sync_trigger
+  - recovery_resume
+
+priority_hint_vocabulary:
+  - protected_foreground
+  - visible_work_support
+  - normal
+  - background_idle
+  - deferred
+
+# --------------------------------------------------------------------------
+# Budget-domain properties.
+#
+# Every workload lane binds to exactly one budget domain. The governor
+# and the efficiency-state policy read these ids; no surface mints a
+# parallel name.
+# --------------------------------------------------------------------------
+
+budget_domains:
+  - id: hot_path_interactive_budget
+    reserved_capacity: true
+    admits_workload_lanes: []
+    narrowed_by_governor_states: []
+    narrowed_by_efficiency_states: []
+    rationale: >
+      Reserved for typing, save, undo, current-task visibility, and
+      visible paint. No background workload lane may borrow this
+      capacity; admitting a background job that would defer a
+      keystroke, frame, or save is non-conforming.
+
+  - id: foreground_task_budget
+    reserved_capacity: false
+    admits_workload_lanes: []
+    narrowed_by_governor_states:
+      - degraded
+      - protect_core
+    narrowed_by_efficiency_states:
+      - battery_saver
+      - thermal_critical
+    rationale: >
+      Explicit user-run commands, debug step, Git status, and short
+      foreground tasks. Narrowed in degraded and denied-for-new-heavy
+      in protect-core.
+
+  - id: knowledge_refresh_budget
+    reserved_capacity: false
+    admits_workload_lanes:
+      - startup_restore
+      - hot_set_scan
+      - graph_warmup
+      - workspace_index_full
+    narrowed_by_governor_states:
+      - constrained
+      - degraded
+      - protect_core
+    narrowed_by_efficiency_states:
+      - battery_saver
+      - thermal_critical
+    rationale: >
+      Index scan, graph warmup, semantic refresh, and startup
+      restore. Collapses in constrained; narrows to hot-set only in
+      degraded; pauses in protect-core.
+
+  - id: maintenance_budget
+    reserved_capacity: false
+    admits_workload_lanes:
+      - extension_timer
+      - ai_context_expansion
+    narrowed_by_governor_states:
+      - constrained
+      - degraded
+      - protect_core
+    narrowed_by_efficiency_states:
+      - battery_saver
+      - thermal_critical
+    rationale: >
+      Hidden preview warmers, extension polling, marketplace refresh.
+      First to throttle; denied for new work in protect-core.
+
+  - id: provider_overlay_budget
+    reserved_capacity: false
+    admits_workload_lanes:
+      - provider_refresh
+      - restore_rebind
+    narrowed_by_governor_states:
+      - degraded
+      - protect_core
+    narrowed_by_efficiency_states:
+      - battery_saver
+    narrowed_by_remote_impairment_thresholds: true
+    rationale: >
+      Separate retry and circuit-breaker budget. Provider overlays do
+      not borrow from local interactive or knowledge budgets; remote
+      impairment thresholds narrow this domain independently.
+
+  - id: replication_budget
+    reserved_capacity: false
+    admits_workload_lanes:
+      - telemetry_forward
+    narrowed_by_governor_states:
+      - constrained
+      - degraded
+      - protect_core
+    narrowed_by_efficiency_states:
+      - battery_saver
+      - thermal_critical
+    rationale: >
+      Telemetry forward, crash upload, support-bundle upload, sync
+      publish. Batched in nominal; deferred in constrained; paused
+      in degraded and protect-core.
+
+# --------------------------------------------------------------------------
+# Queue-lane properties (the five shared lanes).
+# --------------------------------------------------------------------------
+
+queue_lanes:
+  - id: foreground
+    primary_work_classes:
+      - core_interaction
+      - core_navigation
+      - short_foreground_task
+    admits_workload_lanes: []
+    primary_budget_domains:
+      - hot_path_interactive_budget
+      - foreground_task_budget
+    collapse_rule: collapse_only_exact_stale_duplicates
+    checkpoint_expectation: none_or_explicit_phase_boundary
+    required_diagnostics:
+      - lane_depth
+      - oldest_age_seconds
+      - active_request_id
+      - cancellation_lag_ms
+    steal_shell_ready_budget_permitted: true
+    rationale: >
+      Hot-path lane. Typing, save, undo, current-task visibility, and
+      explicit user-run commands. Never queued behind background work.
+
+  - id: interactive_background
+    primary_work_classes:
+      - background_knowledge_work
+    admits_workload_lanes:
+      - startup_restore
+      - hot_set_scan
+    primary_budget_domains:
+      - knowledge_refresh_budget
+    collapse_rule: coalesce_by_workspace_scope_and_phase
+    checkpoint_expectation: item_or_time_boundary
+    required_diagnostics:
+      - lane_depth
+      - oldest_age_seconds
+      - collapse_count
+      - coalesce_count
+      - replace_count
+      - restart_count
+      - cancellation_lag_ms
+      - last_checkpoint
+    steal_shell_ready_budget_permitted: false
+
+  - id: maintenance
+    primary_work_classes:
+      - background_knowledge_work
+      - optional_assistance
+    admits_workload_lanes:
+      - graph_warmup
+      - workspace_index_full
+      - extension_timer
+      - ai_context_expansion
+    primary_budget_domains:
+      - knowledge_refresh_budget
+      - maintenance_budget
+    collapse_rule: replace_superseded_jobs_aggressively
+    checkpoint_expectation: explicit_phase_boundary
+    required_diagnostics:
+      - lane_depth
+      - oldest_age_seconds
+      - collapse_count
+      - coalesce_count
+      - replace_count
+      - restart_count
+      - cancellation_lag_ms
+      - last_checkpoint
+      - pause_reason
+      - resume_owner
+    steal_shell_ready_budget_permitted: false
+
+  - id: provider_overlay
+    primary_work_classes:
+      - background_knowledge_work
+    admits_workload_lanes:
+      - provider_refresh
+      - restore_rebind
+    primary_budget_domains:
+      - provider_overlay_budget
+    collapse_rule: separate_retry_budget_from_local_lanes
+    checkpoint_expectation: phase_boundary_before_remote_mutation
+    required_diagnostics:
+      - lane_depth
+      - oldest_age_seconds
+      - collapse_count
+      - replace_count
+      - cancellation_lag_ms
+      - last_checkpoint
+      - retry_budget
+      - circuit_breaker_state
+    steal_shell_ready_budget_permitted: false
+
+  - id: upload_replication
+    primary_work_classes:
+      - upload_and_replication
+    admits_workload_lanes:
+      - telemetry_forward
+    primary_budget_domains:
+      - replication_budget
+    collapse_rule: batch_by_destination_and_retention_class
+    checkpoint_expectation: resumable_chunk_boundary
+    required_diagnostics:
+      - lane_depth
+      - oldest_age_seconds
+      - collapse_count
+      - last_checkpoint
+      - queued_bytes
+      - pause_reason
+      - retention_class
+    steal_shell_ready_budget_permitted: false
+
+# --------------------------------------------------------------------------
+# Workload lanes (the named background workloads).
+#
+# Each workload lane binds to exactly one queue lane, one work class,
+# one budget domain, one collapse policy, one checkpoint policy, one
+# staleness policy, and one cancellation contract.
+#
+# The steal_shell_ready_budget flag is false on every row; the schema
+# enforces this at the record level.
+# --------------------------------------------------------------------------
+
+workload_lanes:
+  - id: startup_restore
+    queue_lane: interactive_background
+    work_class: background_knowledge_work
+    budget_domain: knowledge_refresh_budget
+    collapse_policy: coalesce_stale_duplicates
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: drop_if_stale
+    cancellation_contract: checkpoint_then_cancel
+    default_priority_hint: visible_work_support
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - startup.workspace_restore
+      - startup.workset_rehydrate
+      - startup.layout_restore
+      - startup.index_resume
+    rationale: >
+      Session-startup rehydration (open workset, pinned tabs, split
+      layout, warming index resume). Never consumes hot-path budget.
+
+  - id: hot_set_scan
+    queue_lane: interactive_background
+    work_class: background_knowledge_work
+    budget_domain: knowledge_refresh_budget
+    collapse_policy: coalesce_stale_duplicates
+    checkpoint_policy: item_or_time_boundary
+    staleness_policy: refresh_on_resume
+    cancellation_contract: cancel_immediate
+    default_priority_hint: visible_work_support
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - knowledge.hot_set_scan
+      - knowledge.open_file_freshness
+      - knowledge.visible_symbol_refresh
+      - knowledge.outline_first_paint
+    rationale: >
+      Open-file / visible-symbol freshness and hot-set priming. First
+      to serve partial answers; coalesces under file-change bursts.
+
+  - id: graph_warmup
+    queue_lane: maintenance
+    work_class: background_knowledge_work
+    budget_domain: knowledge_refresh_budget
+    collapse_policy: restart_after_supersede
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: re_queue_if_still_relevant
+    cancellation_contract: cancel_after_phase
+    default_priority_hint: background_idle
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - knowledge.graph_warmup
+      - knowledge.references_catalog
+      - knowledge.cross_file_link_resolve
+    rationale: >
+      Semantic graph build and cross-file link resolution. Supersedes
+      on workset change; restarts from the last-good phase checkpoint.
+
+  - id: provider_refresh
+    queue_lane: provider_overlay
+    work_class: background_knowledge_work
+    budget_domain: provider_overlay_budget
+    collapse_policy: replace_superseded
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: refresh_on_resume
+    cancellation_contract: checkpoint_then_cancel
+    default_priority_hint: normal
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - provider.overlay_refresh
+      - provider.tenant_policy_refresh
+      - provider.feature_flag_refresh
+      - provider.docs_model_catalog_refresh
+      - provider.remote_attach_warm
+    rationale: >
+      Provider-overlay, tenant-policy, feature-flag, and docs/model
+      catalog refreshes. Newest arrival wins; prior refresh cancels at
+      its next checkpoint to avoid split-posture overlays.
+
+  - id: restore_rebind
+    queue_lane: provider_overlay
+    work_class: background_knowledge_work
+    budget_domain: provider_overlay_budget
+    collapse_policy: coalesce_stale_duplicates
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: refresh_on_resume
+    cancellation_contract: checkpoint_then_cancel
+    default_priority_hint: visible_work_support
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - remote.restore_rebind
+      - remote.resync_required_replay
+      - remote.subscription_reissue
+      - remote.capability_envelope_reissue
+    rationale: >
+      Reconnect-time rebind of remote session handles, resync-required
+      subscriptions, and re-issued capability envelopes. Uses the
+      provider overlay budget only.
+
+  - id: workspace_index_full
+    queue_lane: maintenance
+    work_class: background_knowledge_work
+    budget_domain: knowledge_refresh_budget
+    collapse_policy: replace_superseded
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: drop_if_stale
+    cancellation_contract: cancel_after_phase
+    default_priority_hint: deferred
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - knowledge.workspace_index_full
+      - knowledge.workspace_graph_rebuild
+    rationale: >
+      Full-workspace index and graph rebuilds. Paused first under
+      pressure; runs only when hot-set work is caught up.
+
+  - id: extension_timer
+    queue_lane: maintenance
+    work_class: optional_assistance
+    budget_domain: maintenance_budget
+    collapse_policy: replace_superseded
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: drop_if_stale
+    cancellation_contract: cancel_immediate
+    default_priority_hint: deferred
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - extension.background_timer
+      - extension.polling_refresh
+      - extension.hidden_preview_warmup
+    rationale: >
+      Extension background timers and polling. Throttled in
+      constrained, paused in degraded, denied new in protect-core.
+
+  - id: ai_context_expansion
+    queue_lane: maintenance
+    work_class: optional_assistance
+    budget_domain: maintenance_budget
+    collapse_policy: replace_superseded
+    checkpoint_policy: explicit_phase_boundary
+    staleness_policy: drop_if_stale
+    cancellation_contract: cancel_immediate
+    default_priority_hint: deferred
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - ai.context_expansion
+      - ai.embeddings_refresh
+      - ai.marketplace_refresh
+      - ai.model_warmup
+    rationale: >
+      AI context expansion, embeddings, marketplace refresh, and
+      model warmup. Never reserves hot-path budget.
+
+  - id: telemetry_forward
+    queue_lane: upload_replication
+    work_class: upload_and_replication
+    budget_domain: replication_budget
+    collapse_policy: serialize_exact_duplicates
+    checkpoint_policy: resumable_chunk_boundary
+    staleness_policy: never_stale
+    cancellation_contract: checkpoint_then_cancel
+    default_priority_hint: background_idle
+    steal_shell_ready_budget: false
+    typical_job_kinds:
+      - telemetry.forward
+      - telemetry.crash_upload
+      - telemetry.support_bundle_upload
+      - telemetry.sync_publish
+    rationale: >
+      Opt-in telemetry, crash upload, support-bundle upload, and
+      sync publish. Never competes with shell or knowledge lanes.
+
+# --------------------------------------------------------------------------
+# Protected-budget invariants.
+#
+# The queue matrix freezes one rule above all others: startup and
+# provider-overlay lanes do not steal hot-path interactive budget.
+# --------------------------------------------------------------------------
+
+protected_budget_invariants:
+  - id: shell_ready_budget_is_reserved
+    description: >
+      No workload lane declares steal_shell_ready_budget = true. The
+      schema enforces this on every background-job record. A
+      foreground keystroke is always admitted before any startup
+      or provider-overlay work runs.
+    covered_workload_lanes:
+      - startup_restore
+      - hot_set_scan
+      - graph_warmup
+      - provider_refresh
+      - restore_rebind
+      - workspace_index_full
+      - extension_timer
+      - ai_context_expansion
+      - telemetry_forward
+  - id: hot_path_interactive_budget_has_no_background_admits
+    description: >
+      budget_domains.hot_path_interactive_budget carries
+      admits_workload_lanes = []. Only core_interaction and
+      core_navigation work may consume this capacity.
+  - id: startup_and_provider_lanes_never_preempt
+    description: >
+      startup_restore, hot_set_scan, graph_warmup, provider_refresh,
+      and restore_rebind all declare steal_shell_ready_budget = false
+      and do not admit to the foreground queue lane.
+
+# --------------------------------------------------------------------------
+# Required diagnostic fields per lane.
+# --------------------------------------------------------------------------
+
+queue_diagnostics_schema:
+  per_lane_fields:
+    - lane
+    - lane_depth
+    - oldest_age_seconds
+    - collapse_count
+    - coalesce_count
+    - replace_count
+    - restart_count
+    - cancellation_lag_ms
+    - last_checkpoint
+    - budget_domain
+    - governor_state_at_sample
+    - visible_projection
+  per_job_fields:
+    - job_id
+    - job_kind
+    - workload_lane
+    - queue_lane
+    - work_class
+    - budget_domain
+    - steal_shell_ready_budget
+    - workspace_id
+    - slice_id
+    - scope
+    - initiating_source
+    - collapse_key
+    - collapse_policy
+    - checkpoint_policy
+    - staleness_policy
+    - cancellation_contract
+    - priority_hint
+    - enqueued_at
+    - started_at
+    - current_phase
+    - last_checkpoint
+    - collapse_origin_job_id
+    - superseded_job_ids
+  collapse_event_fields:
+    - event_id
+    - event_at
+    - lane
+    - job_kind
+    - collapse_policy
+    - collapse_key
+    - survivor_job_id
+    - superseded_job_ids
+    - new_enqueue_job_id
+    - checkpoint_handoff
+    - cancellation_lag_ms
+
+# --------------------------------------------------------------------------
+# Seeded diagnostic scenarios.
+#
+# Each scenario points at a fixture in fixtures/runtime/queue_cases/
+# that instantiates the record shapes from background_job.schema.json.
+# --------------------------------------------------------------------------
+
+seeded_scenarios:
+  - scenario_id: duplicate_hot_set_scan_coalesced
+    fixture_ref: fixtures/runtime/queue_cases/duplicate_hot_set_scan_coalesced.json
+    covered_workload_lane: hot_set_scan
+    exercises:
+      - collapse_policy: coalesce_stale_duplicates
+      - increments: [collapse_count, coalesce_count]
+      - invariant: lane_depth_does_not_grow_under_bursty_notifications
+
+  - scenario_id: provider_refresh_replaced
+    fixture_ref: fixtures/runtime/queue_cases/provider_refresh_replaced.json
+    covered_workload_lane: provider_refresh
+    exercises:
+      - collapse_policy: replace_superseded
+      - increments: [collapse_count, replace_count]
+      - invariant: prior_refresh_cancels_at_checkpoint_before_new_starts
+
+  - scenario_id: graph_warmup_restarted_from_checkpoint
+    fixture_ref: fixtures/runtime/queue_cases/graph_warmup_restarted_from_checkpoint.json
+    covered_workload_lane: graph_warmup
+    exercises:
+      - collapse_policy: restart_after_supersede
+      - increments: [collapse_count, restart_count]
+      - invariant: new_warmup_resumes_from_last_good_phase
+
+  - scenario_id: startup_restore_does_not_starve_foreground
+    fixture_ref: fixtures/runtime/queue_cases/startup_restore_does_not_starve_foreground.json
+    covered_workload_lane: startup_restore
+    exercises:
+      - invariant: steal_shell_ready_budget_is_false
+      - invariant: first_keystroke_admitted_before_startup_lane
+      - visible_projection:
+          editor_shell: ready
+          interactive_background: warming
+
+  - scenario_id: restore_rebind_after_reconnect
+    fixture_ref: fixtures/runtime/queue_cases/restore_rebind_after_reconnect.json
+    covered_workload_lane: restore_rebind
+    exercises:
+      - budget_domain: provider_overlay_budget
+      - invariant: rebind_does_not_use_hot_path_budget
+      - visible_projection:
+          provider_overlay: warming
+
+  - scenario_id: telemetry_backlog_paused_under_protect_core
+    fixture_ref: fixtures/runtime/queue_cases/telemetry_backlog_paused_under_protect_core.json
+    covered_workload_lane: telemetry_forward
+    exercises:
+      - admission: pause
+      - invariant: queued_state_is_preserved_not_cancelled
+      - visible_projection:
+          upload_replication: overloaded

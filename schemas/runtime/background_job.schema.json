@@ -1,0 +1,685 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/background_job.schema.json",
+  "title": "Aureline background-job, queue-diagnostics, and collapse-event record",
+  "description": "Boundary schema for the background-job record, the queue-diagnostics record, and the collapse-event record every Aureline queue surface reads, logs, or exports. See docs/runtime/background_queue_contract.md and artifacts/runtime/queue_lane_matrix.yaml. Shared lane, work-class, governor-state, and visible-health-state vocabularies are re-exported from schemas/runtime/forensic_packet.schema.json and artifacts/runtime/resource_governor_thresholds.yaml; this schema does not mint parallel lane or state names. The eventual queue-engine crate's Rust types are the schema of record; this file is the cross-tool boundary. Adding a new job-kind, workload-lane, collapse-policy, checkpoint-policy, staleness-policy, cancellation-contract, initiating-source, or priority-hint value is additive-minor and MUST bump background_job_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/background_job_record" },
+    { "$ref": "#/$defs/queue_diagnostics_record" },
+    { "$ref": "#/$defs/collapse_event_record" }
+  ],
+  "$defs": {
+    "background_job_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this background-job / queue-diagnostics / collapse-event export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, and admin exports. Raw bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source at the queue."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, lineage, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical dotted lower-snake id. Used for job_kind ids."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "background_job_record",
+        "queue_diagnostics_record",
+        "collapse_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "queue_lane_id": {
+      "type": "string",
+      "enum": [
+        "foreground",
+        "interactive_background",
+        "maintenance",
+        "provider_overlay",
+        "upload_replication"
+      ],
+      "description": "Frozen queue-lane vocabulary. Joins back to resource_governor_thresholds.yaml queue_lane_vocabulary."
+    },
+    "work_class_id": {
+      "type": "string",
+      "enum": [
+        "core_interaction",
+        "core_navigation",
+        "short_foreground_task",
+        "background_knowledge_work",
+        "optional_assistance",
+        "upload_and_replication"
+      ],
+      "description": "Frozen work-class vocabulary. Joins back to resource_governor_thresholds.yaml work_class_vocabulary."
+    },
+    "budget_domain_id": {
+      "type": "string",
+      "enum": [
+        "hot_path_interactive_budget",
+        "foreground_task_budget",
+        "knowledge_refresh_budget",
+        "maintenance_budget",
+        "provider_overlay_budget",
+        "replication_budget"
+      ],
+      "description": "Frozen budget-domain vocabulary. The governor and efficiency-state policy narrow these; no lane borrows hot_path_interactive_budget."
+    },
+    "workload_lane_id": {
+      "type": "string",
+      "enum": [
+        "startup_restore",
+        "hot_set_scan",
+        "graph_warmup",
+        "provider_refresh",
+        "restore_rebind",
+        "workspace_index_full",
+        "extension_timer",
+        "ai_context_expansion",
+        "telemetry_forward"
+      ],
+      "description": "Frozen workload-lane vocabulary. Every background job binds to one workload lane; each workload lane binds to exactly one queue_lane_id + work_class_id + budget_domain_id in queue_lane_matrix.yaml."
+    },
+    "governor_state_id": {
+      "type": "string",
+      "enum": [
+        "nominal",
+        "constrained",
+        "degraded",
+        "protect_core",
+        "recovery"
+      ],
+      "description": "Frozen governor health-state vocabulary."
+    },
+    "visible_state_id": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "partial",
+        "degraded",
+        "offline",
+        "unsupported",
+        "overloaded"
+      ],
+      "description": "Frozen visible health-state vocabulary."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "ambient"
+      ],
+      "description": "Frozen scope-class vocabulary. Matches the execution-context scope vocabulary; ambient covers unscoped hosts (for example, crash upload)."
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_id"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Stable identifier within the scope class. Null for ambient scope only."
+        }
+      }
+    },
+    "initiating_source_class": {
+      "type": "string",
+      "enum": [
+        "user_action",
+        "session_startup",
+        "workspace_open",
+        "profile_change",
+        "policy_change",
+        "focus_change",
+        "file_change_notification",
+        "remote_reconnect",
+        "scheduler_timer",
+        "extension_request",
+        "ai_tool_call",
+        "support_export_request",
+        "sync_trigger",
+        "recovery_resume"
+      ],
+      "description": "Frozen initiating-source vocabulary. Names why this job was enqueued."
+    },
+    "collapse_policy_class": {
+      "type": "string",
+      "enum": [
+        "coalesce_stale_duplicates",
+        "replace_superseded",
+        "restart_after_supersede",
+        "serialize_exact_duplicates",
+        "none"
+      ],
+      "description": "Frozen collapse-policy vocabulary."
+    },
+    "checkpoint_policy_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "explicit_phase_boundary",
+        "item_or_time_boundary",
+        "resumable_chunk_boundary"
+      ],
+      "description": "Frozen checkpoint-policy vocabulary."
+    },
+    "staleness_policy_class": {
+      "type": "string",
+      "enum": [
+        "drop_if_stale",
+        "re_queue_if_still_relevant",
+        "refresh_on_resume",
+        "never_stale"
+      ],
+      "description": "Frozen staleness-policy vocabulary."
+    },
+    "cancellation_contract_class": {
+      "type": "string",
+      "enum": [
+        "cancel_immediate",
+        "checkpoint_then_cancel",
+        "cancel_after_phase",
+        "no_inflight_cancel"
+      ],
+      "description": "Frozen cancellation-contract vocabulary. no_inflight_cancel is reserved for core_interaction work and is forbidden on background lanes."
+    },
+    "priority_hint_class": {
+      "type": "string",
+      "enum": [
+        "protected_foreground",
+        "visible_work_support",
+        "normal",
+        "background_idle",
+        "deferred"
+      ],
+      "description": "Frozen priority-hint vocabulary. The lane admission matrix decides whether the job runs; this hint only orders work inside the lane."
+    },
+    "collapse_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_kind", "workspace_id", "slice_id", "scope", "phase"],
+      "properties": {
+        "job_kind": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "workspace_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "slice_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/scope_ref" }
+          ]
+        },
+        "phase": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dotted_lower_snake_id" }
+          ],
+          "description": "Optional phase id for jobs that declare phases. Null otherwise."
+        }
+      },
+      "description": "Structured collapse key. Every background job declares one; at least one of workspace_id, slice_id, or scope MUST be non-null (enforced by the record-level allOf guard)."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "no_checkpoint_declared",
+        "supervisor_acknowledged_epoch",
+        "disk_persisted_checkpoint",
+        "collector_ingested_checkpoint",
+        "session_handoff_checkpoint",
+        "unknown"
+      ],
+      "description": "Checkpoint-class vocabulary. Matches the forensic-packet checkpoint-class vocabulary."
+    },
+    "last_checkpoint_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_class", "checkpoint_ref", "epoch", "captured_at", "note"],
+      "properties": {
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "captured_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "background_job_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "background_job_schema_version",
+        "job_id",
+        "job_kind",
+        "workload_lane",
+        "queue_lane",
+        "work_class",
+        "budget_domain",
+        "steal_shell_ready_budget",
+        "workspace_id",
+        "profile_id",
+        "slice_id",
+        "scope",
+        "initiating_source",
+        "collapse_key",
+        "collapse_policy",
+        "checkpoint_policy",
+        "staleness_policy",
+        "cancellation_contract",
+        "priority_hint",
+        "enqueued_at",
+        "started_at",
+        "current_phase",
+        "last_checkpoint",
+        "collapse_origin_job_id",
+        "superseded_job_ids",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "background_job_record"
+        },
+        "background_job_schema_version": {
+          "$ref": "#/$defs/background_job_schema_version"
+        },
+        "job_id": { "$ref": "#/$defs/opaque_id" },
+        "job_kind": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "workload_lane": { "$ref": "#/$defs/workload_lane_id" },
+        "queue_lane": { "$ref": "#/$defs/queue_lane_id" },
+        "work_class": { "$ref": "#/$defs/work_class_id" },
+        "budget_domain": { "$ref": "#/$defs/budget_domain_id" },
+        "steal_shell_ready_budget": {
+          "type": "boolean",
+          "description": "Whether this job is permitted to consume reserved hot-path interactive budget. Every background workload lane declares false; only core_interaction and core_navigation work may declare true."
+        },
+        "workspace_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "profile_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "slice_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope": { "$ref": "#/$defs/scope_ref" },
+        "initiating_source": { "$ref": "#/$defs/initiating_source_class" },
+        "collapse_key": { "$ref": "#/$defs/collapse_key" },
+        "collapse_policy": { "$ref": "#/$defs/collapse_policy_class" },
+        "checkpoint_policy": { "$ref": "#/$defs/checkpoint_policy_class" },
+        "staleness_policy": { "$ref": "#/$defs/staleness_policy_class" },
+        "cancellation_contract": { "$ref": "#/$defs/cancellation_contract_class" },
+        "priority_hint": { "$ref": "#/$defs/priority_hint_class" },
+        "enqueued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "current_phase": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dotted_lower_snake_id" }
+          ]
+        },
+        "last_checkpoint": { "$ref": "#/$defs/last_checkpoint_ref" },
+        "collapse_origin_job_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Null when the job is not the survivor of a collapse; opaque id of the first job in the collapse chain when it is."
+        },
+        "superseded_job_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque ids of jobs this job superseded under replace_superseded or restart_after_supersede. Empty when no supersession occurred."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Background workloads may never consume reserved hot-path interactive budget.",
+          "if": {
+            "properties": {
+              "record_kind": { "const": "background_job_record" }
+            },
+            "required": ["record_kind"]
+          },
+          "then": {
+            "properties": {
+              "steal_shell_ready_budget": { "const": false },
+              "budget_domain": {
+                "not": { "const": "hot_path_interactive_budget" }
+              }
+            }
+          }
+        },
+        {
+          "description": "no_inflight_cancel is forbidden outside core_interaction and core_navigation work.",
+          "if": {
+            "properties": {
+              "cancellation_contract": { "const": "no_inflight_cancel" }
+            },
+            "required": ["cancellation_contract"]
+          },
+          "then": {
+            "properties": {
+              "work_class": {
+                "enum": ["core_interaction", "core_navigation"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A job that declares checkpoint_policy = none is not pauseable; it may not live on lanes that admit pause.",
+          "if": {
+            "properties": {
+              "checkpoint_policy": { "const": "none" }
+            },
+            "required": ["checkpoint_policy"]
+          },
+          "then": {
+            "properties": {
+              "queue_lane": {
+                "enum": ["foreground"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Collapse key MUST carry at least one of workspace_id, slice_id, or scope.",
+          "properties": {
+            "collapse_key": {
+              "anyOf": [
+                { "properties": { "workspace_id": { "not": { "const": null } } }, "required": ["workspace_id"] },
+                { "properties": { "slice_id": { "not": { "const": null } } }, "required": ["slice_id"] },
+                { "properties": { "scope": { "not": { "const": null } } }, "required": ["scope"] }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "One background-job record. Carried inside queue surfaces, support bundles, replay artifacts, and the future scheduler's diagnostic export."
+    },
+    "queue_diagnostics_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "background_job_schema_version",
+        "sample_id",
+        "sample_at",
+        "lane",
+        "lane_depth",
+        "oldest_age_seconds",
+        "collapse_count",
+        "coalesce_count",
+        "replace_count",
+        "restart_count",
+        "cancellation_lag_ms",
+        "last_checkpoint",
+        "budget_domain",
+        "governor_state_at_sample",
+        "visible_projection",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "queue_diagnostics_record"
+        },
+        "background_job_schema_version": {
+          "$ref": "#/$defs/background_job_schema_version"
+        },
+        "sample_id": { "$ref": "#/$defs/opaque_id" },
+        "sample_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "lane": { "$ref": "#/$defs/queue_lane_id" },
+        "lane_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current enqueued + in-flight job count on this lane."
+        },
+        "oldest_age_seconds": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ],
+          "description": "Seconds since the oldest enqueued job was created. Null when the lane is empty."
+        },
+        "collapse_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cumulative enqueues folded by the collapse policy since the supervisor session started."
+        },
+        "coalesce_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Subcount of collapse_count under coalesce_stale_duplicates."
+        },
+        "replace_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Subcount of collapse_count under replace_superseded."
+        },
+        "restart_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Subcount of collapse_count under restart_after_supersede."
+        },
+        "cancellation_lag_ms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ],
+          "description": "p95 milliseconds between a cancellation request and the target job acknowledging (or reaching its next checkpoint when checkpoint_then_cancel applies). Null when no cancellation has occurred in the current window."
+        },
+        "last_checkpoint": { "$ref": "#/$defs/last_checkpoint_ref" },
+        "budget_domain": { "$ref": "#/$defs/budget_domain_id" },
+        "governor_state_at_sample": { "$ref": "#/$defs/governor_state_id" },
+        "visible_projection": { "$ref": "#/$defs/visible_state_id" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "collapse_count = coalesce_count + replace_count + restart_count.",
+          "properties": {
+            "collapse_count": { "type": "integer" },
+            "coalesce_count": { "type": "integer" },
+            "replace_count": { "type": "integer" },
+            "restart_count": { "type": "integer" }
+          }
+        },
+        {
+          "description": "A non-empty lane MUST carry oldest_age_seconds.",
+          "if": {
+            "properties": {
+              "lane_depth": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["lane_depth"]
+          },
+          "then": {
+            "properties": {
+              "oldest_age_seconds": {
+                "not": { "const": null }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One queue-diagnostics sample for a single lane at a single point in time."
+    },
+    "collapse_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "background_job_schema_version",
+        "event_id",
+        "event_at",
+        "lane",
+        "job_kind",
+        "collapse_policy",
+        "collapse_key",
+        "survivor_job_id",
+        "superseded_job_ids",
+        "new_enqueue_job_id",
+        "checkpoint_handoff",
+        "cancellation_lag_ms",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "collapse_event_record"
+        },
+        "background_job_schema_version": {
+          "$ref": "#/$defs/background_job_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "lane": { "$ref": "#/$defs/queue_lane_id" },
+        "job_kind": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "collapse_policy": { "$ref": "#/$defs/collapse_policy_class" },
+        "collapse_key": { "$ref": "#/$defs/collapse_key" },
+        "survivor_job_id": { "$ref": "#/$defs/opaque_id" },
+        "superseded_job_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque ids of every job this collapse cancelled or absorbed."
+        },
+        "new_enqueue_job_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque id of the new enqueue that triggered this collapse event. Null when a timer or supervisor sweep triggered it."
+        },
+        "checkpoint_handoff": { "$ref": "#/$defs/last_checkpoint_ref" },
+        "cancellation_lag_ms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ],
+          "description": "Milliseconds between the collapse decision and the superseded job acknowledging cancellation or reaching its next checkpoint."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "coalesce_stale_duplicates does not supersede a running job; superseded_job_ids MUST be empty.",
+          "if": {
+            "properties": {
+              "collapse_policy": { "const": "coalesce_stale_duplicates" }
+            },
+            "required": ["collapse_policy"]
+          },
+          "then": {
+            "properties": {
+              "superseded_job_ids": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "replace_superseded and restart_after_supersede MUST name at least one superseded job.",
+          "if": {
+            "properties": {
+              "collapse_policy": {
+                "enum": ["replace_superseded", "restart_after_supersede"]
+              }
+            },
+            "required": ["collapse_policy"]
+          },
+          "then": {
+            "properties": {
+              "superseded_job_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "restart_after_supersede MUST carry a non-null checkpoint handoff.",
+          "if": {
+            "properties": {
+              "collapse_policy": { "const": "restart_after_supersede" }
+            },
+            "required": ["collapse_policy"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_handoff": {
+                "properties": {
+                  "checkpoint_class": {
+                    "not": { "const": "no_checkpoint_declared" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One collapse event. Emitted whenever an enqueue is folded by the collapse policy of its lane."
+    }
+  }
+}
