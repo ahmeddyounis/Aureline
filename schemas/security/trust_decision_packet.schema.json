@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/trust_decision_packet.schema.json",
+  "title": "Aureline workspace-trust, restricted-mode, and permission-propagation vocabulary",
+  "description": "Boundary schema for the workspace-trust, restricted-mode, and permission-propagation ADR seed frozen in docs/adr/0018-workspace-trust-and-restricted-mode.md. Exports three record kinds every cross-surface consumer reads: trust_decision_record (one packet per observable grant / decline / revoke / narrowing / transition event), trust_audit_event_record (one packet per workspace_trust audit stream entry), and trust_matrix_inspection_record (diagnostic snapshot of the permission-propagation matrix for one workspace at one moment). Raw policy-bundle bytes, raw consent-capture bodies, raw evidence bodies, raw filesystem paths, raw signing-key material, and raw secret material MUST NOT cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable summary fields only. Adding a new trust_state, transition_id, surface_family, authority_kind, remembered_decision_scope, reason_class, escalation_cue, or audit_event_id is additive-minor and requires a packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/trust_decision_record" },
+    { "$ref": "#/$defs/trust_audit_event_record" },
+    { "$ref": "#/$defs/trust_matrix_inspection_record" }
+  ],
+  "$defs": {
+    "packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this workspace-trust vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "trust_decision_record",
+        "trust_audit_event_record",
+        "trust_matrix_inspection_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / admin exports. Raw filesystem paths, raw policy bytes, raw signing material, and raw consent-capture bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence describing posture, continuity, or operator guidance. Raw secret material, raw policy payloads, and raw filesystem paths MUST NOT appear."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "untrusted_unknown",
+        "restricted",
+        "trusted",
+        "trusted_time_bounded",
+        "trusted_policy_degraded",
+        "restricted_recovery_fallback",
+        "restricted_extension_quarantine",
+        "trust_revoked",
+        "trust_unavailable_identity_gate"
+      ],
+      "description": "Frozen workspace-trust state vocabulary. Every workspace is in exactly one trust state at every moment. See ADR 0018 'Trust states (frozen)'."
+    },
+
+    "transition_id": {
+      "type": "string",
+      "enum": [
+        "initial_open_untrusted",
+        "open_in_restricted_mode",
+        "continue_in_restricted_mode",
+        "open_without_restore",
+        "safe_mode_workspace_restricted",
+        "extension_quarantine_restricted",
+        "grant_trust_session",
+        "grant_trust_remembered",
+        "grant_trust_admin_prebinding",
+        "revoke_trust",
+        "policy_narrow_to_degraded",
+        "policy_restore_trusted",
+        "emergency_action_force_restricted",
+        "identity_gate_unavailable",
+        "identity_gate_restored"
+      ],
+      "description": "Frozen entry-flow and runtime transition vocabulary. See ADR 0018 'Entry-flow transitions (frozen)'."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Frozen identity-mode vocabulary inherited from ADR 0001. Identifies the envelope under which the trust decision was made."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "local_admin",
+        "managed_admin",
+        "signed_repo_allowance",
+        "emergency_action_signer",
+        "recovery_ladder_application",
+        "policy_epoch_roll",
+        "identity_gate_unavailable_system"
+      ],
+      "description": "Frozen actor-class vocabulary. Names the authority under which the decision was issued. System-issued transitions (policy epoch roll, identity-gate unavailability, recovery-ladder application) carry a null actor_identity_ref."
+    },
+
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_grant",
+        "explicit_user_decline",
+        "explicit_user_revoke",
+        "session_expired",
+        "focus_timeout_expired",
+        "admin_pre_grant",
+        "signed_repo_allowance_admitted",
+        "admin_policy_narrowed",
+        "admin_policy_restored",
+        "emergency_action_applied",
+        "recovery_ladder_fallback",
+        "extension_quarantine_applied",
+        "identity_gate_unavailable",
+        "policy_epoch_roll_required_reprompt",
+        "malformed_decision_rejected"
+      ],
+      "description": "Frozen reason-class vocabulary. Names why the transition fired."
+    },
+
+    "remembered_decision_scope": {
+      "type": "string",
+      "enum": [
+        "session_only",
+        "per_workspace_per_user",
+        "per_workspace_per_user_until_policy_epoch",
+        "per_parent_directory_per_user",
+        "admin_pre_grant_scope",
+        "signed_repo_allowance",
+        "never_remembered"
+      ],
+      "description": "Frozen remembered-decision scope vocabulary. See ADR 0018 'Remembered-decision scope (frozen)'."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "workspace_open_restore",
+        "editor_read_write",
+        "search_local",
+        "local_git_read",
+        "local_git_write",
+        "shell_command_palette",
+        "tasks_run",
+        "terminal_manual_open",
+        "terminal_repo_recipe_launch",
+        "debug_launch",
+        "notebook_kernel_connect",
+        "notebook_cell_execute",
+        "notebook_rich_output_render",
+        "ai_context_read",
+        "ai_apply_mutation",
+        "ai_tool_call_mutating",
+        "extension_activation",
+        "extension_install",
+        "environment_activator_run",
+        "scaffold_template_run",
+        "connected_provider_open",
+        "connected_provider_tool_call",
+        "remote_attach",
+        "mcp_server_launch",
+        "support_bundle_export",
+        "admin_policy_read"
+      ],
+      "description": "Frozen surface-family vocabulary for the permission-propagation matrix. See ADR 0018 'Permission-propagation matrix (frozen shape)'."
+    },
+
+    "authority_kind": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "read_only",
+        "degraded_preview_only",
+        "blocked_pending_trust",
+        "blocked_pending_approval",
+        "approval_required_per_invocation",
+        "policy_denied",
+        "quarantine_denied",
+        "not_applicable"
+      ],
+      "description": "Frozen authority-kind vocabulary. Names the behavior admitted for one surface under one trust state."
+    },
+
+    "approval_ticket_scope": {
+      "type": "string",
+      "enum": [
+        "single_operation",
+        "short_window_session",
+        "operation_class",
+        "not_applicable"
+      ],
+      "description": "Frozen approval-ticket scope vocabulary. Rows citing approval_required_per_invocation MUST name the scope so downstream surfaces know what the ticket admits. Full ticket lifetime lives under ADR 0009."
+    },
+
+    "escalation_cue": {
+      "type": "string",
+      "enum": [
+        "request_trust_grant",
+        "request_trust_grant_session_only",
+        "request_approval_ticket",
+        "request_admin_policy_change",
+        "request_trust_store_unlock",
+        "request_identity_sign_in",
+        "route_to_recovery_ladder",
+        "route_to_support_bundle_export",
+        "continue_restricted_no_elevation",
+        "no_recovery_available"
+      ],
+      "description": "Frozen escalation-cue vocabulary. See ADR 0018 'Escalation cues (frozen)'."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_state_resolved",
+        "workspace_trust_granted",
+        "workspace_trust_declined",
+        "workspace_trust_revoked",
+        "workspace_trust_session_grant_expired",
+        "workspace_trust_policy_narrowed",
+        "workspace_trust_policy_restored",
+        "workspace_trust_emergency_applied",
+        "workspace_trust_recovery_applied",
+        "workspace_trust_identity_gate_unavailable",
+        "workspace_trust_identity_gate_restored",
+        "workspace_trust_remembered_decision_recorded",
+        "workspace_trust_remembered_decision_invalidated",
+        "workspace_trust_matrix_row_denied",
+        "workspace_trust_matrix_row_admitted",
+        "workspace_trust_decision_malformed"
+      ],
+      "description": "Frozen audit-event id set for the workspace_trust audit stream. Events MUST NOT carry raw secret material, raw policy-bundle bytes, raw filesystem paths, raw consent-capture bodies, or raw evidence bodies."
+    },
+
+    "redaction_class": {
+      "$ref": "./secret_class_rows.schema.json#/$defs/redaction_class"
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "identity_mode"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque, monotonic policy epoch identifier. Rolls forward when the active policy bundle changes."
+        },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "tenant_scope_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque tenant-scope reference when the decision rides a managed tenant boundary. Null for account_free_local."
+        },
+        "active_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque references to the currently active admin / managed / emergency / signed-repo bundles. Raw bundle bytes never appear here."
+        }
+      },
+      "description": "Policy-context envelope. Mirrors the shape ADR 0005 and ADR 0008 carry on every decision-bearing frame."
+    },
+
+    "source_reason_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_ref_kind",
+        "reason_ref_id"
+      ],
+      "properties": {
+        "reason_ref_kind": {
+          "type": "string",
+          "enum": [
+            "admin_policy_bundle",
+            "managed_entitlement_snapshot",
+            "emergency_action_record",
+            "recovery_action_record",
+            "extension_quarantine_record",
+            "signed_repo_allowance_record",
+            "admin_pre_grant_record",
+            "remembered_decision_record",
+            "approval_ticket_record"
+          ],
+          "description": "Closed vocabulary naming the kind of source that motivated the trust decision. Records are referenced by id only; raw bodies never cross."
+        },
+        "reason_ref_id": { "$ref": "#/$defs/opaque_id" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One source-reason reference. Every policy_denied, quarantine_denied, emergency_action_force_restricted, safe_mode_workspace_restricted, extension_quarantine_restricted, or admin_pre_grant transition MUST cite at least one source-reason reference of the appropriate kind."
+    },
+
+    "per_state_authority_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_state",
+        "authority_kind"
+      ],
+      "properties": {
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "authority_kind": { "$ref": "#/$defs/authority_kind" },
+        "approval_ticket_scope": { "$ref": "#/$defs/approval_ticket_scope" },
+        "narrowing_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the policy / quarantine / emergency bundle that narrows this row, when authority_kind is policy_denied, quarantine_denied, or approval_required_per_invocation under trusted_policy_degraded."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One row in the per-state authority block: which authority applies to the surface under one trust state."
+    },
+
+    "surface_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_family",
+        "per_state_authority"
+      ],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "per_state_authority": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/per_state_authority_entry" },
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "description": "Exactly one per_state_authority_entry per frozen trust_state. Consumers MUST treat missing states as malformed rows."
+        },
+        "default_escalation_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/escalation_cue" },
+          "uniqueItems": true,
+          "description": "Default escalation cues the surface MAY present when narrowed on this row."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One permission-propagation matrix row. Rides the same vocabulary as trust_decision_record.affected_surfaces."
+    },
+
+    "trust_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "packet_schema_version",
+        "packet_id",
+        "workspace_root_ref",
+        "actor_class",
+        "identity_mode",
+        "prior_trust_state",
+        "resulting_trust_state",
+        "transition_id",
+        "reason_class",
+        "policy_context",
+        "audit_event_id",
+        "issued_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "trust_decision_record" },
+        "packet_schema_version": { "$ref": "#/$defs/packet_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_display_scope": { "$ref": "#/$defs/reviewable_sentence" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_identity_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Opaque identity ref. Null for system-issued transitions (policy epoch roll, recovery-ladder application, identity-gate unavailable)."
+        },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "prior_trust_state": { "$ref": "#/$defs/trust_state" },
+        "resulting_trust_state": { "$ref": "#/$defs/trust_state" },
+        "transition_id": { "$ref": "#/$defs/transition_id" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "remembered_decision_scope": {
+          "oneOf": [
+            { "$ref": "#/$defs/remembered_decision_scope" },
+            { "type": "null" }
+          ],
+          "description": "Declared remembered-decision scope. session_only for session grants; null for system-issued transitions that do not carry a remembered scope."
+        },
+        "expires_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Monotonic expiry timestamp. Required for grant_trust_session / trusted_time_bounded transitions; null when the decision does not expire."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "source_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_reason_ref" },
+          "uniqueItems": true,
+          "description": "Array of source-reason references. policy_denied / quarantine_denied / emergency_action_force_restricted / safe_mode_workspace_restricted / extension_quarantine_restricted / admin_pre_grant / signed_repo_allowance_admitted transitions MUST cite at least one reference."
+        },
+        "affected_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_family" },
+          "uniqueItems": true,
+          "description": "Surface families the packet is currently narrowing, widening, or reporting on."
+        },
+        "escalation_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/escalation_cue" },
+          "uniqueItems": true,
+          "description": "Repair / review cues the surface MAY present. Cues are recommendations, not blockers to editing."
+        },
+        "recovery_action_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Recovery-action ref for restricted_recovery_fallback and restricted_extension_quarantine transitions. Null otherwise. Defined by schemas/support/recovery_action.schema.json."
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transition_id": {
+                "enum": [
+                  "safe_mode_workspace_restricted",
+                  "extension_quarantine_restricted"
+                ]
+              }
+            },
+            "required": ["transition_id"]
+          },
+          "then": {
+            "required": ["recovery_action_ref"],
+            "properties": {
+              "recovery_action_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_id": { "const": "grant_trust_session" }
+            },
+            "required": ["transition_id"]
+          },
+          "then": {
+            "required": ["expires_at"],
+            "properties": {
+              "expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_id": { "const": "emergency_action_force_restricted" }
+            },
+            "required": ["transition_id"]
+          },
+          "then": {
+            "required": ["source_reason_refs"],
+            "properties": {
+              "source_reason_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "One observable grant / decline / revoke / narrowing / transition event. Consumed by shell chrome, admin export, support bundles, governance packets, and the audit stream."
+    },
+
+    "trust_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "packet_schema_version",
+        "event_id",
+        "audit_event_id",
+        "workspace_root_ref",
+        "trust_decision_packet_ref",
+        "issued_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "trust_audit_event_record" },
+        "packet_schema_version": { "$ref": "#/$defs/packet_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "workspace_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_decision_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_identity_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "authority_kind": { "$ref": "#/$defs/authority_kind" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "source_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_reason_ref" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One entry on the workspace_trust audit stream. Every audit event references its originating trust_decision_record by packet ref; it does not restate the full packet. workspace_trust_matrix_row_admitted / _denied events MUST carry surface_family and authority_kind."
+    },
+
+    "trust_matrix_inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "packet_schema_version",
+        "inspection_id",
+        "workspace_root_ref",
+        "observed_trust_state",
+        "identity_mode",
+        "policy_context",
+        "surface_matrix_rows",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "trust_matrix_inspection_record" },
+        "packet_schema_version": { "$ref": "#/$defs/packet_schema_version" },
+        "inspection_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_display_scope": { "$ref": "#/$defs/reviewable_sentence" },
+        "observed_trust_state": { "$ref": "#/$defs/trust_state" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "surface_matrix_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_matrix_row" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "One row per observed / relevant surface family. Consumers MAY snapshot a subset for focused inspection surfaces; the full registry lives in artifacts/security/trust_state_matrix.yaml."
+        },
+        "source_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_reason_ref" },
+          "uniqueItems": true,
+          "description": "References to the admin / managed / emergency / recovery bundles active at inspection time."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Diagnostic snapshot of the permission-propagation matrix for one workspace at one moment. Used by support exports, admin exports, doctor probes, and governance packets to inspect the live posture without scraping surface-local flags."
+    }
+  }
+}

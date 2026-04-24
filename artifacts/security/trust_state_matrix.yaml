@@ -1,0 +1,569 @@
+# Workspace-trust permission-propagation matrix.
+#
+# Machine-readable matrix backing ADR 0018
+# (docs/adr/0018-workspace-trust-and-restricted-mode.md).
+#
+# Every row names one surface_family and declares, per frozen
+# trust_state, the authority_kind that surface admits, the
+# approval-ticket scope it rides (when approval_required_per_invocation
+# applies), and the default escalation cues the surface MAY present
+# when narrowed. Tooling (tasks, terminal, debug, notebook, AI lane,
+# extension activation / install, connected-provider handoff,
+# execution-context resolver, remote-agent attach, MCP server launch,
+# shell command dispatch, support-bundle exporter, admin export,
+# doctor probes, governance packets) MAY read these rows to avoid
+# inventing parallel trust-gating vocabulary.
+#
+# Conformance: every surface_matrix_row conforms to the
+# surface_matrix_row shape in
+#   schemas/security/trust_decision_packet.schema.json
+#
+# Invariants (quoted from ADR 0018 "Permission-propagation matrix
+# (frozen shape)"):
+#
+#   I1. Every row names exactly one surface_family and declares a
+#       per_state_authority block with exactly one authority entry
+#       per frozen trust_state.
+#   I2. Restricted-posture floor. For every surface outside the
+#       floor set (editor_read_write, search_local, local_git_read,
+#       workspace_open_restore, support_bundle_export,
+#       admin_policy_read), the restricted, untrusted_unknown,
+#       restricted_recovery_fallback, restricted_extension_quarantine,
+#       trust_revoked, and trust_unavailable_identity_gate entries
+#       MUST NOT be `allowed`.
+#   I3. trusted_policy_degraded authority MUST be equal-or-narrower
+#       than trusted. Admin policy narrows, never widens.
+#   I4. Every policy_denied or quarantine_denied entry MUST cite a
+#       source_reason_refs reference at the observing surface.
+#   I5. Every approval_required_per_invocation entry MUST name the
+#       approval_ticket_scope so downstream surfaces know what the
+#       ticket admits.
+#   I6. support_bundle_export MUST remain at least read_only in
+#       every trust state.
+#   I7. connected_provider_open MUST route through the
+#       browser-handoff packet (ADR 0010).
+#   I8. ai_apply_mutation and ai_tool_call_mutating are
+#       blocked_pending_trust in every non-trusted state by default.
+#
+# adr_source is the canonical human-readable form. If tooling and
+# the ADR disagree, the ADR wins and this file must be updated in
+# the same change.
+
+schema_version: 1
+
+adr_source: docs/adr/0018-workspace-trust-and-restricted-mode.md
+decision_id: D-0023
+decision_register: artifacts/governance/decision_index.yaml
+packet_schema_ref: schemas/security/trust_decision_packet.schema.json
+
+# -----------------------------------------------------------------------------
+# Restricted-posture floor.
+#
+# Editor, search, local git read, workspace open/restore, support bundle
+# export, and admin policy read MUST remain admitted across every
+# non-trusted state. Restricted mode is not a mode that can block
+# editing.
+# -----------------------------------------------------------------------------
+restricted_posture_floor:
+  - editor_read_write
+  - search_local
+  - local_git_read
+  - workspace_open_restore
+  - support_bundle_export
+  - admin_policy_read
+
+# -----------------------------------------------------------------------------
+# Surface matrix rows.
+#
+# Exactly one row per surface_family. Consumers treat any missing
+# per_state_authority entry as a malformed row.
+# -----------------------------------------------------------------------------
+surface_matrix_rows:
+
+  # --- Restricted-posture floor surfaces -------------------------------------
+
+  - surface_family: workspace_open_restore
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: allowed }
+      - { trust_state: restricted,                        authority_kind: allowed }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: allowed }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: allowed }
+      - { trust_state: trust_revoked,                     authority_kind: allowed }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: allowed }
+    default_escalation_cues:
+      - request_trust_grant
+      - continue_restricted_no_elevation
+    notes: >
+      Opening and restoring a workspace is admitted in every trust
+      state. open_without_restore and safe_mode_workspace_restricted
+      suspend the layout-restore half of this surface without
+      blocking the open half.
+
+  - surface_family: editor_read_write
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: allowed }
+      - { trust_state: restricted,                        authority_kind: allowed }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: allowed }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: allowed }
+      - { trust_state: trust_revoked,                     authority_kind: allowed }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: allowed }
+    default_escalation_cues:
+      - continue_restricted_no_elevation
+    notes: >
+      Read, edit, and save MUST remain admitted in every trust state.
+      Restricted mode is not a mode that can block editing.
+
+  - surface_family: search_local
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: allowed }
+      - { trust_state: restricted,                        authority_kind: allowed }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: allowed }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: allowed }
+      - { trust_state: trust_revoked,                     authority_kind: allowed }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: allowed }
+    default_escalation_cues:
+      - continue_restricted_no_elevation
+
+  - surface_family: local_git_read
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: allowed }
+      - { trust_state: restricted,                        authority_kind: allowed }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: allowed }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: allowed }
+      - { trust_state: trust_revoked,                     authority_kind: allowed }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: allowed }
+    default_escalation_cues:
+      - continue_restricted_no_elevation
+    notes: >
+      Read-only git introspection (branches, log, diff, status)
+      remains admitted in every trust state. Writing (commit / push /
+      fetch) is covered by local_git_write.
+
+  - surface_family: support_bundle_export
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: read_only }
+      - { trust_state: restricted,                        authority_kind: read_only }
+      - { trust_state: trusted,                           authority_kind: read_only }
+      - { trust_state: trusted_time_bounded,              authority_kind: read_only }
+      - { trust_state: trusted_policy_degraded,           authority_kind: read_only }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: read_only }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: read_only }
+      - { trust_state: trust_revoked,                     authority_kind: read_only }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: read_only }
+    default_escalation_cues:
+      - route_to_support_bundle_export
+    notes: >
+      Support-bundle export rides ADR-0007 redaction defaults;
+      admission is bounded by redaction policy, not by workspace
+      trust. Always at least read_only so diagnostics do not become
+      trust-gated.
+
+  - surface_family: admin_policy_read
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: read_only }
+      - { trust_state: restricted,                        authority_kind: read_only }
+      - { trust_state: trusted,                           authority_kind: read_only }
+      - { trust_state: trusted_time_bounded,              authority_kind: read_only }
+      - { trust_state: trusted_policy_degraded,           authority_kind: read_only }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: read_only }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: read_only }
+      - { trust_state: trust_revoked,                     authority_kind: read_only }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: read_only }
+    default_escalation_cues:
+      - continue_restricted_no_elevation
+
+  # --- Command dispatch and git write ----------------------------------------
+
+  - surface_family: shell_command_palette
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      Palette admits only command dispatch that the surface itself
+      admits under the active trust state. Restricted workspaces
+      keep the palette reachable for editor / search / navigation
+      commands; mutating commands route through the command's own
+      matrix row.
+
+  - surface_family: local_git_write
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: operation_class }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      Commit, merge, push, fetch, and rebase ride workspace trust.
+      Restricted workspaces still admit local_git_read so diff,
+      branch inspection, and log remain available.
+
+  # --- Tasks / terminal / debug ----------------------------------------------
+
+  - surface_family: tasks_run
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  - surface_family: terminal_manual_open
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+    notes: >
+      Manual terminals are admitted in trusted workspaces without
+      per-invocation approval because the user is typing the
+      command. Restricted workspaces block manual terminal open
+      because a terminal inherits workspace activators (rc files,
+      direnv, devcontainer lifecycle) that are themselves trust-
+      gated.
+
+  - surface_family: terminal_repo_recipe_launch
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      Repo-owned recipe launchers and auto-run scripts are the
+      classic workspace-trust attack surface. They never admit in
+      any non-trusted state.
+
+  - surface_family: debug_launch
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  # --- Notebook --------------------------------------------------------------
+
+  - surface_family: notebook_kernel_connect
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      Notebook open / read / edit / save are covered by
+      editor_read_write and remain admitted in every state. Kernel
+      attach is what this row gates. The notebook-trust ladder
+      (cell-level trusted_output vs cleared_output) lands in the
+      notebook seed; this row holds the workspace-trust floor.
+
+  - surface_family: notebook_cell_execute
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  - surface_family: notebook_rich_output_render
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: degraded_preview_only }
+      - { trust_state: restricted,                        authority_kind: degraded_preview_only }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: degraded_preview_only }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: degraded_preview_only }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: degraded_preview_only }
+      - { trust_state: trust_revoked,                     authority_kind: degraded_preview_only }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: degraded_preview_only }
+    default_escalation_cues:
+      - request_trust_grant
+      - continue_restricted_no_elevation
+    notes: >
+      Rich HTML / JS / iframe output from notebook cells downgrades
+      to sanitized metadata preview when the workspace is not
+      trusted. See docs/security/safe_preview_trust_classes.md for
+      the SanitizedRich vs TrustedLocalActive distinction that
+      drives the preview posture.
+
+  # --- AI surfaces -----------------------------------------------------------
+
+  - surface_family: ai_context_read
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: allowed }
+      - { trust_state: restricted,                        authority_kind: allowed }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: allowed }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: allowed }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: allowed }
+      - { trust_state: trust_revoked,                     authority_kind: allowed }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: allowed }
+    default_escalation_cues:
+      - continue_restricted_no_elevation
+    notes: >
+      AI reading workspace content for prompt assembly is the same
+      authority as editor read; admin policy MAY narrow AI context
+      read through a policy-narrowing row but MUST NOT narrow it
+      below the editor's read floor.
+
+  - surface_family: ai_apply_mutation
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      AI apply is never silently admitted. Even in trusted
+      workspaces, each apply invocation routes through an approval
+      ticket so evidence captures actor, scope, and blast radius.
+      The apply sub-matrix (apply-edit / create-file / run-task /
+      call-provider) lands in the AI evidence / approval ADR.
+
+  - surface_family: ai_tool_call_mutating
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  # --- Extensions ------------------------------------------------------------
+
+  - surface_family: extension_activation
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: operation_class }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: quarantine_denied }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - route_to_recovery_ladder
+    notes: >
+      Extension auto-activation on workspace events, file patterns,
+      or language ids is gated by workspace trust. Under
+      restricted_extension_quarantine the specific extensions named
+      in the quarantine record are denied; other extensions may
+      still activate under trusted states.
+
+  - surface_family: extension_install
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  # --- Environment / scaffolds -----------------------------------------------
+
+  - surface_family: environment_activator_run
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: operation_class }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      direnv, venv auto-activate, .envrc, devcontainer lifecycle,
+      and other repo-owned toolchain activators ride workspace
+      trust. Detection remains advisory in restricted workspaces;
+      the detected version is visible on every run / debug / test
+      surface without executing the activator.
+
+  - surface_family: scaffold_template_run
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  # --- Connected providers / remote / MCP ------------------------------------
+
+  - surface_family: connected_provider_open
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: degraded_preview_only }
+      - { trust_state: restricted,                        authority_kind: degraded_preview_only }
+      - { trust_state: trusted,                           authority_kind: allowed }
+      - { trust_state: trusted_time_bounded,              authority_kind: allowed }
+      - { trust_state: trusted_policy_degraded,           authority_kind: degraded_preview_only }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: degraded_preview_only }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: degraded_preview_only }
+      - { trust_state: trust_revoked,                     authority_kind: degraded_preview_only }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: degraded_preview_only }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_identity_sign_in
+    notes: >
+      Open-in-browser and device-code handoff route through the
+      browser-handoff packet (ADR 0010). Restricted workspaces get
+      the metadata-only preview with the provider / domain / reason
+      card; the actual handoff only fires under trusted posture.
+
+  - surface_family: connected_provider_tool_call
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+
+  - surface_family: remote_attach
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: short_window_session }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: short_window_session }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+      - request_identity_sign_in
+    notes: >
+      SSH / container / managed remote attach carries its own
+      remote-side trust-decision packet. Local trust never silently
+      widens the remote target's posture, and remote-side elevation
+      does not auto-elevate the local workspace.
+
+  - surface_family: mcp_server_launch
+    per_state_authority:
+      - { trust_state: untrusted_unknown,                 authority_kind: blocked_pending_trust }
+      - { trust_state: restricted,                        authority_kind: blocked_pending_trust }
+      - { trust_state: trusted,                           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_time_bounded,              authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: trusted_policy_degraded,           authority_kind: approval_required_per_invocation, approval_ticket_scope: single_operation }
+      - { trust_state: restricted_recovery_fallback,      authority_kind: blocked_pending_trust }
+      - { trust_state: restricted_extension_quarantine,   authority_kind: blocked_pending_trust }
+      - { trust_state: trust_revoked,                     authority_kind: blocked_pending_trust }
+      - { trust_state: trust_unavailable_identity_gate,   authority_kind: blocked_pending_trust }
+    default_escalation_cues:
+      - request_trust_grant
+      - request_approval_ticket
+    notes: >
+      Model Context Protocol servers declared by the workspace
+      behave like repo-defined recipes for the trust contract: the
+      workspace must be trusted before the server process can
+      start, and each session opens through an approval ticket.
