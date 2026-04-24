@@ -1,0 +1,703 @@
+# Rendering, layout, and accessibility-tree golden manifest.
+#
+# First harness-plan manifest for the rendering/layout goldens lane
+# (artifacts/qe/test_lane_registry.yaml#lanes.rendering_layout_goldens)
+# and the accessibility-tree capture categories that route through the
+# accessibility_regression lane. Every row names an owner, a runner
+# location, an artifact format, a drift posture, and a refresh policy
+# so CI enforcement can start without re-deciding scope.
+#
+# Consumers:
+#   - The goldens runner (planned at artifacts/qe/dashboard/goldens/)
+#     reads this file by stable category_id and enumerates rows.
+#   - The accessibility-tree runner (planned under the
+#     accessibility_regression lane) reads accessibility_tree_categories
+#     by stable category_id.
+#   - The shiproom dashboard surfaces drift verdicts by stable id; a
+#     verdict that cannot cite a category id here does not exist for
+#     tooling purposes.
+#
+# Rules:
+#   - Every row MUST cite exactly one lane_ref from
+#     artifacts/qe/test_lane_registry.yaml#lanes.
+#   - Every row MUST declare a drift_posture drawn from the closed
+#     drift_posture_values set below.
+#   - Every row MUST declare a refresh_policy drawn from the closed
+#     refresh_policy_values set below. "regenerate because it failed"
+#     is not a declared refresh path.
+#   - Every row MUST name one or more scenario_refs from
+#     artifacts/qe/quality_scenario_hooks.yaml#scenarios so drift
+#     verdicts bind to named user-facing scenarios.
+#   - Every environment_sensitive_observation row MUST cite a
+#     quarantine_rule_ref from artifacts/benchmarks/quarantine_rules.yaml.
+#   - Planning / milestone slugs MUST NOT appear in any id, title,
+#     scope note, or tag on this file.
+
+schema_version: 1
+manifest_id: aureline.qe.render_golden_manifest
+manifest_revision: 1
+overview_document: docs/qe/golden_and_fuzz_harness_plan.md
+test_lane_registry_ref: artifacts/qe/test_lane_registry.yaml
+quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+harness_owner_map_ref: artifacts/qe/harness_owner_map.yaml
+release_blocking_rules_ref: artifacts/qe/release_blocking_rules.yaml
+benchmark_quarantine_rules_ref: artifacts/benchmarks/quarantine_rules.yaml
+render_fixture_dir_ref: fixtures/render/viewport_cases
+render_damage_classes_ref: artifacts/render/damage_classes.yaml
+composition_layer_map_ref: artifacts/render/composition_layer_map.yaml
+accessibility_tree_rows_ref: artifacts/accessibility/accessibility_tree_coverage_rows.yaml
+shell_conformance_checklist_ref: artifacts/accessibility/shell_conformance_checklist.yaml
+assistive_tech_matrix_ref: artifacts/accessibility/assistive_tech_matrix.yaml
+platform_input_matrix_ref: artifacts/accessibility/platform_input_matrix.yaml
+text_renderer_fixture_dir_ref: fixtures/text
+locale_harness_manifest_ref: fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml
+
+# -----------------------------------------------------------------------------
+# Drift posture vocabulary (closed).
+#
+# See docs/qe/golden_and_fuzz_harness_plan.md#golden-versus-environment-
+# sensitive-vocabulary. A row that reports a value outside this set is
+# non-conforming.
+# -----------------------------------------------------------------------------
+drift_posture_values:
+  - deterministic_golden
+  - structurally_deterministic_with_declared_tolerance
+  - environment_sensitive_observation
+  - flake_quarantined_with_repro_required
+
+# -----------------------------------------------------------------------------
+# Refresh policy vocabulary (closed).
+#
+# See docs/qe/golden_and_fuzz_harness_plan.md#golden-refresh-policy.
+# A refresh outside these paths is non-conforming.
+# -----------------------------------------------------------------------------
+refresh_policy_values:
+  - intentional_change_owner_signoff
+  - token_or_locale_pack_revision
+  - toolchain_pinned_revision_bump
+  - incident_learning_row_closure
+
+# -----------------------------------------------------------------------------
+# Artifact format vocabulary (closed).
+#
+# Every row declares exactly one artifact format so the runner and the
+# dashboard render drift without per-row encoding ambiguity.
+# -----------------------------------------------------------------------------
+artifact_format_values:
+  - png_raster_with_ssim_band
+  - svg_geometry_snapshot
+  - text_glyph_run_snapshot
+  - layout_box_tree_snapshot
+  - accessibility_tree_snapshot
+  - live_region_announcement_log
+  - focus_order_list_snapshot
+  - composition_layer_map_snapshot
+
+# -----------------------------------------------------------------------------
+# Capture posture vocabulary (closed).
+#
+# Display-class, DPI, locale, theme, and reduced-motion postures every
+# deterministic row MUST pin. Rows that omit a pin are non-conforming.
+# -----------------------------------------------------------------------------
+capture_posture_axes:
+  - display_class
+  - dpi_scale_class
+  - locale_pack_revision
+  - token_catalog_revision
+  - theme_package_revision
+  - reduced_motion_posture
+  - high_contrast_posture
+  - assistive_tech_row
+
+# -----------------------------------------------------------------------------
+# Runner location vocabulary (closed).
+#
+# Every row names exactly one runner location. Rows whose runner has not
+# yet been seeded MUST set runner_posture: planned_not_yet_seeded.
+# -----------------------------------------------------------------------------
+runner_location_values:
+  - goldens_runner_pre_merge
+  - goldens_runner_nightly
+  - accessibility_tree_runner_pre_release
+  - render_pipeline_integration_runner
+  - locale_pack_runner_per_milestone
+
+runner_posture_values:
+  - seeded
+  - planned_not_yet_seeded
+
+# =============================================================================
+# Render / layout golden categories.
+#
+# Nine categories — every category named in
+# docs/qe/golden_and_fuzz_harness_plan.md. Each row carries the capture
+# posture, the runner, the artifact format, the drift posture, and the
+# refresh policy. Adding a category is additive-minor; renaming, merging,
+# or retiring a category is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml.
+# =============================================================================
+render_golden_categories:
+  - category_id: render_golden.grapheme_clusters
+    title: Grapheme cluster shaping and cursor motion
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/grapheme_clusters/
+    artifact_format: text_glyph_run_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: token_or_locale_pack_revision
+    scenario_refs:
+      - scenario:localization_locale_pack_parity
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Cursor motion, caret insertion, and selection endpoints across
+      grapheme-cluster boundaries: combining marks, regional indicators
+      (flag sequences), ZWJ emoji sequences, variation selectors, and
+      joined scripts (Devanagari, Tamil, Arabic, Hangul). The golden is
+      the glyph-run snapshot plus the caret index sequence per step.
+    must_cover:
+      - combining-mark editing boundaries
+      - flag-sequence and ZWJ-emoji cluster boundaries
+      - variation-selector invariance under copy/paste
+      - caret advance and retreat across clusters
+    must_not_cover:
+      - font-vendor hinting choices (environment-sensitive rows only)
+    seed_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+    notes: >
+      Shaper revision bumps land under toolchain_pinned_revision_bump
+      with a regression-review note. Vendor hinting differences stay
+      out of the deterministic snapshot.
+
+  - category_id: render_golden.ligatures
+    title: Programming-ligature and contextual-form rendering
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/ligatures/
+    artifact_format: text_glyph_run_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: toolchain_pinned_revision_bump
+    scenario_refs:
+      - scenario:theme_icon_motion_package_validation
+      - scenario:localization_locale_pack_parity
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Programming-ligature formation (e.g. ==, !=, =>, ->, <=) and
+      contextual-form shaping under the pinned font set. Includes
+      disable-ligatures preference parity and selection-split behavior
+      across ligature runs.
+    must_cover:
+      - ligature formation and suppression under user preference
+      - selection anchor stability across ligatures
+      - caret advance inside a ligature
+    must_not_cover:
+      - per-host font fallback vendor identity
+    seed_fixture_refs: []
+    notes: >
+      Vendor font updates land under toolchain_pinned_revision_bump.
+      A ligature regression MUST include a minimised text sample.
+
+  - category_id: render_golden.bidi
+    title: Bidirectional text layout and mixed-direction surfaces
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/bidi/
+    artifact_format: layout_box_tree_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: token_or_locale_pack_revision
+    scenario_refs:
+      - scenario:localization_locale_pack_parity
+      - scenario:theme_icon_motion_package_validation
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Bidirectional (BiDi) paragraph resolution, mixed-direction
+      technical strings, embedded LTR identifiers inside RTL prose,
+      and RTL mirroring of shell chrome. Includes paired-bracket
+      resolution and isolate-directional embedding behavior.
+    must_cover:
+      - mixed-direction technical strings (URLs, paths, identifiers)
+      - RTL shell chrome mirroring
+      - paired bracket resolution around code fragments
+    must_not_cover:
+      - host compositor glyph smoothing deltas
+    seed_fixture_refs:
+      - fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml
+    notes: >
+      RTL mirroring is a layout-box-tree row, not a raster row. A
+      raster sample is captured for review but the binding golden is
+      the box tree.
+
+  - category_id: render_golden.ime_composition
+    title: IME composition and marked-text overlay
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/ime_composition/
+    artifact_format: composition_layer_map_snapshot
+    drift_posture: structurally_deterministic_with_declared_tolerance
+    refresh_policy: incident_learning_row_closure
+    scenario_refs:
+      - scenario:localization_locale_pack_parity
+      - scenario:onboarding_voice_accessibility
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    tolerance_declaration: >
+      Candidate-window placement is platform-owned; the golden
+      captures anchor rect and overlay-layer identity, not the
+      candidate window bitmap. Position jitter within the platform
+      input framework is not a golden drift.
+    must_cover:
+      - dead key and AltGr composition commit
+      - emoji composition commit parity
+      - marked-text overlay remaining overlay-only
+    must_not_cover:
+      - platform-owned candidate window internal rendering
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/ime_marked_text_overlay.yaml
+      - fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml
+    notes: >
+      This category captures the overlay layer map and the anchor
+      rect. Platform candidate-window internals ride the environment-
+      sensitive posture and never gate merge.
+
+  - category_id: render_golden.folds
+    title: Editor folds, wrap, and gutter fold affordances
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/folds/
+    artifact_format: layout_box_tree_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: intentional_change_owner_signoff
+    scenario_refs:
+      - scenario:diagnostics_code_action_convergence
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Fold regions, fold-gutter affordances, wrap continuation
+      markers, and virtualized-scroll rendering near fold boundaries.
+      Includes selection anchor stability across a fold toggle.
+    must_cover:
+      - fold toggle without reflow of unrelated ranges
+      - wrap continuation markers under resize
+      - selection anchor stability across fold state change
+    must_not_cover:
+      - gutter icon vendor drawing deltas (token-revision rows only)
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/text_reflow_local.yaml
+    notes: >
+      Token-catalog revision bumps force a refresh; unrelated code
+      changes MUST NOT change the fold box tree.
+
+  - category_id: render_golden.inline_diagnostics
+    title: Inline diagnostics, squiggles, and hover surfaces
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/inline_diagnostics/
+    artifact_format: composition_layer_map_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: intentional_change_owner_signoff
+    scenario_refs:
+      - scenario:diagnostics_code_action_convergence
+      - scenario:provider_arbitration_truth
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Inline diagnostic decorations (squiggles, gutter icons, inline
+      hints), hover/peek surface anchoring, and multi-provider
+      diagnostic convergence render per buffer revision. Captures
+      decoration layer identity and anchor rects.
+    must_cover:
+      - squiggle underline layer remains overlay-only
+      - hover surface anchors to the correct glyph range
+      - multi-provider diagnostic stacking resolves once per buffer revision
+    must_not_cover:
+      - provider-specific debug tooltip bitmaps
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/floating_popup_surface.yaml
+    notes: >
+      Diagnostic convergence scope is bounded by
+      contract_family:diagnostics_code_action_convergence; the
+      golden captures decoration identity, not provider prose.
+
+  - category_id: render_golden.minimap_overlay_states
+    title: Minimap and overlay surface states
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/minimap_overlay/
+    artifact_format: composition_layer_map_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: token_or_locale_pack_revision
+    scenario_refs:
+      - scenario:theme_icon_motion_package_validation
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_2x
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    scope: >
+      Minimap rendering, overlay layer identity across
+      selection/caret/hover overlays, floating popup surface
+      layering, and the overlay-only invariants declared in
+      artifacts/render/composition_layer_map.yaml.
+    must_cover:
+      - minimap scale stability under viewport resize
+      - caret overlay stays overlay-only under blink
+      - selection overlay does not force text-layer repaint
+      - floating popup stays in its own portal layer
+    must_not_cover:
+      - GPU compositor-specific rasterization deltas
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/caret_overlay_only.yaml
+      - fixtures/render/viewport_cases/selection_overlay_only.yaml
+      - fixtures/render/viewport_cases/floating_popup_surface.yaml
+    notes: >
+      Overlay-only invariants are deterministic by construction.
+      Compositor GPU deltas ride the environment-sensitive posture.
+
+  - category_id: render_golden.zoom_and_dpi_variants
+    title: Zoom, DPI, and scale-change variants
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_pre_merge
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/zoom_dpi/
+    artifact_format: layout_box_tree_snapshot
+    drift_posture: structurally_deterministic_with_declared_tolerance
+    refresh_policy: toolchain_pinned_revision_bump
+    scenario_refs:
+      - scenario:theme_icon_motion_package_validation
+      - scenario:onboarding_voice_accessibility
+    capture_posture_pins:
+      display_class: primary_retina_class
+      dpi_scale_class: scale_class_enumerated
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    tolerance_declaration: >
+      Sub-pixel glyph positioning deltas within one logical pixel
+      under a scale transition are tolerated; structural box-tree
+      identity is not. Zoom-level steps are enumerated, not
+      continuous.
+    must_cover:
+      - scale 1x, 1.5x, 2x, 3x enumerated steps
+      - user-zoom command applied after initial render
+      - DPI change on active window without reflow of unrelated windows
+    must_not_cover:
+      - continuous zoom jitter (captured only at enumerated steps)
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/viewport_resize_scale_change.yaml
+    notes: >
+      Structural box-tree identity is the merge-gating signal.
+      Sub-pixel raster deltas are noted but not gating.
+
+  - category_id: render_golden.multi_monitor_layouts
+    title: Multi-monitor and mixed-DPI window layouts
+    lane_ref: rendering_layout_goldens
+    owner_dri: "@ahmeddyounis"
+    runner_location: goldens_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/goldens/multi_monitor/
+    artifact_format: layout_box_tree_snapshot
+    drift_posture: structurally_deterministic_with_declared_tolerance
+    refresh_policy: intentional_change_owner_signoff
+    scenario_refs:
+      - scenario:theme_icon_motion_package_validation
+      - scenario:onboarding_voice_accessibility
+    capture_posture_pins:
+      display_class: multi_monitor_mixed_dpi_class
+      dpi_scale_class: mixed_per_window
+      locale_pack_revision: pinned_by_manifest
+      token_catalog_revision: pinned_by_manifest
+      theme_package_revision: pinned_by_manifest
+      reduced_motion_posture: motion_default
+      high_contrast_posture: contrast_default
+      assistive_tech_row: not_applicable
+    tolerance_declaration: >
+      Window bounds on secondary monitors may differ by integer
+      pixel offsets across compositor versions; structural window-
+      root identity and per-window DPI scale are not tolerated to
+      drift. Newly-exposed region repaint scope is asserted per
+      window, not globally.
+    must_cover:
+      - window drag across DPI boundary without reflow of unrelated windows
+      - newly-exposed region repaint scope per window
+      - focus remaining on the active window after layout change
+    must_not_cover:
+      - compositor-specific vsync jitter
+    seed_fixture_refs:
+      - fixtures/render/viewport_cases/multi_window_exposed_region_refresh.yaml
+      - fixtures/accessibility/ime_and_text_cases/multi_window_mixed_dpi_composition.yaml
+    notes: >
+      Multi-monitor rows run nightly because lab-image availability
+      for mixed-DPI capture is bounded.
+
+# =============================================================================
+# Accessibility-tree regression categories.
+#
+# Four categories covering semantic roles, focus order, announcements,
+# and screen-reader-relevant structure. Every row routes through the
+# accessibility_regression lane and cites accessibility tree-coverage
+# rows plus the shell conformance checklist.
+# =============================================================================
+accessibility_tree_categories:
+  - category_id: a11y_tree.semantic_roles
+    title: Semantic role coverage on core shell and editor surfaces
+    lane_ref: accessibility_regression
+    owner_dri: "@ahmeddyounis"
+    runner_location: accessibility_tree_runner_pre_release
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/accessibility/tree_snapshots/semantic_roles/
+    artifact_format: accessibility_tree_snapshot
+    drift_posture: structurally_deterministic_with_declared_tolerance
+    refresh_policy: intentional_change_owner_signoff
+    scenario_refs:
+      - scenario:onboarding_voice_accessibility
+      - scenario:theme_icon_motion_package_validation
+    tolerance_declaration: >
+      Assistive-tech vendor identity strings are compared by row-
+      identity bag (platform profile × AT row), not byte-exact.
+      Missing a required role group is never tolerated.
+    tree_coverage_refs:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+    checklist_refs:
+      - shell_conformance.open_repo_from_launcher
+      - shell_conformance.quick_open_palette
+    assistive_technology_refs:
+      - at.voiceover.macos.core_shell
+      - at.nvda.windows.core_shell
+      - at.orca.linux.gnome.core_shell
+    surface_groups:
+      - shell_workspace_launcher
+      - palette_search
+      - editor_primary_text_surface
+      - diagnostics_panel
+      - terminal_or_log_region
+    must_cover:
+      - application/window root presence on every top-level surface
+      - dialog/sheet role presence on every modal surface
+      - searchbox/text-input role on every search or command surface
+      - list/tree role on every result list
+      - status/alert region for degraded/blocked states
+    must_not_cover:
+      - embedded-content internal role trees (belongs to the embedded surface)
+    notes: >
+      A missing visible host-owned control is a tree-coverage
+      failure, not an allowed optimization.
+
+  - category_id: a11y_tree.focus_order
+    title: Focus order and focus return across shell surfaces
+    lane_ref: accessibility_regression
+    owner_dri: "@ahmeddyounis"
+    runner_location: accessibility_tree_runner_pre_release
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/accessibility/tree_snapshots/focus_order/
+    artifact_format: focus_order_list_snapshot
+    drift_posture: deterministic_golden
+    refresh_policy: intentional_change_owner_signoff
+    scenario_refs:
+      - scenario:onboarding_voice_accessibility
+    tree_coverage_refs:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+    checklist_refs:
+      - shell_conformance.open_repo_from_launcher
+      - shell_conformance.quick_open_palette
+    assistive_technology_refs:
+      - at.voiceover.macos.core_shell
+      - at.nvda.windows.core_shell
+      - at.orca.linux.gnome.core_shell
+    surface_groups:
+      - shell_workspace_launcher
+      - palette_search
+      - editor_primary_text_surface
+      - diagnostics_panel
+    must_cover:
+      - forward Tab order captured as an ordered list
+      - reverse Shift+Tab order matches the inverse of forward order
+      - focus-return target after overlay/sheet dismiss
+      - focus remains within modal surface until dismiss
+    must_not_cover:
+      - pointer hover focus changes (out of scope for this category)
+    notes: >
+      Focus-return targets are captured as part of the snapshot;
+      a row that infers them from prose is non-conforming.
+
+  - category_id: a11y_tree.announcements
+    title: Live-region announcements and shortcut narration
+    lane_ref: accessibility_regression
+    owner_dri: "@ahmeddyounis"
+    runner_location: accessibility_tree_runner_pre_release
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/accessibility/tree_snapshots/announcements/
+    artifact_format: live_region_announcement_log
+    drift_posture: structurally_deterministic_with_declared_tolerance
+    refresh_policy: token_or_locale_pack_revision
+    scenario_refs:
+      - scenario:onboarding_voice_accessibility
+      - scenario:localization_locale_pack_parity
+    tolerance_declaration: >
+      Announcement wording is compared by localization-key identity
+      and cardinality (once vs streaming), not by byte-exact text
+      under a given locale. Missing a required announcement is
+      never tolerated.
+    tree_coverage_refs:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+    checklist_refs:
+      - shell_conformance.open_repo_from_launcher
+      - shell_conformance.quick_open_palette
+    assistive_technology_refs:
+      - at.voiceover.macos.core_shell
+      - at.nvda.windows.core_shell
+      - at.orca.linux.gnome.core_shell
+    must_cover:
+      - restore progress announces once per restore
+      - degraded-state and blocked-state announcements reachable and readable
+      - shortcut narration on keyboard activation
+      - announcement cardinality (once vs streaming) recorded per row
+    must_not_cover:
+      - host TTS audio waveform differences
+    notes: >
+      Locale-pack revisions force a refresh; missing assistive
+      strings block widening under the accessibility_regression lane.
+
+  - category_id: a11y_tree.screen_reader_relevant_structure
+    title: Screen-reader-relevant structure per platform profile
+    lane_ref: accessibility_regression
+    owner_dri: "@ahmeddyounis"
+    runner_location: accessibility_tree_runner_pre_release
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/accessibility/tree_snapshots/structure/
+    artifact_format: accessibility_tree_snapshot
+    drift_posture: environment_sensitive_observation
+    refresh_policy: incident_learning_row_closure
+    scenario_refs:
+      - scenario:onboarding_voice_accessibility
+    quarantine_rule_ref: artifacts/benchmarks/quarantine_rules.yaml
+    tree_coverage_refs:
+      - tree_coverage.shell_workspace_launcher
+      - tree_coverage.quick_open_palette
+    checklist_refs:
+      - shell_conformance.open_repo_from_launcher
+      - shell_conformance.quick_open_palette
+    assistive_technology_refs:
+      - at.voiceover.macos.core_shell
+      - at.nvda.windows.core_shell
+      - at.orca.linux.gnome.core_shell
+    surface_groups:
+      - shell_workspace_launcher
+      - editor_primary_text_surface
+      - diagnostics_panel
+      - terminal_or_log_region
+    must_cover:
+      - heading hierarchy and landmark region identity per platform profile
+      - editor text surface exposes line/column identity
+      - terminal/log region exposes streaming-text semantics
+      - grid/table row-column identity where the surface is tabular
+    must_not_cover:
+      - AT vendor build version-specific serialization quirks
+    notes: >
+      Vendor version drift rides the benchmark-lab regression-review
+      rubric; only a reproducing structural regression gates release.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: every_category_cites_one_lane
+    description: >
+      Every row under render_golden_categories and
+      accessibility_tree_categories MUST cite exactly one lane_ref
+      resolving to artifacts/qe/test_lane_registry.yaml#lanes.
+  - id: every_category_cites_scenario_hook
+    description: >
+      Every row MUST cite at least one scenario_ref from
+      artifacts/qe/quality_scenario_hooks.yaml#scenarios. A row that
+      cannot bind to a scenario hook does not produce review-grade
+      evidence.
+  - id: deterministic_rows_pin_capture_posture
+    description: >
+      Every row with drift_posture deterministic_golden or
+      structurally_deterministic_with_declared_tolerance MUST declare
+      values for every capture_posture_axes entry. Rows that omit a
+      pin are non-comparable under the quarantine rules.
+  - id: environment_sensitive_rows_cite_quarantine_rule
+    description: >
+      Every row with drift_posture environment_sensitive_observation
+      MUST cite a quarantine_rule_ref. A row without one is treated
+      as flake_quarantined_with_repro_required.
+  - id: refresh_policy_is_closed
+    description: >
+      Every row's refresh_policy MUST resolve to refresh_policy_values.
+      "regenerate because it failed" is not a declared refresh path.
+  - id: renaming_or_retiring_is_breaking
+    description: >
+      Renaming a category_id, retiring a category, or relaxing a
+      drift_posture is breaking and opens a decision row in
+      artifacts/governance/decision_index.yaml.

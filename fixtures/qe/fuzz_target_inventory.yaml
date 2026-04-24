@@ -1,0 +1,411 @@
+# Fuzz-target inventory for the protocol and parser fuzzing lane.
+#
+# First-harness inventory of structure-aware fuzz targets for the
+# protocol_parser_fuzzing lane
+# (artifacts/qe/test_lane_registry.yaml#lanes.protocol_parser_fuzzing).
+# Every row names the target surface, the input shape, the seed-corpus
+# location, the raw-corpus retention rule, the runner location, the
+# artifact format for findings, the blocking posture, and the incident-
+# learning rule so CI enforcement can start without re-deciding scope.
+#
+# Consumers:
+#   - The fuzz runner (planned at artifacts/qe/dashboard/fuzz/) reads
+#     this file by stable target_id and enumerates rows.
+#   - The shiproom dashboard surfaces findings by stable target_id.
+#   - Post-incident review cites the target_id and the
+#     incident_learning_rule id, not freeform prose.
+#
+# Rules:
+#   - Every row MUST cite protocol_parser_fuzzing in lane_refs and MAY
+#     additionally cite protected_sequence_packet_validation where the
+#     target decodes a protected-sequence packet family.
+#   - Every row MUST declare a raw_corpus_retention_rule drawn from the
+#     closed retention_rule_values below.
+#   - Every row MUST declare an incident_learning_rule drawn from the
+#     closed vocabulary in
+#     artifacts/qe/test_lane_registry.yaml#incident_learning_rules.
+#   - Every row MUST declare an artifact_format for findings so the
+#     dashboard renders drift without per-row encoding ambiguity.
+#   - A target that generates crash inputs but has not yet been wired
+#     MUST set runner_posture: planned_not_yet_seeded.
+#   - Planning / milestone slugs MUST NOT appear in any id, title,
+#     scope note, or tag on this file.
+
+schema_version: 1
+manifest_id: aureline.qe.fuzz_target_inventory
+manifest_revision: 1
+overview_document: docs/qe/golden_and_fuzz_harness_plan.md
+test_lane_registry_ref: artifacts/qe/test_lane_registry.yaml
+quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+harness_owner_map_ref: artifacts/qe/harness_owner_map.yaml
+release_blocking_rules_ref: artifacts/qe/release_blocking_rules.yaml
+benchmark_quarantine_rules_ref: artifacts/benchmarks/quarantine_rules.yaml
+rpc_envelope_schema_ref: schemas/rpc/envelope.schema.json
+rpc_method_manifest_schema_ref: schemas/rpc/method_manifest.schema.json
+remote_agent_hello_schema_ref: schemas/runtime/remote_agent_hello.schema.json
+subscription_envelope_schema_ref: schemas/runtime/subscription_envelope.schema.json
+vfs_save_envelope_schema_ref: schemas/runtime/vfs_save_envelope.schema.json
+service_placement_rows_ref: artifacts/runtime/service_placement_rows.yaml
+
+# -----------------------------------------------------------------------------
+# Raw-corpus retention rules (closed).
+#
+# See docs/qe/golden_and_fuzz_harness_plan.md#fuzz-target-inventory-and-
+# raw-corpus-retention.
+# -----------------------------------------------------------------------------
+retention_rule_values:
+  - retain_all_crashing_inputs_forever
+  - retain_minimised_only_after_triage
+  - rotate_on_revision_change
+
+# -----------------------------------------------------------------------------
+# Input-shape vocabulary (closed).
+#
+# Every row declares one input shape so the runner knows how to generate
+# inputs without reading narrative prose.
+# -----------------------------------------------------------------------------
+input_shape_values:
+  - schema_derived_structure_aware
+  - grammar_derived_structure_aware
+  - byte_level_with_length_hints
+  - transcript_replay_with_mutation
+
+# -----------------------------------------------------------------------------
+# Artifact format vocabulary (closed).
+# -----------------------------------------------------------------------------
+artifact_format_values:
+  - minimised_input_plus_crash_class
+  - minimised_input_plus_schema_violation_row
+  - minimised_input_plus_repair_trace
+  - transcript_fragment_plus_decoder_state
+  - permission_scope_evaluation_trace
+
+# -----------------------------------------------------------------------------
+# Crash-class vocabulary (closed).
+#
+# The closed set of finding classes a fuzz run MAY report. A row that
+# reports a value outside this set is non-conforming.
+# -----------------------------------------------------------------------------
+crash_class_values:
+  - panic_or_abort_unexpected
+  - out_of_memory_unbounded_allocation
+  - infinite_loop_or_unbounded_work
+  - schema_nonconforming_output_produced
+  - invariant_violation_observed
+  - integer_overflow_or_bounds_violation
+  - decoder_accepts_envelope_without_required_field
+  - decoder_widens_permission_scope_silently
+  - repair_path_leaves_partial_state
+
+# -----------------------------------------------------------------------------
+# Runner location vocabulary (closed).
+#
+# protocol_parser_fuzzing lane cadence is nightly per the registry;
+# these values bind a row to where it actually runs.
+# -----------------------------------------------------------------------------
+runner_location_values:
+  - fuzz_runner_nightly
+  - fuzz_runner_pre_release_packet
+  - fuzz_runner_on_incident_only
+
+runner_posture_values:
+  - seeded
+  - planned_not_yet_seeded
+
+# -----------------------------------------------------------------------------
+# Blocking posture vocabulary (closed).
+#
+# Mirrors artifacts/qe/test_lane_registry.yaml#blocking_posture_values
+# so the fuzz inventory composes against release-blocking rules without
+# reinventing posture ids.
+# -----------------------------------------------------------------------------
+blocking_posture_values:
+  - merge_blocking
+  - release_blocking
+  - widening_blocking
+  - dashboard_only_observation
+  - seeded_not_enforcing
+
+# =============================================================================
+# Fuzz-target rows.
+#
+# Five families — every family named in
+# docs/qe/golden_and_fuzz_harness_plan.md#fuzz-target-inventory-and-raw-
+# corpus-retention. Adding a target is additive-minor; renaming or
+# retiring a target is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml.
+# =============================================================================
+fuzz_targets:
+  - target_id: fuzz.watcher_stream_events
+    title: Filesystem and VFS watcher event streams
+    lane_refs:
+      - protocol_parser_fuzzing
+    owner_dri: "@ahmeddyounis"
+    runner_location: fuzz_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/fuzz/watcher_stream_events/
+    target_surface: >
+      Watcher decoder and VFS reconciler that produce canonical-path
+      identity. Includes the coalescing path and the rename-storm
+      handler.
+    input_shape: transcript_replay_with_mutation
+    seed_corpus_location: fixtures/qe/fuzz_corpora/watcher_stream_events/
+    seed_corpus_posture: planned_not_yet_seeded
+    raw_corpus_retention_rule: retain_all_crashing_inputs_forever
+    artifact_format: minimised_input_plus_schema_violation_row
+    crash_classes_in_scope:
+      - panic_or_abort_unexpected
+      - schema_nonconforming_output_produced
+      - invariant_violation_observed
+      - infinite_loop_or_unbounded_work
+      - repair_path_leaves_partial_state
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    scenario_refs:
+      - scenario:connectivity_reconciliation
+      - scenario:git_merge_history_edit_recovery
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_fuzz_corpus_row
+    protected_schema_refs:
+      - schemas/runtime/vfs_save_envelope.schema.json
+    scope: >
+      Rename storms, symlink cycles, partial writes, case-only
+      renames, file-to-directory transitions, and interleaved
+      create/delete bursts. The canonical-path identity invariant
+      MUST hold under every accepted transcript.
+    out_of_scope:
+      - host filesystem driver internals (captured by fault injection)
+    notes: >
+      A crash or schema-nonconforming output MUST land a minimised
+      transcript in the raw corpus and a schema-invariant row in the
+      same change set.
+
+  - target_id: fuzz.malformed_ipc_or_protocol_payloads
+    title: Malformed IPC / protocol payload envelopes
+    lane_refs:
+      - protocol_parser_fuzzing
+      - protected_sequence_packet_validation
+    owner_dri: "@ahmeddyounis"
+    runner_location: fuzz_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/fuzz/malformed_ipc/
+    target_surface: >
+      Typed-payload envelope decoder on the RPC boundary, the remote-
+      agent hello/heartbeat frame decoder, the subscription-envelope
+      decoder, and the mixed-version negotiation envelope decoder.
+    input_shape: schema_derived_structure_aware
+    seed_corpus_location: fixtures/qe/fuzz_corpora/ipc_envelopes/
+    seed_corpus_posture: planned_not_yet_seeded
+    raw_corpus_retention_rule: retain_all_crashing_inputs_forever
+    artifact_format: minimised_input_plus_schema_violation_row
+    crash_classes_in_scope:
+      - panic_or_abort_unexpected
+      - schema_nonconforming_output_produced
+      - invariant_violation_observed
+      - integer_overflow_or_bounds_violation
+      - decoder_accepts_envelope_without_required_field
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    scenario_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:portability_export_integrity
+      - scenario:connectivity_reconciliation
+    incident_learning_rule: add_fuzz_corpus_row
+    protected_schema_refs:
+      - schemas/rpc/envelope.schema.json
+      - schemas/rpc/method_manifest.schema.json
+      - schemas/runtime/remote_agent_hello.schema.json
+      - schemas/runtime/subscription_envelope.schema.json
+    scope: >
+      Truncated envelopes, duplicated fields, out-of-order field
+      emission, oversize length hints, nested typed-payload pathologies,
+      and mixed-version negotiation envelopes outside the declared
+      host-ABI range. Decoder MUST fail closed and never silently
+      accept an envelope missing a required field.
+    out_of_scope:
+      - raw transport framing (captured by transport fuzz when seeded)
+    notes: >
+      A decoder that accepts an envelope missing a required field is
+      a release_blocking finding under silent_replay_of_in_flight_
+      mutation composability; the rule is tightened in the same change.
+
+  - target_id: fuzz.corrupted_indexes
+    title: Corrupted index and cache loaders
+    lane_refs:
+      - protocol_parser_fuzzing
+    owner_dri: "@ahmeddyounis"
+    runner_location: fuzz_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/fuzz/corrupted_indexes/
+    target_surface: >
+      Persisted index and cache loaders — search index, symbol index,
+      VFS metadata cache, settings-resolver cache — and their repair
+      path.
+    input_shape: byte_level_with_length_hints
+    seed_corpus_location: fixtures/qe/fuzz_corpora/corrupted_indexes/
+    seed_corpus_posture: planned_not_yet_seeded
+    raw_corpus_retention_rule: retain_minimised_only_after_triage
+    artifact_format: minimised_input_plus_repair_trace
+    crash_classes_in_scope:
+      - panic_or_abort_unexpected
+      - out_of_memory_unbounded_allocation
+      - invariant_violation_observed
+      - integer_overflow_or_bounds_violation
+      - repair_path_leaves_partial_state
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    scenario_refs:
+      - scenario:repair_rollback
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_fuzz_corpus_row
+    protected_schema_refs: []
+    scope: >
+      Bit-flipped headers, truncated tail records, valid-looking but
+      inconsistent length hints, epoch mismatches, and index formats
+      from a prior schema revision. Loader MUST either recover through
+      the declared repair path or refuse and leave the prior
+      cache intact.
+    out_of_scope:
+      - host filesystem block-level corruption below the loader boundary
+    notes: >
+      A repair path that leaves a partial state is a release_blocking
+      finding under the repair_rollback scenario; the rule is tightened
+      with a failing fixture.
+
+  - target_id: fuzz.settings_and_importers
+    title: Settings resolver input and migration importers
+    lane_refs:
+      - protocol_parser_fuzzing
+    owner_dri: "@ahmeddyounis"
+    runner_location: fuzz_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/fuzz/settings_importers/
+    target_surface: >
+      Settings resolver input parser, settings merge resolver, and
+      migration importers including legacy-format bridges.
+    input_shape: grammar_derived_structure_aware
+    seed_corpus_location: fixtures/qe/fuzz_corpora/settings_importers/
+    seed_corpus_posture: planned_not_yet_seeded
+    raw_corpus_retention_rule: retain_all_crashing_inputs_forever
+    artifact_format: minimised_input_plus_schema_violation_row
+    crash_classes_in_scope:
+      - panic_or_abort_unexpected
+      - schema_nonconforming_output_produced
+      - invariant_violation_observed
+      - decoder_widens_permission_scope_silently
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    scenario_refs:
+      - scenario:portability_export_integrity
+      - scenario:provider_arbitration_truth
+    incident_learning_rule: add_fuzz_corpus_row
+    protected_schema_refs: []
+    scope: >
+      Cyclic references, conflicting merge layers, unknown keys under
+      strict mode, importer downgrade paths, and legacy format
+      probes. Resolver MUST fail closed on unknown-permission keys
+      and MUST NOT widen a declared scope silently.
+    out_of_scope:
+      - user-preference semantic correctness (captured by property tests)
+    notes: >
+      A resolver that widens a permission scope silently is a
+      release_blocking finding tied to public_truth_overclaim and
+      MUST land both a failing fixture and a schema invariant.
+
+  - target_id: fuzz.extension_manifests
+    title: Extension manifest and permission-scope decoders
+    lane_refs:
+      - protocol_parser_fuzzing
+    owner_dri: "@ahmeddyounis"
+    runner_location: fuzz_runner_nightly
+    runner_posture: planned_not_yet_seeded
+    runner_path: artifacts/qe/dashboard/fuzz/extension_manifests/
+    target_surface: >
+      Extension manifest decoder, permission-scope deserializer,
+      compatibility-bridge profile decoder, and the host-negotiation
+      admission path.
+    input_shape: schema_derived_structure_aware
+    seed_corpus_location: fixtures/qe/fuzz_corpora/extension_manifests/
+    seed_corpus_posture: planned_not_yet_seeded
+    raw_corpus_retention_rule: retain_all_crashing_inputs_forever
+    artifact_format: permission_scope_evaluation_trace
+    crash_classes_in_scope:
+      - panic_or_abort_unexpected
+      - schema_nonconforming_output_produced
+      - invariant_violation_observed
+      - decoder_widens_permission_scope_silently
+      - decoder_accepts_envelope_without_required_field
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    scenario_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_fuzz_corpus_row
+    protected_schema_refs: []
+    scope: >
+      Unknown capability worlds, version-range pathologies, declared
+      permission scope widening past the host-ABI ceiling, malformed
+      bridge-profile rows, and host-negotiation packets carrying
+      contradictory capability claims. Decoder MUST narrow rather than
+      widen and MUST fail closed on unknown capability keys.
+    out_of_scope:
+      - runtime execution of extension code (captured by chaos lane)
+    notes: >
+      A decoder that widens a permission scope silently is a release_
+      blocking finding tied to public_truth_overclaim; the rule is
+      tightened with a failing fixture and a schema invariant.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: every_target_cites_protocol_parser_fuzzing_lane
+    description: >
+      Every row MUST include protocol_parser_fuzzing in lane_refs. A
+      target that does not route through this lane does not belong in
+      this inventory.
+  - id: every_target_declares_retention_rule
+    description: >
+      Every row MUST declare a raw_corpus_retention_rule drawn from
+      retention_rule_values. A target without a retention rule cannot
+      be reviewed for corpus drift.
+  - id: every_target_declares_incident_learning_rule
+    description: >
+      Every row MUST name exactly one incident_learning_rule from the
+      closed vocabulary in
+      artifacts/qe/test_lane_registry.yaml#incident_learning_rules.
+  - id: crash_class_values_are_closed
+    description: >
+      Every value in crash_classes_in_scope MUST appear in
+      crash_class_values. A target that reports a value outside the
+      set is non-conforming.
+  - id: minimised_reproducer_required_to_close
+    description: >
+      A fuzz finding without a minimised reproducer and an invariant-
+      row reference MUST NOT close. The lane MUST NOT accept a
+      "flake; moving on" close for a panic or schema-nonconformance.
+  - id: renaming_or_retiring_is_breaking
+    description: >
+      Renaming a target_id, retiring a target, or relaxing a
+      raw_corpus_retention_rule is breaking and opens a decision row
+      in artifacts/governance/decision_index.yaml.
