@@ -1,0 +1,1107 @@
+# Launch-language bundle rows.
+#
+# Machine-readable inventory of the launch-language bundles and framework
+# packs the product is willing to name in top-level claims, plus the
+# reservation rows the program keeps visible rather than hidden.
+#
+# Tooling reads this file. The narrative companion is
+# docs/product/launch_language_bundle_rubric.md. If the two disagree,
+# this file is authoritative and the narrative is updated in the same
+# change.
+#
+# Rules.
+#   - Every row carries a stable bundle_id or pack_id. Renaming a row
+#     after publication is breaking and opens a decision row in
+#     artifacts/governance/decision_index.yaml.
+#   - Every language bundle binds to at least one archetype_row_id from
+#     artifacts/compat/reference_workspace_rows.yaml. Bundles cannot
+#     invent their own support ladder; the support_class vocabulary is
+#     quoted verbatim from artifacts/compat/archetype_rubric.yaml.
+#   - Every framework pack binds to exactly one parent bundle and carries
+#     an entry in artifacts/product/framework_pack_owners.yaml.
+#   - Every row carries a selection_scores block populated with one value
+#     per criterion in selection_criterion_vocabulary. Missing criteria
+#     are non-conforming.
+#   - Every row carries exactly one cut_first_posture value. A row that
+#     slips out of scope must fall to the named posture, not to silent
+#     removal.
+#   - replacement_grade_evidence_required enumerates the closed proof
+#     set a row needs before it may be wording-eligible for
+#     replacement-grade claims. A missing item demotes the row through
+#     the archetype rubric demotion rules rather than lowering the
+#     proof bar locally.
+#   - Top-level product claims cite one bundle_id or pack_id. Free-text
+#     "supports X" wording without the cite is non-conforming.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/product/launch_language_bundle_rubric.md
+archetype_rubric_source: artifacts/compat/archetype_rubric.yaml
+archetype_rows_source: artifacts/compat/reference_workspace_rows.yaml
+framework_pack_owners_source: artifacts/product/framework_pack_owners.yaml
+claim_manifest_source: artifacts/governance/claim_manifest_seed.yaml
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_source: artifacts/compat/version_skew_register.yaml
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+descoping_policy_source: docs/governance/descoping_policy.md
+cut_class_registry_source: artifacts/milestones/cut_classes.yaml
+kill_criteria_source: artifacts/milestones/kill_criteria.yaml
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml. Tightening the wording on a
+# value already in the set is additive-minor and lands here in the same
+# change as the rule update.
+# -----------------------------------------------------------------------------
+
+selection_criterion_vocabulary:
+  - user_wedge_fit            # does the bundle land on the product's stated wedge
+  - p0_persona_fit            # does the bundle carry a P0 persona's daily workflow
+  - reference_workspace_proof # is there a reviewable reference workspace today
+  - benchmark_cost            # what does the benchmark corpus have to carry
+  - tooling_depth             # how deep is the first-party tooling commitment
+  - docs_burden               # what does docs_public_truth have to keep current
+  - migration_importance      # how load-bearing is the "switch to Aureline" story
+  - supportability            # can support_export carry the row without inflation
+
+selection_score_vocabulary:
+  - strong       # evidence and commitment are in place today
+  - moderate     # partial evidence; named owner and a reserved path
+  - weak         # speculative; named but not yet funded
+  - unseeded     # row reserved but not scored at this milestone
+
+support_class_vocabulary:
+  - certified
+  - supported
+  - community
+  - experimental
+
+pack_kind_vocabulary:
+  - language_bundle             # full language+runtime commitment (one per archetype)
+  - runtime_variant_pack        # alternate runtime / packaging inside a bundle
+  - framework_pack              # service or UI framework inside a bundle
+  - test_runner_pack            # test runner inside a bundle
+  - toolchain_pack              # linter, formatter, package manager inside a bundle
+  - notebook_kernel_pack        # notebook-kernel specific pack
+
+cut_first_posture_vocabulary:
+  - protect_through_m1_m2                        # cut other breadth before cutting this row
+  - narrow_support_class_before_cutting          # fall one class first, do not delete
+  - cut_first_if_m1_slips                        # primary cut target if M1 scope slips
+  - cut_first_if_m2_slips                        # primary cut target if M2 scope slips
+  - preview_label_only_if_either_slips           # keep the row but demote to preview only
+  - remove_from_launch_set_if_either_slips       # withdraw the bundle from public launch
+
+replacement_grade_evidence_vocabulary:
+  - benchmark_corpus_linked        # protected corpus scenario rows cite the bundle
+  - compatibility_report_linked    # a current compatibility_report row names the bundle
+  - migration_evidence_linked      # a migration corpus or notes row cites the bundle
+  - docs_version_match_linked      # docs pages carry an exact-build identity match
+  - known_limit_note_linked        # known-limits row names the bundle's scope caveats
+
+unresolved_blocker_class_vocabulary:
+  - reference_workspace_reservation_only     # workspace slot reserved but not materialised
+  - benchmark_corpus_reservation_only        # scenario ids reserved but not seeded
+  - claim_manifest_row_not_yet_seeded        # no claim_row publishing the bundle yet
+  - design_partner_signal_required           # promotion needs a design-partner row
+  - remote_mode_proof_pending                # required non-local mode not yet demonstrated
+  - tooling_choice_pending                   # canonical package manager or toolchain unresolved
+  - docs_pack_version_match_pending          # docs-version match not yet demonstrated
+  - framework_pack_owner_not_yet_assigned    # at least one dependent pack lacks an owner
+
+inclusion_target_vocabulary:
+  - foundations     # in scope for the foundations milestone
+  - first_beta      # named for the first beta cut
+  - first_stable    # named for the first stable cut
+  - post_stable     # intentionally deferred past first stable
+
+# -----------------------------------------------------------------------------
+# Rubric gate.
+#
+# The closed set of tests a candidate language bundle must pass before it
+# may be added to launch_bundles. The gate is read by reviewers; new rows
+# that do not answer every gate are non-conforming.
+# -----------------------------------------------------------------------------
+rubric_gate:
+  - gate_id: gate:wedge_and_persona_fit
+    question: >
+      Does the bundle sit on the stated product wedge, and does at least
+      one P0 persona carry this bundle in their daily workflow?
+    uses_criteria:
+      - user_wedge_fit
+      - p0_persona_fit
+  - gate_id: gate:reference_workspace_proof
+    question: >
+      Is there a reviewable reference workspace or a named reservation
+      slot under fixtures/workspaces/reference/ that the bundle resolves
+      through?
+    uses_criteria:
+      - reference_workspace_proof
+  - gate_id: gate:benchmark_and_tooling_cost
+    question: >
+      Are the benchmark corpus rows and the first-party tooling depth
+      sized so the bundle can meet the support_class it is aiming for
+      without borrowing from another bundle's evidence?
+    uses_criteria:
+      - benchmark_cost
+      - tooling_depth
+  - gate_id: gate:docs_and_migration_load
+    question: >
+      Can docs_public_truth keep the bundle's docs pages current, and is
+      the migration story load-bearing enough to justify committing the
+      row rather than routing users through an extension?
+    uses_criteria:
+      - docs_burden
+      - migration_importance
+  - gate_id: gate:supportability
+    question: >
+      Can support_export carry the bundle's failure modes without
+      inflating the claim? A bundle that cannot be supported honestly is
+      non-conforming at any class above experimental.
+    uses_criteria:
+      - supportability
+
+# -----------------------------------------------------------------------------
+# Active language bundles.
+#
+# Each row is the canonical launch-language inventory entry for one
+# archetype. A bundle_id is the stable cite used by claim-manifest rows,
+# release packets, and public-truth surfaces.
+# -----------------------------------------------------------------------------
+language_bundles:
+  - bundle_id: launch_bundle:typescript_web_app.seed
+    public_label: TypeScript / JavaScript web app or service
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:ts_web_app_or_service
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    selection_scores:
+      user_wedge_fit: strong
+      p0_persona_fit: strong
+      reference_workspace_proof: moderate
+      benchmark_cost: moderate
+      tooling_depth: strong
+      docs_burden: moderate
+      migration_importance: strong
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs:
+      - claim_row:certification.launch_wedge_typescript_web
+    framework_pack_refs:
+      - framework_pack:typescript_web.react
+      - framework_pack:typescript_web.next_js
+      - framework_pack:typescript_web.vite
+      - framework_pack:typescript_web.vitest
+      - framework_pack:typescript_web.jest
+      - framework_pack:typescript_web.npm_pnpm_toolchain
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - remote_mode_proof_pending
+      - tooling_choice_pending
+    cut_first_posture: protect_through_m1_m2
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/ts_web_app_or_service.md
+    notes: >
+      The TypeScript web-app bundle is the named launch wedge. It is the
+      only bundle with a published claim-manifest row at this milestone.
+      Breadth cuts land on other bundles before narrowing this row.
+
+  - bundle_id: launch_bundle:python_service_or_data_app.seed
+    public_label: Python service or data app
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:python_service_or_data_app
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    selection_scores:
+      user_wedge_fit: strong
+      p0_persona_fit: strong
+      reference_workspace_proof: moderate
+      benchmark_cost: moderate
+      tooling_depth: moderate
+      docs_burden: moderate
+      migration_importance: strong
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:python_service.fastapi
+      - framework_pack:python_service.django
+      - framework_pack:python_service.pytest
+      - framework_pack:python_service.uv_toolchain
+      - framework_pack:python_service.poetry_toolchain
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - claim_manifest_row_not_yet_seeded
+      - tooling_choice_pending
+    cut_first_posture: narrow_support_class_before_cutting
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/python_service_or_data_app.md
+    notes: >
+      The Python bundle pairs with the notebook-first bundle through the
+      notebook_handoff workflow. A canonical package-manager decision
+      (uv, venv, or Poetry) is an unresolved blocker for the certified
+      target class.
+
+  - bundle_id: launch_bundle:rust_workspace.seed
+    public_label: Rust workspace
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:rust_workspace
+    initial_support_class_id: supported
+    target_support_class_id: certified
+    inclusion_target: foundations
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: moderate
+      reference_workspace_proof: strong
+      benchmark_cost: strong
+      tooling_depth: strong
+      docs_burden: moderate
+      migration_importance: weak
+      supportability: strong
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:rust_workspace.cargo_toolchain
+      - framework_pack:rust_workspace.clippy_rustfmt
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - claim_manifest_row_not_yet_seeded
+    cut_first_posture: protect_through_m1_m2
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/rust_workspace.md
+    notes: >
+      The Rust bundle is supported at foundations because the self-host
+      slice is live corpus evidence. Migration importance is weak on
+      purpose — Rust is the self-host claim, not a switching wedge — so
+      the row is held rather than marketed as replacement-grade.
+
+  - bundle_id: launch_bundle:java_or_kotlin_service.seed
+    public_label: Java or Kotlin service
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:java_or_kotlin_service
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: moderate
+      reference_workspace_proof: weak
+      benchmark_cost: moderate
+      tooling_depth: moderate
+      docs_burden: moderate
+      migration_importance: strong
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:java_kotlin_service.gradle_toolchain
+      - framework_pack:java_kotlin_service.maven_toolchain
+      - framework_pack:java_kotlin_service.spring_boot
+      - framework_pack:java_kotlin_service.junit
+      - framework_pack:java_kotlin_service.kotest
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - claim_manifest_row_not_yet_seeded
+      - design_partner_signal_required
+    cut_first_posture: cut_first_if_m1_slips
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/java_or_kotlin_service.md
+    notes: >
+      The Java/Kotlin bundle reserves its workspace, corpus, and claim
+      slots. If M1 scope slips this row is the first to narrow —
+      JDK-selection and Gradle/Maven wrapper-trust cost is higher than
+      the launch-wedge persona can absorb at current staffing.
+
+  - bundle_id: launch_bundle:go_service_or_monorepo_slice.seed
+    public_label: Go service or monorepo slice
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:go_service_or_monorepo_slice
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: moderate
+      reference_workspace_proof: weak
+      benchmark_cost: moderate
+      tooling_depth: moderate
+      docs_burden: moderate
+      migration_importance: moderate
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:go_service.go_modules_toolchain
+      - framework_pack:go_service.go_test
+      - framework_pack:go_service.delve
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - claim_manifest_row_not_yet_seeded
+    cut_first_posture: cut_first_if_m2_slips
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/go_service_or_monorepo_slice.md
+    notes: >
+      The Go bundle is a named launch-set row with moderate supportability
+      because module resolution and debugger trust cost is tractable. It
+      is the first M2 cut target if benchmark-corpus rows are not seeded
+      in time for the stable-RC window.
+
+  - bundle_id: launch_bundle:c_or_cpp_native_project.seed
+    public_label: C / C++ native project
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:c_or_cpp_native_project
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: weak
+      reference_workspace_proof: weak
+      benchmark_cost: weak
+      tooling_depth: weak
+      docs_burden: moderate
+      migration_importance: moderate
+      supportability: weak
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:c_cpp_native.cmake_ninja
+      - framework_pack:c_cpp_native.clangd
+      - framework_pack:c_cpp_native.lldb_gdb
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - claim_manifest_row_not_yet_seeded
+      - tooling_choice_pending
+    cut_first_posture: preview_label_only_if_either_slips
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/c_or_cpp_native_project.md
+    notes: >
+      The C / C++ bundle carries weak supportability at this milestone —
+      compile-database trust and debugger posture are still unresolved.
+      The row stays in the inventory so breadth cuts land as preview
+      narrowing rather than silent removal.
+
+  - bundle_id: launch_bundle:dotnet_service_or_app.seed
+    public_label: .NET service or app
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:dotnet_service_or_app
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: moderate
+      reference_workspace_proof: weak
+      benchmark_cost: weak
+      tooling_depth: weak
+      docs_burden: moderate
+      migration_importance: moderate
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:docs_public_truth
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:dotnet_service.dotnet_sdk_toolchain
+      - framework_pack:dotnet_service.aspnet_core
+      - framework_pack:dotnet_service.xunit
+      - framework_pack:dotnet_service.nunit
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - claim_manifest_row_not_yet_seeded
+    cut_first_posture: narrow_support_class_before_cutting
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/dotnet_service_or_app.md
+    notes: >
+      The .NET bundle targets supported, not certified, for the first
+      stable cut. Narrow support class before cutting the row entirely —
+      the inventory is honest about the scope of the v1.0 reach rather
+      than promising certified wording this bundle cannot back.
+
+  - bundle_id: launch_bundle:notebook_first_data_workflow.seed
+    public_label: Notebook-first data workflow
+    pack_kind: language_bundle
+    archetype_row_refs:
+      - archetype_row:notebook_first_data_workflow
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    selection_scores:
+      user_wedge_fit: moderate
+      p0_persona_fit: moderate
+      reference_workspace_proof: weak
+      benchmark_cost: weak
+      tooling_depth: moderate
+      docs_burden: moderate
+      migration_importance: moderate
+      supportability: moderate
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:docs_public_truth
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    claim_manifest_row_refs: []
+    framework_pack_refs:
+      - framework_pack:notebook_first.jupyter_kernel
+      - framework_pack:notebook_first.ipython
+      - framework_pack:notebook_first.jupytext_pairing
+    replacement_grade_evidence_required:
+      - benchmark_corpus_linked
+      - compatibility_report_linked
+      - migration_evidence_linked
+      - docs_version_match_linked
+      - known_limit_note_linked
+    known_limit_note_refs:
+      - artifacts/compat/version_skew_register.yaml#certification.launch_archetype_matrix
+      - docs/release/certified_archetype_report_template.md
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - benchmark_corpus_reservation_only
+      - claim_manifest_row_not_yet_seeded
+    cut_first_posture: narrow_support_class_before_cutting
+    seed_notes_ref: fixtures/compat/archetype_seed_notes/notebook_first_data_workflow.md
+    notes: >
+      The notebook-first bundle is required by the inventory rule that
+      keeps notebook workflows visible even below certified. Cell-aware
+      compare and notebook-output isolation rules from the structured-
+      artifact review surface apply to this bundle.
+
+# -----------------------------------------------------------------------------
+# Framework packs.
+#
+# Framework packs are the finer-grained claim surfaces inside a language
+# bundle. Each pack binds to exactly one parent bundle, carries its own
+# support_class target, and must have an entry in
+# artifacts/product/framework_pack_owners.yaml. A pack MAY carry a
+# narrower support_class than its parent bundle; it MAY NOT carry a
+# higher one.
+# -----------------------------------------------------------------------------
+framework_packs:
+  - pack_id: framework_pack:typescript_web.react
+    public_label: React
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    cut_first_posture: protect_through_m1_m2
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - remote_mode_proof_pending
+    notes: >
+      React is the default UI pack inside the TypeScript launch wedge.
+      Promotion past supported requires a workflow scenario row on the
+      reference workspace, not a bare library ref.
+
+  - pack_id: framework_pack:typescript_web.next_js
+    public_label: Next.js
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Next.js carries its own dev-server and build-step semantics; the
+      pack stays supported at target class until its end-to-end workflow
+      is scored against the launch wedge.
+
+  - pack_id: framework_pack:typescript_web.vite
+    public_label: Vite
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Vite is the default dev-server pack inside the launch wedge when
+      Next.js is not adopted. Pack target class is supported until the
+      HMR-in-Aureline workflow is a reviewable corpus row.
+
+  - pack_id: framework_pack:typescript_web.vitest
+    public_label: Vitest
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    cut_first_posture: protect_through_m1_m2
+    unresolved_blockers:
+      - remote_mode_proof_pending
+    notes: >
+      Vitest is the canonical test runner pack for the launch wedge;
+      certified wording of the wedge requires a current run-tests row on
+      this pack.
+
+  - pack_id: framework_pack:typescript_web.jest
+    public_label: Jest
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - tooling_choice_pending
+    notes: >
+      Jest stays available as a supported alternate test pack; it is
+      narrower than Vitest in the certified target because only one
+      test-runner pack is needed for the certified wedge wording.
+
+  - pack_id: framework_pack:typescript_web.npm_pnpm_toolchain
+    public_label: npm / pnpm toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:typescript_web_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - tooling_choice_pending
+    notes: >
+      Package-manager choice between npm and pnpm is still open for the
+      certified path. The pack stays supported at target until the
+      canonical choice is made.
+
+  - pack_id: framework_pack:python_service.fastapi
+    public_label: FastAPI
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      FastAPI is the default Python service framework inside the
+      Python bundle; it lives at supported target until a run_or_debug
+      workflow row is seeded for the reference workspace.
+
+  - pack_id: framework_pack:python_service.django
+    public_label: Django
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Django stays as a named supported pack so the Python bundle
+      covers the two dominant service frameworks without inflating the
+      certified claim surface.
+
+  - pack_id: framework_pack:python_service.pytest
+    public_label: pytest
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: certified
+    inclusion_target: first_stable
+    cut_first_posture: protect_through_m1_m2
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      pytest is the canonical Python test-runner pack; certified wording
+      on the Python bundle requires a run-tests row that names pytest.
+
+  - pack_id: framework_pack:python_service.uv_toolchain
+    public_label: uv toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - tooling_choice_pending
+    notes: >
+      uv is a named supported toolchain pack until the canonical
+      package-manager choice is made between uv, venv, and Poetry.
+
+  - pack_id: framework_pack:python_service.poetry_toolchain
+    public_label: Poetry toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - tooling_choice_pending
+    notes: >
+      Poetry stays at supported until the canonical package-manager
+      choice closes. The pack is not demoted silently if uv wins the
+      decision — the row narrows through the archetype demotion rules.
+
+  - pack_id: framework_pack:rust_workspace.cargo_toolchain
+    public_label: Cargo toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:rust_workspace.seed
+    initial_support_class_id: supported
+    target_support_class_id: certified
+    inclusion_target: foundations
+    cut_first_posture: protect_through_m1_m2
+    unresolved_blockers: []
+    notes: >
+      Cargo is the canonical toolchain pack for the Rust bundle; the
+      self-host slice already exercises it.
+
+  - pack_id: framework_pack:rust_workspace.clippy_rustfmt
+    public_label: clippy + rustfmt
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:rust_workspace.seed
+    initial_support_class_id: supported
+    target_support_class_id: certified
+    inclusion_target: foundations
+    cut_first_posture: protect_through_m1_m2
+    unresolved_blockers: []
+    notes: >
+      The Rust bundle's certified target requires clippy and rustfmt as
+      part of the run-tests and edit-loop surfaces.
+
+  - pack_id: framework_pack:java_kotlin_service.gradle_toolchain
+    public_label: Gradle toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:java_or_kotlin_service.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Gradle is the default Java/Kotlin toolchain pack; wrapper-trust
+      posture is shared with other archetypes and is tracked separately.
+
+  - pack_id: framework_pack:java_kotlin_service.maven_toolchain
+    public_label: Maven toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:java_or_kotlin_service.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Maven stays a named pack so the Java bundle does not silently
+      require Gradle in docs or migration copy.
+
+  - pack_id: framework_pack:java_kotlin_service.spring_boot
+    public_label: Spring Boot
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:java_or_kotlin_service.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: cut_first_if_m1_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+      - design_partner_signal_required
+    notes: >
+      Spring Boot is the default JVM service framework pack; the row
+      cuts first if M1 slips because Spring-specific evidence cost is
+      higher than the launch-wedge persona can absorb.
+
+  - pack_id: framework_pack:java_kotlin_service.junit
+    public_label: JUnit
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:java_or_kotlin_service.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      JUnit is the default JVM test-runner pack; it narrows before it
+      cuts so the Java bundle keeps a named runner.
+
+  - pack_id: framework_pack:java_kotlin_service.kotest
+    public_label: Kotest
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:java_or_kotlin_service.seed
+    initial_support_class_id: experimental
+    target_support_class_id: community
+    inclusion_target: first_stable
+    cut_first_posture: cut_first_if_m2_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Kotest is a community-target pack — it is discoverable through
+      the Java/Kotlin bundle but not first-party certified work.
+
+  - pack_id: framework_pack:go_service.go_modules_toolchain
+    public_label: Go modules toolchain
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:go_service_or_monorepo_slice.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Go modules is the canonical toolchain pack for the Go bundle.
+
+  - pack_id: framework_pack:go_service.go_test
+    public_label: go test
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:go_service_or_monorepo_slice.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      go test is the canonical run-tests pack; a workflow row must seed
+      before the bundle's target class is admissible.
+
+  - pack_id: framework_pack:go_service.delve
+    public_label: Delve debugger
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:go_service_or_monorepo_slice.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: cut_first_if_m2_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Delve is the default Go debugger pack; the row cuts first if M2
+      slips because debug-adapter trust on Go is unresolved.
+
+  - pack_id: framework_pack:c_cpp_native.cmake_ninja
+    public_label: CMake + Ninja
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:c_or_cpp_native_project.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: preview_label_only_if_either_slips
+    unresolved_blockers:
+      - tooling_choice_pending
+    notes: >
+      CMake with Ninja is the canonical native toolchain pack. The
+      compile-database posture is the dominant unresolved work.
+
+  - pack_id: framework_pack:c_cpp_native.clangd
+    public_label: clangd
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:c_or_cpp_native_project.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_stable
+    cut_first_posture: preview_label_only_if_either_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      clangd is the default language-server pack for the native bundle.
+      The pack stays preview if either milestone slips because the
+      compile-database assumption is not yet corpus-backed.
+
+  - pack_id: framework_pack:c_cpp_native.lldb_gdb
+    public_label: lldb / gdb
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:c_or_cpp_native_project.seed
+    initial_support_class_id: experimental
+    target_support_class_id: community
+    inclusion_target: first_stable
+    cut_first_posture: preview_label_only_if_either_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      lldb / gdb targets community class — the native-debug posture is
+      discoverable but not promised as first-party certified work.
+
+  - pack_id: framework_pack:dotnet_service.dotnet_sdk_toolchain
+    public_label: .NET SDK
+    pack_kind: toolchain_pack
+    parent_bundle_ref: launch_bundle:dotnet_service_or_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      The .NET SDK is the canonical toolchain pack for the .NET bundle.
+
+  - pack_id: framework_pack:dotnet_service.aspnet_core
+    public_label: ASP.NET Core
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:dotnet_service_or_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      ASP.NET Core is the default .NET service framework pack.
+
+  - pack_id: framework_pack:dotnet_service.xunit
+    public_label: xUnit
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:dotnet_service_or_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      xUnit is the default .NET test-runner pack.
+
+  - pack_id: framework_pack:dotnet_service.nunit
+    public_label: NUnit
+    pack_kind: test_runner_pack
+    parent_bundle_ref: launch_bundle:dotnet_service_or_app.seed
+    initial_support_class_id: experimental
+    target_support_class_id: community
+    inclusion_target: first_beta
+    cut_first_posture: cut_first_if_m2_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      NUnit targets community class so the bundle covers the two
+      dominant .NET test runners without inflating the supported claim.
+
+  - pack_id: framework_pack:notebook_first.jupyter_kernel
+    public_label: Jupyter kernel (local)
+    pack_kind: notebook_kernel_pack
+    parent_bundle_ref: launch_bundle:notebook_first_data_workflow.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      The local Jupyter kernel pack is the baseline for the notebook
+      bundle. Remote kernels are intentionally outside the target class
+      for v1.0.
+
+  - pack_id: framework_pack:notebook_first.ipython
+    public_label: IPython
+    pack_kind: notebook_kernel_pack
+    parent_bundle_ref: launch_bundle:notebook_first_data_workflow.seed
+    initial_support_class_id: experimental
+    target_support_class_id: supported
+    inclusion_target: first_beta
+    cut_first_posture: narrow_support_class_before_cutting
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      IPython is the canonical Python kernel surface for the notebook
+      bundle.
+
+  - pack_id: framework_pack:notebook_first.jupytext_pairing
+    public_label: Jupytext paired module
+    pack_kind: framework_pack
+    parent_bundle_ref: launch_bundle:notebook_first_data_workflow.seed
+    initial_support_class_id: experimental
+    target_support_class_id: community
+    inclusion_target: first_beta
+    cut_first_posture: cut_first_if_m2_slips
+    unresolved_blockers:
+      - reference_workspace_reservation_only
+    notes: >
+      Jupytext-style paired module handoff targets community class —
+      the flow is discoverable but not first-party certified for v1.0.
+
+# -----------------------------------------------------------------------------
+# Excluded bundle rows.
+#
+# Bundles the rubric explicitly leaves outside the foundations milestone.
+# Each row records the exclusion reason and the inclusion target so the
+# inventory is complete without implying support that is not seeded.
+# -----------------------------------------------------------------------------
+excluded_language_bundles:
+  - bundle_id: launch_bundle:ruby_rails_service.reserved
+    public_label: Ruby / Rails service
+    exclusion_reason: not_on_stated_wedge_for_foundations
+    inclusion_target: post_stable
+    notes: >
+      A Ruby/Rails bundle is named as a reservation so the inventory is
+      complete. It is intentionally excluded from the foundations
+      milestone; no claim-manifest row or reference workspace is seeded.
+
+  - bundle_id: launch_bundle:php_service.reserved
+    public_label: PHP service
+    exclusion_reason: not_on_stated_wedge_for_foundations
+    inclusion_target: post_stable
+    notes: >
+      PHP is named as a reservation row; it is out of foundations scope
+      and will enter through the community archetype class first.
+
+  - bundle_id: launch_bundle:swift_native_apple.reserved
+    public_label: Swift native (Apple platforms)
+    exclusion_reason: platform_scope_outside_foundations
+    inclusion_target: post_stable
+    notes: >
+      Apple-platform-only native Swift is a post-stable reservation —
+      the foundations milestone commits to cross-platform bundles.
+
+# -----------------------------------------------------------------------------
+# Rubric invariants.
+#
+# Validators that read this file should treat each invariant as a
+# closed-world rule. Adding an invariant is breaking; removing one is a
+# decision row.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:every_bundle_has_archetype_binding
+    statement: >
+      Every entry in language_bundles has at least one
+      archetype_row_ref that resolves to a row in
+      artifacts/compat/reference_workspace_rows.yaml.
+  - invariant_id: invariant:every_bundle_has_selection_scores
+    statement: >
+      Every entry in language_bundles carries a selection_scores map
+      with one value per id in selection_criterion_vocabulary drawn from
+      selection_score_vocabulary.
+  - invariant_id: invariant:every_bundle_has_cut_first_posture
+    statement: >
+      Every entry in language_bundles carries exactly one value from
+      cut_first_posture_vocabulary. Silent removal is non-conforming.
+  - invariant_id: invariant:every_pack_has_parent_bundle
+    statement: >
+      Every entry in framework_packs carries exactly one
+      parent_bundle_ref that resolves to a bundle_id in language_bundles.
+  - invariant_id: invariant:every_pack_has_owner_row
+    statement: >
+      Every entry in framework_packs has a matching entry in
+      artifacts/product/framework_pack_owners.yaml.
+  - invariant_id: invariant:pack_class_not_higher_than_parent
+    statement: >
+      A framework pack MAY carry a narrower target_support_class_id
+      than its parent bundle; it MAY NOT carry a higher one.
+  - invariant_id: invariant:replacement_grade_requires_full_proof
+    statement: >
+      A bundle that carries replacement_grade_evidence_required must
+      list every value in replacement_grade_evidence_vocabulary the
+      rubric flags as required for its target class. Missing items
+      demote the bundle through the archetype rubric rather than
+      lowering the proof bar.
+  - invariant_id: invariant:top_level_claims_quote_bundle_or_pack_id
+    statement: >
+      Top-level launch claims cite one bundle_id or pack_id. Free-text
+      "supports <language>" or "supports <framework>" wording without
+      that cite is non-conforming.
+  - invariant_id: invariant:excluded_rows_state_reason_and_target
+    statement: >
+      Every entry in excluded_language_bundles carries an
+      exclusion_reason and an inclusion_target so the row is not a
+      silent omission.

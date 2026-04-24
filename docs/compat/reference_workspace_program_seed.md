@@ -31,6 +31,11 @@ Companion artifacts:
   — the report template the certified support class requires.
 - [`/fixtures/benchmarks/corpus_manifest.yaml`](../../fixtures/benchmarks/corpus_manifest.yaml)
   — corpus-scenario ids the rows reference (or reserve).
+- [`/docs/product/launch_language_bundle_rubric.md`](../product/launch_language_bundle_rubric.md)
+  — launch-language bundle and framework-pack rubric. Bundles bind to
+  archetype rows by `archetype_row_id`; the rubric is the bridge
+  between an archetype row and the top-level claim wording that cites
+  a `launch_bundle:` id.
 
 ## Why this exists before launch
 
