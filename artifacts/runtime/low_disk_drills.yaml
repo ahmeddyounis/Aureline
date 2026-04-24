@@ -1,0 +1,369 @@
+# Low-disk, stale-index rebuild, pinned-evidence retention,
+# mirror / offline artifact preservation, corrupt-cache targeted repair,
+# and user-owned recovery state review drill seed.
+#
+# Companion to docs/runtime/storage_classes_and_gc.md and
+# schemas/runtime/cache_entry_manifest.schema.json. Every drill resolves
+# the frozen vocabularies declared in artifacts/runtime/storage_classes.yaml
+# and instantiates a low_disk_drill_record from the schema.
+
+schema_version: 1
+artifact_id: aureline.runtime.low_disk_drills
+title: Low-disk, stale-index, pinned-evidence, mirror/offline, corrupt-cache, and recovery-state drill seed
+
+contract_source: docs/runtime/storage_classes_and_gc.md
+
+related_artifacts:
+  storage_classes_ref: artifacts/runtime/storage_classes.yaml
+  cache_entry_manifest_schema_ref: schemas/runtime/cache_entry_manifest.schema.json
+  background_queue_matrix_ref: artifacts/runtime/queue_lane_matrix.yaml
+  resource_governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+  recovery_ladder_packet_ref: docs/support/recovery_ladder_packet.md
+
+# --------------------------------------------------------------------------
+# Drill families.
+#
+# Every drill declares:
+#   - drill_id: stable id the cleanup-history lane and support export
+#     cite.
+#   - drill_family: one of the six families pinned in this seed.
+#   - precondition: the state the device must be in at drill start.
+#   - exercised_classes: which storage classes participate.
+#   - ladder_steps_applied: ordered subset of low_disk_ladder_step
+#     values from artifacts/runtime/storage_classes.yaml.
+#   - protected_classes_not_trimmed: classes whose protection the drill
+#     verifies.
+#   - expected_pin_skips: pin-source classes whose entries MUST NOT be
+#     trimmed during this drill.
+#   - visible_projections: the banner / inspector posture and copy
+#     class surfaces MUST render.
+#   - pass_invariants: machine-checkable invariants the drill verifies.
+#   - out_of_scope: explicit non-goals.
+# --------------------------------------------------------------------------
+
+drills:
+  - drill_id: low_disk_ordered_eviction
+    drill_family: low_disk_ordering
+    precondition: >
+      Device free space drops below the low-disk threshold declared by
+      the resource-governor thresholds artifact. No open support case,
+      no active support-export assembly, no active environment capsule
+      bound to a hot prebuild.
+    exercised_classes:
+      - interactive_hot_cache
+      - knowledge_cache
+      - artifact_cache
+      - prebuild_environment_cache
+    ladder_steps_applied:
+      - stop_speculative_fetch_and_prefetch
+      - pause_managed_replication_and_pack_refresh
+      - trim_interactive_hot_cache
+      - trim_knowledge_cache_rebuildable
+      - trim_artifact_cache_unpinned
+      - trim_prebuild_environment_unpinned
+    protected_classes_not_trimmed:
+      - evidence_support_cache
+      - user_owned_recovery_state
+    expected_pin_skips:
+      - release_artifact_graph_ref
+      - offline_bundle_ref
+      - certified_archetype_or_template_ref
+      - policy_bundle_last_known_good_ref
+    visible_projections:
+      low_disk_banner_label: Aureline paused prefetch, then began trimming disposable caches
+      inspector_posture_by_class:
+        interactive_hot_cache: pressure_trimmed
+        knowledge_cache: pressure_trimmed
+        artifact_cache: pressure_trimmed
+        prebuild_environment_cache: pressure_trimmed
+        evidence_support_cache: healthy
+        user_owned_recovery_state: healthy
+      paused_workload_lanes_refs:
+        - provider_refresh
+        - ai_context_expansion
+        - extension_timer
+        - telemetry_forward
+    pass_invariants:
+      - evidence_support_cache_bytes_delta_is_zero
+      - user_owned_recovery_state_bytes_delta_is_zero
+      - ladder_steps_applied_in_declared_order
+      - every_pin_ref_in_expected_pin_skips_appears_in_blocked_items
+      - cleanup_history_event_names_reclaimed_bytes_per_class
+    out_of_scope:
+      - user-initiated clear-cache
+      - corrupt-cache repair
+      - evidence expiry past retention
+
+  - drill_id: stale_index_rebuild_after_schema_drift
+    drill_family: stale_index_rebuild
+    precondition: >
+      A workspace's producing-schema version for search or graph
+      advances past the schema version recorded on its existing
+      knowledge_cache entries. The device is NOT under disk pressure;
+      the only trigger is the invalidation fingerprint delta.
+    exercised_classes:
+      - knowledge_cache
+    ladder_steps_applied: []
+    protected_classes_not_trimmed:
+      - interactive_hot_cache
+      - artifact_cache
+      - prebuild_environment_cache
+      - evidence_support_cache
+      - user_owned_recovery_state
+    expected_pin_skips: []
+    visible_projections:
+      inspector_posture_by_class:
+        knowledge_cache: rebuild_pending
+      surface_staleness_labels:
+        search_results: stale_until_rehydrate
+        graph_neighborhood: stale_until_rehydrate
+      queue_lanes_engaged:
+        - hot_set_scan
+        - graph_warmup
+    pass_invariants:
+      - no_generic_clear_cache_invoked
+      - rebuild_pending_entries_carry_matching_producing_schema_version
+      - knowledge_cache_entries_labeled_rebuild_pending_before_consumer_reads
+      - rehydrate_runs_under_hot_set_scan_and_graph_warmup_lanes_only
+    out_of_scope:
+      - low-disk-triggered trimming
+      - user-initiated clear-cache
+
+  - drill_id: pinned_evidence_retained_under_pressure
+    drill_family: pinned_evidence_retention
+    precondition: >
+      Device under disk pressure with one open support case whose
+      case_reference_ref pins three evidence_support_cache entries,
+      and one in-flight support export whose support_export_assembly_ref
+      pins two additional entries.
+    exercised_classes:
+      - interactive_hot_cache
+      - knowledge_cache
+      - artifact_cache
+      - prebuild_environment_cache
+      - evidence_support_cache
+    ladder_steps_applied:
+      - stop_speculative_fetch_and_prefetch
+      - pause_managed_replication_and_pack_refresh
+      - trim_interactive_hot_cache
+      - trim_knowledge_cache_rebuildable
+      - trim_artifact_cache_unpinned
+      - trim_prebuild_environment_unpinned
+      - expire_unpinned_evidence_past_retention
+    protected_classes_not_trimmed:
+      - user_owned_recovery_state
+    expected_pin_skips:
+      - case_reference_ref
+      - support_export_assembly_ref
+      - release_artifact_graph_ref
+      - offline_bundle_ref
+      - policy_bundle_last_known_good_ref
+    visible_projections:
+      inspector_posture_by_class:
+        evidence_support_cache: retained_for_evidence
+        user_owned_recovery_state: healthy
+      pin_manager_rows:
+        - pin_source_class: case_reference_ref
+          referenced_object_label: Open case
+          expiry_anchor: case_closure_plus_policy_window
+        - pin_source_class: support_export_assembly_ref
+          referenced_object_label: Support export in progress
+          expiry_anchor: export_assembly_in_flight_only
+      clear_data_review_prompt_on_case_entries:
+        export_before_delete_offered: true
+    pass_invariants:
+      - every_case_pinned_entry_is_preserved
+      - every_support_export_pinned_entry_is_preserved
+      - cleanup_history_event_names_case_id
+      - user_owned_recovery_state_bytes_delta_is_zero
+      - unpinned_evidence_past_retention_may_expire
+      - pinned_evidence_inside_retention_window_is_never_expired
+    out_of_scope:
+      - removing evidence for a closed case past retention
+      - forcing support-export assembly to drop in-flight pins
+
+  - drill_id: mirror_and_offline_artifact_preserved
+    drill_family: mirror_offline_preservation
+    precondition: >
+      Device holds an offline entitlement bundle pinning a toolchain
+      pack, a mirrored docs pack, and a certified template pack. User
+      initiates a class-selective clear-cache targeting artifact_cache
+      and prebuild_environment_cache.
+    exercised_classes:
+      - artifact_cache
+      - prebuild_environment_cache
+    ladder_steps_applied:
+      - trim_artifact_cache_unpinned
+      - trim_prebuild_environment_unpinned
+    protected_classes_not_trimmed:
+      - interactive_hot_cache
+      - knowledge_cache
+      - evidence_support_cache
+      - user_owned_recovery_state
+    expected_pin_skips:
+      - offline_bundle_ref
+      - certified_archetype_or_template_ref
+      - release_artifact_graph_ref
+      - policy_bundle_last_known_good_ref
+    visible_projections:
+      clear_data_review_consequences:
+        - offline_continuity_affected_for_mirrored_docs_pack
+        - startup_cost_widens_without_toolchain_pack
+      clear_data_review_excluded_rows_named:
+        - Offline bundle pin
+        - Certified template pin
+        - Release manifest pin
+    pass_invariants:
+      - every_offline_bundle_pinned_entry_is_preserved
+      - every_certified_template_pinned_entry_is_preserved
+      - every_release_manifest_pinned_entry_is_preserved
+      - clear_data_review_preview_names_every_skipped_pin
+      - no_silent_widening_to_evidence_or_recovery_state
+    out_of_scope:
+      - generic clear-cache against user_owned_recovery_state
+      - expiry of evidence pins
+
+  - drill_id: corrupt_cache_targeted_repair
+    drill_family: corrupt_cache_repair
+    precondition: >
+      One knowledge_cache shard in a workspace fails integrity
+      verification. No other class is corrupt. The recovery ladder
+      rung rung.cache_index_repair is cited in the user-visible
+      repair prompt.
+    exercised_classes:
+      - knowledge_cache
+    ladder_steps_applied:
+      - trim_knowledge_cache_rebuildable
+    protected_classes_not_trimmed:
+      - interactive_hot_cache
+      - artifact_cache
+      - prebuild_environment_cache
+      - evidence_support_cache
+      - user_owned_recovery_state
+    expected_pin_skips: []
+    visible_projections:
+      recovery_ladder_rung_ref: rung.cache_index_repair
+      inspector_posture_by_class:
+        knowledge_cache: rebuild_pending
+      surface_staleness_labels:
+        affected_shard: corrupt_rebuilding
+      queue_lanes_engaged:
+        - hot_set_scan
+        - graph_warmup
+    pass_invariants:
+      - repair_targets_affected_shard_only
+      - sibling_knowledge_cache_entries_are_not_trimmed
+      - no_generic_clear_cache_invoked
+      - user_owned_recovery_state_bytes_delta_is_zero
+      - repair_is_attributed_to_rung_cache_index_repair
+    out_of_scope:
+      - full-class knowledge cache clear
+      - clear-all "nuke everything" path
+
+  - drill_id: user_owned_recovery_state_under_explicit_review
+    drill_family: user_owned_recovery_state_review
+    precondition: >
+      User explicitly opens the class-specific review sheet for
+      user_owned_recovery_state and chooses "Delete local history for
+      this workspace". The device is NOT under disk pressure. No
+      generic clear-cache path is active.
+    exercised_classes:
+      - user_owned_recovery_state
+    ladder_steps_applied:
+      - user_owned_recovery_state_only_under_explicit_review
+    protected_classes_not_trimmed:
+      - interactive_hot_cache
+      - knowledge_cache
+      - artifact_cache
+      - prebuild_environment_cache
+      - evidence_support_cache
+    expected_pin_skips:
+      - retention_window_ref
+      - explicit_user_pin
+    visible_projections:
+      clear_data_review_sheet_fields:
+        newest_retained_item: named
+        export_before_delete_offered: true
+        no_undo_warning_rendered: true
+        selected_class_ids:
+          - user_owned_recovery_state
+        protected_excluded_class_ids:
+          - interactive_hot_cache
+          - knowledge_cache
+          - artifact_cache
+          - prebuild_environment_cache
+          - evidence_support_cache
+      generic_clear_cache_refused_with_reason:
+        reason_class: protected_never_generic_clear
+    pass_invariants:
+      - generic_clear_cache_path_is_refused
+      - review_sheet_names_newest_retained_item
+      - review_sheet_offers_export_before_delete
+      - review_sheet_renders_irreversible_warning
+      - non_selected_classes_bytes_delta_is_zero
+      - dirty_buffer_recovery_journal_is_never_included_in_default_selection
+    out_of_scope:
+      - low-disk-triggered trimming of recovery state
+      - auth session secrets or long-lived credentials (routed through
+        the platform credential store)
+
+# --------------------------------------------------------------------------
+# Drill coverage guards.
+#
+# Guarantees that every storage class and every clear_cache_protection_class
+# appears in at least one drill, and that every pin_source_class that
+# protects against generic clear-cache is exercised.
+# --------------------------------------------------------------------------
+
+coverage_guards:
+  - id: every_storage_class_has_at_least_one_drill
+    required_class_coverage:
+      interactive_hot_cache:
+        - low_disk_ordered_eviction
+        - pinned_evidence_retained_under_pressure
+      knowledge_cache:
+        - low_disk_ordered_eviction
+        - stale_index_rebuild_after_schema_drift
+        - corrupt_cache_targeted_repair
+      artifact_cache:
+        - low_disk_ordered_eviction
+        - pinned_evidence_retained_under_pressure
+        - mirror_and_offline_artifact_preserved
+      prebuild_environment_cache:
+        - low_disk_ordered_eviction
+        - pinned_evidence_retained_under_pressure
+        - mirror_and_offline_artifact_preserved
+      evidence_support_cache:
+        - pinned_evidence_retained_under_pressure
+      user_owned_recovery_state:
+        - user_owned_recovery_state_under_explicit_review
+  - id: every_clear_cache_protection_class_has_at_least_one_drill
+    required_protection_coverage:
+      generic_clear_always_allowed:
+        - low_disk_ordered_eviction
+      generic_clear_with_pin_exclusions:
+        - mirror_and_offline_artifact_preserved
+      protected_requires_class_specific_review:
+        - pinned_evidence_retained_under_pressure
+      protected_never_generic_clear:
+        - user_owned_recovery_state_under_explicit_review
+  - id: every_protective_pin_source_is_exercised
+    required_pin_source_coverage:
+      release_artifact_graph_ref:
+        - low_disk_ordered_eviction
+        - mirror_and_offline_artifact_preserved
+      offline_bundle_ref:
+        - low_disk_ordered_eviction
+        - mirror_and_offline_artifact_preserved
+      certified_archetype_or_template_ref:
+        - mirror_and_offline_artifact_preserved
+      policy_bundle_last_known_good_ref:
+        - low_disk_ordered_eviction
+      case_reference_ref:
+        - pinned_evidence_retained_under_pressure
+      support_export_assembly_ref:
+        - pinned_evidence_retained_under_pressure
+      retention_window_ref:
+        - user_owned_recovery_state_under_explicit_review
+      explicit_user_pin:
+        - user_owned_recovery_state_under_explicit_review

@@ -1,0 +1,879 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/cache_entry_manifest.schema.json",
+  "title": "Aureline cache-entry manifest, clear-cache preview, cleanup-history event, and low-disk drill record",
+  "description": "Boundary schema for the four cross-tool records every Aureline storage surface reads, logs, or exports: the cache-entry manifest every cache store registers with the cache manager, the clear-cache preview record the class-selective review sheet renders, the cleanup-history event record the cleanup-history lane renders after every eviction or clear, and the low-disk drill record that instantiates the scenarios frozen in artifacts/runtime/low_disk_drills.yaml. See docs/runtime/storage_classes_and_gc.md and artifacts/runtime/storage_classes.yaml. Shared authority, rebuild-cost, sensitivity, GC-policy, storage-posture, and scope vocabularies are re-exported here; this schema does not mint parallel class names. Re-exported rebuild-cost, storage-posture, and gc-policy enums match schemas/support/support_bundle.schema.json. Adding a value to a closed vocabulary is additive-minor and MUST bump cache_entry_manifest_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/cache_entry_manifest_record" },
+    { "$ref": "#/$defs/clear_cache_preview_record" },
+    { "$ref": "#/$defs/cleanup_history_event_record" },
+    { "$ref": "#/$defs/low_disk_drill_record" }
+  ],
+  "$defs": {
+    "cache_entry_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this cache-entry manifest / clear-cache preview / cleanup-history event / low-disk drill export. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, and admin exports. Raw payload bodies never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source at the cache manager."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, lineage, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "cache_entry_manifest_record",
+        "clear_cache_preview_record",
+        "cleanup_history_event_record",
+        "low_disk_drill_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ],
+      "description": "Frozen storage-class vocabulary. Adding a class is additive-minor and requires a decision row."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ],
+      "description": "Re-exported state-authority vocabulary from docs/state/profile_and_state_map.md. A manifest declaring user_authored_durable_truth is refused at registration; surfaces route through the profile/state-map storage path instead."
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ],
+      "description": "Re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "t0_metadata_only",
+        "t1_low_risk_derived",
+        "t2_code_bearing_bounded",
+        "t3_secret_adjacent_not_reusable_cache"
+      ],
+      "description": "Sensitivity-tier vocabulary matching Appendix CY.2. t3 is forbidden on every class except evidence_support_cache."
+    },
+    "gc_policy_class": {
+      "type": "string",
+      "enum": [
+        "never_gc_authoritative",
+        "gc_on_version_replace",
+        "gc_on_pressure_if_unpinned",
+        "gc_on_case_close",
+        "gc_on_explicit_reset_only"
+      ],
+      "description": "Re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ],
+      "description": "Re-exported from schemas/support/support_bundle.schema.json."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "machine",
+        "user",
+        "workspace",
+        "tenant",
+        "slice"
+      ],
+      "description": "Scope class for a cache-entry manifest. Null scope_ref is admitted only for machine scope."
+    },
+    "quota_basis_class": {
+      "type": "string",
+      "enum": [
+        "per_workspace_quota",
+        "global_device_quota",
+        "per_class_ceiling",
+        "per_tenant_quota",
+        "policy_bound_evidence_quota",
+        "retention_policy_only",
+        "digest_store_plus_class_ceiling"
+      ],
+      "description": "How this store's capacity is accounted."
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ],
+      "description": "Frozen pin-source vocabulary. Every pin ref declares exactly one source."
+    },
+    "clear_cache_protection_class": {
+      "type": "string",
+      "enum": [
+        "generic_clear_always_allowed",
+        "generic_clear_with_pin_exclusions",
+        "protected_requires_class_specific_review",
+        "protected_never_generic_clear"
+      ],
+      "description": "Declares whether a generic clear-cache path may target this class."
+    },
+    "low_disk_ladder_step": {
+      "type": "string",
+      "enum": [
+        "stop_speculative_fetch_and_prefetch",
+        "pause_managed_replication_and_pack_refresh",
+        "trim_interactive_hot_cache",
+        "trim_knowledge_cache_rebuildable",
+        "trim_artifact_cache_unpinned",
+        "trim_prebuild_environment_unpinned",
+        "expire_unpinned_evidence_past_retention",
+        "user_owned_recovery_state_only_under_explicit_review"
+      ],
+      "description": "Ordered low-disk ladder step. Order in this enum is significant; drills MUST apply admissible steps in enum order."
+    },
+    "inspectable_surface_class": {
+      "type": "string",
+      "enum": [
+        "storage_inspector",
+        "workspace_storage_detail",
+        "clear_data_review",
+        "low_disk_banner",
+        "pin_manager",
+        "cleanup_history_lane"
+      ],
+      "description": "Surface classes that may project a cache-entry manifest or pin."
+    },
+    "drill_family_class": {
+      "type": "string",
+      "enum": [
+        "low_disk_ordering",
+        "stale_index_rebuild",
+        "pinned_evidence_retention",
+        "mirror_offline_preservation",
+        "corrupt_cache_repair",
+        "user_owned_recovery_state_review"
+      ],
+      "description": "Frozen drill-family vocabulary. Matches artifacts/runtime/low_disk_drills.yaml."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "system_low_disk_governor",
+        "system_retention_policy",
+        "system_schema_drift_invalidator",
+        "system_corrupt_cache_detector",
+        "system_cache_manager_gc",
+        "user_clear_data_review",
+        "user_pin_manager_action",
+        "admin_policy_action",
+        "support_export_assembly"
+      ],
+      "description": "Who initiated a cleanup-history event or drill step."
+    },
+    "pin_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pin_source_class",
+        "referenced_object_ref",
+        "pin_expiry_or_policy_window",
+        "unpin_path_ref",
+        "pin_declared_by_actor_class",
+        "note"
+      ],
+      "properties": {
+        "pin_source_class": { "$ref": "#/$defs/pin_source_class" },
+        "referenced_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "pin_expiry_or_policy_window": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["anchor", "note"],
+              "properties": {
+                "anchor": {
+                  "type": "string",
+                  "enum": [
+                    "case_closure_plus_policy_window",
+                    "review_pack_closure_plus_policy_window",
+                    "release_ring_retention_window",
+                    "offline_bundle_validity_window",
+                    "certification_window",
+                    "next_signed_policy_epoch",
+                    "export_assembly_in_flight_only",
+                    "retention_window_elapsed",
+                    "user_unpin_only",
+                    "admin_unpin_only"
+                  ]
+                },
+                "note": { "$ref": "#/$defs/reviewable_sentence" }
+              }
+            }
+          ],
+          "description": "Expiry timestamp or anchor object. Null only when pin_source_class is explicit_user_pin or explicit_admin_policy_pin with user_unpin_only / admin_unpin_only anchor inlined separately via another pin_ref entry."
+        },
+        "unpin_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "pin_declared_by_actor_class": { "$ref": "#/$defs/actor_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One pin ref. Every pin names its source, referenced object, expiry / policy window (nullable only for user/admin-owned indefinite pins), and the unpin path."
+    },
+    "invalidation_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_identity_ref",
+        "toolchain_env_capsule_hash",
+        "producing_schema_version",
+        "provider_model_identity_ref",
+        "policy_epoch_ref",
+        "aureline_compatible_version_range"
+      ],
+      "properties": {
+        "workspace_identity_ref": {
+          "anyOf": [
+            { "type": "null" },
+            { "const": "not_applicable" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "toolchain_env_capsule_hash": {
+          "anyOf": [
+            { "type": "null" },
+            { "const": "not_applicable" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "producing_schema_version": {
+          "anyOf": [
+            { "const": "not_applicable" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "provider_model_identity_ref": {
+          "anyOf": [
+            { "type": "null" },
+            { "const": "not_applicable" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_epoch_ref": {
+          "anyOf": [
+            { "type": "null" },
+            { "const": "not_applicable" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "aureline_compatible_version_range": {
+          "anyOf": [
+            { "const": "not_applicable" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["earliest", "latest"],
+              "properties": {
+                "earliest": { "type": "string", "minLength": 1 },
+                "latest": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        }
+      },
+      "description": "Invalidation fingerprints every cache entry carries. A key may be set to the sentinel 'not_applicable' only when the class rationale admits it; otherwise the key MUST carry a value."
+    },
+    "cache_entry_manifest_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "cache_entry_manifest_schema_version",
+        "store_id",
+        "storage_class_id",
+        "scope_class",
+        "scope_ref",
+        "rebuild_cost_class",
+        "sensitivity_class",
+        "authority_class",
+        "producing_schema_version",
+        "gc_policy_class",
+        "quota_basis_class",
+        "clear_cache_protection_class",
+        "pin_refs",
+        "invalidation_fingerprints",
+        "inspectable_on_surfaces",
+        "posture",
+        "last_access_at",
+        "last_write_at",
+        "reclaimable_bytes_estimate",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "cache_entry_manifest_record" },
+        "cache_entry_manifest_schema_version": { "$ref": "#/$defs/cache_entry_manifest_schema_version" },
+        "store_id": { "$ref": "#/$defs/opaque_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "producing_schema_version": { "type": "integer", "minimum": 0 },
+        "gc_policy_class": { "$ref": "#/$defs/gc_policy_class" },
+        "quota_basis_class": { "$ref": "#/$defs/quota_basis_class" },
+        "clear_cache_protection_class": { "$ref": "#/$defs/clear_cache_protection_class" },
+        "pin_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pin_ref" }
+        },
+        "invalidation_fingerprints": { "$ref": "#/$defs/invalidation_fingerprints" },
+        "inspectable_on_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/inspectable_surface_class" }
+        },
+        "posture": { "$ref": "#/$defs/storage_posture_class" },
+        "last_access_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "last_write_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reclaimable_bytes_estimate": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "user_authored_durable_truth authority may never register as a cache entry.",
+          "not": {
+            "properties": {
+              "authority_class": { "const": "user_authored_durable_truth" }
+            },
+            "required": ["authority_class"]
+          }
+        },
+        {
+          "description": "user_owned_recovery_state authority MUST bind to user_owned_recovery_state class.",
+          "if": {
+            "properties": {
+              "authority_class": { "const": "user_owned_recovery_state" }
+            },
+            "required": ["authority_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" }
+            }
+          }
+        },
+        {
+          "description": "user_owned_recovery_state class MUST bind to user_owned_recovery_state authority.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "user_owned_recovery_state" },
+              "clear_cache_protection_class": { "const": "protected_never_generic_clear" },
+              "gc_policy_class": {
+                "enum": ["never_gc_authoritative", "gc_on_explicit_reset_only"]
+              },
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            }
+          }
+        },
+        {
+          "description": "evidence_support_cache class carries protected-requires-review protection and limited GC policies.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "clear_cache_protection_class": { "const": "protected_requires_class_specific_review" },
+              "gc_policy_class": {
+                "enum": ["never_gc_authoritative", "gc_on_case_close", "gc_on_explicit_reset_only"]
+              },
+              "authority_class": {
+                "enum": ["admin_or_control_artifact", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "authoritative_no_rebuild is limited to evidence_support_cache and user_owned_recovery_state.",
+          "if": {
+            "properties": {
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            },
+            "required": ["rebuild_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "t3 sensitivity is limited to evidence_support_cache.",
+          "if": {
+            "properties": {
+              "sensitivity_class": { "const": "t3_secret_adjacent_not_reusable_cache" }
+            },
+            "required": ["sensitivity_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" }
+            }
+          }
+        },
+        {
+          "description": "never_gc_authoritative is limited to evidence_support_cache and user_owned_recovery_state.",
+          "if": {
+            "properties": {
+              "gc_policy_class": { "const": "never_gc_authoritative" }
+            },
+            "required": ["gc_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-machine scope MUST carry a scope_ref.",
+          "if": {
+            "properties": {
+              "scope_class": {
+                "enum": ["user", "workspace", "tenant", "slice"]
+              }
+            },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "not": { "const": null } }
+            }
+          }
+        },
+        {
+          "description": "interactive_hot_cache admits no pin refs.",
+          "if": {
+            "properties": {
+              "storage_class_id": { "const": "interactive_hot_cache" }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "pin_refs": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      ],
+      "description": "One cache-entry manifest. Registered with the cache manager on first write and re-read by every inspectable surface and support export."
+    },
+    "clear_cache_preview_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "cache_entry_manifest_schema_version",
+        "preview_id",
+        "previewed_at",
+        "preview_origin_surface",
+        "selected_class_ids",
+        "protected_excluded_class_ids",
+        "pinned_skipped_class_ids",
+        "skipped_pinned_entries_count",
+        "reclaimable_bytes_estimate",
+        "declared_consequences",
+        "export_before_delete_offered",
+        "recovery_affordance_ref",
+        "class_specific_review_required",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "clear_cache_preview_record" },
+        "cache_entry_manifest_schema_version": { "$ref": "#/$defs/cache_entry_manifest_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "previewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_origin_surface": { "$ref": "#/$defs/inspectable_surface_class" },
+        "selected_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "protected_excluded_class_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "pinned_skipped_class_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "skipped_pinned_entries_count": { "type": "integer", "minimum": 0 },
+        "reclaimable_bytes_estimate": { "type": "integer", "minimum": 0 },
+        "declared_consequences": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "search_and_graph_will_rebuild",
+              "prebuilds_will_redownload_on_next_start",
+              "offline_continuity_affected_for_mirrored_docs_pack",
+              "startup_cost_widens_without_toolchain_pack",
+              "language_host_rewarm_required",
+              "extension_and_update_packs_will_redownload",
+              "evidence_retention_window_unchanged",
+              "no_user_authored_data_loss",
+              "irreversible_for_selected_class",
+              "offline_bundle_continuity_unaffected_by_pin",
+              "certified_template_continuity_unaffected_by_pin",
+              "release_manifest_continuity_unaffected_by_pin",
+              "policy_bundle_last_known_good_continuity_unaffected_by_pin"
+            ]
+          }
+        },
+        "export_before_delete_offered": { "type": "boolean" },
+        "recovery_affordance_ref": { "$ref": "#/$defs/opaque_id" },
+        "class_specific_review_required": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "A generic clear-cache (class_specific_review_required = false) MUST NOT include protected classes.",
+          "if": {
+            "properties": {
+              "class_specific_review_required": { "const": false }
+            },
+            "required": ["class_specific_review_required"]
+          },
+          "then": {
+            "properties": {
+              "selected_class_ids": {
+                "not": {
+                  "contains": {
+                    "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Selecting evidence_support_cache or user_owned_recovery_state forces class_specific_review_required = true.",
+          "if": {
+            "properties": {
+              "selected_class_ids": {
+                "contains": {
+                  "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+                }
+              }
+            },
+            "required": ["selected_class_ids"]
+          },
+          "then": {
+            "properties": {
+              "class_specific_review_required": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Class-specific review of evidence_support_cache or user_owned_recovery_state MUST offer export-before-delete.",
+          "if": {
+            "properties": {
+              "selected_class_ids": {
+                "contains": {
+                  "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+                }
+              }
+            },
+            "required": ["selected_class_ids"]
+          },
+          "then": {
+            "properties": {
+              "export_before_delete_offered": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "A generic clear-cache MUST list both protected classes as excluded.",
+          "if": {
+            "properties": {
+              "class_specific_review_required": { "const": false }
+            },
+            "required": ["class_specific_review_required"]
+          },
+          "then": {
+            "properties": {
+              "protected_excluded_class_ids": {
+                "allOf": [
+                  { "contains": { "const": "evidence_support_cache" } },
+                  { "contains": { "const": "user_owned_recovery_state" } }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One clear-cache review record. The review sheet renders this shape; surfaces without class selection MUST be refused."
+    },
+    "cleanup_history_event_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "cache_entry_manifest_schema_version",
+        "event_id",
+        "event_at",
+        "actor_class",
+        "selected_class_ids",
+        "reclaimed_bytes",
+        "blocked_pinned_entries_count",
+        "resulting_posture_by_class",
+        "follow_up_actions_required",
+        "preview_ref",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "cleanup_history_event_record" },
+        "cache_entry_manifest_schema_version": { "$ref": "#/$defs/cache_entry_manifest_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "selected_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "reclaimed_bytes": { "type": "integer", "minimum": 0 },
+        "blocked_pinned_entries_count": { "type": "integer", "minimum": 0 },
+        "resulting_posture_by_class": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["storage_class_id", "posture"],
+            "properties": {
+              "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+              "posture": { "$ref": "#/$defs/storage_posture_class" }
+            }
+          }
+        },
+        "follow_up_actions_required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "rebuild_knowledge_cache",
+              "rewarm_prebuild_environment_cache",
+              "redownload_artifact_cache",
+              "reissue_support_export_after_case_closure",
+              "no_follow_up_required"
+            ]
+          }
+        },
+        "preview_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the originating clear_cache_preview_record. Null when the event was not preview-initiated (for example, a system low-disk governor eviction)."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One cleanup-history event. Every clear-cache commit and every low-disk eviction emits one record."
+    },
+    "low_disk_drill_record": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "cache_entry_manifest_schema_version",
+        "drill_id",
+        "drill_family",
+        "precondition_note",
+        "exercised_classes",
+        "ladder_steps_applied",
+        "protected_classes_not_trimmed",
+        "expected_pin_skips",
+        "pass_invariants",
+        "visible_projection_summary",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "low_disk_drill_record" },
+        "cache_entry_manifest_schema_version": { "$ref": "#/$defs/cache_entry_manifest_schema_version" },
+        "drill_id": { "$ref": "#/$defs/opaque_id" },
+        "drill_family": { "$ref": "#/$defs/drill_family_class" },
+        "precondition_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "ladder_steps_applied": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/low_disk_ladder_step" }
+        },
+        "protected_classes_not_trimmed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/storage_class_id" }
+        },
+        "expected_pin_skips": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/pin_source_class" }
+        },
+        "pass_invariants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "visible_projection_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Every drill EXCEPT user_owned_recovery_state_review MUST list user_owned_recovery_state in protected_classes_not_trimmed.",
+          "if": {
+            "properties": {
+              "drill_family": {
+                "not": { "const": "user_owned_recovery_state_review" }
+              }
+            },
+            "required": ["drill_family"]
+          },
+          "then": {
+            "properties": {
+              "protected_classes_not_trimmed": {
+                "contains": { "const": "user_owned_recovery_state" }
+              }
+            }
+          }
+        },
+        {
+          "description": "The user_owned_recovery_state_review drill family MUST exercise exactly user_owned_recovery_state and MUST apply the corresponding ladder step.",
+          "if": {
+            "properties": {
+              "drill_family": { "const": "user_owned_recovery_state_review" }
+            },
+            "required": ["drill_family"]
+          },
+          "then": {
+            "properties": {
+              "exercised_classes": {
+                "allOf": [
+                  { "contains": { "const": "user_owned_recovery_state" } },
+                  { "maxItems": 1 }
+                ]
+              },
+              "ladder_steps_applied": {
+                "contains": { "const": "user_owned_recovery_state_only_under_explicit_review" }
+              }
+            }
+          }
+        },
+        {
+          "description": "low_disk_ordering drills never target evidence or recovery state.",
+          "if": {
+            "properties": {
+              "drill_family": { "const": "low_disk_ordering" }
+            },
+            "required": ["drill_family"]
+          },
+          "then": {
+            "properties": {
+              "protected_classes_not_trimmed": {
+                "allOf": [
+                  { "contains": { "const": "evidence_support_cache" } },
+                  { "contains": { "const": "user_owned_recovery_state" } }
+                ]
+              },
+              "ladder_steps_applied": {
+                "not": {
+                  "contains": { "const": "user_owned_recovery_state_only_under_explicit_review" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One low-disk drill record. Instantiates a scenario from artifacts/runtime/low_disk_drills.yaml."
+    }
+  }
+}
