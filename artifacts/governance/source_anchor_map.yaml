@@ -1,0 +1,935 @@
+# Source-anchor map.
+#
+# One binding map from canonical requirement ids, control-artifact rows,
+# and governance packet families back to the source-document sections
+# that authorize them. The canonical requirement register, the
+# control-artifact index, and the governance packet template are the
+# downstream consumers. This map is authoritative for the linter at
+# tools/check_source_anchors.py and the narrative companion at
+# docs/governance/canonical_reference_rules.md.
+#
+# Conformance: this file conforms to
+#   schemas/governance/source_anchor_map.schema.json.
+#
+# What this map adds on top of the requirement register's
+# per-row source_anchors list:
+#   - Control artifacts and packet families also get explicit anchors,
+#     so "which source section owns this artifact" is answerable
+#     without grep.
+#   - Aliases (copied prose, spec-local labels, scorecard calls, and
+#     legacy ids) carry an alias_id that is unique across the whole map.
+#     The linter fails when an alias is duplicated or orphaned.
+#   - Every row classifies itself with artifact_class. The linter and the
+#     drift-report template read that class so a change to a source
+#     section can be scoped to every affected requirement row, every
+#     affected control artifact, every affected packet family, or every
+#     affected shiproom surface rather than only the rows that happen to
+#     name the source doc in free text.
+#
+# Rules (enforced by the linter):
+#   - claims_source_authority=true rows MUST carry at least one
+#     canonical_anchor.
+#   - Every alias_id MUST be unique across the whole map.
+#   - Every requirement_id in
+#     artifacts/governance/requirement_register_seed.yaml MUST resolve to
+#     exactly one requirement_row here (orphan detection).
+#   - Every canonical_anchors[].doc_id MUST resolve to a row in
+#     canonical_source_documents.
+#   - Every canonical_source_documents[].doc_ref MUST exist on disk.
+#
+# Scope:
+#   The seed covers the foundations-critical requirement rows, the
+#   major control artifacts that back them, and the standing governance
+#   packet families. Long-range rows that have no canonical requirement
+#   id yet are intentionally out of scope until their register rows land.
+
+record_kind: source_anchor_map_record
+schema_version: 1
+map_id: aureline.source_anchor_map.seed.01
+title: Aureline source-anchor map
+overview_doc: docs/governance/canonical_reference_rules.md
+drift_report_dir: artifacts/governance/source_drift_reports/
+drift_report_template_ref: artifacts/governance/source_drift_reports/template.md
+
+ownership:
+  primary_owner: "@ahmeddyounis"
+  evidence_owner: "@ahmeddyounis"
+  owning_lane: governance_packets
+
+# -----------------------------------------------------------------------------
+# Canonical source documents.
+#
+# Every canonical_anchors[].doc_id below MUST resolve to one of these rows.
+# -----------------------------------------------------------------------------
+canonical_source_documents:
+  - doc_id: aureline_prd
+    doc_ref: .t2/docs/Aureline_PRD.md
+    purpose: Product requirements. Normative MUST/SHOULD language and the launch-blocking requirement index.
+  - doc_id: aureline_technical_architecture_document
+    doc_ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    purpose: System architecture and requirement summary table.
+  - doc_id: aureline_technical_design_document
+    doc_ref: .t2/docs/Aureline_Technical_Design_Document.md
+    purpose: Detailed component designs, fixture-corpus governance, and milestone-close conditions.
+  - doc_id: aureline_milestones_document
+    doc_ref: .t2/docs/Aureline_Milestones_Document.md
+    purpose: Milestone breakdown, canonical requirement-register operating model, and alias-discipline rules.
+  - doc_id: aureline_ui_ux_spec_document
+    doc_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    purpose: UI/UX specifications and canonical-reference rules for packets, scorecards, and waivers.
+  - doc_id: aureline_ux_design_system_style_guide
+    doc_ref: .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+    purpose: Design tokens, components, and styling rules.
+
+# -----------------------------------------------------------------------------
+# Artifact classes.
+#
+# Closed vocabulary. Every row MUST pick one class. The linter and the
+# drift-report template group rows by class, so a change to a source
+# section can be scoped to one class without repeating "what kind of
+# artifact is this" on every row.
+# -----------------------------------------------------------------------------
+artifact_classes:
+  - class_id: requirement_row
+    summary: Canonical requirement id from the requirement register. Binds a shipped obligation to its source anchor.
+    authority_posture: claims_source_authority
+  - class_id: control_artifact
+    summary: A row in the control-artifact index. Represents a governance asset that backs one or more requirement ids, packet families, or review surfaces.
+    authority_posture: claims_source_authority
+  - class_id: packet_family
+    summary: A governance packet family (verification, benchmark_report, compatibility_report, claim_manifest, shiproom, waiver_register). Binds the packet-family contract back to the source section that authorizes it.
+    authority_posture: claims_source_authority
+  - class_id: shiproom_artifact
+    summary: A release, shiproom, or ring-progression artifact that participates in go/no-go decisions.
+    authority_posture: claims_source_authority
+  - class_id: evidence_label
+    summary: A non-authoritative label (scorecard call, fitness row, contract-family label, milestone-exit label) that resolves to one or more canonical rows. These rows MUST NOT claim source authority.
+    authority_posture: no_source_authority
+
+# -----------------------------------------------------------------------------
+# Severity classes.
+#
+# Produced by the linter. Downstream reviewers use the severity_id to
+# decide whether to block merge, block promotion, or file a time-boxed
+# defect.
+# -----------------------------------------------------------------------------
+severity_classes:
+  - severity_id: missing_canonical_anchor
+    summary: A row claims source authority but does not carry at least one canonical_anchor.
+    blocks: Blocks merge when the row already shipped with claims_source_authority=true.
+  - severity_id: source_authority_without_anchor
+    summary: A row's artifact class has authority_posture=claims_source_authority but the row declares claims_source_authority=false without a visible downgrade reason.
+    blocks: Blocks merge. File a class downgrade or add a canonical anchor in the same change.
+  - severity_id: duplicate_alias
+    summary: Two or more rows carry the same alias_id, or an alias_id collides with an anchor_id from another row.
+    blocks: Blocks merge. Aliases are lookup handles; they must resolve to one canonical row.
+  - severity_id: alias_without_canonical_target
+    summary: An alias row exists but the canonical target row is missing or does not claim source authority.
+    blocks: Blocks merge. Every alias must point at a canonical row that owns the source anchor.
+  - severity_id: orphaned_requirement_id
+    summary: A requirement_id in the requirement register has no matching requirement_row in this map.
+    blocks: Blocks merge. Every canonical requirement id must trace back to one source anchor.
+  - severity_id: unknown_source_document
+    summary: A canonical_anchors[].doc_id does not resolve to a row in canonical_source_documents.
+    blocks: Blocks merge. Add the source-document row or correct the doc_id.
+  - severity_id: missing_source_document_file
+    summary: A canonical_source_documents[].doc_ref does not exist on disk.
+    blocks: Blocks merge. Restore the source document or remove the row if the document was retired.
+  - severity_id: class_coverage_gap
+    summary: A class that is expected to have at least one row (requirement_row, control_artifact, packet_family) has zero rows.
+    blocks: Blocks merge until the map covers every class that the schema declares as claims_source_authority.
+
+# -----------------------------------------------------------------------------
+# Rows.
+#
+# Grouped by artifact_class for readability only. The linter reads the
+# artifact_class field, not the grouping.
+# -----------------------------------------------------------------------------
+rows:
+  # ---------------------------------------------------------------------------
+  # Requirement rows.
+  # ---------------------------------------------------------------------------
+  - anchor_id: req.ARCH-PACK-901
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: ARCH-PACK-901
+    summary: Architecture pack, decision register, and ADR set form one review-ready proof packet before protected-path implementation widens.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix N — Milestone exit scorecards
+        note: Foundations close is evidenced through the architecture pack, perf dashboard, and risk register.
+      - doc_id: aureline_technical_design_document
+        anchor: M0 — Architecture freeze
+        note: Foundations close requires the renderer direction, benchmark corpus, and top ADRs to be explicit.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: architecture_pack_approved_or_explicitly_held
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label. Resolves to ARCH-PACK-901 rather than minting a new id.
+      - alias_id: top_adrs_opened_or_resolved
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+      - alias_id: canonical_decision_register
+        alias_kind: packet_local_label
+        source_ref: artifacts/milestones/M0_signoff_packet.json
+        note: Signoff contract-family label; cites ARCH-PACK-901.
+
+  - anchor_id: req.PERF-SHELL-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: PERF-SHELL-001
+    summary: Startup, restore, and quick-open stay within published latency budgets on reference hardware.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: The launch-blocking shell-latency bar is a canonical requirement id.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id and BENCH posture for shell responsiveness.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.PERF-EDITOR-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: PERF-EDITOR-002
+    summary: P95 keystroke-to-screen latency stays within the published bar on protected corpora.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix AI — Seed normative requirement register
+        note: The editor-latency bar is a canonical BENCH requirement.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id for typing responsiveness on protected corpora.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.REL-CORE-003
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: REL-CORE-003
+    summary: Dirty buffers, layouts, and session state recover after abnormal termination without silent data loss.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Dirty-state recovery is explicitly launch-blocking.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same recovery requirement id and RELTEST posture.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.ARCH-INV-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: ARCH-INV-001
+    summary: Protected shell/editor paths execute with zero blocking filesystem, network, or process-launch I/O.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: The protected interaction path is launch-bearing and may not hide blocking I/O.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id and names forbidden-dependency and trace checks.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.ARCH-SVC-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: ARCH-SVC-002
+    summary: Protected services expose versioned contracts, health, cancellation, and dependency-boundary enforcement.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Versioned contracts and dependency-boundary enforcement are explicit launch-bearing architecture controls.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id and contract-test posture.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.ARCH-FIT-003
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: ARCH-FIT-003
+    summary: Protected fitness functions are published, continuously evaluated, and release-gating with expiring waivers only.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Protected fitness publication and waiver discipline are explicit release gates.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Fitness governance summary
+        note: The architecture document treats protected fitness rows as release-gating controls rather than advisory dashboards.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: FIT-OPS-004
+        alias_kind: fitness_row
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+        note: Fitness-row label. Requirement is ARCH-FIT-003 plus OPS-BUILD-006; cite the fitness row only as supporting evidence.
+
+  - anchor_id: req.TOOL-CTX-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: TOOL-CTX-001
+    summary: Tasks, tests, debugger, notebooks, terminal launches, and AI tools all resolve through one inspectable execution-context engine.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: One inspectable execution-context resolver is the canonical tooling requirement.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id and CONF posture.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.TOOL-CTX-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: TOOL-CTX-002
+    summary: Every launch-capable surface emits one versioned execution-context provenance record reused by UI, CLI, Project Doctor, support bundles, and repair previews.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Execution-context provenance record
+        note: The architecture document introduces this requirement id for explainable execution choice and doctor reuse.
+      - doc_id: aureline_technical_design_document
+        anchor: Execution-context provenance contract
+        note: The design document freezes the versioned provenance record shape.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.REPO-OWN-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: REPO-OWN-002
+    summary: Every protected path has a named DRI and a named backup or a current waiver.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Explicit ownership and backup-or-waiver coverage are launch-bearing.
+      - doc_id: aureline_milestones_document
+        anchor: Foundations exit checklist — ownership_explicit
+        note: Foundations exit requires the ownership matrix to be complete for every protected lane.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: ownership_explicit
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+      - alias_id: ownership
+        alias_kind: scorecard_call
+        source_ref: artifacts/milestones/M0_signoff_packet.md
+        note: Signoff scorecard call; cites REPO-OWN-002.
+
+  - anchor_id: req.A11Y-CORE-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: A11Y-CORE-002
+    summary: Core accessibility, input-method, IME, and keyboard navigation obligations hold across protected surfaces.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Core accessibility is launch-bearing.
+      - doc_id: aureline_ui_ux_spec_document
+        anchor: Accessibility and input review lanes
+        note: UI/UX spec preserves the same id and A11YTEST posture.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: accessibility_input_review
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.FR-AUTO-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: FR-AUTO-001
+    summary: A CLI/headless contract posture is declared and stable for automation and release evidence.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: A headless/CLI contract is launch-bearing.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id and CONF posture.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.GOV-OSS-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-OSS-001
+    summary: Deployment-profile truth and open-source posture are published as canonical rows, not re-stated per surface.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Deployment-profile and OSS posture are launch-bearing rows.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: deployment_profile_truth
+        alias_kind: packet_local_label
+        source_ref: artifacts/milestones/M0_signoff_packet.json
+        note: Signoff contract-family label; resolves to GOV-OSS-001 plus GOV-TRUTH-901.
+
+  - anchor_id: req.GOV-DATA-002
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-DATA-002
+    summary: Export, data-portability, and offboarding obligations are governed through one canonical row rather than scattered prose.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Data-portability and export obligations are launch-bearing.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the broader data/export obligation.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: GOV-OSS-004
+        alias_kind: legacy_label
+        source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+        note: Export-format portability language. Visible as history; the canonical obligation is GOV-DATA-002.
+
+  - anchor_id: req.OPS-BUILD-006
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: OPS-BUILD-006
+    summary: Reproducible builds, signed provenance, and release qualification are release-gating.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Reproducibility and signed provenance are launch-bearing controls.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: req.GOV-CORPUS-901
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-CORPUS-901
+    summary: One governed benchmark/fixture corpus underwrites protected fitness evaluation and public comparisons.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_design_document
+        anchor: Fixture corpus governance
+        note: The design document freezes the corpus governance rules.
+      - doc_id: aureline_milestones_document
+        anchor: Foundations exit checklist — benchmark_ci_running_as_a_governed_seed
+        note: Foundations exit requires a governed corpus seed.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: QE-CORPUS-001
+        alias_kind: superseded_label
+        source_ref: .t2/docs/Aureline_Technical_Design_Document.md
+        note: QE-local corpus id. Normalized into the canonical GOV register to avoid a second id family.
+      - alias_id: benchmark_governance
+        alias_kind: packet_local_label
+        source_ref: artifacts/milestones/M0_architecture_pack/packet_index.yaml
+        note: Architecture-pack top-level call. Resolves to ARCH-FIT-003 plus GOV-CORPUS-901.
+      - alias_id: benchmark_ci_running_as_a_governed_seed
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+
+  - anchor_id: req.GOV-TRUTH-901
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-TRUTH-901
+    summary: Public-surface truth rows (capability lifecycle, policy, experiment, install, channel, compatibility, support-window, known-limit) are published through one canonical owner artifact per row.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Public-truth posture is launch-bearing.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same id.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: public_truth_seeds
+        alias_kind: scorecard_call
+        source_ref: artifacts/milestones/M0_architecture_pack/packet_index.yaml
+        note: Architecture-pack call. Resolves to GOV-OSS-001 plus GOV-TRUTH-901.
+      - alias_id: docs_control_policy_current
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+
+  - anchor_id: req.GOV-EVID-901
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-EVID-901
+    summary: Source-anchor coverage, canonical-reference discipline, and evidence freshness stay machine-checkable across milestone packets.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_milestones_document
+        anchor: Foundations exit checklist — source_anchor_and_canonical_reference_coverage_known
+        note: Foundations exit requires the anchor/canonical coverage lane to land.
+      - doc_id: aureline_prd
+        anchor: Appendix N — Milestone exit scorecards
+        note: Milestone-exit packets carry evidence-freshness discipline as a top-level gate.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: source_anchor_and_canonical_reference_coverage_known
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+      - alias_id: evidence_freshness_current_enough_for_review
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+
+  - anchor_id: req.GOV-REQ-901
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: GOV-REQ-901
+    summary: One canonical requirement register and alias crosswalk govern milestones, CI, waivers, docs, scorecards, and release evidence.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Requirement-system operating rules
+        note: The PRD requires a machine-readable requirement register and stable alias mapping.
+      - doc_id: aureline_milestones_document
+        anchor: Canonical requirement register + alias crosswalk
+        note: The milestone plan requires one binding id system for milestones, CI, waivers, docs, and shiproom packets.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: requirement_register_present
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+
+  - anchor_id: req.CERT-WS-001
+    artifact_class: requirement_row
+    subject_kind: canonical_requirement_id
+    subject_ref: CERT-WS-001
+    summary: Certified reference workspaces for launch archetypes pass published workflows on declared platforms and remote modes.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Certified reference workspaces anchor stable compatibility claims.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Requirement summary table
+        note: The architecture document preserves the same certification requirement id.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: qualification_and_ring_rules_linked
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label; cites CERT-WS-001 and OPS-BUILD-006.
+
+  # ---------------------------------------------------------------------------
+  # Control-artifact rows.
+  #
+  # The seed covers one representative artifact from each major governance
+  # family. Additional control artifacts remain governed by the
+  # requirement rows they back; add a row here when the artifact claims
+  # source authority for a section that does not already have a requirement
+  # anchor.
+  # ---------------------------------------------------------------------------
+  - anchor_id: control.artifact_graph
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/control_artifact_index.yaml
+    summary: Control-artifact index. One home, one owner, one review path per governance asset.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_milestones_document
+        anchor: Foundations control-artifact index requirement
+        note: The milestone plan requires a single register for every control asset.
+      - doc_id: aureline_technical_design_document
+        anchor: M0 — Architecture freeze / control-artifact governance
+        note: The design document freezes the control-artifact index as the governance spine for foundations.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.canonical_requirement_register
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/requirement_register_seed.yaml
+    summary: Canonical requirement register and alias crosswalk. Binds milestone packets, CI, waivers, docs, scorecards, and release evidence to one requirement-id system.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Requirement-system operating rules
+        note: The PRD authorizes one machine-readable requirement register and a stable alias crosswalk.
+      - doc_id: aureline_milestones_document
+        anchor: Canonical requirement register + alias crosswalk
+        note: The milestone plan requires one binding id system across milestones, CI, waivers, docs, and shiproom packets.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.public_surface_truth_map
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/source_of_truth_map.yaml
+    summary: Public-surface source-of-truth map. Names the canonical owner artifact for every public/support truth row.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Public-truth and drift-blocking requirements
+        note: The PRD requires one canonical owner artifact per public-truth row.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Public-surface truth map
+        note: The architecture document requires the source-of-truth map to name canonical owners for capability lifecycle, policy, experiment, install, channel, compatibility, support-window, and known-limit truth.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.ownership_matrix
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/ownership_matrix.yaml
+    summary: Ownership matrix. DRI, backup, and waiver record for every protected lane, public-truth area, supportability artifact family, packet family, and decision forum.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Appendix P — Initial launch-blocking requirement index
+        note: Explicit ownership and backup-or-waiver coverage are launch-bearing (REPO-OWN-002 binds here).
+      - doc_id: aureline_milestones_document
+        anchor: Foundations exit checklist — ownership_explicit
+        note: Foundations exit requires the ownership matrix to be complete for every protected lane.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.interface_freeze_matrix
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/interface_freeze_matrix.yaml
+    summary: Interface-freeze matrix. Canonical register of frozen, provisional, and blocked contracts before implementation widens.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_design_document
+        anchor: Interface freeze matrix
+        note: The design document freezes the interface-freeze matrix as the downstream citation surface.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.verification_packet_template
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: docs/governance/verification_packet_template.md
+    summary: Canonical narrative template for verification packets.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_design_document
+        anchor: Verification packet contract
+        note: The design document freezes the verification packet template as the shared evidence-join surface.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.commitment_rebaseline_policy
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: docs/governance/commitment_and_rebaseline_policy.md
+    summary: Commitment-class and rebaseline policy. Names the vocabulary, rebaseline triggers, and repeated-exception handling.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_milestones_document
+        anchor: Commitment classes and rebaseline rules
+        note: The milestone plan requires explicit commitment classes and rebaseline triggers.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.protected_change_budget
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: artifacts/governance/protected_change_budget.yaml
+    summary: Protected change-budget matrix. Freeze-era protected decisions with path-specific allowances, no-go changes, and review thresholds.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_milestones_document
+        anchor: Freeze-exception and change-budget rules
+        note: The milestone plan requires one protected change-budget matrix to govern freeze-era exceptions.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.benchmark_governance
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: docs/governance/benchmark_council_charter.md
+    summary: Benchmark-council charter. Roles, decision scope, cadence, quorum placeholder, and escalation route.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Fitness governance summary
+        note: The architecture document requires a benchmark-council charter for protected fitness governance.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.release_artifact_graph
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: docs/release/release_artifact_graph.md
+    summary: Release-artifact graph. Canonical roll-up of release-bearing artifact families and their provenance, signing, and known-limit linkage.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Release-artifact graph
+        note: The architecture document requires a canonical release-artifact graph.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: control.boundary_manifest_strawman
+    artifact_class: control_artifact
+    subject_kind: control_artifact_index_row
+    subject_ref: docs/product/boundary_manifest_strawman.md
+    summary: Boundary manifest. Names the protected boundaries and their canonical owner rows.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Boundary manifest
+        note: The architecture document names the boundary manifest as the canonical boundary register.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  # ---------------------------------------------------------------------------
+  # Packet-family rows.
+  # ---------------------------------------------------------------------------
+  - anchor_id: packet.verification
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: verification
+    summary: Verification packet family. Milestone evidence links, waivers, risks, and per-lane owner signoff.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_design_document
+        anchor: Verification packet contract
+        note: The design document freezes the verification packet family and its field set.
+      - doc_id: aureline_prd
+        anchor: Appendix N — Milestone exit scorecards
+        note: The PRD requires milestone-exit packets to carry verification evidence.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: packet.benchmark_report
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: benchmark_report
+    summary: Benchmark-report packet family. Corpus, hardware, thresholds, waivers, and protected-fitness snapshot.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Benchmark publication pack
+        note: The architecture document freezes the benchmark-report packet shape.
+      - doc_id: aureline_technical_design_document
+        anchor: Fitness governance and benchmark publication
+        note: The design document requires benchmark-report packets to cite protected-fitness snapshots.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: packet.compatibility_report
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: compatibility_report
+    summary: Compatibility-report packet family. Diff, deprecation, migration guidance, and certified-archetype outcomes.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Compatibility reporting contract
+        note: The architecture document requires compatibility reports to cite canonical boundary rows.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: packet.claim_manifest
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: claim_manifest
+    summary: Claim-manifest packet family. Public-truth claims with evidence-owner attestation per claim.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Claim manifest contract
+        note: The architecture document requires every shipped claim to resolve through a claim-manifest row.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: packet.shiproom
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: shiproom
+    summary: Shiproom packet family. Promotion/rollback decisions, incident posture, and go/no-go with DRI signatures.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Shiproom operating rules
+        note: The PRD requires shiproom packets to carry named DRI signatures for promotion and rollback.
+      - doc_id: aureline_technical_architecture_document
+        anchor: Shiproom runbook
+        note: The architecture document freezes the shiproom packet shape.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: packet.waiver_register
+    artifact_class: packet_family
+    subject_kind: packet_family_name
+    subject_ref: waiver_register
+    summary: Waiver-register packet family. Active waivers with expiry and escalation.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_prd
+        anchor: Waiver operating rules
+        note: The PRD requires time-boxed waivers with expiry and escalation.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  # ---------------------------------------------------------------------------
+  # Shiproom-artifact rows.
+  # ---------------------------------------------------------------------------
+  - anchor_id: shiproom.shiproom_dashboard_seed
+    artifact_class: shiproom_artifact
+    subject_kind: shiproom_artifact_name
+    subject_ref: artifacts/release/shiproom_dashboard_seed.yaml
+    summary: Shiproom dashboard seed. Machine-readable seed for the promotion/rollback dashboard.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Shiproom runbook
+        note: The architecture document requires the shiproom dashboard to project claim-manifest and ring-history rows.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  - anchor_id: shiproom.release_evidence_packet_template
+    artifact_class: shiproom_artifact
+    subject_kind: shiproom_artifact_name
+    subject_ref: docs/release/release_evidence_packet_template.md
+    summary: Release evidence packet template. Canonical narrative template for release-evidence packets.
+    claims_source_authority: true
+    canonical_anchors:
+      - doc_id: aureline_technical_architecture_document
+        anchor: Release evidence contract
+        note: The architecture document freezes the release-evidence packet template as the shared promotion-evidence surface.
+    primary_owner: "@ahmeddyounis"
+    owning_lane: release_evidence
+    last_reviewed: "2026-04-23"
+    aliases: []
+
+  # ---------------------------------------------------------------------------
+  # Non-authoritative evidence labels.
+  #
+  # Rows in this class MUST have claims_source_authority=false; the linter
+  # checks the posture. The alias-style crosswalk in the requirement register
+  # already maps these labels to canonical ids; this seed lists a few to
+  # show the pattern without duplicating the full crosswalk.
+  # ---------------------------------------------------------------------------
+  - anchor_id: evidence.renderer_viability
+    artifact_class: evidence_label
+    subject_kind: evidence_label_name
+    subject_ref: renderer_viability
+    summary: Architecture-pack top-level call. Resolves to PERF-SHELL-001, PERF-EDITOR-002, and ARCH-INV-001.
+    claims_source_authority: false
+    canonical_anchors: []
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases:
+      - alias_id: renderer_spike_viable
+        alias_kind: packet_local_label
+        source_ref: docs/milestones/M0_signoff_checklist.md
+        note: Milestone-exit label.
+
+  - anchor_id: evidence.dependency_ledger_current
+    artifact_class: evidence_label
+    subject_kind: evidence_label_name
+    subject_ref: dependency_ledger_current
+    summary: Milestone-exit label. Resolves to ARCH-SVC-002 and ARCH-PACK-901.
+    claims_source_authority: false
+    canonical_anchors: []
+    primary_owner: "@ahmeddyounis"
+    owning_lane: governance_packets
+    last_reviewed: "2026-04-23"
+    aliases: []
