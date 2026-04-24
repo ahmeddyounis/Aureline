@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/session_state.schema.json",
+  "title": "Aureline collaboration session-lifecycle, transition, downgrade, and audit-event vocabulary",
+  "description": "Boundary schema for the collaboration_session_record, collaboration_session_transition_record, collaboration_session_downgrade_record, and collaboration_session_audit_event_record frozen in docs/collaboration/session_authority_contract.md. Every collaboration session resolves to one collaboration_session_record carrying exactly one collaboration_session_state_class from the seven-state vocabulary (solo, publish_pending, shared_active, participant_degraded, shared_degraded, ended, archived) plus one host_locus_class, one transport_class, one relay_state_class, the originating workspace identity ref, the owner actor ref, the participant actor refs, and the optional sealed_archive_ref. Every state change resolves to one collaboration_session_transition_record naming the prior_state_class, the next_state_class, exactly one transition_reason_class drawn from the closed reason vocabulary, and the legality of the pair is enforced by allOf gates against the admitted transition matrix; an illegal pair denies with transition_illegal_for_session_state. Every degradation resolves to one collaboration_session_downgrade_record carrying exactly one downgrade_kind_class (viewer_fallback_applied, relay_degradation_applied, anchor_target_drift_detected, archive_sealing_initiated), exactly one local_work_preservation_state_class, at least one recovery_path_class, the affected_actor_refs, and the optional sealed_archive_class_inventory when the kind is archive_sealing_initiated. Local-editing-remains-unfrozen is invariant: a session in participant_degraded, shared_degraded, or ended state MUST NOT freeze any participant's local buffer; a row that asserts local_buffer_frozen denies with local_editing_freeze_on_session_loss_forbidden. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new collaboration_session_state_class, transition_reason_class, downgrade_kind_class, local_work_preservation_state_class, recovery_path_class, host_locus_class, transport_class, relay_state_class, audit_event_id, or denial_reason value is additive-minor and requires a session_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collaboration_session_record" },
+    { "$ref": "#/$defs/collaboration_session_transition_record" },
+    { "$ref": "#/$defs/collaboration_session_downgrade_record" },
+    { "$ref": "#/$defs/collaboration_session_audit_event_record" }
+  ],
+  "$defs": {
+    "session_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this collaboration session-state vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_record",
+        "collaboration_session_transition_record",
+        "collaboration_session_downgrade_record",
+        "collaboration_session_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-reconciliation consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins MUST embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on session-inspector chips, downgrade readouts, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "collaboration_session_state_class": {
+      "type": "string",
+      "enum": [
+        "solo",
+        "publish_pending",
+        "shared_active",
+        "participant_degraded",
+        "shared_degraded",
+        "ended",
+        "archived"
+      ],
+      "description": "Frozen seven-state collaboration session-lifecycle vocabulary. solo = local workspace, no session in flight. publish_pending = owner requested publish; relay handshake / target-identity witness / trust posture being evaluated. shared_active = session admitted; participants attached; relay healthy. participant_degraded = one participant degraded (transport drop, viewer fallback, presence loss); other sides continue. shared_degraded = session-wide degradation (relay outage, owner offline, policy narrowing); local editing of every side remains unfrozen. ended = session terminated; no new participants admitted; archive sealing may still be pending. archived = sealed-archive shared object minted; terminal."
+    },
+
+    "transition_reason_class": {
+      "type": "string",
+      "enum": [
+        "owner_requested_publish",
+        "owner_cancelled_before_admit",
+        "relay_handshake_admitted",
+        "relay_handshake_failed",
+        "policy_blocked_publish",
+        "participant_transport_dropped",
+        "participant_viewer_fallback_applied",
+        "participant_presence_lost",
+        "participant_recovered",
+        "relay_outage_detected",
+        "owner_transport_dropped",
+        "policy_narrowed_session_capability",
+        "owner_recovered",
+        "relay_recovered",
+        "owner_ended_session",
+        "last_participant_left",
+        "policy_ended_session",
+        "archive_seal_minted"
+      ],
+      "description": "Frozen transition-reason vocabulary. Each transition record carries exactly one reason. Reasons compose with the admitted-transition matrix to fail closed on illegal transitions."
+    },
+
+    "host_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_remote_agent_attached",
+        "managed_workspace_agent_attached",
+        "provider_side_remote_agent_attached",
+        "compatibility_bridge_remote_attached"
+      ],
+      "description": "Frozen host-locus vocabulary identifying where the owner's session host runs. Composes with ADR-0020 (remote-agent contract) host-boundary matrix; a target-identity witness change forces a downgrade rather than silent rebind."
+    },
+
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process_no_transport",
+        "local_loopback_socket",
+        "managed_relay_brokered",
+        "self_hosted_relay_brokered",
+        "peer_to_peer_direct",
+        "peer_to_peer_traversal_assisted"
+      ],
+      "description": "Frozen transport vocabulary identifying how session traffic flows between owner and participants. local_in_process_no_transport applies to solo sessions and to publish_pending sessions whose handshake never opened a transport."
+    },
+
+    "relay_state_class": {
+      "type": "string",
+      "enum": [
+        "no_relay_required_local_session",
+        "relay_healthy",
+        "relay_degraded_latency_breach",
+        "relay_degraded_loss_breach",
+        "relay_degraded_congestion",
+        "relay_unreachable",
+        "relay_session_refused"
+      ],
+      "description": "Frozen relay-state vocabulary. relay_unreachable does not freeze local editing; it forces a participant_degraded or shared_degraded transition per scope."
+    },
+
+    "downgrade_kind_class": {
+      "type": "string",
+      "enum": [
+        "viewer_fallback_applied",
+        "relay_degradation_applied",
+        "anchor_target_drift_detected",
+        "archive_sealing_initiated"
+      ],
+      "description": "Frozen four-class downgrade-kind vocabulary. viewer_fallback_applied narrows a participant's edit admission; relay_degradation_applied narrows the session's propagation envelope without freezing local editing; anchor_target_drift_detected names a shared-object anchor that no longer resolves (the row in shared_object.schema.json carries the drift state class); archive_sealing_initiated names the seal that mints the sealed_session_archive shared object."
+    },
+
+    "local_work_preservation_state_class": {
+      "type": "string",
+      "enum": [
+        "preserved_in_local_buffer_unchanged",
+        "preserved_in_local_journal_with_annotation",
+        "preserved_in_pending_outbound_proposal_queue",
+        "not_preserved_explicit_user_discard",
+        "not_preserved_explicit_admin_discard"
+      ],
+      "description": "Frozen local-work preservation vocabulary. Every downgrade row MUST cite exactly one value. not_preserved_* values are admitted only on explicit user or admin discard; an implicit drop denies with viewer_fallback_must_preserve_unsent_local_work or local_work_preservation_state_missing."
+    },
+
+    "recovery_path_class": {
+      "type": "string",
+      "enum": [
+        "rejoin_same_session_same_authority",
+        "rejoin_same_session_viewer_only",
+        "rejoin_new_session_with_diff_to_local",
+        "rejoin_blocked_archive_only",
+        "recover_via_local_journal_diff_export",
+        "recover_via_sealed_archive_replay"
+      ],
+      "description": "Frozen recovery-path vocabulary. Every downgrade row MUST cite at least one value naming how the affected actor regains continuity."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a session is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the session and which workspace-trust posture each side held when the row was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "session_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_minted",
+        "collaboration_session_state_transitioned",
+        "collaboration_session_downgrade_applied",
+        "collaboration_session_archive_sealed",
+        "collaboration_session_audit_denial_emitted",
+        "collaboration_session_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_session audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "session_denial_reason": {
+      "type": "string",
+      "enum": [
+        "transition_illegal_for_session_state",
+        "local_editing_freeze_on_session_loss_forbidden",
+        "viewer_fallback_must_preserve_unsent_local_work",
+        "local_work_preservation_state_missing",
+        "recovery_path_missing",
+        "archive_seal_class_inventory_missing",
+        "archive_seal_export_posture_missing",
+        "host_locus_class_unresolved",
+        "transport_class_unresolved",
+        "relay_state_class_unresolved",
+        "session_state_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; an illegal transition, a missing preservation state, a missing recovery path, or a missing seal-inventory denies the row rather than admit a silent rebind."
+    },
+
+    "session_archive_class_inventory_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_object_class_class",
+        "seal_disposition_class"
+      ],
+      "properties": {
+        "shared_object_class_class": {
+          "type": "string",
+          "enum": [
+            "editor_buffer",
+            "anchored_comment",
+            "follow_or_presenter_state",
+            "shared_terminal_control_metadata",
+            "shared_debug_control_metadata",
+            "sealed_session_archive"
+          ],
+          "description": "Mirror of the shared_object_class_class enum in schemas/collaboration/shared_object.schema.json; values are kept in lockstep across schema_version bumps."
+        },
+        "seal_disposition_class": {
+          "type": "string",
+          "enum": [
+            "sealed_in_archive_with_full_payload",
+            "sealed_in_archive_metadata_only",
+            "excluded_from_archive_local_authority_only",
+            "excluded_from_archive_redaction_required",
+            "excluded_from_archive_user_explicit_opt_out",
+            "excluded_from_archive_admin_policy_opt_out"
+          ],
+          "description": "Frozen seal-disposition vocabulary. Each entry names exactly one disposition; the row whose disposition implies bytes (sealed_in_archive_with_full_payload) MUST be paired with a downstream redaction posture from the redaction_class vocabulary."
+        },
+        "row_count_class": {
+          "type": "string",
+          "enum": [
+            "zero_rows",
+            "one_to_ten",
+            "eleven_to_one_hundred",
+            "one_hundred_one_to_one_thousand",
+            "one_thousand_one_or_more"
+          ],
+          "description": "Coarse row-count bucket. Raw counts are not carried at the boundary."
+        },
+        "redaction_posture_class": {
+          "$ref": "#/$defs/redaction_class"
+        }
+      },
+      "description": "Per-class entry inside a sealed_archive_class_inventory list. Naming which classes were sealed inside the archive, which were excluded, and how each was redacted is the contract that makes archive replay reviewable."
+    },
+
+    "collaboration_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_state_schema_version",
+        "session_id",
+        "record_kind",
+        "current_state_class",
+        "owner_actor_ref",
+        "owner_workspace_identity_ref",
+        "host_locus_class",
+        "transport_class",
+        "relay_state_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_record" },
+        "session_state_schema_version": { "$ref": "#/$defs/session_state_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "current_state_class": { "$ref": "#/$defs/collaboration_session_state_class" },
+        "owner_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_workspace_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "participant_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "List of opaque participant actor refs. A solo or publish_pending session MAY carry an empty list."
+        },
+        "host_locus_class": { "$ref": "#/$defs/host_locus_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "relay_state_class": { "$ref": "#/$defs/relay_state_class" },
+        "remote_agent_target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ADR-0020 target-identity witness ref. REQUIRED whenever host_locus_class is local_remote_agent_attached, managed_workspace_agent_attached, provider_side_remote_agent_attached, or compatibility_bridge_remote_attached."
+        },
+        "sealed_archive_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Set only on archived state; names the sealed_session_archive shared_object_record minted at archive time."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1,
+          "description": "Client-scope set the row is valid for. Every row MUST cite at least one scope."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "current_state_class": { "const": "archived" } } },
+          "then": {
+            "required": ["sealed_archive_ref", "ended_at"],
+            "properties": {
+              "sealed_archive_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "host_locus_class": {
+                "enum": [
+                  "local_remote_agent_attached",
+                  "managed_workspace_agent_attached",
+                  "provider_side_remote_agent_attached",
+                  "compatibility_bridge_remote_attached"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["remote_agent_target_identity_witness_ref"]
+          }
+        },
+        {
+          "if": { "properties": { "current_state_class": { "const": "solo" } } },
+          "then": {
+            "properties": {
+              "transport_class": { "const": "local_in_process_no_transport" },
+              "relay_state_class": { "const": "no_relay_required_local_session" }
+            }
+          }
+        }
+      ],
+      "description": "One-row description of a collaboration session at a point in time. Local editing is invariant: a session in participant_degraded, shared_degraded, or ended state MUST NOT freeze any participant's local buffer; the consuming surface emits local_editing_freeze_on_session_loss_forbidden if it observes a freeze."
+    },
+
+    "collaboration_session_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_state_schema_version",
+        "transition_id",
+        "record_kind",
+        "session_ref",
+        "prior_state_class",
+        "next_state_class",
+        "transition_reason_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_transition_record" },
+        "session_state_schema_version": { "$ref": "#/$defs/session_state_schema_version" },
+        "transition_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_state_class": { "$ref": "#/$defs/collaboration_session_state_class" },
+        "next_state_class": { "$ref": "#/$defs/collaboration_session_state_class" },
+        "transition_reason_class": { "$ref": "#/$defs/transition_reason_class" },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor whose action caused the transition (owner, participant, policy, system)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "properties": { "prior_state_class": { "const": "solo" }, "next_state_class": { "const": "publish_pending" } } },
+            { "properties": { "prior_state_class": { "const": "publish_pending" }, "next_state_class": { "const": "shared_active" } } },
+            { "properties": { "prior_state_class": { "const": "publish_pending" }, "next_state_class": { "const": "solo" } } },
+            { "properties": { "prior_state_class": { "const": "publish_pending" }, "next_state_class": { "const": "ended" } } },
+            { "properties": { "prior_state_class": { "const": "shared_active" }, "next_state_class": { "const": "participant_degraded" } } },
+            { "properties": { "prior_state_class": { "const": "shared_active" }, "next_state_class": { "const": "shared_degraded" } } },
+            { "properties": { "prior_state_class": { "const": "shared_active" }, "next_state_class": { "const": "ended" } } },
+            { "properties": { "prior_state_class": { "const": "participant_degraded" }, "next_state_class": { "const": "shared_active" } } },
+            { "properties": { "prior_state_class": { "const": "participant_degraded" }, "next_state_class": { "const": "shared_degraded" } } },
+            { "properties": { "prior_state_class": { "const": "participant_degraded" }, "next_state_class": { "const": "ended" } } },
+            { "properties": { "prior_state_class": { "const": "shared_degraded" }, "next_state_class": { "const": "shared_active" } } },
+            { "properties": { "prior_state_class": { "const": "shared_degraded" }, "next_state_class": { "const": "ended" } } },
+            { "properties": { "prior_state_class": { "const": "ended" }, "next_state_class": { "const": "archived" } } }
+          ],
+          "description": "Admitted transition matrix. Any (prior, next) pair not enumerated here denies with transition_illegal_for_session_state."
+        },
+        {
+          "if": { "properties": { "next_state_class": { "const": "archived" } } },
+          "then": { "properties": { "transition_reason_class": { "const": "archive_seal_minted" } } }
+        }
+      ],
+      "description": "One-row description of a session-state transition. The admitted matrix is enforced by allOf gates; an illegal pair denies with transition_illegal_for_session_state."
+    },
+
+    "collaboration_session_downgrade_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_state_schema_version",
+        "downgrade_id",
+        "record_kind",
+        "session_ref",
+        "downgrade_kind_class",
+        "local_work_preservation_state_class",
+        "recovery_path_classes",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_downgrade_record" },
+        "session_state_schema_version": { "$ref": "#/$defs/session_state_schema_version" },
+        "downgrade_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_kind_class": { "$ref": "#/$defs/downgrade_kind_class" },
+        "local_work_preservation_state_class": { "$ref": "#/$defs/local_work_preservation_state_class" },
+        "recovery_path_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_path_class" },
+          "minItems": 1,
+          "description": "Every downgrade row cites at least one recovery path. recovery_path_missing denies a row that omits the field or carries an empty list."
+        },
+        "affected_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Opaque refs to the actors whose session view degraded. A relay_degradation_applied row covering everyone names the owner plus every participant."
+        },
+        "affected_shared_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the shared objects whose projection narrowed. Optional for relay_degradation_applied; REQUIRED for anchor_target_drift_detected and archive_sealing_initiated."
+        },
+        "sealed_archive_class_inventory": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/session_archive_class_inventory_entry" },
+          "minItems": 1,
+          "description": "Set only on archive_sealing_initiated. Names which shared-object classes were sealed in, which were excluded, and how each was redacted."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "downgrade_kind_class": { "const": "viewer_fallback_applied" } } },
+          "then": {
+            "properties": {
+              "local_work_preservation_state_class": {
+                "enum": [
+                  "preserved_in_local_buffer_unchanged",
+                  "preserved_in_local_journal_with_annotation",
+                  "preserved_in_pending_outbound_proposal_queue",
+                  "not_preserved_explicit_user_discard",
+                  "not_preserved_explicit_admin_discard"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "downgrade_kind_class": { "const": "archive_sealing_initiated" } } },
+          "then": {
+            "required": ["sealed_archive_class_inventory", "affected_shared_object_refs"]
+          }
+        },
+        {
+          "if": { "properties": { "downgrade_kind_class": { "const": "anchor_target_drift_detected" } } },
+          "then": {
+            "required": ["affected_shared_object_refs"]
+          }
+        }
+      ],
+      "description": "One-row description of a session downgrade. Local work preservation state is required so reviewers can answer 'what happened to my unsent edits' without guessing; recovery paths are required so the user has at least one explicit way back. Silent loss denies with viewer_fallback_must_preserve_unsent_local_work, local_work_preservation_state_missing, or recovery_path_missing."
+    },
+
+    "collaboration_session_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_state_schema_version",
+        "audit_event_id_value",
+        "record_kind",
+        "session_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_audit_event_record" },
+        "session_state_schema_version": { "$ref": "#/$defs/session_state_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "transition_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/session_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/session_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "collaboration_session_audit_denial_emitted" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_session stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why the session refused a transition / downgrade / seal without guessing."
+    }
+  }
+}

@@ -1,0 +1,187 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/session_state.schema.json
+__fixture__:
+  name: archive_seal_class_inventory
+  scenario: >
+    A session reaches ended after the owner closed it. Sealing into
+    archived produces a collaboration_session_downgrade_record of kind
+    archive_sealing_initiated whose sealed_archive_class_inventory
+    names exactly which shared_object classes survived: editor_buffer
+    rows sealed_in_archive_metadata_only (the archive carries the
+    fact that buffers existed and the buffer refs but not the bytes),
+    anchored_comment rows sealed_in_archive_with_full_payload (the
+    review thread is the value of the archive), follow_or_presenter_state
+    excluded_from_archive_local_authority_only (presenter focus is
+    ephemeral and never archived), and shared_terminal_control_metadata
+    excluded_from_archive_redaction_required (terminal control
+    metadata required redaction the seal pipeline could not satisfy).
+    A sealed_session_archive shared_object_record is minted carrying
+    the inventory summary label and bound to the session by
+    sealed_archive_ref on the next collaboration_session_record.
+  exercised_contract_sections:
+    - "Permission-downgrade vocabulary (frozen)"
+    - "Shared-object classes (frozen) — sealed_session_archive"
+    - "Audit-event vocabulary (frozen)"
+  exercised_classes_summary:
+    collaboration_session_state_classes:
+      - ended
+      - archived
+    transition_reason_classes:
+      - archive_seal_minted
+    downgrade_kind_classes:
+      - archive_sealing_initiated
+    sealed_archive_seal_dispositions:
+      - sealed_in_archive_metadata_only
+      - sealed_in_archive_with_full_payload
+      - excluded_from_archive_local_authority_only
+      - excluded_from_archive_redaction_required
+    shared_object_class_classes:
+      - editor_buffer
+      - anchored_comment
+      - follow_or_presenter_state
+      - shared_terminal_control_metadata
+      - sealed_session_archive
+    session_audit_event_ids:
+      - collaboration_session_state_transitioned
+      - collaboration_session_downgrade_applied
+      - collaboration_session_archive_sealed
+    shared_object_audit_event_ids:
+      - shared_object_minted
+
+records:
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:05"
+    current_state_class: ended
+    owner_actor_ref: "actor:owner:05"
+    owner_workspace_identity_ref: "workspace:identity:05"
+    participant_actor_refs:
+      - "actor:participant:05"
+      - "actor:reviewer:05"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    summary_label: "Session ended; archive sealing pending."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: support_bundle
+    minted_at: "2026-04-22T15:00:00Z"
+    ended_at: "2026-04-22T15:00:00Z"
+
+  - record_kind: collaboration_session_downgrade_record
+    session_state_schema_version: 1
+    downgrade_id: "collab:session:05:downgrade:01"
+    session_ref: "collab:session:05"
+    downgrade_kind_class: archive_sealing_initiated
+    local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+    recovery_path_classes:
+      - recover_via_sealed_archive_replay
+      - recover_via_local_journal_diff_export
+    affected_actor_refs:
+      - "actor:owner:05"
+      - "actor:participant:05"
+      - "actor:reviewer:05"
+    affected_shared_object_refs:
+      - "collab:shared-object:editor-buffer:05"
+      - "collab:shared-object:anchored-comment:05"
+      - "collab:shared-object:follow-presenter:05"
+      - "collab:shared-object:terminal-control:05"
+    sealed_archive_class_inventory:
+      - shared_object_class_class: editor_buffer
+        seal_disposition_class: sealed_in_archive_metadata_only
+        row_count_class: one_to_ten
+        redaction_posture_class: support_bundle
+      - shared_object_class_class: anchored_comment
+        seal_disposition_class: sealed_in_archive_with_full_payload
+        row_count_class: one_to_ten
+        redaction_posture_class: evidence_packet_signature
+      - shared_object_class_class: follow_or_presenter_state
+        seal_disposition_class: excluded_from_archive_local_authority_only
+        row_count_class: one_to_ten
+      - shared_object_class_class: shared_terminal_control_metadata
+        seal_disposition_class: excluded_from_archive_redaction_required
+        row_count_class: one_to_ten
+        redaction_posture_class: support_bundle
+    summary_label: >
+      Archive sealing initiated; per-class inventory names what was
+      sealed, excluded, or redacted.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: support_bundle
+    minted_at: "2026-04-22T15:00:01Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:sealed-archive:05"
+    session_ref: "collab:session:05"
+    owner_actor_ref: "actor:owner:05"
+    shared_object_class_class: sealed_session_archive
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_sealed_archive_only
+    shared_object_export_posture_class: exportable_in_session_archive
+    sealed_archive_inventory_summary_label: >
+      Sealed archive carrying metadata-only editor-buffer rows,
+      full-payload anchored-comment rows, and excluded
+      follow_or_presenter_state and shared_terminal_control_metadata
+      rows with typed exclusion reasons.
+    summary_label: "Sealed session archive minted with class inventory."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T15:00:02Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:05:archive-minted"
+    shared_object_ref: "collab:shared-object:sealed-archive:05"
+    audit_event_id: shared_object_minted
+    summary_label: "Sealed_session_archive shared object minted."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T15:00:02Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:05:transition:01"
+    session_ref: "collab:session:05"
+    prior_state_class: ended
+    next_state_class: archived
+    transition_reason_class: archive_seal_minted
+    actor_ref: "system:archive:05"
+    summary_label: "Session archived; sealed archive bound."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T15:00:02Z"
+
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:05"
+    current_state_class: archived
+    owner_actor_ref: "actor:owner:05"
+    owner_workspace_identity_ref: "workspace:identity:05"
+    participant_actor_refs:
+      - "actor:participant:05"
+      - "actor:reviewer:05"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    sealed_archive_ref: "collab:shared-object:sealed-archive:05"
+    summary_label: "Session archived; sealed archive bound."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T15:00:02Z"
+    ended_at: "2026-04-22T15:00:00Z"
+
+  - record_kind: collaboration_session_audit_event_record
+    session_state_schema_version: 1
+    audit_event_id_value: "audit:session:05:archive-sealed"
+    session_ref: "collab:session:05"
+    downgrade_ref: "collab:session:05:downgrade:01"
+    audit_event_id: collaboration_session_archive_sealed
+    summary_label: "Session archive sealed with class inventory."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T15:00:02Z"

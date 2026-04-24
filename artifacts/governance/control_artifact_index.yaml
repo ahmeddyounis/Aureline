@@ -7373,6 +7373,232 @@ artifacts:
       raw mTLS material, no raw model weights, no raw pack bytes,
       no raw provider payloads).
 
+  - id: collaboration_session_authority_contract
+    title: Collaboration session lifecycle, shared-object authority, and downgrade contract
+    canonical_location: docs/collaboration/session_authority_contract.md
+    overview_page: docs/collaboration/session_authority_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative narrative for the collaboration session lifecycle,
+      shared-object authority class set, downgrade vocabulary, and
+      anchor-drift discipline. Freezes the seven-state lifecycle
+      vocabulary (solo, publish_pending, shared_active,
+      participant_degraded, shared_degraded, ended, archived) with
+      the admitted-transition matrix, the local-editing-remains-
+      unfrozen invariant on every degraded / ended state, the six-
+      class shared-object vocabulary (editor_buffer, anchored_
+      comment, follow_or_presenter_state, shared_terminal_control_
+      metadata, shared_debug_control_metadata, sealed_session_
+      archive) with their owner / authority / durability / export
+      posture bindings, the four-class downgrade-kind vocabulary
+      (viewer_fallback_applied, relay_degradation_applied, anchor_
+      target_drift_detected, archive_sealing_initiated), the five-
+      value local-work preservation vocabulary (preserved_in_local_
+      buffer_unchanged, preserved_in_local_journal_with_annotation,
+      preserved_in_pending_outbound_proposal_queue, not_preserved_
+      explicit_user_discard, not_preserved_explicit_admin_discard),
+      the six-value recovery-path vocabulary (rejoin_same_session_
+      same_authority, rejoin_same_session_viewer_only, rejoin_new_
+      session_with_diff_to_local, rejoin_blocked_archive_only,
+      recover_via_local_journal_diff_export, recover_via_sealed_
+      archive_replay), the five-value anchor-drift vocabulary
+      (anchor_target_match_exact, anchor_target_match_with_label_
+      only, anchor_target_drift_label_unmatched_relocation_
+      forbidden, anchor_target_drift_target_deleted_relocation_
+      forbidden, anchor_target_drift_local_only_no_remote_
+      resolution), the supersede-rather-than-relocate rule, and
+      the dual audit streams (collaboration_session and
+      collaboration_shared_object). Composes with — does not
+      replace — the workspace-trust ADR (0018), the remote-agent
+      contract (ADR-0020), the timestamp-envelope contract, the
+      layout-serialization contract, and the secret-broker
+      redaction posture (ADR-0007). Implementing collaboration
+      transport, multiplayer editing, CRDT merge, the shared-
+      archive viewer, terminal-byte / debug-payload sharing
+      protocols, and presenter-handoff UI flows is named
+      explicitly out of scope at this revision.
+
+  - id: collaboration_session_state_schema
+    title: Collaboration session-lifecycle boundary schema
+    canonical_location: schemas/collaboration/session_state.schema.json
+    overview_page: docs/collaboration/session_authority_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the four records frozen in
+      the collaboration session-authority contract:
+      collaboration_session_record (session_id, current_state_
+      class, owner_actor_ref, owner_workspace_identity_ref,
+      participant_actor_refs, host_locus_class, transport_class,
+      relay_state_class, remote_agent_target_identity_witness_
+      ref, sealed_archive_ref, summary_label, freshness_class,
+      client_scopes, policy_context, redaction_class, minted_at,
+      ended_at), collaboration_session_transition_record (prior_
+      state_class, next_state_class, transition_reason_class,
+      actor_ref, policy_context), collaboration_session_downgrade_
+      record (downgrade_kind_class, local_work_preservation_state_
+      class, recovery_path_classes, affected_actor_refs, affected_
+      shared_object_refs, sealed_archive_class_inventory,
+      policy_context), and collaboration_session_audit_event_
+      record (audit_event_id, denial_reason). additionalProperties
+      false everywhere. allOf gates force the admitted-transition
+      matrix (any pair not enumerated denies with transition_
+      illegal_for_session_state), force remote_agent_target_
+      identity_witness_ref non-null whenever host_locus_class is
+      a remote variant, force solo to carry transport_class =
+      local_in_process_no_transport plus relay_state_class =
+      no_relay_required_local_session, force archived to carry
+      a non-null sealed_archive_ref and ended_at, force archive_
+      sealing_initiated downgrades to carry both sealed_archive_
+      class_inventory and affected_shared_object_refs, and force
+      anchor_target_drift_detected downgrades to carry affected_
+      shared_object_refs. Re-exports freshness_class, client_
+      scope, and redaction_class from schemas/governance/
+      capability_lifecycle.schema.json plus deployment_profile_
+      class and workspace_trust_state_class from ADR-0018 / the
+      identity family without redefinition. Adding a new
+      collaboration_session_state_class, transition_reason_class,
+      downgrade_kind_class, local_work_preservation_state_class,
+      recovery_path_class, host_locus_class, transport_class,
+      relay_state_class, audit_event_id, or denial_reason value
+      is additive-minor and bumps session_state_schema_version;
+      repurposing an existing value is breaking and requires a
+      new decision row.
+
+  - id: collaboration_shared_object_schema
+    title: Collaboration shared-object authority and anchor-drift boundary schema
+    canonical_location: schemas/collaboration/shared_object.schema.json
+    overview_page: docs/collaboration/session_authority_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the four records frozen in
+      the collaboration shared-object contract: shared_object_
+      record (shared_object_id, session_ref, owner_actor_ref,
+      shared_object_class_class, shared_object_authority_class,
+      shared_object_durability_class, shared_object_export_
+      posture_class, driver_lane_class, anchor_target_class,
+      buffer_ref, supersedes_shared_object_ref, superseded_by_
+      shared_object_ref, sealed_archive_inventory_summary_label),
+      shared_object_authority_transition_record (prior_authority_
+      class, next_authority_class, actor_ref, approval_ticket_
+      ref), shared_object_anchor_drift_record (anchor_target_
+      class, anchor_drift_state_class, anchor_drift_match_label_
+      kind, anchor_drift_match_label_value), and shared_object_
+      audit_event_record (audit_event_id, denial_reason).
+      additionalProperties false everywhere. allOf gates force
+      editor_buffer rows to carry buffer_ref and a buffer-
+      compatible authority class (host_workspace_authoritative,
+      participant_authoritative_within_session_only, or local_
+      authoritative_no_session_authority); force anchored_comment
+      rows to carry buffer_ref plus anchor_target_class; force
+      follow_or_presenter_state rows to carry presenter_
+      authoritative_for_view_only authority plus ephemeral
+      durability plus not_exportable_ephemeral_only export
+      posture (a follow_or_presenter_state row that asserts
+      mutating authority denies with presenter_authority_does_
+      not_confer_mutation); force shared_terminal_control_
+      metadata and shared_debug_control_metadata rows to carry
+      one of host_workspace_authoritative / driver_authoritative_
+      for_named_action / approver_authoritative_for_admission /
+      local_authoritative_no_session_authority authority; force
+      driver_authoritative_for_named_action rows to carry
+      driver_lane_class (a driver invocation outside the named
+      lane denies with driver_authority_does_not_widen_to_other_
+      lanes); force sealed_session_archive rows to carry
+      persisted_in_sealed_archive_only durability plus
+      exportable_in_session_archive export posture plus a
+      sealed_archive_inventory_summary_label; force anchor_
+      target_match_with_label_only drift rows to carry a non-
+      no_match_label_available match-label kind plus a
+      reviewable label value. The supersede-rather-than-relocate
+      rule is encoded as a fresh shared_object_record carrying
+      supersedes_shared_object_ref pointing at the prior row;
+      silent in-place relocation denies with silent_anchor_
+      relocation_forbidden. Re-exports freshness_class, client_
+      scope, and redaction_class from schemas/governance/
+      capability_lifecycle.schema.json plus deployment_profile_
+      class and workspace_trust_state_class from the identity
+      family without redefinition. Adding a new shared_object_
+      class_class, shared_object_authority_class, shared_object_
+      durability_class, shared_object_export_posture_class,
+      driver_lane_class, anchor_target_class, anchor_drift_
+      state_class, audit_event_id, or denial_reason value is
+      additive-minor and bumps shared_object_schema_version;
+      repurposing an existing value is breaking and requires a
+      new decision row.
+
+  - id: collaboration_session_cases_fixtures
+    title: Collaboration session lifecycle, shared-object authority, and downgrade worked fixtures
+    canonical_location: fixtures/collaboration/session_cases/
+    overview_page: docs/collaboration/session_authority_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example fixtures for the collaboration session-
+      authority contract and schemas. Covers one full happy-path
+      lifecycle (solo -> publish_pending -> shared_active ->
+      ended -> archived) with paired editor_buffer and sealed_
+      session_archive shared-object rows; one relay-loss case
+      where shared_active transitions to shared_degraded under
+      relay_outage_detected with relay_degradation_applied
+      downgrade carrying preserved_in_local_buffer_unchanged
+      plus rejoin_same_session_same_authority recovery (per-
+      side editor_buffer projections flip to local_authoritative_
+      no_session_authority and local editing remains unfrozen);
+      one viewer-fallback case where a participant loses edit
+      admission under participant_viewer_fallback_applied with
+      preserved_in_pending_outbound_proposal_queue plus
+      rejoin_same_session_viewer_only and recover_via_local_
+      journal_diff_export recovery, plus a paired shared_object_
+      authority_transition_record from participant_authoritative_
+      within_session_only to local_authoritative_no_session_
+      authority; one anchor-drift case where an anchored_comment's
+      target line is deleted and shared_object_anchor_drift_record
+      carries anchor_target_drift_target_deleted_relocation_
+      forbidden plus a paired shared_object_audit_denial_emitted
+      naming silent_anchor_relocation_forbidden plus a fresh
+      shared_object_record using supersedes_shared_object_ref to
+      illustrate the legal supersede-rather-than-relocate path;
+      and one archive-sealing case where collaboration_session_
+      downgrade_record of kind archive_sealing_initiated carries
+      the per-class sealed_archive_class_inventory naming
+      editor_buffer rows sealed_in_archive_metadata_only,
+      anchored_comment rows sealed_in_archive_with_full_payload,
+      follow_or_presenter_state rows excluded_from_archive_local_
+      authority_only, and shared_terminal_control_metadata rows
+      excluded_from_archive_redaction_required, with a paired
+      sealed_session_archive shared-object record minted and
+      bound to the archived collaboration_session_record by
+      sealed_archive_ref. Each fixture cites the contract
+      sections it exercises via its __fixture__ prelude and
+      carries only opaque session / shared-object / actor /
+      workspace / buffer / approval-ticket / policy-bundle /
+      policy-epoch handles plus monotonic placeholder timestamps
+      and redaction-aware labels (no raw buffer text, no raw
+      terminal bytes, no raw debug payloads, no raw URLs, no raw
+      absolute paths, no raw user identifiers, no raw billing-
+      account ids, no raw API keys, no raw OAuth tokens, no raw
+      mTLS material, no raw model weights, no raw pack bytes,
+      no raw provider payloads).
+
 # -----------------------------------------------------------------------------
 # Review cadence vocabulary.
 #

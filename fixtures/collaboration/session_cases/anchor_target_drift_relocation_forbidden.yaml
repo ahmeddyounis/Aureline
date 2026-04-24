@@ -1,0 +1,133 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/session_state.schema.json
+__fixture__:
+  name: anchor_target_drift_relocation_forbidden
+  scenario: >
+    A reviewer left an anchored_comment row anchored to a buffer line
+    range. While the reviewer was away the owner deleted the function
+    that the comment was anchored against. The buffer-line-range
+    target is gone. A shared_object_anchor_drift_record is minted
+    naming anchor_target_drift_target_deleted_relocation_forbidden;
+    a paired shared_object_audit_denial_emitted event names
+    silent_anchor_relocation_forbidden so the surface cannot
+    silently relocate the comment to a sibling line. The legal
+    supersede-rather-than-relocate path is illustrated by a fresh
+    shared_object_record minted against the new anchor location with
+    supersedes_shared_object_ref naming the original row, and a
+    shared_object_audit_event_record naming
+    shared_object_superseded_by_relocation. Acceptance bullet
+    exercised: "Ambiguous anchor reattachment is forbidden; fixtures
+    show drift labelling rather than silent relocation."
+  exercised_contract_sections:
+    - "Anchor drift (frozen)"
+    - "Relocation discipline"
+    - "Denial-reason vocabulary (frozen)"
+  exercised_classes_summary:
+    shared_object_class_classes:
+      - anchored_comment
+    anchor_target_classes:
+      - buffer_line_range_anchor
+    anchor_drift_state_classes:
+      - anchor_target_match_exact
+      - anchor_target_drift_target_deleted_relocation_forbidden
+    shared_object_denial_reasons:
+      - silent_anchor_relocation_forbidden
+    shared_object_audit_event_ids:
+      - shared_object_minted
+      - shared_object_anchor_drift_detected
+      - shared_object_audit_denial_emitted
+      - shared_object_superseded_by_relocation
+
+records:
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:anchored-comment:04"
+    session_ref: "collab:session:04"
+    owner_actor_ref: "actor:reviewer:04"
+    shared_object_class_class: anchored_comment
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_session_archive
+    buffer_ref: "buffer:04"
+    anchor_target_class: buffer_line_range_anchor
+    summary_label: "Reviewer's anchored comment on a buffer line range."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T13:00:00Z"
+
+  - record_kind: shared_object_anchor_drift_record
+    shared_object_schema_version: 1
+    drift_id: "collab:shared-object:anchored-comment:04:drift:01"
+    shared_object_ref: "collab:shared-object:anchored-comment:04"
+    anchor_target_class: buffer_line_range_anchor
+    anchor_drift_state_class: anchor_target_drift_target_deleted_relocation_forbidden
+    summary_label: >
+      Anchored comment's target line range was deleted; comment is
+      preserved as metadata-only; relocation to a sibling forbidden.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T13:30:00Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:04:drift-detected"
+    shared_object_ref: "collab:shared-object:anchored-comment:04"
+    drift_ref: "collab:shared-object:anchored-comment:04:drift:01"
+    audit_event_id: shared_object_anchor_drift_detected
+    summary_label: "Anchor drift detected; target deleted; relocation forbidden."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T13:30:00Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:04:relocation-denied"
+    shared_object_ref: "collab:shared-object:anchored-comment:04"
+    audit_event_id: shared_object_audit_denial_emitted
+    denial_reason: silent_anchor_relocation_forbidden
+    summary_label: >
+      A surface attempted to silently relocate the anchored comment to
+      the nearest surviving line; denied with
+      silent_anchor_relocation_forbidden.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T13:30:01Z"
+
+  # Legal supersede path: reviewer manually re-anchors against the new
+  # location. A fresh shared_object_record is minted with
+  # supersedes_shared_object_ref naming the prior row, and the prior
+  # row's superseded_by_shared_object_ref is updated. This is the only
+  # legal "relocation".
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:anchored-comment:04:re-anchored"
+    session_ref: "collab:session:04"
+    owner_actor_ref: "actor:reviewer:04"
+    shared_object_class_class: anchored_comment
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_session_archive
+    buffer_ref: "buffer:04"
+    anchor_target_class: buffer_line_range_anchor
+    supersedes_shared_object_ref: "collab:shared-object:anchored-comment:04"
+    summary_label: >
+      Reviewer manually re-anchored the comment to the replacement
+      function; supersedes the prior anchored_comment row.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T14:00:00Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:04:superseded"
+    shared_object_ref: "collab:shared-object:anchored-comment:04:re-anchored"
+    audit_event_id: shared_object_superseded_by_relocation
+    summary_label: "Anchored comment superseded by user-driven re-anchor."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T14:00:00Z"

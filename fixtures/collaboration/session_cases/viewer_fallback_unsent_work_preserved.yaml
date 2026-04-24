@@ -1,0 +1,173 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/session_state.schema.json
+__fixture__:
+  name: viewer_fallback_unsent_work_preserved
+  scenario: >
+    A participant in a shared_active session held edit admission and
+    queued three unsent local proposals against the editor_buffer.
+    A policy narrowing fires: the deployment_profile narrowed and the
+    participant lost edit admission. The session transitions to
+    participant_degraded with reason participant_viewer_fallback_applied.
+    A viewer_fallback_applied downgrade row is minted naming
+    preserved_in_pending_outbound_proposal_queue plus two recovery
+    paths (rejoin_same_session_viewer_only and
+    recover_via_local_journal_diff_export). The participant's three
+    unsent proposals are not discarded; they are exportable through the
+    local journal. The shared_object_authority_transition_record on the
+    participant's editor_buffer projection moves from
+    participant_authoritative_within_session_only to
+    local_authoritative_no_session_authority. Acceptance bullet
+    exercised: "Permission downgrades preserve unsent local work and
+    make rejoin, diff, or recovery paths explicit."
+  exercised_contract_sections:
+    - "Permission-downgrade vocabulary (frozen)"
+    - "Local-work preservation states"
+    - "Recovery-path classes"
+    - "Authority class vocabulary"
+  exercised_classes_summary:
+    collaboration_session_state_classes:
+      - shared_active
+      - participant_degraded
+    transition_reason_classes:
+      - participant_viewer_fallback_applied
+    downgrade_kind_classes:
+      - viewer_fallback_applied
+    local_work_preservation_state_classes:
+      - preserved_in_pending_outbound_proposal_queue
+    recovery_path_classes:
+      - rejoin_same_session_viewer_only
+      - recover_via_local_journal_diff_export
+    shared_object_authority_classes:
+      - participant_authoritative_within_session_only
+      - local_authoritative_no_session_authority
+    session_audit_event_ids:
+      - collaboration_session_state_transitioned
+      - collaboration_session_downgrade_applied
+    shared_object_audit_event_ids:
+      - shared_object_authority_transitioned
+
+records:
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:03"
+    current_state_class: shared_active
+    owner_actor_ref: "actor:owner:03"
+    owner_workspace_identity_ref: "workspace:identity:03"
+    participant_actor_refs:
+      - "actor:participant:03"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    policy_context:
+      policy_bundle_ref: "policy:bundle:03"
+      policy_epoch_ref: "policy:epoch:03"
+      deployment_profile_class: enterprise_online
+      workspace_trust_state_class: trusted
+    summary_label: "Active session; participant holds edit admission."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:00Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:editor-buffer:03:participant-projection"
+    session_ref: "collab:session:03"
+    owner_actor_ref: "actor:participant:03"
+    shared_object_class_class: editor_buffer
+    shared_object_authority_class: participant_authoritative_within_session_only
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_local_workspace_only
+    buffer_ref: "buffer:03:participant-side"
+    summary_label: >
+      Participant's editor buffer projection with three queued unsent
+      proposals against the shared file.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:01:00Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:03:transition:01"
+    session_ref: "collab:session:03"
+    prior_state_class: shared_active
+    next_state_class: participant_degraded
+    transition_reason_class: participant_viewer_fallback_applied
+    actor_ref: "system:policy:03"
+    policy_context:
+      policy_bundle_ref: "policy:bundle:03"
+      policy_epoch_ref: "policy:epoch:03:narrowed"
+      deployment_profile_class: enterprise_online
+      workspace_trust_state_class: trusted
+    summary_label: "Policy narrowing revoked participant edit admission."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:05:00Z"
+
+  - record_kind: collaboration_session_downgrade_record
+    session_state_schema_version: 1
+    downgrade_id: "collab:session:03:downgrade:01"
+    session_ref: "collab:session:03"
+    downgrade_kind_class: viewer_fallback_applied
+    local_work_preservation_state_class: preserved_in_pending_outbound_proposal_queue
+    recovery_path_classes:
+      - rejoin_same_session_viewer_only
+      - recover_via_local_journal_diff_export
+    affected_actor_refs:
+      - "actor:participant:03"
+    affected_shared_object_refs:
+      - "collab:shared-object:editor-buffer:03:participant-projection"
+    policy_context:
+      policy_bundle_ref: "policy:bundle:03"
+      policy_epoch_ref: "policy:epoch:03:narrowed"
+      deployment_profile_class: enterprise_online
+      workspace_trust_state_class: trusted
+    summary_label: >
+      Viewer fallback applied; three unsent proposals queued in the
+      participant's local journal; rejoin available as viewer; full
+      diff exportable through the local workspace.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:05:01Z"
+
+  - record_kind: shared_object_authority_transition_record
+    shared_object_schema_version: 1
+    transition_id: "collab:shared-object:03:transition:01"
+    shared_object_ref: "collab:shared-object:editor-buffer:03:participant-projection"
+    prior_authority_class: participant_authoritative_within_session_only
+    next_authority_class: local_authoritative_no_session_authority
+    actor_ref: "system:policy:03"
+    summary_label: >
+      Participant's editor buffer projection moved to local-only
+      authority after viewer fallback; unsent proposals remain queued
+      in the local journal.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:05:01Z"
+
+  - record_kind: collaboration_session_audit_event_record
+    session_state_schema_version: 1
+    audit_event_id_value: "audit:session:03:downgrade"
+    session_ref: "collab:session:03"
+    downgrade_ref: "collab:session:03:downgrade:01"
+    audit_event_id: collaboration_session_downgrade_applied
+    summary_label: "Viewer-fallback downgrade applied; unsent work preserved."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:05:01Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:03:authority-transitioned"
+    shared_object_ref: "collab:shared-object:editor-buffer:03:participant-projection"
+    transition_ref: "collab:shared-object:03:transition:01"
+    audit_event_id: shared_object_authority_transitioned
+    summary_label: "Editor buffer projection authority transitioned to local-only."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:05:01Z"

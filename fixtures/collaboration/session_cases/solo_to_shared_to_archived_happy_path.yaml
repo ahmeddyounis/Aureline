@@ -1,0 +1,230 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/session_state.schema.json
+__fixture__:
+  name: solo_to_shared_to_archived_happy_path
+  scenario: >
+    A workspace owner starts a solo edit session, requests publish, the
+    relay handshake admits the session, one participant attaches and
+    edits an editor_buffer shared object, the owner ends the session,
+    and the session seals into archived with a paired sealed_session_archive
+    shared object. Demonstrates the admitted-transition matrix from
+    solo through publish_pending, shared_active, ended, and archived.
+  exercised_contract_sections:
+    - "Session lifecycle states (frozen)"
+    - "Allowed transitions (frozen)"
+    - "Shared-object classes (frozen)"
+    - "Audit-event vocabulary (frozen)"
+  exercised_classes_summary:
+    collaboration_session_state_classes:
+      - solo
+      - publish_pending
+      - shared_active
+      - ended
+      - archived
+    transition_reason_classes:
+      - owner_requested_publish
+      - relay_handshake_admitted
+      - owner_ended_session
+      - archive_seal_minted
+    shared_object_class_classes:
+      - editor_buffer
+      - sealed_session_archive
+    session_audit_event_ids:
+      - collaboration_session_minted
+      - collaboration_session_state_transitioned
+      - collaboration_session_archive_sealed
+    shared_object_audit_event_ids:
+      - shared_object_minted
+
+records:
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:01"
+    current_state_class: solo
+    owner_actor_ref: "actor:owner:01"
+    owner_workspace_identity_ref: "workspace:identity:01"
+    participant_actor_refs: []
+    host_locus_class: local_in_process
+    transport_class: local_in_process_no_transport
+    relay_state_class: no_relay_required_local_session
+    summary_label: "Solo workspace session before publish."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:00Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:01:transition:01"
+    session_ref: "collab:session:01"
+    prior_state_class: solo
+    next_state_class: publish_pending
+    transition_reason_class: owner_requested_publish
+    actor_ref: "actor:owner:01"
+    summary_label: "Owner requested publish; relay handshake pending."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:01Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:01:transition:02"
+    session_ref: "collab:session:01"
+    prior_state_class: publish_pending
+    next_state_class: shared_active
+    transition_reason_class: relay_handshake_admitted
+    actor_ref: "system:relay:01"
+    summary_label: "Relay handshake admitted; session shared_active."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:02Z"
+
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:01"
+    current_state_class: shared_active
+    owner_actor_ref: "actor:owner:01"
+    owner_workspace_identity_ref: "workspace:identity:01"
+    participant_actor_refs:
+      - "actor:participant:01"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    summary_label: "Shared-active session with one participant."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:02Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:editor-buffer:01"
+    session_ref: "collab:session:01"
+    owner_actor_ref: "actor:owner:01"
+    shared_object_class_class: editor_buffer
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_local_workspace_only
+    buffer_ref: "buffer:01"
+    summary_label: "Editor buffer projection for the shared file."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:02Z"
+
+  - record_kind: shared_object_audit_event_record
+    shared_object_schema_version: 1
+    audit_event_id_value: "audit:shared-object:01:minted"
+    shared_object_ref: "collab:shared-object:editor-buffer:01"
+    audit_event_id: shared_object_minted
+    summary_label: "Editor buffer shared object minted."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:00:02Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:01:transition:03"
+    session_ref: "collab:session:01"
+    prior_state_class: shared_active
+    next_state_class: ended
+    transition_reason_class: owner_ended_session
+    actor_ref: "actor:owner:01"
+    summary_label: "Owner ended session."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T10:30:00Z"
+
+  - record_kind: collaboration_session_downgrade_record
+    session_state_schema_version: 1
+    downgrade_id: "collab:session:01:downgrade:01"
+    session_ref: "collab:session:01"
+    downgrade_kind_class: archive_sealing_initiated
+    local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+    recovery_path_classes:
+      - recover_via_sealed_archive_replay
+    affected_actor_refs:
+      - "actor:owner:01"
+      - "actor:participant:01"
+    affected_shared_object_refs:
+      - "collab:shared-object:editor-buffer:01"
+    sealed_archive_class_inventory:
+      - shared_object_class_class: editor_buffer
+        seal_disposition_class: sealed_in_archive_metadata_only
+        row_count_class: one_to_ten
+        redaction_posture_class: support_bundle
+      - shared_object_class_class: sealed_session_archive
+        seal_disposition_class: sealed_in_archive_with_full_payload
+        row_count_class: one_to_ten
+        redaction_posture_class: evidence_packet_signature
+    summary_label: "Archive sealing initiated; editor buffer sealed metadata-only."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: support_bundle
+    minted_at: "2026-04-22T10:30:01Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:sealed-archive:01"
+    session_ref: "collab:session:01"
+    owner_actor_ref: "actor:owner:01"
+    shared_object_class_class: sealed_session_archive
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_sealed_archive_only
+    shared_object_export_posture_class: exportable_in_session_archive
+    sealed_archive_inventory_summary_label: >
+      Sealed archive carrying metadata-only editor-buffer rows and a
+      full-payload archive marker.
+    summary_label: "Sealed session archive minted."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T10:30:02Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:01:transition:04"
+    session_ref: "collab:session:01"
+    prior_state_class: ended
+    next_state_class: archived
+    transition_reason_class: archive_seal_minted
+    actor_ref: "system:archive:01"
+    summary_label: "Sealed archive minted; session archived."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T10:30:02Z"
+
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:01"
+    current_state_class: archived
+    owner_actor_ref: "actor:owner:01"
+    owner_workspace_identity_ref: "workspace:identity:01"
+    participant_actor_refs:
+      - "actor:participant:01"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    sealed_archive_ref: "collab:shared-object:sealed-archive:01"
+    summary_label: "Session archived; sealed archive bound."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T10:30:02Z"
+    ended_at: "2026-04-22T10:30:00Z"
+
+  - record_kind: collaboration_session_audit_event_record
+    session_state_schema_version: 1
+    audit_event_id_value: "audit:session:01:archive-sealed"
+    session_ref: "collab:session:01"
+    downgrade_ref: "collab:session:01:downgrade:01"
+    audit_event_id: collaboration_session_archive_sealed
+    summary_label: "Session archive sealed."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: evidence_packet_signature
+    minted_at: "2026-04-22T10:30:02Z"

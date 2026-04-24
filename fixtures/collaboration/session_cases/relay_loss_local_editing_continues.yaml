@@ -1,0 +1,173 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/session_state.schema.json
+__fixture__:
+  name: relay_loss_local_editing_continues
+  scenario: >
+    A shared_active session is propagating editor_buffer projections
+    through a managed relay. The relay becomes unreachable. The session
+    transitions to shared_degraded with transition_reason_class
+    relay_outage_detected. A relay_degradation_applied downgrade record
+    is minted naming preserved_in_local_buffer_unchanged plus
+    rejoin_same_session_same_authority recovery. Both sides continue
+    typing locally — local_authoritative_no_session_authority — and the
+    shared editor buffer's projection is paused, never frozen. Acceptance
+    bullet exercised: "Presence or relay loss never forces local buffer
+    rollback or freezes local editing."
+  exercised_contract_sections:
+    - "Local-editing-remains-unfrozen invariant"
+    - "Permission-downgrade vocabulary (frozen)"
+    - "Recovery-path classes"
+  exercised_classes_summary:
+    collaboration_session_state_classes:
+      - shared_active
+      - shared_degraded
+    transition_reason_classes:
+      - relay_outage_detected
+    downgrade_kind_classes:
+      - relay_degradation_applied
+    local_work_preservation_state_classes:
+      - preserved_in_local_buffer_unchanged
+    recovery_path_classes:
+      - rejoin_same_session_same_authority
+    relay_state_classes:
+      - relay_healthy
+      - relay_unreachable
+    shared_object_class_classes:
+      - editor_buffer
+    shared_object_authority_classes:
+      - host_workspace_authoritative
+      - local_authoritative_no_session_authority
+    session_audit_event_ids:
+      - collaboration_session_state_transitioned
+      - collaboration_session_downgrade_applied
+
+records:
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:02"
+    current_state_class: shared_active
+    owner_actor_ref: "actor:owner:02"
+    owner_workspace_identity_ref: "workspace:identity:02"
+    participant_actor_refs:
+      - "actor:participant:02"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_healthy
+    summary_label: "Active shared session before relay outage."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:00:00Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:editor-buffer:02"
+    session_ref: "collab:session:02"
+    owner_actor_ref: "actor:owner:02"
+    shared_object_class_class: editor_buffer
+    shared_object_authority_class: host_workspace_authoritative
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_local_workspace_only
+    buffer_ref: "buffer:02"
+    summary_label: "Editor-buffer projection bound to relay-healthy session."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:00:00Z"
+
+  - record_kind: collaboration_session_transition_record
+    session_state_schema_version: 1
+    transition_id: "collab:session:02:transition:01"
+    session_ref: "collab:session:02"
+    prior_state_class: shared_active
+    next_state_class: shared_degraded
+    transition_reason_class: relay_outage_detected
+    actor_ref: "system:relay:02"
+    summary_label: "Relay unreachable; session transitioned to shared_degraded."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:00Z"
+
+  - record_kind: collaboration_session_record
+    session_state_schema_version: 1
+    session_id: "collab:session:02"
+    current_state_class: shared_degraded
+    owner_actor_ref: "actor:owner:02"
+    owner_workspace_identity_ref: "workspace:identity:02"
+    participant_actor_refs:
+      - "actor:participant:02"
+    host_locus_class: local_in_process
+    transport_class: managed_relay_brokered
+    relay_state_class: relay_unreachable
+    summary_label: "Session shared_degraded; relay unreachable; local editing continues."
+    freshness_class: degraded_cached
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:00Z"
+
+  - record_kind: collaboration_session_downgrade_record
+    session_state_schema_version: 1
+    downgrade_id: "collab:session:02:downgrade:01"
+    session_ref: "collab:session:02"
+    downgrade_kind_class: relay_degradation_applied
+    local_work_preservation_state_class: preserved_in_local_buffer_unchanged
+    recovery_path_classes:
+      - rejoin_same_session_same_authority
+    affected_actor_refs:
+      - "actor:owner:02"
+      - "actor:participant:02"
+    affected_shared_object_refs:
+      - "collab:shared-object:editor-buffer:02"
+    summary_label: "Relay outage; local buffers unchanged; rejoin admitted on relay recovery."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:01Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:editor-buffer:02:local-projection-owner"
+    session_ref: "collab:session:02"
+    owner_actor_ref: "actor:owner:02"
+    shared_object_class_class: editor_buffer
+    shared_object_authority_class: local_authoritative_no_session_authority
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_local_workspace_only
+    buffer_ref: "buffer:02"
+    summary_label: >
+      Owner's local editor buffer; session has no authority during
+      relay outage; local edits proceed unchanged.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:01Z"
+
+  - record_kind: shared_object_record
+    shared_object_schema_version: 1
+    shared_object_id: "collab:shared-object:editor-buffer:02:local-projection-participant"
+    session_ref: "collab:session:02"
+    owner_actor_ref: "actor:participant:02"
+    shared_object_class_class: editor_buffer
+    shared_object_authority_class: local_authoritative_no_session_authority
+    shared_object_durability_class: persisted_in_local_workspace
+    shared_object_export_posture_class: exportable_in_local_workspace_only
+    buffer_ref: "buffer:02:participant-side"
+    summary_label: >
+      Participant's local editor buffer; session has no authority during
+      relay outage; local edits proceed unchanged.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:01Z"
+
+  - record_kind: collaboration_session_audit_event_record
+    session_state_schema_version: 1
+    audit_event_id_value: "audit:session:02:downgrade"
+    session_ref: "collab:session:02"
+    downgrade_ref: "collab:session:02:downgrade:01"
+    audit_event_id: collaboration_session_downgrade_applied
+    summary_label: "Relay-degradation downgrade applied; local editing preserved."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T11:05:01Z"
