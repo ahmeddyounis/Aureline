@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/decision_defaults.schema.json",
+  "title": "Launch decision narrower-default automation",
+  "description": "Machine-readable rules for the narrower-default automation that fires against artifacts/governance/decision_register.yaml rows on their applies_on date. The register row already carries a narrower_default.posture and narrower_default.description; this document names the posture vocabulary, the auto-application rules (when a posture fires automatically versus when it requires a named forum's sign-off), the reviewer-guidance classes that route each row to ADR/RFC, sponsor scope decision, release decision, or narrowing-only governance note, and the report-projection rules tooling uses to render a sample freeze report that shows unresolved rows past their deadline as explicit narrow-scope outcomes rather than 'TBD'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_register",
+    "posture_vocabulary",
+    "auto_application_rules",
+    "reviewer_guidance_classes",
+    "report_projection_rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_register": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path to the register this automation applies to."
+    },
+    "posture_vocabulary": {
+      "type": "array",
+      "description": "Closed posture vocabulary. Mirrors schemas/governance/decision_index.schema.json#/$defs/default_if_unresolved.posture so consumers read one vocabulary across both registers.",
+      "items": { "$ref": "#/$defs/posture_entry" }
+    },
+    "auto_application_rules": {
+      "type": "array",
+      "description": "Rules describing when the narrower_default posture fires automatically on applies_on, when it requires forum sign-off, and what recording obligations the firing imposes.",
+      "items": { "$ref": "#/$defs/auto_application_rule" }
+    },
+    "reviewer_guidance_classes": {
+      "type": "array",
+      "description": "Reviewer-guidance classes routing each register row to ADR/RFC, sponsor scope decision, release decision, or narrowing-only governance note. A register row's decision_vehicle_class MUST resolve to exactly one class here.",
+      "items": { "$ref": "#/$defs/reviewer_guidance_class" }
+    },
+    "report_projection_rules": {
+      "type": "array",
+      "description": "Rules describing how tooling projects the register into the sample freeze report (fixtures/governance/decision_register/sample_freeze_report.yaml) so unresolved rows past their deadline appear as explicit narrow-scope outcomes rather than 'TBD'.",
+      "items": { "$ref": "#/$defs/report_projection_rule" }
+    }
+  },
+  "$defs": {
+    "posture_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture", "summary", "register_effect", "downstream_effect"],
+      "properties": {
+        "posture": {
+          "type": "string",
+          "enum": ["narrow", "defer", "freeze_lane", "rebaseline"]
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "register_effect": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the register row's current_state becomes when the posture fires."
+        },
+        "downstream_effect": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What downstream artifacts (scorecard rows, claim manifest, release evidence, architecture pack) observe once the posture has fired."
+        }
+      }
+    },
+    "auto_application_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "fires_when",
+        "posture",
+        "approval_posture",
+        "recording_requirements"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "pattern": "^rule:[a-z0-9_]+$"
+        },
+        "fires_when": {
+          "type": "string",
+          "minLength": 1
+        },
+        "posture": {
+          "type": "string",
+          "enum": ["narrow", "defer", "freeze_lane", "rebaseline"]
+        },
+        "approval_posture": {
+          "type": "string",
+          "enum": [
+            "auto_fires_without_approval",
+            "holds_deciding_until_named_forum_signs_off",
+            "blocks_dependent_lanes_until_freeze_exception_packet_lands",
+            "opens_rebaseline_review_in_current_milestone_scorecard"
+          ]
+        },
+        "recording_requirements": {
+          "type": "array",
+          "description": "Artifacts and fields that MUST be updated when the rule fires.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "forbidden_outcomes": {
+          "type": "array",
+          "description": "Outcomes explicitly forbidden when the rule fires.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "reviewer_guidance_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_id", "summary", "closes_by", "reviewer_next_action"],
+      "properties": {
+        "class_id": {
+          "type": "string",
+          "enum": [
+            "adr_or_rfc",
+            "sponsor_scope_decision",
+            "release_decision",
+            "narrowing_only_governance_note"
+          ]
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "closes_by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What artifact or ruling closes a row in this class."
+        },
+        "reviewer_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete next step a reviewer hitting an open row in this class should take."
+        },
+        "example_register_rows": {
+          "type": "array",
+          "description": "Launch-register ids that currently resolve to this class.",
+          "items": { "type": "string", "pattern": "^LR-[0-9]{4}$" }
+        }
+      }
+    },
+    "report_projection_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "input", "filter", "output_row_shape"],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "pattern": "^report:[a-z0-9_]+$"
+        },
+        "input": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_row_shape": {
+          "type": "array",
+          "description": "Fields each projected row MUST carry. A projected row that leaves any of these fields empty is a reporting failure (emitting 'TBD' in place of a concrete narrow-scope outcome is explicitly forbidden).",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "forbidden_projections": {
+          "type": "array",
+          "description": "Projections that tooling MUST refuse to emit.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

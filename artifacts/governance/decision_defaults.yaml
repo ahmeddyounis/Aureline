@@ -1,0 +1,305 @@
+# Launch decision narrower-default automation.
+#
+# Machine-readable rules for the narrower-default automation that
+# fires against artifacts/governance/decision_register.yaml rows on
+# their applies_on date. The register row already carries a
+# narrower_default.posture and narrower_default.description; this
+# document names the posture vocabulary, the auto-application rules
+# (when a posture fires automatically versus when it requires a
+# named forum's sign-off), the reviewer-guidance classes that route
+# each row to ADR/RFC, sponsor scope decision, release decision, or
+# narrowing-only governance note, and the report-projection rules
+# tooling uses to render a sample freeze report that shows
+# unresolved rows past their deadline as explicit narrow-scope
+# outcomes rather than "TBD".
+#
+# Conformance: this file conforms to
+#   schemas/governance/decision_defaults.schema.json
+
+schema_version: 1
+
+source_register: artifacts/governance/decision_register.yaml
+
+# -----------------------------------------------------------------------------
+# Posture vocabulary. Mirrors
+# schemas/governance/decision_index.schema.json#/$defs/default_if_unresolved.posture
+# so register consumers and decision-index consumers read one
+# vocabulary across both registers.
+# -----------------------------------------------------------------------------
+posture_vocabulary:
+  - posture: narrow
+    summary: >
+      Reduce committed scope to the row's narrowed statement.
+    register_effect: >
+      current_state becomes narrowed_by_default and a narrow entry
+      with date equal to applies_on is appended to decision_history.
+    downstream_effect: >
+      Scorecard rows that name this decision_id pick up the
+      narrowed scope verbatim; claim-manifest rows that reference
+      this decision_id narrow the public posture to the row's
+      allowed_posture; reopening a wider scope requires minting a
+      new launch-register row (the narrowed row survives as audit).
+  - posture: defer
+    summary: >
+      Push the decision to a later milestone with a restated freeze.
+    register_effect: >
+      current_state becomes deferred; the forum records a new
+      freeze_by_milestone and freeze_by_date at its next meeting
+      and appends a defer entry to decision_history.
+    downstream_effect: >
+      Scorecard rows and architecture-pack refs carry a deferred
+      flag against the decision_id; the deferred freeze surfaces
+      in the sample freeze report as an explicit "deferred with
+      restated freeze pending" row rather than "TBD".
+  - posture: freeze_lane
+    summary: >
+      Block dependent work on the affected lane.
+    register_effect: >
+      current_state stays in its latest value (open or deciding);
+      a freeze_lane entry is appended to decision_history with the
+      applies_on date.
+    downstream_effect: >
+      Every downstream PR on the named lane holds or attaches a
+      freeze-exception packet per docs/governance/decision_workflow.md;
+      the sample freeze report lists the row as "lane frozen until
+      ADR lands" with a named lane id rather than "TBD".
+  - posture: rebaseline
+    summary: >
+      Trigger a milestone rebaseline review.
+    register_effect: >
+      current_state stays in its latest value; a rebaseline entry
+      is appended to decision_history.
+    downstream_effect: >
+      The milestone scorecard enters rebaseline review per
+      docs/governance/commitment_and_rebaseline_policy.md;
+      architecture council plus release council co-approve the
+      new baseline. The sample freeze report lists the row as
+      "rebaseline review required" with the two co-required
+      forums named rather than "TBD".
+
+# -----------------------------------------------------------------------------
+# Auto-application rules. Named with rule: prefix so audit events
+# and support bundles can cite them stably.
+# -----------------------------------------------------------------------------
+auto_application_rules:
+  - rule_id: rule:narrow_auto_fires_on_applies_on
+    fires_when: >
+      A register row's current_state is open or deciding on
+      applies_on, the row's narrower_default.posture is narrow,
+      and the row's narrower_default.requires_approval_from list
+      is empty.
+    posture: narrow
+    approval_posture: auto_fires_without_approval
+    recording_requirements:
+      - "decision_register.yaml row: current_state -> narrowed_by_default"
+      - "decision_register.yaml row: decision_history appended with outcome narrow and date equal to applies_on"
+      - "milestone scorecard row: decision_id citation gets the narrowed_by_default flag"
+      - "claim_manifest_seed.yaml row: public-claim posture narrows to narrower_default.description verbatim"
+    forbidden_outcomes:
+      - "emitting TBD in place of the row's narrower_default.description"
+      - "silently broadening the scope past applies_on without minting a new launch-register row"
+
+  - rule_id: rule:narrow_holds_until_forum_signs_off
+    fires_when: >
+      A register row's current_state is open or deciding on
+      applies_on, the row's narrower_default.posture is narrow,
+      and the row's narrower_default.requires_approval_from list
+      is non-empty.
+    posture: narrow
+    approval_posture: holds_deciding_until_named_forum_signs_off
+    recording_requirements:
+      - "decision_register.yaml row: current_state holds at deciding"
+      - "decision_register.yaml row: decision_history appended with outcome status_change and notes naming the required forums"
+      - "freeze exception packet: MUST land if any dependent lane work wants to continue before forum sign-off"
+    forbidden_outcomes:
+      - "auto-applying the narrow posture without the named forum's sign-off"
+
+  - rule_id: rule:defer_holds_until_forum_restates_freeze
+    fires_when: >
+      A register row's current_state is open or deciding on
+      applies_on and the row's narrower_default.posture is defer.
+    posture: defer
+    approval_posture: holds_deciding_until_named_forum_signs_off
+    recording_requirements:
+      - "decision_register.yaml row: current_state -> deferred"
+      - "decision_register.yaml row: decision_history appended with outcome defer and notes naming the forum that will restate the freeze"
+      - "milestone scorecard row: decision_id citation gets the deferred flag and the restated freeze_by_date"
+    forbidden_outcomes:
+      - "leaving the row with a null freeze_by_date after the deferral"
+
+  - rule_id: rule:freeze_lane_blocks_dependent_lanes
+    fires_when: >
+      A register row's current_state is open or deciding on
+      applies_on and the row's narrower_default.posture is
+      freeze_lane.
+    posture: freeze_lane
+    approval_posture: blocks_dependent_lanes_until_freeze_exception_packet_lands
+    recording_requirements:
+      - "decision_register.yaml row: current_state stays at its prior value"
+      - "decision_register.yaml row: decision_history appended with outcome status_change and notes freeze_lane_fired"
+      - "dependent lanes named in affected_artifacts and scorecard_lane_refs: hold downstream PRs or attach a freeze-exception packet"
+    forbidden_outcomes:
+      - "continuing broad implementation on a frozen lane without a freeze-exception packet"
+
+  - rule_id: rule:rebaseline_opens_milestone_review
+    fires_when: >
+      A register row's current_state is open or deciding on
+      applies_on and the row's narrower_default.posture is
+      rebaseline.
+    posture: rebaseline
+    approval_posture: opens_rebaseline_review_in_current_milestone_scorecard
+    recording_requirements:
+      - "decision_register.yaml row: current_state stays at its prior value"
+      - "decision_register.yaml row: decision_history appended with outcome rebaseline and the two co-required forums named"
+      - "milestone scorecard: rebaseline review opens per docs/governance/commitment_and_rebaseline_policy.md"
+    forbidden_outcomes:
+      - "narrowing a row whose posture is rebaseline in place of opening a rebaseline review"
+
+# -----------------------------------------------------------------------------
+# Reviewer-guidance classes. Each register row's
+# decision_vehicle_class field resolves to exactly one class here.
+# -----------------------------------------------------------------------------
+reviewer_guidance_classes:
+  - class_id: adr_or_rfc
+    summary: >
+      Row closes by landing an ADR or by landing an RFC that
+      converts to an ADR. This is the default shape for decisions
+      whose content is architecture or contract-bearing.
+    closes_by: >
+      An ADR under docs/adr/ whose Decided section names the
+      register row's decision_id in linked-decision metadata; the
+      register row sets current_state = decided and linked_adr =
+      repo-relative path of the ADR.
+    reviewer_next_action: >
+      If the decision is contract-bearing and the forum agrees on
+      a direction, open an ADR directly from
+      docs/adr/0000-template.md. If the decision requires written
+      exploration, open an RFC from docs/rfc/0000-template.md and
+      set current_state = deciding.
+    example_register_rows:
+      - LR-0004
+      - LR-0005
+      - LR-0008
+      - LR-0009
+      - LR-0010
+      - LR-0013
+      - LR-0014
+      - LR-0015
+      - LR-0016
+
+  - class_id: sponsor_scope_decision
+    summary: >
+      Row closes by an explicit sponsor or product-scope review
+      ruling recorded in a scope-review packet; an ADR is not
+      required. This class covers launch-scope decisions whose
+      content is product commitment rather than architecture (what
+      we claim, what we bundle, which providers we integrate).
+    closes_by: >
+      A scope-review packet recorded by the owning forum, cited
+      from decision_history with outcome accept and linked from
+      evidence_owner's scope-review home; linked_adr remains null.
+    reviewer_next_action: >
+      Route the row to the owning forum's next scope-review
+      meeting. Do not open an ADR unless the forum decides the
+      outcome is also contract-bearing, in which case an ADR opens
+      in the same change.
+    example_register_rows:
+      - LR-0001
+      - LR-0002
+      - LR-0003
+      - LR-0006
+      - LR-0012
+
+  - class_id: release_decision
+    summary: >
+      Row closes by a release-council ruling recorded in the
+      release evidence lane.
+    closes_by: >
+      A release-council ruling in the release evidence lane
+      (artifacts/release/), cited from decision_history with
+      outcome accept and linked_adr remaining null unless the
+      ruling also lands an ADR.
+    reviewer_next_action: >
+      Attach the row to the next release-council meeting agenda;
+      the council closes the row as part of the release-posture
+      sign-off.
+    example_register_rows:
+      - LR-0007
+      - LR-0011
+
+  - class_id: narrowing_only_governance_note
+    summary: >
+      Row does not require a decision record. If the row is still
+      open on applies_on, the narrower default fires automatically
+      and the row moves to narrowed_by_default with a dated
+      narrow entry in decision_history. This class is reserved
+      for rows whose resolution is "the narrow outcome survives
+      as the launch posture, period."
+    closes_by: >
+      The narrower default firing on applies_on; no ADR, scope
+      packet, or release ruling is required. Reopening the wider
+      scope requires minting a new launch-register row.
+    reviewer_next_action: >
+      Confirm the narrower default posture in the row's
+      narrower_default.description is the intended launch
+      posture; if not, escalate to the owning forum to change
+      class or posture before applies_on.
+    example_register_rows: []
+
+# -----------------------------------------------------------------------------
+# Report projection rules. Tooling projects the register into
+# fixtures/governance/decision_register/sample_freeze_report.yaml
+# using these rules so unresolved rows past their deadline appear
+# as explicit narrow-scope outcomes rather than "TBD".
+# -----------------------------------------------------------------------------
+report_projection_rules:
+  - rule_id: report:unresolved_past_deadline_as_narrow_scope
+    input: artifacts/governance/decision_register.yaml
+    filter: >
+      Select register rows whose current_state is open, deciding,
+      or deferred, and whose applies_on is on or before the report
+      report_date.
+    output_row_shape:
+      - decision_id
+      - title
+      - current_state
+      - applies_on
+      - narrower_default.posture
+      - narrower_default.description
+      - narrower_default.requires_approval_from
+      - affected_artifacts
+      - scorecard_lane_refs
+      - owner_forum
+      - public_claim_posture_while_open.allowed_posture
+    forbidden_projections:
+      - "emitting the literal string TBD for any row"
+      - "omitting narrower_default.description when the row is past deadline"
+      - "projecting a wider scope than the row's public_claim_posture_while_open.allowed_posture"
+    notes: >
+      The report is the primary artifact reviewers consult when
+      they want to see what survives the milestone-zero review
+      cycle as frozen launch posture if every open row fires its
+      narrower default. The projection is deterministic from the
+      register and this rule.
+
+  - rule_id: report:decided_rows_projection
+    input: artifacts/governance/decision_register.yaml
+    filter: >
+      Select register rows whose current_state is decided,
+      superseded, or narrowed_by_default and project the closing
+      artifact (ADR, scope-review packet, release ruling, or
+      narrowing audit entry) for each.
+    output_row_shape:
+      - decision_id
+      - title
+      - current_state
+      - linked_adr
+      - linked_rfc
+      - decision_history_latest_outcome
+      - decision_history_latest_date
+    forbidden_projections:
+      - "projecting decided rows without a closing artifact citation"
+    notes: >
+      Used by the architecture pack and milestone scorecard to
+      confirm that every closed launch row has its closing
+      artifact linked.
