@@ -1,0 +1,542 @@
+# Benchmark-lab variance classes.
+#
+# Single machine-readable register of the variance classes the benchmark
+# lab, the nightly CI lane, the dashboard generator, the benchmark-report
+# packet family, and the publication-pack template resolve against when
+# they need to name "how many runs, how much warm-up, what discard rule,
+# what aggregation, and how much headroom before this row's numbers are
+# statistically meaningful".
+#
+# Consumers MUST resolve variance posture by stable id from this file,
+# not by guessing a sample count. A fitness-catalog row that no variance
+# class covers is non-conforming; a variance class no row cites is a
+# bookkeeping row and MUST carry `review_status: unused`.
+#
+# The human-readable companion is
+# docs/benchmarks/statistics_and_quarantine_policy.md; that document is
+# normative for the variance-class, warm-up, discard, aggregation,
+# confidence-level, and report-field vocabularies. If the two disagree,
+# the document wins and this file is updated in the same change.
+#
+# Adding a variance class is additive-minor and lands here and in the
+# document in the same change. Renaming a class id, repurposing a
+# threshold-mode binding, or relaxing a minimum sample size is breaking
+# and opens a decision row in artifacts/governance/decision_index.yaml.
+#
+# Planning / milestone slugs MUST NOT appear in any id, threshold, note,
+# or tag on this file.
+
+schema_version: 1
+policy_id: aureline.benchmark_variance_classes
+policy_revision: 1
+overview_document: docs/benchmarks/statistics_and_quarantine_policy.md
+run_result_schema_ref: schemas/benchmarks/run_result.schema.json
+fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+protected_metrics_ref: artifacts/bench/protected_metrics.yaml
+quarantine_rules_ref: artifacts/benchmarks/quarantine_rules.yaml
+
+# -----------------------------------------------------------------------------
+# Warm-up posture vocabulary (closed).
+#
+# Every variance class declares exactly one warm-up posture. The posture
+# names what the harness MUST do before it begins recording samples;
+# discard_rule below names which samples are then dropped.
+# -----------------------------------------------------------------------------
+warm_up_postures:
+  - no_warm_up                 # no warm-up; first sample is admissible (boolean / digest rows only)
+  - fixed_iteration_warm_up    # run warm_up_iterations before sampling
+  - fixed_duration_warm_up     # run until warm_up_minimum_duration_ms has elapsed, then sample
+  - workflow_warm_open         # one full workflow open to warm OS caches, then begin measuring
+  - workflow_warm_and_settle   # one full workflow open, then wait for settle_quiet_window_ms
+
+# -----------------------------------------------------------------------------
+# Discard-rule vocabulary (closed).
+#
+# Applied after warm-up and before aggregation. A class MAY declare
+# `no_discard` only when sample_count_minimum = 1 (boolean or digest) or
+# when warm-up alone is sufficient (e.g. workflow_warm_and_settle).
+# -----------------------------------------------------------------------------
+discard_rules:
+  - no_discard
+  - discard_first_n             # drop the first discard_count samples
+  - discard_first_n_and_outliers # drop the first N and any sample outside outlier_span
+  - tukey_1_5_iqr_outliers_only # keep all samples except Tukey 1.5 * IQR outliers
+
+# -----------------------------------------------------------------------------
+# Aggregation-rule vocabulary (closed).
+#
+# The aggregation rule names WHICH summary statistics the row reports.
+# The set is intentionally closed; microbenchmark "median of means" and
+# "arithmetic mean only" rows are NOT admissible because they hide tail
+# regressions the protected-metrics file is meant to protect.
+# -----------------------------------------------------------------------------
+aggregation_rules:
+  - p50_and_p95                  # report both percentiles; required by absolute_p50_and_p95 thresholds
+  - p50_p95_and_p99              # report three percentiles; used by input-to-paint class rows
+  - p95_only                     # report p95 only; pairs with absolute_p95_only thresholds
+  - ratio_with_bootstrap_ci      # ratio point estimate plus a 95% bootstrap confidence interval
+  - boolean_all_must_pass        # boolean gate; all samples must pass (sample_count is 1 by policy)
+  - count_non_negative_sum       # counts-only roll-up; reports sum and per-run delta
+  - structural_digest_identity   # non-numeric; reports a digest_ref for determinism-only rows
+
+# -----------------------------------------------------------------------------
+# Confidence-level vocabulary (closed).
+#
+# Every run-result row inherits the confidence level its variance class
+# declares. The label rides the benchmark-report packet's
+# `confidence_level` field so dashboards and publication packs never
+# re-derive it from sample counts.
+# -----------------------------------------------------------------------------
+confidence_levels:
+  - trend_only                   # single-run or untuned; do not quote as a claim
+  - directional                  # small sample, named variance; admissible internally
+  - bounded_with_quarantine_rule # small sample but quarantine rules bind drift
+  - reference_grade              # reference capture on approved hardware and environment
+  - contract_verified            # boolean or digest gate; confidence is binary
+  - not_applicable               # row carries no numeric claim (e.g. harness self-health only)
+
+# -----------------------------------------------------------------------------
+# Report-field bindings.
+#
+# Every benchmark-report packet that cites a variance-class row MUST
+# carry the fields below in addition to the run_result.schema.json
+# shape. Dashboards, publication packs, and support bundles read the
+# same keys; a packet that omits a required field is non-conforming.
+# -----------------------------------------------------------------------------
+report_fields:
+  required:
+    - variance_class_id              # id from classes[] below
+    - variance_class_revision        # integer; mirrors policy_revision at emit time
+    - confidence_level               # one of confidence_levels[]
+    - comparability_note_ref         # opaque ref; resolves to human-readable comparability note
+    - baseline_lineage               # see baseline_lineage_shape below
+    - quarantine_status              # see quarantine_rules.yaml#quarantine_status_values
+    - sample_count_observed          # integer; MUST be >= sample_count_minimum for the class
+    - discarded_sample_count         # integer; sum of warm-up discard and outlier discard
+  optional:
+    - per_percentile_confidence_interval_ms
+    - per_percentile_standard_error_ms
+    - bootstrap_resample_count       # required when aggregation_rule = ratio_with_bootstrap_ci
+    - variance_class_drift_note_ref  # required when a run used a narrower class than the row declares
+
+baseline_lineage_shape:
+  required_fields:
+    - baseline_run_ref               # run_id the trend was compared against; null on quarantined
+    - baseline_build_identity_ref    # exact_build_identity_ref at baseline
+    - baseline_corpus_manifest_revision
+    - baseline_protected_metrics_revision
+    - baseline_fitness_catalog_revision
+    - baseline_hardware_definition_ref
+    - baseline_environment_definition_ref
+    - baseline_confidence_level
+  optional_fields:
+    - baseline_capture_window_days
+    - baseline_promotion_decision_ref
+
+# -----------------------------------------------------------------------------
+# Variance classes.
+#
+# Ordered by scope (microbenchmark → protected journey → contract gate).
+# Every class declares run count, warm-up posture, discard rule,
+# aggregation, admissible threshold modes, and default confidence level
+# so a fitness-catalog row inherits the full statistics posture by
+# citing exactly one class id.
+# =============================================================================
+classes:
+  # ---------------------------------------------------------------------------
+  # Microbenchmark classes.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.microbench.low_noise
+    title: Low-noise microbenchmark
+    applies_to: microbenchmark_scenario
+    review_status: active
+    sample_count_minimum: 30
+    sample_count_recommended: 50
+    warm_up_posture: fixed_iteration_warm_up
+    warm_up_iterations: 10
+    warm_up_minimum_duration_ms: null
+    discard_rule: discard_first_n
+    discard_count: 5
+    outlier_span: null
+    aggregation_rule: p50_and_p95
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+      - absolute_p95_only
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+    default_confidence_level: directional
+    coefficient_of_variation_budget: 0.10
+    rationale: >
+      In-process, in-memory microbenchmarks with tight cycles (e.g. text
+      shaping, buffer transaction) converge quickly. Thirty post-warm-up
+      samples is the minimum admissible; fifty is recommended before a
+      row is admissible as claim-bearing evidence.
+    reference_rows:
+      - ff.input_to_paint
+    notes: >
+      Rows citing this class MUST report a coefficient of variation on
+      the dashboard; runs whose observed CoV exceeds
+      coefficient_of_variation_budget downgrade to
+      confidence_level = trend_only for the day.
+
+  - id: variance_class.microbench.io_or_storage_bound
+    title: IO or storage-bound microbenchmark
+    applies_to: microbenchmark_scenario
+    review_status: active
+    sample_count_minimum: 60
+    sample_count_recommended: 100
+    warm_up_posture: fixed_duration_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: 2000
+    discard_rule: discard_first_n_and_outliers
+    discard_count: 10
+    outlier_span: tukey_1_5_iqr
+    aggregation_rule: p50_p95_and_p99
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+      - absolute_p95_only
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+      - latency_p99_ms
+    default_confidence_level: directional
+    coefficient_of_variation_budget: 0.25
+    rationale: >
+      IO and storage paths carry OS cache, journaling, and compaction
+      effects that swamp small samples. Sixty post-warm-up samples are
+      the minimum; one hundred is recommended for publication-pack
+      evidence. p99 is reported because the tail is the interesting
+      signal on this class.
+    reference_rows: []
+    notes: >
+      A row on this class MUST NOT claim reference_grade confidence
+      unless the run was a reference_capture on an approved
+      environment row AND the observed CoV is within budget.
+
+  # ---------------------------------------------------------------------------
+  # Protected-journey classes.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.protected_journey.cold_start
+    title: Protected journey, cold-start capture
+    applies_to: workflow_scenario
+    review_status: active
+    sample_count_minimum: 5
+    sample_count_recommended: 10
+    warm_up_posture: no_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: p50_and_p95
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+    default_confidence_level: bounded_with_quarantine_rule
+    coefficient_of_variation_budget: 0.35
+    rationale: >
+      Cold-start journeys (first launch after reboot; warm OS but cold
+      process) are the protected user-visible claim. Five runs are the
+      minimum that yields a usable p50/p95 pair under the nightly
+      budget; ten is the recommended target for a reference capture.
+      Cold-start variance is intrinsically higher than a microbench;
+      the quarantine rules bind drift rather than a tight CoV budget.
+    reference_rows:
+      - ff.warm_start_to_first_paint
+    notes: >
+      Cold-start rows are explicitly not discarded after warm-up; each
+      cold-start run is itself the signal. Warm-up on this class means
+      priming the OS filesystem cache with a prior, discarded open of
+      the reference workspace before the measured runs begin.
+
+  - id: variance_class.protected_journey.warm_steady_state
+    title: Protected journey, warm steady-state capture
+    applies_to: workflow_scenario
+    review_status: active
+    sample_count_minimum: 10
+    sample_count_recommended: 20
+    warm_up_posture: workflow_warm_and_settle
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: 1500
+    discard_rule: discard_first_n
+    discard_count: 2
+    outlier_span: null
+    aggregation_rule: p50_and_p95
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+      - absolute_p95_only
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+    default_confidence_level: bounded_with_quarantine_rule
+    coefficient_of_variation_budget: 0.20
+    rationale: >
+      Warm steady-state captures (first-paint on reopen, input-to-paint
+      during a sustained edit session) assume the process is resident
+      and the scene is primed. Ten post-warm-up samples is the minimum;
+      twenty is recommended for a reference capture.
+    reference_rows:
+      - ff.first_paint
+      - ff.input_to_paint
+    notes: >
+      The harness MUST wait for a quiet window of
+      warm_up_minimum_duration_ms between the warm-open and the first
+      measured sample so the steady-state assumption holds.
+
+  - id: variance_class.protected_journey.save_pipeline_latency
+    title: Save-pipeline protected-journey latency capture
+    applies_to: workflow_scenario
+    review_status: active
+    sample_count_minimum: 10
+    sample_count_recommended: 20
+    warm_up_posture: workflow_warm_open
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: discard_first_n
+    discard_count: 2
+    outlier_span: null
+    aggregation_rule: p50_p95_and_p99
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+      - absolute_p95_only
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+      - latency_p99_ms
+    default_confidence_level: bounded_with_quarantine_rule
+    coefficient_of_variation_budget: 0.25
+    rationale: >
+      Save-pipeline latency spans filesystem identity resolution,
+      compare-before-write, atomic rename, and manifest emission.
+      Tail behaviour is the protected claim because the pipeline's
+      contract gates are boolean; latency regressions most commonly
+      appear on p99 before p50.
+    reference_rows: []
+    notes: >
+      The save pipeline's contract gates (compare-before-write,
+      conflict-outcome taxonomy) are measured by
+      variance_class.contract_gate.single_pass_fail on a separate row.
+
+  # ---------------------------------------------------------------------------
+  # Restore / recovery class.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.restore_fidelity.ratio_gate
+    title: Restore-fidelity match-rate capture
+    applies_to: recovery_or_restore_scenario
+    review_status: active
+    sample_count_minimum: 50
+    sample_count_recommended: 200
+    warm_up_posture: no_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: ratio_with_bootstrap_ci
+    admissible_threshold_modes:
+      - ratio_gate
+    admissible_sli_kinds:
+      - ratio_unit_interval
+    default_confidence_level: bounded_with_quarantine_rule
+    coefficient_of_variation_budget: null
+    bootstrap_resample_count: 1000
+    rationale: >
+      Restore fidelity is a pass-rate over a fixed corpus of restore
+      cases. The point estimate is a ratio in [0, 1]; the bootstrap
+      confidence interval guards against a single flaky case moving
+      the floor across releases.
+    reference_rows:
+      - ff.restore_fidelity
+    notes: >
+      A row on this class MUST carry the bootstrap confidence interval
+      width on the dashboard; an interval wider than (1 -
+      min_match_rate) downgrades the run to confidence_level =
+      trend_only even when the point estimate passes.
+
+  # ---------------------------------------------------------------------------
+  # Power / thermal window class.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.power_thermal.window_capture
+    title: Power / thermal windowed capture
+    applies_to: workflow_scenario
+    review_status: provisional
+    sample_count_minimum: 3
+    sample_count_recommended: 5
+    warm_up_posture: workflow_warm_and_settle
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: 30000
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: p50_and_p95
+    admissible_threshold_modes:
+      - absolute_p50_and_p95
+      - to_be_set_by_benchmark_council
+    admissible_sli_kinds:
+      - latency_p50_ms
+      - latency_p95_ms
+      - count_non_negative
+    default_confidence_level: trend_only
+    coefficient_of_variation_budget: null
+    rationale: >
+      Power and thermal windows need minutes of sustained workload
+      before the claim is meaningful; the sample count is small per
+      run but the window is long. Marked provisional until the
+      benchmark council ratifies power_posture and thermal_posture
+      thresholds on artifacts/bench/protected_metrics.yaml#ff.power_thermal_posture.
+    reference_rows:
+      - ff.power_thermal_posture
+    notes: >
+      Runs on this class MUST declare power_posture_id and
+      thermal_posture_id from
+      artifacts/perf/lab_image_manifest.yaml and MUST NOT claim
+      comparability_to_baseline with a different posture even on the
+      same hardware row.
+
+  # ---------------------------------------------------------------------------
+  # Contract / correctness classes.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.contract_gate.single_pass_fail
+    title: Contract gate, boolean pass/fail
+    applies_to: boundary_truth_case
+    review_status: active
+    sample_count_minimum: 1
+    sample_count_recommended: 1
+    warm_up_posture: no_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: boolean_all_must_pass
+    admissible_threshold_modes:
+      - boolean_gate
+    admissible_sli_kinds:
+      - boolean_pass_fail
+    default_confidence_level: contract_verified
+    coefficient_of_variation_budget: null
+    rationale: >
+      Contract gates (compare-before-write, ADR-0006 conflict outcome
+      set, ADR-0003 undo-class parity) are pass/fail on the full
+      corpus. A single run per corpus row is admissible because the
+      claim is boolean, not statistical.
+    reference_rows:
+      - ff.buffer_operations
+      - ff.vfs_save_conflict_handling
+      - ff.command_parity
+    notes: >
+      A fail on this class is release-blocking regardless of
+      confidence_level; quarantine rules do not mute contract gates
+      because contract violations are not "noise".
+
+  - id: variance_class.structural_digest.identity_only
+    title: Structural digest, determinism-only capture
+    applies_to: workflow_scenario
+    review_status: active
+    sample_count_minimum: 1
+    sample_count_recommended: 2
+    warm_up_posture: no_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: structural_digest_identity
+    admissible_threshold_modes:
+      - boolean_gate
+      - to_be_set_by_benchmark_council
+    admissible_sli_kinds:
+      - structural_digest
+    default_confidence_level: contract_verified
+    coefficient_of_variation_budget: null
+    rationale: >
+      Structural digest rows verify that a trace, fixture, or
+      run-result artifact reproduces bit-identical under the pinned
+      SOURCE_DATE_EPOCH / TZ / LC_ALL posture. One capture is the
+      artifact; a second capture is the determinism check.
+    reference_rows:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+      - ff.input_to_paint
+    notes: >
+      A digest mismatch on this class is a validation failure on the
+      benchmark_lab_health row; it is not a performance regression and
+      MUST NOT be rolled into trend_direction = regressing.
+
+  # ---------------------------------------------------------------------------
+  # Harness self-health class.
+  # ---------------------------------------------------------------------------
+  - id: variance_class.harness_self_health.boolean_gate
+    title: Benchmark-harness self-health boolean gate
+    applies_to: boundary_truth_case
+    review_status: active
+    sample_count_minimum: 1
+    sample_count_recommended: 1
+    warm_up_posture: no_warm_up
+    warm_up_iterations: null
+    warm_up_minimum_duration_ms: null
+    discard_rule: no_discard
+    discard_count: 0
+    outlier_span: null
+    aggregation_rule: boolean_all_must_pass
+    admissible_threshold_modes:
+      - boolean_gate
+    admissible_sli_kinds:
+      - boolean_pass_fail
+    default_confidence_level: contract_verified
+    coefficient_of_variation_budget: null
+    rationale: >
+      The benchmark-lab health row (corpus-id resolution, trace-schema
+      conformance, approved hardware row, no ad-hoc metric names,
+      reproducible build identity recorded) is a pre-condition, not a
+      performance row. One run per invocation proves the harness is
+      admissible this session.
+    reference_rows:
+      - ff.benchmark_lab_health
+    notes: >
+      A fail on this row quarantines the whole run; see
+      artifacts/benchmarks/quarantine_rules.yaml#rules.harness_self_health_failed.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+#
+# Tooling consuming this file SHOULD enforce the invariants below; a run
+# that violates one is non-conforming.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: sample_count_observed_meets_minimum
+    description: >
+      A run-result row MUST observe at least sample_count_minimum
+      samples for the variance class it cites, after discarded_sample_count
+      is subtracted. A row whose effective sample count is below the minimum
+      MUST downgrade confidence_level to trend_only and set
+      trend_direction = unknown_insufficient_history.
+  - id: threshold_mode_must_be_admissible
+    description: >
+      A fitness-catalog row whose threshold_mode is not in the variance
+      class's admissible_threshold_modes set is a catalog validation
+      failure at this policy_revision.
+  - id: sli_kind_must_be_admissible
+    description: >
+      A run-result row whose sli_kind is not in the variance class's
+      admissible_sli_kinds set is a run-result validation failure.
+  - id: confidence_level_cannot_exceed_run_context
+    description: >
+      A run with run_context_class != reference_capture MUST NOT claim
+      confidence_level = reference_grade. Self-capture and provisional
+      captures resolve to directional or trend_only regardless of
+      variance-class default.
+  - id: contract_gate_failures_are_not_noise
+    description: >
+      A row on variance_class.contract_gate.single_pass_fail or
+      variance_class.harness_self_health.boolean_gate MUST NOT be
+      reclassified as noise by any drift rule in quarantine_rules.yaml.
+  - id: cov_breach_downgrades_confidence
+    description: >
+      A run whose observed coefficient of variation exceeds the class's
+      coefficient_of_variation_budget MUST downgrade its
+      confidence_level to trend_only for that emission, even when the
+      point estimate passes the protected-metrics threshold.

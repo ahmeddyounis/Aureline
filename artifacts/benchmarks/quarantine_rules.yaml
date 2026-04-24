@@ -1,0 +1,705 @@
+# Benchmark-lab quarantine and comparability rules.
+#
+# Single machine-readable register of the mechanical rules the benchmark
+# lab, the dashboard generator, the benchmark-report governance packet
+# family, and the publication-pack template resolve against when they
+# decide whether two run-result records are comparable, whether a run
+# must be quarantined, and how a run re-enters the comparable baseline.
+#
+# Consumers MUST resolve comparability and quarantine verdicts by stable
+# rule id from this file, not by narrative prose on the PR or in a slide
+# deck. A run that trips a rule here is marked non-comparable or
+# quarantined mechanically; a reviewer cannot clear the flag without
+# citing the rule's declared clearance condition.
+#
+# The human-readable companion is
+# docs/benchmarks/statistics_and_quarantine_policy.md; that document is
+# normative for the quarantine-trigger vocabulary, the comparability
+# downgrade ladder, and the clearance rules. If the two disagree, the
+# document wins and this file is updated in the same change.
+#
+# Adding a rule is additive-minor. Renaming a rule id, changing a
+# trigger's declared quarantine_reason_class binding, or relaxing a
+# clearance condition is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml.
+#
+# Planning / milestone slugs MUST NOT appear in any id, trigger, note,
+# or tag on this file.
+
+schema_version: 1
+policy_id: aureline.benchmark_quarantine_rules
+policy_revision: 1
+overview_document: docs/benchmarks/statistics_and_quarantine_policy.md
+run_result_schema_ref: schemas/benchmarks/run_result.schema.json
+variance_classes_ref: artifacts/benchmarks/variance_classes.yaml
+lab_image_manifest_ref: artifacts/perf/lab_image_manifest.yaml
+reference_hardware_manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
+corpus_manifest_ref: fixtures/benchmarks/corpus_manifest.yaml
+protected_metrics_ref: artifacts/bench/protected_metrics.yaml
+fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+
+# -----------------------------------------------------------------------------
+# Quarantine-status vocabulary (closed).
+#
+# The value a run-result record reports on its `quarantine_status` field.
+# Mirrors the `comparability_class` vocabulary at
+# schemas/benchmarks/run_result.schema.json#comparability_class but with
+# two additional statuses the dashboard surfaces without re-deriving
+# them from narrative notes:
+#   - under_observation: run is comparable but a suspect drift rule is
+#     monitoring the baseline; reviewer attention is requested.
+#   - quarantine_clearing: a prior quarantine is in the declared
+#     clearance window; the run is not yet comparable to baseline.
+# -----------------------------------------------------------------------------
+quarantine_status_values:
+  - comparable
+  - under_observation
+  - not_yet_comparable
+  - quarantine_clearing
+  - quarantined
+
+# -----------------------------------------------------------------------------
+# Comparability dimensions.
+#
+# The axes the dashboard compares run pairs on. Every rule below names
+# which axis changed so consumers can reason about why the downgrade
+# happened without re-parsing the rule prose.
+# -----------------------------------------------------------------------------
+comparability_dimensions:
+  - build_identity                   # exact_build_identity_ref, release_channel_class, producer_lane_class
+  - toolchain_pin                    # toolchain_pin.channel, rustc_version, digests
+  - corpus_manifest_revision
+  - protected_metrics_revision
+  - fitness_function_catalog_revision
+  - hardware_definition              # hardware_definition.definition_id + revision
+  - lab_image_revision
+  - display_class
+  - power_posture
+  - thermal_posture
+  - calibration_rule_set
+  - capture_path                     # trace schema revision, harness wrapper version
+  - run_context                      # reference / provisional / self / smoke
+
+# -----------------------------------------------------------------------------
+# Mechanical comparability-verdict table.
+#
+# Given two run-result records (candidate, baseline), the dashboard MUST
+# resolve comparability through this table before it renders a
+# trend_direction. The table is closed; a row whose axis delta is not
+# listed here is non-conforming for the dashboard generator.
+# -----------------------------------------------------------------------------
+mechanical_comparability_verdicts:
+  - delta_axis: build_identity
+    delta_detail: exact_build_identity_ref_differs
+    verdict: comparable_to_baseline
+    rationale: >
+      Comparing two different builds is the purpose of the dashboard;
+      a build-identity delta is the signal, not a drift.
+
+  - delta_axis: toolchain_pin
+    delta_detail: toolchain_pin_digest_or_lockfile_digest_differs
+    verdict: not_yet_comparable
+    quarantine_reason_class: toolchain_pin_drift_observed
+    rationale: >
+      A toolchain or Cargo.lock delta changes the compiled artifact
+      outside the code change under review. The run is admissible for
+      trend-only inspection until the benchmark council re-baselines.
+
+  - delta_axis: corpus_manifest_revision
+    delta_detail: manifest_revision_differs
+    verdict: not_yet_comparable
+    quarantine_reason_class: corpus_revision_mismatch
+    rationale: >
+      Corpus revisions redefine "the same input". Rows measured
+      against different manifest revisions are mechanically
+      non-comparable regardless of how small the delta looks.
+
+  - delta_axis: protected_metrics_revision
+    delta_detail: metrics_file_revision_differs
+    verdict: not_yet_comparable
+    rationale: >
+      Threshold snapshots and comparability notes changed; the same
+      point estimate carries a different verdict. Re-baseline before
+      trend comparison.
+
+  - delta_axis: fitness_function_catalog_revision
+    delta_detail: catalog_revision_differs
+    verdict: not_yet_comparable
+    quarantine_reason_class: fitness_catalog_revision_mismatch
+    rationale: >
+      Row identity, data-source binding, or waiver posture may have
+      shifted. Comparison across catalog revisions MUST go through a
+      declared re-baseline, not a silent trend line.
+
+  - delta_axis: hardware_definition
+    delta_detail: hardware_row_id_or_revision_differs
+    verdict: quarantined
+    quarantine_reason_class: hardware_drift_observed
+    rationale: >
+      A different hardware row is a different physical machine and a
+      different measurement posture. The runs are quarantined from
+      trend comparison until a fresh reference baseline is captured.
+
+  - delta_axis: lab_image_revision
+    delta_detail: lab_image_revision_differs
+    verdict: quarantined
+    quarantine_reason_class: hardware_drift_observed
+    rationale: >
+      Lab-image revisions change OS kernel, frameworks, and drivers.
+      Treat a lab-image bump as a hardware replacement until the
+      council explicitly widens comparability.
+
+  - delta_axis: display_class
+    delta_detail: display_class_id_differs
+    verdict: not_yet_comparable
+    rationale: >
+      Display class changes the render pipeline workload. Runs against
+      different display classes are not directly comparable; narrow
+      the claim to the new display class or re-baseline.
+
+  - delta_axis: power_posture
+    delta_detail: power_posture_id_differs
+    verdict: not_yet_comparable
+    rationale: >
+      AC versus battery or balanced versus saver changes both CPU
+      scheduling posture and GPU clock caps. Non-comparable without a
+      council-approved overlay.
+
+  - delta_axis: thermal_posture
+    delta_detail: thermal_posture_id_differs
+    verdict: not_yet_comparable
+    rationale: >
+      Nominal versus efficiency-aware versus thermal-constrained
+      captures represent different machine states; trend comparison
+      across postures is meaningless for latency.
+
+  - delta_axis: calibration_rule_set
+    delta_detail: calibration_rule_set_id_or_revision_differs
+    verdict: not_yet_comparable
+    rationale: >
+      The calibration checklist defines what "warmed up and quiet"
+      means. A checklist revision change re-frames the capture;
+      re-baseline before direct comparison.
+
+  - delta_axis: capture_path
+    delta_detail: trace_schema_revision_or_harness_wrapper_version_differs
+    verdict: not_yet_comparable
+    quarantine_reason_class: trace_schema_nonconformance
+    rationale: >
+      When the capture pipeline itself changes (trace schema bump,
+      harness wrapper upgrade), the field definitions may differ even
+      when the numbers look similar.
+
+  - delta_axis: run_context
+    delta_detail: run_context_class_differs
+    verdict: not_yet_comparable
+    rationale: >
+      A reference_capture compared against a self_capture, provisional
+      capture, or smoke_subset is not a trend; reports MUST keep the
+      distinction even when the numbers are on the same axis.
+
+# -----------------------------------------------------------------------------
+# Quarantine rules.
+#
+# Every rule declares exactly one quarantine_trigger_event, the
+# quarantine_reason_class it maps onto (from
+# schemas/benchmarks/run_result.schema.json#quarantine_reason_class), the
+# status it drives, the comparability dimensions it affects, and the
+# clearance condition under which a subsequent run can exit the rule.
+# =============================================================================
+rules:
+  - id: rules.lab_image_revision_changed
+    title: Lab-image revision changed
+    quarantine_trigger_event: lab_image_revision_bumped
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - lab_image_revision
+      - hardware_definition
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 3
+    clearance_condition: >
+      Three consecutive reference_capture runs on the new lab-image
+      revision against the same hardware row, calibration rule set,
+      and corpus manifest revision must land within the protected
+      metric threshold band, after which the benchmark council
+      records a re-baseline decision. The first two runs carry
+      quarantine_clearing; the third is the new baseline.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - variance_class_id
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - docs/benchmarks/corpus_governance.md
+      - artifacts/perf/lab_image_manifest.yaml#comparability_reset_rules.lab_image_revision_changed
+
+  - id: rules.power_policy_changed
+    title: Power policy changed
+    quarantine_trigger_event: power_posture_id_changed
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - power_posture
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A reviewer attaches a comparability_note_ref that records the
+      old and new power posture and whether the claim narrows to the
+      new posture or spans both. The next reference_capture under the
+      new posture becomes the new baseline for that axis.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/perf/lab_image_manifest.yaml#comparability_reset_rules.power_policy_changed
+
+  - id: rules.thermal_posture_changed
+    title: Thermal posture changed
+    quarantine_trigger_event: thermal_posture_id_changed
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - thermal_posture
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A reviewer attaches a comparability_note_ref that explicitly
+      acknowledges the posture change. A reference_capture under the
+      new posture may become the new baseline only after the
+      benchmark council records the re-baseline.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/perf/lab_image_manifest.yaml#comparability_reset_rules.thermal_posture_changed
+
+  - id: rules.screen_configuration_changed
+    title: Screen configuration changed
+    quarantine_trigger_event: display_class_id_changed
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - display_class
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      Attach a comparability_note_ref naming the old and new display
+      class, brightness, scaling, refresh, and HDR posture. The next
+      reference_capture under the new display class becomes the new
+      baseline for that axis.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/perf/lab_image_manifest.yaml#comparability_reset_rules.screen_configuration_changed
+
+  - id: rules.calibration_rule_set_changed
+    title: Calibration rule set changed
+    quarantine_trigger_event: calibration_rule_set_id_or_revision_changed
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - calibration_rule_set
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 2
+    clearance_condition: >
+      Two consecutive reference_capture runs under the new calibration
+      rule set on the same hardware row and lab-image revision must
+      land within the protected metric threshold band. The benchmark
+      council records a re-baseline decision before trend comparison
+      resumes.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/perf/lab_image_manifest.yaml#comparability_reset_rules.calibration_rule_set_changed
+
+  - id: rules.hardware_row_replaced_or_added
+    title: Hardware row replaced or added
+    quarantine_trigger_event: hardware_definition_id_or_revision_changed
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - hardware_definition
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+    minimum_clearance_runs: 3
+    clearance_condition: >
+      Three consecutive reference_capture runs on the new hardware
+      row under the council-approved lab image and calibration rule
+      set. The benchmark council records a re-baseline decision and
+      annotates
+      artifacts/perf/reference_hardware_manifest.yaml with the new
+      row before direct trend comparison resumes.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - variance_class_id
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - docs/benchmarks/corpus_governance.md
+      - artifacts/perf/reference_hardware_manifest.yaml
+
+  - id: rules.capture_path_changed
+    title: Capture path changed (trace schema or harness wrapper)
+    quarantine_trigger_event: capture_path_axis_changed
+    quarantine_reason_class: trace_schema_nonconformance
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - capture_path
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A reference_capture on the new capture path reproduces the
+      committed seed under the pinned SOURCE_DATE_EPOCH / TZ / LC_ALL
+      posture and lands within the protected metric threshold band.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - docs/benchmarks/trace_taxonomy.md
+      - schemas/traces/spike_timing.schema.json
+
+  - id: rules.corpus_manifest_revision_changed
+    title: Corpus manifest revision changed
+    quarantine_trigger_event: corpus_manifest_revision_bumped
+    quarantine_reason_class: corpus_revision_mismatch
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - corpus_manifest_revision
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A reference_capture on the new corpus manifest revision
+      reproduces the committed seed for each reseeded fixture and the
+      council records a re-baseline decision when the added/removed
+      fixtures alter any protected-metrics row.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - docs/benchmarks/corpus_governance.md
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - artifacts/bench/corpus_change_control.yaml
+
+  - id: rules.protected_metrics_revision_changed
+    title: Protected metrics revision changed
+    quarantine_trigger_event: protected_metrics_revision_bumped
+    quarantine_reason_class: fitness_catalog_revision_mismatch
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - protected_metrics_revision
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The first reference_capture on the new metrics revision becomes
+      the new baseline for every row whose threshold snapshot or
+      comparability note changed; the council records the
+      re-baseline.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/bench/protected_metrics.yaml
+      - artifacts/bench/corpus_change_control.yaml
+
+  - id: rules.fitness_catalog_revision_changed
+    title: Fitness-function catalog revision changed
+    quarantine_trigger_event: fitness_catalog_revision_bumped
+    quarantine_reason_class: fitness_catalog_revision_mismatch
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - fitness_function_catalog_revision
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The first reference_capture on the new catalog revision
+      becomes the new baseline for every row whose id, data_source,
+      or threshold_mode changed.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    linked_change_control:
+      - artifacts/bench/fitness_function_catalog.yaml
+
+  - id: rules.toolchain_pin_drift
+    title: Toolchain pin drift
+    quarantine_trigger_event: toolchain_pin_digest_or_lockfile_digest_changed
+    quarantine_reason_class: toolchain_pin_drift_observed
+    drives_status: not_yet_comparable
+    affects_comparability_dimensions:
+      - toolchain_pin
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A subsequent reference_capture on the updated toolchain reaches
+      the protected metric threshold band; the dashboard records the
+      drift in baseline_lineage.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+
+  - id: rules.corpus_id_resolution_incomplete
+    title: Corpus id resolution incomplete
+    quarantine_trigger_event: missing_corpus_id_resolution_observed
+    quarantine_reason_class: missing_corpus_id_resolution
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - corpus_manifest_revision
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      A subsequent run resolves every corpus_refs[] id to an entry at
+      the declared corpus_manifest.manifest_revision and posts a
+      zero-unresolved row on the benchmark_lab_health row.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+
+  - id: rules.trace_schema_nonconformance
+    title: Trace schema nonconformance
+    quarantine_trigger_event: trace_schema_conformance_failed
+    quarantine_reason_class: trace_schema_nonconformance
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - capture_path
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The next run validates against
+      schemas/traces/spike_timing.schema.json and the run's
+      structural digest rows reproduce the committed seed.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+
+  - id: rules.missing_build_identity_record
+    title: Missing exact-build-identity record
+    quarantine_trigger_event: exact_build_identity_ref_unresolvable
+    quarantine_reason_class: missing_build_identity_record
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - build_identity
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The run's exact_build_identity_ref resolves against
+      schemas/build/exact_build_identity.schema.json and the harness
+      records a zero-mismatch on the benchmark_lab_health row.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+
+  - id: rules.harness_self_health_failed
+    title: Benchmark-lab harness self-health failed
+    quarantine_trigger_event: benchmark_lab_health_boolean_gate_failed
+    quarantine_reason_class: manual_benchmark_council_hold
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - capture_path
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+      - self_capture
+      - smoke_subset
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The next run lands ff.benchmark_lab_health as pass with
+      zero regression triggers. Until then every row on the run is
+      quarantined, not just the health row.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+
+  - id: rules.manual_benchmark_council_hold
+    title: Manual benchmark-council hold
+    quarantine_trigger_event: benchmark_council_raised_hold
+    quarantine_reason_class: manual_benchmark_council_hold
+    drives_status: quarantined
+    affects_comparability_dimensions:
+      - build_identity
+      - corpus_manifest_revision
+      - protected_metrics_revision
+      - fitness_function_catalog_revision
+      - hardware_definition
+      - lab_image_revision
+      - capture_path
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 1
+    clearance_condition: >
+      The benchmark council records a decision row releasing the
+      hold; the first reference_capture after the release becomes
+      the new baseline.
+    clearance_records_decision_row: true
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+
+  - id: rules.suspect_environment_drift_observed
+    title: Suspect environment drift observed
+    quarantine_trigger_event: environment_drift_heuristic_tripped
+    quarantine_reason_class: hardware_drift_observed
+    drives_status: under_observation
+    affects_comparability_dimensions:
+      - hardware_definition
+      - power_posture
+      - thermal_posture
+      - calibration_rule_set
+    applies_to_run_contexts:
+      - reference_capture
+      - provisional_capture
+    minimum_clearance_runs: 2
+    clearance_condition: >
+      Two consecutive reference_capture runs return to within the
+      observed baseline band without any environment delta; the
+      observation rule auto-clears and the flag is cleared on the
+      dashboard.
+    clearance_records_decision_row: false
+    required_report_fields:
+      - comparability_note_ref
+      - baseline_lineage
+    heuristic_notes: >
+      "Suspect environment drift" is tripped when multiple unrelated
+      fitness rows regress together on the same run with no build or
+      corpus delta. The rule is intentionally a soft flag ("under
+      observation") so the dashboard prompts the reviewer before a
+      single row is filed as a code regression.
+
+# -----------------------------------------------------------------------------
+# Regression-review triage rubric.
+#
+# Mechanical rubric for distinguishing noise, suspect environment
+# drift, and likely code regression. Applied after the comparability
+# verdict table above has already resolved whether the runs are
+# comparable at all.
+# -----------------------------------------------------------------------------
+regression_review_rubric:
+  - id: rubric.likely_code_regression
+    title: Likely code regression
+    conditions_all_of:
+      - mechanical_comparability_verdict: comparable_to_baseline
+      - quarantine_status: comparable
+      - observed_delta_exceeds_protected_metrics_threshold: true
+      - environment_delta_axes_changed: none
+    required_action: >
+      Open a regression issue citing the fitness row, the
+      regression_trigger_ref.kind, and the baseline_lineage. A waiver
+      requires the row's co-waiver authority per the fitness catalog.
+
+  - id: rubric.suspect_environment_drift
+    title: Suspect environment drift
+    conditions_any_of:
+      - quarantine_status: under_observation
+      - multiple_unrelated_rows_regressed_on_same_run_without_code_delta: true
+      - environment_drift_heuristic_tripped: true
+    required_action: >
+      Hold the regression review, rerun the same run_context on the
+      same hardware row and environment row, and only file a code
+      regression if the suspect drift does not reproduce.
+
+  - id: rubric.noise_within_variance_budget
+    title: Noise within variance budget
+    conditions_all_of:
+      - mechanical_comparability_verdict: comparable_to_baseline
+      - quarantine_status: comparable
+      - observed_delta_exceeds_protected_metrics_threshold: false
+      - observed_cov_within_variance_class_budget: true
+    required_action: >
+      Mark the row unchanged on the dashboard; do not open a
+      regression issue. The dashboard MAY still log the point
+      estimate in the trend window.
+
+  - id: rubric.not_comparable_hold_review
+    title: Not comparable — hold review
+    conditions_any_of:
+      - quarantine_status: not_yet_comparable
+      - quarantine_status: quarantine_clearing
+      - quarantine_status: quarantined
+    required_action: >
+      Do not interpret the numeric delta as a regression or
+      improvement. Follow the clearance_condition on the rule that
+      set the status before re-attempting trend comparison.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: quarantine_status_must_agree_with_comparability_class
+    description: >
+      A run-result record whose `comparability_class` is `quarantined`
+      MUST report `quarantine_status = quarantined`. A run that reports
+      `quarantine_status = not_yet_comparable` MUST carry
+      `comparability_class = not_yet_comparable`. A run that reports
+      `quarantine_status = comparable` MUST carry
+      `comparability_class = comparable_to_baseline` or
+      `comparable_to_prior_run_same_host`.
+  - id: contract_gate_rows_ignore_environment_drift_rules
+    description: >
+      Rules whose drives_status is `under_observation` MUST NOT be
+      applied to rows whose variance_class_id is
+      `variance_class.contract_gate.single_pass_fail` or
+      `variance_class.harness_self_health.boolean_gate`. Contract
+      gates are not muted by suspect environment drift.
+  - id: clearance_requires_named_condition
+    description: >
+      A run that transitions a rule from quarantined or
+      quarantine_clearing back to comparable MUST cite the rule id
+      whose clearance_condition was met in its comparability_note_ref.
+  - id: manual_hold_cannot_auto_clear
+    description: >
+      `rules.manual_benchmark_council_hold` MUST NOT clear without a
+      recorded decision row in artifacts/governance/decision_index.yaml.

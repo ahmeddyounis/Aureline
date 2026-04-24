@@ -38,6 +38,12 @@ Companion artifacts:
   threshold snapshot and change-control posture.
 - [`/docs/benchmarks/public_comparison_rules.md`](./public_comparison_rules.md)
   — external publication and head-to-head comparison rules.
+- [`/docs/benchmarks/statistics_and_quarantine_policy.md`](./statistics_and_quarantine_policy.md)
+  — statistics, warm-up, variance, and quarantine policy. Binds
+  every fitness-catalog row to a variance class and every
+  comparability axis delta (hardware, lab image, power, thermal,
+  calibration, capture path, corpus revision) to a mechanical
+  quarantine or non-comparable verdict.
 - [`/docs/benchmarks/benchmark_publication_pack_template.md`](./benchmark_publication_pack_template.md)
   — required packet shape when benchmark evidence leaves the raw
   dashboard or shiproom context.

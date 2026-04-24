@@ -31,6 +31,13 @@ Companion artifacts:
   — public benchmark/public-proof packet template that composes over
   the raw run-result record when results leave the internal dashboard
   context.
+- [`/docs/benchmarks/statistics_and_quarantine_policy.md`](./statistics_and_quarantine_policy.md)
+  — statistics, warm-up, variance, and quarantine policy. Binds
+  every fitness-catalog row to one variance class and every
+  comparability axis to one mechanical verdict; carries the report
+  fields (variance_class_id, confidence_level, comparability note,
+  baseline lineage, quarantine status) the dashboard and
+  publication packs read alongside this schema.
 - [`/artifacts/perf/reference_hardware_manifest.yaml`](../../artifacts/perf/reference_hardware_manifest.yaml)
   — canonical hardware rows and display classes for benchmark packets.
 - [`/artifacts/perf/lab_image_manifest.yaml`](../../artifacts/perf/lab_image_manifest.yaml)
