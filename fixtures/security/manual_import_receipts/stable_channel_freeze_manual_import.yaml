@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=../../../schemas/security/manual_import_receipt.schema.json
+__fixture__:
+  name: stable_channel_freeze_manual_import
+  scenario: >
+    Worked manual_import_receipt_record for the stable-channel freeze.
+    An air-gapped local admin imported the signed freeze metadata via
+    file_import. Detached-signature verification succeeded under the
+    same signer chain; the receipt is still pending_operator_confirmation
+    because the reviewing admin has not yet committed the narrow-scope
+    apply. The receipt_id matches the distribution row's receipt_ref on
+    the parent emergency_action_record so mirror-import and admin-export
+    surfaces can resolve one stable id.
+  contract_sections:
+    - "Detached-signature verification contract"
+    - "Metadata-chain stub"
+    - "Follow-up obligations"
+    - "Surface-projection rules"
+
+manual_import_receipt_schema_version: 1
+record_kind: manual_import_receipt_record
+
+receipt_id: receipt.freeze.manual_import.0001
+receipt_state: draft
+imported_record_kind: emergency_action_record
+
+title: >
+  Manual import of stable channel freeze awaiting operator confirmation
+summary: >
+  The air-gapped local admin imported the signed stable-channel freeze
+  metadata via file_import. Detached-signature verification succeeded
+  under the current signer chain. The receipt remains in
+  pending_operator_confirmation until the reviewing admin commits the
+  narrow-scope apply on the receiving offline bundle profile.
+
+operator:
+  operator_class: local_admin
+  operator_account_ref: operator.local_admin.air_gap_site.alpha
+  operator_role_ref: role.local_admin.emergency_import
+  operator_note: >
+    Local admin operates the air-gapped stable site. Raw identifiers
+    are resolved out of band; only the opaque account ref appears here.
+
+import_path_class: file_import
+
+source_artifact:
+  source_artifact_class: signed_emergency_bundle_file
+  source_artifact_ref: source_artifact.freeze.stable_channel.bundle
+  upstream_distribution_id_ref: distribution.freeze.live.0001
+  upstream_receipt_ref: null
+  source_path_note: >
+    Signed freeze bundle was transported on a controlled path; the
+    source artifact ref resolves to the bundle manifest rather than
+    naming any raw transport or filesystem location.
+
+verification:
+  detached_signature_status: detached_signature_present
+  verification_outcome: verified_current_signer
+  verifying_tool_ref: verifying_tool.offline_verifier.aureline.stable.v1
+  verification_policy_ref: verification_policy.emergency_import.air_gap
+  verification_started_at: "2026-04-22T18:26:00Z"
+  verification_completed_at: "2026-04-22T18:28:30Z"
+  verification_note: >
+    Detached signature verified under the current release emergency
+    control chain; no cross-signed transition was required.
+
+observed_signer_continuity_state: same_signer_chain
+freshness_class: manual_snapshot_current
+validation_state: pending_review
+
+target_scope:
+  target_scope_class: offline_bundle_scope
+  install_profile_card_refs:
+    - card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+  deployment_profile_scope:
+    - air_gapped
+  mirror_scope_refs: []
+  offline_bundle_scope_refs:
+    - offline_bundle.air_gap_site.alpha.stable
+  scope_note: >
+    The receiving offline bundle profile is the air-gapped stable
+    install; the receipt narrows to that one bundle and does not
+    widen into connected or mirrored profiles.
+
+applied_state: pending_operator_confirmation
+supersedence_state: no_prior_snapshot_on_target
+
+expiry:
+  expiry_hook_class: inherit_parent_record_expiry
+  effective_expiry_at: "2026-04-25T18:05:00Z"
+  expiry_policy_ref: expiry_policy.inherit.emergency_action.default
+  expiry_note: >
+    Receipt inherits the parent emergency_action_record expires_at and
+    will move to receipt_state = expired if the freeze is not
+    superseded or reconciled by that time.
+
+follow_up_obligations:
+  - obligation_id: obligation.freeze.manual.export_support
+    obligation_class: export_support_packet
+    owner_class: local_admin
+    deadline_semantics: informational_only
+    deadline_at: null
+    obligation_note: >
+      Export a support packet if the reviewing admin narrows scope
+      further or if the parent freeze is superseded before the
+      receipt commits.
+  - obligation_id: obligation.freeze.manual.propagate_offline
+    obligation_class: propagate_to_offline_bundles
+    owner_class: local_admin
+    deadline_semantics: before_channel_resume
+    deadline_at: "2026-04-23T12:00:00Z"
+    obligation_note: >
+      Propagate the signed freeze snapshot into any sibling offline
+      bundles under the same site before stable channel resume.
+  - obligation_id: obligation.freeze.manual.reverify_at_expiry
+    obligation_class: re_verify_at_expiry
+    owner_class: local_admin
+    deadline_semantics: before_expiry
+    deadline_at: "2026-04-25T12:00:00Z"
+    obligation_note: >
+      Re-verify detached signature against the then-current signer
+      chain before the receipt expires if no superseding action has
+      landed.
+
+metadata_chain:
+  chain_id: metadata_chain.freeze.stable_channel.alpha
+  authoritative_origin_ref: emergency_action.AURELINE-ACT-2026-0001
+  chain_links:
+    - link_id: link.freeze.origin.alpha
+      link_class: from_authoritative_origin
+      peer_ref: distribution.freeze.live.0001
+      observed_signer_continuity_state: same_signer_chain
+      observed_at: "2026-04-22T18:28:30Z"
+      link_note: >
+        Receipt chains directly from the authoritative origin live
+        distribution row; no intermediate mirror or manual hop was
+        required to obtain the signed bundle.
+  chain_note: >
+    Single-hop chain from the authoritative origin to the air-gapped
+    target. Additional sibling links MAY be added if this admin later
+    imports the same bundle into sibling offline bundles.
+
+relationship_links:
+  imported_emergency_action_ref: emergency_action.AURELINE-ACT-2026-0001
+  imported_revocation_ref: null
+  upstream_distribution_receipt_refs:
+    - receipt.freeze.live.0001
+  downstream_distribution_receipt_refs: []
+  superseded_receipt_refs: []
+  superseded_by_receipt_ref: null
+  related_advisory_refs:
+    - advisory_record.AURELINE-ADV-2026-0001
+  related_incident_workspace_packet_refs:
+    - incident_workspace_packet.signed_binary_chain_bypass
+  related_support_packet_refs:
+    - support_bundle.remote_connector_loss.local_first
+  related_admin_export_refs:
+    - admin_export.freeze.stable_channel.2026-04-22
+
+imported_at: "2026-04-22T18:30:00Z"
+applied_at: null
+
+policy_context:
+  policy_epoch: policy_epoch.security_response_pre_implementation.2026.04
+  trust_state: managed_admin
+  execution_context_id: execution_context.security_trust_review.private_security_channel
+
+redaction_class: release_public
+
+minted_at: "2026-04-22T18:30:00Z"

@@ -1,0 +1,771 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/manual_import_receipt.schema.json",
+  "title": "Aureline manual emergency-import receipt contract",
+  "description": "Boundary schema for manual_import_receipt_record, the reviewable artifact produced when an operator imports signed emergency metadata (emergency_action_record or revocation_record) into a mirrored, offline, or air-gapped target that cannot rely on a live authoritative pull. One receipt records who imported the metadata, the source artifact and import path, the detached-signature verification outcome, the observed signer continuity, the apply time, the target scope, the freshness and supersedence state that now applies, the follow-up obligations the import imposes, and a metadata-chain stub linking the receipt to its authoritative-origin predecessor and to any downstream receipts it supersedes. Raw bundle bytes, raw signatures, raw trust-root payloads, raw operator identifiers, raw device identifiers, and raw file bodies never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe summary fields only. This receipt is the object that mirror-import views, manual-import surfaces, admin exports, and support packets quote when they say 'this emergency action was imported here'; surfaces MUST NOT invent receipt-local freshness, signer-continuity, or supersedence terms that disagree with the parent emergency_action_record or revocation_record. Adding a new operator_class, import_path_class, verification_outcome_class, applied_state_class, target_scope_class, import_supersedence_state_class, receipt_state_class, metadata_chain_link_class, or follow_up_obligation_class is additive-minor and requires a manual_import_receipt_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "$ref": "#/$defs/manual_import_receipt_record",
+  "$defs": {
+    "manual_import_receipt_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this manual-import receipt export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "manual_import_receipt_record",
+      "description": "Discriminator. Every receipt carries record_kind = manual_import_receipt_record so parity audits, admin exports, and support packets can validate payloads mechanically."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / admin exports / support packets. Raw bundle bytes, raw signatures, raw trust-root payloads, raw operator identifiers, and raw device identifiers never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, continuity, verification, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+
+    "imported_record_kind_class": {
+      "type": "string",
+      "enum": [
+        "emergency_action_record",
+        "revocation_record"
+      ],
+      "description": "Which record kind from schemas/security/emergency_action_record.schema.json this receipt imported. Mirrors the discriminator on that schema so a receipt and its parent record cannot drift on kind."
+    },
+
+    "operator_class": {
+      "type": "string",
+      "enum": [
+        "end_user_with_admin_capability",
+        "local_admin",
+        "org_admin",
+        "mirror_operator",
+        "release_operator",
+        "support_operator",
+        "security_trust_review"
+      ],
+      "description": "Frozen operator-class vocabulary. Mirrors schemas/security/emergency_action_record.schema.json#/$defs/required_action_actor_class plus security_trust_review for receipts minted during private triage or post-incident review."
+    },
+
+    "operator_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator_class",
+        "operator_account_ref",
+        "operator_role_ref",
+        "operator_note"
+      ],
+      "properties": {
+        "operator_class": { "$ref": "#/$defs/operator_class" },
+        "operator_account_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the operator account or service principal the receipt attributes the import to. Raw operator identifiers (email, login handle, real name, machine hostname) MUST NOT appear."
+        },
+        "operator_role_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the operator role granting authority for this import. Null when the operator_class alone carries the authority (for example a local workstation admin)."
+        },
+        "operator_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Operator identity envelope. Names who imported the emergency metadata under stable opaque refs so mirror/manual-import views, admin exports, and support packets agree on attribution without leaking raw identifiers."
+    },
+
+    "import_path_class": {
+      "type": "string",
+      "enum": [
+        "file_import",
+        "offline_transfer",
+        "removable_media_transfer",
+        "approved_courier_transfer",
+        "cross_domain_transfer",
+        "air_gap_relay_transfer"
+      ],
+      "description": "Frozen import-path vocabulary. file_import is a signed metadata file imported via a managed UI or CLI. offline_transfer and removable_media_transfer cover manual snapshot movement. approved_courier_transfer and cross_domain_transfer cover escorted transfers across trust boundaries. air_gap_relay_transfer covers a staged relay between air-gapped environments."
+    },
+
+    "source_artifact_class": {
+      "type": "string",
+      "enum": [
+        "signed_emergency_bundle_file",
+        "mirror_snapshot_export_file",
+        "offline_distribution_snapshot_file",
+        "operator_preloaded_snapshot_file",
+        "combined_advisory_and_emergency_export"
+      ],
+      "description": "Frozen source-artifact vocabulary naming the shape of the imported file. The receipt does not embed the file; it records what was imported."
+    },
+
+    "source_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_artifact_class",
+        "source_artifact_ref",
+        "upstream_distribution_id_ref",
+        "upstream_receipt_ref",
+        "source_path_note"
+      ],
+      "properties": {
+        "source_artifact_class": { "$ref": "#/$defs/source_artifact_class" },
+        "source_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the source-artifact manifest or export record the receipt imported. Raw file paths, raw URLs, raw media serial numbers, and raw courier identifiers MUST NOT appear."
+        },
+        "upstream_distribution_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the parent emergency_action_record or revocation_record distribution_statuses[].distribution_id the receipt instantiates on this target. Null only when the authoritative distribution row is not yet minted; the receipt is non-publishable in that state."
+        },
+        "upstream_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to an upstream manual-import receipt (for example a parent mirror that this target imported from). Null when the receipt chains directly from the authoritative origin."
+        },
+        "source_path_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Source-artifact envelope. Records what was imported and where it chained from under opaque refs so supersedence and metadata-chain links are auditable without leaking raw filesystem paths or transport identifiers."
+    },
+
+    "detached_signature_status_class": {
+      "type": "string",
+      "enum": [
+        "detached_signature_present",
+        "detached_signature_absent",
+        "detached_signature_unreadable",
+        "detached_signature_optional_by_policy"
+      ],
+      "description": "Frozen detached-signature-presence vocabulary. distinct from outcome: the receipt records whether a signature was present at all before recording whether it verified."
+    },
+
+    "verification_outcome_class": {
+      "type": "string",
+      "enum": [
+        "verified_current_signer",
+        "verified_prior_signer_with_continuity_statement",
+        "verified_cross_signed_transition",
+        "verification_failed_signature_mismatch",
+        "verification_failed_revoked_signer",
+        "verification_failed_expired_signer",
+        "verification_failed_unknown_signer",
+        "verification_skipped_policy_admitted",
+        "verification_skipped_policy_rejected",
+        "verification_pending_review"
+      ],
+      "description": "Frozen verification-outcome vocabulary. Covers the happy path (same signer, rotated with continuity statement, cross-signed), typed failure cases (mismatch, revoked, expired, unknown), explicit policy-admitted skip (used only where break-glass policy admits it), policy-rejected skip (never admissible), and pending-review (human reviewer required before the receipt becomes active)."
+    },
+
+    "verification_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detached_signature_status",
+        "verification_outcome",
+        "verifying_tool_ref",
+        "verification_policy_ref",
+        "verification_started_at",
+        "verification_completed_at",
+        "verification_note"
+      ],
+      "properties": {
+        "detached_signature_status": { "$ref": "#/$defs/detached_signature_status_class" },
+        "verification_outcome": { "$ref": "#/$defs/verification_outcome_class" },
+        "verifying_tool_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the verifying-tool manifest (offline verifier build or managed client). Null only when verification_outcome = verification_skipped_policy_admitted."
+        },
+        "verification_policy_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the policy or break-glass profile that authorized the verification posture. Required on every receipt so a policy-admitted skip is not a one-off decision."
+        },
+        "verification_started_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "verification_completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "verification_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Detached-signature verification envelope. Records whether a signature was present, the typed verification outcome, the tool and policy that authorized the outcome, and the start / complete timestamps. Raw cryptographic material (signatures, fingerprints, trust-root bytes) never appear here."
+    },
+
+    "signer_continuity_state_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/signer_continuity_state_class",
+      "description": "Re-exported from schemas/security/emergency_action_record.schema.json so a receipt and the imported record cannot disagree on signer continuity."
+    },
+
+    "distribution_freshness_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_freshness_class",
+      "description": "Re-exported from schemas/security/emergency_action_record.schema.json so a receipt and the imported record share one freshness vocabulary. A receipt MUST NOT claim authoritative_live; manual-import receipts record snapshot / mirror / offline / unknown freshness only."
+    },
+
+    "distribution_validation_state_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_validation_state_class"
+    },
+
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "local_install",
+        "managed_cohort",
+        "mirror_snapshot",
+        "offline_bundle_scope",
+        "deployment_profile_scope",
+        "trust_root_scope"
+      ],
+      "description": "Frozen target-scope vocabulary. Names the breadth of the import. Mirror and offline-bundle scopes narrow into one mirror or one offline bundle; trust_root_scope covers a trust-root successor import that narrows subsequent signer verification."
+    },
+
+    "deployment_profile_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/deployment_profile_class"
+    },
+
+    "applied_state_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "applied_with_narrowed_scope",
+        "applied_and_overrode_prior_snapshot",
+        "rejected_at_verification",
+        "rejected_at_policy",
+        "pending_operator_confirmation",
+        "rolled_back"
+      ],
+      "description": "Frozen applied-state vocabulary. applied and applied_with_narrowed_scope are the two success postures. applied_and_overrode_prior_snapshot records that the import displaced an older snapshot on the same target. rejected_at_* records a typed rejection. pending_operator_confirmation is the intermediate state after verification but before the operator commits the import. rolled_back is a reviewable reversal."
+    },
+
+    "import_supersedence_state_class": {
+      "type": "string",
+      "enum": [
+        "no_prior_snapshot_on_target",
+        "superseded_prior_snapshot_on_target",
+        "kept_prior_snapshot_as_history",
+        "prior_snapshot_unknown",
+        "import_itself_later_superseded"
+      ],
+      "description": "Frozen import-supersedence vocabulary. Resolves the relationship between the receipt and any prior snapshot already installed on the target, plus a forward-looking value for receipts that themselves have been superseded by a later import."
+    },
+
+    "receipt_state_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "superseded",
+        "expired",
+        "withdrawn",
+        "reconciled"
+      ],
+      "description": "Frozen receipt-lifecycle vocabulary. draft is pre-apply. active is the imported-and-applied posture. superseded, expired, withdrawn, and reconciled are durable end states."
+    },
+
+    "target_scope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_scope_class",
+        "install_profile_card_refs",
+        "deployment_profile_scope",
+        "mirror_scope_refs",
+        "offline_bundle_scope_refs",
+        "scope_note"
+      ],
+      "properties": {
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. Each ref names one install_profile_card_record the import applies to. Empty is admissible only when target_scope_class in {mirror_snapshot, offline_bundle_scope, trust_root_scope} and the mirror/offline/trust-root refs name the scope instead."
+        },
+        "deployment_profile_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment-profile scope the import narrows. MUST be a subset of the imported record's deployment_profile_scope."
+        },
+        "mirror_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the mirror snapshots the import writes into. Empty when target_scope_class is not a mirror."
+        },
+        "offline_bundle_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the offline bundles the import writes into. Empty when target_scope_class is not an offline bundle."
+        },
+        "scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Target-scope envelope. Records the breadth and identity of the environment the import lands in so later surfaces can reason about where the receipt is authoritative without re-deriving the scope."
+    },
+
+    "expiry_hook_class": {
+      "type": "string",
+      "enum": [
+        "inherit_parent_record_expiry",
+        "inherit_offline_snapshot_expiry",
+        "receipt_local_expiry_override",
+        "no_expiry_pending_reconciliation"
+      ],
+      "description": "Frozen expiry-hook vocabulary. Default is inherit_parent_record_expiry so a receipt does not mint a looser lifetime than the imported record. receipt_local_expiry_override is admissible only when the receipt narrows the expiry (makes it earlier) and cites a policy_ref."
+    },
+
+    "expiry_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expiry_hook_class",
+        "effective_expiry_at",
+        "expiry_policy_ref",
+        "expiry_note"
+      ],
+      "properties": {
+        "expiry_hook_class": { "$ref": "#/$defs/expiry_hook_class" },
+        "effective_expiry_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "The absolute expiry the target should honor. Null admissible only when expiry_hook_class = no_expiry_pending_reconciliation."
+        },
+        "expiry_policy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "expiry_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Expiry envelope. Records how the receipt derives its effective expiry and the policy that authorized any local override."
+    },
+
+    "follow_up_obligation_class": {
+      "type": "string",
+      "enum": [
+        "propagate_to_downstream_mirrors",
+        "propagate_to_offline_bundles",
+        "notify_release_council",
+        "notify_security_trust_review",
+        "export_support_packet",
+        "re_verify_at_expiry",
+        "pin_last_known_good_until_resolve",
+        "import_successor_trust_root",
+        "schedule_post_incident_review",
+        "narrow_channel_until_superseded",
+        "rotate_operator_credentials_post_import"
+      ],
+      "description": "Frozen follow-up-obligation vocabulary. One receipt may record several obligations; each row carries a typed class plus owner, deadline semantics, and deadline. Surfaces MUST render obligations as typed rows rather than flattening them to one generic to-do."
+    },
+
+    "follow_up_obligation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligation_id",
+        "obligation_class",
+        "owner_class",
+        "deadline_semantics",
+        "deadline_at",
+        "obligation_note"
+      ],
+      "properties": {
+        "obligation_id": { "$ref": "#/$defs/opaque_id" },
+        "obligation_class": { "$ref": "#/$defs/follow_up_obligation_class" },
+        "owner_class": { "$ref": "#/$defs/operator_class" },
+        "deadline_semantics": { "$ref": "./emergency_action_record.schema.json#/$defs/deadline_semantics_class" },
+        "deadline_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "obligation_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One typed follow-up obligation row. Mirrors the emergency_action_record.required_action vocabulary for deadline_semantics so a receipt and its parent record resolve deadlines under one vocabulary."
+    },
+
+    "metadata_chain_link_class": {
+      "type": "string",
+      "enum": [
+        "from_authoritative_origin",
+        "from_approved_mirror_snapshot",
+        "from_upstream_manual_import",
+        "from_offline_transfer_snapshot",
+        "from_removable_media_snapshot",
+        "supersedes_prior_receipt_on_target",
+        "superseded_by_later_receipt_on_target",
+        "parallel_receipt_for_sibling_scope"
+      ],
+      "description": "Frozen metadata-chain link vocabulary. Lets the receipt enumerate its predecessors, its supersedence links, and parallel sibling receipts so later tooling can rebuild the import chain without guessing."
+    },
+
+    "metadata_chain_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "link_id",
+        "link_class",
+        "peer_ref",
+        "observed_signer_continuity_state",
+        "observed_at",
+        "link_note"
+      ],
+      "properties": {
+        "link_id": { "$ref": "#/$defs/opaque_id" },
+        "link_class": { "$ref": "#/$defs/metadata_chain_link_class" },
+        "peer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the peer receipt, authoritative distribution row, mirror snapshot, or offline snapshot this link connects to."
+        },
+        "observed_signer_continuity_state": { "$ref": "#/$defs/signer_continuity_state_class" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "link_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One metadata-chain link row. The receipt's chain_links[] array assembles these into a reviewable graph of where the imported metadata came from and where it went."
+    },
+
+    "metadata_chain_stub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chain_id",
+        "authoritative_origin_ref",
+        "chain_links",
+        "chain_note"
+      ],
+      "properties": {
+        "chain_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque stable id for the metadata chain this receipt participates in. Stable across downstream receipts that chain from the same authoritative origin."
+        },
+        "authoritative_origin_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the authoritative emergency_action_record / revocation_record the chain ultimately roots in. Required so even a multi-hop air-gapped import can be traced back to its signed origin."
+        },
+        "chain_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/metadata_chain_link_record" }
+        },
+        "chain_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Metadata-chain stub. Locks the receipt into a single reviewable chain rooted at an authoritative origin record, plus typed links to upstream and downstream peers. This is the stub the handoff spec requires so a mirrored or air-gapped import leaves a reviewable trail rather than an untracked local state flip."
+    },
+
+    "relationship_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported_emergency_action_ref",
+        "imported_revocation_ref",
+        "upstream_distribution_receipt_refs",
+        "downstream_distribution_receipt_refs",
+        "superseded_receipt_refs",
+        "superseded_by_receipt_ref",
+        "related_advisory_refs",
+        "related_incident_workspace_packet_refs",
+        "related_support_packet_refs",
+        "related_admin_export_refs"
+      ],
+      "properties": {
+        "imported_emergency_action_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the emergency_action_record this receipt imported. Null iff imported_revocation_ref is populated."
+        },
+        "imported_revocation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the revocation_record this receipt imported. Null iff imported_emergency_action_ref is populated."
+        },
+        "upstream_distribution_receipt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "downstream_distribution_receipt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_receipt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_by_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "related_advisory_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "related_incident_workspace_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "related_support_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "related_admin_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Typed relation envelope binding the receipt to exactly one imported emergency_action_record or revocation_record, to upstream and downstream peer receipts, and to the same advisory / incident / support / admin-export graph the parent record already uses."
+    },
+
+    "redaction_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/redaction_class"
+    },
+
+    "policy_context": {
+      "$ref": "./advisory_record.schema.json#/$defs/policy_context"
+    },
+
+    "manual_import_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manual_import_receipt_schema_version",
+        "record_kind",
+        "receipt_id",
+        "receipt_state",
+        "imported_record_kind",
+        "title",
+        "summary",
+        "operator",
+        "import_path_class",
+        "source_artifact",
+        "verification",
+        "observed_signer_continuity_state",
+        "freshness_class",
+        "validation_state",
+        "target_scope",
+        "applied_state",
+        "supersedence_state",
+        "expiry",
+        "follow_up_obligations",
+        "metadata_chain",
+        "relationship_links",
+        "imported_at",
+        "applied_at",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "manual_import_receipt_schema_version": { "$ref": "#/$defs/manual_import_receipt_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "receipt_state": { "$ref": "#/$defs/receipt_state_class" },
+        "imported_record_kind": { "$ref": "#/$defs/imported_record_kind_class" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable receipt title suitable for admin exports, support packets, and mirror/manual-import surfaces."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "operator": { "$ref": "#/$defs/operator_identity" },
+        "import_path_class": { "$ref": "#/$defs/import_path_class" },
+        "source_artifact": { "$ref": "#/$defs/source_artifact_record" },
+        "verification": { "$ref": "#/$defs/verification_envelope" },
+        "observed_signer_continuity_state": { "$ref": "#/$defs/signer_continuity_state_class" },
+        "freshness_class": { "$ref": "#/$defs/distribution_freshness_class" },
+        "validation_state": { "$ref": "#/$defs/distribution_validation_state_class" },
+        "target_scope": { "$ref": "#/$defs/target_scope_record" },
+        "applied_state": { "$ref": "#/$defs/applied_state_class" },
+        "supersedence_state": { "$ref": "#/$defs/import_supersedence_state_class" },
+        "expiry": { "$ref": "#/$defs/expiry_envelope" },
+        "follow_up_obligations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/follow_up_obligation_record" }
+        },
+        "metadata_chain": { "$ref": "#/$defs/metadata_chain_stub" },
+        "relationship_links": { "$ref": "#/$defs/relationship_links" },
+        "imported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "applied_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the receipt entered applied / applied_with_narrowed_scope / applied_and_overrode_prior_snapshot state. Null while applied_state is draft, pending_operator_confirmation, rejected_at_verification, rejected_at_policy, or rolled_back."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Exactly one of imported_emergency_action_ref or imported_revocation_ref is populated, matching imported_record_kind.",
+          "if": {
+            "properties": {
+              "imported_record_kind": { "const": "emergency_action_record" }
+            },
+            "required": ["imported_record_kind"]
+          },
+          "then": {
+            "properties": {
+              "relationship_links": {
+                "properties": {
+                  "imported_emergency_action_ref": { "not": { "type": "null" } },
+                  "imported_revocation_ref": { "type": "null" }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "relationship_links": {
+                "properties": {
+                  "imported_emergency_action_ref": { "type": "null" },
+                  "imported_revocation_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Manual-import receipts never claim authoritative_live freshness; live freshness is reserved for the authoritative origin distribution row.",
+          "properties": {
+            "freshness_class": {
+              "enum": [
+                "mirrored_current",
+                "mirrored_stale_within_grace",
+                "mirrored_stale_past_grace",
+                "manual_snapshot_current",
+                "manual_snapshot_stale",
+                "offline_snapshot_unexpired",
+                "offline_snapshot_expired",
+                "unknown"
+              ]
+            }
+          }
+        },
+        {
+          "description": "A receipt that claims any applied posture must have a non-null applied_at.",
+          "if": {
+            "properties": {
+              "applied_state": {
+                "enum": [
+                  "applied",
+                  "applied_with_narrowed_scope",
+                  "applied_and_overrode_prior_snapshot"
+                ]
+              }
+            },
+            "required": ["applied_state"]
+          },
+          "then": {
+            "properties": {
+              "applied_at": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "A receipt whose verification_outcome is a typed failure class MUST NOT claim any applied posture.",
+          "if": {
+            "properties": {
+              "verification": {
+                "properties": {
+                  "verification_outcome": {
+                    "enum": [
+                      "verification_failed_signature_mismatch",
+                      "verification_failed_revoked_signer",
+                      "verification_failed_expired_signer",
+                      "verification_failed_unknown_signer",
+                      "verification_skipped_policy_rejected"
+                    ]
+                  }
+                },
+                "required": ["verification_outcome"]
+              }
+            },
+            "required": ["verification"]
+          },
+          "then": {
+            "properties": {
+              "applied_state": {
+                "enum": [
+                  "rejected_at_verification",
+                  "rejected_at_policy",
+                  "rolled_back"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A receipt in receipt_state = active MUST have applied_state in the applied family and applied_at populated.",
+          "if": {
+            "properties": {
+              "receipt_state": { "const": "active" }
+            },
+            "required": ["receipt_state"]
+          },
+          "then": {
+            "properties": {
+              "applied_state": {
+                "enum": [
+                  "applied",
+                  "applied_with_narrowed_scope",
+                  "applied_and_overrode_prior_snapshot"
+                ]
+              },
+              "applied_at": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "A receipt in receipt_state = superseded MUST name the superseding receipt and MAY record import_itself_later_superseded in supersedence_state.",
+          "if": {
+            "properties": {
+              "receipt_state": { "const": "superseded" }
+            },
+            "required": ["receipt_state"]
+          },
+          "then": {
+            "properties": {
+              "relationship_links": {
+                "properties": {
+                  "superseded_by_receipt_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Manual emergency-import receipt record. One receipt per manual / mirrored / offline / air-gapped import of an emergency_action_record or revocation_record into a named target. Binds operator, import path, source artifact, detached-signature verification, observed signer continuity, freshness and validation on this target, target scope, applied state, supersedence and expiry, follow-up obligations, and a metadata-chain stub into one reviewable object so mirror-import views, admin exports, and support packets preserve the same identity the parent emergency record carries."
+    }
+  }
+}

@@ -1,0 +1,189 @@
+# yaml-language-server: $schema=../../../schemas/security/manual_import_receipt.schema.json
+__fixture__:
+  name: trust_root_rotation_offline_transfer
+  scenario: >
+    Worked manual_import_receipt_record for the trust-root rotation
+    revocation on an air-gapped profile reached through offline
+    transfer. The receipt chains from an upstream manual-import receipt
+    on an approved mirror, reports unknown_offline signer continuity on
+    the receiving target (honest air-gap posture), and carries an
+    active import_successor_trust_root obligation. The receipt_id
+    matches the distribution row receipt_ref on the parent
+    revocation_record.
+  contract_sections:
+    - "Metadata-chain stub"
+    - "Expiry and supersedence"
+    - "Follow-up obligations"
+    - "Surface-projection rules"
+
+manual_import_receipt_schema_version: 1
+record_kind: manual_import_receipt_record
+
+receipt_id: receipt.revocation.offline_transfer.0001
+receipt_state: active
+imported_record_kind: revocation_record
+
+title: >
+  Offline transfer of trust-root revocation applied on air-gapped profile
+summary: >
+  The org admin imported the trust-root rotation revocation onto the
+  air-gapped stable profile via offline_transfer. The receiving
+  environment honestly reports unknown_offline signer continuity and
+  offline_snapshot_unexpired freshness. Local continuity is preserved
+  per the parent revocation_record; the receipt records the active
+  import_successor_trust_root obligation so the successor trust root
+  is imported before any stable artifact is trusted again.
+
+operator:
+  operator_class: org_admin
+  operator_account_ref: operator.org_admin.air_gap_site.bravo
+  operator_role_ref: role.org_admin.trust_root_import
+  operator_note: >
+    Org admin owns the air-gapped stable profile; raw identifiers are
+    not part of the receipt surface.
+
+import_path_class: offline_transfer
+
+source_artifact:
+  source_artifact_class: offline_distribution_snapshot_file
+  source_artifact_ref: source_artifact.revocation.trust_root.stable.bundle
+  upstream_distribution_id_ref: distribution.revocation.manual.0001
+  upstream_receipt_ref: receipt.revocation.manual_import.0001
+  source_path_note: >
+    The offline bundle chains from the approved mirror manual import
+    performed upstream; no raw file path or device serial appears on
+    the receipt.
+
+verification:
+  detached_signature_status: detached_signature_present
+  verification_outcome: verified_prior_signer_with_continuity_statement
+  verifying_tool_ref: verifying_tool.offline_verifier.aureline.stable.v1
+  verification_policy_ref: verification_policy.emergency_import.air_gap
+  verification_started_at: "2026-04-22T20:22:00Z"
+  verification_completed_at: "2026-04-22T20:24:45Z"
+  verification_note: >
+    Successor trust root and revocation metadata verified via the
+    continuity statement produced by the rotation record; the prior
+    root remains durably revoked on this target.
+
+observed_signer_continuity_state: unknown_offline
+freshness_class: offline_snapshot_unexpired
+validation_state: cached_without_revalidation
+
+target_scope:
+  target_scope_class: trust_root_scope
+  install_profile_card_refs:
+    - card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+  deployment_profile_scope:
+    - air_gapped
+  mirror_scope_refs: []
+  offline_bundle_scope_refs:
+    - offline_bundle.air_gap_site.bravo.stable
+  scope_note: >
+    Receipt narrows to the air-gapped stable profile's trust-root
+    scope. Verification and publication on this profile remains bound
+    by the revocation until the successor trust root is active.
+
+applied_state: applied_with_narrowed_scope
+supersedence_state: kept_prior_snapshot_as_history
+
+expiry:
+  expiry_hook_class: no_expiry_pending_reconciliation
+  effective_expiry_at: null
+  expiry_policy_ref: expiry_policy.revocation.durable_until_reconciled
+  expiry_note: >
+    Revocation is durable; the receipt has no local expiry and stays
+    active until the revocation record reaches reconciled.
+
+follow_up_obligations:
+  - obligation_id: obligation.revocation.offline.import_successor
+    obligation_class: import_successor_trust_root
+    owner_class: org_admin
+    deadline_semantics: before_channel_resume
+    deadline_at: "2026-04-23T08:00:00Z"
+    obligation_note: >
+      Import and activate the successor trust root on this air-gapped
+      profile before resuming stable verification or publication.
+  - obligation_id: obligation.revocation.offline.pin_last_known_good
+    obligation_class: pin_last_known_good_until_resolve
+    owner_class: org_admin
+    deadline_semantics: before_channel_resume
+    deadline_at: "2026-04-23T08:00:00Z"
+    obligation_note: >
+      Keep the last known good authenticated bundle pinned on this
+      profile until the successor root is active and the post-incident
+      review records that the revoked root no longer gates local trust.
+  - obligation_id: obligation.revocation.offline.schedule_review
+    obligation_class: schedule_post_incident_review
+    owner_class: security_trust_review
+    deadline_semantics: next_admin_window
+    deadline_at: "2026-04-25T17:00:00Z"
+    obligation_note: >
+      Post-incident review confirms every claimed air-gapped profile
+      has imported the successor root and that the revoked root no
+      longer gates live or imported trust.
+
+metadata_chain:
+  chain_id: metadata_chain.revocation.trust_root.stable
+  authoritative_origin_ref: revocation.AURELINE-REV-2026-0001
+  chain_links:
+    - link_id: link.revocation.origin.bravo
+      link_class: from_authoritative_origin
+      peer_ref: distribution.revocation.live.0001
+      observed_signer_continuity_state: rotated_with_continuity_statement
+      observed_at: "2026-04-22T19:10:00Z"
+      link_note: >
+        Chain roots at the authoritative origin live revocation
+        distribution row.
+    - link_id: link.revocation.upstream_mirror.bravo
+      link_class: from_upstream_manual_import
+      peer_ref: receipt.revocation.manual_import.0001
+      observed_signer_continuity_state: rotated_with_continuity_statement
+      observed_at: "2026-04-22T20:20:00Z"
+      link_note: >
+        Offline bundle was assembled from the approved-mirror manual
+        import receipt; that receipt governs the upstream verification
+        facts this receipt inherits.
+    - link_id: link.revocation.offline_transfer.bravo
+      link_class: from_offline_transfer_snapshot
+      peer_ref: distribution.revocation.offline.0001
+      observed_signer_continuity_state: unknown_offline
+      observed_at: "2026-04-22T20:25:00Z"
+      link_note: >
+        Final hop onto the air-gapped profile through the
+        offline_transfer distribution row; receiving environment
+        honestly records offline continuity state.
+  chain_note: >
+    Three-hop chain from authoritative origin through an approved
+    mirror manual import into the air-gapped offline transfer on the
+    receiving profile.
+
+relationship_links:
+  imported_emergency_action_ref: null
+  imported_revocation_ref: revocation.AURELINE-REV-2026-0001
+  upstream_distribution_receipt_refs:
+    - receipt.revocation.live.0001
+    - receipt.revocation.manual_import.0001
+  downstream_distribution_receipt_refs: []
+  superseded_receipt_refs: []
+  superseded_by_receipt_ref: null
+  related_advisory_refs:
+    - advisory_record.AURELINE-ADV-2026-0001
+  related_incident_workspace_packet_refs:
+    - incident_workspace_packet.signed_binary_chain_bypass
+  related_support_packet_refs:
+    - support_bundle.remote_connector_loss.local_first
+  related_admin_export_refs:
+    - admin_export.revocation.trust_root.stable.2026-04-22
+
+imported_at: "2026-04-22T20:25:00Z"
+applied_at: "2026-04-22T20:40:00Z"
+
+policy_context:
+  policy_epoch: policy_epoch.security_response_pre_implementation.2026.04
+  trust_state: managed_admin
+  execution_context_id: execution_context.security_trust_review.private_security_channel
+
+redaction_class: release_public
+
+minted_at: "2026-04-22T20:40:00Z"

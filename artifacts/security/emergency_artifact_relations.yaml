@@ -1,0 +1,541 @@
+# Emergency-artifact relation model.
+#
+# Machine-readable relation graph backing
+# docs/security/emergency_distribution_policy.md. One row per normative
+# relation between emergency-response artifacts (emergency_action_record,
+# revocation_record, manual_import_receipt_record, advisory_record,
+# incident_workspace_packet_record, support packets, admin exports, and
+# the release-artifact graph's advisory_or_revocation_notice node
+# family). The graph is the mechanism that keeps detached-signature
+# verification, mirror-safe metadata, freshness, expiry, supersedence,
+# revocation, and canonical-artifact identity coherent across hosted,
+# mirrored, and air-gapped deployments without minting per-surface
+# dialects.
+#
+# Conformance:
+#   - Every emergency_action_record / revocation_record referenced by
+#     any relation row MUST exist at the identity named in the
+#     emergency_action_record schema, and MUST validate against
+#     schemas/security/emergency_action_record.schema.json.
+#   - Every manual_import_receipt_record referenced by any relation
+#     row MUST validate against
+#     schemas/security/manual_import_receipt.schema.json.
+#   - Emergency-distribution channel rows MUST map exactly one
+#     authoritative-origin channel to one closed set of admissible
+#     trigger_source_class / distribution_source_class /
+#     distribution_path_class tuples so no path becomes an ad-hoc
+#     escape hatch.
+#   - Manual-import admissibility rows MUST cite one cause_class
+#     drawn from the policy narrative and one required_receipt_outcome.
+#   - Expiry, supersedence, and revocation rules in this file are the
+#     only admissible machine-readable projection of the narrative's
+#     "expiry and supersedence" and "revocation" sections; a consumer
+#     whose behavior disagrees with these rows is non-conforming.
+#
+# If this file disagrees with docs/security/emergency_distribution_policy.md,
+# the narrative wins and this file must be updated in the same change.
+
+schema_version: 1
+graph_id: aureline.security.emergency_artifact_relations
+status: seeded
+
+overview_document: docs/security/emergency_distribution_policy.md
+emergency_action_model_source: docs/security/emergency_action_model.md
+emergency_action_schema_ref: schemas/security/emergency_action_record.schema.json
+manual_import_receipt_schema_ref: schemas/security/manual_import_receipt.schema.json
+advisory_schema_ref: schemas/security/advisory_record.schema.json
+incident_packet_schema_ref: schemas/security/incident_workspace_packet.schema.json
+signing_quorum_source: artifacts/governance/signing_quorum.yaml
+release_artifact_graph_source: docs/release/release_artifact_graph.md
+install_topology_source: docs/release/install_topology_plan.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§10.15 Security and emergency response"
+      - "§10.18 Offline and air-gapped distribution"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§22.6.1 Emergency-control chain"
+      - "§22.8 Mirror and offline distribution"
+      - "§26.7 Revocation and continuity"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§7.11.13 Advisory and emergency-action verification lane"
+
+# -----------------------------------------------------------------------------
+# Node families.
+#
+# One node family owns one fact family in the emergency-distribution
+# graph. Downstream artifacts (banners, activity center, update center,
+# admin export, support packet) quote stable refs; they do not re-mint
+# parallel truth.
+# -----------------------------------------------------------------------------
+node_families:
+  - id: emergency_action_record
+    title: Emergency-action record
+    canonical_schema: schemas/security/emergency_action_record.schema.json
+    owns:
+      - action_identity
+      - action_kind_and_posture
+      - severity_and_surface_notice
+      - reason_and_trigger_source
+      - signer_continuity_envelope
+      - distribution_statuses
+      - local_continuity
+      - required_actions
+      - enforcement_details
+      - history_links
+      - reconciliation
+    required_when: A trust-affecting bounded action (freeze, kill switch, trust-root rotation, capability narrowing, emergency update pause) is in force.
+
+  - id: revocation_record
+    title: Revocation record
+    canonical_schema: schemas/security/emergency_action_record.schema.json
+    owns:
+      - revocation_identity
+      - blast_radius
+      - revoked_subject_refs
+      - successor_signer_or_trust_root_refs
+      - recovery_guidance_note
+    required_when: A subject or subject set is durably revoked. Outlives any bounded emergency action that triggered it.
+
+  - id: manual_import_receipt_record
+    title: Manual-import receipt
+    canonical_schema: schemas/security/manual_import_receipt.schema.json
+    owns:
+      - operator_identity
+      - import_path
+      - source_artifact_and_upstream_chain
+      - detached_signature_verification_envelope
+      - observed_signer_continuity_state
+      - observed_freshness_and_validation_state
+      - target_scope_and_deployment_profile_scope
+      - applied_state_and_supersedence
+      - expiry_envelope
+      - follow_up_obligations
+      - metadata_chain_stub
+    required_when: Emergency metadata is applied on a target that is not served by the live authoritative origin (mirrored, offline, removable-media-imported, or air-gapped).
+
+  - id: advisory_record
+    title: Advisory record
+    canonical_schema: schemas/security/advisory_record.schema.json
+    owns:
+      - advisory_identity_with_cve_ghsa_aliases
+      - affected_subjects
+      - affected_install_linkage
+      - disclosure_class_and_public_summary_state
+    required_when: An advisory is being published or triaged toward publication.
+
+  - id: incident_workspace_packet_record
+    title: Incident workspace packet
+    canonical_schema: schemas/security/incident_workspace_packet.schema.json
+    owns:
+      - private_triage_workspace_scope
+      - evidence_embedding_states
+      - timeline
+      - handoff_and_export_routing
+    required_when: Private triage captures evidence en route to advisory publication or emergency-action publication.
+
+  - id: release_artifact_graph_notice
+    title: Advisory/revocation notice node
+    canonical_schema: artifacts/release/artifact_graph_rules.yaml
+    owns:
+      - release_truth_bundle_binding_of_active_advisory_or_emergency_or_revocation
+    required_when: A release packet claims scope that is touched by an active advisory, emergency action, or revocation.
+
+# -----------------------------------------------------------------------------
+# Authoritative distribution channels.
+#
+# These are the admissible channels an emergency_action_record or
+# revocation_record may travel through. Each row names the channel
+# identity, the trigger_source_class values it may carry, the
+# distribution_source_class / distribution_path_class tuples it may
+# project into on a client, and whether a manual_import_receipt_record
+# is required or forbidden when a target consumes from this channel.
+# -----------------------------------------------------------------------------
+authoritative_distribution_channels:
+  - channel_id: managed_authoritative_origin_channel
+    description: Live managed pull / push from the authoritative emergency-control chain.
+    admissible_trigger_sources:
+      - signed_emergency_bundle
+      - release_channel_control
+      - runtime_policy
+    admissible_source_path_tuples:
+      - source_class: authoritative_origin
+        path_class: managed_push
+      - source_class: authoritative_origin
+        path_class: managed_pull
+    manual_import_receipt_posture: forbidden
+    manual_import_receipt_posture_rationale: >
+      Live authoritative pulls never require a manual-import receipt. A
+      receipt on this channel would misrepresent mirror/manual freshness.
+
+  - channel_id: approved_mirror_sync_channel
+    description: Sync from an approved private or customer-managed mirror.
+    admissible_trigger_sources:
+      - signed_emergency_bundle
+      - mirror_imported_snapshot
+    admissible_source_path_tuples:
+      - source_class: approved_private_mirror
+        path_class: mirror_sync
+      - source_class: customer_managed_mirror
+        path_class: mirror_sync
+    manual_import_receipt_posture: required_on_mirror_operator_import
+    manual_import_receipt_posture_rationale: >
+      The mirror operator's import of the freeze / revocation metadata
+      is what a downstream client consumes; that operator action MUST
+      leave a reviewable receipt chained to the authoritative origin.
+
+  - channel_id: manual_file_import_channel
+    description: Operator-driven file import (for example on an admin workstation with no live egress to the authoritative origin).
+    admissible_trigger_sources:
+      - signed_emergency_bundle
+      - manual_imported_snapshot
+    admissible_source_path_tuples:
+      - source_class: manual_import_bundle
+        path_class: file_import
+    manual_import_receipt_posture: required
+    manual_import_receipt_posture_rationale: >
+      File import is the primary place operational credibility breaks.
+      Every such import MUST leave a receipt with a verification
+      envelope, observed signer continuity, target scope, and
+      follow-up obligations.
+
+  - channel_id: offline_transfer_channel
+    description: Offline / removable-media / escorted-courier transfer into an offline or air-gapped environment.
+    admissible_trigger_sources:
+      - manual_imported_snapshot
+    admissible_source_path_tuples:
+      - source_class: offline_transfer_snapshot
+        path_class: offline_transfer
+    manual_import_receipt_posture: required
+    manual_import_receipt_posture_rationale: >
+      Offline targets cannot rely on a live recheck. A receipt with
+      offline_snapshot_unexpired / offline_snapshot_expired freshness
+      keeps air-gapped continuity honest.
+
+  - channel_id: runtime_preload_channel
+    description: Preloaded emergency metadata carried in the runtime itself.
+    admissible_trigger_sources:
+      - runtime_preload
+    admissible_source_path_tuples:
+      - source_class: runtime_preload
+        path_class: runtime_preload
+      - source_class: local_cached_copy
+        path_class: local_cache_projection
+    manual_import_receipt_posture: not_applicable
+    manual_import_receipt_posture_rationale: >
+      Runtime preload is already authenticated by the runtime build
+      identity; receipts do not apply to it.
+
+# -----------------------------------------------------------------------------
+# Manual-import admissibility rules.
+#
+# Each cause row names WHY a target may use the manual import channel,
+# and the minimum required receipt outcome before the imported metadata
+# becomes authoritative on that target.
+# -----------------------------------------------------------------------------
+manual_import_admissibility_rules:
+  - rule_id: offline_air_gapped_target_rule
+    cause_class: target_is_air_gapped_or_offline
+    admitted_channels:
+      - manual_file_import_channel
+      - offline_transfer_channel
+    minimum_required_receipt_outcome:
+      verification_outcome_one_of:
+        - verified_current_signer
+        - verified_prior_signer_with_continuity_statement
+        - verified_cross_signed_transition
+      applied_state_one_of:
+        - applied
+        - applied_with_narrowed_scope
+    notes: >
+      An air-gapped or offline target has no live path to the
+      authoritative origin. A receipt with a typed verified outcome and
+      an applied posture is the credible substitute.
+
+  - rule_id: mirror_outage_or_lag_rule
+    cause_class: mirror_outage_or_lag_above_grace
+    admitted_channels:
+      - manual_file_import_channel
+    minimum_required_receipt_outcome:
+      verification_outcome_one_of:
+        - verified_current_signer
+        - verified_prior_signer_with_continuity_statement
+      applied_state_one_of:
+        - applied
+        - applied_with_narrowed_scope
+    notes: >
+      A mirror stale past grace may not be the downstream view of
+      record. Operators may import directly from a signed origin
+      bundle; the receipt records the override and the catch-up
+      obligation for the mirror.
+
+  - rule_id: private_triage_narrow_scope_rule
+    cause_class: private_triage_narrow_scope
+    admitted_channels:
+      - manual_file_import_channel
+    minimum_required_receipt_outcome:
+      verification_outcome_one_of:
+        - verified_current_signer
+        - verification_pending_review
+      applied_state_one_of:
+        - applied_with_narrowed_scope
+        - pending_operator_confirmation
+    notes: >
+      Narrow-scope imports during active private triage are admitted
+      only when the receipt names a reduced target_scope and the
+      post-incident review ref is already populated.
+
+  - rule_id: break_glass_signature_skip_rule
+    cause_class: signed_break_glass_skip_admitted
+    admitted_channels:
+      - manual_file_import_channel
+    minimum_required_receipt_outcome:
+      verification_outcome_one_of:
+        - verification_skipped_policy_admitted
+      applied_state_one_of:
+        - applied_with_narrowed_scope
+    notes: >
+      Break-glass skip is admissible only when the receipt cites a
+      signing_quorum break-glass profile (see
+      artifacts/governance/signing_quorum.yaml), narrows target scope,
+      and includes notify_security_trust_review and
+      schedule_post_incident_review follow-up obligations.
+
+forbidden_manual_import_causes:
+  - cause_class: convenience_bypass_of_live_path
+    reason: >
+      A live authoritative path remains reachable. Manual import would
+      be an ad-hoc escape hatch and is non-conforming.
+  - cause_class: unsigned_metadata_import
+    reason: >
+      Manual import MUST chain to a signed authoritative origin. An
+      import whose source_artifact has no detached signature MUST NOT
+      apply; the receipt records rejected_at_verification.
+
+# -----------------------------------------------------------------------------
+# Metadata-chain link rules.
+#
+# Enforce the receipt.metadata_chain.chain_links vocabulary so chains
+# cannot drift into untyped free-text relations.
+# -----------------------------------------------------------------------------
+metadata_chain_link_rules:
+  - link_class: from_authoritative_origin
+    peer_ref_points_at: emergency_action_record OR revocation_record distribution_statuses[].distribution_id with source_class = authoritative_origin
+    required_on:
+      - every receipt whose source_artifact chains directly from the authoritative origin
+  - link_class: from_approved_mirror_snapshot
+    peer_ref_points_at: manual_import_receipt_record on an approved mirror, OR an authoritative mirror-sync distribution_statuses[].distribution_id
+    required_on:
+      - every receipt imported from an approved mirror snapshot
+  - link_class: from_upstream_manual_import
+    peer_ref_points_at: manual_import_receipt_record upstream of this receipt
+    required_on:
+      - every multi-hop manual import where a prior operator's receipt is the provenance
+  - link_class: from_offline_transfer_snapshot
+    peer_ref_points_at: manual_import_receipt_record on an offline-transfer source, OR an offline_transfer_snapshot distribution row
+    required_on:
+      - every receipt whose import_path_class is offline_transfer, removable_media_transfer, approved_courier_transfer, cross_domain_transfer, or air_gap_relay_transfer
+  - link_class: from_removable_media_snapshot
+    peer_ref_points_at: manual_import_receipt_record or snapshot record for the prior media hop
+    required_on:
+      - every receipt whose prior hop was removable-media transfer
+  - link_class: supersedes_prior_receipt_on_target
+    peer_ref_points_at: manual_import_receipt_record that previously governed the same target_scope
+    required_on:
+      - every receipt whose supersedence_state is superseded_prior_snapshot_on_target or applied_and_overrode_prior_snapshot
+  - link_class: superseded_by_later_receipt_on_target
+    peer_ref_points_at: later manual_import_receipt_record that superseded this one
+    required_on:
+      - every receipt whose receipt_state is superseded
+  - link_class: parallel_receipt_for_sibling_scope
+    peer_ref_points_at: manual_import_receipt_record for a sibling target scope chained to the same authoritative_origin_ref
+    required_on:
+      - optional; present when multiple sibling scopes (for example multiple mirrors under one operator) share an import plan
+
+# -----------------------------------------------------------------------------
+# Expiry and supersedence rules.
+#
+# These rules guarantee that a superseded or expired emergency artifact
+# does not remain silently authoritative on any downstream surface.
+# -----------------------------------------------------------------------------
+expiry_and_supersedence_rules:
+  - rule_id: receipt_expiry_inheritance
+    applies_to: manual_import_receipt_record
+    rule: >
+      receipt.expiry.effective_expiry_at MUST NOT be later than the
+      imported emergency_action_record or revocation_record expires_at.
+      If the parent record has a non-null expires_at, the receipt MUST
+      inherit or narrow it; a receipt MAY only widen expiry to null
+      when expiry_hook_class = no_expiry_pending_reconciliation AND
+      reconciliation_state on the parent is awaiting_post_incident_review.
+
+  - rule_id: receipt_supersedence_visibility
+    applies_to: manual_import_receipt_record
+    rule: >
+      A receipt whose receipt_state is superseded MUST carry a
+      non-null superseded_by_receipt_ref and MUST preserve a
+      supersedes_prior_receipt_on_target metadata-chain link on the
+      successor receipt. Silent deletion of a superseded receipt is
+      forbidden.
+
+  - rule_id: emergency_action_supersedence_visibility
+    applies_to: emergency_action_record
+    rule: >
+      A superseded emergency_action_record remains inspectable via
+      history_links and relationship_links.superseded_by_record_ref.
+      Every downstream manual_import_receipt_record for the superseded
+      record MUST either move to receipt_state = superseded (and name
+      the successor) or be explicitly withdrawn.
+
+  - rule_id: offline_snapshot_expiry_narrowing
+    applies_to: manual_import_receipt_record
+    rule: >
+      A receipt whose freshness_class is offline_snapshot_expired MUST
+      NOT be in receipt_state = active. The receipt MUST be moved to
+      receipt_state = expired or be superseded by a new import.
+
+  - rule_id: revocation_durability
+    applies_to: revocation_record
+    rule: >
+      A revocation_record is durable. It does not enter record_state =
+      expired automatically; the reconciliation hook names the
+      conditions for moving to reconciled. Receipts importing a
+      revocation MUST preserve the revocation through any supersedence
+      chain.
+
+# -----------------------------------------------------------------------------
+# Surface-projection rules.
+#
+# Declares which receipt fields each consuming surface MUST quote,
+# mirroring the emergency_action_model.md "Surface-consumption rules"
+# so admin exports and support packets do not mint receipt-local
+# freshness, signer-continuity, or supersedence terms.
+# -----------------------------------------------------------------------------
+surface_projection_rules:
+  - surface_id: mirror_import_view
+    required_receipt_fields:
+      - receipt_id
+      - source_artifact.source_artifact_class
+      - verification.verification_outcome
+      - observed_signer_continuity_state
+      - freshness_class
+      - validation_state
+      - supersedence_state
+      - applied_state
+      - relationship_links.imported_emergency_action_ref
+      - relationship_links.imported_revocation_ref
+      - metadata_chain.chain_id
+    forbidden_shortcut: Inventing mirror-local freshness or signer-continuity terms that disagree with the receipt or the parent record.
+
+  - surface_id: admin_export
+    required_receipt_fields:
+      - receipt_id
+      - operator
+      - import_path_class
+      - verification
+      - target_scope
+      - applied_state
+      - expiry
+      - follow_up_obligations
+      - metadata_chain
+      - relationship_links
+    forbidden_shortcut: Replacing durable refs with prose-only summary.
+
+  - surface_id: support_packet
+    required_receipt_fields:
+      - receipt_id
+      - relationship_links.imported_emergency_action_ref
+      - relationship_links.imported_revocation_ref
+      - observed_signer_continuity_state
+      - freshness_class
+      - applied_state
+      - supersedence_state
+      - follow_up_obligations
+    forbidden_shortcut: Collapsing the receipt into an unstructured support note.
+
+  - surface_id: manual_import_banner
+    required_receipt_fields:
+      - receipt_id
+      - receipt_state
+      - verification.verification_outcome
+      - observed_signer_continuity_state
+      - applied_state
+      - follow_up_obligations
+    forbidden_shortcut: Inventing a local is_verified boolean or omitting follow-up obligations.
+
+# -----------------------------------------------------------------------------
+# Invariants.
+#
+# Cross-row invariants the relation graph enforces.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: one_imported_record_per_receipt
+    description: >
+      Exactly one of
+      relationship_links.imported_emergency_action_ref or
+      relationship_links.imported_revocation_ref is populated per receipt.
+  - id: receipt_freshness_never_authoritative_live
+    description: >
+      manual_import_receipt_record.freshness_class MUST NOT be
+      authoritative_live.
+  - id: verification_failure_blocks_apply
+    description: >
+      A receipt whose verification.verification_outcome is a typed
+      failure class MUST NOT carry an applied_state in
+      {applied, applied_with_narrowed_scope,
+       applied_and_overrode_prior_snapshot}.
+  - id: chain_root_is_authoritative_origin
+    description: >
+      metadata_chain.authoritative_origin_ref MUST resolve to an
+      emergency_action_record or revocation_record.
+  - id: policy_admitted_skip_requires_followups
+    description: >
+      A receipt whose verification_outcome is
+      verification_skipped_policy_admitted MUST carry
+      follow_up_obligations that include both
+      notify_security_trust_review and
+      schedule_post_incident_review.
+  - id: superseded_receipt_names_successor
+    description: >
+      receipt_state = superseded requires a non-null
+      superseded_by_receipt_ref and a
+      superseded_by_later_receipt_on_target chain link.
+  - id: expired_snapshot_is_not_active
+    description: >
+      freshness_class = offline_snapshot_expired forbids receipt_state
+      = active.
+  - id: receipt_scope_narrows_parent_scope
+    description: >
+      target_scope.deployment_profile_scope MUST be a subset of the
+      imported emergency_action_record or revocation_record
+      deployment_profile_scope.
+  - id: revocation_survives_import_supersedence
+    description: >
+      Superseding a manual_import_receipt_record for a
+      revocation_record MUST NOT change the revocation's durable state.
+      The revocation remains revoked until the revocation record itself
+      is reconciled.
+
+# -----------------------------------------------------------------------------
+# Change-control.
+# -----------------------------------------------------------------------------
+change_control:
+  additive_minor:
+    - Adding a new authoritative_distribution_channels row.
+    - Adding a new manual_import_admissibility_rules row.
+    - Adding a new metadata_chain_link_rules row.
+    - Adding a new surface_projection_rules row.
+    - Adding a new invariants row.
+  breaking:
+    - Repurposing an existing channel_id, rule_id, link_class,
+      surface_id, or invariant id.
+    - Loosening manual_import_receipt_posture from required to
+      not_applicable on any channel.
+    - Loosening any expiry_and_supersedence_rules row.
+  decision_row_required_on_breaking: true
+  co_signers_on_breaking:
+    - security_trust_review
+    - release_council
