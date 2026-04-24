@@ -1,0 +1,61 @@
+// __fixture__:
+//   name: schema_migration_alias_and_lossy_rename
+//   scenario:
+//     Worked schema_migration_record_row showing a rename that is
+//     lossy because the post-migration shape narrows an enum's
+//     accepted values. The row pins a compatibility window, declares
+//     a rollback posture, cites a migration guide, and names the
+//     disclosure surfaces the writer stamps. This fixture is a JSONC
+//     rendering of a row for review; the on-disk machine form is
+//     plain JSON matching
+//     schemas/governance/schema_migration_record.schema.json.
+//   policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+{
+  "record_kind": "schema_migration_record_row",
+  "schema_migration_schema_version": 1,
+  "migration_record_id": "settings.search.max_results.rename_and_narrow_v1_to_v2",
+  "artifact_family_ref": "user_settings_file",
+  "title": "Rename and narrow the search.max_results setting",
+  "description": "Renames search.max_results to search.max_visible_results and narrows the accepted integer range; the old id stays readable for one stable line under the compatibility window.",
+  "owner_ref": "settings_governance",
+  "schema_uri_ref": "https://aureline.dev/schemas/settings/setting_definition.schema.json",
+  "version_field_ref": "schema_version",
+  "from_version": "1",
+  "to_version": "2",
+  "change_class": "rename_key",
+  "old_identifier": "search.max_results",
+  "new_identifier": "search.max_visible_results",
+  "transform_kind": "rename_only",
+  "transform_note": "Readers accept the old key during the compatibility window and resolve it to the new key; writers always emit the new key.",
+  "lossy_flag": true,
+  "lossy_reason_class": "value_range_narrowed",
+  "lossy_rationale": "The new key constrains values to the 500..5000 range so high-cardinality results no longer blow past fixed-memory budgets; prior values outside this range are clamped with an in_file_header_comment disclosure.",
+  "unknown_field_posture": "preserve_verbatim",
+  "comment_preservation_posture": "preserve_with_key_attachment",
+  "ordering_posture": "stable_order_preserved",
+  "compatibility_window": {
+    "rule_mode": "all_of",
+    "windows": [
+      { "value": 1, "unit": "stable_lines" },
+      { "value": 12, "unit": "months" }
+    ],
+    "policy_source_ref": "docs/config/artifact_format_and_migration_policy.md",
+    "notes": "Readers MUST accept the old id for the duration of the overlap; writers MUST emit only the new id."
+  },
+  "rollback_posture": "reversible_only_via_backup",
+  "rollback_note": "Operators who need the prior shape restore from a pre-migration backup; the writer does not keep a side-by-side copy once the new key is emitted.",
+  "disclosure_surfaces": [
+    "release_notes",
+    "migration_guide",
+    "in_file_header_comment",
+    "compatibility_report"
+  ],
+  "docs_linkage": {
+    "policy_doc_ref": "docs/config/artifact_format_and_migration_policy.md",
+    "migration_guide_ref": "docs/state/migration_and_restore_playbook.md",
+    "evidence_refs": [
+      "fixtures/config/comment_preservation_cases/settings_lossy_rewrite_disclosed.jsonc"
+    ]
+  },
+  "notes": "Fixture row intended for review only. Concrete migration publication happens alongside the settings writer implementation under its owning lane."
+}

@@ -1,0 +1,591 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/schema_migration_record.schema.json",
+  "title": "Aureline schema-evolution migration record row",
+  "description": "Boundary schema for one schema_migration_record_row describing a single rename, move, split, merge, type change, default change, addition, removal, or alias step between versions of a human-editable artifact family. Rows are the diffable, reviewable unit that lets loaders, docs generators, migration tooling, compatibility-report surfaces, and support-export parity checks share one machine-readable migration history instead of relying on loader-only defaults or ad hoc per-surface rename tables. Companion artifacts live in docs/config/artifact_format_and_migration_policy.md (the normative policy), artifacts/config/format_selection_matrix.yaml (the artifact-family to format binding), and fixtures/config/comment_preservation_cases/ (worked examples). This schema governs per-artifact key and field evolution; it does NOT replace the stable-identifier lifecycle row frozen in schemas/governance/deprecation_metadata.schema.json nor the telemetry-family registry entry frozen in schemas/governance/schema_registry_entry.schema.json, both of which cover distinct concerns. Adding a new change_class, transform_kind, lossy_reason_class, unknown_field_posture, comment_preservation_posture, ordering_posture, disclosure_surface, or compatibility_window_unit value is additive-minor and requires a schema_migration_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/schema_migration_record_row",
+  "$defs": {
+    "schema_migration_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the schema-migration-record vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short human-readable sentence intended for reviewer surfaces, docs, manifests, migration guides, or audit rows."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Stable lowercase token identifier."
+    },
+
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Dot-separated stable identifier used for migration-record ids, artifact-family refs, and key paths on surfaces that use dotted keys."
+    },
+
+    "owner_ref": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier for the owning team, role, or governance body."
+    },
+
+    "version_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Release-line, artifact schema_version, or version label the migration applies between. Kept as free text because some artifact families key off release families, some off integer schema_version, and some off calendar labels."
+    },
+
+    "schema_uri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable $id URI published by the JSON schema the artifact conforms to, when the artifact family is schema-backed. For YAML, JSONC, or TOML artifacts, this is the same URI the on-disk file carries in its $schema field or yaml-language-server header."
+    },
+
+    "artifact_family_ref": {
+      "$ref": "#/$defs/stable_token",
+      "description": "Stable id of the artifact family this migration row governs. Resolves through artifacts/config/format_selection_matrix.yaml so the row's format, comment-preservation posture, and unknown-field posture are discoverable from the migration record alone."
+    },
+
+    "change_class": {
+      "type": "string",
+      "enum": [
+        "rename_key",
+        "move_key",
+        "split_key",
+        "merge_keys",
+        "narrow_type",
+        "widen_type",
+        "relabel_value",
+        "change_default",
+        "add_optional_field",
+        "add_required_field",
+        "relax_required_field",
+        "tighten_required_field",
+        "remove_key_with_alias",
+        "remove_key_hard",
+        "introduce_schema_uri",
+        "introduce_version_field"
+      ],
+      "description": "Typed class of change this row represents. One row = one change. A rename_key that also narrows type is two rows, not one, so the diff review surface stays flat."
+    },
+
+    "transform_kind": {
+      "type": "string",
+      "enum": [
+        "identity_copy",
+        "rename_only",
+        "path_move_only",
+        "string_value_relabel",
+        "enum_value_remap",
+        "numeric_unit_change",
+        "boolean_polarity_flip",
+        "structural_unfold",
+        "structural_fold",
+        "default_only_fallback",
+        "drop_with_record_in_audit",
+        "not_applicable_additive_only"
+      ],
+      "description": "How the reader or writer computes the new value from the old one. identity_copy means the value carries over unchanged; drop_with_record_in_audit means the old value is intentionally discarded but an audit record must be emitted; not_applicable_additive_only is used when the change is purely additive and no transform is needed."
+    },
+
+    "lossy_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_lossy",
+        "value_range_narrowed",
+        "value_precision_reduced",
+        "unit_downgraded_with_rounding",
+        "merged_values_not_reversible",
+        "split_values_not_reversible",
+        "default_change_overrides_absent_value",
+        "removed_without_alias",
+        "comment_or_ordering_not_preserved"
+      ],
+      "description": "Typed reason a migration is lossy. not_lossy is the only value that satisfies the gate when lossy_flag is false; any other value requires lossy_flag to be true and a named rationale."
+    },
+
+    "unknown_field_posture": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_under_namespaced_key",
+        "drop_with_disclosure",
+        "refuse_read"
+      ],
+      "description": "How the loader must treat fields it does not recognize on the post-migration shape. Anything other than preserve_verbatim on a human-edited artifact family requires an explicit policy row in artifacts/config/format_selection_matrix.yaml and a disclosure rule in docs/config/artifact_format_and_migration_policy.md."
+    },
+
+    "comment_preservation_posture": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_with_key_attachment",
+        "lossy_rewrite_disclosed",
+        "format_disallows_comments",
+        "generated_only_no_manual_edit"
+      ],
+      "description": "How the migration treats comments attached to the old key or surrounding block. lossy_rewrite_disclosed is only valid when the row also records disclosure_surfaces that will carry the warning."
+    },
+
+    "ordering_posture": {
+      "type": "string",
+      "enum": [
+        "stable_order_preserved",
+        "canonical_reorder_disclosed",
+        "not_applicable_unordered_shape",
+        "generated_only_no_manual_edit"
+      ],
+      "description": "How the migration treats block, array, and key order. canonical_reorder_disclosed is only valid when the row records disclosure_surfaces that will carry the reorder note."
+    },
+
+    "compatibility_window_unit": {
+      "type": "string",
+      "enum": [
+        "days",
+        "months",
+        "minor_releases",
+        "major_releases",
+        "stable_lines",
+        "lts_cycles"
+      ],
+      "description": "Unit used in the structured compatibility window. Kept aligned with the interface-lifecycle support_window_unit vocabulary so tooling can reuse the same overlap-math helpers."
+    },
+
+    "compatibility_window_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unit": { "$ref": "#/$defs/compatibility_window_unit" }
+      },
+      "description": "One overlap rule inside the compatibility window during which readers must still accept the old shape."
+    },
+
+    "compatibility_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_mode", "windows", "policy_source_ref"],
+      "properties": {
+        "rule_mode": {
+          "type": "string",
+          "enum": ["all_of", "any_of"],
+          "description": "all_of = every listed window must hold before the old shape may be dropped. any_of = any one listed window is sufficient."
+        },
+        "windows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_window_rule" }
+        },
+        "policy_source_ref": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Structured overlap window the old shape is honored for before the migration may drop it. Tied to the compatibility surface rather than to loader-only defaults."
+    },
+
+    "disclosure_surface": {
+      "type": "string",
+      "enum": [
+        "release_notes",
+        "docs_help",
+        "machine_readable_metadata",
+        "cli_help",
+        "support_export",
+        "compatibility_report",
+        "migration_guide",
+        "in_file_header_comment",
+        "doctor_output"
+      ],
+      "description": "Surface that must carry the migration or lossy-rewrite disclosure for the row. in_file_header_comment is the on-disk artifact header the writer emits when it rewrites a human-edited file."
+    },
+
+    "rollback_posture": {
+      "type": "string",
+      "enum": [
+        "reversible_exact",
+        "reversible_with_disclosed_rounding",
+        "reversible_only_via_backup",
+        "not_reversible_forward_only"
+      ],
+      "description": "How an operator may roll back from the post-migration shape to the pre-migration shape. not_reversible_forward_only requires a rollback_note explaining why and what operators should do instead."
+    },
+
+    "docs_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_doc_ref",
+        "migration_guide_ref",
+        "evidence_refs"
+      ],
+      "properties": {
+        "policy_doc_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Normative policy document the row cites. Defaults to docs/config/artifact_format_and_migration_policy.md but may point at a family-specific policy where one exists."
+        },
+        "migration_guide_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/path_ref" }
+          ],
+          "description": "Migration guide a consumer uses to migrate. Null is only acceptable for purely additive changes with transform_kind = not_applicable_additive_only."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Worked fixtures, diff snapshots, or round-trip tests that demonstrate the migration behavior. Required for any lossy row."
+        }
+      }
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "doc_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixture rows."
+    },
+
+    "schema_migration_record_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_migration_schema_version",
+        "migration_record_id",
+        "artifact_family_ref",
+        "title",
+        "description",
+        "owner_ref",
+        "schema_uri_ref",
+        "version_field_ref",
+        "from_version",
+        "to_version",
+        "change_class",
+        "old_identifier",
+        "new_identifier",
+        "transform_kind",
+        "transform_note",
+        "lossy_flag",
+        "lossy_reason_class",
+        "lossy_rationale",
+        "unknown_field_posture",
+        "comment_preservation_posture",
+        "ordering_posture",
+        "compatibility_window",
+        "rollback_posture",
+        "rollback_note",
+        "disclosure_surfaces",
+        "docs_linkage"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "schema_migration_record_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "schema_migration_schema_version": { "$ref": "#/$defs/schema_migration_schema_version" },
+        "migration_record_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable dot-separated id for this migration-record row. Mint a new id rather than reusing an old one when a row is superseded."
+        },
+        "artifact_family_ref": { "$ref": "#/$defs/artifact_family_ref" },
+        "title": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short human-readable title for the migration row."
+        },
+        "description": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence statement of what changed and why it is recorded as its own row."
+        },
+        "owner_ref": { "$ref": "#/$defs/owner_ref" },
+        "schema_uri_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/schema_uri" }
+          ],
+          "description": "The $schema URI the post-migration artifact carries, or null when the artifact family is not schema-backed. Schema-backed families MUST populate this field."
+        },
+        "version_field_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Name of the artifact's explicit version field (for example schema_version, document_version, or manifest_version). Null only when the artifact family's format-selection row records version_field_policy = not_applicable."
+        },
+        "from_version": { "$ref": "#/$defs/version_label" },
+        "to_version": { "$ref": "#/$defs/version_label" },
+        "change_class": { "$ref": "#/$defs/change_class" },
+        "old_identifier": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Old key path, field name, alias, or value being migrated from. Null only for change_class values that add a new identifier with no predecessor (add_optional_field, add_required_field, introduce_schema_uri, introduce_version_field)."
+        },
+        "new_identifier": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "New key path, field name, alias, or value being migrated to. Null only for change_class = remove_key_hard."
+        },
+        "transform_kind": { "$ref": "#/$defs/transform_kind" },
+        "transform_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short prose statement of what the transform does in reader and writer terms. Required even when transform_kind = identity_copy so the audit trail reads cleanly."
+        },
+        "lossy_flag": {
+          "type": "boolean",
+          "description": "True when the migration cannot be reversed exactly. Any true value requires lossy_reason_class != not_lossy and a non-empty lossy_rationale."
+        },
+        "lossy_reason_class": { "$ref": "#/$defs/lossy_reason_class" },
+        "lossy_rationale": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Reviewable rationale for a lossy migration. Null only when lossy_flag is false and lossy_reason_class is not_lossy."
+        },
+        "unknown_field_posture": { "$ref": "#/$defs/unknown_field_posture" },
+        "comment_preservation_posture": { "$ref": "#/$defs/comment_preservation_posture" },
+        "ordering_posture": { "$ref": "#/$defs/ordering_posture" },
+        "compatibility_window": { "$ref": "#/$defs/compatibility_window" },
+        "rollback_posture": { "$ref": "#/$defs/rollback_posture" },
+        "rollback_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable note describing what an operator must do to roll back, or why rollback is not available."
+        },
+        "disclosure_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/disclosure_surface" },
+          "description": "Surfaces that must carry the migration or lossy-rewrite disclosure."
+        },
+        "docs_linkage": { "$ref": "#/$defs/docs_linkage" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional additional note for future consumers."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Lossy rows must name a non-not_lossy reason and carry a rationale.",
+          "if": {
+            "properties": { "lossy_flag": { "const": true } },
+            "required": ["lossy_flag"]
+          },
+          "then": {
+            "properties": {
+              "lossy_reason_class": {
+                "enum": [
+                  "value_range_narrowed",
+                  "value_precision_reduced",
+                  "unit_downgraded_with_rounding",
+                  "merged_values_not_reversible",
+                  "split_values_not_reversible",
+                  "default_change_overrides_absent_value",
+                  "removed_without_alias",
+                  "comment_or_ordering_not_preserved"
+                ]
+              },
+              "lossy_rationale": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["lossy_reason_class", "lossy_rationale"]
+          },
+          "else": {
+            "properties": {
+              "lossy_reason_class": { "const": "not_lossy" },
+              "lossy_rationale": { "const": null }
+            }
+          }
+        },
+        {
+          "description": "Hard removals have no successor identifier.",
+          "if": {
+            "properties": { "change_class": { "const": "remove_key_hard" } },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": { "new_identifier": { "const": null } }
+          }
+        },
+        {
+          "description": "Purely additive rows have no predecessor identifier.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "enum": [
+                  "add_optional_field",
+                  "add_required_field",
+                  "introduce_schema_uri",
+                  "introduce_version_field"
+                ]
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": { "old_identifier": { "const": null } }
+          },
+          "else": {
+            "properties": { "old_identifier": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "description": "Non-removal rows must name a successor identifier.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "not": { "const": "remove_key_hard" }
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": {
+            "properties": { "new_identifier": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        },
+        {
+          "description": "Disclosed-rewrite comment posture requires a disclosure surface.",
+          "if": {
+            "properties": {
+              "comment_preservation_posture": { "const": "lossy_rewrite_disclosed" }
+            },
+            "required": ["comment_preservation_posture"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_surfaces": {
+                "anyOf": [
+                  { "contains": { "const": "in_file_header_comment" } },
+                  { "contains": { "const": "release_notes" } },
+                  { "contains": { "const": "migration_guide" } },
+                  { "contains": { "const": "doctor_output" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Canonical reorder posture requires a disclosure surface.",
+          "if": {
+            "properties": {
+              "ordering_posture": { "const": "canonical_reorder_disclosed" }
+            },
+            "required": ["ordering_posture"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_surfaces": {
+                "anyOf": [
+                  { "contains": { "const": "in_file_header_comment" } },
+                  { "contains": { "const": "release_notes" } },
+                  { "contains": { "const": "migration_guide" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-additive and non-identity transforms require a migration guide link and at least one evidence ref.",
+          "if": {
+            "properties": {
+              "transform_kind": {
+                "not": {
+                  "enum": [
+                    "identity_copy",
+                    "not_applicable_additive_only"
+                  ]
+                }
+              }
+            },
+            "required": ["transform_kind"]
+          },
+          "then": {
+            "properties": {
+              "docs_linkage": {
+                "properties": {
+                  "migration_guide_ref": { "$ref": "#/$defs/path_ref" },
+                  "evidence_refs": { "minItems": 1 }
+                },
+                "required": ["migration_guide_ref", "evidence_refs"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Lossy rows must cite at least one worked fixture or evidence artifact.",
+          "if": {
+            "properties": { "lossy_flag": { "const": true } },
+            "required": ["lossy_flag"]
+          },
+          "then": {
+            "properties": {
+              "docs_linkage": {
+                "properties": {
+                  "evidence_refs": { "minItems": 1 }
+                },
+                "required": ["evidence_refs"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Forward-only rollback posture requires a rollback note that explains why and what operators do instead.",
+          "if": {
+            "properties": {
+              "rollback_posture": { "const": "not_reversible_forward_only" }
+            },
+            "required": ["rollback_posture"]
+          },
+          "then": {
+            "properties": {
+              "rollback_note": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["rollback_note"]
+          }
+        }
+      ]
+    }
+  }
+}

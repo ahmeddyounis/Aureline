@@ -1,0 +1,648 @@
+# Artifact-format selection matrix.
+#
+# Machine-readable register naming, for every human-editable or
+# generated artifact family Aureline publishes, which on-disk format the
+# family uses, whether manual edits are expected, how comments, unknown
+# fields, and ordering are preserved, whether the artifact carries an
+# explicit $schema URI and version field, and where the family's
+# normative format policy lives. Tooling reads this file; the human
+# narrative is in docs/config/artifact_format_and_migration_policy.md.
+# If the two disagree, this file is authoritative for tooling and the
+# narrative must be updated in the same change.
+#
+# Scope. This matrix records one row per artifact family. It does NOT
+# restate the family's own schema, inventory, or review workflow; those
+# belong under each family's canonical home. This matrix only records
+# format and preservation posture so settings, manifests, profile
+# exports, doctor outputs, evidence packets, and governance artifacts
+# can all cite one format-and-migration policy.
+#
+# Rules:
+#   - Every human-edited row MUST name a comment_preservation_posture,
+#     unknown_field_posture, ordering_posture, and manual_edit_policy.
+#   - Every schema-backed human-edited row MUST record
+#     schema_uri_policy = required and version_field_policy = required
+#     (or name the non-default policy and its reason).
+#   - Rows with format_class = generated_only_* MUST NOT be manually
+#     edited; the matrix still records the family so generators have a
+#     single source of truth for format choice and disclosure surfaces.
+#   - Any canonicalize-on-write, lossy-rewrite, or reorder posture that
+#     departs from verbatim-preservation MUST name the disclosure
+#     surfaces the writer must stamp.
+#   - No silent blanks. A missing posture on a human-edited row is a
+#     validation failure.
+#
+# Conformance: this file is consumed by tooling that reads it with a
+# schema-aware loader but is written for human edits. Reviewers check
+# this file against docs/config/artifact_format_and_migration_policy.md
+# and the schema_migration_record rows under each family.
+#
+# Do not surface internal milestone slugs in product strings; this
+# matrix is governance-only.
+
+schema_version: 1
+
+# -----------------------------------------------------------------------------
+# Format vocabulary.
+#
+# Enumerated so tooling can validate format_class values. Narrative in
+# docs/config/artifact_format_and_migration_policy.md explains when each
+# format is chosen and what preservation posture it implies.
+# -----------------------------------------------------------------------------
+format_classes:
+  - json
+  - jsonc
+  - yaml
+  - toml
+  - line_oriented_text
+  - env_file
+  - markdown_with_frontmatter
+  - markdown_prose_only
+  - generated_only_json
+  - generated_only_yaml
+  - generated_only_binary
+  - multi_format_bundle
+
+# -----------------------------------------------------------------------------
+# Preservation vocabulary.
+#
+# Mirrors the enums in schemas/governance/schema_migration_record.schema.json
+# so the format matrix and the per-family migration rows speak the same
+# vocabulary.
+# -----------------------------------------------------------------------------
+comment_preservation_postures:
+  - preserve_verbatim
+  - preserve_with_key_attachment
+  - lossy_rewrite_disclosed
+  - format_disallows_comments
+  - generated_only_no_manual_edit
+
+unknown_field_postures:
+  - preserve_verbatim
+  - preserve_under_namespaced_key
+  - drop_with_disclosure
+  - refuse_read
+
+ordering_postures:
+  - stable_order_preserved
+  - canonical_reorder_disclosed
+  - not_applicable_unordered_shape
+  - generated_only_no_manual_edit
+
+manual_edit_policies:
+  - manual_edits_preserved
+  - manual_edits_canonicalized_on_write_with_disclosure
+  - manual_edits_refused_generator_owned
+  - manual_edits_allowed_only_in_designated_block
+
+schema_uri_policies:
+  - required
+  - optional
+  - not_applicable
+
+version_field_policies:
+  - required
+  - optional
+  - not_applicable
+
+# -----------------------------------------------------------------------------
+# Disclosure surfaces.
+#
+# Mirrors the disclosure_surface enum in the schema_migration_record
+# schema so writers and readers agree on where canonicalization or
+# lossy-rewrite notices appear.
+# -----------------------------------------------------------------------------
+disclosure_surfaces:
+  - release_notes
+  - docs_help
+  - machine_readable_metadata
+  - cli_help
+  - support_export
+  - compatibility_report
+  - migration_guide
+  - in_file_header_comment
+  - doctor_output
+
+# -----------------------------------------------------------------------------
+# Artifact-family rows.
+#
+# One row per artifact family. Ordered roughly by how user-visible the
+# family is: user-owned editable files first, then governance and
+# evidence artifacts, then generated-only outputs. New human-editable
+# artifact families MUST land a row here in the same change that
+# introduces the family.
+# -----------------------------------------------------------------------------
+artifact_families:
+  - id: user_settings_file
+    title: User-scope settings file (per-user overrides)
+    format_class: jsonc
+    canonical_location_example: "~/.config/aureline/settings.jsonc"
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+      - release_notes
+      - migration_guide
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      User-owned overrides are hand-edited. JSONC is chosen so inline and
+      block comments, unknown fields, and key ordering are preserved
+      across reads and writes. Any rewrite that would drop a comment or
+      reorder keys must emit a header disclosure and cite a migration
+      row.
+
+  - id: workspace_settings_file
+    title: Workspace-scope settings file (per-repository overrides)
+    format_class: jsonc
+    canonical_location_example: ".aureline/settings.jsonc"
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+      - release_notes
+      - migration_guide
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Workspace overrides are checked into team repositories. JSONC keeps
+      review diffs comment-bearing so maintainers can annotate why a key
+      is pinned. Comment drops and reorderings on write are forbidden
+      without a disclosure.
+
+  - id: machine_specific_settings_file
+    title: Machine-scope settings file (per-device overrides)
+    format_class: jsonc
+    canonical_location_example: "~/.config/aureline/machine.jsonc"
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+      - migration_guide
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Per-device overrides never sync across devices but are still
+      hand-edited. Same JSONC posture as user and workspace so operators
+      do not have to switch formats across scopes.
+
+  - id: effective_settings_output
+    title: Effective-settings resolver output
+    format_class: generated_only_json
+    canonical_location_example: "<generated>/effective_settings.json"
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - machine_readable_metadata
+      - doctor_output
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Effective values are computed, not edited. Plain JSON is chosen
+      because consumers are tools, not humans, and the file must parse
+      identically under every loader without comment or trailing-comma
+      handling variance.
+
+  - id: profile_export_portable
+    title: Portable profile export
+    format_class: json
+    canonical_location_example: "profile_export.json"
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: format_disallows_comments
+    unknown_field_posture: preserve_under_namespaced_key
+    ordering_posture: canonical_reorder_disclosed
+    manual_edit_policy: manual_edits_allowed_only_in_designated_block
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+      - migration_guide
+      - doctor_output
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Portable exports are carried between tools and hosts. JSON is the
+      lowest-common-denominator format; the writer canonicalizes key
+      order so byte-diffs are stable. Manual edits are tolerated inside
+      the designated workspace block, but comments are not preserved
+      because the format does not carry them; unknown fields are kept
+      under a namespaced preserved-extensions key.
+
+  - id: doctor_output_report
+    title: Doctor-command diagnostic report
+    format_class: generated_only_json
+    canonical_location_example: "<generated>/doctor_report.json"
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - machine_readable_metadata
+      - doctor_output
+    owner_dri: "@ahmeddyounis"
+    owning_lane: support_export
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Doctor reports are machine-generated and consumed by support,
+      release, and boundary-manifest tools. Stable JSON is required so
+      parity checks across runs are byte-stable modulo documented fields.
+
+  - id: evidence_packet_artifact
+    title: Evidence packet (governance, verification, release)
+    format_class: json
+    canonical_location_example: "artifacts/<domain>/<packet>.json"
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: evidence_packet_schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - machine_readable_metadata
+      - support_export
+      - compatibility_report
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Evidence packets are produced by validators and cited by audit
+      surfaces. Plain JSON keeps them byte-stable across runs; manual
+      edits are refused because the packet is a claim about the producer.
+
+  - id: governance_register_yaml
+    title: Governance register, ownership matrix, control-artifact index, and peer YAML
+    format_class: yaml
+    canonical_location_example: artifacts/governance/control_artifact_index.yaml
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: yaml-language-server $schema header
+    version_field_name: schema_version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: refuse_read
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+      - release_notes
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Governance registers are hand-maintained by the DRI and reviewed
+      per change. YAML keeps the documentation comments that reviewers
+      rely on. Unknown fields are refused so drift cannot smuggle new
+      vocabulary past the schema; the schema URI is declared via the
+      yaml-language-server header that every governance YAML already
+      carries.
+
+  - id: fixture_corpus_yaml_or_json
+    title: Fixture corpus (YAML or JSON worked examples)
+    format_class: multi_format_bundle
+    canonical_location_example: fixtures/<domain>/<case>.yaml
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: yaml-language-server $schema header or $schema JSON field
+    version_field_name: per-family schema_version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: refuse_read
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Fixture corpora are worked examples consumed by validators and
+      reviewers. They conform to a named JSON Schema; the format choice
+      (YAML or JSON) matches the schema's canonical surface. Every
+      fixture carries a __fixture__ block and a schema header so the
+      corpus stays machine-validated while remaining human-readable.
+
+  - id: ignore_file_family
+    title: Line-oriented ignore and allow files (gitignore-style)
+    format_class: line_oriented_text
+    canonical_location_example: .aurelineignore
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Line-oriented ignore files are a de-facto standard; line order is
+      semantically meaningful, leading # comments document intent, and
+      there is no schema URI to declare. Writers must not reorder or
+      strip comments.
+
+  - id: env_file_family
+    title: Environment-variable dotfiles (.env-style)
+    format_class: env_file
+    canonical_location_example: .env
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - in_file_header_comment
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      .env-style files follow an established line-oriented convention
+      that shells and tooling already understand. Comments and key
+      ordering are semantically meaningful and must survive writes.
+
+  - id: cargo_workspace_manifest
+    title: Cargo workspace and package manifests (Cargo.toml)
+    format_class: toml
+    canonical_location_example: Cargo.toml
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: required
+    schema_uri_field_name: null
+    version_field_name: package.version
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+      - migration_guide
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Cargo manifests are the canonical Rust build contract. Cargo owns
+      the TOML surface and its writer already preserves comments; our
+      rule is to never rewrite manifests with a tool that would strip
+      comments or reorder sections.
+
+  - id: rust_toolchain_file
+    title: Rust toolchain file (rust-toolchain.toml)
+    format_class: toml
+    canonical_location_example: rust-toolchain.toml
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      The toolchain file pins the Rust channel for the workspace and is
+      read by rustup. Format is dictated by the upstream contract.
+
+  - id: adr_document
+    title: Architectural Decision Record
+    format_class: markdown_prose_only
+    canonical_location_example: docs/adr/NNNN-title.md
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: not_applicable_unordered_shape
+    ordering_posture: not_applicable_unordered_shape
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      ADRs are prose. They are versioned by filename and history, not by
+      a schema. Writers must never rewrite ADRs with an auto-formatter
+      that reflows sections; edits are hand-authored in the decision
+      workflow.
+
+  - id: governance_policy_document
+    title: Governance and public-truth policy document
+    format_class: markdown_prose_only
+    canonical_location_example: docs/governance/<policy>.md
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: not_applicable_unordered_shape
+    ordering_posture: not_applicable_unordered_shape
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Policy documents are hand-authored and reviewed under the
+      public-truth lane. No generator may rewrite them; changes are
+      reviewed per change.
+
+  - id: docs_pack_manifest
+    title: Docs-pack manifest
+    format_class: json
+    canonical_location_example: artifacts/docs/<pack>/manifest.json
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: manifest_schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+      - compatibility_report
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Docs-pack manifests are generator-owned and tied to a published
+      schema. They are part of the stable-surface contract and may not
+      be hand-edited.
+
+  - id: schema_document_json_schema
+    title: JSON Schema document (Aureline boundary schemas)
+    format_class: json
+    canonical_location_example: schemas/<family>/<name>.schema.json
+    human_edited: true
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: per-family schema_version $defs const
+    comment_preservation_posture: format_disallows_comments
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+      - migration_guide
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      JSON Schemas are hand-authored contracts. JSON cannot carry
+      comments, so intent is captured in description fields rather than
+      comment blocks. Key order is preserved to keep diffs review-
+      friendly; every schema declares $schema and a const schema_version
+      $def.
+
+  - id: token_export_manifest
+    title: Design-token export manifest
+    format_class: json
+    canonical_location_example: artifacts/ux/<token_pack>/export_manifest.json
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: token_export_schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+      - compatibility_report
+    owner_dri: "@ahmeddyounis"
+    owning_lane: design_system_seeds
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Design-token export manifests are produced from the token source
+      of truth. Hand-editing them would drift the token registry;
+      exporters emit canonical JSON with stable key order.
+
+  - id: support_bundle_manifest
+    title: Support-bundle manifest and redaction profile
+    format_class: generated_only_json
+    canonical_location_example: artifacts/support/<bundle>/manifest.json
+    human_edited: false
+    schema_uri_policy: required
+    version_field_policy: required
+    schema_uri_field_name: "$schema"
+    version_field_name: support_bundle_schema_version
+    comment_preservation_posture: generated_only_no_manual_edit
+    unknown_field_posture: refuse_read
+    ordering_posture: generated_only_no_manual_edit
+    manual_edit_policy: manual_edits_refused_generator_owned
+    canonicalize_on_write: true
+    disclosure_surfaces_on_rewrite:
+      - machine_readable_metadata
+      - support_export
+    owner_dri: "@ahmeddyounis"
+    owning_lane: support_export
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      Support bundles are machine-produced with redaction posture baked
+      in. They are never hand-edited; the manifest's version and schema
+      URI anchor parity checks across support, release, and compatibility
+      surfaces.
+
+  - id: codeowners_file
+    title: CODEOWNERS file
+    format_class: line_oriented_text
+    canonical_location_example: CODEOWNERS
+    human_edited: true
+    schema_uri_policy: not_applicable
+    version_field_policy: not_applicable
+    schema_uri_field_name: null
+    version_field_name: null
+    comment_preservation_posture: preserve_verbatim
+    unknown_field_posture: preserve_verbatim
+    ordering_posture: stable_order_preserved
+    manual_edit_policy: manual_edits_preserved
+    canonicalize_on_write: false
+    disclosure_surfaces_on_rewrite:
+      - release_notes
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    policy_doc_ref: docs/config/artifact_format_and_migration_policy.md
+    why_note: >
+      CODEOWNERS follows the upstream GitHub format. Comments document
+      ownership intent and must survive writes; line ordering is
+      significant because later rules can override earlier ones.
