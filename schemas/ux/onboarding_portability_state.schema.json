@@ -1,0 +1,838 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/onboarding_portability_state.schema.json",
+  "title": "Aureline first-run no-account local-work, service-opt-in boundary, and onboarding portability state record",
+  "description": "Boundary schema for the no-account local-work path, service-opt-in boundary, and onboarding portability contract frozen in docs/ux/no_account_local_entry_contract.md. Freezes four record kinds: entry_surface_row_record (one row on a Start Center, workspace-switcher, open-flow, recent-work, restore-card, import-picker, first-run tour, welcome-banner, account-opt-in-card, or onboarding-prompt surface), account_prompt_record (when a prompt is required, optional, deferrable, policy-forced, or unavailable, with offline and managed behaviour), onboarding_portability_state_record (where a named onboarding state item lives — portable profile state versus machine-local diagnostics versus device- / account- / policy-scoped state — with reset class, export class, and a mandatory portability_reason anchor), and onboarding_portability_manifest_record (top-level aggregator that declares the twelve const-true invariants). The contract mints no new entry-verb, target-kind, resulting-mode, restore-level, missing-target-state, recovery-class, next-step-decision-hook, account_opt_in_posture, primary-action-id, privacy_reduction_mode, freshness_class, or absence_class values; it re-exports those vocabularies from the Start Center contract, the entry-restore object model, and the entry-restore truth audit. Six start-up / portability local vocabularies are introduced and scoped: entry_surface_family, account_prompt_class, account_prompt_timing_class, boundary_crossing_class, state_portability_class, reset_class / export_class / profile_scope_class / recovery_binding_class / policy_forced_reason_code / unavailable_envelope_class / decline_consequence_class / ancillary_action_id. Adding a new family, class, timing, boundary, portability, reset, export, or canonical state item is additive-minor and bumps onboarding_portability_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/entry_surface_row_record" },
+    { "$ref": "#/$defs/account_prompt_record" },
+    { "$ref": "#/$defs/onboarding_portability_state_record" },
+    { "$ref": "#/$defs/onboarding_portability_manifest_record" }
+  ],
+  "$defs": {
+    "onboarding_portability_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this onboarding portability / no-account / service-opt-in vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "entry_surface_row_record",
+        "account_prompt_record",
+        "onboarding_portability_state_record",
+        "onboarding_portability_manifest_record"
+      ]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "entry_surface_family": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "workspace_switcher_palette",
+        "workspace_switcher_menu",
+        "workspace_switcher_dedicated_view",
+        "open_flow_sheet",
+        "recent_work_list",
+        "restore_card",
+        "import_picker",
+        "first_run_tour_step",
+        "welcome_banner",
+        "account_opt_in_card",
+        "onboarding_prompt"
+      ],
+      "description": "Closed entry-surface family vocabulary. See no_account_local_entry_contract.md §3.1."
+    },
+
+    "account_prompt_class": {
+      "type": "string",
+      "enum": [
+        "no_prompt",
+        "optional_prompt",
+        "deferrable_prompt",
+        "required_prompt",
+        "policy_forced_prompt",
+        "unavailable_prompt",
+        "not_applicable"
+      ],
+      "description": "Closed prompt-class vocabulary. See §3.2."
+    },
+
+    "account_prompt_timing_class": {
+      "type": "string",
+      "enum": [
+        "never_shown",
+        "shown_at_first_run_declinable",
+        "shown_at_entry_declinable",
+        "shown_only_on_boundary_crossing",
+        "shown_deferred_for_review",
+        "forced_by_policy",
+        "unavailable_in_envelope"
+      ],
+      "description": "Closed timing vocabulary. See §3.3."
+    },
+
+    "boundary_crossing_class": {
+      "type": "string",
+      "enum": [
+        "no_boundary_crossed",
+        "reads_provider_state",
+        "widens_trust",
+        "touches_credential_store",
+        "reaches_remote_resource",
+        "attaches_external_runtime",
+        "emits_managed_telemetry",
+        "opens_browser_handoff",
+        "enters_service_plane"
+      ],
+      "description": "What the row's primary action actually touches. Ground truth the prompt-class label is checked against. See §3.4."
+    },
+
+    "state_portability_class": {
+      "type": "string",
+      "enum": [
+        "portable_profile_state",
+        "machine_local_diagnostic",
+        "device_scoped",
+        "account_scoped",
+        "policy_scoped",
+        "ephemeral_session"
+      ],
+      "description": "Where a named onboarding state item lives and how it moves with the user. See §3.5."
+    },
+
+    "reset_class": {
+      "type": "string",
+      "enum": [
+        "resettable_per_profile",
+        "resettable_per_device",
+        "resettable_per_account",
+        "resettable_by_policy",
+        "not_resettable_locally"
+      ],
+      "description": "Who can reset the item. See §3.6."
+    },
+
+    "export_class": {
+      "type": "string",
+      "enum": [
+        "in_portable_profile_package",
+        "in_portable_profile_package_redacted",
+        "in_support_bundle_redacted",
+        "in_handoff_packet",
+        "not_exported_machine_local",
+        "blocked_by_policy"
+      ],
+      "description": "How the item is exported. See §3.6."
+    },
+
+    "profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "per_profile",
+        "per_device",
+        "per_account",
+        "per_policy_bundle",
+        "per_session"
+      ],
+      "description": "Profile-scope companion to state_portability_class. See §6.2."
+    },
+
+    "recovery_binding_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_binding",
+        "recovery_ladder_participant",
+        "restore_prompt_input",
+        "migration_rollback_evidence",
+        "privacy_reduction_governed"
+      ],
+      "description": "Whether the state item participates in the recovery ladder, restore prompt, migration rollback evidence, or privacy-reduction clear-on-launch flow."
+    },
+
+    "policy_forced_reason_code": {
+      "type": "string",
+      "enum": [
+        "managed_fleet_sso",
+        "compliance_telemetry_required",
+        "managed_cloud_authority_required",
+        "admin_approval_required_for_extension_host",
+        "consent_acknowledgement_required"
+      ],
+      "description": "Closed reason-code vocabulary for policy_forced_prompt rows. See §3.2 rule 4."
+    },
+
+    "unavailable_envelope_class": {
+      "type": "string",
+      "enum": [
+        "air_gapped",
+        "air_gapped_mirror_only",
+        "managed_fleet_blocked",
+        "restricted_mode",
+        "offline_indefinite",
+        "sensitive_environment_clear_on_launch"
+      ],
+      "description": "Closed envelope-class vocabulary for unavailable_prompt rows. See §5.1."
+    },
+
+    "decline_consequence_class": {
+      "type": "string",
+      "enum": [
+        "stays_in_local_only_lane",
+        "stays_in_restricted_mode",
+        "aborts_this_row_only",
+        "aborts_and_offers_local_alternative",
+        "unavailable_in_envelope_narrowing_advertised"
+      ],
+      "description": "Closed consequence-class vocabulary for declinable prompts. No value allows silent degradation of prior local capability. See §5.1 and §5.2 rule 1."
+    },
+
+    "ancillary_action_id": {
+      "type": "string",
+      "enum": [
+        "tour_step",
+        "welcome_message",
+        "account_opt_in_card",
+        "onboarding_invite",
+        "dismissal_control",
+        "reset_onboarding_control",
+        "clear_recent_work_control",
+        "export_profile_control",
+        "exit_privacy_reduced_control"
+      ],
+      "description": "Closed ancillary-action vocabulary for rows that are not a Start Center primary action. See §4.1."
+    },
+
+    "primary_action_id_ref": {
+      "type": "string",
+      "enum": [
+        "primary_action.open_folder",
+        "primary_action.open_workspace",
+        "primary_action.clone_repository",
+        "primary_action.restore_last_session",
+        "primary_action.import_from",
+        "primary_action.add_root",
+        "primary_action.start_from_template_or_prebuild"
+      ],
+      "description": "Re-export of primary_action_id from schemas/ux/start_center_surface.schema.json. Never redefined here."
+    },
+
+    "startup_state_token": {
+      "type": "string",
+      "enum": [
+        "startup_state:first_run",
+        "startup_state:reopen_with_pending_restore",
+        "startup_state:restore_failed",
+        "startup_state:restore_skipped",
+        "startup_state:open_without_restore",
+        "startup_state:warming_startup",
+        "startup_state:partial_startup",
+        "startup_state:offline_startup",
+        "startup_state:unsupported_startup",
+        "startup_state:empty_state_or_placeholder_transition"
+      ],
+      "description": "Re-export of startup-state tokens. Never redefined here."
+    },
+
+    "privacy_reduction_mode": {
+      "type": "string",
+      "enum": [
+        "default",
+        "hide_paths",
+        "hide_recent_work",
+        "hide_account_affordances",
+        "hide_all_except_open_and_clone",
+        "sensitive_environment_clear_on_launch"
+      ],
+      "description": "Re-export of privacy_reduction_mode. Never redefined here."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ],
+      "description": "Re-export of deployment_profile_id from artifacts/governance/deployment_profiles.yaml."
+    },
+
+    "start_center_zone": {
+      "type": "string",
+      "enum": [
+        "primary_work_resume",
+        "recent_work_list",
+        "secondary_entry",
+        "profile_selection",
+        "disclosure_band",
+        "help_and_build_identity_footer"
+      ],
+      "description": "Re-export of start_center_zone from schemas/ux/start_center_surface.schema.json."
+    },
+
+    "measurement_surface_ref": {
+      "type": "string",
+      "enum": [
+        "surface_first_run",
+        "surface_first_open",
+        "surface_first_useful_edit",
+        "surface_migration_review",
+        "surface_restore_success",
+        "surface_opt_in_boundary"
+      ],
+      "description": "Re-export of measurement-surface vocabulary from docs/product/onboarding_measurement_plan.md §3."
+    },
+
+    "next_step_decision_hook": {
+      "type": "string",
+      "enum": [
+        "continue_in_restricted_mode",
+        "review_trust_and_open",
+        "open_minimal",
+        "set_up_later",
+        "review_archetype_match",
+        "compare_before_restore",
+        "open_without_restore",
+        "safe_mode",
+        "reconnect_required",
+        "reauth_required",
+        "locate_missing_target",
+        "remove_from_recents",
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items"
+      ],
+      "description": "Re-export of next_step_decision_hook. Never redefined here."
+    },
+
+    "entry_surface_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_portability_state_schema_version",
+        "row_id",
+        "entry_surface_family",
+        "deployment_profile_ref",
+        "startup_state_ref",
+        "privacy_reduction_mode",
+        "account_prompt_class",
+        "account_prompt_timing_class",
+        "boundary_crossing_class",
+        "disclosed_in_zone",
+        "keyboard_reachable",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "entry_surface_row_record" },
+        "onboarding_portability_state_schema_version": { "$ref": "#/$defs/onboarding_portability_state_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_surface_family": { "$ref": "#/$defs/entry_surface_family" },
+        "deployment_profile_ref": { "$ref": "#/$defs/deployment_profile_id" },
+        "startup_state_ref": { "$ref": "#/$defs/startup_state_token" },
+        "privacy_reduction_mode": { "$ref": "#/$defs/privacy_reduction_mode" },
+        "primary_action_id_ref": { "$ref": "#/$defs/primary_action_id_ref" },
+        "ancillary_action_id": { "$ref": "#/$defs/ancillary_action_id" },
+        "wrapped_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "account_prompt_ref": { "$ref": "#/$defs/opaque_id" },
+        "account_prompt_class": { "$ref": "#/$defs/account_prompt_class" },
+        "account_prompt_timing_class": { "$ref": "#/$defs/account_prompt_timing_class" },
+        "boundary_crossing_class": { "$ref": "#/$defs/boundary_crossing_class" },
+        "boundary_crossings_detail": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_crossing_class" },
+          "uniqueItems": true
+        },
+        "scoreboard_row_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^scoreboard_row:[a-z0-9_]+\\.[a-z0-9_]+$",
+          "description": "One scoreboard row id from no_account_switching_scoreboard_seed.yaml."
+        },
+        "measurement_surface_ref": { "$ref": "#/$defs/measurement_surface_ref" },
+        "entry_route_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^er\\.[a-z0-9_]+$"
+        },
+        "equal_weight_with_account_rows": { "type": "boolean" },
+        "disclosed_in_zone": { "$ref": "#/$defs/start_center_zone" },
+        "keyboard_reachable": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "account_prompt_class": { "const": "no_prompt" } },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "properties": {
+              "boundary_crossing_class": { "const": "no_boundary_crossed" },
+              "account_prompt_timing_class": { "const": "never_shown" }
+            },
+            "required": ["equal_weight_with_account_rows", "scoreboard_row_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "account_prompt_class": { "const": "policy_forced_prompt" } },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "properties": {
+              "account_prompt_timing_class": { "const": "forced_by_policy" }
+            },
+            "required": ["account_prompt_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "account_prompt_class": { "const": "unavailable_prompt" } },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "properties": {
+              "account_prompt_timing_class": { "const": "unavailable_in_envelope" }
+            },
+            "required": ["account_prompt_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": ["optional_prompt", "deferrable_prompt", "required_prompt"]
+              }
+            },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "required": ["account_prompt_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "entry_surface_family": { "const": "account_opt_in_card" } },
+            "required": ["entry_surface_family"]
+          },
+          "then": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": [
+                  "optional_prompt",
+                  "deferrable_prompt",
+                  "required_prompt",
+                  "policy_forced_prompt",
+                  "unavailable_prompt"
+                ]
+              }
+            },
+            "required": ["account_prompt_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "entry_surface_family": { "const": "first_run_tour_step" } },
+            "required": ["entry_surface_family"]
+          },
+          "then": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": ["no_prompt", "optional_prompt"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "primary_action_id_ref": { "const": "primary_action.open_folder" },
+              "startup_state_ref": {
+                "enum": [
+                  "startup_state:first_run",
+                  "startup_state:reopen_with_pending_restore",
+                  "startup_state:restore_failed",
+                  "startup_state:restore_skipped",
+                  "startup_state:open_without_restore",
+                  "startup_state:warming_startup",
+                  "startup_state:partial_startup",
+                  "startup_state:offline_startup",
+                  "startup_state:empty_state_or_placeholder_transition"
+                ]
+              }
+            },
+            "required": ["primary_action_id_ref", "startup_state_ref"]
+          },
+          "then": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": ["no_prompt", "policy_forced_prompt"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One entry-surface row. See no_account_local_entry_contract.md §4."
+    },
+
+    "account_prompt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_portability_state_schema_version",
+        "prompt_id",
+        "entry_surface_family_ref",
+        "account_prompt_class",
+        "account_prompt_timing_class",
+        "boundary_crossing_class",
+        "declinable",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "account_prompt_record" },
+        "onboarding_portability_state_schema_version": { "$ref": "#/$defs/onboarding_portability_state_schema_version" },
+        "prompt_id": { "$ref": "#/$defs/opaque_id" },
+        "entry_surface_family_ref": { "$ref": "#/$defs/entry_surface_family" },
+        "account_prompt_class": { "$ref": "#/$defs/account_prompt_class" },
+        "account_prompt_timing_class": { "$ref": "#/$defs/account_prompt_timing_class" },
+        "boundary_crossing_class": { "$ref": "#/$defs/boundary_crossing_class" },
+        "boundary_crossings_detail": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_crossing_class" },
+          "uniqueItems": true
+        },
+        "declinable": { "type": "boolean" },
+        "decline_consequence_class": { "$ref": "#/$defs/decline_consequence_class" },
+        "active_policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_forced_reason_code": { "$ref": "#/$defs/policy_forced_reason_code" },
+        "unavailable_envelope_class": { "$ref": "#/$defs/unavailable_envelope_class" },
+        "resolution_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/next_step_decision_hook" },
+          "uniqueItems": true
+        },
+        "scoreboard_row_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^scoreboard_row:[a-z0-9_]+\\.[a-z0-9_]+$"
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "account_prompt_class": { "const": "policy_forced_prompt" } },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "required": ["active_policy_bundle_ref", "policy_forced_reason_code"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "account_prompt_class": { "const": "unavailable_prompt" } },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "required": ["unavailable_envelope_class"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "declinable": { "const": true } },
+            "required": ["declinable"]
+          },
+          "then": {
+            "required": ["decline_consequence_class"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": [
+                  "optional_prompt",
+                  "deferrable_prompt",
+                  "required_prompt",
+                  "policy_forced_prompt",
+                  "unavailable_prompt"
+                ]
+              }
+            },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "required": ["resolution_hooks"],
+            "properties": {
+              "resolution_hooks": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "account_prompt_class": {
+                "enum": ["optional_prompt", "deferrable_prompt"]
+              }
+            },
+            "required": ["account_prompt_class"]
+          },
+          "then": {
+            "properties": { "declinable": { "const": true } }
+          }
+        }
+      ],
+      "description": "One account-prompt record. See no_account_local_entry_contract.md §5."
+    },
+
+    "onboarding_portability_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_portability_state_schema_version",
+        "state_item_id",
+        "state_portability_class",
+        "reset_class",
+        "export_class",
+        "profile_scope_class",
+        "portability_reason",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "onboarding_portability_state_record" },
+        "onboarding_portability_state_schema_version": { "$ref": "#/$defs/onboarding_portability_state_schema_version" },
+        "state_item_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^state_item\\.[a-z0-9_.]+$"
+        },
+        "state_portability_class": { "$ref": "#/$defs/state_portability_class" },
+        "reset_class": { "$ref": "#/$defs/reset_class" },
+        "export_class": { "$ref": "#/$defs/export_class" },
+        "profile_scope_class": { "$ref": "#/$defs/profile_scope_class" },
+        "portability_reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "recovery_binding_class": { "$ref": "#/$defs/recovery_binding_class" },
+        "downstream_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "portable_profile_state" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_profile" },
+              "export_class": {
+                "enum": [
+                  "in_portable_profile_package",
+                  "in_portable_profile_package_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "machine_local_diagnostic" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_device" },
+              "export_class": {
+                "enum": [
+                  "not_exported_machine_local",
+                  "in_support_bundle_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "device_scoped" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_device" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "account_scoped" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_account" },
+              "export_class": {
+                "enum": [
+                  "not_exported_machine_local",
+                  "in_support_bundle_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "policy_scoped" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_policy_bundle" },
+              "export_class": {
+                "enum": [
+                  "blocked_by_policy",
+                  "in_support_bundle_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state_portability_class": { "const": "ephemeral_session" } },
+            "required": ["state_portability_class"]
+          },
+          "then": {
+            "properties": {
+              "profile_scope_class": { "const": "per_session" },
+              "export_class": { "const": "not_exported_machine_local" }
+            }
+          }
+        }
+      ],
+      "description": "One onboarding state item's portability declaration. See no_account_local_entry_contract.md §6."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "no_account_floor_preserved_on_every_seeded_startup_state",
+            "no_forced_first_run_sign_in",
+            "privacy_reduction_preserves_open_and_clone",
+            "clear_recent_work_does_not_remove_open_path",
+            "no_account_rows_equal_weight_with_opt_in_rows",
+            "decline_never_silently_degrades_local_capability",
+            "one_state_item_one_portability_class",
+            "portable_profile_state_never_leaks_account_scoped_items",
+            "recent_work_metadata_is_device_scoped",
+            "boundary_crossing_truth_matches_prompt_class",
+            "every_onboarding_state_item_is_declared",
+            "every_policy_forced_prompt_cites_a_bundle"
+          ]
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One const-true invariant on the onboarding portability manifest. Any row with asserted_true=false is a schema violation."
+    },
+
+    "onboarding_portability_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_portability_state_schema_version",
+        "manifest_id",
+        "state_items",
+        "entry_surface_row_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "onboarding_portability_manifest_record" },
+        "onboarding_portability_state_schema_version": { "$ref": "#/$defs/onboarding_portability_state_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "state_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "entry_surface_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 12,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator. Declares the twelve const-true invariants and binds the entry-surface-row and state-item rows. See no_account_local_entry_contract.md §7."
+    }
+  }
+}
