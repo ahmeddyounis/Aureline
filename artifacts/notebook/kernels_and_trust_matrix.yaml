@@ -1,0 +1,375 @@
+# Notebook kernels-and-trust matrix.
+#
+# Machine-readable binding from each notebook kernel-transport class
+# (see docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md)
+# to the kernel-trust states admitted, the remote-agent service-
+# placement admission under ADR-0020, the degraded-state disclosure
+# under kernel_session_unavailable_no_kernel, the local-vs-remote
+# boundary-cue posture, and the widget-trust / output-lineage
+# posture expected when the transport is in force.
+#
+# Companion to docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+# and schemas/notebook/notebook_metadata_aureline.schema.json. If this
+# file and the ADR disagree, the ADR wins for reviewer language and
+# this file MUST be updated in the same change.
+#
+# Rules:
+#   - Every kernel_transport_row MUST name one transport_class, one
+#     placement_admission_class, at least one admitted_kernel_trust_state,
+#     one no_kernel_disclosure_class, one local_vs_remote_boundary_cue_class,
+#     one default_widget_trust_state, and one reconnect_admission_class.
+#   - Rows whose transport_class is a remote class MUST set
+#     local_vs_remote_boundary_cue_class =
+#     boundary_cue_visible_required AND admitted_target_identity_witness_ref_required = true.
+#   - Rows whose transport_class is a local class MUST set
+#     admitted_target_identity_witness_ref_required = false.
+#   - Every row MUST cite at least one invariant from the ADR and one
+#     placement-row ref from artifacts/runtime/service_placement_rows.yaml
+#     (when applicable).
+#   - Adding a row is additive-minor: bump
+#     kernels_and_trust_matrix_schema_version and extend this file
+#     in the same change that lands the transport class.
+#   - Repurposing a row is breaking and requires a new decision row in
+#     artifacts/governance/decision_index.yaml.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+
+kernels_and_trust_matrix_schema_version: 1
+
+sources:
+  adr: docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+  schema: schemas/notebook/notebook_metadata_aureline.schema.json
+  fixtures: fixtures/notebook/roundtrip_cases/
+  remote_agent: docs/adr/0020-remote-agent-contract.md
+  service_placement_rows: artifacts/runtime/service_placement_rows.yaml
+  workspace_trust: docs/adr/0018-workspace-trust-and-restricted-mode.md
+  execution_context: docs/adr/0009-execution-context-and-scope.md
+  review_seed: docs/review/structured_artifact_review_seed.md
+  review_matrix: artifacts/review/structured_artifact_classes.yaml
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies re-exported from the schema for local parity.
+# A row that uses a token outside these lists is non-conforming until the
+# schema adds it.
+# -----------------------------------------------------------------------------
+
+kernel_transport_class_vocabulary:
+  - local_managed_toolchain_kernel
+  - local_provisioned_kernel
+  - remote_agent_primary_kernel
+  - managed_workspace_agent_kernel
+  - provider_side_remote_kernel
+  - compatibility_bridge_remote_kernel
+
+kernel_trust_state_vocabulary:
+  - kernel_trust_inherited_from_document_trust
+  - kernel_trust_elevated_for_signed_repo_recipe
+  - kernel_trust_restricted_by_policy
+  - kernel_trust_unavailable_no_kernel
+
+document_trust_state_vocabulary:
+  - document_trust_inherited_from_workspace
+  - document_trust_elevated_on_explicit_grant
+  - document_trust_restricted_by_policy
+  - document_trust_revoked
+
+widget_trust_state_vocabulary:
+  - widget_trust_denied_by_default
+  - widget_trust_admitted_with_preview
+  - widget_trust_suppressed_by_trust
+  - widget_trust_suppressed_by_policy
+  - widget_trust_suppressed_by_content_class
+  - widget_trust_unavailable_no_kernel
+
+placement_admission_class_vocabulary:
+  - local_only_preferred_degrades_remote_eligible
+  - remote_agent_near_code_eligible
+  - remote_agent_near_code_required_when_attached
+  - managed_workspace_agent_only
+  - provider_side_only
+  - compatibility_bridge_only
+
+no_kernel_disclosure_class_vocabulary:
+  - chip_execution_unavailable_without_kernel
+  - chip_execution_unavailable_remote_session_not_reachable
+  - chip_execution_unavailable_managed_workspace_not_ready
+  - chip_execution_unavailable_policy_pack_denies
+
+local_vs_remote_boundary_cue_class_vocabulary:
+  - boundary_cue_not_applicable_local
+  - boundary_cue_visible_required
+
+reconnect_admission_class_vocabulary:
+  - reconnect_not_applicable_local
+  - reconnect_resumes_read_only_on_transient_disconnect
+  - reconnect_requires_renegotiation_on_identity_change
+  - reconnect_cancels_in_flight_on_trust_downgrade
+  - reconnect_fresh_session_required_on_window_exceeded
+
+# -----------------------------------------------------------------------------
+# Kernel-transport rows.
+# -----------------------------------------------------------------------------
+
+kernel_transport_rows:
+  - id: kernel_transport_row:local_managed_toolchain_kernel
+    transport_class: local_managed_toolchain_kernel
+    placement_admission_class: local_only_preferred_degrades_remote_eligible
+    placement_row_ref: service_placement_row:notebook_kernel.local_managed_toolchain
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_elevated_for_signed_repo_recipe
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: false
+    local_vs_remote_boundary_cue_class: boundary_cue_not_applicable_local
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_without_kernel
+    reconnect_admission_class: reconnect_not_applicable_local
+    ratified_invariants:
+      - canonical_ipynb_is_source_of_truth
+      - kernel_launch_requires_execution_context_root
+      - no_kernel_still_editable
+      - four_trust_axes_never_collapsed
+    notes: >
+      Baseline local kernel launched through the ADR-0009 execution-
+      context root. This row ratifies the compatibility archetype
+      notebook_first_data_workflow first-stable promise of
+      notebook_kernel_local_only. Remote promotion lands on its own row.
+
+  - id: kernel_transport_row:local_provisioned_kernel
+    transport_class: local_provisioned_kernel
+    placement_admission_class: local_only_preferred_degrades_remote_eligible
+    placement_row_ref: service_placement_row:notebook_kernel.local_provisioned
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: false
+    local_vs_remote_boundary_cue_class: boundary_cue_not_applicable_local
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_without_kernel
+    reconnect_admission_class: reconnect_not_applicable_local
+    ratified_invariants:
+      - canonical_ipynb_is_source_of_truth
+      - kernel_launch_requires_execution_context_root
+      - no_kernel_still_editable
+    notes: >
+      User-approved kernelspec launched on the local host outside the
+      managed toolchain (for example a user-installed Jupyter kernel).
+      kernel_trust_elevated_for_signed_repo_recipe is NOT admitted on
+      this row because the kernelspec is not managed.
+
+  - id: kernel_transport_row:remote_agent_primary_kernel
+    transport_class: remote_agent_primary_kernel
+    placement_admission_class: remote_agent_near_code_required_when_attached
+    placement_row_ref: service_placement_row:near_code_services.notebook_kernel
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: true
+    local_vs_remote_boundary_cue_class: boundary_cue_visible_required
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_remote_session_not_reachable
+    reconnect_admission_class: reconnect_requires_renegotiation_on_identity_change
+    ratified_invariants:
+      - remote_kernel_does_not_downgrade_to_local_silently
+      - local_vs_remote_boundary_cue_visible
+      - in_flight_executions_do_not_auto_replay_on_restore
+    notes: >
+      Kernel launched inside the ADR-0020 remote-agent primary
+      session. Identity rotation cancels in-flight executions;
+      prior outputs become captured_output_from_prior_session.
+
+  - id: kernel_transport_row:managed_workspace_agent_kernel
+    transport_class: managed_workspace_agent_kernel
+    placement_admission_class: managed_workspace_agent_only
+    placement_row_ref: service_placement_row:managed_workspace_agent_only.notebook_kernel
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: true
+    local_vs_remote_boundary_cue_class: boundary_cue_visible_required
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_managed_workspace_not_ready
+    reconnect_admission_class: reconnect_requires_renegotiation_on_identity_change
+    ratified_invariants:
+      - remote_kernel_does_not_downgrade_to_local_silently
+      - local_vs_remote_boundary_cue_visible
+      - four_trust_axes_never_collapsed
+    notes: >
+      Kernel hosted by a managed-workspace agent. The
+      managed_workspace_lifecycle_state gates admission; a
+      not-ready lifecycle surfaces chip_execution_unavailable_managed_workspace_not_ready
+      without dropping the document to read-only.
+
+  - id: kernel_transport_row:provider_side_remote_kernel
+    transport_class: provider_side_remote_kernel
+    placement_admission_class: provider_side_only
+    placement_row_ref: service_placement_row:provider_side_only.notebook_kernel
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: true
+    local_vs_remote_boundary_cue_class: boundary_cue_visible_required
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_policy_pack_denies
+    reconnect_admission_class: reconnect_cancels_in_flight_on_trust_downgrade
+    ratified_invariants:
+      - provider_side_mutation_denied_by_default_without_approval_ticket
+      - remote_kernel_does_not_downgrade_to_local_silently
+      - local_vs_remote_boundary_cue_visible
+    notes: >
+      Provider-side remote kernel; every mutation world denies by
+      default per ADR-0010 until an approval ticket is present.
+      kernel_trust_elevated_for_signed_repo_recipe is NOT admitted
+      here because provider-side trust does not accept repo-owned
+      recipes as a trust source.
+
+  - id: kernel_transport_row:compatibility_bridge_remote_kernel
+    transport_class: compatibility_bridge_remote_kernel
+    placement_admission_class: compatibility_bridge_only
+    placement_row_ref: service_placement_row:compatibility_bridge_only.notebook_kernel
+    admitted_kernel_trust_states:
+      - kernel_trust_inherited_from_document_trust
+      - kernel_trust_restricted_by_policy
+    admitted_target_identity_witness_ref_required: true
+    local_vs_remote_boundary_cue_class: boundary_cue_visible_required
+    default_widget_trust_state: widget_trust_denied_by_default
+    no_kernel_disclosure_class: chip_execution_unavailable_remote_session_not_reachable
+    reconnect_admission_class: reconnect_fresh_session_required_on_window_exceeded
+    ratified_invariants:
+      - remote_kernel_does_not_downgrade_to_local_silently
+      - local_vs_remote_boundary_cue_visible
+      - in_flight_executions_do_not_auto_replay_on_restore
+    notes: >
+      Kernel surfaced through an ADR-0019 compatibility-bridge
+      remote; bridge profile rules gate capability worlds; bridge
+      reconnect windows are narrower than primary remote agents.
+
+# -----------------------------------------------------------------------------
+# Trust-matrix rows.
+#
+# Binding of (document_trust_state x kernel_trust_state) to the admissible
+# widget_trust_state default and to the output-lineage fallback when the
+# kernel is not live.
+# -----------------------------------------------------------------------------
+
+trust_matrix_rows:
+  - id: trust_matrix_row:inherited_document_trust.inherited_kernel_trust
+    document_trust_state: document_trust_inherited_from_workspace
+    kernel_trust_state: kernel_trust_inherited_from_document_trust
+    admitted_widget_trust_states_at_default:
+      - widget_trust_denied_by_default
+      - widget_trust_admitted_with_preview
+      - widget_trust_suppressed_by_trust
+    output_lineage_fallback_when_kernel_not_live: captured_output_from_prior_session
+    notes: >
+      Default posture. Kernel launch admission honours the ADR-0018
+      workspace-trust packet and the document-trust state.
+
+  - id: trust_matrix_row:elevated_document_trust.elevated_kernel_trust
+    document_trust_state: document_trust_elevated_on_explicit_grant
+    kernel_trust_state: kernel_trust_elevated_for_signed_repo_recipe
+    admitted_widget_trust_states_at_default:
+      - widget_trust_denied_by_default
+      - widget_trust_admitted_with_preview
+    output_lineage_fallback_when_kernel_not_live: captured_output_from_prior_session
+    notes: >
+      Signed-repo activator with an explicit per-document trust
+      grant. Admin-policy narrowing remains the ceiling; a narrowing
+      transitions the row to
+      trust_matrix_row:restricted_document_trust_by_policy.
+
+  - id: trust_matrix_row:restricted_document_trust_by_policy
+    document_trust_state: document_trust_restricted_by_policy
+    kernel_trust_state: kernel_trust_restricted_by_policy
+    admitted_widget_trust_states_at_default:
+      - widget_trust_denied_by_default
+      - widget_trust_suppressed_by_policy
+    output_lineage_fallback_when_kernel_not_live: captured_output_from_prior_session
+    notes: >
+      Admin policy narrows the document and its kernel. The document
+      remains editable, reviewable, and diffable; execution is
+      denied and the typed chip names the policy source.
+
+  - id: trust_matrix_row:revoked_document_trust
+    document_trust_state: document_trust_revoked
+    kernel_trust_state: kernel_trust_unavailable_no_kernel
+    admitted_widget_trust_states_at_default:
+      - widget_trust_suppressed_by_trust
+      - widget_trust_unavailable_no_kernel
+    output_lineage_fallback_when_kernel_not_live: orphaned_no_kernel_binding
+    notes: >
+      Trust revocation cancels kernel session, marks outputs as
+      captured or orphaned, and suppresses widget live binding.
+      The document remains editable and reviewable.
+
+  - id: trust_matrix_row:inherited_document_trust.no_kernel_available
+    document_trust_state: document_trust_inherited_from_workspace
+    kernel_trust_state: kernel_trust_unavailable_no_kernel
+    admitted_widget_trust_states_at_default:
+      - widget_trust_denied_by_default
+      - widget_trust_unavailable_no_kernel
+    output_lineage_fallback_when_kernel_not_live: orphaned_no_kernel_binding
+    notes: >
+      Kernelspec unresolved or toolchain missing. The chip
+      chip_execution_unavailable_without_kernel names the reason;
+      the document stays fully editable and diffable.
+
+# -----------------------------------------------------------------------------
+# Acceptance claims that every successor ADR and every conformance corpus
+# must preserve without restating.
+# -----------------------------------------------------------------------------
+
+acceptance_claims:
+  - id: acceptance_claim:notebook_remains_editable_when_kernel_unavailable
+    description: >
+      When no kernel is resolvable under any transport class, the
+      notebook MUST open, render, diff, merge, search, and export.
+      Only execution-dependent surfaces render the typed
+      execution_unavailable_without_kernel chip.
+    enforced_by:
+      - rule:no_kernel_still_editable
+      - notebook_kernel_session_state:kernel_session_unavailable_no_kernel
+
+  - id: acceptance_claim:four_axes_never_collapse
+    description: >
+      Document trust, kernel trust, output trust, and widget trust
+      resolve independently. Collapsing them into a single
+      "notebook trust" state is non-conforming regardless of how the
+      surface renders them.
+    enforced_by:
+      - rule:four_trust_axes_never_collapsed
+      - notebook_document_trust_state
+      - notebook_kernel_trust_state
+      - notebook_output_trust_state
+      - notebook_widget_trust_state
+
+  - id: acceptance_claim:restore_never_auto_reruns
+    description: >
+      A reopened, reconnected, or restored notebook MUST NOT re-
+      execute a prior cell. Prior outputs render as
+      captured_output_from_prior_session or
+      replayed_from_captured_output; the user chooses a fresh
+      execution explicitly.
+    enforced_by:
+      - rule:in_flight_executions_do_not_auto_replay_on_restore
+      - notebook_output_lineage_class:captured_output_from_prior_session
+      - notebook_output_lineage_class:replayed_from_captured_output
+
+  - id: acceptance_claim:canonical_ipynb_wins
+    description: >
+      The on-disk .ipynb is the canonical source. Paired text
+      exports never promote to canonical. Unknown vendor metadata
+      survives round-trip.
+    enforced_by:
+      - rule:canonical_ipynb_is_source_of_truth
+      - notebook_canonical_preservation_class:canonical_ipynb_preserved
+      - notebook_metadata_survival_class:survival_required_vendor_namespaces
+
+  - id: acceptance_claim:local_vs_remote_boundary_cue_visible
+    description: >
+      Any notebook backed by a remote kernel renders a visible
+      local-vs-remote boundary cue on the kernel-target indicator,
+      on every run affordance, and on every widget preview.
+    enforced_by:
+      - rule:local_vs_remote_boundary_cue_visible
+      - local_vs_remote_boundary_cue_class:boundary_cue_visible_required

@@ -1,0 +1,966 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/notebook_metadata_aureline.schema.json",
+  "title": "Aureline notebook document-model, kernel-transport, trust-posture, output-lineage, widget-trust, diff-merge-posture, and audit vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the notebook document model, canonical .ipynb preservation, stable cell ids, Aureline-owned metadata namespace, four-axis trust posture (document trust, kernel trust, output trust, widget trust), kernel transport and discovery, kernel-session lifecycle, execution-queue admission, output-lineage classes, diff / merge posture, paired-text export rules, raw-JSON fallback rules, denial reasons, and audit-event ids reserved in docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md. Every record that crosses the notebook boundary (document open, cell, kernel session, output lineage, widget trust, diff / merge posture, audit event) projects through this schema. The kernels-and-trust matrix lives at artifacts/notebook/kernels_and_trust_matrix.yaml; worked fixtures live under fixtures/notebook/roundtrip_cases/. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw kernel argv bodies, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry refs only. Adding a new member to any enumerated set, a new record kind, or an additive field is additive-minor with a notebook_protocol_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_document_open_record" },
+    { "$ref": "#/$defs/notebook_cell_record" },
+    { "$ref": "#/$defs/notebook_kernel_session_record" },
+    { "$ref": "#/$defs/notebook_output_lineage_record" },
+    { "$ref": "#/$defs/notebook_widget_trust_record" },
+    { "$ref": "#/$defs/notebook_diff_merge_posture_record" },
+    { "$ref": "#/$defs/notebook_audit_event_record" }
+  ],
+  "$defs": {
+    "notebook_protocol_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the notebook document model, trust posture, kernel transport, output lineage, widget trust, and diff / merge vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "notebook_document_open_record",
+        "notebook_cell_record",
+        "notebook_kernel_session_record",
+        "notebook_output_lineage_record",
+        "notebook_widget_trust_record",
+        "notebook_diff_merge_posture_record",
+        "notebook_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (VFS path-identity, execution-context root, trust-decision packet, admin-policy epoch, kernelspec row, kernel-session id, cell id, output id, widget id, remote-agent session id, target-identity witness, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction-class vocabulary. Notebook records default to metadata_and_hashes_only; broadened_capture requires an explicit provenance record."
+    },
+
+    "notebook_canonical_preservation_class": {
+      "type": "string",
+      "enum": [
+        "canonical_ipynb_preserved",
+        "export_only_no_round_trip",
+        "no_paired_text_representation"
+      ],
+      "description": "Frozen canonical-preservation class. The on-disk .ipynb is always canonical; paired text exports are derived."
+    },
+
+    "notebook_cell_id_stability_class": {
+      "type": "string",
+      "enum": [
+        "stable_cell_id_required",
+        "stable_cell_id_minted_on_first_save",
+        "cell_id_stability_not_available_raw_json_fallback_only"
+      ],
+      "description": "Frozen cell-id stability class. Stable cell ids are the merge gate; non-availability forces raw-JSON fallback with a visible chip."
+    },
+
+    "notebook_metadata_survival_class": {
+      "type": "string",
+      "enum": [
+        "survival_required_jupyter_and_aureline_namespaces",
+        "survival_required_vendor_namespaces",
+        "survival_recommended_unknown_vendor_namespaces"
+      ],
+      "description": "Frozen metadata-survival class. Jupyter/kernelspec/language_info/aureline namespaces MUST survive; vendor namespaces MUST survive and filtering requires an explicit preset; unknown vendor namespaces SHOULD survive."
+    },
+
+    "notebook_aureline_metadata_key": {
+      "type": "string",
+      "enum": [
+        "aureline.document_id_ref",
+        "aureline.cell_id_minting_policy",
+        "aureline.last_kernel_session_id_ref",
+        "aureline.last_trust_state_ref",
+        "aureline.paired_text_export_ref",
+        "aureline.widget_trust_summary_refs",
+        "aureline.output_lineage_refs",
+        "aureline.metadata_survival_report_ref",
+        "aureline.support_export_scope"
+      ],
+      "description": "Frozen Aureline-owned notebook metadata namespace keys. Additive-minor additions land here. Inventing an ad hoc aureline.* key is breaking."
+    },
+
+    "notebook_cell_id_minting_policy_class": {
+      "type": "string",
+      "enum": [
+        "preserved_from_source",
+        "minted_on_first_save",
+        "not_applicable"
+      ],
+      "description": "Values the aureline.cell_id_minting_policy key may carry."
+    },
+
+    "notebook_document_trust_state": {
+      "type": "string",
+      "enum": [
+        "document_trust_inherited_from_workspace",
+        "document_trust_elevated_on_explicit_grant",
+        "document_trust_restricted_by_policy",
+        "document_trust_revoked"
+      ],
+      "description": "Frozen document-trust state vocabulary (axis 1 of 4). Orthogonal to kernel trust, output trust, and widget trust."
+    },
+
+    "notebook_kernel_trust_state": {
+      "type": "string",
+      "enum": [
+        "kernel_trust_inherited_from_document_trust",
+        "kernel_trust_elevated_for_signed_repo_recipe",
+        "kernel_trust_restricted_by_policy",
+        "kernel_trust_unavailable_no_kernel"
+      ],
+      "description": "Frozen kernel-trust state vocabulary (axis 2 of 4). Axis 2 is orthogonal to axes 1, 3, 4 and gates kernel launch independently of document render."
+    },
+
+    "notebook_output_trust_state": {
+      "type": "string",
+      "enum": [
+        "output_trust_live_from_current_session",
+        "output_trust_captured_from_prior_session",
+        "output_trust_replayed_from_captured_output",
+        "output_trust_orphaned_no_kernel_binding",
+        "output_trust_widget_gated"
+      ],
+      "description": "Frozen output-trust state vocabulary (axis 3 of 4). Every rendered output cites exactly one value."
+    },
+
+    "notebook_widget_trust_state": {
+      "type": "string",
+      "enum": [
+        "widget_trust_denied_by_default",
+        "widget_trust_admitted_with_preview",
+        "widget_trust_suppressed_by_trust",
+        "widget_trust_suppressed_by_policy",
+        "widget_trust_suppressed_by_content_class",
+        "widget_trust_unavailable_no_kernel"
+      ],
+      "description": "Frozen widget-trust state vocabulary (axis 4 of 4). Default is widget_trust_denied_by_default regardless of document trust."
+    },
+
+    "notebook_kernel_transport_class": {
+      "type": "string",
+      "enum": [
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ],
+      "description": "Frozen kernel-transport class vocabulary. Non-local transports carry a remote-agent session ref and a target-identity witness."
+    },
+
+    "notebook_kernel_session_state": {
+      "type": "string",
+      "enum": [
+        "kernel_session_requested",
+        "kernel_session_starting",
+        "kernel_session_active",
+        "kernel_session_idle",
+        "kernel_session_busy",
+        "kernel_session_interrupt_requested",
+        "kernel_session_restart_requested",
+        "kernel_session_cancelled_by_trust_downgrade",
+        "kernel_session_closed",
+        "kernel_session_lost_transport",
+        "kernel_session_reconnected_same_identity",
+        "kernel_session_reconnected_identity_changed",
+        "kernel_session_unavailable_no_kernel",
+        "kernel_session_quarantined"
+      ],
+      "description": "Frozen kernel-session lifecycle-state vocabulary. A notebook with state kernel_session_unavailable_no_kernel remains editable, reviewable, and diffable."
+    },
+
+    "notebook_execution_queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_in_order",
+        "admitted_skipped_by_policy",
+        "admitted_deferred_no_kernel",
+        "denied_by_trust"
+      ],
+      "description": "Frozen execution-queue admission class vocabulary. In-flight executions do not auto-replay on restore."
+    },
+
+    "notebook_output_lineage_class": {
+      "type": "string",
+      "enum": [
+        "live_output_from_current_session",
+        "captured_output_from_prior_session",
+        "replayed_from_captured_output",
+        "orphaned_no_kernel_binding",
+        "widget_gated_output"
+      ],
+      "description": "Frozen output-lineage class vocabulary. Every rendered output cites exactly one value; replay never promotes captured to live."
+    },
+
+    "notebook_output_handling_mode": {
+      "type": "string",
+      "enum": [
+        "ignore_outputs_by_default_with_opt_in_inclusion",
+        "collapse_outputs_by_default",
+        "include_outputs_with_trust_gate",
+        "outputs_never_merged_only_compared"
+      ],
+      "description": "Frozen output-handling mode vocabulary re-exporting and extending the structured-artifact review seed preset for diff / merge flows."
+    },
+
+    "notebook_metadata_filter_preset": {
+      "type": "string",
+      "enum": [
+        "preserve_jupyter_and_aureline_namespaces_only",
+        "preserve_all_vendor_metadata"
+      ],
+      "description": "Frozen metadata-filter preset vocabulary. preserve_none_forbidden is reserved but NOT admitted at this milestone (breaks unknown-metadata survival)."
+    },
+
+    "notebook_diff_merge_posture_class": {
+      "type": "string",
+      "enum": [
+        "cell_aware_semantic_compare_default",
+        "cell_aware_three_way_merge_permitted_behind_corpus",
+        "regenerate_from_canonical_source_on_conflict",
+        "raw_json_fallback_allowed"
+      ],
+      "description": "Frozen diff / merge posture class vocabulary. Three-way merge is admitted only when every cell resolves a stable cell id AND the round-trip corpus is present."
+    },
+
+    "notebook_raw_json_fallback_reason_class": {
+      "type": "string",
+      "enum": [
+        "fallback_not_applicable",
+        "fallback_cell_id_stability_not_available",
+        "fallback_malformed_json_or_truncated_document",
+        "fallback_unsupported_nbformat_version"
+      ],
+      "description": "Frozen raw-JSON fallback reason class vocabulary. Any raw_json_fallback_allowed posture MUST name its reason on the compare chip."
+    },
+
+    "notebook_paired_text_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "paired_text_export_not_applicable",
+        "paired_text_export_derived_notebook_to_script",
+        "paired_text_export_derived_notebook_to_markdown"
+      ],
+      "description": "Frozen paired-text export posture class vocabulary. Paired text exports are always derived from the canonical .ipynb; promoting a paired text form to canonical is non-conforming."
+    },
+
+    "notebook_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "notebook_document_trust_state_denies_execution",
+        "notebook_kernel_trust_state_denies_launch",
+        "notebook_output_trust_state_denies_render",
+        "notebook_widget_trust_state_denies_live_binding",
+        "notebook_execution_context_root_unresolved",
+        "notebook_kernelspec_unresolved_no_kernel_available",
+        "notebook_policy_pack_denies_kernel_launch",
+        "notebook_policy_pack_denies_widget_rendering",
+        "notebook_policy_pack_denies_output_execution",
+        "notebook_remote_agent_session_unavailable",
+        "notebook_remote_agent_target_identity_witness_unverifiable",
+        "notebook_protocol_violation_budget_exceeded",
+        "notebook_metadata_filter_preset_not_admitted",
+        "notebook_output_handling_mode_not_admitted",
+        "notebook_cell_id_stability_required_but_not_available",
+        "notebook_merge_requires_round_trip_corpus_not_present",
+        "notebook_merge_unknown_metadata_survival_failed",
+        "notebook_raw_json_fallback_reason_class_required_not_present",
+        "notebook_paired_text_export_promoted_to_canonical_forbidden",
+        "notebook_restore_auto_rerun_forbidden",
+        "notebook_raw_body_forbidden_on_boundary"
+      ],
+      "description": "Frozen denial-reason vocabulary. Every denial fails closed and cites exactly one value."
+    },
+
+    "notebook_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "notebook_document_opened",
+        "notebook_document_open_denied",
+        "notebook_document_closed",
+        "notebook_document_trust_state_transitioned",
+        "notebook_kernel_session_requested",
+        "notebook_kernel_session_launched",
+        "notebook_kernel_session_launch_denied",
+        "notebook_kernel_session_interrupt_requested",
+        "notebook_kernel_session_restart_requested",
+        "notebook_kernel_session_cancelled_by_trust_downgrade",
+        "notebook_kernel_session_reconnect_same_identity",
+        "notebook_kernel_session_reconnect_identity_changed",
+        "notebook_kernel_session_closed",
+        "notebook_kernel_session_quarantined",
+        "notebook_kernel_session_unavailable_no_kernel_observed",
+        "notebook_execution_queue_admission_recorded",
+        "notebook_execution_queue_admission_denied",
+        "notebook_output_lineage_recorded",
+        "notebook_widget_trust_state_transitioned",
+        "notebook_widget_live_binding_admitted_with_preview",
+        "notebook_widget_live_binding_suppressed",
+        "notebook_diff_surface_rendered",
+        "notebook_merge_admitted_with_round_trip_corpus",
+        "notebook_merge_denied_by_unknown_metadata_survival_failure",
+        "notebook_raw_json_fallback_engaged",
+        "notebook_paired_text_export_rendered",
+        "notebook_metadata_survival_report_emitted",
+        "notebook_protocol_violation_observed"
+      ],
+      "description": "Frozen notebook audit-event id vocabulary. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear on any event."
+    },
+
+    "notebook_document_open_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "document_id",
+        "document_path_token_ref",
+        "nbformat_major",
+        "nbformat_minor",
+        "canonical_preservation_class",
+        "cell_id_stability_class",
+        "metadata_survival_class",
+        "document_trust_state",
+        "paired_text_export_posture_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_document_open_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "document_id": { "$ref": "#/$defs/opaque_id" },
+        "document_path_token_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the VFS canonical path-identity token (ADR-0006)."
+        },
+        "workspace_trust_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "identity_mode_ref": { "$ref": "#/$defs/opaque_ref" },
+        "admin_policy_epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "command_dispatch_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ADR-0016 command-dispatch entry that admitted this open (notebook.manual_open)."
+        },
+        "nbformat_major": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "nbformat major version read from the document."
+        },
+        "nbformat_minor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "nbformat minor version read from the document."
+        },
+        "canonical_preservation_class": { "$ref": "#/$defs/notebook_canonical_preservation_class" },
+        "cell_id_stability_class": { "$ref": "#/$defs/notebook_cell_id_stability_class" },
+        "metadata_survival_class": { "$ref": "#/$defs/notebook_metadata_survival_class" },
+        "aureline_metadata_keys_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_aureline_metadata_key" },
+          "description": "Which aureline.* keys were present on open. Unknown aureline.* keys MUST cause open to refuse with notebook_raw_body_forbidden_on_boundary; the namespace is closed."
+        },
+        "document_trust_state": { "$ref": "#/$defs/notebook_document_trust_state" },
+        "kernelspec_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "paired_text_export_posture_class": { "$ref": "#/$defs/notebook_paired_text_export_posture_class" },
+        "paired_text_export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "metadata_survival_report_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "When cell-id stability is not available the document opens with raw-JSON fallback; the diff / merge posture record names the reason.",
+          "if": {
+            "properties": {
+              "cell_id_stability_class": { "const": "cell_id_stability_not_available_raw_json_fallback_only" }
+            },
+            "required": ["cell_id_stability_class"]
+          },
+          "then": {
+            "required": ["metadata_survival_report_ref"]
+          }
+        },
+        {
+          "description": "paired-text export refs are non-null only when the paired-text posture is a derived class.",
+          "if": {
+            "properties": {
+              "paired_text_export_posture_class": {
+                "enum": [
+                  "paired_text_export_derived_notebook_to_script",
+                  "paired_text_export_derived_notebook_to_markdown"
+                ]
+              }
+            },
+            "required": ["paired_text_export_posture_class"]
+          },
+          "then": {
+            "required": ["paired_text_export_ref"],
+            "properties": {
+              "paired_text_export_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "paired_text_export_not_applicable MUST NOT carry a paired-text export ref.",
+          "if": {
+            "properties": {
+              "paired_text_export_posture_class": { "const": "paired_text_export_not_applicable" }
+            },
+            "required": ["paired_text_export_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "paired_text_export_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+
+    "notebook_cell_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "cell_id",
+        "document_id_ref",
+        "cell_type_class",
+        "cell_source_ref",
+        "cell_metadata_survival_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_cell_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "cell_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable cell id. Identity survives save, diff, merge, re-order, and re-materialization."
+        },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_type_class": {
+          "type": "string",
+          "enum": [
+            "code",
+            "markdown",
+            "raw"
+          ],
+          "description": "Cell-type class. Additional types (for example heading) are additive-minor."
+        },
+        "cell_source_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the cell source body. Raw source bytes MUST NOT appear inline on this record."
+        },
+        "cell_metadata_survival_class": { "$ref": "#/$defs/notebook_metadata_survival_class" },
+        "unknown_vendor_namespaces_present": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Opaque list of vendor-namespace ids detected on the cell metadata; raw vendor bodies MUST NOT appear."
+        },
+        "last_cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "output_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to notebook_output_lineage_record entries for outputs bound to this cell."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "notebook_kernel_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "kernel_session_id",
+        "document_id_ref",
+        "transport_class",
+        "execution_context_root_ref",
+        "kernel_trust_state_at_launch",
+        "session_state",
+        "auto_rerun_forbidden",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_kernel_session_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "kernel_session_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "transport_class": { "$ref": "#/$defs/notebook_kernel_transport_class" },
+        "remote_agent_session_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the ADR-0020 remote-agent session id when transport_class is a remote class. Null for local classes."
+        },
+        "target_identity_witness_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "ADR-0020 target-identity witness ref; required for any remote transport."
+        },
+        "execution_context_root_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernelspec_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "kernel_trust_state_at_launch": { "$ref": "#/$defs/notebook_kernel_trust_state" },
+        "advertised_protocol_profile_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "session_state": { "$ref": "#/$defs/notebook_kernel_session_state" },
+        "local_vs_remote_boundary_cue_visible": {
+          "type": "boolean",
+          "description": "Whether the notebook surface renders the visible local-vs-remote boundary cue. MUST be true whenever transport_class is not local_managed_toolchain_kernel or local_provisioned_kernel."
+        },
+        "auto_rerun_forbidden": {
+          "type": "boolean",
+          "description": "MUST be true on every transition into kernel_session_reconnected_same_identity, kernel_session_reconnected_identity_changed, and kernel_session_unavailable_no_kernel. Silent replay of any prior cell is forbidden under every value."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Non-local transports MUST carry the remote-agent session ref, the target-identity witness ref, and MUST render the local-vs-remote boundary cue.",
+          "if": {
+            "properties": {
+              "transport_class": {
+                "enum": [
+                  "remote_agent_primary_kernel",
+                  "managed_workspace_agent_kernel",
+                  "provider_side_remote_kernel",
+                  "compatibility_bridge_remote_kernel"
+                ]
+              }
+            },
+            "required": ["transport_class"]
+          },
+          "then": {
+            "required": ["remote_agent_session_id_ref", "target_identity_witness_ref"],
+            "properties": {
+              "remote_agent_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+              "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" },
+              "local_vs_remote_boundary_cue_visible": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "kernel_session_unavailable_no_kernel, kernel_session_reconnected_same_identity, and kernel_session_reconnected_identity_changed MUST set auto_rerun_forbidden = true.",
+          "if": {
+            "properties": {
+              "session_state": {
+                "enum": [
+                  "kernel_session_unavailable_no_kernel",
+                  "kernel_session_reconnected_same_identity",
+                  "kernel_session_reconnected_identity_changed"
+                ]
+              }
+            },
+            "required": ["session_state"]
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_forbidden": { "const": true }
+            },
+            "required": ["auto_rerun_forbidden"]
+          }
+        }
+      ]
+    },
+
+    "notebook_output_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "output_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "lineage_class",
+        "output_trust_state",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_output_lineage_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "output_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_execution_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the execution-queue cell-execution id that produced this output. Non-null for live_output_from_current_session and captured_output_from_prior_session; null for orphaned_no_kernel_binding and for widget_gated_output when no execution is bound yet."
+        },
+        "kernel_session_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the kernel session that produced this output. Non-null for live_output_from_current_session, captured_output_from_prior_session, and replayed_from_captured_output (the producing session); null for orphaned_no_kernel_binding."
+        },
+        "lineage_class": { "$ref": "#/$defs/notebook_output_lineage_class" },
+        "output_trust_state": { "$ref": "#/$defs/notebook_output_trust_state" },
+        "output_mime_type_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the typed MIME bundle descriptor; raw output bytes MUST NOT appear inline."
+        },
+        "widget_trust_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the notebook_widget_trust_record when lineage_class is widget_gated_output."
+        },
+        "secret_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to credential-handle classes from ADR-0007 that the output intersects. When non-empty, the output is rendered through the credential-handle reveal contract only."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "live_output_from_current_session and captured_output_from_prior_session MUST carry both a kernel session ref and a cell-execution ref.",
+          "if": {
+            "properties": {
+              "lineage_class": {
+                "enum": [
+                  "live_output_from_current_session",
+                  "captured_output_from_prior_session"
+                ]
+              }
+            },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "required": ["kernel_session_id_ref", "cell_execution_id_ref"],
+            "properties": {
+              "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+              "cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "replayed_from_captured_output MUST carry the producing kernel session ref; its cell-execution ref is the captured execution, not a fresh one.",
+          "if": {
+            "properties": {
+              "lineage_class": { "const": "replayed_from_captured_output" }
+            },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "required": ["kernel_session_id_ref"],
+            "properties": {
+              "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+              "output_trust_state": { "const": "output_trust_replayed_from_captured_output" }
+            }
+          }
+        },
+        {
+          "description": "orphaned_no_kernel_binding MUST carry output_trust_orphaned_no_kernel_binding.",
+          "if": {
+            "properties": {
+              "lineage_class": { "const": "orphaned_no_kernel_binding" }
+            },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "properties": {
+              "output_trust_state": { "const": "output_trust_orphaned_no_kernel_binding" }
+            }
+          }
+        },
+        {
+          "description": "widget_gated_output MUST cite a widget-trust ref and carry output_trust_widget_gated.",
+          "if": {
+            "properties": {
+              "lineage_class": { "const": "widget_gated_output" }
+            },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "required": ["widget_trust_ref"],
+            "properties": {
+              "widget_trust_ref": { "$ref": "#/$defs/opaque_ref" },
+              "output_trust_state": { "const": "output_trust_widget_gated" }
+            }
+          }
+        }
+      ]
+    },
+
+    "notebook_widget_trust_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "widget_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "widget_trust_state",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_widget_trust_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "widget_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the kernel session backing the widget's comm channel. Null when widget_trust_state is widget_trust_unavailable_no_kernel."
+        },
+        "widget_runtime_class_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Opaque ref naming the widget runtime binding (for example ipywidgets / anywidget). The successor ADR pins the admitted runtimes."
+        },
+        "widget_trust_state": { "$ref": "#/$defs/notebook_widget_trust_state" },
+        "preview_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the preview_apply_revert_record that admitted the widget. MUST be non-null when widget_trust_state is widget_trust_admitted_with_preview."
+        },
+        "high_risk_preview_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to high-risk preview classes from the safe-preview detector contract that apply."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_denial_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Typed denial reason. Non-null when widget_trust_state is widget_trust_suppressed_by_trust, widget_trust_suppressed_by_policy, widget_trust_suppressed_by_content_class, or widget_trust_unavailable_no_kernel."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "widget_trust_admitted_with_preview MUST cite a preview record ref.",
+          "if": {
+            "properties": {
+              "widget_trust_state": { "const": "widget_trust_admitted_with_preview" }
+            },
+            "required": ["widget_trust_state"]
+          },
+          "then": {
+            "required": ["preview_record_ref"],
+            "properties": {
+              "preview_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            }
+          }
+        },
+        {
+          "description": "widget_trust_unavailable_no_kernel MUST NOT cite a kernel session ref.",
+          "if": {
+            "properties": {
+              "widget_trust_state": { "const": "widget_trust_unavailable_no_kernel" }
+            },
+            "required": ["widget_trust_state"]
+          },
+          "then": {
+            "properties": {
+              "kernel_session_id_ref": { "type": "null" }
+            },
+            "required": ["denial_reason_class"]
+          }
+        },
+        {
+          "description": "Every suppressed widget-trust state MUST cite a typed denial reason.",
+          "if": {
+            "properties": {
+              "widget_trust_state": {
+                "enum": [
+                  "widget_trust_suppressed_by_trust",
+                  "widget_trust_suppressed_by_policy",
+                  "widget_trust_suppressed_by_content_class",
+                  "widget_trust_unavailable_no_kernel"
+                ]
+              }
+            },
+            "required": ["widget_trust_state"]
+          },
+          "then": {
+            "required": ["denial_reason_class"],
+            "properties": {
+              "denial_reason_class": { "$ref": "#/$defs/notebook_denial_reason_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "notebook_diff_merge_posture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "posture_id",
+        "document_id_ref",
+        "diff_merge_posture_class",
+        "output_handling_mode",
+        "metadata_filter_preset",
+        "raw_json_fallback_reason_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_diff_merge_posture_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "posture_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diff_merge_posture_class": { "$ref": "#/$defs/notebook_diff_merge_posture_class" },
+        "output_handling_mode": { "$ref": "#/$defs/notebook_output_handling_mode" },
+        "metadata_filter_preset": { "$ref": "#/$defs/notebook_metadata_filter_preset" },
+        "raw_json_fallback_reason_class": { "$ref": "#/$defs/notebook_raw_json_fallback_reason_class" },
+        "round_trip_corpus_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the notebook round-trip corpus; MUST be non-null when diff_merge_posture_class is cell_aware_three_way_merge_permitted_behind_corpus."
+        },
+        "conformance_corpus_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the conformance corpus for the posture; MUST be non-null when diff_merge_posture_class is cell_aware_three_way_merge_permitted_behind_corpus."
+        },
+        "paired_text_export_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "cell_aware_three_way_merge_permitted_behind_corpus MUST carry a round-trip corpus ref AND a conformance corpus ref.",
+          "if": {
+            "properties": {
+              "diff_merge_posture_class": { "const": "cell_aware_three_way_merge_permitted_behind_corpus" }
+            },
+            "required": ["diff_merge_posture_class"]
+          },
+          "then": {
+            "required": ["round_trip_corpus_ref", "conformance_corpus_ref"],
+            "properties": {
+              "round_trip_corpus_ref": { "$ref": "#/$defs/opaque_ref" },
+              "conformance_corpus_ref": { "$ref": "#/$defs/opaque_ref" },
+              "raw_json_fallback_reason_class": { "const": "fallback_not_applicable" }
+            }
+          }
+        },
+        {
+          "description": "raw_json_fallback_allowed MUST name a non-default raw-JSON fallback reason.",
+          "if": {
+            "properties": {
+              "diff_merge_posture_class": { "const": "raw_json_fallback_allowed" }
+            },
+            "required": ["diff_merge_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "raw_json_fallback_reason_class": {
+                "enum": [
+                  "fallback_cell_id_stability_not_available",
+                  "fallback_malformed_json_or_truncated_document",
+                  "fallback_unsupported_nbformat_version"
+                ]
+              }
+            },
+            "required": ["raw_json_fallback_reason_class"]
+          }
+        },
+        {
+          "description": "cell_aware_semantic_compare_default and regenerate_from_canonical_source_on_conflict postures MUST NOT carry a raw-JSON fallback reason.",
+          "if": {
+            "properties": {
+              "diff_merge_posture_class": {
+                "enum": [
+                  "cell_aware_semantic_compare_default",
+                  "regenerate_from_canonical_source_on_conflict"
+                ]
+              }
+            },
+            "required": ["diff_merge_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "raw_json_fallback_reason_class": { "const": "fallback_not_applicable" }
+            }
+          }
+        }
+      ]
+    },
+
+    "notebook_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_protocol_schema_version",
+        "event_id",
+        "document_id_ref",
+        "audit_event_id",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_audit_event_record" },
+        "notebook_protocol_schema_version": { "$ref": "#/$defs/notebook_protocol_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "output_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "widget_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audit_event_id": { "$ref": "#/$defs/notebook_audit_event_id" },
+        "related_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Ordered refs to related records (document open, cell, kernel session, output lineage, widget trust, diff / merge posture) without carrying their raw bodies."
+        },
+        "denial_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/notebook_denial_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
