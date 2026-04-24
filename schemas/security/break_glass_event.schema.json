@@ -1,0 +1,552 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/break_glass_event.schema.json",
+  "title": "Aureline break-glass event contract",
+  "description": "Boundary schema for break_glass_event_record, the reviewable audit row produced whenever a high-risk freeze, revocation, trust-root, or emergency-policy action is invoked under the audited_single_responder_containment break-glass profile in artifacts/governance/signing_quorum.yaml rather than under the full default quorum. One row per invocation carries the signing-quorum action ref, the break-glass profile ref, the invoking actor identity, the admitted reason and urgency, the affected scope (subjects, install-profile-card refs, channel classes, deployment profiles), the produced emergency-action and revocation ids, the triage / advisory / incident / post-incident / release-evidence / support-export / admin-export cross-links, invocation and must-close-by timestamps, a frozen lifecycle state (invoked_pending_reconciliation, reconciled_with_retrospective_cosign, superseded_by_signed_action, expired_without_reconciliation, withdrawn_invalid_invocation), the retrospective cosign block that closes the invocation, and redaction metadata. Raw human identifiers, raw chat handles, raw pager ids, raw signing material, raw quorum-signature bytes, and raw support attachments never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe summary fields only. The private_triage_workspace_packet_record.break_glass_refs.audit_row_ref, advisory_record.decision_history refs, emergency_action_record.history_links refs, release-evidence decision-history refs, support-export packet decision-history refs, admin-export decision-history refs, and post-incident review rows all resolve to the same break_glass_event_id rather than re-keying. Adding a new reason_class, lifecycle_state, actor_class, cosigner_role_class, cosigner_forum_class, history_link slot, redaction_class, or scope class is additive-minor and requires a break_glass_event_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "$ref": "#/$defs/break_glass_event_record",
+  "$defs": {
+    "break_glass_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this break-glass event export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "break_glass_event_record",
+      "description": "Discriminator. Every break-glass event carries record_kind = break_glass_event_record so parity audits, admin exports, and support packets can validate payloads mechanically."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / release-evidence packets. Raw bundle bytes, raw signing material, raw quorum signatures, raw human identifiers, raw chat handles, and raw pager ids never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence describing posture, mitigation, or close-out guidance. Raw secret material, raw incident notes, and raw exploit payloads MUST NOT appear."
+    },
+    "signing_quorum_action_ref": {
+      "type": "string",
+      "enum": [
+        "channel_freeze_or_resume",
+        "revocation_disable_or_kill_switch_publication",
+        "emergency_policy_bundle_publish",
+        "high_severity_security_publication"
+      ],
+      "description": "Frozen action-ref vocabulary. Mirrors artifacts/governance/signing_quorum.yaml#actions[] for the rows whose break_glass_profile is audited_single_responder_containment. An invocation that names any other action id is non-conforming (break_glass_for_forbidden_action) and MUST be rejected."
+    },
+    "break_glass_profile_ref": {
+      "type": "string",
+      "enum": [
+        "audited_single_responder_containment"
+      ],
+      "description": "Frozen break-glass-profile ref. Mirrors artifacts/governance/signing_quorum.yaml#break_glass_profiles[]. At this revision the single admitted profile is audited_single_responder_containment; adding a new profile is additive-minor and lands this enum value plus the governance decision row in the same change."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "security_operator",
+        "release_operator",
+        "security_trust_review_reviewer",
+        "org_admin",
+        "support_operator"
+      ],
+      "description": "Frozen invoking-actor vocabulary. Mirrors the role classes named in signing_quorum.yaml quorum_profiles plus org_admin and support_operator for self-hosted and support-owned break-glass paths. end_user is deliberately not admitted: break-glass is an operator action."
+    },
+    "actor_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_maintainer",
+        "backup_maintainer",
+        "release_council_member",
+        "security_trust_review_member",
+        "signing_operator",
+        "mirror_operator",
+        "support_operator"
+      ],
+      "description": "Frozen actor-role vocabulary. Names which standing role the invoker held when they invoked break-glass. Mirrors the reviewer-depth and backup-owner roles in docs/governance/maintainer_coverage_policy.md."
+    },
+    "invoking_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_role_class",
+        "actor_account_ref",
+        "actor_note"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_role_class": { "$ref": "#/$defs/actor_role_class" },
+        "actor_account_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the operator account or service principal the invocation is attributed to. Raw human identifiers (email, login handle, real name, chat handle, pager id, hostname) MUST NOT appear."
+        },
+        "actor_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Invoking-actor envelope. Names who invoked break-glass under stable opaque refs so admin-export, support-export, and post-incident review rows agree on attribution without leaking raw identifiers."
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "operational_emergency_declared",
+        "active_signed_artifact_compromise",
+        "verified_malicious_distribution",
+        "urgent_channel_freeze_needed"
+      ],
+      "description": "Frozen admitted-cause vocabulary. Mirrors artifacts/governance/signing_quorum.yaml break_glass_profiles[audited_single_responder_containment].allowed_when. A record that resolves to any other cause is non-conforming (break_glass_cause_not_admitted). The forbidden-cause list (stable / LTS promotion, widening claim scope, permanent signer roster change, audit-history mutation) is enforced by the signing_quorum_action_ref enum above and by §4.2 of docs/security/high_risk_control_quorum.md."
+    },
+    "urgency_class": {
+      "type": "string",
+      "enum": [
+        "immediate",
+        "prompt",
+        "before_expiry",
+        "next_admin_window",
+        "scheduled_follow_up"
+      ],
+      "description": "Frozen urgency vocabulary. Re-exported by value from schemas/security/emergency_action_record.schema.json so the break-glass event and the produced emergency action cannot drift on urgency."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Frozen deployment-profile vocabulary. Mirrors schemas/security/advisory_record.schema.json and schemas/security/emergency_action_record.schema.json."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Frozen release-channel vocabulary. Mirrors schemas/build/exact_build_identity.schema.json and schemas/security/advisory_record.schema.json."
+    },
+    "security_subject_kind": {
+      "type": "string",
+      "enum": [
+        "build_binary",
+        "build_symbol",
+        "docs_pack",
+        "extension",
+        "capability_gate",
+        "settings_definition",
+        "secret_class_posture",
+        "signing_material",
+        "signing_root",
+        "install_profile_card",
+        "runtime_component",
+        "managed_cloud_surface",
+        "third_party_dependency",
+        "workspace_trust_policy",
+        "ai_context_assembly",
+        "model_pack",
+        "route",
+        "release_channel",
+        "policy_bundle",
+        "registry_namespace"
+      ],
+      "description": "Frozen subject-kind vocabulary. Mirrors schemas/security/emergency_action_record.schema.json#/$defs/security_subject_kind so the break-glass event and the produced emergency action resolve the same subject family."
+    },
+    "affected_subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/security_subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Typed subject ref. Raw subject bodies never appear here."
+    },
+    "break_glass_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_subjects",
+        "affected_install_profile_card_refs",
+        "affected_exact_build_identity_refs",
+        "affected_channel_classes",
+        "affected_deployment_profile_scope",
+        "scope_note"
+      ],
+      "properties": {
+        "affected_subjects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_subject_ref" },
+          "description": "Typed refs to every subject the invocation affects. An invocation MUST name at least one subject."
+        },
+        "affected_install_profile_card_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml. An invocation MUST name at least one install-profile card so support exports and admin exports can project scope without re-keying."
+        },
+        "affected_exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json. Free-text 'version 1.x' is non-conforming. Empty admissible for scope classes where the invocation affects a channel pointer or trust root rather than a specific build."
+        },
+        "affected_channel_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/release_channel_class" },
+          "description": "Release channel classes the invocation narrows. Drawn from the exact-build identity model's vocabulary."
+        },
+        "affected_deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment profiles the invocation applies to. An invocation MUST name at least one profile so mirror / offline / air-gapped consumers can resolve scope."
+        },
+        "scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Scope envelope shared with the emergency-action model. A break-glass event and the emergency-action or revocation it produced MUST resolve the same install-profile cards and deployment-profile set; drift is non-conforming."
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "invoked_pending_reconciliation",
+        "reconciled_with_retrospective_cosign",
+        "superseded_by_signed_action",
+        "expired_without_reconciliation",
+        "withdrawn_invalid_invocation"
+      ],
+      "description": "Frozen lifecycle-state vocabulary. See docs/security/high_risk_control_quorum.md §6 for the admitted transitions. A record MUST NOT move between closed states; corrections are minted as new events."
+    },
+    "retrospective_cosign_profile_ref": {
+      "type": "string",
+      "enum": [
+        "two_person_cross_forum_emergency_control",
+        "three_person_stable_promotion",
+        "three_person_trust_root_change"
+      ],
+      "description": "Frozen retrospective-quorum-profile ref. Mirrors artifacts/governance/signing_quorum.yaml#quorum_profiles[] for the profiles admissible as close-out signoff. At this revision every admitted break-glass action closes out against two_person_cross_forum_emergency_control; the other values are reserved for future action rows whose default quorum is wider."
+    },
+    "cosigner_role_class": {
+      "type": "string",
+      "enum": [
+        "release_operator",
+        "security_operator",
+        "backup_signer_or_auditor",
+        "candidate_owner",
+        "evidence_owner",
+        "publishing_operator_or_backup"
+      ],
+      "description": "Frozen cosigner-role vocabulary. Mirrors the required_roles named on signing_quorum.yaml#quorum_profiles[]."
+    },
+    "cosigner_forum_class": {
+      "type": "string",
+      "enum": [
+        "release_council",
+        "security_trust_review",
+        "shiproom_executive_scope_review"
+      ],
+      "description": "Frozen cosigner-forum vocabulary. Mirrors the required_forums named on signing_quorum.yaml#quorum_profiles[]."
+    },
+    "retrospective_cosign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_ref",
+        "cosigner_account_refs",
+        "cosigner_role_classes",
+        "cosigner_forum_classes",
+        "cosigned_at",
+        "cosign_note"
+      ],
+      "properties": {
+        "profile_ref": { "$ref": "#/$defs/retrospective_cosign_profile_ref" },
+        "cosigner_account_refs": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the distinct accounts that cosigned close-out. The invoking_actor.actor_account_ref MUST NOT appear in this list; author-only close-out is non-conforming."
+        },
+        "cosigner_role_classes": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/cosigner_role_class" },
+          "description": "Roles the cosigners held. Must include every required_role from the named quorum profile."
+        },
+        "cosigner_forum_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/cosigner_forum_class" },
+          "description": "Forums that ratified the close-out. Must include every required_forum from the named quorum profile."
+        },
+        "cosigned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "cosign_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Retrospective cosign envelope. Populated on reconciled_with_retrospective_cosign or superseded_by_signed_action; null on open, expired, or withdrawn events."
+    },
+    "history_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_evidence_packet_refs",
+        "support_export_packet_refs",
+        "admin_export_refs",
+        "incident_workspace_packet_refs",
+        "post_incident_review_refs",
+        "decision_history_refs"
+      ],
+      "properties": {
+        "release_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "support_export_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "admin_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "incident_workspace_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "post_incident_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "decision_history_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "description": "Durable history-link set preserved by release-evidence, support-export, admin-export, incident-workspace, and post-incident review surfaces. Every surface quoting the event cites the same id rather than minting a local label."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "log_safe",
+        "support_export_only",
+        "evidence_packet_only",
+        "release_public",
+        "private_triage_only"
+      ],
+      "description": "Frozen redaction-class vocabulary. Mirrors schemas/security/advisory_record.schema.json. release_public is the only class that may appear verbatim in public release notes or About / Help dialogs. private_triage_only is admissible only when the event is still carried inside a named private-triage workspace scope."
+    },
+    "break_glass_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "break_glass_event_schema_version",
+        "record_kind",
+        "break_glass_event_id",
+        "signing_quorum_action_ref",
+        "break_glass_profile_ref",
+        "title",
+        "summary",
+        "invoking_actor",
+        "reason_class",
+        "urgency_class",
+        "scope",
+        "related_emergency_action_refs",
+        "related_revocation_refs",
+        "related_advisory_refs",
+        "related_private_triage_packet_ref",
+        "invoked_at",
+        "must_close_by",
+        "closed_at",
+        "lifecycle_state",
+        "retrospective_cosign",
+        "temporary_mitigation_note",
+        "reconciliation_plan_note",
+        "history_links",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "break_glass_event_schema_version": { "$ref": "#/$defs/break_glass_event_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "break_glass_event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for the invocation. Stable for the life of the event; every downstream advisory, emergency-action, revocation, release-evidence packet, support export, admin export, and post-incident review cites this id rather than re-keying."
+        },
+        "signing_quorum_action_ref": { "$ref": "#/$defs/signing_quorum_action_ref" },
+        "break_glass_profile_ref": { "$ref": "#/$defs/break_glass_profile_ref" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short, reviewable title. Never carries raw secret material, raw identifiers, or raw exploit payload."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "invoking_actor": { "$ref": "#/$defs/invoking_actor" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "urgency_class": { "$ref": "#/$defs/urgency_class" },
+        "scope": { "$ref": "#/$defs/break_glass_scope" },
+        "related_emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to emergency_action_record ids produced or advanced by the invocation. Empty admissible only when the invocation produced a revocation_record instead; the allOf gate below enforces the pairing."
+        },
+        "related_revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to revocation_record ids produced or advanced by the invocation. Empty admissible only when the invocation produced an emergency_action_record instead; the allOf gate below enforces the pairing."
+        },
+        "related_advisory_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to advisory_record ids the invocation affected. Empty admissible when the invocation preceded advisory drafting; a linked advisory is still added as a history_links decision row once drafted."
+        },
+        "related_private_triage_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the private_triage_workspace_packet_record that owns the incident during response. The triage packet's break_glass_refs.audit_row_ref MUST equal this record's break_glass_event_id."
+        },
+        "invoked_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp the invocation took effect. Set once on invocation and never mutated; corrections land as new events."
+        },
+        "must_close_by": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp by which the invocation MUST move to a closed lifecycle state. At most 24 hours after invoked_at per the audited_single_responder_containment profile. Raising the ceiling is breaking."
+        },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "ISO 8601 UTC timestamp the invocation closed. Null while lifecycle_state is invoked_pending_reconciliation; non-null on every closed state."
+        },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state_class" },
+        "retrospective_cosign": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/retrospective_cosign" }
+          ],
+          "description": "Retrospective cosign block. Null while lifecycle_state is invoked_pending_reconciliation, expired_without_reconciliation, or withdrawn_invalid_invocation; non-null on reconciled_with_retrospective_cosign and superseded_by_signed_action."
+        },
+        "temporary_mitigation_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, reviewable sentence describing what the break-glass step did in product terms (what was frozen, disabled, paused, or narrowed)."
+        },
+        "reconciliation_plan_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, reviewable sentence describing how the invocation will be closed out (retrospective cosign, superseding signed action, expiry correction, or withdrawal)."
+        },
+        "history_links": { "$ref": "#/$defs/history_links" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp the record was first minted. Equal to or slightly after invoked_at; never earlier."
+        }
+      },
+      "allOf": [
+        {
+          "description": "The invocation MUST produce at least one emergency_action_record or revocation_record ref. An event that names neither cannot be projected as containment.",
+          "anyOf": [
+            {
+              "properties": {
+                "related_emergency_action_refs": { "minItems": 1 }
+              }
+            },
+            {
+              "properties": {
+                "related_revocation_refs": { "minItems": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "description": "invoked_pending_reconciliation forbids closed_at and retrospective_cosign.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "invoked_pending_reconciliation" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "type": "null" },
+              "retrospective_cosign": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "reconciled_with_retrospective_cosign requires closed_at and a non-null retrospective_cosign block.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "reconciled_with_retrospective_cosign" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "retrospective_cosign": { "$ref": "#/$defs/retrospective_cosign" }
+            },
+            "required": ["closed_at", "retrospective_cosign"]
+          }
+        },
+        {
+          "description": "superseded_by_signed_action requires closed_at and a non-null retrospective_cosign block naming the quorum the superseding action carried.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "superseded_by_signed_action" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "retrospective_cosign": { "$ref": "#/$defs/retrospective_cosign" }
+            },
+            "required": ["closed_at", "retrospective_cosign"]
+          }
+        },
+        {
+          "description": "expired_without_reconciliation requires closed_at and forbids a retrospective_cosign block (the invocation closed without quorum coverage).",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "expired_without_reconciliation" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "retrospective_cosign": { "type": "null" }
+            },
+            "required": ["closed_at"]
+          }
+        },
+        {
+          "description": "withdrawn_invalid_invocation requires closed_at and forbids a retrospective_cosign block.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "withdrawn_invalid_invocation" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "retrospective_cosign": { "type": "null" }
+            },
+            "required": ["closed_at"]
+          }
+        }
+      ],
+      "description": "Break-glass event record. One row per admitted single-responder invocation. The record ties the invocation to its signing-quorum action row, its admitted cause, its produced emergency-action / revocation ids, and its retrospective close-out, so release, security, support, admin-export, and post-incident review surfaces resolve one stable break_glass_event_id rather than inventing surface-local audit labels."
+    }
+  }
+}
