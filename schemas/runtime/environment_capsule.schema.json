@@ -1,0 +1,955 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/environment_capsule.schema.json",
+  "title": "Aureline environment-capsule body and export-manifest record",
+  "description": "Boundary schema for the environment-capsule body and its export-manifest projection. Every Aureline execution surface that claims a 'this is the environment I ran against' truth — terminal session seed, task run, test run, debug attach, refactor-preview probe, AI/apply sandbox, hosted review replay — reads and emits exactly this record shape. The execution-context record (schemas/runtime/execution_context.schema.json) references an environment capsule through environment_capsule_ref and quotes its capsule_id / capsule_hash / resolved_schema_version / drift_state / compatibility_fingerprint; this schema is the full body that reference resolves against. The capsule is content-addressed: capsule_hash MUST be the digest of the canonical capsule body bytes. Re-exports the frozen target-identity, toolchain-identity, filesystem-identity, capability-envelope, authority-envelope, compatibility-fingerprint, drift-state, redaction-class, and secret-class vocabularies from schemas/runtime/execution_context.schema.json and ADR-0007; this schema does not mint new authority, target, toolchain, or secret classes. Raw environment bodies, raw command lines, raw secret values, and raw filesystem paths outside the ADR-0006 filesystem-identity record never appear unless an explicit broadened_capture opt-in is recorded on the export manifest; credential_alias handles and secret-class labels cross the boundary, never raw bytes. Adding a new capsule_location_class, a new capsule_origin_class, a new secret_projection_mode, a new export_sink_class, or a new capsule audit event id is additive-minor and bumps environment_capsule_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_capsule_record" },
+    { "$ref": "#/$defs/environment_capsule_export_manifest_record" },
+    { "$ref": "#/$defs/environment_capsule_audit_event_record" }
+  ],
+  "$defs": {
+    "environment_capsule_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this environment-capsule vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "environment_capsule_record",
+        "environment_capsule_export_manifest_record",
+        "environment_capsule_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at capsule assembly or export."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths outside the ADR-0006 filesystem-identity record, raw URLs, and raw content bodies never appear here."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short reviewer-facing sentence safe to show in capsule inspectors, export reviews, and support bundles. Raw secret values, raw env bodies, and raw command lines never appear here."
+    },
+
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical dotted lower-snake id. Used for capsule ids, toolchain ids, activator ids, template ids, and prebuild ids."
+    },
+
+    "filesystem_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_path",
+        "logical_workspace_identity",
+        "canonical_filesystem_object",
+        "alias_set",
+        "save_target_token"
+      ],
+      "properties": {
+        "presentation_path": { "type": "string" },
+        "logical_workspace_identity": { "type": "string" },
+        "canonical_filesystem_object": { "type": "string" },
+        "alias_set": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "save_target_token": { "type": "string" }
+      },
+      "description": "Re-export of the ADR-0006 five-layer filesystem-identity record. Raw absolute paths appear only here, on presentation_path, where later export redaction can collapse them to canonical_filesystem_object / save_target_token before emission."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Re-export of the ADR-0001 identity-mode vocabulary."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["restricted", "trusted"],
+      "description": "Re-export of the ADR-0001 workspace-trust state vocabulary."
+    },
+
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Policy epoch at capsule resolve time. Stale projections surface a visible epoch delta."
+    },
+
+    "workspace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable workspace identifier copied from the workspace authority."
+    },
+
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "ssh_remote",
+        "container_local",
+        "devcontainer",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox"
+      ],
+      "description": "Re-export of the frozen target-class vocabulary from schemas/runtime/execution_context.schema.json."
+    },
+
+    "reachability_state": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "warming",
+        "degraded",
+        "unreachable",
+        "policy_blocked"
+      ],
+      "description": "Re-export of the frozen target-reachability vocabulary."
+    },
+
+    "route_dependency_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "direct",
+        "tunneled",
+        "managed_proxy",
+        "policy_mirror",
+        null
+      ],
+      "description": "Re-export of the network-route class for remote targets; null for local targets."
+    },
+
+    "capability_envelope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "supports_pty", "supports_gpu", "supports_network_egress"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1 },
+        "supports_pty": { "type": "boolean" },
+        "supports_gpu": { "type": "boolean" },
+        "supports_network_egress": { "type": "boolean" },
+        "supports_remote_filesystem_watcher": { "type": "boolean" }
+      },
+      "description": "Re-export of the execution-target capability envelope from the execution-context schema. The capsule body quotes the envelope by ref; it does not re-derive capability claims."
+    },
+
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "canonical_target_id",
+        "mount_identity",
+        "reachability_state",
+        "capability_envelope_ref"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "canonical_target_id": { "type": "string", "minLength": 1 },
+        "requested_target_ref": { "type": ["string", "null"] },
+        "materialised_instance_ref": { "type": ["string", "null"] },
+        "mount_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "route_dependency": { "$ref": "#/$defs/route_dependency_class" },
+        "reachability_state": { "$ref": "#/$defs/reachability_state" },
+        "capability_envelope_ref": { "$ref": "#/$defs/capability_envelope_ref" }
+      },
+      "description": "Re-export of the frozen target-identity record from schemas/runtime/execution_context.schema.json. The capsule embeds target identity so support-bundle, replay, and build-target-discovery consumers read one shape."
+    },
+
+    "toolchain_class": {
+      "type": "string",
+      "enum": [
+        "interpreter",
+        "compiler_toolchain",
+        "package_manager_runner",
+        "containerised_runtime",
+        "notebook_kernel_runtime",
+        "language_server_process",
+        "debug_adapter_runtime",
+        "test_runner_runtime",
+        "build_driver_runtime",
+        "ai_tool_runtime"
+      ],
+      "description": "Re-export of the frozen toolchain-class vocabulary."
+    },
+
+    "activation_strategy": {
+      "type": "string",
+      "enum": [
+        "ambient_path",
+        "env_manager_shim",
+        "venv_activation",
+        "nix_shell",
+        "nix_flake",
+        "direnv",
+        "devcontainer_build",
+        "oci_image_ref",
+        "explicit_override",
+        "fallback_resolution"
+      ],
+      "description": "Re-export of the frozen activation-strategy vocabulary."
+    },
+
+    "wrapper_kind": {
+      "type": "string",
+      "enum": [
+        "env_manager_shim_binary",
+        "venv_wrapper_script",
+        "direnv_envrc",
+        "nix_wrapper",
+        "devcontainer_wrapper",
+        "policy_injected_wrapper"
+      ]
+    },
+
+    "wrapper_provenance_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wrapper_kind", "wrapper_filesystem_identity", "wrapper_version"],
+      "properties": {
+        "wrapper_kind": { "$ref": "#/$defs/wrapper_kind" },
+        "wrapper_filesystem_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "wrapper_version": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "unsupported_gap_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code", "affected_feature_class"],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "missing_feature_in_toolchain_version",
+            "unsupported_on_target_class",
+            "blocked_by_trust_state",
+            "blocked_by_policy",
+            "requires_approval_ticket",
+            "requires_broadened_capture",
+            "missing_capability_envelope_flag"
+          ]
+        },
+        "affected_feature_class": {
+          "type": "string",
+          "enum": [
+            "debug_adapter",
+            "test_runner",
+            "notebook_kernel",
+            "build_driver",
+            "language_server",
+            "ai_tool_call",
+            "env_manager",
+            "venv_activation",
+            "remote_filesystem_watcher",
+            "container_lifecycle_hook"
+          ]
+        },
+        "repair_hook_ref": { "type": ["string", "null"] }
+      },
+      "description": "Re-export of the frozen unsupported-gap record from the execution-context schema."
+    },
+
+    "toolchain_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolchain_class",
+        "toolchain_id",
+        "resolved_version",
+        "executable_identity",
+        "activation_strategy",
+        "wrapper_provenance",
+        "extension_pack_refs",
+        "known_unsupported_gaps",
+        "degraded_fallback_flag"
+      ],
+      "properties": {
+        "toolchain_class": { "$ref": "#/$defs/toolchain_class" },
+        "toolchain_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "resolved_version": { "type": "string", "minLength": 1 },
+        "executable_identity": { "$ref": "#/$defs/filesystem_identity_record" },
+        "activation_strategy": { "$ref": "#/$defs/activation_strategy" },
+        "wrapper_provenance": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/wrapper_provenance_entry" }
+        },
+        "extension_pack_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "known_unsupported_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_gap_record" }
+        },
+        "degraded_fallback_flag": { "type": "boolean" }
+      },
+      "description": "Re-export of the frozen toolchain-identity record. This field is the toolchain-identity field set the contract promises to support-bundle, execution-context, and build-target discovery artifacts."
+    },
+
+    "capsule_drift_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage"
+      ],
+      "description": "Re-export of the ADR-0006 drift-state vocabulary for a capsule's declarative inputs."
+    },
+
+    "compatibility_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_or_tree_identity",
+        "capsule_hash",
+        "platform_arch",
+        "policy_epoch",
+        "extension_lock_digest",
+        "critical_toolchain_digests"
+      ],
+      "properties": {
+        "commit_or_tree_identity": { "type": "string", "minLength": 1 },
+        "capsule_hash": { "type": "string", "minLength": 1 },
+        "platform_arch": { "type": "string", "minLength": 1 },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "extension_lock_digest": { "type": "string", "minLength": 1 },
+        "critical_toolchain_digests": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Re-export of the frozen compatibility-fingerprint record. Prebuild-reuse and capsule-reuse mismatches downgrade the cache disposition rather than silently serving stale tools."
+    },
+
+    "capsule_location_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local",
+        "prebuild_snapshot",
+        "devcontainer_image",
+        "container_local_ephemeral",
+        "remote_ssh_host",
+        "remote_workspace_vm",
+        "managed_workspace_control_plane",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox_ephemeral",
+        "hosted_review_replay"
+      ],
+      "description": "Where this capsule materially resolves. Projects onto the target-class vocabulary but names the capsule-side locality (for example, a managed_workspace target whose capsule is materialised in the managed control plane). capsule_location_class MUST be consistent with target_identity.target_class per the pairing invariants in docs/runtime/environment_capsule_contract.md."
+    },
+
+    "capsule_origin_class": {
+      "type": "string",
+      "enum": [
+        "workspace_template_hydration",
+        "prebuild_snapshot_reuse",
+        "container_image_bake",
+        "declarative_flake_or_shell",
+        "workspace_file_defaults",
+        "ad_hoc_per_run_override",
+        "hosted_review_replay_capture",
+        "imported_bundle_hydration",
+        "policy_injected_overlay"
+      ],
+      "description": "How this capsule came to exist. Every capsule names exactly one origin class; 'why this environment?' explainers resolve this field rather than inventing per-surface prose."
+    },
+
+    "declarative_input_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_template_ref",
+        "prebuild_snapshot_ref",
+        "devcontainer_config_ref",
+        "nix_flake_ref",
+        "nix_shell_ref",
+        "rust_toolchain_file_ref",
+        "python_requirements_ref",
+        "node_lockfile_ref",
+        "jdk_version_file_ref",
+        "direnv_envrc_ref",
+        "oci_image_ref",
+        "review_replay_capsule_ref",
+        "policy_overlay_ref",
+        "ad_hoc_session_override_ref"
+      ],
+      "description": "Closed vocabulary of the declarative-input kinds a capsule may cite. Each entry names the reference kind; raw file bodies never cross this boundary."
+    },
+
+    "declarative_input_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_kind", "input_ref", "content_digest"],
+      "properties": {
+        "input_kind": { "$ref": "#/$defs/declarative_input_kind" },
+        "input_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the declarative input (a workspace-identity path, a template id, a flake ref, etc.). Raw file bodies are not inlined."
+        },
+        "content_digest": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Content digest of the declarative input at capsule-assembly time."
+        },
+        "origin_filesystem_identity": {
+          "anyOf": [
+            { "$ref": "#/$defs/filesystem_identity_record" },
+            { "type": "null" }
+          ],
+          "description": "Filesystem-identity record for the input when the input is a workspace file. Null for non-file inputs (managed control-plane overlays, hosted replay capsules, etc.)."
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "secret_class": {
+      "type": "string",
+      "enum": [
+        "ai_provider_token",
+        "code_host_token",
+        "package_registry_token",
+        "database_credential",
+        "ssh_key_material",
+        "client_certificate",
+        "signing_key_material",
+        "provider_session",
+        "device_secret",
+        "ephemeral_operation_token"
+      ],
+      "description": "Re-export of the ADR-0007 secret-class vocabulary."
+    },
+
+    "secret_projection_mode": {
+      "type": "string",
+      "enum": [
+        "alias_only",
+        "alias_plus_class_label",
+        "redacted_placeholder",
+        "not_projected",
+        "broadened_capture"
+      ],
+      "description": "How a secret enters the capsule. alias_only carries a credential_alias handle but no class badge; alias_plus_class_label carries both; redacted_placeholder carries a typed 'a <class> secret is present but not projected' marker; not_projected carries neither alias nor marker (the capsule declares the secret was not bound at resolve time); broadened_capture records that an explicit approval ticket authorised raw-value capture on the export path."
+    },
+
+    "secret_projection_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_class",
+        "projection_mode",
+        "credential_alias_count",
+        "raw_value_present"
+      ],
+      "properties": {
+        "secret_class": { "$ref": "#/$defs/secret_class" },
+        "projection_mode": { "$ref": "#/$defs/secret_projection_mode" },
+        "credential_alias_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of credential-alias handles bound for this secret class. Raw secret values are never included."
+        },
+        "alias_policy_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into the credential-broker policy rule that minted these aliases. Null when the secret is not projected."
+        },
+        "raw_value_present": {
+          "type": "boolean",
+          "description": "Always false unless the enclosing export manifest declares redaction_class broadened_capture with a recorded approval_ticket_ref."
+        },
+        "broadened_capture_approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when projection_mode is broadened_capture. Null otherwise."
+        },
+        "injected_delta_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "inject_credential_alias",
+            "inject_proxy_configuration",
+            "inject_trust_store_hint",
+            "inject_runtime_flag_set",
+            null
+          ],
+          "description": "Env-var delta class label this secret projection produced, when applicable. Re-export of the execution-context env_var_delta_class vocabulary; raw env names and values are not inlined."
+        }
+      },
+      "description": "One secret-class projection marker. A capsule projects N markers for N secret classes. Raw secret bytes never cross this boundary; only class labels, counts, and alias refs project. A marker with projection_mode=not_projected documents that the secret class was considered and deliberately left unbound."
+    },
+
+    "capsule_policy_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_kind", "policy_ref"],
+      "properties": {
+        "policy_kind": {
+          "type": "string",
+          "enum": [
+            "trust_gate",
+            "sandbox_profile",
+            "egress_posture",
+            "activator_gate",
+            "secret_projection_rule",
+            "export_redaction_rule",
+            "capsule_admission_rule"
+          ],
+          "description": "Closed vocabulary of policy-classes a capsule may cite. Every marker names one kind."
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque policy-rule reference. Raw policy bodies never cross this boundary."
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["applied", "blocked", "narrowed", "broadened_with_approval"],
+          "description": "How the policy rule landed on this capsule. broadened_with_approval MUST carry an approval_ticket_ref."
+        },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when decision is broadened_with_approval. Null otherwise."
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One policy-bearing marker. Lets the capsule record that it sits under a specific trust gate, sandbox profile, egress posture, activator gate, or export-redaction rule without inlining the rule body."
+    },
+
+    "export_sink_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle",
+        "evidence_packet",
+        "replay_capture",
+        "mutation_journal_entry",
+        "profile_export",
+        "ai_tool_call_seed",
+        "hosted_review_replay",
+        "crash_envelope",
+        "optional_sync_payload",
+        "project_doctor_finding",
+        "context_snapshot_export"
+      ],
+      "description": "Closed list of export sinks a capsule body may project into. Every export path names exactly one sink."
+    },
+
+    "export_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "broadened_capture",
+        "none"
+      ],
+      "description": "Re-export of the ADR-0007 redaction-class vocabulary. metadata_and_hashes_only is the default for every export sink; broadened_capture requires an approval_ticket_ref."
+    },
+
+    "export_field_admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "admission"],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted JSON path into the capsule body (for example, 'toolchain_identity.executable_identity.presentation_path' or 'secret_projection_markers[ai_provider_token]')."
+        },
+        "admission": {
+          "type": "string",
+          "enum": [
+            "emitted_as_is",
+            "emitted_as_hash",
+            "emitted_as_class_label",
+            "emitted_as_alias_only",
+            "redacted_placeholder",
+            "withheld"
+          ],
+          "description": "Per-field admission for this export. emitted_as_is is only admissible on fields whose value is already a class label, opaque id, hash, count, or ADR-0006 filesystem-identity record under the sink's default redaction class; raw env bodies, raw command lines, and raw secret values use emitted_as_alias_only or redacted_placeholder."
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "export_path_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sink_class",
+        "redaction_class",
+        "field_admissions"
+      ],
+      "properties": {
+        "sink_class": { "$ref": "#/$defs/export_sink_class" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when redaction_class is broadened_capture. Null otherwise."
+        },
+        "field_admissions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_field_admission" }
+        },
+        "consumer_surface_notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One declared export path for this capsule. Projects the capsule body into a named sink under a named redaction class with per-field admissions. An export path is a declarative seed, not a sink implementation; sinks resolve field admissions against their own redaction defaults at emission time and MUST refuse a request that would widen admission."
+    },
+
+    "capsule_degraded_reason": {
+      "type": "string",
+      "enum": [
+        "toolchain_fallback",
+        "activator_blocked_by_trust",
+        "activator_blocked_by_policy",
+        "activator_unsupported_on_target",
+        "capsule_unresolved",
+        "capsule_drift_detected",
+        "target_unreachable",
+        "policy_epoch_stale",
+        "trust_state_unresolved",
+        "provenance_gap",
+        "confidence_low",
+        "remote_agent_scope_mismatch",
+        "declarative_input_missing",
+        "declarative_input_content_digest_mismatch",
+        "secret_projection_denied",
+        "export_path_unavailable"
+      ],
+      "description": "Re-export of the frozen degraded-field reason vocabulary from the execution-context schema plus the four capsule-specific reasons (declarative_input_missing, declarative_input_content_digest_mismatch, secret_projection_denied, export_path_unavailable)."
+    },
+
+    "capsule_degraded_field_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "reason"],
+      "properties": {
+        "field_path": { "type": "string", "minLength": 1 },
+        "reason": { "$ref": "#/$defs/capsule_degraded_reason" },
+        "repair_hook_ref": { "type": ["string", "null"] }
+      }
+    },
+
+    "authority_envelope_tag": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "projected_from_workspace_vfs",
+        "projected_from_buffer_editor",
+        "projected_from_derived_knowledge",
+        "projected_from_execution",
+        "projected_from_policy_entitlement",
+        "projected_from_provider_overlay",
+        "stale"
+      ],
+      "description": "Re-export of the frozen per-field authority-envelope tag vocabulary from ADR-0005 / schemas/runtime/execution_context.schema.json."
+    },
+
+    "authority_envelope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "tag"],
+      "properties": {
+        "field_path": { "type": "string", "minLength": 1 },
+        "tag": { "$ref": "#/$defs/authority_envelope_tag" },
+        "canonical_owner": {
+          "type": ["string", "null"],
+          "enum": [
+            "workspace_vfs",
+            "buffer_editor",
+            "derived_knowledge",
+            "execution",
+            "policy_entitlement",
+            "provider_overlay",
+            null
+          ]
+        },
+        "freshness_hint": {
+          "type": ["string", "null"],
+          "enum": [
+            "authoritative",
+            "warming",
+            "cached",
+            "stale",
+            "replayed",
+            "imported",
+            null
+          ]
+        },
+        "stale_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "producer_restart",
+            "authority_epoch_rolled",
+            "policy_epoch_changed",
+            "watcher_dropped",
+            "queue_saturation",
+            "upstream_input_stale",
+            "explicit_refresh_requested",
+            "cache_served",
+            "replayed_from_bundle",
+            "imported_from_external",
+            "scope_removed",
+            "causality_lost",
+            null
+          ],
+          "description": "Re-export of the ADR-0005 stale-reason vocabulary. Required only when tag is 'stale' or freshness_hint indicates staleness."
+        }
+      }
+    },
+
+    "consuming_surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "task",
+        "test",
+        "debug",
+        "notebook_kernel",
+        "scaffolding",
+        "ai_tool_call",
+        "refactor_preview",
+        "hosted_review_replay",
+        "doctor_repair",
+        "import_probe",
+        "replay_probe"
+      ],
+      "description": "Surface classes that may consume this capsule. Re-exports the frozen surface_class vocabulary from schemas/runtime/execution_context.schema.json and extends it with the refactor_preview and hosted_review_replay seats this contract binds. A capsule that cannot be read by any of these surfaces is non-conforming."
+    },
+
+    "environment_capsule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_capsule_schema_version",
+        "capsule_id",
+        "capsule_hash",
+        "resolved_schema_version",
+        "captured_at",
+        "workspace_id",
+        "target_identity",
+        "toolchain_identity",
+        "capsule_location_class",
+        "capsule_origin_class",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "declarative_inputs",
+        "drift_state",
+        "compatibility_fingerprint",
+        "secret_projection_markers",
+        "policy_markers",
+        "declared_export_paths",
+        "consuming_surfaces",
+        "authority_envelope",
+        "degraded_fields"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "environment_capsule_record" },
+        "environment_capsule_schema_version": { "$ref": "#/$defs/environment_capsule_schema_version" },
+        "capsule_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "capsule_hash": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Content-addressed digest of the canonical capsule body bytes. MUST match compatibility_fingerprint.capsule_hash."
+        },
+        "resolved_schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capsule-envelope schema version at resolve time. Kept as a string for forward compatibility with capsule-author-declared schemas."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/workspace_id" },
+        "profile_id": { "type": ["string", "null"] },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "toolchain_identity": { "$ref": "#/$defs/toolchain_identity" },
+        "capsule_location_class": { "$ref": "#/$defs/capsule_location_class" },
+        "capsule_origin_class": { "$ref": "#/$defs/capsule_origin_class" },
+        "workspace_template_ref": { "type": ["string", "null"] },
+        "prebuild_snapshot_ref": { "type": ["string", "null"] },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "declarative_inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declarative_input_entry" },
+          "description": "Ordered declarative-input ledger. Every input is cited by reference and content digest; raw file bodies are not inlined."
+        },
+        "drift_state": { "$ref": "#/$defs/capsule_drift_state" },
+        "compatibility_fingerprint": { "$ref": "#/$defs/compatibility_fingerprint" },
+        "secret_projection_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/secret_projection_marker" },
+          "description": "Closed set of per-secret-class projection markers. Empty is admissible and means no secret class was considered at capsule-resolve time."
+        },
+        "policy_markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capsule_policy_marker" },
+          "description": "Closed set of per-policy-kind markers. Empty is admissible only for capsules whose trust_state is trusted, identity_mode is account_free_local, and declarative_inputs carry no policy_overlay_ref."
+        },
+        "declared_export_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_path_entry" },
+          "description": "Declared export-path seeds. Every capsule MUST declare at least one export path so later support, evidence, replay, and mutation-journal flows cite one admission table instead of improvising redaction at emission time."
+        },
+        "consuming_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consuming_surface_class" },
+          "description": "Closed list of surface classes that may read this capsule. Every capsule MUST bind to at least one surface; a capsule with no consumer is non-conforming."
+        },
+        "authority_envelope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_envelope_entry" },
+          "description": "Per-field authority-envelope tags. Every field a consumer renders SHOULD have a tag."
+        },
+        "degraded_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capsule_degraded_field_record" },
+          "description": "Empty means fully resolved; non-empty forces every surface that reads this capsule to render a visible honesty marker."
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "The full environment-capsule body. Every Aureline execution surface that needs to say 'this is the environment I ran against' reads this record. The record carries target identity, toolchain identity, location class, trust state, policy epoch, declarative inputs, secret-projection markers, policy markers, and declared export paths."
+    },
+
+    "environment_capsule_export_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_capsule_schema_version",
+        "manifest_id",
+        "captured_at",
+        "capsule_id",
+        "capsule_hash",
+        "sink_class",
+        "redaction_class",
+        "field_admissions"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "environment_capsule_export_manifest_record" },
+        "environment_capsule_schema_version": { "$ref": "#/$defs/environment_capsule_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "capsule_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "capsule_hash": { "$ref": "#/$defs/opaque_id" },
+        "sink_class": { "$ref": "#/$defs/export_sink_class" },
+        "redaction_class": { "$ref": "#/$defs/export_redaction_class" },
+        "approval_ticket_ref": { "type": ["string", "null"] },
+        "field_admissions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_field_admission" }
+        },
+        "consumer_surface_notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One realised export manifest. The capsule's declared_export_paths are the declarative seeds; a manifest is the record a sink emits when it actually projects the capsule into its artefact. A manifest MUST match one of the capsule's declared_export_paths by sink_class and MUST NOT widen field_admissions beyond what the declared path authorised."
+    },
+
+    "capsule_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "environment_capsule_resolved",
+        "environment_capsule_reused",
+        "environment_capsule_rejected_drift",
+        "environment_capsule_degraded",
+        "environment_capsule_exported",
+        "environment_capsule_export_broadened",
+        "environment_capsule_secret_projection_denied",
+        "environment_capsule_schema_version_bumped"
+      ],
+      "description": "Closed vocabulary of capsule-lifecycle audit events. Events never carry raw env bodies, raw command lines, or raw secret material."
+    },
+
+    "environment_capsule_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_capsule_schema_version",
+        "audit_event_id",
+        "emitted_at",
+        "capsule_id",
+        "capsule_hash",
+        "identity_mode",
+        "trust_state",
+        "policy_epoch"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "environment_capsule_audit_event_record" },
+        "environment_capsule_schema_version": { "$ref": "#/$defs/environment_capsule_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/capsule_audit_event_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "capsule_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "capsule_hash": { "$ref": "#/$defs/opaque_id" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "toolchain_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "capsule_location_class": { "$ref": "#/$defs/capsule_location_class" },
+        "capsule_origin_class": { "$ref": "#/$defs/capsule_origin_class" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "consuming_surface": { "$ref": "#/$defs/consuming_surface_class" },
+        "sink_class": { "$ref": "#/$defs/export_sink_class" },
+        "degraded_reason": { "$ref": "#/$defs/capsule_degraded_reason" },
+        "notes_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref into structured notes. MUST NOT embed raw env bodies, raw command lines, or raw secret material."
+        }
+      },
+      "description": "One capsule-lifecycle audit event. Emitted when a capsule is resolved, reused, rejected for drift, degraded, exported, its export is broadened with an approval ticket, or its schema version is bumped."
+    }
+  }
+}

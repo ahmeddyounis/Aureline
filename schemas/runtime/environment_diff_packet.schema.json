@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/environment_diff_packet.schema.json",
+  "title": "Aureline environment-capsule diff-and-redaction packet",
+  "description": "Boundary schema for the environment-capsule diff-and-redaction packet. Every rerun, reattach, debug-attach, apply, refactor-preview, and hosted-review replay flow that needs to answer 'what changed in the environment since the last run?' reads and emits this record. The packet compares two environment_capsule_record bodies (schemas/runtime/environment_capsule.schema.json) by layer and emits a per-layer status ('preserved', 'changed', 'added_on_b', 'removed_on_b', 'degraded_on_a', 'degraded_on_b', 'redaction_limited') the consuming surface can render as user-visible deltas without reassembling per-surface prose. Raw environment bodies, raw command lines, raw secret values, and raw filesystem paths outside the ADR-0006 filesystem-identity record never appear on the packet; a layer that cannot be explained without them records a 'redaction_limited' status and a typed reason. Re-exports the frozen vocabularies from schemas/runtime/environment_capsule.schema.json and schemas/runtime/execution_context.schema.json; this schema does not mint new authority, target, toolchain, secret, or sink classes. Adding a new diff_layer, a new diff_status, a new diff_context, or a new redaction_limited_reason is additive-minor and bumps environment_diff_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_diff_record" }
+  ],
+  "$defs": {
+    "environment_diff_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this diff packet. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["environment_diff_record"],
+      "description": "Discriminator for the diff packet shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured at diff assembly time."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths outside the ADR-0006 filesystem-identity record, raw URLs, and raw content bodies never appear here."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short reviewer-facing sentence safe to show in capsule diff inspectors and export reviews. Raw secret values, raw env bodies, and raw command lines never appear here."
+    },
+
+    "diff_context": {
+      "type": "string",
+      "enum": [
+        "rerun",
+        "reattach",
+        "debug_attach",
+        "apply",
+        "refactor_preview",
+        "hosted_review_replay",
+        "import_probe",
+        "doctor_explain"
+      ],
+      "description": "Why the diff was assembled. Every diff names exactly one context. Reruns compare two invocations on the same surface; reattach compares a reconnect against the previous session seed; debug_attach compares a debug seed against the execution it is attaching into; apply compares an AI/apply proposed environment against the authoritative one; refactor_preview compares a preview-sandbox environment against the workspace environment; hosted_review_replay compares a replay capsule against the original capture; import_probe compares an import candidate against the target workspace; doctor_explain compares two capsules named by the user in aureline doctor --explain."
+    },
+
+    "consuming_surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "task",
+        "test",
+        "debug",
+        "notebook_kernel",
+        "scaffolding",
+        "ai_tool_call",
+        "refactor_preview",
+        "hosted_review_replay",
+        "doctor_repair",
+        "import_probe",
+        "replay_probe"
+      ],
+      "description": "Re-export of the consuming-surface vocabulary from schemas/runtime/environment_capsule.schema.json."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "broadened_capture",
+        "none"
+      ],
+      "description": "Re-export of the ADR-0007 redaction-class vocabulary. metadata_and_hashes_only is the default; broadened_capture requires a recorded approval_ticket_ref."
+    },
+
+    "authority_envelope_tag": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "projected_from_workspace_vfs",
+        "projected_from_buffer_editor",
+        "projected_from_derived_knowledge",
+        "projected_from_execution",
+        "projected_from_policy_entitlement",
+        "projected_from_provider_overlay",
+        "stale"
+      ],
+      "description": "Re-export of the frozen per-field authority-envelope tag vocabulary."
+    },
+
+    "diff_layer": {
+      "type": "string",
+      "enum": [
+        "capsule_identity",
+        "target_identity",
+        "toolchain_identity",
+        "capsule_location_class",
+        "capsule_origin_class",
+        "declarative_inputs",
+        "drift_state",
+        "compatibility_fingerprint",
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "policy_markers",
+        "secret_projection_markers",
+        "declared_export_paths",
+        "consuming_surfaces",
+        "authority_envelope",
+        "degraded_fields"
+      ],
+      "description": "Closed list of diff layers. Mirrors the top-level field groups of environment_capsule_record. capsule_identity groups capsule_id / capsule_hash / resolved_schema_version so a hash change is legible as one entry rather than three."
+    },
+
+    "diff_status": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "changed",
+        "added_on_b",
+        "removed_on_b",
+        "degraded_on_a",
+        "degraded_on_b",
+        "unknown_on_a",
+        "unknown_on_b",
+        "redaction_limited"
+      ],
+      "description": "Per-layer diff status. 'preserved' means both capsules carry the same token / hash / count for the layer; 'changed' names a visible difference. 'degraded_on_<side>' and 'unknown_on_<side>' allow the diff to express that a layer was unresolved on one side without silently re-asserting it on the other. 'redaction_limited' records that a broader capture would be required to explain the difference; this MUST NOT be used to hide a visible token change."
+    },
+
+    "redaction_limited_reason": {
+      "type": "string",
+      "enum": [
+        "raw_env_body_not_captured",
+        "raw_command_line_not_captured",
+        "raw_secret_value_not_captured",
+        "raw_declarative_input_body_not_captured",
+        "raw_policy_body_not_captured",
+        "broadened_capture_required"
+      ],
+      "description": "Closed list of reasons a layer could not be expanded. A packet that records 'redaction_limited' MUST name one of these reasons."
+    },
+
+    "secret_projection_delta_kind": {
+      "type": "string",
+      "enum": [
+        "class_preserved",
+        "class_added_on_b",
+        "class_removed_on_b",
+        "projection_mode_changed",
+        "credential_alias_count_changed",
+        "alias_policy_ref_changed",
+        "broadened_capture_opened_on_b",
+        "broadened_capture_closed_on_b",
+        "raw_value_present_flipped"
+      ],
+      "description": "Closed vocabulary of user-visible secret-projection delta kinds. Raw secret values never appear; only class labels, counts, and mode changes project. raw_value_present_flipped is admissible only when redaction_class is broadened_capture on both capsules and a recorded approval_ticket_ref is carried on the enclosing diff."
+    },
+
+    "secret_projection_delta_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secret_class", "delta_kind"],
+      "properties": {
+        "secret_class": {
+          "type": "string",
+          "enum": [
+            "ai_provider_token",
+            "code_host_token",
+            "package_registry_token",
+            "database_credential",
+            "ssh_key_material",
+            "client_certificate",
+            "signing_key_material",
+            "provider_session",
+            "device_secret",
+            "ephemeral_operation_token"
+          ],
+          "description": "Re-export of the ADR-0007 secret-class vocabulary."
+        },
+        "delta_kind": { "$ref": "#/$defs/secret_projection_delta_kind" },
+        "a_projection_mode": {
+          "type": ["string", "null"],
+          "enum": [
+            "alias_only",
+            "alias_plus_class_label",
+            "redacted_placeholder",
+            "not_projected",
+            "broadened_capture",
+            null
+          ]
+        },
+        "b_projection_mode": {
+          "type": ["string", "null"],
+          "enum": [
+            "alias_only",
+            "alias_plus_class_label",
+            "redacted_placeholder",
+            "not_projected",
+            "broadened_capture",
+            null
+          ]
+        },
+        "a_credential_alias_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "b_credential_alias_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One user-visible secret-projection delta. Tied one-to-one with a secret_class; a class with no change is not emitted."
+    },
+
+    "declarative_input_delta_kind": {
+      "type": "string",
+      "enum": [
+        "input_preserved",
+        "input_added_on_b",
+        "input_removed_on_b",
+        "content_digest_changed",
+        "origin_filesystem_identity_changed",
+        "input_kind_changed"
+      ],
+      "description": "Closed vocabulary of declarative-input delta kinds."
+    },
+
+    "declarative_input_delta_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delta_kind"],
+      "properties": {
+        "delta_kind": { "$ref": "#/$defs/declarative_input_delta_kind" },
+        "a_input_kind": {
+          "type": ["string", "null"],
+          "description": "Re-export of the declarative_input_kind vocabulary. Null when the input did not exist on side A."
+        },
+        "b_input_kind": {
+          "type": ["string", "null"],
+          "description": "Re-export of the declarative_input_kind vocabulary. Null when the input does not exist on side B."
+        },
+        "a_input_ref": { "type": ["string", "null"] },
+        "b_input_ref": { "type": ["string", "null"] },
+        "a_content_digest": { "type": ["string", "null"] },
+        "b_content_digest": { "type": ["string", "null"] },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "diff_layer_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "status", "canonical_owner_tag"],
+      "properties": {
+        "layer": { "$ref": "#/$defs/diff_layer" },
+        "status": { "$ref": "#/$defs/diff_status" },
+        "canonical_owner_tag": { "$ref": "#/$defs/authority_envelope_tag" },
+        "a_value_summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ],
+          "description": "Class labels, frozen tokens, opaque ids, hashes, or counts drawn from capsule A. Raw env bodies, raw command lines, and raw secret values MUST NOT appear."
+        },
+        "b_value_summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ],
+          "description": "Same as a_value_summary, drawn from capsule B."
+        },
+        "degraded_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "toolchain_fallback",
+            "activator_blocked_by_trust",
+            "activator_blocked_by_policy",
+            "activator_unsupported_on_target",
+            "capsule_unresolved",
+            "capsule_drift_detected",
+            "target_unreachable",
+            "policy_epoch_stale",
+            "trust_state_unresolved",
+            "provenance_gap",
+            "confidence_low",
+            "remote_agent_scope_mismatch",
+            "declarative_input_missing",
+            "declarative_input_content_digest_mismatch",
+            "secret_projection_denied",
+            "export_path_unavailable",
+            null
+          ],
+          "description": "Re-export of the capsule degraded-reason vocabulary. Required when status is degraded_on_a or degraded_on_b."
+        },
+        "redaction_limited_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_limited_reason" },
+            { "type": "null" }
+          ],
+          "description": "Required when status is redaction_limited."
+        },
+        "secret_projection_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/secret_projection_delta_entry" },
+          "description": "Present only when layer is secret_projection_markers. Raw secret values never appear; only class labels, counts, and mode changes project."
+        },
+        "declarative_input_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declarative_input_delta_entry" },
+          "description": "Present only when layer is declarative_inputs. Raw file bodies never appear; only kind / ref / content-digest changes project."
+        },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "environment_diff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_diff_schema_version",
+        "diff_id",
+        "captured_at",
+        "diff_context",
+        "capsule_a_id",
+        "capsule_a_hash",
+        "capsule_b_id",
+        "capsule_b_hash",
+        "consuming_surface",
+        "redaction_class",
+        "layer_entries",
+        "preserved_layer_count",
+        "changed_layer_count"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "environment_diff_record" },
+        "environment_diff_schema_version": { "$ref": "#/$defs/environment_diff_schema_version" },
+        "diff_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "diff_context": { "$ref": "#/$defs/diff_context" },
+        "capsule_a_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "capsule_a_hash": { "$ref": "#/$defs/opaque_id" },
+        "capsule_a_source_surface": { "$ref": "#/$defs/consuming_surface_class" },
+        "capsule_b_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "capsule_b_hash": { "$ref": "#/$defs/opaque_id" },
+        "capsule_b_source_surface": { "$ref": "#/$defs/consuming_surface_class" },
+        "consuming_surface": { "$ref": "#/$defs/consuming_surface_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "description": "ADR-0007 approval ticket ref when redaction_class is broadened_capture. Null otherwise."
+        },
+        "layer_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/diff_layer_entry" }
+        },
+        "preserved_layer_count": { "type": "integer", "minimum": 0 },
+        "changed_layer_count": { "type": "integer", "minimum": 0 },
+        "redaction_limited_layer_count": { "type": "integer", "minimum": 0 },
+        "summary_headline": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Structured diff between two environment_capsule_records. Names every layer that changed and every layer that was preserved so rerun, reattach, debug-attach, apply, refactor-preview, and hosted-review replay flows cite one machine-readable object instead of reassembling per-surface prose. Raw env bodies, raw command lines, and raw secret values never appear; a diff that cannot be explained without them records a redaction_limited status and a typed reason."
+    }
+  }
+}
