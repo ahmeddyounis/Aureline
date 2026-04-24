@@ -1,0 +1,632 @@
+# Stale-example detection rubric and downgrade map.
+#
+# Canonical machine-readable register for stale-example detection
+# across docs packs, guided steps, migration guides, screenshots,
+# recipes, and generated examples. Consumed by docs-pack publishers,
+# the parity-audit projection, support-export preview, and the shiproom
+# review dashboard so the freshness state of any example surface is
+# mechanically derivable rather than remembered.
+#
+# Narrative companion: docs/docsops/same_changeset_policy.md.
+# Reviewed-pack / late-copy companion:
+#   docs/docs/reviewed_pack_and_late_copy_policy.md.
+# Docs-pack contract companion:
+#   docs/docs/docs_pack_manifest_contract.md.
+#
+# Rules.
+#   - Every detector row MUST declare exactly one action_class from
+#     action_classes below.
+#   - A detector that fires without a declared action is a validation
+#     failure; the pack / guide / recipe / screenshot is not
+#     publishable until the rubric is extended or the detector is
+#     reclassified.
+#   - Adding a detector, artifact_kind, action_class, stale_reason, or
+#     downgrade rule is additive-minor and bumps schema_version.
+#     Repurposing an existing value is breaking and requires a new
+#     decision row.
+#   - Milestone and task identifiers MUST NOT appear in user-facing
+#     strings this rubric produces; detector names and action classes
+#     describe *what* is stale, not which planning row requested the
+#     rule.
+
+schema_version: 1
+rubric_id: aureline.docs.stale_example_rules
+status: seeded
+
+overview_document: docs/docsops/same_changeset_policy.md
+reviewed_pack_policy_source: docs/docs/reviewed_pack_and_late_copy_policy.md
+docs_pack_manifest_contract_source: docs/docs/docs_pack_manifest_contract.md
+docs_pack_manifest_schema: schemas/docs/docs_pack_manifest.schema.json
+late_proof_exception_schema: schemas/docs/late_proof_exception_packet.schema.json
+
+# ---------------------------------------------------------------------------
+# Artifact kinds this rubric covers.
+#
+# Every detector row below names exactly one artifact_kind from this
+# list. A surface that carries an example kind not enumerated here is
+# not covered by this rubric and follows its owner's freshness policy.
+# ---------------------------------------------------------------------------
+artifact_kinds:
+  - id: docs_pack_example
+    description: >
+      An example enumerated by a docs_pack_manifest_record
+      example_summary entry. Stale-example labels and reasons are
+      already frozen by the docs-pack manifest contract; this rubric
+      extends that contract with detectors and downgrade actions.
+  - id: guided_step
+    description: >
+      A step inside an onboarding, tour, first-run, or help-guide
+      surface that instructs the user to run a command, open a route,
+      or accept a provider handoff. Identified by a stable step id.
+  - id: migration_guide
+    description: >
+      Prose and inline snippets inside a migration-notice pack or
+      release-notes migration block.
+  - id: screenshot
+    description: >
+      Bitmap or vector capture of a UI element, chip, chrome, or route.
+      Identified by the asset id plus the surface it depicts.
+  - id: recipe
+    description: >
+      Automation-recipe body, AI-surface recipe, or recipe-response
+      surface that encodes a runnable sequence.
+  - id: generated_example
+    description: >
+      Example produced by a generator (reference corpus,
+      generated_reference pack, OpenAPI-derived snippet, schema-driven
+      example).
+
+# ---------------------------------------------------------------------------
+# Closed action vocabulary.
+#
+# Every detector maps to exactly one action_class. Tooling reads this
+# list and MUST NOT emit an action outside it.
+# ---------------------------------------------------------------------------
+action_classes:
+  - id: label_stale_with_reason
+    description: >
+      Render the example with a typed stale disclosure on the primary
+      surface. The docs_pack_manifest_record example_summary entry
+      flips to stale_example with the stale_reason the detector
+      declared. Surfaces MUST render the disclosure on the primary
+      surface; tooltip-only disclosure is forbidden.
+  - id: label_needs_review
+    description: >
+      Render with a typed "pending reviewer re-verification"
+      disclosure. The entry flips to needs_review_example until a
+      reviewer relabels it stable_example or stale_example.
+  - id: quarantine_example
+    description: >
+      Hide the example from user surfaces but retain it in the pack
+      manifest / body for parity audits. The entry flips to
+      quarantined_example.
+  - id: suppress_from_surface
+    description: >
+      Hide the example from the rendering surface entirely (guided
+      step is skipped, screenshot is not displayed, recipe is not
+      offered). The authoring pack still carries it so export preview
+      can show why.
+  - id: block_pack_publishable
+    description: >
+      Escalate to the docs_pack_manifest_record publishable_state gate.
+      The pack moves to blocked with the stale_examples_exceed_threshold
+      blocking reason (or the more specific reason the detector
+      declares). A pack in this state MUST carry a repair_hook_ref.
+  - id: require_late_proof_exception_packet
+    description: >
+      When the detector fires on a release-bearing surface inside a
+      train that cannot carry a same-change-set fix, the update may
+      only proceed under an approved late_proof_exception_packet that
+      names the detector, the impacted claim row, the degraded wording,
+      and the expiry.
+
+# ---------------------------------------------------------------------------
+# Closed stale-reason vocabulary.
+#
+# Re-exports the docs_pack_manifest stale_example_reason set verbatim
+# and extends it with detector-scoped reasons that fire on non-
+# docs_pack_example artifact kinds (guided steps, screenshots, recipes,
+# generated examples). Adding a reason is additive-minor.
+# ---------------------------------------------------------------------------
+stale_reason_classes:
+  # Re-exported from schemas/docs/docs_pack_manifest.schema.json
+  # stale_example_reason. Surfaces consuming both rubrics share one
+  # vocabulary.
+  - id: deprecated_target_symbol
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: removed_target_symbol
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: renamed_target_symbol
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: lifecycle_state_moved
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: setting_default_changed
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: behavior_changed
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: version_mismatch
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: client_scope_no_longer_supported
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+  - id: policy_blocked_in_context
+    re_exported_from: schemas/docs/docs_pack_manifest.schema.json
+
+  # Detector-scoped reasons unique to this rubric.
+  - id: route_changed
+    description: >
+      The destination_descriptor the example binds to changed route,
+      boundary, handoff, or availability since the example was
+      authored. Common for screenshots of About / Help / service-health
+      surfaces.
+  - id: schema_drift
+    description: >
+      The public schema the example binds to moved to a new
+      schema_version whose additive-minor or breaking delta the example
+      does not reflect.
+  - id: screenshot_chrome_moved
+    description: >
+      The rendered surface (chip, chrome, palette layout, command
+      entry) moved out from under a screenshot. Detector fires on
+      declared surface anchors, not on pixel diff.
+  - id: recipe_step_target_moved
+    description: >
+      A step inside a recipe references a command id, route id, or
+      setting key that no longer resolves on the running build.
+  - id: guided_step_target_moved
+    description: >
+      A guided step references a command, route, or surface entry that
+      no longer resolves, is policy-blocked on the current client
+      scope, or has been quarantined.
+  - id: generator_contract_mismatch
+    description: >
+      A generated example was produced against a prior generator
+      contract and the new generator would produce a different sample.
+  - id: migration_step_superseded
+    description: >
+      A migration step references a prior migration path that has been
+      superseded by a new migration notice pack or by an explicit
+      known-limit route.
+  - id: known_limit_note_added_or_widened
+    description: >
+      A known-limit or exclusion note was added or widened on the
+      example's owning claim row, such that the example as written no
+      longer reflects the current effective posture.
+
+# ---------------------------------------------------------------------------
+# Detector registry.
+#
+# Every detector has a stable id, exactly one artifact_kind, exactly
+# one action_class, exactly one primary stale_reason_class, and a
+# non-empty inputs list naming the owner artifacts the detector reads.
+# applies_on_same_change_set names the same-change-set pairing rows the
+# detector ties into (see docs/docsops/same_changeset_policy.md).
+# ---------------------------------------------------------------------------
+detectors:
+
+  - id: docs_pack_example_target_symbol_moved
+    artifact_kind: docs_pack_example
+    action_class: label_stale_with_reason
+    stale_reason_class: renamed_target_symbol
+    also_fires_for:
+      - deprecated_target_symbol
+      - removed_target_symbol
+    inputs:
+      - schemas/commands/command_descriptor.schema.json
+      - schemas/docs/symbol_linked_reference.schema.json
+      - schemas/governance/capability_lifecycle.schema.json
+    applies_on_same_change_set:
+      - schema_version_bump
+      - product_behavior_change
+    notes: >
+      Fires when a docs-pack example's target symbol is renamed,
+      deprecated, or removed on the running build. Re-uses the
+      docs-pack manifest stale_example pipeline; this detector is the
+      mechanical gate.
+
+  - id: docs_pack_example_behavior_changed
+    artifact_kind: docs_pack_example
+    action_class: label_stale_with_reason
+    stale_reason_class: behavior_changed
+    inputs:
+      - schemas/governance/capability_lifecycle.schema.json
+      - schemas/docs/docs_pack_manifest.schema.json
+    applies_on_same_change_set:
+      - product_behavior_change
+    notes: >
+      Fires when the product behavior backing the example changes
+      without a symbol rename, so the sample output or expected effect
+      no longer matches.
+
+  - id: docs_pack_example_lifecycle_moved
+    artifact_kind: docs_pack_example
+    action_class: label_stale_with_reason
+    stale_reason_class: lifecycle_state_moved
+    inputs:
+      - schemas/governance/capability_lifecycle.schema.json
+    applies_on_same_change_set:
+      - lifecycle_transition
+    notes: >
+      Fires when the example's feature moved lifecycle (promotion,
+      demotion, policy_disabled, quarantined, deprecated).
+
+  - id: docs_pack_example_policy_blocked
+    artifact_kind: docs_pack_example
+    action_class: quarantine_example
+    stale_reason_class: policy_blocked_in_context
+    inputs:
+      - schemas/governance/capability_lifecycle.schema.json
+    applies_on_same_change_set:
+      - lifecycle_transition
+    notes: >
+      Fires when admin policy blocks the example on the current
+      client_scope; quarantine rather than label so a policy-blocked
+      feature is not advertised through a docs pane.
+
+  - id: docs_pack_stale_threshold_exceeded
+    artifact_kind: docs_pack_example
+    action_class: block_pack_publishable
+    stale_reason_class: version_mismatch
+    inputs:
+      - schemas/docs/docs_pack_manifest.schema.json
+    applies_on_same_change_set:
+      - schema_version_bump
+      - product_behavior_change
+    notes: >
+      Fires when the ratio of (stale + needs_review + quarantined) to
+      total examples exceeds the publisher-configured threshold. The
+      pack moves to blocked with stale_examples_exceed_threshold per
+      the docs-pack manifest contract.
+
+  - id: guided_step_target_missing
+    artifact_kind: guided_step
+    action_class: suppress_from_surface
+    stale_reason_class: guided_step_target_moved
+    inputs:
+      - schemas/commands/command_descriptor.schema.json
+      - schemas/commands/diagnostic_projection.schema.json
+      - schemas/docs/destination_descriptor.schema.json
+    applies_on_same_change_set:
+      - route_change
+      - lifecycle_transition
+    notes: >
+      Fires when a guided step references a command / route / surface
+      entry that no longer resolves or is hidden on the current client
+      scope. Suppression avoids instructing the user to perform an
+      action that cannot be completed; onboarding and tour surfaces
+      render the step as "skipped" with a disclosure.
+
+  - id: guided_step_policy_blocked
+    artifact_kind: guided_step
+    action_class: suppress_from_surface
+    stale_reason_class: policy_blocked_in_context
+    inputs:
+      - schemas/governance/capability_lifecycle.schema.json
+    applies_on_same_change_set:
+      - lifecycle_transition
+    notes: >
+      Fires when admin policy blocks the step's target for the current
+      client_scope or trust state.
+
+  - id: migration_guide_step_superseded
+    artifact_kind: migration_guide
+    action_class: label_stale_with_reason
+    stale_reason_class: migration_step_superseded
+    inputs:
+      - schemas/migration/*.schema.json
+      - schemas/release/compatibility_row.schema.json
+    applies_on_same_change_set:
+      - migration_step
+      - compatibility_scope_change
+    notes: >
+      Fires when a newer migration-notice pack supersedes the step, or
+      when the compatibility row the step cites widened / narrowed.
+
+  - id: migration_guide_known_limit_added
+    artifact_kind: migration_guide
+    action_class: label_stale_with_reason
+    stale_reason_class: known_limit_note_added_or_widened
+    inputs:
+      - schemas/governance/claim_manifest.schema.json
+    applies_on_same_change_set:
+      - known_limit_change
+    notes: >
+      Fires when a known-limit note is added or widened on the claim
+      row the migration step cites; the step must disclose the narrowed
+      posture.
+
+  - id: screenshot_surface_anchor_moved
+    artifact_kind: screenshot
+    action_class: suppress_from_surface
+    stale_reason_class: screenshot_chrome_moved
+    inputs:
+      - schemas/docs/destination_descriptor.schema.json
+      - schemas/docs/docs_pack_manifest.schema.json
+    applies_on_same_change_set:
+      - route_change
+      - product_behavior_change
+    notes: >
+      Fires when the declared surface anchors (chip id, surface_ref,
+      palette_visibility_class, ui_slot_class) the screenshot pins
+      moved. Suppression keeps Help / About, docs pane, docs browser,
+      and support-export surfaces from rendering a stale depiction.
+      Detection is anchor-based, not pixel-based.
+
+  - id: screenshot_route_changed
+    artifact_kind: screenshot
+    action_class: suppress_from_surface
+    stale_reason_class: route_changed
+    inputs:
+      - schemas/docs/destination_descriptor.schema.json
+    applies_on_same_change_set:
+      - route_change
+    notes: >
+      Fires when the destination_descriptor backing the screenshot
+      changed route, boundary, or handoff reason.
+
+  - id: recipe_step_target_moved
+    artifact_kind: recipe
+    action_class: label_stale_with_reason
+    stale_reason_class: recipe_step_target_moved
+    inputs:
+      - schemas/commands/command_descriptor.schema.json
+      - schemas/automation/recipe_manifest.schema.json
+    applies_on_same_change_set:
+      - schema_version_bump
+      - lifecycle_transition
+      - product_behavior_change
+    notes: >
+      Fires when a step inside a recipe references a command id, route
+      id, or setting key that no longer resolves on the running build.
+
+  - id: recipe_schema_drift
+    artifact_kind: recipe
+    action_class: label_stale_with_reason
+    stale_reason_class: schema_drift
+    inputs:
+      - schemas/automation/recipe_manifest.schema.json
+    applies_on_same_change_set:
+      - schema_version_bump
+    notes: >
+      Fires when a recipe was authored against a prior
+      recipe_manifest_schema_version and the new version would alter
+      the produced sample or reject the step.
+
+  - id: generated_example_contract_mismatch
+    artifact_kind: generated_example
+    action_class: label_stale_with_reason
+    stale_reason_class: generator_contract_mismatch
+    inputs:
+      - schemas/generated/artifact_edit_posture.schema.json
+    applies_on_same_change_set:
+      - schema_version_bump
+    notes: >
+      Fires when a generated example was produced against a prior
+      generator contract and the new generator would produce a
+      different sample.
+
+  - id: generated_example_source_withdrawn
+    artifact_kind: generated_example
+    action_class: suppress_from_surface
+    stale_reason_class: removed_target_symbol
+    inputs:
+      - schemas/generated/artifact_edit_posture.schema.json
+    applies_on_same_change_set:
+      - product_behavior_change
+      - lifecycle_transition
+    notes: >
+      Fires when the generator's source symbol was removed; the
+      generated example is no longer reproducible and MUST NOT render.
+
+  - id: release_bearing_needs_late_proof_exception
+    artifact_kind: docs_pack_example
+    action_class: require_late_proof_exception_packet
+    stale_reason_class: version_mismatch
+    inputs:
+      - schemas/docs/late_proof_exception_packet.schema.json
+      - schemas/governance/claim_manifest.schema.json
+    applies_on_same_change_set:
+      - product_behavior_change
+      - claim_row_change
+      - known_limit_change
+    notes: >
+      Composite detector. Fires when another detector above flags a
+      release-bearing example on a train that cannot carry the paired
+      same-change-set fix. Raising this detector routes the change
+      through the late_proof_exception_packet path; it MUST NOT
+      silently widen a claim.
+
+# ---------------------------------------------------------------------------
+# Same-change-set pairing rows.
+#
+# Mirrors the pairing table in
+# docs/docsops/same_changeset_policy.md. Detectors tie into these rows
+# via applies_on_same_change_set; tooling joins the two to decide what
+# paired update the train must include.
+# ---------------------------------------------------------------------------
+same_change_set_pairings:
+
+  - id: product_behavior_change
+    owner_artifact: crate_or_feature_owner
+    required_surfaces:
+      - docs_pane
+      - release_notes
+    conditional_surfaces:
+      - description: claim_row canonical copy when posture narrows or widens
+        when: effective_claim_posture_changed
+    notes: >
+      Product behavior changes on claim-bearing workflows pair with
+      docs and release notes. A posture change additionally pairs with
+      the claim_row.
+
+  - id: schema_version_bump
+    owner_artifact: schemas/**
+    required_surfaces:
+      - docs_pane
+      - release_notes
+    conditional_surfaces:
+      - description: migration_notes entry when the bump is breaking
+        when: breaking_bump
+      - description: claim_row evidence_link for claim-bearing schemas
+        when: claim_bearing_schema
+    notes: >
+      Additive-minor bumps ride docs + release notes. Breaking bumps
+      also pair with migration notes. Claim-bearing schemas pair with
+      the claim row's evidence_link.
+
+  - id: route_change
+    owner_artifact: artifacts/docs/destination_descriptor_seed.yaml
+    required_surfaces:
+      - help_about
+      - service_health
+      - docs_pane
+      - docs_browser
+    notes: >
+      Route / boundary / handoff / availability changes on a
+      destination_descriptor pair with help_about, service_health,
+      docs_pane, and docs_browser.
+
+  - id: migration_step
+    owner_artifact: migration_notice_pack
+    required_surfaces:
+      - migration_notes
+      - release_notes
+      - support_export
+    conditional_surfaces:
+      - description: compatibility_row field when a compat row narrows
+        when: compat_row_narrowed
+    notes: >
+      Migration steps pair with migration notes, release notes, and
+      support export. A narrowed compat row additionally pairs with the
+      compatibility row.
+
+  - id: claim_row_change
+    owner_artifact: schemas/governance/claim_manifest.schema.json
+    required_surfaces:
+      - docs_pane
+      - help_about
+      - service_health
+      - support_export
+      - release_notes
+      - cli_help
+      - evaluation_artifact
+      - public_proof_packet
+    notes: >
+      Posture downgrade, canonical-copy edit, evidence-link edit, or
+      lifecycle transition on a claim row pairs with every channel the
+      row declares.
+
+  - id: known_limit_change
+    owner_artifact: claim_row.known_limits_or_exclusion_notes
+    required_surfaces:
+      - docs_pane
+      - release_notes
+      - support_export
+    notes: >
+      Adding, withdrawing, or rewording a known-limit / exclusion note
+      pairs with docs pane, release notes, and support export, and the
+      claim row itself.
+
+  - id: compatibility_scope_change
+    owner_artifact: schemas/release/compatibility_row.schema.json
+    required_surfaces:
+      - migration_notes
+      - release_notes
+      - support_export
+    conditional_surfaces:
+      - description: claim_row when a claim cites the compat row
+        when: claim_row_cites_compat_row
+    notes: >
+      Support-window language, skew window, or deviation text on a
+      compat row pairs with migration notes, release notes, and
+      support export, and with the claim row that cites it.
+
+  - id: service_health_state_change
+    owner_artifact: service_health_owner
+    required_surfaces:
+      - service_health
+      - help_about
+      - support_export
+    conditional_surfaces:
+      - description: claim_row when a claim covers the plane
+        when: claim_row_covers_plane
+    notes: >
+      Plane / contract / operator-visible boundary changes pair with
+      service health, Help/About, and support export, and with the
+      covering claim row when one exists.
+
+  - id: lifecycle_transition
+    owner_artifact: schemas/governance/capability_lifecycle.schema.json
+    required_surfaces:
+      - docs_pane
+      - release_notes
+      - cli_help
+    conditional_surfaces:
+      - description: claim_row effective posture for claim-bearing transitions
+        when: claim_bearing_transition
+    notes: >
+      Promotion / demotion / policy-disable / quarantine / deprecation
+      pair with docs pane, release notes, and CLI/help. A claim-bearing
+      transition additionally pairs with the claim row.
+
+# ---------------------------------------------------------------------------
+# Review override semantics.
+#
+# An explicit stale_example_review_override entry names the reviewer,
+# the reason, and the expiry. Overrides MUST NOT silently widen a
+# claim; release-bearing overrides require a paired
+# late_proof_exception_packet.
+# ---------------------------------------------------------------------------
+override_rules:
+  - id: reviewer_override_allowed
+    rule: >
+      A reviewer with docs_public_truth_owner or a named domain_owner
+      role MAY override a detector's action on a non-release-bearing
+      surface by recording a stale_example_review_override entry with
+      reviewer id, reason, and expiry.
+  - id: release_bearing_override_requires_late_proof_packet
+    rule: >
+      On release-bearing surfaces, an override is only admissible when
+      paired with an approved late_proof_exception_packet. A standalone
+      override on a release-bearing surface is non-conforming.
+  - id: no_silent_widening
+    rule: >
+      An override MUST NOT cause a claim row to render a wider posture
+      than its current effective_claim_posture. Widening always
+      requires proof first.
+  - id: override_expiry_required
+    rule: >
+      Every override entry MUST declare an expiry. On expiry without a
+      successor override or reviewed-pack refresh, the action the
+      detector originally declared applies.
+
+# ---------------------------------------------------------------------------
+# Projection targets.
+#
+# Tooling emits detector events into the targets below so the rubric
+# is visible end-to-end rather than only to docs-pack publishers.
+# ---------------------------------------------------------------------------
+projection_targets:
+  docs_pack_manifest_example_summary:
+    schema: schemas/docs/docs_pack_manifest.schema.json
+    note: >
+      label_stale_with_reason, label_needs_review, quarantine_example,
+      and block_pack_publishable actions write through to the
+      example_summary entry and, where relevant, to publishable_state
+      and publishable_blocking_reasons.
+  parity_audit_projection:
+    note: >
+      The cross-surface parity audit emits detector events as rows in
+      the audit projection; a surface missing a detector's declared
+      action on a shared example/step is a parity failure.
+  support_export_preview:
+    note: >
+      Support-export preview renders the detector's typed disclosure
+      alongside the example / step / screenshot so support operators
+      see the same wording a user would see.
+  shiproom_dashboard:
+    target: artifacts/release/shiproom_dashboard_seed.yaml
+    note: >
+      Open detector events with action_class = block_pack_publishable
+      or require_late_proof_exception_packet project into the shiproom
+      dashboard; their paired late-proof exception packets (if any)
+      are listed alongside waivers and freeze exceptions.

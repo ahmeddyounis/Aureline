@@ -1,0 +1,866 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/late_proof_exception_packet.schema.json",
+  "title": "Aureline late-proof exception packet",
+  "description": "Boundary schema for the late_proof_exception_packet family frozen in docs/docsops/same_changeset_policy.md. A late-proof exception is opened when a same-change-set pairing row applies, the paired update would ride a release train, and at least one piece of required proof (benchmark corpus re-run, fresh compat report, migration evidence, docs-pack refresh, support-export preview, claim-evidence alignment) cannot land in the same train. The packet carries owner, rationale, impacted claim rows, degraded wording, support impact, expiry, and required reviewer approvals so the gap is visible and time-bounded rather than silent. Late-proof packets compose with late-copy packets (schemas/docs/late_copy_change_packet.schema.json): late-copy governs what the text says, late-proof governs what proof backs it and when the proof will land.",
+  "type": "object",
+  "$ref": "#/$defs/late_proof_exception_packet",
+  "$defs": {
+    "late_proof_exception_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the late-proof exception packet family. Bumped only on breaking payload changes; adding a cause_class, reversal_class, surface_id, detector linkage, status value, review_role, or optional field is additive-minor."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "late_proof_exception_packet_id": {
+      "type": "string",
+      "pattern": "^late_proof:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable late-proof exception packet id safe to quote in docs/help, support exports, release packets, shiproom dashboard projections, and the launch decision register."
+    },
+
+    "reviewed_pack_version_ref": {
+      "type": "string",
+      "pattern": "^reviewed_pack:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Reviewed-pack version ref this packet's degraded wording composes with. Re-exported from schemas/docs/late_copy_change_packet.schema.json."
+    },
+
+    "late_copy_change_packet_id": {
+      "type": "string",
+      "pattern": "^late_copy:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Paired late-copy packet id. Re-exported from schemas/docs/late_copy_change_packet.schema.json."
+    },
+
+    "claim_row_ref": {
+      "type": "string",
+      "pattern": "^claim_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+
+    "compatibility_row_ref": {
+      "type": "string",
+      "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+
+    "docs_pack_manifest_ref": {
+      "type": "string",
+      "pattern": "^pack:[a-z0-9]+(?:[._-][a-z0-9]+)*:[A-Za-z0-9:+._-]+$",
+      "description": "Docs-pack manifest ref. Follows the pack:<pack_id>:<revision> shape used by docs_pack_manifest_record."
+    },
+
+    "release_train_ref": {
+      "type": "string",
+      "pattern": "^release_train:[A-Za-z0-9:+._-]+$",
+      "description": "Opaque release-train id (branch, release-candidate tag, or out-of-band hotfix) the exception applies to."
+    },
+
+    "exact_build_identity_ref": {
+      "type": "string",
+      "pattern": "^build-id:[A-Za-z0-9:+._-]+$"
+    },
+
+    "detector_ref": {
+      "type": "string",
+      "pattern": "^stale_example:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Detector id from artifacts/docs/stale_example_rules.yaml. A late-proof exception opened in response to a detector fires cites the detector id verbatim."
+    },
+
+    "same_change_set_pairing_ref": {
+      "type": "string",
+      "enum": [
+        "product_behavior_change",
+        "schema_version_bump",
+        "route_change",
+        "migration_step",
+        "claim_row_change",
+        "known_limit_change",
+        "compatibility_scope_change",
+        "service_health_state_change",
+        "lifecycle_transition"
+      ],
+      "description": "Pairing row the exception applies to. Re-exported from artifacts/docs/stale_example_rules.yaml#same_change_set_pairings and docs/docsops/same_changeset_policy.md."
+    },
+
+    "surface_id": {
+      "type": "string",
+      "enum": [
+        "docs_pane",
+        "docs_browser",
+        "help_about",
+        "service_health",
+        "migration_notes",
+        "support_export",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "public_proof_packet"
+      ],
+      "description": "Re-exported from schemas/docs/late_copy_change_packet.schema.json. Release-bearing surfaces that may render degraded wording while the exception is active."
+    },
+
+    "surface_id_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/surface_id" }
+    },
+
+    "binding_state": {
+      "type": "string",
+      "enum": [
+        "reviewed_current",
+        "stale_reviewed_source",
+        "late_copy_override_active",
+        "late_copy_override_reversed",
+        "blocked_unreviewed"
+      ],
+      "description": "Re-exported from schemas/docs/late_copy_change_packet.schema.json without modification."
+    },
+
+    "cause_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_proof_deferred",
+        "compatibility_proof_deferred",
+        "migration_evidence_deferred",
+        "docs_pack_refresh_deferred",
+        "support_export_preview_deferred",
+        "claim_evidence_alignment_deferred"
+      ],
+      "description": "Closed cause vocabulary. Every packet names one primary cause; the cause drives the minimum required reviewer set enforced by the allOf gates below."
+    },
+
+    "reversal_class": {
+      "type": "string",
+      "enum": [
+        "restore_prior_wording",
+        "land_proof_and_drop_exception",
+        "withdraw_claim_and_route_to_known_limit",
+        "supersede_with_new_exception"
+      ],
+      "description": "How the exception ends. Permanent temporary exceptions are non-conforming."
+    },
+
+    "packet_status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved",
+        "active",
+        "proof_landed",
+        "expired",
+        "withdrawn",
+        "rejected",
+        "superseded"
+      ],
+      "description": "Lifecycle of the packet. Exactly one status at a time; history is append-only in the opening system."
+    },
+
+    "review_role": {
+      "type": "string",
+      "enum": [
+        "docs_public_truth_owner",
+        "release_owner",
+        "benchmark_owner",
+        "compatibility_owner",
+        "migration_owner",
+        "docs_pack_publisher",
+        "support_owner",
+        "claim_row_owner",
+        "security_trust_owner",
+        "legal_policy_owner",
+        "domain_owner",
+        "incident_commander"
+      ]
+    },
+
+    "review_status": {
+      "type": "string",
+      "enum": ["required", "approved", "acknowledged", "not_applicable"]
+    },
+
+    "degraded_wording_posture": {
+      "type": "string",
+      "enum": [
+        "narrow_claim_wording",
+        "mark_preview_unverified",
+        "render_known_limit_route",
+        "hold_until_proof_lands",
+        "withhold_from_public_docs"
+      ],
+      "description": "What the surface does while the exception is active. None of these postures may silently widen the effective claim posture."
+    },
+
+    "support_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_support_path_change",
+        "support_macro_updated",
+        "support_runbook_updated",
+        "support_handoff_narrowed",
+        "support_hold_new_cases"
+      ],
+      "description": "Impact on the support path while the exception is active. Pairs with support_owner review when non-no-change."
+    },
+
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$",
+      "description": "Digest of the exact degraded wording slice so review/export tooling can detect silent edits."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture-only metadata used by worked examples. Production records may omit this object."
+    },
+
+    "reviewer_assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "reviewer", "status"],
+      "properties": {
+        "role": { "$ref": "#/$defs/review_role" },
+        "reviewer": { "$ref": "#/$defs/non_empty_string" },
+        "status": { "$ref": "#/$defs/review_status" },
+        "reviewed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "impacted_claim_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_row_ref", "posture_after_exception"],
+      "properties": {
+        "claim_row_ref": { "$ref": "#/$defs/claim_row_ref" },
+        "posture_after_exception": {
+          "type": "string",
+          "enum": [
+            "claim_bearing",
+            "experimental",
+            "limited",
+            "policy_disabled",
+            "replacement_grade",
+            "seed_only",
+            "withdrawn"
+          ],
+          "description": "Effective claim posture while the exception is active. Re-exported from schemas/governance/claim_manifest.schema.json#claim_posture. MUST NOT be wider than the claim row's current effective posture."
+        },
+        "narrowing_note": { "type": "string" },
+        "linked_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+
+    "impacted_compat_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compat_row_ref"],
+      "properties": {
+        "compat_row_ref": { "$ref": "#/$defs/compatibility_row_ref" },
+        "narrowing_note": { "type": "string" },
+        "linked_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+
+    "impacted_docs_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docs_pack_manifest_ref"],
+      "properties": {
+        "docs_pack_manifest_ref": { "$ref": "#/$defs/docs_pack_manifest_ref" },
+        "narrowing_note": { "type": "string" },
+        "detector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/detector_ref" }
+        }
+      }
+    },
+
+    "degraded_wording_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_ref",
+        "binding_state_before",
+        "binding_state_after",
+        "degraded_posture",
+        "degraded_text_digest"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/surface_id" },
+        "surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "binding_state_before": { "$ref": "#/$defs/binding_state" },
+        "binding_state_after": { "$ref": "#/$defs/binding_state" },
+        "degraded_posture": { "$ref": "#/$defs/degraded_wording_posture" },
+        "degraded_text_locator": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "degraded_text_digest": { "$ref": "#/$defs/sha256_digest" },
+        "degraded_text_preview": { "type": "string" },
+        "paired_late_copy_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/late_copy_change_packet_id" }
+          ],
+          "description": "When the degraded wording rides a late-copy packet (because reviewed source must be temporarily overridden), the two packet ids travel together."
+        }
+      }
+    },
+
+    "support_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["impact_class", "narrative"],
+      "properties": {
+        "impact_class": { "$ref": "#/$defs/support_impact_class" },
+        "narrative": { "$ref": "#/$defs/non_empty_string" },
+        "linked_support_runbook_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+
+    "rollback_or_reversal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reversal_class", "notes"],
+      "properties": {
+        "reversal_class": { "$ref": "#/$defs/reversal_class" },
+        "successor_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/late_proof_exception_packet_id" }
+          ]
+        },
+        "target_reviewed_pack_version_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewed_pack_version_ref" }
+          ]
+        },
+        "target_proof_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "late_proof_exception_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "late_proof_exception_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "status",
+        "opened_at",
+        "cause_class",
+        "rationale",
+        "owner",
+        "release_train_ref",
+        "same_change_set_pairing",
+        "impacted_claim_rows",
+        "degraded_wording_surfaces",
+        "support_impact",
+        "expiry_at",
+        "required_reviewers",
+        "rollback_or_reversal"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "late_proof_exception_packet_schema_version": {
+          "$ref": "#/$defs/late_proof_exception_packet_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "late_proof_exception_packet"
+        },
+        "packet_id": { "$ref": "#/$defs/late_proof_exception_packet_id" },
+        "status": { "$ref": "#/$defs/packet_status" },
+        "opened_at": { "$ref": "#/$defs/timestamp" },
+        "approved_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "activated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "proof_landed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "withdrawn_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "cause_class": { "$ref": "#/$defs/cause_class" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "release_train_ref": { "$ref": "#/$defs/release_train_ref" },
+        "running_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/exact_build_identity_ref" }
+          ]
+        },
+        "reviewed_pack_version_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewed_pack_version_ref" }
+          ]
+        },
+        "same_change_set_pairing": {
+          "$ref": "#/$defs/same_change_set_pairing_ref"
+        },
+        "detector_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/detector_ref" }
+        },
+        "impacted_claim_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/impacted_claim_row" }
+        },
+        "impacted_compat_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impacted_compat_row" }
+        },
+        "impacted_docs_packs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impacted_docs_pack" }
+        },
+        "degraded_wording_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/degraded_wording_surface" }
+        },
+        "support_impact": { "$ref": "#/$defs/support_impact" },
+        "expiry_at": { "$ref": "#/$defs/timestamp" },
+        "required_reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewer_assignment" }
+        },
+        "rollback_or_reversal": { "$ref": "#/$defs/rollback_or_reversal" },
+        "supersedes_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/late_proof_exception_packet_id" }
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Every packet MUST carry the docs_public_truth_owner reviewer regardless of cause class; public-truth ownership never sheds.",
+      "properties": {
+        "required_reviewers": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "properties": {
+              "role": { "const": "docs_public_truth_owner" }
+            },
+            "required": ["role"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Every packet MUST carry the release_owner reviewer regardless of cause class; release authority never sheds.",
+      "properties": {
+        "required_reviewers": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "properties": {
+              "role": { "const": "release_owner" }
+            },
+            "required": ["role"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "benchmark_proof_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "benchmark_owner" } },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "compatibility_proof_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "compatibility_owner" } },
+              "required": ["role"]
+            }
+          },
+          "impacted_compat_rows": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "migration_evidence_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "migration_owner" } },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "docs_pack_refresh_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "docs_pack_publisher" } },
+              "required": ["role"]
+            }
+          },
+          "impacted_docs_packs": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "support_export_preview_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "support_owner" } },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "cause_class": { "const": "claim_evidence_alignment_deferred" }
+        },
+        "required": ["cause_class"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "claim_row_owner" } },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Packets whose support_impact is non-trivial MUST carry the support_owner reviewer.",
+      "if": {
+        "properties": {
+          "support_impact": {
+            "type": "object",
+            "properties": {
+              "impact_class": {
+                "not": { "const": "no_support_path_change" }
+              }
+            },
+            "required": ["impact_class"]
+          }
+        },
+        "required": ["support_impact"]
+      },
+      "then": {
+        "properties": {
+          "required_reviewers": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "role": { "const": "support_owner" } },
+              "required": ["role"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Approved, active, proof_landed, expired, or superseded packets MUST carry an approved_at timestamp.",
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "approved",
+              "active",
+              "proof_landed",
+              "expired",
+              "superseded"
+            ]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["approved_at"],
+        "properties": {
+          "approved_at": { "$ref": "#/$defs/timestamp" }
+        }
+      }
+    },
+    {
+      "description": "Active, proof_landed, expired, or superseded packets MUST carry an activated_at timestamp.",
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "active",
+              "proof_landed",
+              "expired",
+              "superseded"
+            ]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["activated_at"],
+        "properties": {
+          "activated_at": { "$ref": "#/$defs/timestamp" }
+        }
+      }
+    },
+    {
+      "description": "proof_landed status MUST carry a proof_landed_at timestamp and at least one target_proof_evidence_ref in the reversal block.",
+      "if": {
+        "properties": {
+          "status": { "const": "proof_landed" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["proof_landed_at"],
+        "properties": {
+          "proof_landed_at": { "$ref": "#/$defs/timestamp" },
+          "rollback_or_reversal": {
+            "type": "object",
+            "properties": {
+              "reversal_class": {
+                "const": "land_proof_and_drop_exception"
+              },
+              "target_proof_evidence_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["reversal_class", "target_proof_evidence_refs"]
+          }
+        }
+      }
+    },
+    {
+      "description": "withdrawn status MUST carry a withdrawn_at timestamp.",
+      "if": {
+        "properties": {
+          "status": { "const": "withdrawn" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["withdrawn_at"],
+        "properties": {
+          "withdrawn_at": { "$ref": "#/$defs/timestamp" }
+        }
+      }
+    },
+    {
+      "description": "superseded status MUST carry a successor_packet_ref on the reversal block.",
+      "if": {
+        "properties": {
+          "status": { "const": "superseded" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "rollback_or_reversal": {
+            "type": "object",
+            "properties": {
+              "reversal_class": { "const": "supersede_with_new_exception" },
+              "successor_packet_ref": {
+                "$ref": "#/$defs/late_proof_exception_packet_id"
+              }
+            },
+            "required": ["reversal_class", "successor_packet_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "hold_until_proof_lands posture MUST pair with a land_proof_and_drop_exception or supersede_with_new_exception reversal class; a hold that never resolves is non-conforming.",
+      "if": {
+        "properties": {
+          "degraded_wording_surfaces": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "degraded_posture": { "const": "hold_until_proof_lands" }
+              },
+              "required": ["degraded_posture"]
+            }
+          }
+        },
+        "required": ["degraded_wording_surfaces"]
+      },
+      "then": {
+        "properties": {
+          "rollback_or_reversal": {
+            "type": "object",
+            "properties": {
+              "reversal_class": {
+                "enum": [
+                  "land_proof_and_drop_exception",
+                  "supersede_with_new_exception"
+                ]
+              }
+            },
+            "required": ["reversal_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "render_known_limit_route posture pairs with withdraw_claim_and_route_to_known_limit reversal; a surface rendering the known-limit route MUST have a matching reversal path that either withdraws the claim or lands proof.",
+      "if": {
+        "properties": {
+          "degraded_wording_surfaces": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "degraded_posture": { "const": "render_known_limit_route" }
+              },
+              "required": ["degraded_posture"]
+            }
+          }
+        },
+        "required": ["degraded_wording_surfaces"]
+      },
+      "then": {
+        "properties": {
+          "rollback_or_reversal": {
+            "type": "object",
+            "properties": {
+              "reversal_class": {
+                "enum": [
+                  "withdraw_claim_and_route_to_known_limit",
+                  "land_proof_and_drop_exception",
+                  "supersede_with_new_exception"
+                ]
+              }
+            },
+            "required": ["reversal_class"]
+          }
+        }
+      }
+    }
+  ]
+}
