@@ -1,0 +1,822 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/publish_later_record.schema.json",
+  "title": "Aureline publish-later queue, queue-review, consequence-preview, account-mapping, and provider-object-relation vocabulary",
+  "description": "Boundary schema for the publish_later_queue_item_record, publish_later_queue_review_record, provider_consequence_preview_record, account_mapping_binding_record, and provider_object_relation_record frozen in docs/providers/provider_mode_contract.md. The contract keeps a provider-linked action alive across offline, provider outage, browser-handoff blocked, status-preview, account-switch, freshness-drift, policy-epoch-roll, and rollback transitions without losing origin, scope, or next-safe-action truth. The frozen relation set (local_draft, queued_publish, browser_handoff, provider_authoritative_object, cached_read_only_shadow) is the only vocabulary provider-linked surfaces render. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never cross this boundary; records carry opaque refs, fingerprints, and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new mode_admission_reason, prerequisite_class, queue_state, conflict_policy_class, reopen_semantic, review_disposition_class, resolution_state_class, relation_class, drift_state_class, next_safe_action_class, or irreversibility_class is additive-minor and requires a publish_later_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/publish_later_queue_item_record" },
+    { "$ref": "#/$defs/publish_later_queue_review_record" },
+    { "$ref": "#/$defs/provider_consequence_preview_record" },
+    { "$ref": "#/$defs/account_mapping_binding_record" },
+    { "$ref": "#/$defs/provider_object_relation_record" }
+  ],
+  "$defs": {
+    "publish_later_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this publish-later vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "publish_later_queue_item_record",
+        "publish_later_queue_review_record",
+        "provider_consequence_preview_record",
+        "account_mapping_binding_record",
+        "provider_object_relation_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class reused from schemas/integration/browser_handoff_packet.schema.json. A generic 'Connected' state is forbidden on every product, CLI, support-export, queue-review, and audit surface. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "reviewer_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "admin_reviewer",
+        "unknown_actor_class"
+      ],
+      "description": "Actor class allowed to author a queue-review entry. Extends the ADR-0010 actor set with admin_reviewer for admin-console-led reviews."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the queue item, mapping, preview, or relation was captured under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0010 and ADR-0007 redaction posture. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never cross this boundary regardless of class."
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Mutation mode reused from ADR-0010. Mode is disclosed at the point of intent; publish_now and local_draft MAY NOT collapse into a single control. A surface that cannot name a mode MUST route to inspect_only rather than default to publish_now."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_host_surface",
+        "issue_or_planning_surface",
+        "ci_or_checks_surface",
+        "docs_or_portal_surface",
+        "artifact_registry_surface",
+        "release_publisher_surface",
+        "identity_provider_surface",
+        "ai_provider_surface",
+        "managed_admin_surface"
+      ],
+      "description": "Frozen provider-linked surface class that minted the queue item or relation."
+    },
+
+    "mode_admission_reason": {
+      "type": "string",
+      "enum": [
+        "user_deferred",
+        "offline_capture",
+        "provider_unavailable",
+        "browser_handoff_blocked",
+        "account_mapping_pending",
+        "approval_ticket_pending",
+        "freshness_floor_pending",
+        "policy_epoch_pending",
+        "step_up_pending"
+      ],
+      "description": "Why the queue item was admitted into the publish-later queue instead of publishing immediately. Every item names exactly one."
+    },
+
+    "prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "connectivity_restored",
+        "provider_health_recovered",
+        "browser_available",
+        "account_mapping_resolved",
+        "approval_ticket_issued",
+        "freshness_floor_satisfied",
+        "policy_epoch_stable",
+        "step_up_authenticator_cleared",
+        "upstream_object_refreshed",
+        "user_reconfirm_required",
+        "local_draft_preview_confirmed",
+        "conflict_resolved"
+      ],
+      "description": "Typed prerequisite that must be satisfied before a queue item is admitted for drain."
+    },
+
+    "prerequisite_state": {
+      "type": "string",
+      "enum": ["unmet", "met", "waived"],
+      "description": "State of one prerequisite. Drain authority is revalidated at drain: if any required prerequisite has regressed from met to unmet, drain fails closed."
+    },
+
+    "pending_prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prerequisite_class", "prerequisite_state", "rationale_summary"],
+      "properties": {
+        "prerequisite_class": { "$ref": "#/$defs/prerequisite_class" },
+        "prerequisite_state": { "$ref": "#/$defs/prerequisite_state" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record that will clear the prerequisite (health probe record, account mapping binding, approval-ticket record, preview record)."
+        },
+        "cleared_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Populated when prerequisite_state is met."
+        }
+      },
+      "allOf": [
+        {
+          "description": "cleared_at MUST be present when prerequisite_state is met.",
+          "if": {
+            "properties": { "prerequisite_state": { "const": "met" } },
+            "required": ["prerequisite_state"]
+          },
+          "then": { "required": ["cleared_at"] }
+        }
+      ]
+    },
+
+    "conflict_policy_class": {
+      "type": "string",
+      "enum": [
+        "refuse_on_remote_change",
+        "merge_if_auto_resolvable",
+        "user_decides_on_drain",
+        "force_overwrite_with_preview"
+      ],
+      "description": "Conflict policy for the queue item. force_overwrite_with_preview MUST carry a consequence_preview_ref."
+    },
+
+    "reopen_semantic": {
+      "type": "string",
+      "enum": [
+        "on_connectivity_restored",
+        "on_account_reselected",
+        "on_freshness_refresh",
+        "on_policy_epoch_stable",
+        "on_browser_available",
+        "on_user_reconfirm"
+      ],
+      "description": "Condition under which a parked queue item becomes eligible for re-evaluation. Every item names at least one; multiple are allowed for compound prerequisites."
+    },
+
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "draft_in_queue",
+        "pending_prerequisites",
+        "awaiting_browser_handoff",
+        "awaiting_account_reselection",
+        "awaiting_consequence_confirm",
+        "drain_admitted",
+        "drained",
+        "superseded",
+        "revoked",
+        "rejected_at_drain",
+        "rolled_back"
+      ],
+      "description": "Queue state rendered explicitly on queue-review, support-export, and admin-reconciliation surfaces."
+    },
+
+    "review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "admit_for_drain",
+        "hold_for_prerequisites",
+        "revoke_item",
+        "replace_with_superseding_item",
+        "escalate_for_admin_review"
+      ],
+      "description": "Typed queue-review disposition. Every queue-review entry names exactly one."
+    },
+
+    "resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "resolved",
+        "pending_user_selection",
+        "pending_account_link",
+        "pending_policy_review",
+        "stale_after_account_switch",
+        "denied_actor_class_forbidden"
+      ],
+      "description": "Account-mapping resolution state. An account switch MUST transition a resolved mapping to stale_after_account_switch; silent resolution under a different actor class is forbidden."
+    },
+
+    "relation_class": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "queued_publish",
+        "browser_handoff",
+        "provider_authoritative_object",
+        "cached_read_only_shadow"
+      ],
+      "description": "Frozen relation set between a local Aureline object and its provider-side counterpart. Every provider-linked surface renders exactly one relation class; a surface that cannot place a pair in this matrix routes to cached_read_only_shadow."
+    },
+
+    "drift_state_class": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "remote_moved",
+        "local_moved",
+        "both_moved",
+        "provider_unreachable",
+        "actor_scope_changed"
+      ],
+      "description": "Drift state between local and provider sides of a relation. both_moved and actor_scope_changed require user reconciliation before any further mutation."
+    },
+
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "view_only",
+        "refresh_before_edit",
+        "promote_local_draft_to_queue",
+        "resume_browser_handoff",
+        "review_queue_item",
+        "reselect_account",
+        "escalate_for_admin_review"
+      ],
+      "description": "Next-safe-action hint read by queue-review, support-export, and admin-reconciliation consumers. Surfaces MUST render this and MUST NOT invent surface-local actions that fall outside this set."
+    },
+
+    "irreversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible",
+        "soft_reversible",
+        "irreversible",
+        "irreversible_release_class"
+      ],
+      "description": "Irreversibility class of the predicted side effect. irreversible and irreversible_release_class MUST carry a preview ref."
+    },
+
+    "predicted_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ],
+      "description": "Side-effect class reused from the runtime authority-ticket contract so lineage and queue items project onto the same axis."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "pull_request",
+            "issue_or_work_item",
+            "check_run",
+            "release_artifact",
+            "docs_page",
+            "audit_entry",
+            "admin_surface",
+            "consent_flow",
+            "package_version",
+            "registry_entry",
+            "other"
+          ]
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the object the queue item, mapping, preview, or relation references."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin a queue item was minted under. Revalidated at drain; callbacks and drains against a mismatched origin are denied."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the queue item was minted under. Revalidated at drain; a policy-epoch roll between queue and drain re-evaluates the item."
+    },
+
+    "provider_consequence_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_later_schema_version",
+        "preview_id",
+        "target_object_identity",
+        "predicted_side_effect_class",
+        "irreversibility_class",
+        "projected_diff_summary",
+        "projected_scope_summary",
+        "expected_actor_class",
+        "preview_hash",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_consequence_preview_record" },
+        "publish_later_schema_version": {
+          "$ref": "#/$defs/publish_later_schema_version"
+        },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "predicted_side_effect_class": {
+          "$ref": "#/$defs/predicted_side_effect_class"
+        },
+        "irreversibility_class": { "$ref": "#/$defs/irreversibility_class" },
+        "projected_diff_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "projected_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "expected_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "freshness_floor_ref": {
+          "type": "string",
+          "description": "Opaque ref to the freshness floor the preview was computed against. A queued preview whose freshness floor has drifted is invalidated at drain."
+        },
+        "preview_hash": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Content hash over the structured fields so tampering between preview and spend is detectable. Never a hash of a raw provider body."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "User-confirmed consequence snapshot a queue item, publish_now ticket, or open_in_provider packet commits to. Queue-review surfaces render the projected_diff_summary and projected_scope_summary verbatim; the user who confirms the drain MUST see the same preview the queue item was admitted under."
+    },
+
+    "account_mapping_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_later_schema_version",
+        "account_mapping_id",
+        "connected_provider_record_id",
+        "resolved_actor_class",
+        "resolution_state_class",
+        "last_user_visible_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "account_mapping_binding_record" },
+        "publish_later_schema_version": {
+          "$ref": "#/$defs/publish_later_schema_version"
+        },
+        "account_mapping_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "resolved_actor_subject": {
+          "type": "string",
+          "description": "May be empty string until resolution_state_class is resolved."
+        },
+        "resolved_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "resolution_state_class": { "$ref": "#/$defs/resolution_state_class" },
+        "candidate_actor_subject_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to candidate linked_account_refs / linked_install_refs / linked_delegated_credential_refs on the connected-provider record the user may select between."
+        },
+        "superseded_by_account_mapping_ref": {
+          "type": "string",
+          "description": "Opaque ref to the replacement mapping when resolution_state_class is stale_after_account_switch and the user has reselected."
+        },
+        "last_user_visible_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "A resolved mapping MUST carry a non-empty resolved_actor_subject.",
+          "if": {
+            "properties": {
+              "resolution_state_class": { "const": "resolved" }
+            },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolved_actor_subject": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["resolved_actor_subject"]
+          }
+        },
+        {
+          "description": "An unresolved mapping MUST NOT claim a concrete actor class other than unknown_actor_class.",
+          "if": {
+            "properties": {
+              "resolution_state_class": {
+                "enum": [
+                  "pending_user_selection",
+                  "pending_account_link",
+                  "pending_policy_review"
+                ]
+              }
+            },
+            "required": ["resolution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolved_actor_class": { "const": "unknown_actor_class" }
+            }
+          }
+        }
+      ],
+      "description": "Bind between the local actor subject, the provider-actor class that will be used on the provider, and the connected-provider record the action runs against. An account switch after queue time MUST transition the mapping to stale_after_account_switch and park the queue item in state awaiting_account_reselection."
+    },
+
+    "publish_later_queue_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_later_schema_version",
+        "queue_item_id",
+        "mutation_mode",
+        "mode_admission_reason",
+        "connected_provider_record_id",
+        "surface_class",
+        "target_object_identity",
+        "pending_prerequisites",
+        "conflict_policy_class",
+        "reopen_semantics",
+        "queue_state",
+        "origin_disclosure",
+        "policy_context",
+        "queued_at",
+        "expires_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "publish_later_queue_item_record" },
+        "publish_later_schema_version": {
+          "$ref": "#/$defs/publish_later_schema_version"
+        },
+        "queue_item_id": { "$ref": "#/$defs/opaque_id" },
+        "mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "mode_admission_reason": { "$ref": "#/$defs/mode_admission_reason" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "originating_local_draft_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local draft object. Required for local_draft and deferred_publish modes; empty string for pure open_in_provider items whose origin is a browser-handoff packet only."
+        },
+        "originating_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser-handoff packet the queue item parked. Required when mode_admission_reason is browser_handoff_blocked or mutation_mode is open_in_provider."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. A queued item carries the request for a drain ticket; the drain ticket is minted fresh at drain time with a ticket_lineage entry naming the queued request."
+        },
+        "pending_prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pending_prerequisite" },
+          "description": "Ordered typed prerequisite records. The drain MUST refuse while any required prerequisite is unmet."
+        },
+        "conflict_policy_class": { "$ref": "#/$defs/conflict_policy_class" },
+        "consequence_preview_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_consequence_preview_record. Required when mutation_mode is publish_now, deferred_publish, or open_in_provider for an irreversible or release-class action; required when conflict_policy_class is force_overwrite_with_preview."
+        },
+        "account_mapping_binding_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_mapping_binding_record the item was queued under. Required whenever the item was queued before the actor class / subject was fully resolved."
+        },
+        "reopen_semantics": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reopen_semantic" }
+        },
+        "queue_state": { "$ref": "#/$defs/queue_state" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "queued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_review_ref": {
+          "type": "string",
+          "description": "Opaque ref to the latest publish_later_queue_review_record."
+        },
+        "supersedes_queue_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_by_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the queue item that superseded this one when queue_state is superseded."
+        },
+        "item_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "inspect_only items MAY NOT be admitted to the publish-later queue; inspect_only state rides imported snapshots, not queue items.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "inspect_only" } },
+            "required": ["mutation_mode"]
+          },
+          "then": { "not": {} }
+        },
+        {
+          "description": "browser_handoff_blocked admission and open_in_provider mutation_mode MUST cite an originating browser-handoff packet.",
+          "anyOf": [
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "mode_admission_reason": { "const": "browser_handoff_blocked" }
+                    },
+                    "required": ["mode_admission_reason"]
+                  },
+                  {
+                    "properties": {
+                      "mutation_mode": { "const": "open_in_provider" }
+                    },
+                    "required": ["mutation_mode"]
+                  }
+                ]
+              }
+            },
+            { "required": ["originating_browser_handoff_packet_ref"] }
+          ]
+        },
+        {
+          "description": "local_draft and deferred_publish MUST cite an originating local draft ref.",
+          "if": {
+            "properties": {
+              "mutation_mode": {
+                "enum": ["local_draft", "deferred_publish"]
+              }
+            },
+            "required": ["mutation_mode"]
+          },
+          "then": { "required": ["originating_local_draft_ref"] }
+        },
+        {
+          "description": "account_mapping_pending admission MUST cite an account_mapping_binding_ref.",
+          "if": {
+            "properties": {
+              "mode_admission_reason": { "const": "account_mapping_pending" }
+            },
+            "required": ["mode_admission_reason"]
+          },
+          "then": { "required": ["account_mapping_binding_ref"] }
+        },
+        {
+          "description": "force_overwrite_with_preview conflict policy MUST carry a consequence_preview_ref.",
+          "if": {
+            "properties": {
+              "conflict_policy_class": { "const": "force_overwrite_with_preview" }
+            },
+            "required": ["conflict_policy_class"]
+          },
+          "then": { "required": ["consequence_preview_ref"] }
+        },
+        {
+          "description": "queue_state superseded MUST cite superseded_by_queue_item_ref.",
+          "if": {
+            "properties": { "queue_state": { "const": "superseded" } },
+            "required": ["queue_state"]
+          },
+          "then": { "required": ["superseded_by_queue_item_ref"] }
+        }
+      ],
+      "description": "Keeps a provider-linked action alive across offline, outage, browser-handoff blocked, status-preview, account-switch, freshness-drift, policy-epoch-roll, and rollback transitions. Drain runs through a fresh approval ticket with action_class deferred_publish_drain; the queue item never carries mutation authority from its queued moment to its published moment."
+    },
+
+    "publish_later_queue_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_later_schema_version",
+        "review_id",
+        "queue_item_refs",
+        "reviewer_actor_class",
+        "review_disposition_class",
+        "notes_summary",
+        "origin_disclosure",
+        "policy_context",
+        "reviewed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "publish_later_queue_review_record" },
+        "publish_later_schema_version": {
+          "$ref": "#/$defs/publish_later_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "queue_item_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reviewer_actor_class": { "$ref": "#/$defs/reviewer_actor_class" },
+        "reviewer_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the reviewer's actor subject (user id, admin console seat id, supervisor path). Empty string only when the reviewer actor class is unknown_actor_class for a repair-only record."
+        },
+        "review_disposition_class": {
+          "$ref": "#/$defs/review_disposition_class"
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this review (provider_action_deferred, deferred_publish_queue_drained, deferred_publish_queue_rejected)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Snapshot of a human or admin review pass over the publish-later queue. Queue-review surfaces, support exports, and admin reconciliation consumers read this to surface the next safe action."
+    },
+
+    "provider_object_relation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_later_schema_version",
+        "relation_id",
+        "relation_class",
+        "connected_provider_record_id",
+        "local_ref",
+        "drift_state_class",
+        "next_safe_action_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_object_relation_record" },
+        "publish_later_schema_version": {
+          "$ref": "#/$defs/publish_later_schema_version"
+        },
+        "relation_id": { "$ref": "#/$defs/opaque_id" },
+        "relation_class": { "$ref": "#/$defs/relation_class" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "local_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the local side (draft, queue item, handoff packet, link record, or imported snapshot)."
+        },
+        "provider_side_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider-side object when the relation has one; empty string for local_draft."
+        },
+        "target_object_identity": {
+          "$ref": "#/$defs/object_identity",
+          "description": "Provider-side object identity. Empty only for local_draft relations with no remote counterpart."
+        },
+        "last_authoritative_fetch_ref": {
+          "type": "string",
+          "description": "Opaque ref to the most recent import-session record that refreshed the relation. Required for provider_authoritative_object and cached_read_only_shadow."
+        },
+        "drift_state_class": { "$ref": "#/$defs/drift_state_class" },
+        "next_safe_action_class": {
+          "$ref": "#/$defs/next_safe_action_class"
+        },
+        "relation_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "provider_authoritative_object and cached_read_only_shadow MUST carry a last_authoritative_fetch_ref.",
+          "if": {
+            "properties": {
+              "relation_class": {
+                "enum": ["provider_authoritative_object", "cached_read_only_shadow"]
+              }
+            },
+            "required": ["relation_class"]
+          },
+          "then": { "required": ["last_authoritative_fetch_ref"] }
+        },
+        {
+          "description": "local_draft relations MUST carry an empty provider_side_ref.",
+          "if": {
+            "properties": { "relation_class": { "const": "local_draft" } },
+            "required": ["relation_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_side_ref": { "const": "" }
+            }
+          }
+        },
+        {
+          "description": "Non-local_draft relations MUST carry a non-empty provider_side_ref.",
+          "if": {
+            "properties": {
+              "relation_class": {
+                "enum": [
+                  "queued_publish",
+                  "browser_handoff",
+                  "provider_authoritative_object",
+                  "cached_read_only_shadow"
+                ]
+              }
+            },
+            "required": ["relation_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_side_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["provider_side_ref"]
+          }
+        }
+      ],
+      "description": "Typed relation between a local Aureline object and its provider-side counterpart. Every provider-linked surface renders exactly one relation class; surfaces MAY NOT invent relation vocabulary outside this record."
+    }
+  }
+}
