@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../schemas/runtime/remote_agent_hello.schema.json",
+  "__fixture__": {
+    "name": "version_skew_outside_window_denied",
+    "scenario": "A remote_agent_primary reconnect attempts to re-advertise a protocol range whose maximum has been dropped from the supported skew window since the prior session opened (the desktop client was upgraded mid-session). The mixed-version envelope cited on the reconnect falls outside the supported window in artifacts/compat/version_skew_register.yaml. Admission denies with remote_agent_mixed_version_envelope_outside_window. No new session id is issued; the reconnect is recorded so a support bundle or install-review surface can render a concrete repair affordance (upgrade the remote agent) rather than a generic 'not available' chip.",
+    "case_id": "reconnect.version_skew.outside_window",
+    "exercises": {
+      "reconnect_reason_class": "version_skew_outside_window",
+      "witness_match_class": "matched",
+      "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+      "reapproval_requirement_class": "session_ticket_refresh_required",
+      "route_change_reason_code": "route_changed_target_unreachable"
+    },
+    "related_fixture_refs": [
+      "artifacts/compat/version_skew_register.yaml",
+      "schemas/compat/mixed_version_envelope.schema.json",
+      "artifacts/runtime/service_placement_rows.yaml",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+
+  "record_kind": "remote_agent_reconnect_decision_record",
+  "remote_agent_schema_version": 1,
+
+  "reconnect_id": "ra_reconnect:20260424T152730Z:0006",
+  "prior_session_id": "ra_session:20260424T094501Z:0001",
+  "new_session_id": null,
+
+  "reconnect_reason_class": "version_skew_outside_window",
+
+  "target_identity_witness": {
+    "record_kind": "target_identity_witness_record",
+    "remote_agent_schema_version": 1,
+    "witness_id": "ra_witness:20260424T152730Z:0006",
+    "logical_target_ref": "remote_agent_target:ra:devbox.alpha:0001",
+    "canonical_instance_identity": "ssh_host_key_fingerprint:sha256:9d3c8f8b7a6e5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a190807f6e5d4",
+    "prior_canonical_instance_identity": null,
+    "instance_identity_rotation_ref": null,
+    "attestation_ref": "ra_attestation:agent.sha256:7fa3c28de61b4c93a5f02dd7c3a4e8b6f1c9d20a54e7b9d80123f6c5a8b4e2f9",
+    "witness_match_class": "matched",
+    "captured_at": "2026-04-24T15:27:30Z"
+  },
+
+  "witness_match_class": "matched",
+
+  "trust_state_ref_at_reconnect": "trust_decision:wks:aureline:trusted:20260424T094501Z",
+  "policy_pack_epoch_at_reconnect": "admin_policy_epoch:wks:aureline:20260423T000000Z",
+
+  "capability_world_renegotiation_required": true,
+
+  "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+
+  "cancelled_action_refs": [
+    "remote_workspace_write_action:20260424T152612Z:0033"
+  ],
+  "preserved_read_only_subscription_refs": [],
+
+  "reapproval_requirement_class": "session_ticket_refresh_required",
+  "route_change_reason_code": "route_changed_target_unreachable",
+
+  "denial_reasons": [
+    {
+      "reason": "remote_agent_mixed_version_envelope_outside_window",
+      "repair_affordance_label": "Upgrade the remote agent to a version within the supported protocol window (see artifacts/compat/version_skew_register.yaml); the desktop client moved past the prior window during the offline period.",
+      "audit_event_ref": "audit:remote_agent_session_version_skew_denied:20260424T152730Z:0006"
+    }
+  ],
+  "audit_event_refs": [
+    "audit:remote_agent_session_offline_reconnect_window_open:20260424T152601Z:0001",
+    "audit:remote_agent_session_version_skew_denied:20260424T152730Z:0006",
+    "audit:remote_agent_session_cancelled_in_flight:20260424T152730Z:0006",
+    "audit:remote_agent_session_closed:20260424T152730Z:0006"
+  ],
+
+  "captured_at": "2026-04-24T15:27:30Z",
+
+  "conformance_tests": [
+    {
+      "id": "version_skew_denies_with_typed_reason",
+      "description": "A version_skew_outside_window reconnect MUST include remote_agent_mixed_version_envelope_outside_window in denial_reasons."
+    },
+    {
+      "id": "version_skew_no_new_session",
+      "description": "A version_skew_outside_window reconnect MUST NOT issue a new_session_id; re-admission requires a fresh hello after the agent upgrades."
+    },
+    {
+      "id": "version_skew_cites_register_row",
+      "description": "The repair affordance SHOULD point to the version-skew register so the reviewer can see which window applies."
+    },
+    {
+      "id": "version_skew_no_silent_degrade",
+      "description": "Silent downgrade to the nearest compatible protocol is forbidden; denial is the correct behaviour."
+    }
+  ]
+}

@@ -1,0 +1,921 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/remote_agent_hello.schema.json",
+  "title": "Aureline remote-agent hello, session-lifecycle, heartbeat, reconnect-decision, target-identity-witness, and service-placement-row vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the remote-agent contract, service-placement rows, reconnect semantics, and capability-negotiation reservations in docs/adr/0020-remote-agent-contract.md. Every record that crosses the remote-agent boundary (hello, hello response, heartbeat, session-lifecycle transition, reconnect decision, target-identity witness) projects through this schema. The placement-row registry lives at artifacts/runtime/service_placement_rows.yaml; worked reconnect fixtures live under fixtures/runtime/reconnect_cases/. Raw transport frames, raw agent binary bytes, raw helper-binary invocation bodies, raw bridge-shim payloads, raw credential bytes, raw signing-key material, and raw policy-bundle bytes MUST NOT appear in any record; records carry refs only. Adding a new member to any enumerated set, a new record kind, or an additive field is additive-minor with a remote_agent_schema_version bump; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/remote_agent_hello_record" },
+    { "$ref": "#/$defs/remote_agent_hello_response_record" },
+    { "$ref": "#/$defs/remote_agent_heartbeat_record" },
+    { "$ref": "#/$defs/remote_agent_session_lifecycle_transition_record" },
+    { "$ref": "#/$defs/remote_agent_reconnect_decision_record" },
+    { "$ref": "#/$defs/target_identity_witness_record" }
+  ],
+  "$defs": {
+    "remote_agent_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this remote-agent vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "remote_agent_hello_record",
+        "remote_agent_hello_response_record",
+        "remote_agent_heartbeat_record",
+        "remote_agent_session_lifecycle_transition_record",
+        "remote_agent_reconnect_decision_record",
+        "target_identity_witness_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (session ticket, attach ticket, attestation record, execution context, mixed-version envelope, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ],
+      "description": "Nullable opaque ref."
+    },
+
+    "service_placement_row_id": {
+      "type": "string",
+      "pattern": "^service_placement_row:[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Stable placement-row id from artifacts/runtime/service_placement_rows.yaml. Pattern: service_placement_row:<family>.<row>."
+    },
+
+    "capability_world_ref": {
+      "type": "string",
+      "pattern": "^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Capability-world identity from ADR-0019 (schemas/extensions/host_negotiation.schema.json). Pattern: aureline:<slug>@<MAJOR.MINOR.PATCH>. Third-party worlds MUST NOT mint identities under this namespace at this milestone."
+    },
+
+    "permission_scope_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ADR-0012 permission-scope identifier projected from the manifest. Remote agents MAY NOT widen scopes past the manifest projection."
+    },
+
+    "remote_agent_role_class": {
+      "type": "string",
+      "enum": [
+        "remote_agent_primary",
+        "remote_agent_helper_bridge",
+        "compatibility_bridge_remote",
+        "managed_workspace_agent",
+        "provider_side_remote_agent",
+        "browser_return_callback_agent"
+      ],
+      "description": "Frozen role-class vocabulary. Every hello record declares exactly one role."
+    },
+
+    "admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "admitted_read_only",
+        "admitted_degraded",
+        "denied",
+        "deferred_pending_reapproval"
+      ],
+      "description": "Frozen admission-class vocabulary for the hello response."
+    },
+
+    "in_flight_action_handling": {
+      "type": "string",
+      "enum": [
+        "cancel_all_on_disconnect",
+        "cancel_mutations_preserve_read_only",
+        "preserve_read_only_resubscribe_on_reconnect",
+        "reserved_for_provider_side"
+      ],
+      "description": "Frozen in-flight-action handling vocabulary. Silent replay of any in-flight mutation on reconnect is forbidden under every value."
+    },
+
+    "session_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "session_opening",
+        "session_active",
+        "session_degraded",
+        "session_offline_reconnect_window_open",
+        "session_reconnected_same_identity",
+        "session_reconnected_identity_changed",
+        "session_downgraded_read_only",
+        "session_cancelled_in_flight",
+        "session_closing",
+        "session_closed",
+        "session_quarantined"
+      ],
+      "description": "Frozen session-lifecycle state vocabulary."
+    },
+
+    "degraded_reason_class": {
+      "type": "string",
+      "enum": [
+        "heartbeat_missed_within_budget",
+        "transport_jitter_observed",
+        "reachability_state_degraded",
+        "capability_world_degraded_by_trust",
+        "capability_world_degraded_by_policy",
+        "version_skew_approaching_window_edge",
+        "managed_workspace_recovering"
+      ],
+      "description": "Frozen degraded-reason vocabulary. Additive-minor."
+    },
+
+    "reconnect_reason_class": {
+      "type": "string",
+      "enum": [
+        "transient_disconnect_same_identity",
+        "changed_target_identity",
+        "admitted_identity_rotation",
+        "resumed_read_only_after_trust_downgrade",
+        "resumed_read_only_after_policy_narrowing",
+        "resumed_read_only_after_credential_expiry",
+        "cancellation_or_non_replay_of_in_flight",
+        "reconnect_window_exceeded",
+        "version_skew_outside_window"
+      ],
+      "description": "Frozen reconnect-reason-class vocabulary. Additive-minor."
+    },
+
+    "witness_match_class": {
+      "type": "string",
+      "enum": [
+        "matched",
+        "changed_with_admitted_rotation",
+        "changed_unadmitted",
+        "unverifiable"
+      ],
+      "description": "Frozen witness-match-class vocabulary."
+    },
+
+    "rtt_class": {
+      "type": "string",
+      "enum": [
+        "within_budget",
+        "warning_band",
+        "budget_exceeded_once",
+        "budget_exceeded_repeat",
+        "unknown_clock_skew"
+      ],
+      "description": "Frozen rtt-class vocabulary for heartbeat records."
+    },
+
+    "reapproval_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_reapproval_required",
+        "session_ticket_refresh_required",
+        "approval_ticket_reissue_required",
+        "admin_confirmation_required",
+        "policy_narrowing_required",
+        "trust_reevaluation_required"
+      ],
+      "description": "Reapproval-requirement-class vocabulary inherited from artifacts/remote/host_boundary_matrix.yaml. Remote-agent reconnect decisions cite these values; no silent widening."
+    },
+
+    "route_change_reason_code": {
+      "type": "string",
+      "enum": [
+        "route_changed_authority_escalation",
+        "route_changed_target_unreachable",
+        "route_changed_target_replaced",
+        "route_changed_trust_narrowed",
+        "route_changed_identity_rotated"
+      ],
+      "description": "Route-change-reason codes inherited from docs/runtime/origin_target_route_taxonomy.md, narrowed to the remote-agent reconnect surface."
+    },
+
+    "narrowing_reason_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "admin_policy_deny_list",
+        "admin_policy_permission_floor",
+        "admin_policy_egress_host_narrowing",
+        "capability_lifecycle_degraded",
+        "world_vocabulary_version_unknown",
+        "host_abi_range_mismatch",
+        "guest_abi_range_mismatch",
+        "compatibility_bridge_profile_unbound",
+        "budget_declaration_unacceptable",
+        "service_placement_row_not_admitted_by_host_policy",
+        "service_placement_row_desktop_only_never_remote",
+        "service_placement_row_requires_bridge_binding",
+        "target_identity_witness_unverifiable",
+        "target_identity_witness_changed_unadmitted",
+        "attestation_ref_required_not_present",
+        "managed_workspace_lifecycle_state_not_ready",
+        "connected_provider_approval_ticket_not_present",
+        "remote_egress_class_denied_by_policy",
+        "version_skew_outside_supported_window",
+        "reconnect_window_exceeded_no_preserved_state"
+      ],
+      "description": "Narrowing-reason vocabulary for advertised worlds or placement rows that were not admitted. Extends the ADR-0019 narrowing vocabulary with remote-agent-specific reasons. Additive-minor."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "remote_agent_role_class_unknown",
+        "remote_agent_attestation_required_missing",
+        "remote_agent_attestation_signature_invalid",
+        "remote_agent_attach_ticket_missing",
+        "remote_agent_attach_ticket_expired",
+        "remote_agent_attach_ticket_revoked",
+        "remote_agent_target_identity_witness_unverifiable",
+        "remote_agent_target_identity_witness_changed_unadmitted",
+        "remote_agent_protocol_range_mismatch",
+        "remote_agent_capability_world_unsupported_on_host",
+        "remote_agent_service_placement_row_desktop_only",
+        "remote_agent_trust_state_denies_session",
+        "remote_agent_policy_pack_denies_session",
+        "remote_agent_egress_class_denied",
+        "remote_agent_managed_workspace_not_ready",
+        "remote_agent_mixed_version_envelope_outside_window",
+        "remote_agent_heartbeat_deadline_exceeded",
+        "remote_agent_reconnect_window_exceeded_no_state_preserved",
+        "remote_agent_identity_rotation_not_admitted"
+      ],
+      "description": "Denial-reason vocabulary. Silent downgrade to a generic 'not available' chip is forbidden; every denial cites one of these reasons. Additive-minor."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "remote_agent_hello_opened",
+        "remote_agent_hello_admitted",
+        "remote_agent_hello_admitted_read_only",
+        "remote_agent_hello_denied",
+        "remote_agent_session_heartbeat_missed",
+        "remote_agent_session_degraded",
+        "remote_agent_session_offline_reconnect_window_open",
+        "remote_agent_session_reconnected_same_identity",
+        "remote_agent_session_reconnected_identity_changed",
+        "remote_agent_session_downgraded_read_only",
+        "remote_agent_session_cancelled_in_flight",
+        "remote_agent_session_version_skew_denied",
+        "remote_agent_session_attestation_missing_denied",
+        "remote_agent_session_target_identity_rotation_admitted",
+        "remote_agent_session_target_identity_rotation_rejected",
+        "remote_agent_session_policy_pack_denied",
+        "remote_agent_session_trust_state_denied",
+        "remote_agent_session_closed",
+        "remote_agent_session_quarantined"
+      ],
+      "description": "Frozen audit-event id vocabulary. Additive-minor. Raw transport frames, raw credential bytes, raw policy-bundle bytes, and raw agent binary bytes MUST NOT appear on any event."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Redaction-class vocabulary inherited from artifacts/remote/host_boundary_matrix.yaml. Remote-agent records default to metadata_and_hashes_only; broadened_capture requires an explicit provenance record."
+    },
+
+    "egress_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "org_approved_external",
+        "public_internet"
+      ],
+      "description": "Egress-class vocabulary inherited from artifacts/network/egress_classes.yaml. Declared on every hello record so the host can evaluate it against admin-policy egress-host-narrowing (ADR-0012 egress_host_narrowing)."
+    },
+
+    "narrowing_reason_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref", "reason"],
+      "properties": {
+        "target_ref": {
+          "description": "Ref to the advertised item that was not admitted: a capability_world_ref or a service_placement_row_id.",
+          "oneOf": [
+            { "$ref": "#/$defs/capability_world_ref" },
+            { "$ref": "#/$defs/service_placement_row_id" }
+          ]
+        },
+        "reason": { "$ref": "#/$defs/narrowing_reason_class" },
+        "notes": {
+          "type": "string",
+          "description": "Optional short human-readable note. Never carries raw bodies."
+        }
+      },
+      "description": "One typed narrowing reason per non-admitted advertised item."
+    },
+
+    "denial_reason_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": { "$ref": "#/$defs/denial_reason_class" },
+        "repair_affordance_label": {
+          "type": "string",
+          "description": "Human-legible repair label (e.g. 'grant trust', 'reissue approval ticket', 'upgrade agent')."
+        },
+        "audit_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+
+    "target_identity_witness_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "witness_id",
+        "logical_target_ref",
+        "canonical_instance_identity",
+        "witness_match_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "target_identity_witness_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "witness_id": { "$ref": "#/$defs/opaque_id" },
+        "logical_target_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "The logical target the session claims (remote-agent alias, managed-workspace instance id, provider-linked ref). Stable across instance replacement."
+        },
+        "canonical_instance_identity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical instance identity (SSH host-key fingerprint, managed-instance id, provider node id). May rotate."
+        },
+        "prior_canonical_instance_identity": {
+          "type": ["string", "null"],
+          "description": "Preserved when a reconnect observes a change."
+        },
+        "instance_identity_rotation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "attestation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "witness_match_class": { "$ref": "#/$defs/witness_match_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A matched witness MUST NOT carry a prior_canonical_instance_identity; rotation is only recorded on change.",
+          "if": {
+            "properties": { "witness_match_class": { "const": "matched" } },
+            "required": ["witness_match_class"]
+          },
+          "then": {
+            "properties": { "prior_canonical_instance_identity": { "type": "null" } }
+          }
+        },
+        {
+          "description": "A changed_with_admitted_rotation witness MUST carry instance_identity_rotation_ref.",
+          "if": {
+            "properties": { "witness_match_class": { "const": "changed_with_admitted_rotation" } },
+            "required": ["witness_match_class"]
+          },
+          "then": {
+            "required": ["instance_identity_rotation_ref"],
+            "properties": { "instance_identity_rotation_ref": { "$ref": "#/$defs/opaque_ref" } }
+          }
+        },
+        {
+          "description": "A changed_unadmitted witness MUST preserve prior_canonical_instance_identity.",
+          "if": {
+            "properties": { "witness_match_class": { "const": "changed_unadmitted" } },
+            "required": ["witness_match_class"]
+          },
+          "then": {
+            "required": ["prior_canonical_instance_identity"],
+            "properties": { "prior_canonical_instance_identity": { "type": "string", "minLength": 1 } }
+          }
+        }
+      ]
+    },
+
+    "remote_agent_hello_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "hello_id",
+        "remote_agent_role",
+        "remote_agent_identity_ref",
+        "remote_agent_build_identity_ref",
+        "advertised_protocol_min",
+        "advertised_protocol_max",
+        "advertised_capability_worlds",
+        "advertised_service_placement_rows",
+        "advertised_permission_scope_projection",
+        "target_identity_witness",
+        "identity_mode_ref",
+        "trust_state_ref",
+        "attach_ticket_ref",
+        "declared_egress_class",
+        "heartbeat_interval_seconds_declared",
+        "reconnect_window_seconds_declared",
+        "mixed_version_envelope_ref",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "remote_agent_hello_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "hello_id": { "$ref": "#/$defs/opaque_id" },
+        "remote_agent_role": { "$ref": "#/$defs/remote_agent_role_class" },
+        "remote_agent_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "remote_agent_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "advertised_protocol_min": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Minimum RPC protocol version the agent speaks (ADR-0004 contract_version)."
+        },
+        "advertised_protocol_max": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Maximum RPC protocol version the agent speaks."
+        },
+        "advertised_capability_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_world_ref" },
+          "description": "Ordered list of advertised capability worlds. MAY be empty for a role that carries no worlds."
+        },
+        "advertised_service_placement_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/service_placement_row_id" },
+          "description": "Ordered list of placement rows the agent declares it can carry."
+        },
+        "advertised_permission_scope_projection": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/permission_scope_ref" },
+          "description": "Projection, in ADR-0012 permission-scope vocabulary, of the scopes the agent requires per declared placement row."
+        },
+        "target_identity_witness": { "$ref": "#/$defs/target_identity_witness_record" },
+        "identity_mode_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attach_ticket_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to exactly one admitting ticket: remote-agent attach ticket, managed-control-plane token, approval ticket, or browser-handoff packet."
+        },
+        "execution_context_root_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "declared_egress_class": { "$ref": "#/$defs/egress_class" },
+        "declared_egress_host_allowlist": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Host allow-list the agent will honour (per artifacts/network/egress_classes.yaml + ADR-0012 egress_host_narrowing). MAY be empty for local_only / target_local sessions."
+        },
+        "heartbeat_interval_seconds_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Heartbeat cadence offered by the agent. Host narrows."
+        },
+        "reconnect_window_seconds_declared": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Reconnect-window cap offered by the agent. Host narrows."
+        },
+        "mixed_version_envelope_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to a mixed-version negotiation envelope row (schemas/compat/mixed_version_envelope.schema.json) with boundary_family = desktop_cli_and_remote_agent."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A managed_workspace_agent hello MUST carry a managed-workspace ticket as attach_ticket_ref; the logical target MUST reference a managed-workspace instance.",
+          "if": {
+            "properties": { "remote_agent_role": { "const": "managed_workspace_agent" } },
+            "required": ["remote_agent_role"]
+          },
+          "then": {
+            "required": ["attach_ticket_ref", "target_identity_witness"]
+          }
+        },
+        {
+          "description": "A browser_return_callback_agent hello MUST advertise no capability worlds beyond read-only browser-return handoffs and MUST declare a reconnect_window_seconds_declared of 0.",
+          "if": {
+            "properties": { "remote_agent_role": { "const": "browser_return_callback_agent" } },
+            "required": ["remote_agent_role"]
+          },
+          "then": {
+            "properties": {
+              "reconnect_window_seconds_declared": { "const": 0 }
+            }
+          }
+        }
+      ]
+    },
+
+    "remote_agent_hello_response_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "hello_id",
+        "admission_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "remote_agent_hello_response_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "hello_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "admission_class": { "$ref": "#/$defs/admission_class" },
+        "negotiated_protocol": {
+          "type": ["string", "null"],
+          "description": "Single contract version chosen as the intersection of advertised range and host-supported range. Null when admission_class = denied."
+        },
+        "negotiated_capability_worlds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_world_ref" }
+        },
+        "negotiated_service_placement_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/service_placement_row_id" }
+        },
+        "narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason_record" }
+        },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/denial_reason_record" }
+        },
+        "heartbeat_interval_seconds_assigned": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "heartbeat_missed_budget": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "reconnect_window_seconds_assigned": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "in_flight_action_handling": { "$ref": "#/$defs/in_flight_action_handling" },
+        "session_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "An admitted / admitted_read_only / admitted_degraded admission MUST issue a session_id, a negotiated_protocol, a session_ticket_ref, an in_flight_action_handling, heartbeat and reconnect-window settings, and MUST NOT carry denial_reasons.",
+          "if": {
+            "properties": {
+              "admission_class": {
+                "enum": ["admitted", "admitted_read_only", "admitted_degraded"]
+              }
+            },
+            "required": ["admission_class"]
+          },
+          "then": {
+            "required": [
+              "session_id",
+              "negotiated_protocol",
+              "session_ticket_ref",
+              "in_flight_action_handling",
+              "heartbeat_interval_seconds_assigned",
+              "heartbeat_missed_budget",
+              "reconnect_window_seconds_assigned"
+            ],
+            "properties": {
+              "session_id": { "$ref": "#/$defs/opaque_id" },
+              "negotiated_protocol": { "type": "string", "minLength": 1 },
+              "session_ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+              "heartbeat_interval_seconds_assigned": { "type": "integer", "minimum": 1 },
+              "heartbeat_missed_budget": { "type": "integer", "minimum": 1 },
+              "reconnect_window_seconds_assigned": { "type": "integer", "minimum": 0 },
+              "denial_reasons": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "A denied admission MUST carry at least one denial_reason and MUST NOT issue a session_id, negotiated_protocol, session_ticket_ref, or heartbeat settings.",
+          "if": {
+            "properties": { "admission_class": { "const": "denied" } },
+            "required": ["admission_class"]
+          },
+          "then": {
+            "required": ["denial_reasons"],
+            "properties": {
+              "denial_reasons": { "type": "array", "minItems": 1 },
+              "session_id": { "not": {} },
+              "negotiated_protocol": { "type": "null" },
+              "session_ticket_ref": { "type": "null" },
+              "heartbeat_interval_seconds_assigned": { "type": "null" },
+              "heartbeat_missed_budget": { "type": "null" },
+              "reconnect_window_seconds_assigned": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+
+    "remote_agent_heartbeat_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "session_id",
+        "heartbeat_seq",
+        "sent_at",
+        "observed_at",
+        "rtt_class",
+        "missed_heartbeats_in_window",
+        "target_identity_witness_digest",
+        "trust_state_epoch",
+        "capability_world_epoch"
+      ],
+      "properties": {
+        "record_kind": { "const": "remote_agent_heartbeat_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "heartbeat_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sent_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "rtt_class": { "$ref": "#/$defs/rtt_class" },
+        "missed_heartbeats_in_window": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target_identity_witness_digest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short digest of the current target_identity_witness. Supervisor checks for drift."
+        },
+        "trust_state_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ref / epoch of the trust-decision record the agent currently sees."
+        },
+        "capability_world_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ref / epoch of the negotiated capability-world set the agent currently sees."
+        },
+        "advertised_pressure": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "queue_depth_foreground": { "type": "integer", "minimum": 0 },
+            "queue_depth_background": { "type": "integer", "minimum": 0 },
+            "in_flight_mutations": { "type": "integer", "minimum": 0 },
+            "in_flight_subscriptions": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Optional structured pressure signal; metadata only; never raw bodies."
+        }
+      }
+    },
+
+    "remote_agent_session_lifecycle_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "session_id",
+        "from_state",
+        "to_state",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "remote_agent_session_lifecycle_transition_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "from_state": { "$ref": "#/$defs/session_lifecycle_state" },
+        "to_state": { "$ref": "#/$defs/session_lifecycle_state" },
+        "degraded_reason": {
+          "oneOf": [
+            { "$ref": "#/$defs/degraded_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "audit_event_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Transition to session_degraded MUST name a degraded_reason.",
+          "if": {
+            "properties": { "to_state": { "const": "session_degraded" } },
+            "required": ["to_state"]
+          },
+          "then": {
+            "required": ["degraded_reason"],
+            "properties": { "degraded_reason": { "$ref": "#/$defs/degraded_reason_class" } }
+          }
+        }
+      ]
+    },
+
+    "remote_agent_reconnect_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "remote_agent_schema_version",
+        "reconnect_id",
+        "prior_session_id",
+        "reconnect_reason_class",
+        "target_identity_witness",
+        "witness_match_class",
+        "trust_state_ref_at_reconnect",
+        "policy_pack_epoch_at_reconnect",
+        "capability_world_renegotiation_required",
+        "in_flight_action_handling_applied",
+        "reapproval_requirement_class",
+        "route_change_reason_code",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "remote_agent_reconnect_decision_record" },
+        "remote_agent_schema_version": { "$ref": "#/$defs/remote_agent_schema_version" },
+        "reconnect_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_session_id": { "$ref": "#/$defs/opaque_id" },
+        "new_session_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "reconnect_reason_class": { "$ref": "#/$defs/reconnect_reason_class" },
+        "target_identity_witness": { "$ref": "#/$defs/target_identity_witness_record" },
+        "witness_match_class": { "$ref": "#/$defs/witness_match_class" },
+        "trust_state_ref_at_reconnect": { "$ref": "#/$defs/opaque_ref" },
+        "policy_pack_epoch_at_reconnect": { "$ref": "#/$defs/opaque_ref" },
+        "capability_world_renegotiation_required": { "type": "boolean" },
+        "in_flight_action_handling_applied": { "$ref": "#/$defs/in_flight_action_handling" },
+        "cancelled_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "preserved_read_only_subscription_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "reapproval_requirement_class": { "$ref": "#/$defs/reapproval_requirement_class" },
+        "route_change_reason_code": { "$ref": "#/$defs/route_change_reason_code" },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/denial_reason_record" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A transient_disconnect_same_identity reconnect MUST carry witness_match_class = matched and MUST NOT cite route_changed_identity_rotated.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "transient_disconnect_same_identity" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "witness_match_class": { "const": "matched" },
+              "route_change_reason_code": { "not": { "const": "route_changed_identity_rotated" } }
+            }
+          }
+        },
+        {
+          "description": "A changed_target_identity reconnect MUST carry witness_match_class = changed_unadmitted or unverifiable, MUST require capability-world renegotiation, MUST apply cancellation on mutations, and MUST cite a trust_reevaluation_required reapproval class.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "changed_target_identity" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "witness_match_class": { "enum": ["changed_unadmitted", "unverifiable"] },
+              "capability_world_renegotiation_required": { "const": true },
+              "in_flight_action_handling_applied": {
+                "enum": ["cancel_all_on_disconnect", "cancel_mutations_preserve_read_only"]
+              },
+              "reapproval_requirement_class": {
+                "enum": ["trust_reevaluation_required", "approval_ticket_reissue_required", "admin_confirmation_required"]
+              }
+            }
+          }
+        },
+        {
+          "description": "An admitted_identity_rotation reconnect MUST carry witness_match_class = changed_with_admitted_rotation and a rotation ref in the witness.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "admitted_identity_rotation" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "witness_match_class": { "const": "changed_with_admitted_rotation" }
+            }
+          }
+        },
+        {
+          "description": "A resumed_read_only_after_trust_downgrade reconnect MUST cite route_changed_trust_narrowed and MUST NOT preserve in-flight mutations.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "resumed_read_only_after_trust_downgrade" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "route_change_reason_code": { "const": "route_changed_trust_narrowed" },
+              "in_flight_action_handling_applied": {
+                "enum": ["cancel_all_on_disconnect", "cancel_mutations_preserve_read_only"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A cancellation_or_non_replay_of_in_flight reconnect MUST cite at least one cancelled_action_ref and MUST apply a cancelling in-flight handling mode.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "cancellation_or_non_replay_of_in_flight" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "required": ["cancelled_action_refs"],
+            "properties": {
+              "cancelled_action_refs": { "type": "array", "minItems": 1 },
+              "in_flight_action_handling_applied": {
+                "enum": ["cancel_all_on_disconnect", "cancel_mutations_preserve_read_only"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A reconnect_window_exceeded reconnect MUST not preserve any prior subscription state and MUST require a fresh session id in new_session_id.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "reconnect_window_exceeded" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "required": ["new_session_id"],
+            "properties": {
+              "new_session_id": { "$ref": "#/$defs/opaque_id" },
+              "preserved_read_only_subscription_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "A version_skew_outside_window reconnect MUST cite denial_reasons including remote_agent_mixed_version_envelope_outside_window and MUST NOT issue a new_session_id.",
+          "if": {
+            "properties": { "reconnect_reason_class": { "const": "version_skew_outside_window" } },
+            "required": ["reconnect_reason_class"]
+          },
+          "then": {
+            "required": ["denial_reasons"],
+            "properties": {
+              "denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "reason": { "const": "remote_agent_mixed_version_envelope_outside_window" }
+                  },
+                  "required": ["reason"]
+                }
+              },
+              "new_session_id": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

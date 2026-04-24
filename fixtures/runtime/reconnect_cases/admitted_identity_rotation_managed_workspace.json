@@ -1,0 +1,98 @@
+{
+  "$schema": "../../../schemas/runtime/remote_agent_hello.schema.json",
+  "__fixture__": {
+    "name": "admitted_identity_rotation_managed_workspace",
+    "scenario": "A managed_workspace_agent session reconnects after the managed control plane replaced the underlying instance (warming -> recovering -> ready). The canonical instance identity rotated but the rotation is admitted by the control plane and attested via an instance_identity_rotation_ref. Read-only subscriptions (workspace read, index refresh, terminal observe) resume against the new instance. Mutating capability worlds renegotiate and require approval_ticket_reissue_required. The route change is route_changed_target_replaced and the witness match class is changed_with_admitted_rotation.",
+    "case_id": "reconnect.admitted_identity_rotation.managed_workspace",
+    "exercises": {
+      "reconnect_reason_class": "admitted_identity_rotation",
+      "witness_match_class": "changed_with_admitted_rotation",
+      "in_flight_action_handling_applied": "cancel_mutations_preserve_read_only",
+      "reapproval_requirement_class": "approval_ticket_reissue_required",
+      "route_change_reason_code": "route_changed_target_replaced"
+    },
+    "related_fixture_refs": [
+      "fixtures/remote/reapproval_and_suspend_resume_cases/managed_workspace_rebuild_after_successor_image.yaml",
+      "artifacts/runtime/managed_workspace_lifecycle.yaml",
+      "artifacts/runtime/service_placement_rows.yaml",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+
+  "record_kind": "remote_agent_reconnect_decision_record",
+  "remote_agent_schema_version": 1,
+
+  "reconnect_id": "ra_reconnect:20260424T141404Z:0005",
+  "prior_session_id": "ra_session:20260424T090001Z:0002",
+  "new_session_id": "ra_session:20260424T141404Z:0005",
+
+  "reconnect_reason_class": "admitted_identity_rotation",
+
+  "target_identity_witness": {
+    "record_kind": "target_identity_witness_record",
+    "remote_agent_schema_version": 1,
+    "witness_id": "ra_witness:20260424T141404Z:0005",
+    "logical_target_ref": "managed_workspace_instance:mw:alpha:0002",
+    "canonical_instance_identity": "managed_instance_id:mw:alpha:instance:20260424T141255Z",
+    "prior_canonical_instance_identity": "managed_instance_id:mw:alpha:instance:20260423T090001Z",
+    "instance_identity_rotation_ref": "managed_instance_rotation:mw:alpha:20260424T141255Z",
+    "attestation_ref": "ra_attestation:managed_agent.sha256:a41b9d77c5002e13e4b82a5fdc7081a2e9bd33cfe4a13a58d27f0b85b62c91d0",
+    "witness_match_class": "changed_with_admitted_rotation",
+    "captured_at": "2026-04-24T14:14:04Z"
+  },
+
+  "witness_match_class": "changed_with_admitted_rotation",
+
+  "trust_state_ref_at_reconnect": "trust_decision:wks:aureline:trusted:20260424T094501Z",
+  "policy_pack_epoch_at_reconnect": "admin_policy_epoch:wks:aureline:20260423T000000Z",
+
+  "capability_world_renegotiation_required": true,
+
+  "in_flight_action_handling_applied": "cancel_mutations_preserve_read_only",
+
+  "cancelled_action_refs": [
+    "remote_workspace_write_action:20260424T141122Z:0021",
+    "remote_task_launch_action:20260424T141124Z:0022"
+  ],
+  "preserved_read_only_subscription_refs": [
+    "sub:remote.mount.state:mw:alpha:0002",
+    "sub:remote.index.state:mw:alpha:0002",
+    "sub:remote.terminal.observe:mw:alpha:0002:pty-04"
+  ],
+
+  "reapproval_requirement_class": "approval_ticket_reissue_required",
+  "route_change_reason_code": "route_changed_target_replaced",
+
+  "denial_reasons": [],
+  "audit_event_refs": [
+    "audit:remote_agent_session_offline_reconnect_window_open:20260424T141101Z:0002",
+    "audit:remote_agent_session_target_identity_rotation_admitted:20260424T141404Z:0005",
+    "audit:remote_agent_session_reconnected_same_identity:20260424T141404Z:0005",
+    "audit:remote_agent_session_cancelled_in_flight:20260424T141404Z:0005"
+  ],
+
+  "captured_at": "2026-04-24T14:14:04Z",
+
+  "conformance_tests": [
+    {
+      "id": "admitted_rotation_witness_changed_with_admitted_rotation",
+      "description": "An admitted_identity_rotation reconnect MUST carry witness_match_class = changed_with_admitted_rotation and a non-null instance_identity_rotation_ref."
+    },
+    {
+      "id": "admitted_rotation_renegotiates_mutating_worlds",
+      "description": "Mutating capability worlds MUST renegotiate; cancelled_action_refs is non-empty for any mutation in flight at rotation."
+    },
+    {
+      "id": "admitted_rotation_preserves_read_only_subscriptions",
+      "description": "Read-only subscriptions MAY resume against the new instance; preserved_read_only_subscription_refs SHOULD list them."
+    },
+    {
+      "id": "admitted_rotation_route_changed_target_replaced",
+      "description": "A managed-workspace instance replacement MUST cite route_changed_target_replaced."
+    },
+    {
+      "id": "admitted_rotation_approval_reissue",
+      "description": "reapproval_requirement_class MUST be one of {approval_ticket_reissue_required, admin_confirmation_required}."
+    }
+  ]
+}

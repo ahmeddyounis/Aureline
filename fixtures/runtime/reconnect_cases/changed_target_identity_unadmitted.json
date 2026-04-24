@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../schemas/runtime/remote_agent_hello.schema.json",
+  "__fixture__": {
+    "name": "changed_target_identity_unadmitted",
+    "scenario": "A remote_agent_primary session reconnects inside the assigned window, but the SSH host-key fingerprint observed on the new transport does not match the prior witness and no rotation has been admitted by the trust store. The prior canonical instance identity is preserved on the witness. Every mutating capability world is revoked pending trust re-evaluation; read-only state is not preserved because the session cannot verify it is talking to the same host. In-flight mutations are cancelled. The session enters session_reconnected_identity_changed and the reapproval class is trust_reevaluation_required.",
+    "case_id": "reconnect.changed_target_identity.unadmitted_host_key",
+    "exercises": {
+      "reconnect_reason_class": "changed_target_identity",
+      "witness_match_class": "changed_unadmitted",
+      "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+      "reapproval_requirement_class": "trust_reevaluation_required",
+      "route_change_reason_code": "route_changed_identity_rotated"
+    },
+    "related_fixture_refs": [
+      "fixtures/remote/reapproval_and_suspend_resume_cases/managed_workspace_reconnect_after_control_plane_failover.yaml",
+      "artifacts/runtime/service_placement_rows.yaml",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+
+  "record_kind": "remote_agent_reconnect_decision_record",
+  "remote_agent_schema_version": 1,
+
+  "reconnect_id": "ra_reconnect:20260424T104215Z:0002",
+  "prior_session_id": "ra_session:20260424T094501Z:0001",
+  "new_session_id": null,
+
+  "reconnect_reason_class": "changed_target_identity",
+
+  "target_identity_witness": {
+    "record_kind": "target_identity_witness_record",
+    "remote_agent_schema_version": 1,
+    "witness_id": "ra_witness:20260424T104215Z:0002",
+    "logical_target_ref": "remote_agent_target:ra:devbox.alpha:0001",
+    "canonical_instance_identity": "ssh_host_key_fingerprint:sha256:2c0e4b3aafeaa9080e6d8f1b4c5a9e0d7f23a81c4b5e6d7a81c4b5e6d7a81c4b",
+    "prior_canonical_instance_identity": "ssh_host_key_fingerprint:sha256:9d3c8f8b7a6e5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a190807f6e5d4",
+    "instance_identity_rotation_ref": null,
+    "attestation_ref": null,
+    "witness_match_class": "changed_unadmitted",
+    "captured_at": "2026-04-24T10:42:15Z"
+  },
+
+  "witness_match_class": "changed_unadmitted",
+
+  "trust_state_ref_at_reconnect": "trust_decision:wks:aureline:trusted:20260424T094501Z",
+  "policy_pack_epoch_at_reconnect": "admin_policy_epoch:wks:aureline:20260423T000000Z",
+
+  "capability_world_renegotiation_required": true,
+
+  "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+
+  "cancelled_action_refs": [
+    "remote_workspace_write_action:20260424T104131Z:0009",
+    "remote_task_launch_action:20260424T104128Z:0011"
+  ],
+  "preserved_read_only_subscription_refs": [],
+
+  "reapproval_requirement_class": "trust_reevaluation_required",
+  "route_change_reason_code": "route_changed_identity_rotated",
+
+  "denial_reasons": [
+    {
+      "reason": "remote_agent_target_identity_witness_changed_unadmitted",
+      "repair_affordance_label": "Re-verify remote host identity and grant workspace trust against the new host-key fingerprint, or route to the trust store to admit the rotation.",
+      "audit_event_ref": "audit:remote_agent_session_target_identity_rotation_rejected:20260424T104215Z:0002"
+    }
+  ],
+  "audit_event_refs": [
+    "audit:remote_agent_session_offline_reconnect_window_open:20260424T104130Z:0001",
+    "audit:remote_agent_session_reconnected_identity_changed:20260424T104215Z:0002",
+    "audit:remote_agent_session_cancelled_in_flight:20260424T104215Z:0002",
+    "audit:remote_agent_session_target_identity_rotation_rejected:20260424T104215Z:0002"
+  ],
+
+  "captured_at": "2026-04-24T10:42:15Z",
+
+  "conformance_tests": [
+    {
+      "id": "changed_identity_witness_preserves_prior_fingerprint",
+      "description": "A changed_target_identity reconnect with witness_match_class = changed_unadmitted MUST preserve prior_canonical_instance_identity."
+    },
+    {
+      "id": "changed_identity_requires_renegotiation",
+      "description": "capability_world_renegotiation_required MUST be true; every handle issued under the prior witness is revoked."
+    },
+    {
+      "id": "changed_identity_cancels_all_in_flight",
+      "description": "In-flight mutations MUST be cancelled; cancelled_action_refs is non-empty and preserved_read_only_subscription_refs is empty."
+    },
+    {
+      "id": "changed_identity_reapproval_trust_reevaluation",
+      "description": "reapproval_requirement_class MUST be one of {trust_reevaluation_required, approval_ticket_reissue_required, admin_confirmation_required}."
+    },
+    {
+      "id": "changed_identity_denial_reason_required",
+      "description": "denial_reasons MUST include remote_agent_target_identity_witness_changed_unadmitted with a repair affordance."
+    }
+  ]
+}

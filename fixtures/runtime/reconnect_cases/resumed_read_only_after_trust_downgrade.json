@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../schemas/runtime/remote_agent_hello.schema.json",
+  "__fixture__": {
+    "name": "resumed_read_only_after_trust_downgrade",
+    "scenario": "A remote_agent_primary session held against a trusted workspace reconnects after the workspace-trust posture was narrowed from trusted to restricted (ADR-0018) during the offline window. The witness matches on reconnect but the trust-state ref observed at reconnect differs from the one on session open. Every capability world whose floor requires trusted projects read-only; in-flight writes are cancelled. Read-only subscriptions (workspace read, terminal observe) resume. The reconnect cites route_changed_trust_narrowed and trust_reevaluation_required.",
+    "case_id": "reconnect.resumed_read_only.trust_downgrade",
+    "exercises": {
+      "reconnect_reason_class": "resumed_read_only_after_trust_downgrade",
+      "witness_match_class": "matched",
+      "in_flight_action_handling_applied": "cancel_mutations_preserve_read_only",
+      "reapproval_requirement_class": "trust_reevaluation_required",
+      "route_change_reason_code": "route_changed_trust_narrowed"
+    },
+    "related_fixture_refs": [
+      "fixtures/security/restricted_mode_cases/",
+      "artifacts/security/trust_state_matrix.yaml",
+      "artifacts/runtime/service_placement_rows.yaml",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+
+  "record_kind": "remote_agent_reconnect_decision_record",
+  "remote_agent_schema_version": 1,
+
+  "reconnect_id": "ra_reconnect:20260424T115012Z:0003",
+  "prior_session_id": "ra_session:20260424T094501Z:0001",
+  "new_session_id": "ra_session:20260424T115012Z:0003",
+
+  "reconnect_reason_class": "resumed_read_only_after_trust_downgrade",
+
+  "target_identity_witness": {
+    "record_kind": "target_identity_witness_record",
+    "remote_agent_schema_version": 1,
+    "witness_id": "ra_witness:20260424T115012Z:0003",
+    "logical_target_ref": "remote_agent_target:ra:devbox.alpha:0001",
+    "canonical_instance_identity": "ssh_host_key_fingerprint:sha256:9d3c8f8b7a6e5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a190807f6e5d4",
+    "prior_canonical_instance_identity": null,
+    "instance_identity_rotation_ref": null,
+    "attestation_ref": "ra_attestation:agent.sha256:7fa3c28de61b4c93a5f02dd7c3a4e8b6f1c9d20a54e7b9d80123f6c5a8b4e2f9",
+    "witness_match_class": "matched",
+    "captured_at": "2026-04-24T11:50:12Z"
+  },
+
+  "witness_match_class": "matched",
+
+  "trust_state_ref_at_reconnect": "trust_decision:wks:aureline:restricted:20260424T114958Z",
+  "policy_pack_epoch_at_reconnect": "admin_policy_epoch:wks:aureline:20260423T000000Z",
+
+  "capability_world_renegotiation_required": true,
+
+  "in_flight_action_handling_applied": "cancel_mutations_preserve_read_only",
+
+  "cancelled_action_refs": [
+    "remote_workspace_write_action:20260424T115004Z:0012"
+  ],
+  "preserved_read_only_subscription_refs": [
+    "sub:remote.mount.state:ra:devbox.alpha:0001",
+    "sub:remote.terminal.observe:ra:devbox.alpha:0001:pty-09"
+  ],
+
+  "reapproval_requirement_class": "trust_reevaluation_required",
+  "route_change_reason_code": "route_changed_trust_narrowed",
+
+  "denial_reasons": [
+    {
+      "reason": "remote_agent_trust_state_denies_session",
+      "repair_affordance_label": "Re-grant workspace trust to restore mutating capability worlds; restricted mode continues to admit read-only access.",
+      "audit_event_ref": "audit:remote_agent_session_downgraded_read_only:20260424T115012Z:0003"
+    }
+  ],
+  "audit_event_refs": [
+    "audit:remote_agent_session_offline_reconnect_window_open:20260424T115001Z:0001",
+    "audit:remote_agent_session_reconnected_same_identity:20260424T115012Z:0003",
+    "audit:remote_agent_session_downgraded_read_only:20260424T115012Z:0003",
+    "audit:remote_agent_session_cancelled_in_flight:20260424T115012Z:0003",
+    "audit:remote_agent_session_trust_state_denied:20260424T115012Z:0003"
+  ],
+
+  "captured_at": "2026-04-24T11:50:12Z",
+
+  "conformance_tests": [
+    {
+      "id": "trust_downgrade_routes_trust_narrowed",
+      "description": "A resumed_read_only_after_trust_downgrade reconnect MUST cite route_changed_trust_narrowed."
+    },
+    {
+      "id": "trust_downgrade_cancels_in_flight_mutations",
+      "description": "In-flight mutations MUST be cancelled; in_flight_action_handling_applied MUST be one of {cancel_all_on_disconnect, cancel_mutations_preserve_read_only}."
+    },
+    {
+      "id": "trust_downgrade_preserves_read_only_subscriptions",
+      "description": "Read-only subscriptions admitted under restricted mode MAY be preserved on reconnect; mutating subscriptions MUST NOT be."
+    },
+    {
+      "id": "trust_downgrade_requires_renegotiation",
+      "description": "capability_world_renegotiation_required MUST be true because the trust-state epoch changed; mutating worlds must be renegotiated under the restricted posture."
+    }
+  ]
+}

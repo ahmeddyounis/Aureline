@@ -1,0 +1,560 @@
+# Service-placement rows.
+#
+# Machine-readable registry of every responsibility a remote-agent
+# session could plausibly host, bind to, or be denied from. Every
+# row states the responsibility, its frozen placement class, its
+# downgrade class when the remote side is unavailable, its
+# reconnect class when the session is re-established, the host-
+# owned authority invariant that MUST hold (if any), and the
+# conformance tests the row MUST pass.
+#
+# Companion to docs/adr/0020-remote-agent-contract.md and
+# schemas/runtime/remote_agent_hello.schema.json. If this file and
+# the ADR disagree, the ADR wins for reviewer language and this
+# file MUST be updated in the same change.
+#
+# Rules:
+#   - Every row MUST name one placement_class, one downgrade_class,
+#     one reconnect_class, and at least one conformance test.
+#   - Rows whose placement_class is desktop_only_never_remote MUST
+#     name the host-owned authority that keeps them desktop-bound.
+#   - Adding a row is additive-minor: bump
+#     service_placement_rows_schema_version and extend this file in
+#     the same change that lands the placement.
+#   - Repurposing an existing row is breaking and requires a new
+#     decision row in artifacts/governance/decision_index.yaml.
+#   - Row ids follow the pattern
+#     service_placement_row:<family>.<row>. Families map to the
+#     logical-plane map in docs/architecture/service_topology_and_process_placement.md.
+
+service_placement_rows_schema_version: 1
+
+sources:
+  adr: docs/adr/0020-remote-agent-contract.md
+  schema: schemas/runtime/remote_agent_hello.schema.json
+  reconnect_fixtures_dir: fixtures/runtime/reconnect_cases
+  service_topology: docs/architecture/service_topology_and_process_placement.md
+  process_topology: docs/architecture/process_topology.md
+  logical_planes: docs/architecture/logical_planes_and_trust_boundaries.md
+  origin_target_route_taxonomy: docs/runtime/origin_target_route_taxonomy.md
+  host_boundary_matrix: artifacts/remote/host_boundary_matrix.yaml
+  managed_workspace_lifecycle: artifacts/runtime/managed_workspace_lifecycle.yaml
+  mixed_version_envelope_schema: schemas/compat/mixed_version_envelope.schema.json
+  version_skew_register: artifacts/compat/version_skew_register.yaml
+
+related_adrs:
+  - docs/adr/0001-identity-modes.md
+  - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - docs/adr/0006-vfs-save-cache-identity.md
+  - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+  - docs/adr/0009-execution-context-and-scope.md
+  - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+  - docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+  - docs/adr/0018-workspace-trust-and-restricted-mode.md
+  - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+  - docs/adr/0020-remote-agent-contract.md
+
+# Frozen vocabularies re-exported for tooling.
+placement_class_vocabulary:
+  - desktop_only_never_remote
+  - local_only_preferred_degrades_remote_eligible
+  - remote_agent_near_code_eligible
+  - remote_agent_near_code_required_when_attached
+  - provider_side_only
+  - managed_workspace_agent_only
+  - compatibility_bridge_only
+  - spectrum_owner_routing
+
+downgrade_class_vocabulary:
+  - fail_closed_no_local_fallback
+  - local_only_continuation_read_only
+  - local_only_continuation_full_local_scope
+  - remote_preferred_degrades_to_bridge
+  - provider_side_degrades_read_only
+
+reconnect_class_vocabulary:
+  - resumes_read_only_on_transient_disconnect
+  - requires_renegotiation_on_identity_change
+  - requires_admin_confirmation_on_control_plane_failover
+  - cancels_in_flight_on_trust_downgrade
+  - cancels_in_flight_on_policy_narrowing
+  - cancels_in_flight_on_credential_expiry
+  - fresh_session_required_on_window_exceeded
+
+host_owned_authority_vocabulary:
+  - credential_broker_mint
+  - trust_decision_packet_mint
+  - admin_policy_evaluation_ceiling
+  - approval_ticket_mint
+  - execution_context_root_resolution
+  - vfs_canonical_path_identity
+  - shell_input_dispatch
+  - render_submit
+  - identity_mode_binding
+  - subscription_authority_envelope_mint
+
+rows:
+
+  # -------------------------------------------------------------
+  # Family: shell_ui / renderer — desktop-only inputs and frames.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:shell_ui.input_dispatch
+    responsibility: >
+      Shell input dispatch: keystrokes, command routing, view-model
+      changes, and layout updates driven by user input on the
+      desktop client.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: fresh_session_required_on_window_exceeded
+    host_owned_authority: shell_input_dispatch
+    notes: >
+      Input dispatch is the entry boundary for ADR-0016 command-
+      dispatch; a remote agent MAY deliver derived events but MAY
+      NOT host the dispatch itself.
+    conformance_tests:
+      - id: shell_input_dispatch_desktop_only
+        description: >
+          A remote agent that advertises this row MUST be denied
+          with remote_agent_service_placement_row_desktop_only.
+
+  - id: service_placement_row:renderer.compose_and_submit
+    responsibility: >
+      Scene composition, damage classification, and frame submit
+      on the desktop client.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: fresh_session_required_on_window_exceeded
+    host_owned_authority: render_submit
+    conformance_tests:
+      - id: renderer_desktop_only
+        description: >
+          A remote agent that advertises this row MUST be denied
+          with remote_agent_service_placement_row_desktop_only.
+
+  # -------------------------------------------------------------
+  # Family: credential_broker / trust / policy — desktop authority.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:credential_broker.mint_and_project
+    responsibility: >
+      Secret-broker authority: minting credential handles,
+      projecting aliases, and invalidating on rotation (ADR-0007).
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_credential_expiry
+    host_owned_authority: credential_broker_mint
+    notes: >
+      Remote agents receive credential_alias handles only; raw
+      secret bytes never cross the agent boundary.
+    conformance_tests:
+      - id: credential_broker_desktop_only
+        description: >
+          A remote agent that advertises credential-mint or raw-
+          secret projection MUST be denied with
+          remote_agent_service_placement_row_desktop_only.
+      - id: credential_expiry_cancels_in_flight
+        description: >
+          A reconnect after credential expiry MUST apply
+          in_flight_action_handling in {cancel_all_on_disconnect,
+          cancel_mutations_preserve_read_only}.
+
+  - id: service_placement_row:trust_decision.mint
+    responsibility: >
+      Workspace-trust decision-packet mint (ADR-0018).
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_trust_downgrade
+    host_owned_authority: trust_decision_packet_mint
+    conformance_tests:
+      - id: trust_decision_packet_desktop_only
+        description: >
+          A remote agent that advertises trust_decision_packet_mint
+          MUST be denied; remote agents MAY observe trust_state_ref
+          but MUST NOT widen, narrow, or replace it.
+
+  - id: service_placement_row:admin_policy.evaluate_ceiling
+    responsibility: >
+      Admin-policy narrowing ceiling (ADR-0008): deny-lists,
+      permission floors, egress-host narrowing, emergency-disable.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_policy_narrowing
+    host_owned_authority: admin_policy_evaluation_ceiling
+    conformance_tests:
+      - id: admin_policy_desktop_only
+        description: >
+          A remote agent MAY NOT evaluate the admin-policy ceiling
+          host-side. Widening past the host-evaluated ceiling is
+          non-conforming.
+
+  - id: service_placement_row:approval_ticket.mint
+    responsibility: >
+      Approval-ticket mint (ADR-0010); includes browser-handoff
+      approvals and per-invocation approvals.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_trust_downgrade
+    host_owned_authority: approval_ticket_mint
+    conformance_tests:
+      - id: approval_ticket_desktop_only
+        description: >
+          A remote agent MUST NOT mint approval tickets. Silent
+          re-minting on reconnect is forbidden.
+
+  - id: service_placement_row:identity_mode.bind
+    responsibility: >
+      Identity-mode envelope binding (ADR-0001). The envelope is
+      minted on the desktop and inherited by every session.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: requires_renegotiation_on_identity_change
+    host_owned_authority: identity_mode_binding
+    conformance_tests:
+      - id: identity_mode_desktop_only
+        description: >
+          A remote agent MUST NOT mint or rebind an identity-mode
+          envelope. A witnessed identity-mode change requires
+          renegotiation.
+
+  - id: service_placement_row:subscription.authority_envelope_mint
+    responsibility: >
+      Subscription-authority envelope mint (ADR-0005). The host
+      owns the mint; remote views ride the envelope with authority
+      class derived_knowledge.
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: subscription_authority_envelope_mint
+    conformance_tests:
+      - id: subscription_envelope_mint_desktop_only
+        description: >
+          A remote agent MUST NOT mint subscription-authority
+          envelopes. It MAY project derived_knowledge views with a
+          declared freshness hint.
+
+  # -------------------------------------------------------------
+  # Family: vfs_watchers — remote-near-code eligible when attached.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:vfs.path_canonical_resolve
+    responsibility: >
+      VFS canonical-path identity resolution (ADR-0006).
+    placement_class: desktop_only_never_remote
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: requires_renegotiation_on_identity_change
+    host_owned_authority: vfs_canonical_path_identity
+    notes: >
+      Raw absolute paths never cross the agent boundary; remote
+      agents consume canonical identity records only.
+    conformance_tests:
+      - id: vfs_canonical_desktop_only
+        description: >
+          A remote agent MUST NOT mint canonical-path identity. A
+          remote-near-code workspace read row projects through the
+          canonical record issued by the desktop host.
+
+  - id: service_placement_row:vfs.remote_workspace_read
+    responsibility: >
+      Read-only access to a remote workspace's file bytes, bounded
+      to declared prefixes, through the VFS path-identity contract.
+    placement_class: remote_agent_near_code_required_when_attached
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    notes: >
+      When the remote agent is unreachable, the editor projects a
+      local_only_continuation record with reason
+      remote_agent_attach_unreachable; no mutations are admitted
+      until reconnection.
+    conformance_tests:
+      - id: remote_workspace_read_resumes_on_transient_disconnect
+        description: >
+          A transient_disconnect_same_identity reconnect MUST
+          resume read-only subscriptions to the remote workspace
+          without renegotiation.
+
+  - id: service_placement_row:vfs.remote_workspace_write
+    responsibility: >
+      Mutating writes to a remote workspace, bounded to declared
+      prefixes. Every write cites the execution-context root and
+      projects through the VFS canonical identity.
+    placement_class: remote_agent_near_code_required_when_attached
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_trust_downgrade
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_workspace_write_cancels_on_trust_downgrade
+        description: >
+          A trust downgrade (trusted -> restricted) MUST cancel
+          in-flight writes and MUST NOT silently replay them on
+          reconnect.
+      - id: remote_workspace_write_requires_execution_context
+        description: >
+          A write advertised under this row MUST cite an
+          execution_context_root_ref; absence is non-conforming.
+
+  - id: service_placement_row:vfs.remote_watcher
+    responsibility: >
+      File-system watcher running on the remote side, bounded to
+      declared prefixes.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_full_local_scope
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_watcher_local_only_continuation_preserves_prior_ref
+        description: >
+          When the remote-agent attach is unreachable, the watcher
+          row MUST render local_only_continuation and preserve the
+          prior remote target ref under prior_target_ref.
+
+  # -------------------------------------------------------------
+  # Family: index_search — remote-near-code eligible.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:index.remote_workspace_crawl
+    responsibility: >
+      Remote-side workspace crawl and index refresh.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_index_runs_remote_when_attached
+        description: >
+          When a remote agent is attached, the crawl MUST run on
+          the remote side; desktop-side crawling is a reduced-
+          scope fallback only.
+
+  - id: service_placement_row:search.remote_workspace_query
+    responsibility: >
+      Search queries against the remote workspace index.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_search_surfaces_stale_when_degraded
+        description: >
+          A degraded remote session MUST surface stale / partial
+          search results with a typed freshness hint rather than
+          stall the shell.
+
+  # -------------------------------------------------------------
+  # Family: task_execution — remote-near-code eligible.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:task_execution.remote_task_launch
+    responsibility: >
+      Launching tasks, tests, or scripts on the remote side,
+      resolved through the execution-context root.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: cancels_in_flight_on_trust_downgrade
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_task_cancels_in_flight_on_identity_change
+        description: >
+          A changed_target_identity reconnect MUST cancel any
+          in-flight task launched by this row; silent replay is
+          forbidden.
+
+  - id: service_placement_row:debug.remote_debug_attach
+    responsibility: >
+      Debug-adapter attach to a process on the remote side.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: requires_renegotiation_on_identity_change
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_debug_requires_fresh_session_on_window_exceeded
+        description: >
+          A reconnect_window_exceeded reconnect MUST require a
+          fresh hello; debug state is not preserved implicitly.
+
+  - id: service_placement_row:notebook.remote_kernel_connect
+    responsibility: >
+      Notebook kernel running on the remote side (ADR-0016
+      command-dispatch boundary applies for cell execution).
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: cancels_in_flight_on_trust_downgrade
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_notebook_kernel_preserves_innermost_cue
+        description: >
+          A notebook kernel on a remote agent MUST preserve the
+          notebook_kernel_boundary as the innermost cue in the
+          host-boundary stack.
+
+  - id: service_placement_row:terminal.remote_pty_observe
+    responsibility: >
+      Observing the output and status of a terminal session
+      running on the remote side (ADR-0019 aureline:terminal-observe).
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_pty_observe_resumes_read_only
+        description: >
+          A transient_disconnect_same_identity reconnect MUST
+          resume the observation; mutating launches through this
+          row are forbidden.
+
+  # -------------------------------------------------------------
+  # Family: extension_host — remote-side components.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:extension_host.remote_side_component
+    responsibility: >
+      Hosting an ADR-0019 remote_side_component capability world
+      (client_scope narrowed to remote_agent) through the typed
+      host-negotiation packet.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: requires_renegotiation_on_identity_change
+    host_owned_authority: null
+    conformance_tests:
+      - id: remote_side_component_renegotiates_on_identity_change
+        description: >
+          A changed_target_identity reconnect MUST renegotiate the
+          host-negotiation packet and MUST NOT preserve any world
+          admitted under the prior witness.
+
+  - id: service_placement_row:extension_host.compatibility_bridge_shim
+    responsibility: >
+      A compatibility-bridge shim running on the remote side,
+      bound to an ADR-0019 bridge_profile_id with typed translation
+      rules.
+    placement_class: compatibility_bridge_only
+    downgrade_class: remote_preferred_degrades_to_bridge
+    reconnect_class: requires_renegotiation_on_identity_change
+    host_owned_authority: null
+    conformance_tests:
+      - id: compatibility_bridge_requires_binding
+        description: >
+          An advertised compatibility-bridge row MUST cite a
+          bridge_profile_id; absence denies with
+          service_placement_row_requires_bridge_binding.
+
+  # -------------------------------------------------------------
+  # Family: managed_workspace — managed-workspace agents.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:managed_workspace.control_plane_read
+    responsibility: >
+      Reading managed-workspace lifecycle state, activation-
+      budget summary, and reviewer-label truth through the
+      managed-workspace control plane.
+    placement_class: managed_workspace_agent_only
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: requires_admin_confirmation_on_control_plane_failover
+    host_owned_authority: null
+    notes: >
+      Overlaps with artifacts/runtime/managed_workspace_lifecycle.yaml
+      row.managed_workspace.control_plane_read expectations.
+    conformance_tests:
+      - id: control_plane_failover_requires_admin_confirmation
+        description: >
+          A control-plane failover reconnect MUST set
+          reapproval_requirement_class =
+          admin_confirmation_required and cite
+          route_changed_authority_escalation.
+
+  - id: service_placement_row:managed_workspace.control_plane_mutate
+    responsibility: >
+      Managed-workspace mutating control-plane actions (pause,
+      resume, reprovision, snapshot).
+    placement_class: managed_workspace_agent_only
+    downgrade_class: fail_closed_no_local_fallback
+    reconnect_class: requires_admin_confirmation_on_control_plane_failover
+    host_owned_authority: null
+    conformance_tests:
+      - id: control_plane_mutation_cancels_in_flight_on_failover
+        description: >
+          In-flight mutations during a failover MUST cancel; silent
+          replay after reconnect is non-conforming.
+
+  # -------------------------------------------------------------
+  # Family: provider_side — connected-provider execution surfaces.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:provider_side.tool_call_execute
+    responsibility: >
+      Connected-provider tool-call execution (ADR-0010). The
+      provider surface hosts the call; Aureline mints approvals
+      host-side.
+    placement_class: provider_side_only
+    downgrade_class: provider_side_degrades_read_only
+    reconnect_class: cancels_in_flight_on_policy_narrowing
+    host_owned_authority: null
+    conformance_tests:
+      - id: provider_side_requires_approval_ticket
+        description: >
+          A provider_side_remote_agent session MUST cite an
+          approval_ticket_ref as attach_ticket_ref; absence denies.
+
+  - id: service_placement_row:provider_side.artifact_read
+    responsibility: >
+      Read-only provider artefact projection (docs, definitions,
+      references).
+    placement_class: provider_side_only
+    downgrade_class: provider_side_degrades_read_only
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: provider_side_artifact_read_resumes
+        description: >
+          A transient provider-side disconnect MUST resume the
+          artefact projection without renegotiation.
+
+  # -------------------------------------------------------------
+  # Family: ai — AI broker routing.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:ai.tool_call_spectrum_routing
+    responsibility: >
+      AI broker tool-call routing between local tools, remote-
+      agent tools, and provider-side tools.
+    placement_class: spectrum_owner_routing
+    downgrade_class: local_only_continuation_read_only
+    reconnect_class: cancels_in_flight_on_policy_narrowing
+    host_owned_authority: null
+    notes: >
+      The broker's routing decision is itself typed and auditable
+      per ADR-0010 and ADR-0011; the placement row exists so no
+      surface collapses "AI tool-call ran remotely" into a
+      free-form chip.
+    conformance_tests:
+      - id: ai_broker_routing_requires_typed_decision
+        description: >
+          A routing decision MUST cite the action-origin, target,
+          and route classes per
+          artifacts/runtime/action_origin_target_labels.yaml.
+
+  # -------------------------------------------------------------
+  # Family: support — telemetry and support export.
+  # -------------------------------------------------------------
+
+  - id: service_placement_row:support.remote_trace_export
+    responsibility: >
+      Remote-scoped telemetry and trace export from the remote
+      agent into the support-bundle collector.
+    placement_class: remote_agent_near_code_eligible
+    downgrade_class: local_only_continuation_full_local_scope
+    reconnect_class: resumes_read_only_on_transient_disconnect
+    host_owned_authority: null
+    conformance_tests:
+      - id: support_export_preserves_prior_session_ref
+        description: >
+          A support bundle exported across a reconnect MUST cite
+          both prior_session_id and new_session_id when a new
+          session was issued; dropping the prior ref is non-
+          conforming.

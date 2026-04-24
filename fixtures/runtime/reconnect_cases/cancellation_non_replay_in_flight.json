@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../schemas/runtime/remote_agent_hello.schema.json",
+  "__fixture__": {
+    "name": "cancellation_non_replay_in_flight",
+    "scenario": "An emergency-action record (ADR-0018) force-restricts the workspace mid-session because an admin rolled a kill-switch. The supervisor revokes the remote session's mutating capability worlds and cancels every in-flight mutation. A subsequent reconnect resolves through reconnect_reason_class = cancellation_or_non_replay_of_in_flight: mutations are explicitly non-replayable, cancelled_action_refs lists the cancelled actions, and the session is downgraded to read_only. Route change is recorded as route_changed_authority_escalation because an admin-authority event narrowed the session.",
+    "case_id": "reconnect.cancellation_non_replay.emergency_action",
+    "exercises": {
+      "reconnect_reason_class": "cancellation_or_non_replay_of_in_flight",
+      "witness_match_class": "matched",
+      "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+      "reapproval_requirement_class": "admin_confirmation_required",
+      "route_change_reason_code": "route_changed_authority_escalation"
+    },
+    "related_fixture_refs": [
+      "fixtures/security/restricted_mode_cases/",
+      "artifacts/security/trust_state_matrix.yaml",
+      "artifacts/runtime/service_placement_rows.yaml",
+      "docs/adr/0020-remote-agent-contract.md"
+    ]
+  },
+
+  "record_kind": "remote_agent_reconnect_decision_record",
+  "remote_agent_schema_version": 1,
+
+  "reconnect_id": "ra_reconnect:20260424T132201Z:0004",
+  "prior_session_id": "ra_session:20260424T094501Z:0001",
+  "new_session_id": "ra_session:20260424T132201Z:0004",
+
+  "reconnect_reason_class": "cancellation_or_non_replay_of_in_flight",
+
+  "target_identity_witness": {
+    "record_kind": "target_identity_witness_record",
+    "remote_agent_schema_version": 1,
+    "witness_id": "ra_witness:20260424T132201Z:0004",
+    "logical_target_ref": "remote_agent_target:ra:devbox.alpha:0001",
+    "canonical_instance_identity": "ssh_host_key_fingerprint:sha256:9d3c8f8b7a6e5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a190807f6e5d4",
+    "prior_canonical_instance_identity": null,
+    "instance_identity_rotation_ref": null,
+    "attestation_ref": "ra_attestation:agent.sha256:7fa3c28de61b4c93a5f02dd7c3a4e8b6f1c9d20a54e7b9d80123f6c5a8b4e2f9",
+    "witness_match_class": "matched",
+    "captured_at": "2026-04-24T13:22:01Z"
+  },
+
+  "witness_match_class": "matched",
+
+  "trust_state_ref_at_reconnect": "trust_decision:wks:aureline:restricted_recovery_fallback:20260424T132155Z",
+  "policy_pack_epoch_at_reconnect": "admin_policy_epoch:wks:aureline:20260424T132155Z",
+
+  "capability_world_renegotiation_required": true,
+
+  "in_flight_action_handling_applied": "cancel_all_on_disconnect",
+
+  "cancelled_action_refs": [
+    "remote_workspace_write_action:20260424T132159Z:0015",
+    "remote_task_launch_action:20260424T132158Z:0017",
+    "ai_apply_mutation_action:20260424T132158Z:0019"
+  ],
+  "preserved_read_only_subscription_refs": [
+    "sub:remote.mount.state:ra:devbox.alpha:0001"
+  ],
+
+  "reapproval_requirement_class": "admin_confirmation_required",
+  "route_change_reason_code": "route_changed_authority_escalation",
+
+  "denial_reasons": [
+    {
+      "reason": "remote_agent_policy_pack_denies_session",
+      "repair_affordance_label": "Admin must confirm the post-emergency posture before mutating capability worlds are re-admitted.",
+      "audit_event_ref": "audit:remote_agent_session_policy_pack_denied:20260424T132201Z:0004"
+    }
+  ],
+  "audit_event_refs": [
+    "audit:remote_agent_session_cancelled_in_flight:20260424T132155Z:0004",
+    "audit:remote_agent_session_reconnected_same_identity:20260424T132201Z:0004",
+    "audit:remote_agent_session_downgraded_read_only:20260424T132201Z:0004",
+    "audit:remote_agent_session_policy_pack_denied:20260424T132201Z:0004"
+  ],
+
+  "captured_at": "2026-04-24T13:22:01Z",
+
+  "conformance_tests": [
+    {
+      "id": "cancellation_non_replay_lists_cancelled_actions",
+      "description": "cancelled_action_refs MUST be non-empty; silent replay of any listed action on reconnect is forbidden."
+    },
+    {
+      "id": "cancellation_non_replay_applies_cancel_handling",
+      "description": "in_flight_action_handling_applied MUST be one of {cancel_all_on_disconnect, cancel_mutations_preserve_read_only}."
+    },
+    {
+      "id": "cancellation_non_replay_authority_escalation",
+      "description": "A reconnect forced by an admin-authority event SHOULD cite route_changed_authority_escalation and reapproval_requirement_class = admin_confirmation_required."
+    },
+    {
+      "id": "cancellation_non_replay_records_source_authority",
+      "description": "The reconnect MUST record the authority source via policy_pack_epoch_at_reconnect or a cited audit event; a reconnect that does not record the authority source is non-conforming."
+    }
+  ]
+}
