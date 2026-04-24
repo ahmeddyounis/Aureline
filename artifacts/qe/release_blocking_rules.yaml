@@ -1,0 +1,456 @@
+# Release-blocking rules for the quality-engineering lane set.
+#
+# Mechanical policy that turns severity class, protected-metric
+# posture, incident class, protected-sequence-packet failure, and
+# waiver posture into merge or release verdicts. Consumers — release
+# review, shiproom dashboard, QE dashboard, merge-queue gate — MUST
+# resolve blocking verdicts through this file by stable rule id, not
+# through narrative prose.
+#
+# The human-readable companion is docs/qe/qe_strategy_seed.md; the
+# lane contracts it composes against live in
+# artifacts/qe/test_lane_registry.yaml and the scenario rows live in
+# artifacts/qe/quality_scenario_hooks.yaml. If the document and this
+# file disagree, this file is authoritative for tooling and the
+# document is updated in the same change.
+#
+# Rules:
+#   - Every rule MUST bind exactly one row trigger (severity row,
+#     protected-metric state, incident class, sequence-packet failure,
+#     or waiver-posture event) to a closed verdict.
+#   - No rule may downgrade a lane's declared blocking posture. A rule
+#     MAY require a stricter verdict than the lane's own posture; it
+#     MUST NOT relax one.
+#   - A waiver can only move a verdict along the declared waiver
+#     ladder; no rule path silently clears a merge-blocking verdict
+#     without a waiver id.
+#   - Planning / milestone slugs MUST NOT appear in any id, title,
+#     rationale, or notes on this file.
+
+schema_version: 1
+policy_id: aureline.qe.release_blocking_rules
+policy_revision: 1
+overview_document: docs/qe/qe_strategy_seed.md
+test_lane_registry_ref: artifacts/qe/test_lane_registry.yaml
+quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+drift_blocking_rules_ref: docs/governance/drift_blocking_rules.md
+benchmark_quarantine_rules_ref: artifacts/benchmarks/quarantine_rules.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+decision_index_ref: artifacts/governance/decision_index.yaml
+
+# -----------------------------------------------------------------------------
+# Verdict vocabulary (closed).
+#
+# The verdict a rule returns when its row trigger fires. Consumers MUST
+# render one of these values; renaming or retiring a value is breaking.
+# -----------------------------------------------------------------------------
+verdict_values:
+  - merge_blocked
+  - release_blocked
+  - widening_blocked
+  - dashboard_observation
+  - proceed
+
+# -----------------------------------------------------------------------------
+# Severity vocabulary.
+#
+# Mirrors artifacts/qe/test_lane_registry.yaml#severity_classes so that
+# both files compose against one shared severity vocabulary.
+# -----------------------------------------------------------------------------
+severity_classes:
+  - protected_path_regression
+  - public_truth_overclaim
+  - seeded_coverage_gap
+  - suspect_environment_drift
+  - cross_lane_incident_learning
+
+# -----------------------------------------------------------------------------
+# Protected-metric posture (closed).
+#
+# Rolls up the benchmark-lab and protected-metric state into a single
+# value the release-blocking rules compose against.
+# -----------------------------------------------------------------------------
+protected_metric_postures:
+  - within_threshold_band
+  - regressed_without_quarantine
+  - regressed_under_quarantine_clearing
+  - quarantined
+  - fitness_catalog_or_metrics_revision_pending
+
+# -----------------------------------------------------------------------------
+# Incident classes (closed).
+#
+# Incident-learning rows flow from post-incident review. A release
+# candidate with an open incident class MUST compose against the
+# matching rule below.
+# -----------------------------------------------------------------------------
+incident_classes:
+  - silent_replay_of_in_flight_mutation
+  - credential_handle_survived_trust_downgrade
+  - public_truth_widened_past_owner_row
+  - sequence_packet_misordered_or_dropped
+  - parser_or_rpc_crash_reproduced
+  - fixture_corpus_resolution_failed
+  - accessibility_posture_regressed
+  - localization_parity_regressed
+  - repair_rollback_integrity_failed
+  - remote_agent_session_desynced
+
+# -----------------------------------------------------------------------------
+# Sequence-packet failure classes (closed).
+#
+# Extracted from the protected_sequence_packet_validation lane so
+# every sequence failure carries a stable class id downstream.
+# -----------------------------------------------------------------------------
+sequence_packet_failure_classes:
+  - schema_nonconforming_record
+  - missing_transition
+  - dropped_transition
+  - silent_replay_under_cancellation
+  - identity_witness_mismatch_unadmitted
+  - witness_match_unverifiable_without_declaration
+  - reapproval_requirement_elided
+  - fixture_seed_divergence
+
+# -----------------------------------------------------------------------------
+# Waiver posture (closed).
+#
+# A rule that returns a blocking verdict MAY downgrade to a narrower
+# verdict only through one of these waiver postures. The rule row
+# names which postures it admits; others MUST NOT clear the verdict.
+# -----------------------------------------------------------------------------
+waiver_postures:
+  - no_waiver
+  - active_time_boxed_waiver
+  - active_structural_waiver
+  - expired_waiver
+  - withdrawn_waiver
+
+# -----------------------------------------------------------------------------
+# Rule rows.
+#
+# Each rule declares a trigger, the verdict it returns, the lanes it
+# composes against, admissible waiver postures, and the remediation
+# the shiproom reviewer MUST record before the rule clears.
+# =============================================================================
+rules:
+  - id: rules.protected_path_regression_on_merge_blocking_lane
+    title: Protected-path regression on a merge-blocking lane
+    trigger:
+      severity_class: protected_path_regression
+      lane_blocking_posture_for_severity: merge_blocking
+    verdict: merge_blocked
+    composes_with_lanes:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+      - active_time_boxed_waiver
+    remediation_required: >
+      Fix the protected-path regression in the same change set or
+      open a time-boxed waiver naming the lane, severity, expected
+      expiry, and escalation path. An expired or withdrawn waiver
+      MUST NOT clear the block.
+    rationale: >
+      Merge-blocking lanes are the narrowest line between protected
+      paths and a green PR; silently downgrading this verdict is a
+      same-change-set blocker.
+
+  - id: rules.protected_path_regression_on_release_blocking_lane
+    title: Protected-path regression on a release-blocking lane
+    trigger:
+      severity_class: protected_path_regression
+      lane_blocking_posture_for_severity: release_blocking
+    verdict: release_blocked
+    composes_with_lanes:
+      - accessibility_regression
+      - chaos_fault_injection
+      - performance_ci
+    admits_waiver_postures:
+      - no_waiver
+      - active_time_boxed_waiver
+      - active_structural_waiver
+    remediation_required: >
+      Hold release promotion until the regression clears or the
+      release council records a waiver row citing the lane id, the
+      severity class, the affected artifact family, and the
+      rollback/narrowing path.
+
+  - id: rules.public_truth_overclaim_any_lane
+    title: Public-truth overclaim on any lane
+    trigger:
+      severity_class: public_truth_overclaim
+    verdict: release_blocked
+    composes_with_lanes:
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - accessibility_regression
+      - performance_ci
+      - protected_sequence_packet_validation
+      - chaos_fault_injection
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Narrow the public surface in the same change set that lands
+      the lane finding. Follow the drift-blocking rules
+      (release_blocking_overclaim) and the conservative-resolution
+      rule; no waiver is admissible.
+    references:
+      - docs/governance/drift_blocking_rules.md
+
+  - id: rules.seeded_coverage_gap_widening_block
+    title: Seeded coverage gap blocks widening
+    trigger:
+      severity_class: seeded_coverage_gap
+    verdict: widening_blocked
+    composes_with_lanes:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - accessibility_regression
+      - protocol_parser_fuzzing
+      - chaos_fault_injection
+      - performance_ci
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+      - active_time_boxed_waiver
+    remediation_required: >
+      Land the missing scenario fixture, corpus row, property row,
+      golden, fuzz input, fault-injection row, or sequence fixture
+      before widening a claim or advancing a promotion ring. A
+      waiver must name the scenario hook id that remains uncovered.
+
+  - id: rules.suspect_environment_drift_observation
+    title: Suspect environment drift stays observational until reproduced
+    trigger:
+      severity_class: suspect_environment_drift
+    verdict: dashboard_observation
+    composes_with_lanes:
+      - fixture_repo_integration
+      - chaos_fault_injection
+      - performance_ci
+      - protocol_parser_fuzzing
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Follow the benchmark-lab regression-review rubric: hold the
+      regression review, rerun the same run_context on the same
+      hardware row and environment row, and only file a code
+      regression if the suspect drift does not reproduce.
+    references:
+      - artifacts/benchmarks/quarantine_rules.yaml
+    notes: >
+      This rule MUST NOT apply to contract-gate rows (variance class
+      contract_gate.single_pass_fail or harness_self_health.boolean_
+      gate) under the benchmark-lab invariant
+      contract_gate_rows_ignore_environment_drift_rules.
+
+  - id: rules.cross_lane_incident_learning_block
+    title: Cross-lane incident learning blocks widening until closed
+    trigger:
+      severity_class: cross_lane_incident_learning
+    verdict: widening_blocked
+    composes_with_lanes:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - accessibility_regression
+      - protocol_parser_fuzzing
+      - chaos_fault_injection
+      - performance_ci
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+      - active_time_boxed_waiver
+    remediation_required: >
+      Close the learning row by executing the lane's declared
+      incident_learning_rule. A waiver must name the rule the
+      learning deferred and the expected close date.
+
+  - id: rules.protected_metric_regressed_without_quarantine
+    title: Protected metric regressed without quarantine
+    trigger:
+      protected_metric_posture: regressed_without_quarantine
+    verdict: release_blocked
+    composes_with_lanes:
+      - performance_ci
+      - fixture_repo_integration
+    admits_waiver_postures:
+      - no_waiver
+      - active_structural_waiver
+    remediation_required: >
+      Resolve the regression, re-baseline under a declared rule
+      clearance condition, or land a performance-council-approved
+      structural waiver citing the row and the rollback path.
+    references:
+      - artifacts/bench/protected_metrics.yaml
+      - artifacts/bench/fitness_function_catalog.yaml
+
+  - id: rules.protected_metric_quarantined
+    title: Protected metric quarantined
+    trigger:
+      protected_metric_posture: quarantined
+    verdict: widening_blocked
+    composes_with_lanes:
+      - performance_ci
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Do not widen claims, promote artifacts, or advance rings
+      while the metric row is quarantined. Follow the rule's
+      clearance_condition in artifacts/benchmarks/quarantine_rules.yaml.
+    references:
+      - artifacts/benchmarks/quarantine_rules.yaml
+
+  - id: rules.fitness_catalog_or_metrics_revision_pending
+    title: Fitness-catalog or protected-metrics revision pending
+    trigger:
+      protected_metric_posture: fitness_catalog_or_metrics_revision_pending
+    verdict: widening_blocked
+    composes_with_lanes:
+      - performance_ci
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Record the re-baseline decision row in
+      artifacts/governance/decision_index.yaml before the dashboard
+      resumes trend comparison.
+
+  - id: rules.silent_replay_of_in_flight_mutation
+    title: Silent replay of an in-flight mutation
+    trigger:
+      incident_class: silent_replay_of_in_flight_mutation
+    verdict: release_blocked
+    composes_with_lanes:
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      A handle or request surviving disconnect, cancellation, or
+      trust-downgrade MUST NOT ever clear without a schema-level
+      invariant closing the path. Land the invariant row and the
+      regression fixture in the same change set.
+    references:
+      - docs/adr/0020-remote-agent-contract.md
+
+  - id: rules.credential_handle_survived_trust_downgrade
+    title: Credential handle survived trust downgrade
+    trigger:
+      incident_class: credential_handle_survived_trust_downgrade
+    verdict: release_blocked
+    composes_with_lanes:
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Enforce the ADR-0018 invariant that a handle issued under
+      trusted MUST NOT survive downgrade to restricted. Close the
+      incident with both a schema invariant and a failing fixture.
+    references:
+      - docs/adr/0018-workspace-trust-and-restricted-mode.md
+
+  - id: rules.public_truth_widened_past_owner_row
+    title: Public truth widened past owner row
+    trigger:
+      incident_class: public_truth_widened_past_owner_row
+    verdict: release_blocked
+    composes_with_lanes:
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - accessibility_regression
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Narrow or remove the claim in the same change set that lands
+      the fix, following docs/governance/drift_blocking_rules.md.
+
+  - id: rules.sequence_packet_failure_on_protected_family
+    title: Sequence-packet failure on a protected family
+    trigger:
+      sequence_packet_failure_class_any_of:
+        - schema_nonconforming_record
+        - missing_transition
+        - dropped_transition
+        - silent_replay_under_cancellation
+        - identity_witness_mismatch_unadmitted
+        - witness_match_unverifiable_without_declaration
+        - reapproval_requirement_elided
+        - fixture_seed_divergence
+    verdict: merge_blocked
+    composes_with_lanes:
+      - protected_sequence_packet_validation
+      - chaos_fault_injection
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      A sequence-packet change without a fresh validating fixture
+      is a validation failure. Land the fixture and the schema
+      invariant in the same change set; no waiver is admissible.
+
+  - id: rules.expired_or_withdrawn_waiver_cannot_clear_block
+    title: Expired or withdrawn waiver cannot clear a block
+    trigger:
+      waiver_posture_any_of:
+        - expired_waiver
+        - withdrawn_waiver
+    verdict: merge_blocked
+    composes_with_lanes:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - rendering_layout_goldens
+      - accessibility_regression
+      - protocol_parser_fuzzing
+      - chaos_fault_injection
+      - performance_ci
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      An expired or withdrawn waiver MUST NOT clear a blocking
+      verdict. Close the incident row, open a fresh waiver, or
+      land the remediation before the block can lift.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: no_rule_relaxes_lane_posture
+    description: >
+      A rule MAY require a stricter verdict than the lane's declared
+      blocking_posture_by_severity for the same severity, but MUST
+      NOT return a verdict weaker than that posture. A rule that
+      silently downgrades a lane posture is non-conforming.
+  - id: waiver_cannot_silently_clear_merge_block
+    description: >
+      A rule that returns merge_blocked MUST either admit
+      no_waiver only or declare which waiver postures downgrade
+      the verdict. A merge-blocked verdict MUST NOT clear without
+      a recorded waiver id.
+  - id: public_truth_overclaim_admits_no_waiver
+    description: >
+      Every rule whose trigger includes public_truth_overclaim or
+      public_truth_widened_past_owner_row MUST admit only
+      no_waiver. The conservative-resolution rule from the drift-
+      blocking doc has no waiver path.
+  - id: sequence_packet_failure_admits_no_waiver
+    description: >
+      Every rule whose trigger is a sequence_packet_failure_class
+      MUST admit only no_waiver. A sequence-packet failure closes
+      with a schema invariant plus fixture, not with a waiver.
+  - id: every_rule_cites_at_least_one_lane
+    description: >
+      Every rule MUST list at least one lane in
+      composes_with_lanes, resolving to an id in
+      artifacts/qe/test_lane_registry.yaml#lanes.
+  - id: retiring_or_relaxing_rule_is_breaking
+    description: >
+      Renaming a rule id, relaxing a verdict, adding an
+      admissible waiver posture for public-truth or sequence-
+      packet rules, or weakening remediation is breaking and
+      opens a decision row in
+      artifacts/governance/decision_index.yaml.

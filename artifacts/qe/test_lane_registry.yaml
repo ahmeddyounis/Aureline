@@ -1,0 +1,559 @@
+# Quality-engineering test-lane registry.
+#
+# Machine-readable register of every protected QE test lane. One row per
+# lane, each row naming owner, scope, cadence, blocking level, artifact
+# sink, scenario coverage, and incident-learning rule. Tooling — release
+# review, shiproom dashboard, scorecard generator, waiver register, drift
+# reviewer — reads this file by stable lane id; the human-readable
+# companion is docs/qe/qe_strategy_seed.md. If the two disagree, this
+# file is authoritative for tooling and the narrative is updated in the
+# same change.
+#
+# Rules:
+#   - Every lane MUST name one owner_dri and one owning_lane drawn from
+#     artifacts/governance/ownership_matrix.yaml#scorecard_lane_index.
+#   - Every lane MUST declare cadence, blocking_posture_by_severity,
+#     artifact_sink, scenario_coverage, and incident_learning_rule.
+#   - A lane without a backup_owner MUST name a backup_waiver that exists
+#     in artifacts/governance/ownership_matrix.yaml#waivers.
+#   - blocking_posture_by_severity MUST declare one value per severity
+#     class named at the top-level severity_classes block.
+#   - artifact_sink values MUST resolve to a repo path; a sink that does
+#     not yet exist MUST set artifact_sink_posture:
+#     planned_not_yet_seeded.
+#   - incident_learning_rule MUST resolve to the closed vocabulary at
+#     the top-level incident_learning_rules block.
+#   - Planning / milestone slugs MUST NOT appear in any id, title,
+#     scope note, or tag on this file.
+#
+# Conformance: the seed is self-checkable — no referenced sink, waiver,
+# forum, or incident-learning rule can be invented ad hoc without a
+# row landing in the same change.
+
+schema_version: 1
+registry_id: aureline.qe.test_lane_registry
+registry_revision: 1
+overview_document: docs/qe/qe_strategy_seed.md
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+scorecard_ref: artifacts/milestones/M0_scorecard.yaml
+decision_index_ref: artifacts/governance/decision_index.yaml
+control_artifact_index_ref: artifacts/governance/control_artifact_index.yaml
+release_blocking_rules_ref: artifacts/qe/release_blocking_rules.yaml
+quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+
+# -----------------------------------------------------------------------------
+# Severity classes (closed).
+#
+# One row per lane per severity MUST declare a posture under
+# blocking_posture_by_severity. These mirror the drift severity vocabulary
+# in docs/governance/drift_blocking_rules.md but extend it with a QE-
+# specific observation posture for suspect regressions under chaos/fuzz
+# rules.
+# -----------------------------------------------------------------------------
+severity_classes:
+  - id: protected_path_regression
+    description: >
+      A lane caught a regression on a protected path (protected fitness
+      function, protected sequence packet, protected journey fixture, or
+      a row declared protected by the ownership matrix).
+  - id: public_truth_overclaim
+    description: >
+      A lane caught a public or support-facing surface widening past its
+      canonical owner row, hiding a downgrade reason, or presenting
+      stale proof as current truth.
+  - id: seeded_coverage_gap
+    description: >
+      A lane is seeded but a declared scenario row has no enforcing
+      fixture yet. The gap is acknowledged on the scenario hook row.
+  - id: suspect_environment_drift
+    description: >
+      A lane caught a regression that a chaos, fuzz, or benchmark-
+      quarantine rule classifies as environment drift rather than a
+      code defect.
+  - id: cross_lane_incident_learning
+    description: >
+      A lane received a post-incident learning row and MUST close it
+      using its declared incident_learning_rule before the next
+      protected change widens.
+
+# -----------------------------------------------------------------------------
+# Blocking posture vocabulary (closed).
+#
+# See docs/qe/qe_strategy_seed.md for semantics. Adding a value opens a
+# decision row; relaxing a value's meaning is breaking.
+# -----------------------------------------------------------------------------
+blocking_posture_values:
+  - merge_blocking
+  - release_blocking
+  - widening_blocking
+  - dashboard_only_observation
+  - seeded_not_enforcing
+
+# -----------------------------------------------------------------------------
+# Cadence vocabulary (closed).
+# -----------------------------------------------------------------------------
+cadence_values:
+  - each_change
+  - pre_merge_required
+  - nightly
+  - pre_release_required
+  - per_milestone
+  - on_incident_only
+
+# -----------------------------------------------------------------------------
+# Artifact-sink vocabulary (closed).
+# -----------------------------------------------------------------------------
+artifact_sink_values:
+  - benchmark_lab
+  - release_evidence
+  - support_export
+  - governance_packets
+  - accessibility_review
+  - qe_dashboard
+
+artifact_sink_posture_values:
+  - seeded
+  - planned_not_yet_seeded
+
+# -----------------------------------------------------------------------------
+# Incident-learning rules (closed).
+#
+# Mirrors docs/qe/qe_strategy_seed.md#incident-learning-rule. Every lane
+# row MUST name exactly one rule. Post-incident review in the shiproom
+# and security-trust-review forum cites the rule id, not freeform prose.
+# -----------------------------------------------------------------------------
+incident_learning_rules:
+  - id: add_property_or_model_row
+    description: >
+      Root cause is expressible as a property or model invariant; the
+      lane adds a property row and the scenario hook gains a failing
+      fixture.
+  - id: add_fixture_or_corpus_row
+    description: >
+      Root cause is expressible as a fixture seed; the corpus manifest
+      gains the fixture and the scenario hook cites it.
+  - id: add_protected_metric_row
+    description: >
+      Root cause is expressible as a fitness-function or protected-
+      metric row; the benchmark council records the row.
+  - id: add_golden_row
+    description: >
+      Root cause is a rendering, layout, token, or localization
+      regression; the goldens lane captures it.
+  - id: add_fuzz_corpus_row
+    description: >
+      Root cause is a parser or protocol crash or contract violation;
+      the fuzz corpus gains the minimised input.
+  - id: add_fault_injection_row
+    description: >
+      Root cause is a chaos or fault path not previously exercised.
+  - id: add_sequence_fixture_row
+    description: >
+      Root cause is a sequence-packet mis-ordering, dropped transition,
+      or silent replay.
+  - id: tighten_existing_row
+    description: >
+      An existing row failed to block; the rule is tightened rather
+      than a new row added.
+  - id: open_decision_row
+    description: >
+      The learning is ambiguous or cross-cutting and opens a decision-
+      index row before any lane change lands.
+
+# -----------------------------------------------------------------------------
+# Lane rows.
+#
+# Each row is the contract for one protected test lane. The set below is
+# the lane floor named by docs/qe/qe_strategy_seed.md. Adding a row is
+# additive-minor; renaming, retiring, or merging rows is breaking and
+# requires a decision row.
+# =============================================================================
+lanes:
+  - id: property_and_model_tests
+    title: Property-based and model-based tests
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: architecture_council
+    scope: >
+      Property-based and model-based tests for VFS canonical-path
+      identity, buffer undo/redo invariants, command identity and
+      dispatch, reactive-truth composition, settings resolver, and any
+      protected packet family whose invariants are expressible as
+      properties rather than example cases.
+    protected_paths:
+      - crates/aureline-buffer
+      - crates/aureline-reactive-state
+      - schemas/
+    cadence: pre_merge_required
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: widening_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: qe_dashboard
+    artifact_sink_posture: planned_not_yet_seeded
+    artifact_sink_paths:
+      - artifacts/qe/dashboard/property_and_model_tests/
+    scenario_coverage_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:diagnostics_code_action_convergence
+      - scenario:git_merge_history_edit_recovery
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_property_or_model_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      Property rows MUST cite a protected row from the ownership
+      matrix, a protected-metric row, or a schema family. A property
+      without an anchor row is a validation failure.
+
+  - id: fixture_repo_integration
+    title: Fixture-repo integration
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: architecture_council
+    scope: >
+      End-to-end tests that drive protected flows against the
+      reference-workspace fixtures and the protected benchmark corpus
+      at a declared manifest revision. Covers open, edit, save,
+      restore-adjacent, search, and command-dispatch flows. Also
+      exercises connected-provider and remote-agent boundaries at the
+      typed-payload seam.
+    protected_paths:
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - fixtures/workspaces/reference/
+      - fixtures/journeys/
+    cadence: pre_merge_required
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: benchmark_lab
+    artifact_sink_posture: seeded
+    artifact_sink_paths:
+      - artifacts/benchmarks/
+      - artifacts/bench/
+    scenario_coverage_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:diagnostics_code_action_convergence
+      - scenario:terminal_run_test_debug_replay_safety
+      - scenario:git_merge_history_edit_recovery
+      - scenario:connectivity_reconciliation
+      - scenario:portability_export_integrity
+      - scenario:repair_rollback
+    incident_learning_rule: add_fixture_or_corpus_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      Runs MUST cite fixture ids at a declared corpus_manifest
+      revision. A run without a resolved manifest revision is
+      quarantined under the benchmark-lab quarantine rules.
+
+  - id: rendering_layout_goldens
+    title: Rendering and layout goldens
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-render
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: architecture_council
+    co_required_forums:
+      - accessibility_review
+    scope: >
+      Deterministic renderer, text-stack, layout, and icon goldens
+      captured under pinned display-class, DPI, and locale posture;
+      drives layout and shaping regression review. Covers theme/icon/
+      motion package rendering under reduced-motion and contrast
+      overrides.
+    protected_paths:
+      - crates/aureline-render
+      - crates/aureline-text
+      - artifacts/render/
+      - artifacts/ux/
+    cadence: pre_merge_required
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: widening_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: qe_dashboard
+    artifact_sink_posture: planned_not_yet_seeded
+    artifact_sink_paths:
+      - artifacts/qe/dashboard/goldens/
+    scenario_coverage_refs:
+      - scenario:theme_icon_motion_package_validation
+      - scenario:localization_locale_pack_parity
+      - scenario:onboarding_voice_accessibility
+    incident_learning_rule: add_golden_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      Goldens MUST cite a display_class, locale posture, and token
+      revision. A golden without a pinned display posture is
+      non-comparable under the benchmark-lab quarantine rules.
+
+  - id: accessibility_regression
+    title: Accessibility regression
+    owner_dri: "@ahmeddyounis"
+    owning_lane: accessibility_input_review
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: accessibility_review
+    co_required_forums:
+      - architecture_council
+    scope: >
+      Screen-reader, keyboard, focus-order, reduced-motion, contrast,
+      and IME regression using the accessibility task corpus and
+      assistive-tech matrix. Covers onboarding and voice surfaces, and
+      locale-pack parity on assistive strings.
+    protected_paths:
+      - fixtures/accessibility/
+      - artifacts/accessibility/
+      - docs/accessibility/
+    cadence: pre_release_required
+    blocking_posture_by_severity:
+      protected_path_regression: release_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: accessibility_review
+    artifact_sink_posture: seeded
+    artifact_sink_paths:
+      - artifacts/accessibility/
+    scenario_coverage_refs:
+      - scenario:localization_locale_pack_parity
+      - scenario:theme_icon_motion_package_validation
+      - scenario:onboarding_voice_accessibility
+    incident_learning_rule: add_fixture_or_corpus_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      Accessibility regressions block widening of any claim row that
+      mentions keyboard, assistive-tech, locale, or reduced-motion
+      support even when the code change does not obviously touch
+      accessibility.
+
+  - id: protocol_parser_fuzzing
+    title: Protocol and parser fuzzing
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: security_trust_review
+    co_required_forums:
+      - architecture_council
+    scope: >
+      Structure-aware fuzzing for RPC transports, parser surfaces,
+      settings-resolver input, boundary schemas, and typed-payload
+      envelope decoders. Targets crashes, panics, contract violations,
+      and schema-nonconforming outputs.
+    protected_paths:
+      - crates/aureline-rpc
+      - schemas/
+    cadence: nightly
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: qe_dashboard
+    artifact_sink_posture: planned_not_yet_seeded
+    artifact_sink_paths:
+      - artifacts/qe/dashboard/fuzz/
+    scenario_coverage_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_fuzz_corpus_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      A parser or RPC crash MUST land a minimised input in the fuzz
+      corpus and a schema invariant row in the same change set; a
+      crash without a repro is a validation failure.
+
+  - id: chaos_fault_injection
+    title: Chaos and fault injection
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: security_trust_review
+    co_required_forums:
+      - architecture_council
+      - release_council
+    scope: >
+      Fault-injection suites for connectivity loss, deferred-intent
+      reconciliation, credential-broker downgrade, trust-downgrade,
+      remote-agent reconnect, browser-handoff failure, repair
+      rollback, and long-journal replay. Exercises silent-replay
+      prohibitions and cancellation invariants.
+    protected_paths:
+      - schemas/runtime/
+      - schemas/support/
+      - artifacts/runtime/
+      - artifacts/remote/
+    cadence: nightly
+    blocking_posture_by_severity:
+      protected_path_regression: release_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: release_evidence
+    artifact_sink_posture: seeded
+    artifact_sink_paths:
+      - artifacts/release/
+      - schemas/release/
+    scenario_coverage_refs:
+      - scenario:terminal_run_test_debug_replay_safety
+      - scenario:git_merge_history_edit_recovery
+      - scenario:connectivity_reconciliation
+      - scenario:repair_rollback
+    incident_learning_rule: add_fault_injection_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      A chaos run that fails MUST route through the release council
+      before a release candidate widens, even if merge already landed
+      under widening_blocking.
+
+  - id: performance_ci
+    title: Performance CI and benchmark-lab gating
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: performance_council
+    co_required_forums:
+      - architecture_council
+    scope: >
+      Benchmark-lab and performance-CI runs tied to the protected
+      fitness-function catalog, the protected-metrics file, and the
+      corpus manifest. Gates regressions against declared thresholds
+      through the benchmark-lab quarantine rules and the regression-
+      review rubric.
+    protected_paths:
+      - artifacts/benchmarks/
+      - artifacts/bench/
+      - crates/aureline-bench
+    cadence: pre_release_required
+    blocking_posture_by_severity:
+      protected_path_regression: release_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: widening_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: widening_blocking
+    artifact_sink: benchmark_lab
+    artifact_sink_posture: seeded
+    artifact_sink_paths:
+      - artifacts/benchmarks/
+      - artifacts/bench/
+    scenario_coverage_refs:
+      - scenario:terminal_run_test_debug_replay_safety
+      - scenario:portability_export_integrity
+    incident_learning_rule: add_protected_metric_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      A regression cleared by the suspect-environment-drift rubric
+      MUST NOT widen a claim row until the benchmark-lab quarantine
+      rule clears; the dashboard row remains open until then.
+
+  - id: protected_sequence_packet_validation
+    title: Protected-sequence packet validation
+    owner_dri: "@ahmeddyounis"
+    owning_lane: governance_packets
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    review_forum: architecture_council
+    co_required_forums:
+      - security_trust_review
+      - compatibility_ecosystem_review
+    scope: >
+      Validates protected-sequence packet families (reconnect
+      sequences, browser-handoff sequences, trust-state transitions,
+      remote-agent hello/heartbeat, managed-workspace continuity,
+      repair rollback chronology, deferred-intent reconciliation)
+      against their schemas and fixture seeds. Enforces the silent-
+      replay and cancellation invariants declared on each packet
+      family.
+    protected_paths:
+      - schemas/runtime/
+      - schemas/release/
+      - schemas/support/
+      - fixtures/runtime/
+      - fixtures/security/
+    cadence: each_change
+    blocking_posture_by_severity:
+      protected_path_regression: merge_blocking
+      public_truth_overclaim: release_blocking
+      seeded_coverage_gap: merge_blocking
+      suspect_environment_drift: dashboard_only_observation
+      cross_lane_incident_learning: merge_blocking
+    artifact_sink: governance_packets
+    artifact_sink_posture: seeded
+    artifact_sink_paths:
+      - artifacts/governance/
+    scenario_coverage_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:terminal_run_test_debug_replay_safety
+      - scenario:git_merge_history_edit_recovery
+      - scenario:connectivity_reconciliation
+      - scenario:repair_rollback
+    incident_learning_rule: add_sequence_fixture_row
+    waiver_refs:
+      - single-maintainer-backup
+    notes: >
+      A sequence-packet change without a fresh validating fixture is
+      a validation failure — the lane runs on every change that
+      touches a sequence schema or a sequence fixture.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: every_lane_cites_owning_scorecard_lane
+    description: >
+      Every row's owning_lane MUST resolve to an entry under
+      artifacts/governance/ownership_matrix.yaml#scorecard_lane_index.
+  - id: every_lane_declares_posture_for_every_severity
+    description: >
+      Every row's blocking_posture_by_severity MUST declare a value
+      for every entry in severity_classes. A row that omits a severity
+      is non-conforming.
+  - id: every_lane_declares_one_incident_learning_rule
+    description: >
+      Every row MUST name exactly one incident_learning_rule drawn
+      from incident_learning_rules; post-incident review cites the
+      rule id, not freeform prose.
+  - id: planned_sink_requires_declared_path
+    description: >
+      A row whose artifact_sink_posture is planned_not_yet_seeded
+      MUST declare artifact_sink_paths so the planned home is visible
+      before the sink lands.
+  - id: missing_backup_requires_active_waiver
+    description: >
+      A row without a backup_owner MUST cite a waiver_refs entry that
+      resolves to an active waiver in
+      artifacts/governance/ownership_matrix.yaml#waivers.
+  - id: no_silent_lane_widening
+    description: >
+      Adding a lane, adding a protected_paths entry, or widening a
+      blocking_posture_by_severity row from dashboard_only_observation
+      or seeded_not_enforcing to a blocking posture MUST land in the
+      same change set as the scenario_hooks rows that cover it. A
+      lane widening without matching scenario rows is non-conforming.
+  - id: retiring_or_renaming_is_breaking
+    description: >
+      Renaming a lane id, retiring a lane, or relaxing an
+      incident_learning_rule is breaking and opens a decision row in
+      artifacts/governance/decision_index.yaml.

@@ -1,0 +1,333 @@
+# Quality-engineering scenario hooks.
+#
+# Machine-readable register of cross-cutting quality scenarios the QE
+# lane set MUST cover. Each row binds one protected scenario to the
+# lanes that prove it, the fixture or corpus sink the lanes pull from,
+# the protected-metric or contract-family row the scenario guards, the
+# incident-learning rule that closes a miss, and the risk or freeze-
+# exception row the scenario is in scope for.
+#
+# Consumers:
+#   - The driver/SLO matrix and future scenario-library tooling MUST
+#     cite scenario ids from this file verbatim. A hook that cannot be
+#     named by its id does not exist for tooling purposes.
+#   - The QE lane registry references scenario ids from every lane's
+#     scenario_coverage_refs[] field.
+#   - The release-blocking rules compose against lane postures, not
+#     scenario rows; however, the shiproom reviewer uses this file to
+#     confirm that blocking verdicts map onto named scenarios.
+#
+# Rules:
+#   - Every scenario MUST cite at least one lane_refs entry from
+#     artifacts/qe/test_lane_registry.yaml#lanes.
+#   - Every scenario MUST cite exactly one incident_learning_rule drawn
+#     from artifacts/qe/test_lane_registry.yaml#incident_learning_rules.
+#   - Every scenario MUST cite at least one evidence sink entry
+#     (fixture, corpus, protected-metric row, contract-family row, or
+#     protected sequence-packet family).
+#   - A scenario that is declared but not yet covered by a failing
+#     fixture MUST set coverage_posture: seeded_not_yet_covered, and
+#     cite a matching risk_register_ref or freeze_exception_ref.
+#   - Planning / milestone slugs MUST NOT appear in any id, title,
+#     note, or tag on this file.
+
+schema_version: 1
+registry_id: aureline.qe.quality_scenario_hooks
+registry_revision: 1
+overview_document: docs/qe/qe_strategy_seed.md
+test_lane_registry_ref: artifacts/qe/test_lane_registry.yaml
+release_blocking_rules_ref: artifacts/qe/release_blocking_rules.yaml
+risk_register_ref: artifacts/milestones/M0_risk_register.yaml
+freeze_exceptions_ref: artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+
+# -----------------------------------------------------------------------------
+# Coverage posture (closed).
+# -----------------------------------------------------------------------------
+coverage_posture_values:
+  - covered
+  - partially_covered
+  - seeded_not_yet_covered
+
+# -----------------------------------------------------------------------------
+# Scenario rows.
+#
+# Ten cross-cutting scenarios, one per protected area named in
+# docs/qe/qe_strategy_seed.md. Adding a scenario is additive-minor;
+# renaming, merging, or retiring a scenario is breaking and opens a
+# decision row in artifacts/governance/decision_index.yaml.
+# =============================================================================
+scenarios:
+  - id: scenario:provider_arbitration_truth
+    title: Provider-arbitration truth
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-008
+    freeze_exception_ref: FE-001
+    protected_contract_family_ref: language_provider_arbitration
+    lane_refs:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - protocol_parser_fuzzing
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+      - fixtures/benchmarks/corpus_manifest.yaml
+    protected_metric_or_contract_refs:
+      - contract_family:language_provider_arbitration
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_property_or_model_row
+    scope_notes: >
+      Which provider answers a typed query, under which identity
+      mode and trust state, and why — resolved deterministically
+      against declared capability worlds and policy ceilings rather
+      than provider heuristics. The scenario MUST cover arbitration
+      drift under credential-broker downgrade and under policy
+      narrowing.
+
+  - id: scenario:diagnostics_code_action_convergence
+    title: Diagnostics and code-action convergence
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-008
+    freeze_exception_ref: FE-002
+    protected_contract_family_ref: diagnostics_code_action_convergence
+    lane_refs:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+      - fixtures/benchmarks/corpus_manifest.yaml
+    protected_metric_or_contract_refs:
+      - contract_family:diagnostics_code_action_convergence
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_property_or_model_row
+    scope_notes: >
+      Diagnostic streams from multiple providers converge on one
+      stable set per buffer revision; code actions returned for a
+      diagnostic MUST resolve against the provider that owns the
+      diagnostic, not the most recently-responding one. Covers
+      convergence under cancellation and under provider arbitration
+      changes.
+
+  - id: scenario:terminal_run_test_debug_replay_safety
+    title: Terminal, run, test, and debug replay safety
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-006
+    freeze_exception_ref: FE-005
+    protected_contract_family_ref: terminal_run_test_debug_semantics
+    lane_refs:
+      - fixture_repo_integration
+      - chaos_fault_injection
+      - performance_ci
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+    protected_metric_or_contract_refs:
+      - contract_family:terminal_run_test_debug_semantics
+    sequence_packet_family_refs:
+      - schemas/runtime/
+    incident_learning_rule: add_fault_injection_row
+    scope_notes: >
+      Run, test, and debug sessions MUST NOT silently replay or
+      re-issue in-flight invocations across reconnect, cancellation,
+      trust-downgrade, or policy-narrowing. Terminal recipes bind
+      one execution-context root and MUST NOT escalate across
+      boundary families.
+
+  - id: scenario:git_merge_history_edit_recovery
+    title: Git / merge / history-edit recovery
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-008
+    freeze_exception_ref: FE-006
+    protected_contract_family_ref: git_local_vs_provider_and_history_edit_flows
+    lane_refs:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+    protected_metric_or_contract_refs:
+      - contract_family:git_local_vs_provider_and_history_edit_flows
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_sequence_fixture_row
+    scope_notes: >
+      Local history, provider-hosted history, merge, rebase, and
+      history-edit flows MUST resolve against one authoritative log
+      and recover cleanly from partial writes, interrupted
+      operations, and disconnected providers. Silent provider
+      divergence is a release-blocking finding.
+
+  - id: scenario:connectivity_reconciliation
+    title: Connectivity and deferred-intent reconciliation
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-008
+    freeze_exception_ref: FE-007
+    protected_contract_family_ref: connectivity_deferred_intent_reconciliation
+    lane_refs:
+      - fixture_repo_integration
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+      - fixtures/runtime/
+    protected_metric_or_contract_refs:
+      - contract_family:connectivity_deferred_intent_reconciliation
+    sequence_packet_family_refs:
+      - schemas/runtime/
+    incident_learning_rule: add_fault_injection_row
+    scope_notes: >
+      Intents queued while offline or during remote-agent
+      reconnect MUST NOT replay mutations after a trust downgrade,
+      policy narrowing, credential expiry, or identity rotation
+      without explicit re-approval. Read-only recovery is the
+      conservative default.
+
+  - id: scenario:portability_export_integrity
+    title: Portability and export integrity
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-004
+    freeze_exception_ref: null
+    protected_contract_family_ref: portability_export_guarantees
+    lane_refs:
+      - property_and_model_tests
+      - fixture_repo_integration
+      - protocol_parser_fuzzing
+      - performance_ci
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+      - fixtures/benchmarks/corpus_manifest.yaml
+    protected_metric_or_contract_refs:
+      - contract_family:portability_export_guarantees
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_fuzz_corpus_row
+    scope_notes: >
+      Support exports, CLI machine output, SBOMs, and settings
+      exports MUST round-trip against their declared schemas and
+      MUST redact credentials, raw key material, and raw policy
+      bundles. Parser and envelope fuzzers guard the schema
+      boundary.
+
+  - id: scenario:localization_locale_pack_parity
+    title: Localization and locale-pack parity
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-005
+    freeze_exception_ref: FE-008
+    protected_contract_family_ref: localization_locale_pack_governance
+    lane_refs:
+      - rendering_layout_goldens
+      - accessibility_regression
+      - fixture_repo_integration
+    fixture_or_corpus_refs:
+      - fixtures/accessibility/
+      - fixtures/workspaces/reference/
+    protected_metric_or_contract_refs:
+      - contract_family:localization_locale_pack_governance
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_golden_row
+    scope_notes: >
+      Locale packs MUST declare completeness, fallback chain, and
+      assistive-string coverage. A rendered surface drifting from
+      its locale-pack source, missing an assistive string, or
+      silently falling back to the default locale is a widening
+      block.
+
+  - id: scenario:theme_icon_motion_package_validation
+    title: Theme, icon, and motion package validation
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-009
+    freeze_exception_ref: FE-009
+    protected_contract_family_ref: theme_icon_motion_packages
+    lane_refs:
+      - rendering_layout_goldens
+      - accessibility_regression
+    fixture_or_corpus_refs:
+      - artifacts/ux/
+      - fixtures/accessibility/
+    protected_metric_or_contract_refs:
+      - contract_family:theme_icon_motion_packages
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_golden_row
+    scope_notes: >
+      Theme, icon, and motion packages MUST render under pinned
+      display-class and reduced-motion postures and MUST NOT
+      override accessibility contrast floors. Goldens capture the
+      admissible visual and motion envelope per package revision.
+
+  - id: scenario:onboarding_voice_accessibility
+    title: Onboarding and voice-accessibility coverage
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-005
+    freeze_exception_ref: FE-010
+    protected_contract_family_ref: onboarding_presentation_voice_surfaces
+    lane_refs:
+      - accessibility_regression
+      - rendering_layout_goldens
+    fixture_or_corpus_refs:
+      - fixtures/accessibility/
+    protected_metric_or_contract_refs:
+      - contract_family:onboarding_presentation_voice_surfaces
+    sequence_packet_family_refs: []
+    incident_learning_rule: add_fixture_or_corpus_row
+    scope_notes: >
+      Onboarding and voice-driven surfaces MUST remain reachable
+      under keyboard-only, screen-reader, and reduced-motion
+      postures. A regression on any of these postures is a
+      release-blocking finding under the accessibility-regression
+      lane.
+
+  - id: scenario:repair_rollback
+    title: Repair rollback integrity
+    coverage_posture: seeded_not_yet_covered
+    risk_register_ref: RISK-008
+    freeze_exception_ref: FE-011
+    protected_contract_family_ref: repair_transactions
+    lane_refs:
+      - fixture_repo_integration
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    fixture_or_corpus_refs:
+      - fixtures/workspaces/reference/
+      - fixtures/runtime/
+    protected_metric_or_contract_refs:
+      - contract_family:repair_transactions
+    sequence_packet_family_refs:
+      - schemas/runtime/
+    incident_learning_rule: add_sequence_fixture_row
+    scope_notes: >
+      Repair flows MUST roll back atomically, MUST NOT leave a
+      workspace in an intermediate state under interruption, and
+      MUST not replay mutations during recovery without explicit
+      re-approval. Covers recovery under trust-downgrade and
+      identity-rotation.
+
+# -----------------------------------------------------------------------------
+# Schema-level invariants.
+# -----------------------------------------------------------------------------
+invariants:
+  - id: every_scenario_cites_at_least_one_lane
+    description: >
+      Every scenario MUST cite at least one lane_refs entry from
+      artifacts/qe/test_lane_registry.yaml#lanes. A scenario that
+      does not compose onto a lane cannot produce evidence.
+  - id: every_scenario_cites_one_incident_learning_rule
+    description: >
+      Every scenario MUST cite exactly one incident_learning_rule
+      drawn from the closed vocabulary in
+      artifacts/qe/test_lane_registry.yaml#incident_learning_rules.
+  - id: uncovered_scenario_requires_risk_or_freeze_ref
+    description: >
+      A scenario whose coverage_posture is seeded_not_yet_covered
+      MUST cite a risk_register_ref or a freeze_exception_ref so
+      the gap is discoverable from the shiproom dashboard.
+  - id: scenario_ids_are_stable_identifiers
+    description: >
+      Lane rows in artifacts/qe/test_lane_registry.yaml and future
+      scenario-library tooling MUST cite scenario ids verbatim.
+      Renaming a scenario id is breaking and opens a decision row.
+  - id: driver_slo_matrix_cannot_reword_lane_intent
+    description: >
+      The driver/SLO matrix and any successor scenario-library
+      surface MUST resolve lane intent by citing lane_refs from
+      this file rather than re-stating a lane's scope in local
+      prose. A projection that contradicts a lane row is
+      non-conforming.
