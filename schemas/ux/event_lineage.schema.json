@@ -1,0 +1,1148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/event_lineage.schema.json",
+  "title": "Aureline canonical event-lineage and notification-routing contract",
+  "description": "Boundary schema for the event_lineage_record and the notification_route_rule_record frozen in docs/ux/notification_delivery_contract.md. The lineage record keeps a single cross-surface trail — originating surface, current delivery surface, grouped-burst lineage, escalation reason, suppression reasons, privacy payload class, canonical object target, delivery / dismissal / reopen / release steps, and durable linkback targets — for every canonical_event_id emitted by the attention-routing taxonomy (schemas/ux/activity_event_envelope.schema.json). One canonical_event_id backs every repeated delivery across toast, contextual banner, status item, activity center, OS notification, companion alert, digest, and exported history. The routing-rule record carries one row per event class (direct user success, background completion with durable output, degraded or reconnecting state, trust/policy/auth boundary change, collaboration or human-request event, repeated low-severity burst, long-running job progress, high-risk shortcut no-bypass) naming default surface, allowed escalation surfaces, badge classes, dedupe rules, and the required carry-over fields every owning subsystem MUST preserve across every surface. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never cross the RPC boundary; this schema carries ids, typed vocabulary, and short privacy-safe summary labels only. The eventual shell / attention-routing crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new event class, escalation reason, linkback-target kind, action-taxonomy verb, delivery-step stage, release-step kind, audit-event id, or denial reason is additive-minor and requires an event_lineage_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/event_lineage_record" },
+    { "$ref": "#/$defs/notification_route_rule_record" }
+  ],
+  "$defs": {
+    "event_lineage_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this event-lineage / notification-routing vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "event_lineage_record",
+        "notification_route_rule_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / OS notification payloads / lock-screen summaries. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Short, privacy-safe label text intended for delivery on a notification surface. MUST NOT embed raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw AI prompt / completion text."
+    },
+
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "direct_user_success_no_durable_consequence",
+        "background_completion_with_durable_output",
+        "degraded_or_reconnecting_state",
+        "trust_policy_auth_boundary_change",
+        "collaboration_or_human_request",
+        "repeated_low_severity_burst",
+        "long_running_job_progress",
+        "high_risk_shortcut_no_bypass"
+      ],
+      "description": "Frozen event-class vocabulary used by the routing matrix. A surface that cannot resolve its event class MUST deny with event_class_unresolved rather than defaulting to direct_user_success_no_durable_consequence. Direct user success is toast-eligible with no durable consequence; background completion with durable output lives on a durable_job_row and MAY mirror as a toast; degraded or reconnecting state lives on status_item plus contextual_banner; trust / policy / auth boundary changes route through contextual_banner or a review sheet; collaboration or human-request events land on attention_item; repeated low-severity bursts collapse into digest_group_row; long-running job progress belongs on a durable_job_row with OS badge; high-risk shortcut no-bypass events MUST NOT deliver via toast alone."
+    },
+
+    "escalation_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "severity_increased",
+        "duration_threshold_crossed",
+        "required_authority_changed",
+        "consequence_class_escalated",
+        "basis_snapshot_drifted",
+        "policy_epoch_changed",
+        "trust_state_changed",
+        "provider_grant_narrowed",
+        "recovery_class_downgraded_to_no_recovery",
+        "repeated_dedupe_threshold_crossed"
+      ],
+      "description": "Frozen escalation-reason vocabulary. A lineage that crosses into a higher interruptibility tier MUST name a non-none reason. Decorative escalation is non-conforming (denial_reason = interruption_tier_escalated_without_trigger on the activity_event_envelope audit stream). Mirrors the escalation_triggers set seeded in artifacts/ux/interruptibility_escalation_seed.yaml so routing and per-tier rows speak the same triggers."
+    },
+
+    "delivery_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "contextual_banner",
+        "status_item",
+        "durable_job_row",
+        "attention_item",
+        "activity_center_digest_card",
+        "digest_group_row",
+        "os_notification",
+        "os_badge_app_icon",
+        "lock_screen_summary",
+        "companion_push",
+        "not_delivered_held"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (delivery_surface_class) without modification. Adding a value is additive-minor in both schemas and bumps the schema version here and there."
+    },
+
+    "attention_class": {
+      "type": "string",
+      "enum": [
+        "acknowledgement",
+        "follow_up_needed",
+        "digest_only",
+        "muted_or_snoozed",
+        "durable_running",
+        "suppressed_policy",
+        "held_quiet_hours"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (attention_class) without modification."
+    },
+
+    "interruptibility_tier": {
+      "type": "string",
+      "enum": [
+        "tier_ambient",
+        "tier_transient",
+        "tier_durable",
+        "tier_actionable",
+        "tier_blocking_trust",
+        "tier_critical_safety"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (interruptibility_tier) without modification."
+    },
+
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "needs_review",
+        "failed_runs",
+        "mentions",
+        "security_notices",
+        "session_requests",
+        "offline_publish_pending",
+        "durable_running_count",
+        "held_or_suppressed_count",
+        "completion_unread"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (badge_class) without modification."
+    },
+
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (quiet_hours_mode) without modification."
+    },
+
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (suppression_reason) without modification."
+    },
+
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (privacy_payload_class) without modification."
+    },
+
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (dedupe_key_scheme) without modification."
+    },
+
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object_target_exact",
+        "review_sheet",
+        "diff_view",
+        "evidence_packet_row",
+        "activity_center_item",
+        "history_lane_row",
+        "attention_item_exact",
+        "durable_job_row_exact",
+        "placeholder_announced",
+        "reopen_denied_requires_revalidation"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (reopen_target_kind) without modification."
+    },
+
+    "dismissal_verb": {
+      "type": "string",
+      "enum": [
+        "acknowledge",
+        "resolve",
+        "dismiss",
+        "snooze",
+        "mute",
+        "suppress"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (dismissal_verb) without modification. acknowledge removes the badge, not the underlying state; resolve requires the underlying object to change (or an explicit mark-done); dismiss removes the transient delivery and leaves the durable row intact; snooze defers with a named resume condition; mute silences future deliveries of the class; suppress is the system-side policy hold (admin / quiet-hours / presentation). These verbs are different states and MUST NEVER be used as interchangeable labels."
+    },
+
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json (source_subsystem) without modification."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). The broker-owned redaction pass (ADR-0007) runs before bytes reach any persistent or exportable sink, including OS notification payloads and lock-screen summaries."
+    },
+
+    "linkback_target_kind": {
+      "type": "string",
+      "enum": [
+        "durable_job_row_exact",
+        "attention_item_exact",
+        "activity_center_item",
+        "history_lane_row",
+        "evidence_packet_row",
+        "review_sheet",
+        "diff_view",
+        "canonical_object_target_exact",
+        "export_preview_row",
+        "audit_trail_only"
+      ],
+      "description": "Frozen durable-linkback vocabulary. Every delivery — including a held or delayed delivery — names exactly one durable linkback target so the user can return to a canonical row or history item even when the transient surface is gone. audit_trail_only is reserved for deliveries that could not be surfaced on any user-facing durable row (blocked by policy, stale canonical target) but MUST still preserve an audit entry; surfaces MUST NOT silently fall back to nothing."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every render."
+    },
+
+    "delivery_step_stage": {
+      "type": "string",
+      "enum": [
+        "minted",
+        "dedupe_collapsed",
+        "delivered",
+        "escalated",
+        "held_for_suppression",
+        "released_from_hold",
+        "grouped_into_digest",
+        "dropped_by_policy"
+      ],
+      "description": "Frozen delivery-step-stage vocabulary. minted names the first envelope for a canonical_event_id; dedupe_collapsed names a later envelope absorbed under the same canonical_event_id or grouped_burst_id; delivered names an envelope that reached a user surface; escalated names a transition into a higher interruptibility tier; held_for_suppression names a not_delivered_held envelope; released_from_hold names a previously held envelope surfaced on mode exit; grouped_into_digest names an envelope rolled into a digest_group_row under a quiet-hours release; dropped_by_policy names an envelope whose user-surface delivery was denied under policy while audit_trail_only linkback preserves the record."
+    },
+
+    "release_step_kind": {
+      "type": "string",
+      "enum": [
+        "mode_exit_grouped_digest",
+        "user_explicit_show_held",
+        "escalation_to_critical_safety",
+        "cross_client_collapse",
+        "reopen_revalidation_completed"
+      ],
+      "description": "Frozen release-step vocabulary. mode_exit_grouped_digest names the standard release — held envelopes surface as one grouped_burst_record keyed by source and severity when a quiet-hours mode exits; user_explicit_show_held names a user-invoked 'show held items' release; escalation_to_critical_safety names a forced release because the tier escalated past any hold; cross_client_collapse names a release that unifies per-client deliveries behind one cross_client_canonical_event_id; reopen_revalidation_completed names a release that follows a reopen_denied_requires_revalidation once the user satisfies the revalidation trigger."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "lineage_opened",
+        "lineage_delivery_recorded",
+        "lineage_dedupe_recorded",
+        "lineage_escalation_recorded",
+        "lineage_hold_recorded",
+        "lineage_release_recorded",
+        "lineage_digest_released",
+        "lineage_dismissal_recorded",
+        "lineage_reopen_recorded",
+        "lineage_reopen_denied_recorded",
+        "lineage_linkback_resolved",
+        "lineage_linkback_lost",
+        "lineage_closed",
+        "lineage_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the event-lineage audit stream. Events MUST NOT carry raw bodies, raw paths, raw URLs, raw prompt text, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "event_class_unresolved",
+        "escalation_reason_missing_on_tier_change",
+        "linkback_target_missing",
+        "linkback_silently_downgraded_to_home_screen",
+        "dismissal_verb_used_as_alias",
+        "dismissal_silently_mutated_source_object",
+        "dismissal_erased_durable_history",
+        "snooze_without_resume_condition",
+        "held_event_missing_linkback",
+        "high_risk_shortcut_toast_only_forbidden",
+        "high_risk_shortcut_bypassed_review_sheet",
+        "raw_body_forbidden_on_os_notification",
+        "raw_prompt_text_forbidden_on_os_notification",
+        "raw_secret_forbidden_on_any_surface",
+        "privacy_payload_class_missing_on_lock_screen",
+        "privacy_payload_class_widened_across_clients",
+        "grouped_burst_split_without_new_lineage",
+        "cross_client_divergence",
+        "duplicate_object_identity_on_shared_event_id",
+        "policy_blocked",
+        "event_lineage_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary on the event-lineage audit stream. Denials fail closed; silent downgrade to toast-only, generic home screen, or best-effort delivery is forbidden. duplicate_object_identity_on_shared_event_id names the case where two different canonical_object_target_refs claim the same canonical_event_id — the same canonical_event_id MUST always resolve to one canonical object target, even when the delivery surface changes."
+    },
+
+    "delivery_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "delivery_surface_class",
+        "interruptibility_tier",
+        "attention_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "stage": { "$ref": "#/$defs/delivery_step_stage" },
+        "envelope_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the activity_event_envelope_record that backs this step when one was emitted."
+        },
+        "delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "interruptibility_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "attention_class": { "$ref": "#/$defs/attention_class" },
+        "privacy_payload_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/privacy_payload_class" }
+          ],
+          "description": "Privacy payload class applied on this step. Null only on stages that did not render a summary label (dedupe_collapsed, held_for_suppression, dropped_by_policy)."
+        },
+        "dedupe_key_scheme": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dedupe_key_scheme" }
+          ]
+        },
+        "escalation_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/escalation_reason" }
+          ],
+          "description": "Required (non-null) when stage = escalated. The value MUST NOT be 'none' on an escalated step."
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" },
+          "description": "Non-empty when stage = held_for_suppression or delivery_surface_class = not_delivered_held; MAY be non-empty on released_from_hold to carry the originating suppression."
+        },
+        "client_scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/client_scope" }
+          ]
+        },
+        "summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe summary label that rendered on this step. MUST obey the privacy_payload_class rules."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "stage = escalated MUST carry a non-'none' escalation_reason.",
+          "if": {
+            "properties": { "stage": { "const": "escalated" } },
+            "required": ["stage"]
+          },
+          "then": {
+            "properties": {
+              "escalation_reason": {
+                "type": "string",
+                "enum": [
+                  "severity_increased",
+                  "duration_threshold_crossed",
+                  "required_authority_changed",
+                  "consequence_class_escalated",
+                  "basis_snapshot_drifted",
+                  "policy_epoch_changed",
+                  "trust_state_changed",
+                  "provider_grant_narrowed",
+                  "recovery_class_downgraded_to_no_recovery",
+                  "repeated_dedupe_threshold_crossed"
+                ]
+              }
+            },
+            "required": ["escalation_reason"]
+          }
+        },
+        {
+          "description": "stage = held_for_suppression MUST carry a non-empty suppression_reasons array.",
+          "if": {
+            "properties": { "stage": { "const": "held_for_suppression" } },
+            "required": ["stage"]
+          },
+          "then": {
+            "properties": {
+              "suppression_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/suppression_reason" }
+              }
+            },
+            "required": ["suppression_reasons"]
+          }
+        }
+      ],
+      "description": "One step in the cross-surface delivery history for a canonical_event_id. A lineage with an escalated / held / released step that does not name the triggering reason is non-conforming."
+    },
+
+    "dismissal_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dismissal_verb",
+        "delivery_surface_class",
+        "mutates_source_object",
+        "preserves_durable_history",
+        "occurred_at"
+      ],
+      "properties": {
+        "dismissal_verb": { "$ref": "#/$defs/dismissal_verb" },
+        "delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "mutates_source_object": {
+          "type": "boolean",
+          "description": "True only when dismissal_verb = resolve and the underlying canonical object actually changed (or an explicit mark-done was recorded). acknowledge, dismiss, snooze, mute, and suppress MUST record false; a true value on any of those verbs is non-conforming (denial_reason = dismissal_silently_mutated_source_object)."
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "description": "Always true. Closing a toast, snoozing an attention item, muting a class, or suppressing a delivery under policy MUST NOT erase the durable activity-center row, inbox entry, or history-lane entry. A false value is non-conforming (denial_reason = dismissal_erased_durable_history)."
+        },
+        "snooze_resume_condition_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when dismissal_verb = snooze. Names exactly when or under what condition the item returns (timer expiry, underlying object change, next unsuppressed surface)."
+        },
+        "muted_class_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_class" }
+          ],
+          "description": "When dismissal_verb = mute, names the badge class silenced."
+        },
+        "envelope_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "dismissal_verb = snooze MUST carry a non-null snooze_resume_condition_label.",
+          "if": {
+            "properties": { "dismissal_verb": { "const": "snooze" } },
+            "required": ["dismissal_verb"]
+          },
+          "then": {
+            "properties": { "snooze_resume_condition_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["snooze_resume_condition_label"]
+          }
+        },
+        {
+          "description": "dismissal_verb != resolve MUST record mutates_source_object = false.",
+          "if": {
+            "properties": {
+              "dismissal_verb": {
+                "enum": ["acknowledge", "dismiss", "snooze", "mute", "suppress"]
+              }
+            },
+            "required": ["dismissal_verb"]
+          },
+          "then": {
+            "properties": { "mutates_source_object": { "const": false } },
+            "required": ["mutates_source_object"]
+          }
+        },
+        {
+          "description": "preserves_durable_history MUST always be true.",
+          "properties": { "preserves_durable_history": { "const": true } }
+        }
+      ],
+      "description": "One applied dismissal verb in the lineage history. Preserves the Acknowledge / Resolve / Dismiss / Snooze / Mute / Suppress distinction: a surface that conflates these verbs or silently mutates the source object is non-conforming."
+    },
+
+    "reopen_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_target_kind",
+        "invoked_from_delivery_surface_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "reopen_target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to a reopen_target_record (schemas/ux/activity_event_envelope.schema.json#reopen_target_record) naming the narrowest truthful destination. Null only when reopen_target_kind is placeholder_announced or reopen_denied_requires_revalidation."
+        },
+        "invoked_from_delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "revalidation_required_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when reopen_target_kind = reopen_denied_requires_revalidation. Names the revalidation trigger (wake-from-sleep, display reconnect, policy-epoch change, provider grant narrowed)."
+        },
+        "placeholder_announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Required (non-null) when reopen_target_kind = placeholder_announced. Explains why reopen could not return to the exact target (moved, missing extension, policy-blocked, stale remote, display topology changed)."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "reopen_target_kind = placeholder_announced MUST carry placeholder_announcement_label.",
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "placeholder_announced" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": { "placeholder_announcement_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["placeholder_announcement_label"]
+          }
+        },
+        {
+          "description": "reopen_target_kind = reopen_denied_requires_revalidation MUST carry revalidation_required_reason_label.",
+          "if": {
+            "properties": { "reopen_target_kind": { "const": "reopen_denied_requires_revalidation" } },
+            "required": ["reopen_target_kind"]
+          },
+          "then": {
+            "properties": { "revalidation_required_reason_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["revalidation_required_reason_label"]
+          }
+        }
+      ],
+      "description": "One reopen invocation in the lineage history. Reopening to a generic home screen is forbidden; when the exact target is missing or moved, the reopen records placeholder_announced and an announcement label explaining why."
+    },
+
+    "release_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "released_to_delivery_surface_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/release_step_kind" },
+        "released_to_delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the grouped_burst_record the release belongs to when mode_exit_grouped_digest applied."
+        },
+        "digest_group_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label for the exit-digest group (e.g. 'Held retries on one pipeline')."
+        },
+        "member_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Count of held envelopes released into this group when mode_exit_grouped_digest applied."
+        },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One release-from-hold step. When a quiet-hours mode exits, held envelopes surface as one grouped digest grouped by source and severity; user_explicit_show_held names an ad-hoc release; escalation_to_critical_safety names a forced release when severity escalates past any hold."
+    },
+
+    "linkback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "is_durable"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/linkback_target_kind" },
+        "target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the linkback target (durable_job_row id, attention_item id, activity-center id, history-lane row id, evidence-packet row id, review-sheet id, diff-view id, canonical-object-target id, export-preview row id). Null only when kind = audit_trail_only."
+        },
+        "is_durable": {
+          "type": "boolean",
+          "description": "True unless kind = audit_trail_only. A linkback that claims is_durable = true but has no target_identity_ref is non-conforming (denial_reason = linkback_target_missing)."
+        },
+        "announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label describing the durable destination (e.g. 'Open review in Activity Center', 'See publish job')."
+        }
+      },
+      "allOf": [
+        {
+          "description": "kind = audit_trail_only MUST record is_durable = false and MAY omit target_identity_ref.",
+          "if": {
+            "properties": { "kind": { "const": "audit_trail_only" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": { "is_durable": { "const": false } },
+            "required": ["is_durable"]
+          }
+        },
+        {
+          "description": "kind != audit_trail_only MUST record is_durable = true and MUST carry a target_identity_ref.",
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "durable_job_row_exact",
+                  "attention_item_exact",
+                  "activity_center_item",
+                  "history_lane_row",
+                  "evidence_packet_row",
+                  "review_sheet",
+                  "diff_view",
+                  "canonical_object_target_exact",
+                  "export_preview_row"
+                ]
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "is_durable": { "const": true },
+              "target_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["is_durable", "target_identity_ref"]
+          }
+        }
+      ],
+      "description": "Durable-linkback descriptor. Every transient delivery (toast, OS notification, lock-screen summary, companion push, digest card) MUST resolve to one durable linkback so the user can always return to the canonical row. A delivery that reopens to a generic home screen is non-conforming."
+    },
+
+    "event_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_lineage_schema_version",
+        "lineage_id",
+        "canonical_event_id",
+        "event_class",
+        "source_subsystem",
+        "originating_surface_class",
+        "current_delivery_surface_class",
+        "canonical_object_target_ref",
+        "attention_class",
+        "interruptibility_tier",
+        "privacy_payload_class",
+        "quiet_hours_mode_at_open",
+        "suppression_reasons",
+        "dedupe_key_scheme",
+        "grouped_burst_id_ref",
+        "escalation_reason",
+        "summary_label",
+        "dismissal_verbs_available",
+        "delivery_steps",
+        "dismissal_steps",
+        "reopen_steps",
+        "release_steps",
+        "linkback_records",
+        "client_scopes",
+        "redaction_class",
+        "policy_context",
+        "opened_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "event_lineage_record" },
+        "event_lineage_schema_version": { "$ref": "#/$defs/event_lineage_schema_version" },
+        "lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "One canonical event id backs every repeated delivery across toast, contextual banner, status item, activity center, OS notification, companion alert, digest, and exported history. The same canonical_event_id MUST always resolve to one canonical_object_target_ref even as delivery surfaces change; two lineages that share a canonical_event_id but disagree on the object target are non-conforming."
+        },
+        "event_class": { "$ref": "#/$defs/event_class" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the actor of record (null for system-minted events). Raw identity bodies never cross the boundary."
+        },
+        "canonical_object_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the canonical object target (review item, build, branch, session, artifact, provider grant). Raw paths, raw URLs, raw handles, raw prompt text never cross the boundary."
+        },
+        "originating_surface_class": {
+          "$ref": "#/$defs/delivery_surface_class",
+          "description": "The delivery-surface class where the lineage first surfaced to the user. Held lineages (quiet-hours, focus, presentation) that were never delivered before hold MUST still name the intended originating surface and record delivery_steps[0].stage = minted with delivery_surface_class = not_delivered_held."
+        },
+        "current_delivery_surface_class": {
+          "$ref": "#/$defs/delivery_surface_class",
+          "description": "The delivery-surface class currently carrying the lineage. MUST equal the delivery_surface_class of the latest delivery_step with stage in {delivered, released_from_hold, escalated, grouped_into_digest}; MUST equal not_delivered_held while the lineage is on hold."
+        },
+        "attention_class": { "$ref": "#/$defs/attention_class" },
+        "interruptibility_tier": { "$ref": "#/$defs/interruptibility_tier" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "quiet_hours_mode_at_open": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" },
+          "description": "Every quiet-hours / focus / presentation / screen-share / privacy / admin-suppression / reduced-attention / power-saver mode active when the lineage opened. Contains mode_none when the user was in the default unheld posture; contains one or more active modes otherwise."
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the grouped_burst_record this lineage is part of; null otherwise. Splitting a lineage across two grouped_burst_id_refs without a new dedupe_key_scheme is non-conforming (denial_reason = grouped_burst_split_without_new_lineage)."
+        },
+        "escalation_reason": {
+          "$ref": "#/$defs/escalation_reason",
+          "description": "The most recent escalation reason for this lineage. 'none' while the lineage has not escalated beyond its opening tier; a non-'none' value MUST be backed by a delivery_step with stage = escalated."
+        },
+        "summary_label": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Short privacy-safe summary label for the lineage. MUST obey the privacy_payload_class rules; MUST NOT embed raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw AI prompt / completion text."
+        },
+        "next_action_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label for the primary next action (e.g. 'Open review'). Required (non-null) when interruptibility_tier is tier_actionable, tier_blocking_trust, or tier_critical_safety."
+        },
+        "dismissal_verbs_available": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dismissal_verb" },
+          "description": "Subset of dismissal verbs exposed on the current delivery. acknowledge, resolve, dismiss, snooze, mute, suppress are distinct states and MUST never be used as interchangeable labels."
+        },
+        "delivery_steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/delivery_step_record" },
+          "description": "Ordered trail of delivery steps for this canonical_event_id. delivery_steps[0].stage MUST be minted; subsequent steps record dedupe collapse, escalation, hold, release, digest grouping, and policy drops without minting a new canonical_event_id."
+        },
+        "dismissal_steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dismissal_step_record" },
+          "description": "Applied dismissal verbs in time order. Closing a toast (dismiss) MUST NOT silently mutate the source object or erase the durable row."
+        },
+        "reopen_steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_step_record" },
+          "description": "Reopen invocations in time order."
+        },
+        "release_steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/release_step_record" },
+          "description": "Release-from-hold steps in time order."
+        },
+        "linkback_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/linkback_record" },
+          "description": "Durable linkback targets for this lineage. MUST contain at least one record. Transient deliveries (toast, OS notification, lock-screen summary, companion push, digest) MUST resolve through a durable linkback (durable_job_row_exact, attention_item_exact, activity_center_item, history_lane_row, evidence_packet_row, review_sheet, diff_view, canonical_object_target_exact, export_preview_row, or audit_trail_only when user-facing delivery was denied)."
+        },
+        "interaction_safety_packet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to an interaction_safety_packet_record (schemas/ux/interaction_safety.schema.json) when this lineage reports a consequence-bearing interaction. The interaction-safety contract remains the authority for authority / consequence / revert / representation vocabulary; this lineage adds routing, durability, and quiet-hours posture without re-minting those axes."
+        },
+        "cross_client_lineage_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to sibling lineages that share the same canonical_event_id across desktop, companion, remote-agent, and managed-admin surfaces. Cross-client duplicate deliveries MUST collapse into this shared lineage instead of renewing per-client events; divergence is non-conforming (denial_reason = cross_client_divergence)."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Non-null once the lineage is closed (canonical object target resolved, permanent dismissal applied, or policy-governed expiry). A closed lineage remains readable for audit; its durable linkbacks do not become invalid."
+        }
+      },
+      "allOf": [
+        {
+          "description": "next_action_label MUST be non-null when interruptibility_tier is tier_actionable, tier_blocking_trust, or tier_critical_safety.",
+          "if": {
+            "properties": {
+              "interruptibility_tier": {
+                "enum": ["tier_actionable", "tier_blocking_trust", "tier_critical_safety"]
+              }
+            },
+            "required": ["interruptibility_tier"]
+          },
+          "then": {
+            "properties": { "next_action_label": { "$ref": "#/$defs/short_label_text" } },
+            "required": ["next_action_label"]
+          }
+        },
+        {
+          "description": "current_delivery_surface_class = not_delivered_held requires suppression_reasons non-empty so audit is preserved.",
+          "if": {
+            "properties": { "current_delivery_surface_class": { "const": "not_delivered_held" } },
+            "required": ["current_delivery_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "suppression_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/suppression_reason" }
+              }
+            },
+            "required": ["suppression_reasons"]
+          }
+        },
+        {
+          "description": "event_class = high_risk_shortcut_no_bypass MUST NOT use interruptibility_tier tier_ambient or tier_transient. High-risk shortcuts cannot be delivered via toast alone; they route through tier_actionable, tier_blocking_trust, or tier_critical_safety.",
+          "if": {
+            "properties": { "event_class": { "const": "high_risk_shortcut_no_bypass" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "interruptibility_tier": {
+                "enum": ["tier_durable", "tier_actionable", "tier_blocking_trust", "tier_critical_safety"]
+              }
+            },
+            "required": ["interruptibility_tier"]
+          }
+        },
+        {
+          "description": "Lock-screen-bound current deliveries MUST NOT carry in_product_only privacy payloads.",
+          "if": {
+            "properties": { "current_delivery_surface_class": { "const": "lock_screen_summary" } },
+            "required": ["current_delivery_surface_class"]
+          },
+          "then": {
+            "properties": {
+              "privacy_payload_class": {
+                "enum": [
+                  "lock_screen_safe_generic",
+                  "lock_screen_safe_scoped",
+                  "redacted_metadata_only",
+                  "policy_forbidden_on_lock_screen"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation_reason = 'none' forbids any delivery_step with stage = escalated in the same lineage; a non-'none' lineage-level escalation_reason MUST be backed by at least one escalated step.",
+          "if": {
+            "properties": { "escalation_reason": { "const": "none" } },
+            "required": ["escalation_reason"]
+          },
+          "then": {
+            "properties": {
+              "delivery_steps": {
+                "type": "array",
+                "items": {
+                  "not": {
+                    "properties": { "stage": { "const": "escalated" } },
+                    "required": ["stage"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-canonical-event lineage record. Keeps one trail across toast, contextual banner, status item, activity center, OS notification, companion alert, digest, and exported history so every delivery, dedupe, hold, release, reopen, and dismissal resolves through one id rather than minting a parallel event model. The same canonical_event_id MUST always resolve to one canonical_object_target_ref and one set of durable linkbacks."
+    },
+
+    "notification_route_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_lineage_schema_version",
+        "rule_id",
+        "event_class",
+        "default_delivery_surface_class",
+        "allowed_escalation_surface_classes",
+        "forbidden_delivery_surface_classes",
+        "badge_classes",
+        "dedupe_key_scheme",
+        "required_carry_over_fields",
+        "suppressible_under_modes",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "notification_route_rule_record" },
+        "event_lineage_schema_version": { "$ref": "#/$defs/event_lineage_schema_version" },
+        "rule_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/event_class" },
+        "default_delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "allowed_escalation_surface_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/delivery_surface_class" },
+          "description": "Delivery surfaces this event class MAY escalate to. Escalation requires a typed escalation_reason on the lineage."
+        },
+        "forbidden_delivery_surface_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/delivery_surface_class" },
+          "description": "Delivery surfaces this event class MUST NOT render on. A surface that emits an envelope in a forbidden class is non-conforming."
+        },
+        "badge_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/badge_class" },
+          "description": "Badge classes this event class MAY increment. Badge counts are per-class; combining classes into one overloaded count is non-conforming."
+        },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "required_carry_over_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "canonical_event_id",
+              "canonical_object_target_ref",
+              "actor_identity_ref",
+              "next_action_label",
+              "linkback_records",
+              "undo_or_open_details_path",
+              "grouped_burst_id_ref",
+              "last_known_good_state_label",
+              "last_failure_reason_label",
+              "affected_scope_label",
+              "authority_source_label",
+              "reauth_or_expiry_label",
+              "what_still_works_label",
+              "workspace_or_session_id_ref",
+              "reply_or_open_path_label",
+              "member_count",
+              "latest_event_time",
+              "open_group_action_label",
+              "durable_job_id_ref",
+              "lifecycle_state",
+              "phase_label",
+              "cancel_or_open_details_action_label",
+              "interaction_safety_packet_id_ref"
+            ]
+          },
+          "description": "Closed vocabulary of carry-over fields every delivery MUST preserve across surfaces for this event class. Surfaces MAY render additional typed metadata, but MUST NOT drop a named carry-over field between a toast and its durable mirror, a durable mirror and its OS notification, or a desktop delivery and its companion delivery."
+        },
+        "suppressible_under_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" },
+          "description": "Quiet-hours / focus / presentation / privacy modes that MAY suppress this event class. tier_critical_safety events MUST leave this array empty regardless of event class."
+        },
+        "notes_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe note describing the canonical use (e.g. 'Toast-eligible direct success; only escalates when logs / evidence exist')."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One row per frozen event_class. Freezes default delivery surface, allowed escalation surfaces, forbidden surfaces, badge classes, dedupe key scheme, required carry-over fields, and the quiet-hours modes that MAY suppress the event class. A surface that mints a local routing rule for one of the frozen event classes is non-conforming."
+    }
+  }
+}
