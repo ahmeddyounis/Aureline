@@ -1,0 +1,1323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/output_viewer_object.schema.json",
+  "title": "Aureline output, log, result-grid, and artifact-preview viewer object",
+  "description": "Boundary schema for the output_viewer_object_record frozen in docs/ux/output_log_viewer_contract.md. Every output viewer, log viewer, result grid, notebook cell output area, test runner viewer, build output viewer, diagnostic stream viewer, and artifact preview surface emits one output_viewer_object_record that projects output class, size bucket, viewer mode, origin class, trust posture, source identity, run or kernel ref, freshness, size disclosure, truncation, control contract, and export path into one cross-tool packet so no surface invents a local size badge, local freeze wording, local truncated label, local active-content block reason, or local copy/export scope story. Composes with live_set_state_record by reference for live-stream origins, with trust_class and connectivity_state by reference from the security family, with execution_context_record_ref by reference from the runtime family, with preview_snapshot_record by reference for artifact previews that carry a preview snapshot, and with artifact_edit_posture_record by reference for imported or generated artifact origins. Adding a new output_class, size_bucket, viewer_mode, origin_class, sandbox_posture_class, active_content_policy_class, source_identity_class, run_or_kernel_kind, large_output_action_class, truncation state / reason, search_scope_class, bookmark_scope_class, or textual_fallback_class value is additive-minor and bumps output_viewer_object_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw output bytes, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/output_viewer_object_record" }
+  ],
+  "$defs": {
+    "output_viewer_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the output-viewer object boundary. Current value is 1. Bumped only on breaking payload changes; additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "output_viewer_object_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support/export packets. Raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never appear here."
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing short label. Must remain redaction-aware; raw secrets, raw URLs, raw hostnames, and raw absolute paths never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ],
+          "description": "Scope class shared with the subscription and live-set contracts."
+        },
+        "id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed scope the viewer belongs to."
+    },
+
+    "viewer_family": {
+      "type": "string",
+      "enum": [
+        "output_viewer",
+        "log_viewer",
+        "result_grid_viewer",
+        "artifact_preview_viewer",
+        "diagnostic_viewer"
+      ],
+      "description": "Closed viewer-family vocabulary matching the contract's five viewer families. A viewer that would fall outside this set is non-conforming."
+    },
+
+    "output_class": {
+      "type": "string",
+      "enum": [
+        "stdout_stream",
+        "stderr_stream",
+        "combined_stdio_stream",
+        "structured_result_rows",
+        "structured_log_segments",
+        "diagnostic_message_stream",
+        "test_result_stream",
+        "build_output_stream",
+        "cell_output_stream",
+        "binary_artifact_preview",
+        "media_artifact_preview"
+      ],
+      "description": "Closed output-class vocabulary describing what the producer emits (not how the viewer renders it)."
+    },
+
+    "size_bucket": {
+      "type": "string",
+      "enum": [
+        "tiny",
+        "small",
+        "medium",
+        "large",
+        "very_large",
+        "unbounded_stream"
+      ],
+      "description": "Closed UX-visible size-bucket vocabulary. Not a byte count; the size_disclosure block carries byte and line/row truths."
+    },
+
+    "viewer_mode": {
+      "type": "string",
+      "enum": [
+        "inline",
+        "virtualized",
+        "open_detail",
+        "blocked_active_content",
+        "textual_fallback",
+        "snapshot_review"
+      ],
+      "description": "Closed viewer-mode vocabulary naming how the output is currently presented."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_stream",
+        "cached_playback",
+        "imported_artifact",
+        "snapshot_capture"
+      ],
+      "description": "Closed origin-class vocabulary naming where the viewer is reading from."
+    },
+
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "RawText",
+        "SanitizedRich",
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Trust-class re-exported verbatim from schemas/security/trust_class.schema.json#trust_class."
+    },
+
+    "sandbox_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_no_active_content",
+        "sandbox_isolated",
+        "sandbox_restricted",
+        "sandbox_unavailable",
+        "sandbox_not_required_trusted_local"
+      ],
+      "description": "Closed sandbox-posture vocabulary describing the isolation posture for any active content the viewer might render."
+    },
+
+    "active_content_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_active_content_present",
+        "active_content_allowed",
+        "active_content_blocked_trust",
+        "active_content_blocked_policy",
+        "active_content_blocked_sandbox",
+        "active_content_blocked_representation"
+      ],
+      "description": "Closed active-content policy vocabulary. Any active content that is not rendered MUST surface a typed block reason; silent stripping of <script>, autoplay media, or active SVG handlers is non-conforming."
+    },
+
+    "connectivity_state": {
+      "type": "string",
+      "enum": [
+        "local_not_applicable",
+        "connected_verified",
+        "connected_unverified",
+        "disconnected_static_snapshot",
+        "disconnected_metadata_only"
+      ],
+      "description": "Connectivity-state re-exported verbatim from schemas/security/trust_class.schema.json#connectivity_state."
+    },
+
+    "trust_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_class",
+        "sandbox_posture_class",
+        "active_content_policy_class"
+      ],
+      "properties": {
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "sandbox_posture_class": { "$ref": "#/$defs/sandbox_posture_class" },
+        "active_content_policy_class": { "$ref": "#/$defs/active_content_policy_class" },
+        "connectivity_state": { "$ref": "#/$defs/connectivity_state" },
+        "trust_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Trust posture the viewer projects. Must be consistent with the notebook cell output, preview runtime, and terminal scrollback trust class for the same source_identity_ref + execution_context_record_ref tuple."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness-class re-exported verbatim from schemas/governance/capability_lifecycle.schema.json#freshness_class."
+    },
+
+    "freshness_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class", "disclosed_label"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "disclosed_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Freshness class plus a typed reviewer-visible disclosure label."
+    },
+
+    "source_identity_class": {
+      "type": "string",
+      "enum": [
+        "shell_command_invocation",
+        "task_run",
+        "kernel_cell",
+        "test_run",
+        "build_pipeline",
+        "debug_session",
+        "container_log",
+        "remote_process",
+        "diagnostic_producer",
+        "imported_artifact",
+        "snapshot_source"
+      ],
+      "description": "Closed source-identity vocabulary naming what produced the output."
+    },
+
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_identity_class", "source_ref", "source_label"],
+      "properties": {
+        "source_identity_class": { "$ref": "#/$defs/source_identity_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Identity of the producer the viewer is rendering. Stable across viewer refreshes within the same run."
+    },
+
+    "run_or_kernel_kind": {
+      "type": "string",
+      "enum": [
+        "task_run",
+        "kernel_session",
+        "test_run",
+        "build_run",
+        "debug_session",
+        "shell_session",
+        "remote_process_session",
+        "not_applicable"
+      ],
+      "description": "Closed run-or-kernel-kind vocabulary. Imported or snapshot origins MAY use not_applicable."
+    },
+
+    "run_or_kernel_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/run_or_kernel_kind" },
+        "ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Optional run-or-kernel-session pin. A runnable origin MUST carry a non-null ref and label; not_applicable MAY omit them."
+    },
+
+    "count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "exact" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": { "const": "approximate" },
+            "value": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "unknown" }
+          }
+        }
+      ],
+      "description": "Exact / approximate / unknown numeric truth."
+    },
+
+    "large_output_action_class": {
+      "type": "string",
+      "enum": [
+        "no_action_required",
+        "materialize_virtualized",
+        "open_in_detail_panel",
+        "fetch_on_demand",
+        "export_only_no_inline_rendering",
+        "deny_inline_size_over_budget"
+      ],
+      "description": "Closed large-output action vocabulary. A viewer whose size_bucket is large, very_large, or unbounded_stream MUST NOT emit no_action_required."
+    },
+
+    "size_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "size_bucket",
+        "byte_count",
+        "line_or_row_count",
+        "disclosed_label",
+        "large_output_action_class"
+      ],
+      "properties": {
+        "size_bucket": { "$ref": "#/$defs/size_bucket" },
+        "byte_count": { "$ref": "#/$defs/count_value" },
+        "line_or_row_count": { "$ref": "#/$defs/count_value" },
+        "disclosed_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "large_output_action_class": { "$ref": "#/$defs/large_output_action_class" }
+      },
+      "description": "Size disclosure. The size bucket remains visible regardless of viewer_mode; opening the detail panel MUST NOT hide the bucket, byte count, or line/row count."
+    },
+
+    "truncation_owner": {
+      "type": "string",
+      "enum": ["none", "client", "provider"],
+      "description": "Who imposed the current truncation."
+    },
+
+    "truncation_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "head_truncated",
+        "tail_truncated",
+        "middle_elided",
+        "range_trimmed"
+      ],
+      "description": "Closed truncation-state vocabulary."
+    },
+
+    "truncation_reason": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "size_limit_client",
+        "size_limit_provider",
+        "retention_window_provider",
+        "rate_limit_provider",
+        "redaction_applied",
+        "policy_block",
+        "representation_forced_textual"
+      ],
+      "description": "Closed truncation-reason vocabulary. redaction_applied MUST NOT be flattened into size_limit_client."
+    },
+
+    "truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "state", "truncation_reason"],
+      "properties": {
+        "owner": { "$ref": "#/$defs/truncation_owner" },
+        "state": { "$ref": "#/$defs/truncation_state" },
+        "summary_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "truncation_reason": { "$ref": "#/$defs/truncation_reason" },
+        "omitted_count": { "$ref": "#/$defs/count_value" }
+      },
+      "description": "Client- or provider-owned truncation disclosure. Silent truncation is non-conforming."
+    },
+
+    "search_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_only",
+        "loaded_window",
+        "full_source",
+        "not_applicable"
+      ],
+      "description": "Closed search-scope vocabulary. A search that only scans the visible window MUST NOT be labeled full-source."
+    },
+
+    "bookmark_scope_class": {
+      "type": "string",
+      "enum": [
+        "viewer_line",
+        "source_line",
+        "anchor_ref_based",
+        "not_applicable"
+      ],
+      "description": "Closed bookmark-scope vocabulary."
+    },
+
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "formatted",
+        "sanitized",
+        "metadata_only"
+      ],
+      "description": "Representation class re-exported from the live-set contract."
+    },
+
+    "copy_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_rows_or_events",
+        "anchored_selection",
+        "loaded_materialized_set",
+        "named_snapshot_only",
+        "metadata_only"
+      ],
+      "description": "Copy-scope class re-exported from the live-set contract."
+    },
+
+    "export_scope_class": {
+      "type": "string",
+      "enum": [
+        "visible_rows_or_events",
+        "loaded_materialized_set",
+        "provider_raw_download",
+        "named_snapshot_only",
+        "metadata_only"
+      ],
+      "description": "Export-scope class re-exported from the live-set contract."
+    },
+
+    "buffered_change_visibility": {
+      "type": "string",
+      "enum": [
+        "excluded_until_jump",
+        "included_after_jump",
+        "not_applicable"
+      ],
+      "description": "Buffered-change visibility re-exported from the live-set contract."
+    },
+
+    "follow_mode": {
+      "type": "string",
+      "enum": [
+        "follow_latest",
+        "manual_scroll",
+        "frozen",
+        "not_applicable"
+      ],
+      "description": "Follow / autoscroll mode re-exported from the live-set contract."
+    },
+
+    "jump_action_class": {
+      "type": "string",
+      "enum": [
+        "show_new_results",
+        "jump_to_latest",
+        "resume_live",
+        "not_applicable"
+      ],
+      "description": "Reveal / resume action class. Extends the live-set jump vocabulary with not_applicable for non-live origins."
+    },
+
+    "textual_fallback_class": {
+      "type": "string",
+      "enum": [
+        "not_offered",
+        "offered_for_accessibility",
+        "offered_for_blocked_active_content",
+        "offered_for_size_over_budget",
+        "offered_for_policy",
+        "required_by_policy"
+      ],
+      "description": "Closed textual-fallback vocabulary."
+    },
+
+    "search_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "search_scope_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "search_scope_class": { "$ref": "#/$defs/search_scope_class" },
+        "scope_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Search control posture."
+    },
+
+    "bookmark_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "bookmark_scope_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "bookmark_scope_class": { "$ref": "#/$defs/bookmark_scope_class" }
+      },
+      "description": "Bookmark control posture."
+    },
+
+    "copy_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "copy_scope_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "copy_scope_class": { "$ref": "#/$defs/copy_scope_class" }
+      },
+      "description": "Copy control posture."
+    },
+
+    "export_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "export_scope_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "export_scope_class": { "$ref": "#/$defs/export_scope_class" }
+      },
+      "description": "Export control posture."
+    },
+
+    "freeze_autoscroll_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "current_follow_mode"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "current_follow_mode": { "$ref": "#/$defs/follow_mode" },
+        "toggle_action_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Freeze / autoscroll control. Must agree with the referenced live_set_state_record follow mode when origin_class is live_stream."
+    },
+
+    "jump_to_latest_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "jump_action_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "jump_action_class": { "$ref": "#/$defs/jump_action_class" },
+        "action_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Jump-to-latest / resume-live control posture."
+    },
+
+    "textual_fallback_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "textual_fallback_class"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "textual_fallback_class": { "$ref": "#/$defs/textual_fallback_class" },
+        "action_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Textual-fallback control posture."
+    },
+
+    "large_output_disclosure_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation_class",
+        "buffered_change_visibility",
+        "disclosed_label"
+      ],
+      "properties": {
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "buffered_change_visibility": { "$ref": "#/$defs/buffered_change_visibility" },
+        "disclosed_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Large-output disclosure: representation class, buffered-change visibility, and a reviewer-visible summary label."
+    },
+
+    "control_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "search",
+        "bookmark",
+        "copy",
+        "export",
+        "freeze_autoscroll",
+        "jump_to_latest",
+        "textual_fallback",
+        "large_output_disclosure"
+      ],
+      "properties": {
+        "search": { "$ref": "#/$defs/search_control" },
+        "bookmark": { "$ref": "#/$defs/bookmark_control" },
+        "copy": { "$ref": "#/$defs/copy_control" },
+        "export": { "$ref": "#/$defs/export_control" },
+        "freeze_autoscroll": { "$ref": "#/$defs/freeze_autoscroll_control" },
+        "jump_to_latest": { "$ref": "#/$defs/jump_to_latest_control" },
+        "textual_fallback": { "$ref": "#/$defs/textual_fallback_control" },
+        "large_output_disclosure": { "$ref": "#/$defs/large_output_disclosure_control" }
+      },
+      "description": "Control contract covering search, bookmark, copy, export, freeze / autoscroll, jump-to-latest, textual fallback, and large-output disclosure."
+    },
+
+    "artifact_origin_class": {
+      "type": "string",
+      "enum": [
+        "canonical_source",
+        "generated_artifact",
+        "mirrored_artifact",
+        "imported_artifact",
+        "preview_projection"
+      ],
+      "description": "Artifact-origin class re-exported verbatim from schemas/generated/artifact_edit_posture.schema.json#artifact_origin_class."
+    },
+
+    "provenance_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "diverged_from_generator",
+        "unknown_lineage",
+        "mock_provenance",
+        "mirror_drift"
+      ],
+      "description": "Provenance state re-exported verbatim from schemas/generated/artifact_edit_posture.schema.json#provenance_state."
+    },
+
+    "default_edit_posture": {
+      "type": "string",
+      "enum": [
+        "edit_here",
+        "edit_canonical_source",
+        "regenerate_from_source",
+        "structured_safe_edit",
+        "inspect_read_only",
+        "replace_by_mirror_promotion",
+        "clear_or_reexecute"
+      ],
+      "description": "Default edit posture re-exported verbatim from schemas/generated/artifact_edit_posture.schema.json#default_edit_posture."
+    },
+
+    "artifact_edit_posture_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_origin_class",
+        "provenance_state",
+        "default_edit_posture"
+      ],
+      "properties": {
+        "artifact_origin_class": { "$ref": "#/$defs/artifact_origin_class" },
+        "provenance_state": { "$ref": "#/$defs/provenance_state" },
+        "default_edit_posture": { "$ref": "#/$defs/default_edit_posture" },
+        "edit_posture_record_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Compact projection of an artifact_edit_posture_record pinned by reference. Required when origin_class is imported_artifact; optional when the viewer renders a generated artifact, mirrored artifact, or preview projection."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy, identity-mode, and trust context the record was minted under. Shared with the live-set contract."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from other boundary contracts. MUST match the redaction class of any companion live-set record for the same source identity."
+    },
+
+    "capture_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "basis_label"],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "basis_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "basis_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Static basis for cached_playback, imported_artifact, or snapshot_capture origins."
+    },
+
+    "output_viewer_object_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "output_viewer_object_schema_version",
+        "viewer_id",
+        "viewer_family",
+        "scope_ref",
+        "output_class",
+        "size_bucket",
+        "viewer_mode",
+        "origin_class",
+        "trust_posture",
+        "freshness",
+        "source_identity",
+        "size_disclosure",
+        "truncation",
+        "control_contract",
+        "policy_context",
+        "redaction_class",
+        "review_summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "output_viewer_object_record" },
+        "output_viewer_object_schema_version": {
+          "$ref": "#/$defs/output_viewer_object_schema_version"
+        },
+        "viewer_id": { "$ref": "#/$defs/opaque_id" },
+        "viewer_family": { "$ref": "#/$defs/viewer_family" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "output_class": { "$ref": "#/$defs/output_class" },
+        "size_bucket": { "$ref": "#/$defs/size_bucket" },
+        "viewer_mode": { "$ref": "#/$defs/viewer_mode" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "freshness": { "$ref": "#/$defs/freshness_disclosure" },
+        "source_identity": { "$ref": "#/$defs/source_identity" },
+        "run_or_kernel_ref": { "$ref": "#/$defs/run_or_kernel_ref" },
+        "execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the execution-context record the runnable resolved through. Pass-through; this record does not duplicate execution-context fields."
+        },
+        "live_set_state_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to a live_set_state_record that owns delivery, buffering, anchor, batch, follow, provider-limit, schema-drift, and windowing / truncation honesty. Required (non-null) when origin_class is live_stream; MUST be null otherwise."
+        },
+        "preview_snapshot_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to a preview_snapshot_record when the viewer is an artifact preview that carries a preview snapshot. Null otherwise."
+        },
+        "artifact_edit_posture": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_edit_posture_pin" }
+          ],
+          "description": "Artifact-edit-posture projection. Required (non-null) when origin_class is imported_artifact; optional when origin_class is live_stream / cached_playback / snapshot_capture."
+        },
+        "capture_basis": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/capture_basis" }
+          ],
+          "description": "Static basis for the captured or imported content. Required (non-null) for cached_playback, imported_artifact, and snapshot_capture origins; MUST be null for live_stream."
+        },
+        "size_disclosure": { "$ref": "#/$defs/size_disclosure" },
+        "truncation": { "$ref": "#/$defs/truncation" },
+        "control_contract": { "$ref": "#/$defs/control_contract" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "review_summary_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Live-stream origin MUST cite a live_set_state_record by reference.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": { "origin_class": { "const": "live_stream" } }
+          },
+          "then": {
+            "type": "object",
+            "required": ["live_set_state_ref", "capture_basis"],
+            "properties": {
+              "live_set_state_ref": { "type": "string", "minLength": 1 },
+              "capture_basis": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Non-live origins MUST leave live_set_state_ref null (the live-set contract is the live-stream authority).",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["cached_playback", "imported_artifact", "snapshot_capture"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["live_set_state_ref", "capture_basis"],
+            "properties": {
+              "live_set_state_ref": { "type": "null" },
+              "capture_basis": {
+                "type": "object",
+                "required": ["captured_at", "basis_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Only live_stream origins MAY declare authoritative_live freshness.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["cached_playback", "imported_artifact", "snapshot_capture"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "freshness": {
+                "type": "object",
+                "properties": {
+                  "freshness_class": {
+                    "not": { "const": "authoritative_live" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Large, very_large, and unbounded_stream size buckets MUST NOT emit no_action_required.",
+          "if": {
+            "type": "object",
+            "required": ["size_bucket"],
+            "properties": {
+              "size_bucket": {
+                "enum": ["large", "very_large", "unbounded_stream"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "size_disclosure": {
+                "type": "object",
+                "properties": {
+                  "large_output_action_class": {
+                    "not": { "const": "no_action_required" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Unbounded streams MUST NOT materialize inline.",
+          "if": {
+            "type": "object",
+            "required": ["size_bucket"],
+            "properties": {
+              "size_bucket": { "const": "unbounded_stream" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "viewer_mode": {
+                "enum": [
+                  "virtualized",
+                  "open_detail",
+                  "blocked_active_content",
+                  "textual_fallback",
+                  "snapshot_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "viewer_mode = blocked_active_content MUST carry a typed textual fallback.",
+          "if": {
+            "type": "object",
+            "required": ["viewer_mode"],
+            "properties": { "viewer_mode": { "const": "blocked_active_content" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "control_contract": {
+                "type": "object",
+                "properties": {
+                  "textual_fallback": {
+                    "type": "object",
+                    "required": ["available", "textual_fallback_class"],
+                    "properties": {
+                      "available": { "const": true },
+                      "textual_fallback_class": {
+                        "not": { "const": "not_offered" }
+                      }
+                    }
+                  }
+                }
+              },
+              "trust_posture": {
+                "type": "object",
+                "properties": {
+                  "active_content_policy_class": {
+                    "enum": [
+                      "active_content_blocked_trust",
+                      "active_content_blocked_policy",
+                      "active_content_blocked_sandbox",
+                      "active_content_blocked_representation"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "viewer_mode = textual_fallback MUST advertise the fallback control as available.",
+          "if": {
+            "type": "object",
+            "required": ["viewer_mode"],
+            "properties": { "viewer_mode": { "const": "textual_fallback" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "control_contract": {
+                "type": "object",
+                "properties": {
+                  "textual_fallback": {
+                    "type": "object",
+                    "properties": {
+                      "available": { "const": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "viewer_mode = snapshot_review MUST have origin_class snapshot_capture, cached_playback, or imported_artifact and MUST NOT claim authoritative_live.",
+          "if": {
+            "type": "object",
+            "required": ["viewer_mode"],
+            "properties": { "viewer_mode": { "const": "snapshot_review" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "origin_class": {
+                "enum": ["cached_playback", "imported_artifact", "snapshot_capture"]
+              }
+            }
+          }
+        },
+        {
+          "description": "trust_class = RawText requires not_applicable_no_active_content and a typed no-active-content posture.",
+          "if": {
+            "type": "object",
+            "required": ["trust_posture"],
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "required": ["trust_class"],
+                "properties": { "trust_class": { "const": "RawText" } }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "properties": {
+                  "sandbox_posture_class": { "const": "not_applicable_no_active_content" },
+                  "active_content_policy_class": {
+                    "enum": [
+                      "no_active_content_present",
+                      "active_content_blocked_representation"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "trust_class = IsolatedRemoteActive requires a sandbox posture in {sandbox_isolated, sandbox_restricted, sandbox_unavailable}.",
+          "if": {
+            "type": "object",
+            "required": ["trust_posture"],
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "required": ["trust_class"],
+                "properties": {
+                  "trust_class": { "const": "IsolatedRemoteActive" }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "properties": {
+                  "sandbox_posture_class": {
+                    "enum": [
+                      "sandbox_isolated",
+                      "sandbox_restricted",
+                      "sandbox_unavailable"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "active_content_policy_class = active_content_allowed requires a trust class that admits active content and a sandbox posture that is not unavailable.",
+          "if": {
+            "type": "object",
+            "required": ["trust_posture"],
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "required": ["active_content_policy_class"],
+                "properties": {
+                  "active_content_policy_class": { "const": "active_content_allowed" }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "properties": {
+                  "trust_class": {
+                    "enum": ["TrustedLocalActive", "IsolatedRemoteActive"]
+                  },
+                  "sandbox_posture_class": {
+                    "not": { "const": "sandbox_unavailable" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "origin_class = imported_artifact MUST carry an artifact-edit-posture projection naming artifact_origin_class in the imported / mirrored / generated / preview_projection family (never canonical_source).",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": { "origin_class": { "const": "imported_artifact" } }
+          },
+          "then": {
+            "type": "object",
+            "required": ["artifact_edit_posture"],
+            "properties": {
+              "artifact_edit_posture": {
+                "type": "object",
+                "required": ["artifact_origin_class", "provenance_state", "default_edit_posture"],
+                "properties": {
+                  "artifact_origin_class": {
+                    "not": { "const": "canonical_source" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "origin_class = snapshot_capture MUST carry read-only copy / export posture (named_snapshot_only or metadata_only) and MUST NOT claim live follow.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": { "origin_class": { "const": "snapshot_capture" } }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "control_contract": {
+                "type": "object",
+                "properties": {
+                  "copy": {
+                    "type": "object",
+                    "properties": {
+                      "copy_scope_class": {
+                        "enum": ["named_snapshot_only", "metadata_only", "anchored_selection", "visible_rows_or_events"]
+                      }
+                    }
+                  },
+                  "export": {
+                    "type": "object",
+                    "properties": {
+                      "export_scope_class": {
+                        "enum": ["named_snapshot_only", "metadata_only"]
+                      }
+                    }
+                  },
+                  "freeze_autoscroll": {
+                    "type": "object",
+                    "properties": {
+                      "current_follow_mode": {
+                        "enum": ["frozen", "not_applicable", "manual_scroll"]
+                      }
+                    }
+                  },
+                  "jump_to_latest": {
+                    "type": "object",
+                    "properties": {
+                      "jump_action_class": { "const": "not_applicable" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Runnable source identities MUST carry a run_or_kernel_ref with a non-not_applicable kind, a ref, and a label.",
+          "if": {
+            "type": "object",
+            "required": ["source_identity"],
+            "properties": {
+              "source_identity": {
+                "type": "object",
+                "required": ["source_identity_class"],
+                "properties": {
+                  "source_identity_class": {
+                    "enum": [
+                      "shell_command_invocation",
+                      "task_run",
+                      "kernel_cell",
+                      "test_run",
+                      "build_pipeline",
+                      "debug_session",
+                      "remote_process"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["run_or_kernel_ref"],
+            "properties": {
+              "run_or_kernel_ref": {
+                "type": "object",
+                "required": ["kind", "ref", "label"],
+                "properties": {
+                  "kind": {
+                    "not": { "const": "not_applicable" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "binary_artifact_preview and media_artifact_preview MUST NOT render inline unless the viewer has declared a trust-cleared posture (trust_class in {SanitizedRich, TrustedLocalActive}) and an active-content policy that is not blocked.",
+          "if": {
+            "type": "object",
+            "required": ["output_class", "viewer_mode"],
+            "properties": {
+              "output_class": {
+                "enum": ["binary_artifact_preview", "media_artifact_preview"]
+              },
+              "viewer_mode": { "const": "inline" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_posture": {
+                "type": "object",
+                "properties": {
+                  "trust_class": {
+                    "enum": ["SanitizedRich", "TrustedLocalActive"]
+                  },
+                  "active_content_policy_class": {
+                    "enum": [
+                      "no_active_content_present",
+                      "active_content_allowed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Truncation state = none pairs with truncation_reason = not_applicable; any non-none state requires a reason other than not_applicable.",
+          "if": {
+            "type": "object",
+            "required": ["truncation"],
+            "properties": {
+              "truncation": {
+                "type": "object",
+                "required": ["state"],
+                "properties": { "state": { "const": "none" } }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "truncation": {
+                "type": "object",
+                "properties": {
+                  "owner": { "const": "none" },
+                  "truncation_reason": { "const": "not_applicable" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-none truncation states require owner in {client, provider} and truncation_reason != not_applicable.",
+          "if": {
+            "type": "object",
+            "required": ["truncation"],
+            "properties": {
+              "truncation": {
+                "type": "object",
+                "required": ["state"],
+                "properties": {
+                  "state": {
+                    "enum": ["head_truncated", "tail_truncated", "middle_elided", "range_trimmed"]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "truncation": {
+                "type": "object",
+                "required": ["summary_label"],
+                "properties": {
+                  "owner": {
+                    "enum": ["client", "provider"]
+                  },
+                  "truncation_reason": {
+                    "not": { "const": "not_applicable" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
