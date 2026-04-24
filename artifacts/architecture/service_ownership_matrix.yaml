@@ -1,0 +1,516 @@
+schema_version: 1
+artifact_id: aureline.service_ownership_matrix
+title: Host-class, service-plane, and M0-artifact runtime ownership matrix
+overview_document: docs/architecture/process_topology.md
+
+# Companion artifacts. Host-class ids in this file MUST appear in
+# runtime_host_classes.yaml; service sub-plane ids MUST appear in
+# process_placement_map.yaml and plane_matrix.yaml; M0 artifact family
+# ids MUST appear in plane_matrix.yaml. Rows do not re-declare the
+# attributes those files own.
+companion_refs:
+  runtime_host_classes_ref: artifacts/architecture/runtime_host_classes.yaml
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  plane_matrix_ref: artifacts/architecture/plane_matrix.yaml
+  trust_boundary_matrix_ref: artifacts/architecture/trust_boundaries.yaml
+  dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+  package_inventory_ref: artifacts/governance/package_inventory.yaml
+  governance_ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+  process_topology_doc_ref: docs/architecture/process_topology.md
+
+# Why this file exists:
+#
+#   runtime_host_classes.yaml declares the twelve host classes and their
+#   per-class attributes. process_placement_map.yaml declares the service
+#   sub-planes and inline-work policy. Neither file answers:
+#
+#     - which host class runs a given service plane,
+#     - which host class owns a given M0 artifact family at runtime,
+#     - which host class owns the diagnostic and export packet pipeline, or
+#     - where the shell-spike intentionally runs inline in place of the
+#       target host class.
+#
+#   This file is that join table. It is the authoritative ownership map
+#   that supervision, support, and mixed-version tasks cite.
+
+# --------------------------------------------------------------------------
+# Host class ownership.
+#
+# Each host-class id appears exactly once. The row declares which service
+# sub-planes the host owns at runtime, any supervising host, and the
+# diagnostic-export chain the host reports through.
+# --------------------------------------------------------------------------
+host_class_ownership:
+  - host_class_id: desktop_shell
+    owning_service_sub_planes:
+      - shell_ui
+      - renderer
+      - text_buffer
+    supervising_host_class: null
+    authoritative_state_kind: shell_owned_authoritative
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: subject_of_redacted_view_state_snapshots
+    notes: >
+      The shell owns visible view state and command routing. Focus,
+      caret/selection, and local layout are shell-owned truth.
+
+  - host_class_id: local_supervisor
+    owning_service_sub_planes:
+      - remote_helper
+    supervising_host_class: null
+    authoritative_state_kind: supervisor_lifecycle_truth
+    supervises_host_classes:
+      - index_workers
+      - language_hosts
+      - debug_hosts
+      - git_worker
+      - pty_host
+      - wasm_host_pool
+      - external_extension_hosts
+      - ai_runtime
+      - remote_connector
+      - observability_collector
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: declares_child_restart_budget_and_quarantine_state
+    notes: >
+      Supervisor is authoritative for worker lifecycle, health, and
+      typed RPC routing. It is NOT authoritative for workspace
+      content or provider conversations.
+
+  - host_class_id: index_workers
+    owning_service_sub_planes:
+      - vfs_watchers
+      - index_search
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: worker_owned_authoritative_knowledge
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_knowledge_freshness_and_coverage_snapshots
+    notes: >
+      Canonical-path identity, save pipeline, watcher truth, and
+      search/graph shards live here. Partial/stale answers are
+      surfaced; the shell never blocks on knowledge work.
+
+  - host_class_id: language_hosts
+    owning_service_sub_planes:
+      - task_execution
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: per_session_ephemeral
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_language_server_session_state_and_restart_budget
+    notes: >
+      LSP servers and semantic adapters. State is per-session; crash
+      loops are quarantined.
+
+  - host_class_id: debug_hosts
+    owning_service_sub_planes:
+      - task_execution
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: per_session_ephemeral
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_debug_adapter_lifecycle_and_route_origin
+    notes: >
+      DAP adapters and debug session bridging. One failing adapter
+      MUST NOT take down concurrent sessions.
+
+  - host_class_id: git_worker
+    owning_service_sub_planes:
+      - task_execution
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: per_session_ephemeral
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_repo_operation_trace_and_credential_redaction
+    notes: >
+      Repository status, diff, blame, history, rebase/merge helper
+      execution. Long-running Git operations never block the input
+      path.
+
+  - host_class_id: pty_host
+    owning_service_sub_planes:
+      - task_execution
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: per_session_ephemeral
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_terminal_session_state_and_scrollback_handoff
+    notes: >
+      PTY sessions and terminal scrollback. Scrollback is handed off
+      to the collector through typed events; the shell stays usable
+      if the PTY host fails.
+
+  - host_class_id: wasm_host_pool
+    owning_service_sub_planes:
+      - ai_control_plane
+    additional_owned_responsibility_anchors:
+      - wasm_capability_host
+      - recipe_and_automation_runtime
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: sandbox_ephemeral
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_sandbox_manifest_and_quarantine_state
+    notes: >
+      Wasm extension components and recipe/automation runtimes. No
+      ambient privilege from the shell.
+
+  - host_class_id: external_extension_hosts
+    owning_service_sub_planes:
+      - ai_control_plane
+    additional_owned_responsibility_anchors:
+      - external_extension_host
+      - vscode_compatibility_bridge
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: external_process_owned
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_external_extension_host_lifecycle_and_permission_state
+    notes: >
+      Third-party extension processes. Heavily isolated; quarantined
+      on crash-loop budget breach.
+
+  - host_class_id: ai_runtime
+    owning_service_sub_planes:
+      - ai_control_plane
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: provider_owned_remote
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_ai_route_posture_and_policy_decisions
+    notes: >
+      Context composition, provider routing, tool planning. May run
+      as a local helper or as a managed boundary; never blocks core
+      editing.
+
+  - host_class_id: remote_connector
+    owning_service_sub_planes:
+      - remote_helper
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: provider_owned_remote
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: contributes_transport_capability_and_disconnect_posture
+    notes: >
+      SSH/container/agent transport and mount metadata. Disconnect
+      degrades remote features, not local stability.
+
+  - host_class_id: observability_collector
+    owning_service_sub_planes:
+      - support_diagnostics
+    supervising_host_class: local_supervisor
+    authoritative_state_kind: collector_owned_bounded
+    diagnostic_export_chain:
+      emits_audit_stream_to: observability_collector
+      packet_owner: observability_collector
+      support_bundle_role: owns_the_support_bundle_packet_assembly
+    notes: >
+      Logs, traces, perf counters, support bundles. Bounded retention
+      and non-blocking writes.
+
+# --------------------------------------------------------------------------
+# Service sub-plane ownership.
+#
+# Each service sub-plane id from process_placement_map.yaml names the
+# primary host class that runs it. Additional host classes may contribute
+# (for example, task_execution runs on four helper host classes). The
+# primary host class is the runtime home; co-hosts are declared explicitly.
+# --------------------------------------------------------------------------
+service_sub_plane_ownership:
+  - sub_plane_id: shell_ui
+    primary_host_class: desktop_shell
+    cohost_host_classes: []
+    notes: Shell/UI is resident in the desktop shell process.
+
+  - sub_plane_id: renderer
+    primary_host_class: desktop_shell
+    cohost_host_classes: []
+    notes: Renderer is resident in the desktop shell process.
+
+  - sub_plane_id: text_buffer
+    primary_host_class: desktop_shell
+    cohost_host_classes:
+      - index_workers
+    notes: >
+      Visible edit state is shell-resident. Large-file derived data
+      and background analysis run on index_workers and surface a
+      freshness lane.
+
+  - sub_plane_id: vfs_watchers
+    primary_host_class: index_workers
+    cohost_host_classes: []
+    notes: >
+      Canonical-path identity, save pipeline, and watcher truth live
+      on the knowledge worker group. The shell and renderer MUST NOT
+      perform filesystem I/O inline.
+
+  - sub_plane_id: index_search
+    primary_host_class: index_workers
+    cohost_host_classes: []
+    notes: >
+      Lexical index, symbol extraction, semantic graph. Partial
+      answers surface rather than block.
+
+  - sub_plane_id: task_execution
+    primary_host_class: language_hosts
+    cohost_host_classes:
+      - debug_hosts
+      - git_worker
+      - pty_host
+    notes: >
+      Task/test launch, debug orchestration, terminal sessions, Git
+      worker operations, and execution-context resolution are split
+      across the four execution-helper host classes. No task launch
+      runs inline in the shell.
+
+  - sub_plane_id: remote_helper
+    primary_host_class: remote_connector
+    cohost_host_classes:
+      - local_supervisor
+    notes: >
+      Remote connector runs the transport; the supervisor routes
+      typed RPC between the shell and worker pools. Alternate
+      transport bypass is forbidden.
+
+  - sub_plane_id: ai_control_plane
+    primary_host_class: ai_runtime
+    cohost_host_classes:
+      - wasm_host_pool
+      - external_extension_hosts
+    notes: >
+      AI routing and provider broker live on the AI runtime. The AI
+      tool broker MAY invoke capabilities hosted on the Wasm pool or
+      external extension hosts under declared permissions.
+
+  - sub_plane_id: updater_release
+    primary_host_class: null
+    host_class_exception_ref: updater_installer_helper_not_yet_a_frozen_host_class
+    cohost_host_classes:
+      - local_supervisor
+    deferred_to_m1: true
+    notes: >
+      No M0-seeded packages yet. The supervisor is authoritative for
+      scheduling an updater/installer helper process when the row
+      lands; until then the row MUST NOT run inline in the shell.
+
+  - sub_plane_id: support_diagnostics
+    primary_host_class: observability_collector
+    cohost_host_classes: []
+    notes: >
+      Tracing, metrics, crash capture, support export, and benchmark
+      evidence collection. Non-blocking on protected paths.
+
+# --------------------------------------------------------------------------
+# M0 artifact family ownership at runtime.
+#
+# Rows name the host class that runs the artifact family's runtime state.
+# Authoring ownership lives in plane_matrix.yaml (anchors per family);
+# this file records where the runtime state lives.
+# --------------------------------------------------------------------------
+m0_artifact_family_ownership:
+  - artifact_family: shell_interaction_and_command_graph
+    primary_host_class: desktop_shell
+    cohost_host_classes: []
+  - artifact_family: renderer_and_text_shaping
+    primary_host_class: desktop_shell
+    cohost_host_classes: []
+  - artifact_family: buffer_undo_and_text_model
+    primary_host_class: desktop_shell
+    cohost_host_classes:
+      - index_workers
+  - artifact_family: vfs_identity_save_and_watchers
+    primary_host_class: index_workers
+    cohost_host_classes: []
+  - artifact_family: search_readiness_and_result_truth
+    primary_host_class: index_workers
+    cohost_host_classes: []
+  - artifact_family: execution_context_and_scope
+    primary_host_class: language_hosts
+    cohost_host_classes:
+      - debug_hosts
+      - git_worker
+      - pty_host
+      - remote_connector
+  - artifact_family: internal_rpc_and_subscription
+    primary_host_class: local_supervisor
+    cohost_host_classes:
+      - remote_connector
+  - artifact_family: extension_manifest_and_permissions
+    primary_host_class: wasm_host_pool
+    cohost_host_classes:
+      - external_extension_hosts
+  - artifact_family: ai_context_and_policy
+    primary_host_class: ai_runtime
+    cohost_host_classes:
+      - wasm_host_pool
+      - external_extension_hosts
+  - artifact_family: identity_trust_and_credential
+    primary_host_class: local_supervisor
+    cohost_host_classes:
+      - observability_collector
+  - artifact_family: settings_effective_config_and_policy
+    primary_host_class: local_supervisor
+    cohost_host_classes:
+      - observability_collector
+  - artifact_family: release_build_identity_and_provenance
+    primary_host_class: null
+    host_class_exception_ref: updater_installer_helper_not_yet_a_frozen_host_class
+    cohost_host_classes:
+      - local_supervisor
+      - observability_collector
+  - artifact_family: support_bundle_and_observability
+    primary_host_class: observability_collector
+    cohost_host_classes: []
+  - artifact_family: docs_help_and_service_health_truth
+    primary_host_class: observability_collector
+    cohost_host_classes:
+      - local_supervisor
+  - artifact_family: capability_lifecycle_and_dependency_markers
+    primary_host_class: local_supervisor
+    cohost_host_classes:
+      - observability_collector
+  - artifact_family: boundary_manifest_and_deployment_profiles
+    primary_host_class: local_supervisor
+    cohost_host_classes:
+      - remote_connector
+      - observability_collector
+
+# --------------------------------------------------------------------------
+# Diagnostic and export packet ownership.
+#
+# The observability_collector host class is the single packet owner. Every
+# other host class emits typed audit/event streams through one of the
+# declared IPC families. No other host class may assemble or sign a
+# support/export packet.
+# --------------------------------------------------------------------------
+diagnostic_export_ownership:
+  packet_owner_host_class: observability_collector
+  packet_owner_sub_plane: support_diagnostics
+  emitter_host_classes:
+    - desktop_shell
+    - local_supervisor
+    - index_workers
+    - language_hosts
+    - debug_hosts
+    - git_worker
+    - pty_host
+    - wasm_host_pool
+    - external_extension_hosts
+    - ai_runtime
+    - remote_connector
+    - observability_collector
+  allowed_emitter_ipc_families:
+    - audit_event_stream
+    - event_stream
+    - typed_binary_rpc
+  forbidden_practices:
+    - summary: >
+        Assembling a support or export packet anywhere other than
+        observability_collector.
+    - summary: >
+        Emitting diagnostic data through shared memory, globals, or
+        file-drop side channels instead of the declared IPC families.
+    - summary: >
+        Blocking a protected path while waiting on telemetry
+        acknowledgement.
+    - summary: >
+        Exporting a packet without passing redaction policy and
+        workspace-trust admission.
+
+# --------------------------------------------------------------------------
+# Inline-in-shell exceptions.
+#
+# The shell-spike MAY intentionally run a sub-plane inline in the desktop
+# shell process in place of the target host class, ONLY when every
+# following field is declared. Every row here is a temporary deviation
+# from the target topology and MUST carry a migration target.
+#
+# Schema for each row:
+#   id:                         stable id
+#   sub_plane_id:               service sub-plane affected
+#   spike_crate:                crate(s) in which the inline code lives
+#   target_host_class:          host class the runtime state will move to
+#   inline_scope:               the narrow slice that runs inline
+#   forbidden_inline_scopes:    slices that MUST NOT run inline even now
+#   rationale:                  why the spike intentionally differs
+#   migration_trigger:          named milestone or task that retires this
+#                               exception
+#
+# Policy: rows are ADDITIVE only; removing a row is also ADR-gated because
+# downstream tooling may already cite it.
+# --------------------------------------------------------------------------
+inline_in_shell_exceptions: []
+
+# --------------------------------------------------------------------------
+# Deferred host-class anchors.
+#
+# Named slots referenced by service_sub_plane_ownership and
+# m0_artifact_family_ownership rows whose primary_host_class is null.
+# Each anchor explains why the row has no frozen host class today, what
+# the target should become, and whether inline-in-shell operation is
+# permitted in the interim.
+# --------------------------------------------------------------------------
+deferred_host_class_anchors:
+  - id: updater_installer_helper_not_yet_a_frozen_host_class
+    target_shape: >
+      A supervisor-spawned updater/installer helper process running
+      under the managed_boundary_or_helper failure-isolation class
+      and restart_with_backoff restart class. Capabilities: network
+      egress via transport governance, filesystem write via the VFS
+      save pipeline for release artifacts, audit emission.
+    inline_in_shell_permitted_interim: false
+    inline_in_shell_reason: >
+      Install, download, and rollback MUST NOT run on the input or
+      render path even as a spike. The sub-plane stays dormant until
+      a helper host lands.
+    migration_trigger: >
+      When updater_release acquires M0 or M1 seeded packages, this
+      anchor resolves by adding an updater/installer helper host
+      class to runtime_host_classes.yaml and this matrix.
+
+# --------------------------------------------------------------------------
+# Invariants tooling can enforce.
+# --------------------------------------------------------------------------
+invariants:
+  - id: every_m0_subsystem_declares_a_host_class_or_exception
+    summary: >
+      Every service sub-plane listed in process_placement_map.yaml and
+      every M0 artifact family listed in plane_matrix.yaml MUST appear
+      exactly once in service_sub_plane_ownership or
+      m0_artifact_family_ownership respectively, with either a named
+      primary_host_class or a declared host_class_exception_ref.
+  - id: shell_owned_state_is_distinct_from_worker_owned_disposable_state
+    summary: >
+      The shell-owned authoritative state (focus, caret/selection,
+      visible view models) MUST remain distinct from worker-owned
+      disposable state. Index shards, language-host session state,
+      and PTY scrollback are NOT shell-owned.
+  - id: diagnostic_export_has_exactly_one_packet_owner
+    summary: >
+      diagnostic_export_ownership.packet_owner_host_class MUST be
+      observability_collector. Other host classes are emitters only.
+  - id: every_inline_in_shell_exception_names_a_migration_trigger
+    summary: >
+      Every row in inline_in_shell_exceptions MUST declare a
+      migration_trigger field that names a concrete milestone or
+      task. Rows without a trigger are policy violations.
+  - id: deferred_host_classes_do_not_silently_fall_back_to_the_shell
+    summary: >
+      A deferred_host_class_anchor with
+      inline_in_shell_permitted_interim set to false MUST NOT be
+      executed inline in the desktop shell process during the
+      interim; the sub-plane stays dormant until a helper lands.

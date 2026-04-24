@@ -1,0 +1,836 @@
+schema_version: 1
+artifact_id: aureline.runtime_host_classes
+title: Runtime host classes and per-class attributes
+overview_document: docs/architecture/process_topology.md
+
+# Companion artifacts the host-class vocabulary composes with. Host-class
+# identity in this file is authoritative; process-role ids, inline-work
+# policy, and sub-plane placement remain authoritative in the files
+# referenced below. Rows here join back to them by id.
+companion_refs:
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  plane_matrix_ref: artifacts/architecture/plane_matrix.yaml
+  trust_boundary_matrix_ref: artifacts/architecture/trust_boundaries.yaml
+  dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+  service_topology_doc_ref: docs/architecture/service_topology_and_process_placement.md
+  service_ownership_matrix_ref: artifacts/architecture/service_ownership_matrix.yaml
+  tad_process_topology_ref: .t2/docs/Aureline_Technical_Architecture_Document.md#81-process-topology
+  canonical_process_role_matrix_ref: artifacts/milestones/M0_architecture_pack/canonical_matrices.yaml
+
+# Closed vocabulary: every host-class row names exactly one failure
+# isolation class from this list. Adding a class is an ADR-gated change.
+failure_isolation_classes:
+  - id: shell_critical
+    summary: >
+      One per desktop session; loss is user-visible app loss. The shell
+      must survive every non-shell host failure and is never restarted
+      behind the user's back.
+  - id: supervisor_lifecycle
+    summary: >
+      One per desktop session; owns child-worker lifecycle and typed
+      RPC routing. Supervisor death forces a shell-visible degraded
+      mode rather than a silent worker revival.
+  - id: worker_pool_cancellable
+    summary: >
+      Worker pool whose work is idempotent and cancellable. Individual
+      worker death restartable with backoff; partial/stale answers are
+      surfaced rather than suppressed.
+  - id: per_session_helper
+    summary: >
+      One helper per user-visible session (task run, debug session,
+      terminal, Git operation, remote attach). Death isolates to that
+      session; other sessions keep running.
+  - id: per_extension_sandbox
+    summary: >
+      One sandboxed host per sandboxed-extension component or per
+      sandbox pool slot, bounded by declared resource quotas and
+      capability manifest.
+  - id: per_external_extension_process
+    summary: >
+      One OS process per third-party extension host instance; heavy
+      isolation, restartable, and subject to crash-loop quarantine.
+  - id: managed_boundary_or_helper
+    summary: >
+      Either a local helper process or a remote managed boundary.
+      Failure never blocks core editing; capability narrows rather
+      than the shell blocking.
+  - id: collector_bounded
+    summary: >
+      Non-blocking collector with bounded retention and export
+      buffering; writes never block protected paths.
+
+# Closed vocabulary: every host-class row names exactly one restart
+# class.
+restart_classes:
+  - id: never_auto_restart
+    summary: >
+      The host is not silently restarted behind the user. A crash is
+      surfaced; the user chooses recovery.
+  - id: restart_children_on_exit
+    summary: >
+      The host owns restart decisions for its child workers. Own
+      death is shell-visible; child restart uses bounded backoff.
+  - id: restart_with_backoff
+    summary: >
+      Automatic restart with bounded backoff; crash-loop detection
+      forces quarantine and a visible notice.
+  - id: per_session_restart
+    summary: >
+      Restart scoped to one user-visible session; other sessions are
+      unaffected by a crash.
+  - id: quarantine_after_budget
+    summary: >
+      Restart permitted up to a declared budget; past the budget the
+      host is quarantined and the user is notified.
+  - id: manual_only
+    summary: >
+      The user or a support action is required to restart; no silent
+      automatic restart.
+
+# Closed vocabulary: which plane is authoritative for the state a host
+# carries, and whether that state is durable/disposable.
+state_authority_classes:
+  - id: shell_owned_authoritative
+    summary: >
+      Authoritative for visible view models, focus, command routing,
+      local layout, caret/selection, and undo/redo view state. Worker
+      answers never overwrite this state without a typed event.
+  - id: supervisor_lifecycle_truth
+    summary: >
+      Authoritative for worker lifecycle, health, restart budget, and
+      typed RPC routing state. Not authoritative for workspace
+      content.
+  - id: worker_owned_authoritative_knowledge
+    summary: >
+      Authoritative for a knowledge lane (watchers, canonical paths,
+      index shards, semantic graph). Disposable relative to disk
+      truth, but the shell reads it as authoritative knowledge under
+      a declared freshness lane.
+  - id: worker_owned_disposable
+    summary: >
+      Caches, hot-sets, or derived artifacts that may be rebuilt from
+      canonical sources. The shell must treat this as hint-only.
+  - id: per_session_ephemeral
+    summary: >
+      Scoped to one task/debug/terminal/Git session; destroyed with
+      the session. Scrollback, task event logs, and debug state are
+      handed off to the support collector through typed events.
+  - id: sandbox_ephemeral
+    summary: >
+      Scoped to one sandbox instance; destroyed on quarantine or
+      policy revocation. No durable state persists without passing
+      through vfs_watchers or support_diagnostics.
+  - id: external_process_owned
+    summary: >
+      Owned by the third-party extension process; the shell and
+      supervisor treat it as an opaque opponent that only interacts
+      through declared capability and permission surfaces.
+  - id: provider_owned_remote
+    summary: >
+      Owned by a remote provider or managed service; crosses the
+      local_shell_vs_external_systems boundary through transport
+      governance.
+  - id: collector_owned_bounded
+    summary: >
+      Owned by the observability collector; bounded retention, typed
+      schemas, explicit export gates.
+
+# Closed vocabulary: IPC families a host may participate in. Every
+# host-class row names its allowed set.
+ipc_families:
+  - id: typed_binary_rpc
+    summary: Internal typed binary RPC over local sockets/streams.
+    adr_ref: docs/adr/0004-rpc-transport-and-schema-toolchain.md
+  - id: jsonrpc_compat
+    summary: JSON-RPC compatibility RPC (LSP, DAP, some extension bridges).
+  - id: event_stream
+    summary: Append-only typed event streams (task events, diagnostics, progress, logs).
+  - id: command_graph
+    summary: Command graph dispatched through shell/CLI surfaces over typed services.
+  - id: pty_stdio
+    summary: PTY stdio streams for terminal sessions and shell integration.
+  - id: sandbox_capability_call
+    summary: Capability-scoped calls from a Wasm host into declared host functions.
+  - id: external_extension_channel
+    summary: Per-extension-process channel (stdio, pipe, or typed RPC proxy).
+  - id: transport_governance_egress
+    summary: Outbound egress mediated by transport governance (CA trust, proxy, policy).
+  - id: remote_proxy_bridge
+    summary: Remote connector proxy that tunnels typed RPC and event streams.
+  - id: service_api
+    summary: OpenAPI-described HTTP/gRPC-like service APIs for optional managed services.
+  - id: audit_event_stream
+    summary: Typed audit/telemetry event stream consumed by the observability collector.
+
+# Closed vocabulary: declared capabilities a host may or may not exercise.
+# A host-class row lists allowed and forbidden entries; sentinels in
+# artifacts/architecture/protected_path_dependency_rules.yaml enforce
+# forbidden entries on monitored modules.
+capability_classes:
+  - id: input_and_focus
+    summary: Keyboard, pointer, focus, and accessibility-tree authority.
+  - id: scene_composition
+    summary: Visible scene composition, damage classification, frame submit.
+  - id: visible_view_state
+    summary: Local view models, layout, caret/selection, undo view state.
+  - id: command_dispatch
+    summary: Command-graph dispatch entry and routing.
+  - id: bounded_telemetry_emission
+    summary: Non-blocking typed telemetry/trace mark emission.
+  - id: policy_and_admission_queries
+    summary: Read-only policy and workspace-trust queries.
+  - id: audit_emission
+    summary: Typed audit event emission for crossings and decisions.
+  - id: process_lifecycle_management
+    summary: Spawn, restart, and terminate child worker/helper processes.
+  - id: typed_rpc_routing
+    summary: Typed-RPC routing, capability negotiation, deadline enforcement.
+  - id: filesystem_io_via_vfs
+    summary: Filesystem read/write through the VFS save pipeline and watcher state.
+  - id: workspace_scan
+    summary: Workspace scan, hot-set planning, symbol extraction.
+  - id: language_analysis
+    summary: LSP/semantic analysis, hover, completion, diagnostics.
+  - id: debug_adapter_bridging
+    summary: DAP adapter hosting and debug session state bridging.
+  - id: git_operations
+    summary: Repository status, blame, diff, history, rebase/merge helpers.
+  - id: pty_terminal_session
+    summary: PTY allocation, terminal session, scrollback handoff.
+  - id: sandboxed_code_execution
+    summary: Capability-limited sandboxed code execution under declared manifest.
+  - id: external_subprocess_hosting
+    summary: Third-party extension process hosting under declared permissions.
+  - id: ai_routing_and_context
+    summary: AI provider routing, context assembly, tool planning.
+  - id: network_egress
+    summary: Outbound network egress; must pass through transport governance.
+  - id: remote_transport
+    summary: SSH/container/agent transport, mount metadata, remote bridging.
+  - id: telemetry_ingest
+    summary: Ingest typed telemetry/audit streams with bounded retention.
+  - id: support_export_assembly
+    summary: Support-bundle and export packet assembly with redaction.
+
+# Closed vocabulary: disclosure surfaces a host must keep visible.
+# Rows join back to plane_matrix.yaml visibility_expectations and
+# trust_boundaries.yaml disclosure surfaces.
+visibility_surfaces:
+  - focus_and_input_state
+  - command_target_disambiguation
+  - degraded_decoration_or_reduced_motion_notice
+  - safe_mode_or_restricted_workspace_banner
+  - indexing_or_rebuilding_badge
+  - stale_partial_or_verified_truth_lane
+  - watcher_or_external_change_state
+  - execution_context_and_scope_disclosure
+  - remote_versus_local_target_origin
+  - task_or_debug_session_lifecycle_state
+  - transport_disconnect_or_capability_negotiation_posture
+  - extension_permission_scope_and_trust_posture
+  - ai_provider_route_and_policy_posture
+  - ambient_privilege_denial_disclosure
+  - workspace_trust_state
+  - policy_allow_or_deny_reason
+  - support_bundle_redaction_posture
+  - service_reachability_and_mirror_state
+
+# Canonical host classes. The list is frozen at twelve; the ids match
+# the canonical process-role matrix. Adding a host class is an ADR-gated
+# change that must update this file, process_placement_map.yaml, and the
+# canonical-matrices entry for process_role_matrix.
+host_classes:
+  - host_class_id: desktop_shell
+    title: Desktop shell process
+    canonical_process_role: Desktop shell process
+    process_role_ref: desktop_shell_process
+    owning_service_planes:
+      - shell_ui
+      - renderer
+      - text_buffer
+    failure_isolation: shell_critical
+    restart_class: never_auto_restart
+    state_authority: shell_owned_authoritative
+    allowed_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - command_dispatch
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - telemetry_ingest
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - event_stream
+      - command_graph
+      - audit_event_stream
+    visibility_surfaces:
+      - focus_and_input_state
+      - command_target_disambiguation
+      - degraded_decoration_or_reduced_motion_notice
+      - safe_mode_or_restricted_workspace_banner
+    runtime_notes: >
+      Input, rendering, layout, accessibility tree, command routing,
+      and local view models. Shell must survive all non-shell host
+      failures. Visible edits and caret/selection are shell-owned
+      truth; knowledge-plane answers attach through typed events.
+
+  - host_class_id: local_supervisor
+    title: Local supervisor
+    canonical_process_role: Local supervisor
+    process_role_ref: local_supervisor
+    owning_service_planes:
+      - remote_helper
+    supervised_host_classes:
+      - index_workers
+      - language_hosts
+      - debug_hosts
+      - git_worker
+      - pty_host
+      - wasm_host_pool
+      - external_extension_hosts
+      - ai_runtime
+      - remote_connector
+      - observability_collector
+    failure_isolation: supervisor_lifecycle
+    restart_class: restart_children_on_exit
+    state_authority: supervisor_lifecycle_truth
+    allowed_capabilities:
+      - process_lifecycle_management
+      - typed_rpc_routing
+      - policy_and_admission_queries
+      - audit_emission
+      - bounded_telemetry_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - task_or_debug_session_lifecycle_state
+      - transport_disconnect_or_capability_negotiation_posture
+      - policy_allow_or_deny_reason
+    runtime_notes: >
+      Service lifecycle, contracts, scheduling, health monitoring, and
+      typed RPC routing. Supervisor spawns and restarts child workers
+      independently; it never owns workspace content, visible view
+      state, or provider conversations.
+
+  - host_class_id: index_workers
+    title: Index workers
+    canonical_process_role: Index workers
+    process_role_ref: knowledge_worker_group
+    owning_service_planes:
+      - vfs_watchers
+      - index_search
+    failure_isolation: worker_pool_cancellable
+    restart_class: restart_with_backoff
+    state_authority: worker_owned_authoritative_knowledge
+    allowed_capabilities:
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+      - typed_rpc_routing
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - indexing_or_rebuilding_badge
+      - stale_partial_or_verified_truth_lane
+      - watcher_or_external_change_state
+    runtime_notes: >
+      Scanning, hot-set planning, symbol extraction, semantic graph
+      ingest, canonical-path identity, save pipeline, and watcher
+      truth. Work is idempotent and cancellable; partial/stale
+      answers are surfaced instead of blocking the shell.
+
+  - host_class_id: language_hosts
+    title: Language hosts
+    canonical_process_role: Language hosts
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - task_execution
+    failure_isolation: per_session_helper
+    restart_class: quarantine_after_budget
+    state_authority: per_session_ephemeral
+    allowed_capabilities:
+      - language_analysis
+      - filesystem_io_via_vfs
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - workspace_scan
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - jsonrpc_compat
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - execution_context_and_scope_disclosure
+      - task_or_debug_session_lifecycle_state
+      - stale_partial_or_verified_truth_lane
+    runtime_notes: >
+      LSP servers, semantic adapters, framework analyzers. Crash
+      loops are quarantined and the user is notified; the shell's
+      visible-edit path never blocks on a language host.
+
+  - host_class_id: debug_hosts
+    title: Debug hosts
+    canonical_process_role: Debug hosts
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - task_execution
+    failure_isolation: per_session_helper
+    restart_class: per_session_restart
+    state_authority: per_session_ephemeral
+    allowed_capabilities:
+      - debug_adapter_bridging
+      - filesystem_io_via_vfs
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - workspace_scan
+      - language_analysis
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - jsonrpc_compat
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - execution_context_and_scope_disclosure
+      - remote_versus_local_target_origin
+      - task_or_debug_session_lifecycle_state
+    runtime_notes: >
+      DAP adapters and debug session bridging. Per-session isolation
+      is preferred so one failing adapter does not take down
+      concurrent debug sessions.
+
+  - host_class_id: git_worker
+    title: Git worker
+    canonical_process_role: Git worker
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - task_execution
+    failure_isolation: per_session_helper
+    restart_class: per_session_restart
+    state_authority: per_session_ephemeral
+    allowed_capabilities:
+      - git_operations
+      - filesystem_io_via_vfs
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - execution_context_and_scope_disclosure
+      - task_or_debug_session_lifecycle_state
+      - remote_versus_local_target_origin
+    runtime_notes: >
+      Repository status, blame, diff, history, rebase/merge helper
+      execution. Isolated from shell and language hosts; long-running
+      Git operations never block the input path.
+
+  - host_class_id: pty_host
+    title: PTY host
+    canonical_process_role: PTY host
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - task_execution
+    failure_isolation: per_session_helper
+    restart_class: per_session_restart
+    state_authority: per_session_ephemeral
+    allowed_capabilities:
+      - pty_terminal_session
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - pty_stdio
+      - typed_binary_rpc
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - execution_context_and_scope_disclosure
+      - task_or_debug_session_lifecycle_state
+      - remote_versus_local_target_origin
+    runtime_notes: >
+      Terminal sessions, shell integration, scrollback persistence.
+      Shell stays usable if the PTY host fails; scrollback hands off
+      to the observability collector through typed events.
+
+  - host_class_id: wasm_host_pool
+    title: Wasm host pool
+    canonical_process_role: Wasm host pool
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - ai_control_plane
+    extensibility_anchors:
+      - wasm_capability_host
+      - recipe_and_automation_runtime
+    failure_isolation: per_extension_sandbox
+    restart_class: quarantine_after_budget
+    state_authority: sandbox_ephemeral
+    allowed_capabilities:
+      - sandboxed_code_execution
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - sandbox_capability_call
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - extension_permission_scope_and_trust_posture
+      - ambient_privilege_denial_disclosure
+    runtime_notes: >
+      Sandboxed extension components and recipe/automation runtimes.
+      Resource-bounded and policy-governed; no ambient privilege is
+      inherited from the shell.
+
+  - host_class_id: external_extension_hosts
+    title: External extension hosts
+    canonical_process_role: External extension hosts
+    process_role_ref: execution_helper_group
+    owning_service_planes:
+      - ai_control_plane
+    extensibility_anchors:
+      - external_extension_host
+      - vscode_compatibility_bridge
+    failure_isolation: per_external_extension_process
+    restart_class: quarantine_after_budget
+    state_authority: external_process_owned
+    allowed_capabilities:
+      - external_subprocess_hosting
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - external_extension_channel
+      - jsonrpc_compat
+      - event_stream
+      - audit_event_stream
+    visibility_surfaces:
+      - extension_permission_scope_and_trust_posture
+      - ambient_privilege_denial_disclosure
+      - policy_allow_or_deny_reason
+    runtime_notes: >
+      CLIs, debuggers, DB connectors, container/K8s integrations
+      running in their own OS processes. Heavily isolated and
+      restartable under a declared crash-loop budget.
+
+  - host_class_id: ai_runtime
+    title: AI runtime / broker
+    canonical_process_role: AI runtime / broker
+    process_role_ref: ai_runtime
+    owning_service_planes:
+      - ai_control_plane
+    failure_isolation: managed_boundary_or_helper
+    restart_class: restart_with_backoff
+    state_authority: provider_owned_remote
+    allowed_capabilities:
+      - ai_routing_and_context
+      - network_egress
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - remote_transport
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - event_stream
+      - transport_governance_egress
+      - service_api
+      - audit_event_stream
+    visibility_surfaces:
+      - ai_provider_route_and_policy_posture
+      - policy_allow_or_deny_reason
+      - ambient_privilege_denial_disclosure
+    runtime_notes: >
+      Context composition, provider routing, evidence capture, and
+      tool planning. May run as a local helper or cross the
+      local_shell_vs_external_systems boundary as a managed
+      boundary; failure never blocks core editing.
+
+  - host_class_id: remote_connector
+    title: Remote connector
+    canonical_process_role: Remote connector
+    process_role_ref: remote_connector
+    owning_service_planes:
+      - remote_helper
+    failure_isolation: managed_boundary_or_helper
+    restart_class: restart_with_backoff
+    state_authority: provider_owned_remote
+    allowed_capabilities:
+      - remote_transport
+      - network_egress
+      - typed_rpc_routing
+      - bounded_telemetry_emission
+      - policy_and_admission_queries
+      - audit_emission
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - support_export_assembly
+    ipc_families:
+      - typed_binary_rpc
+      - remote_proxy_bridge
+      - event_stream
+      - transport_governance_egress
+      - audit_event_stream
+    visibility_surfaces:
+      - remote_versus_local_target_origin
+      - transport_disconnect_or_capability_negotiation_posture
+      - service_reachability_and_mirror_state
+    runtime_notes: >
+      SSH/container/agent transport, mount metadata, remote service
+      bridging. Disconnect degrades remote capability, never local
+      stability.
+
+  - host_class_id: observability_collector
+    title: Observability collector
+    canonical_process_role: Observability collector
+    process_role_ref: support_collector
+    owning_service_planes:
+      - support_diagnostics
+    failure_isolation: collector_bounded
+    restart_class: restart_with_backoff
+    state_authority: collector_owned_bounded
+    allowed_capabilities:
+      - telemetry_ingest
+      - support_export_assembly
+      - bounded_telemetry_emission
+      - audit_emission
+      - policy_and_admission_queries
+    forbidden_capabilities:
+      - input_and_focus
+      - scene_composition
+      - visible_view_state
+      - process_lifecycle_management
+      - filesystem_io_via_vfs
+      - workspace_scan
+      - language_analysis
+      - debug_adapter_bridging
+      - git_operations
+      - pty_terminal_session
+      - sandboxed_code_execution
+      - external_subprocess_hosting
+      - ai_routing_and_context
+      - network_egress
+      - remote_transport
+    ipc_families:
+      - audit_event_stream
+      - event_stream
+      - typed_binary_rpc
+      - service_api
+    visibility_surfaces:
+      - support_bundle_redaction_posture
+      - safe_mode_or_restricted_workspace_banner
+      - policy_allow_or_deny_reason
+    runtime_notes: >
+      Logs, traces, perf counters, support bundles. Bounded retention
+      and non-blocking writes; a slow collector never backs up onto
+      protected paths.
+
+# Host-class invariants. Downstream tooling joins to these rules by id.
+invariants:
+  - id: shell_owned_state_is_authoritative
+    summary: >
+      Host classes other than desktop_shell MUST NOT mutate shell-owned
+      view state, focus, caret/selection, or local layout through shared
+      memory, globals, or side channels. Visible-state changes arrive
+      through typed RPC or subscription envelopes.
+  - id: worker_owned_state_is_disposable_unless_declared_knowledge
+    summary: >
+      Cache, hot-set, and derived-artifact state on worker pools is
+      disposable. Canonical-path identity, save-pipeline truth, and
+      watcher state are declared worker_owned_authoritative_knowledge
+      and surface a freshness lane rather than overwrite shell state.
+  - id: supervisor_never_owns_content
+    summary: >
+      The local supervisor owns lifecycle and typed RPC routing. It MUST
+      NOT own workspace content, visible view state, or provider
+      conversation state.
+  - id: helper_sessions_isolate_failure
+    summary: >
+      Per-session helpers (language hosts, debug hosts, Git worker, PTY
+      host) MUST fail in isolation; one session loss MUST NOT degrade
+      another session or the shell.
+  - id: sandbox_and_external_hosts_carry_no_ambient_trust
+    summary: >
+      Wasm and external extension hosts MUST NOT inherit ambient shell,
+      workspace, identity, or transport privilege. Every capability
+      passes through declared manifest + admission + permission gates.
+  - id: ai_and_remote_failures_never_block_editing
+    summary: >
+      AI runtime and remote connector failure MUST narrow capability and
+      surface a disclosure; they MUST NOT block visible edits, saves, or
+      caret/selection.
+  - id: collector_is_non_blocking
+    summary: >
+      Observability collector writes MUST be non-blocking on protected
+      paths. Back-pressure drops or buffers bounded data; it never
+      serializes behind the input or render path.
