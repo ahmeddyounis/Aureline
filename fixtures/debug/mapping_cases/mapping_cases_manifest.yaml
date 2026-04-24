@@ -1,0 +1,448 @@
+# Debug artifact mapping-case corpus.
+#
+# Reviewer-facing case manifest for the debug_artifact_entry_record
+# seed frozen in docs/debug/artifact_resolution_seed.md. Each case
+# exercises one distinct axis the resolution contract must keep
+# distinguishable: native symbols (PDB / dSYM / DWARF), JS / TS / CSS
+# source maps, crash artifacts (minidump / core / snapshot),
+# generated-source mappings (with known and unknown spec), and
+# coverage / profile artifacts (workspace-attached and side-loaded).
+#
+# Surfaces consuming these cases MUST NOT mint tokens outside the
+# enumerations declared in schemas/debug/debug_artifact_manifest.schema.json.
+
+schema_version: 1
+corpus_id: debug.mapping_cases_manifest.v1
+
+summary: >
+  Eleven worked cases covering native symbol resolution (PDB resolved
+  via release artifact graph, DWARF with a missing split-symbols
+  archive, dSYM with a module-UUID mismatch), source-map resolution
+  (stale JS mapping, partial CSS mapping), crash-artifact resolution
+  (minidump resolved alongside its crash-symbols archive via sibling
+  identity, core dump pending upload consent), generated-source
+  mappings (OpenAPI-generated TypeScript client fully resolved, and
+  a generated client whose spec is unknown), and coverage / profile
+  artifacts (LCOV pulled from the workspace output tree, side-loaded
+  pprof profile under opt-in-only export posture).
+
+seed_doc: docs/debug/artifact_resolution_seed.md
+manifest_schema: schemas/debug/debug_artifact_manifest.schema.json
+exact_build_identity_schema: schemas/build/exact_build_identity.schema.json
+exact_build_examples_dir: fixtures/build/exact_build_examples
+crash_fixture_dir: fixtures/support/crash_fixture
+crash_retention_seed: artifacts/support/crash_artifact_retention_seed.json
+primary_manifest_example: artifacts/debug/artifact_resolution_examples/primary_manifest.json
+entry_examples_dir: artifacts/debug/artifact_resolution_examples
+
+# ---------------------------------------------------------------------
+# Frozen vocabulary (cited for local parity). A case that introduces
+# a token outside these lists must bump the schema first; this corpus
+# adopts the new token by reference, not duplication.
+# ---------------------------------------------------------------------
+
+debug_artifact_manifest_schema_version: 1
+
+artifact_class_vocabulary:
+  - native_symbol_pdb
+  - native_symbol_dsym
+  - native_symbol_dwarf
+  - source_map_js
+  - source_map_ts
+  - source_map_css
+  - crash_artifact_minidump
+  - crash_artifact_core_dump
+  - crash_artifact_snapshot
+  - generated_source_mapping
+  - coverage_lcov
+  - coverage_gcov
+  - coverage_llvm_profraw
+  - profile_pprof
+  - profile_perfetto_trace
+  - profile_flamegraph
+
+resolution_state_vocabulary:
+  - resolved
+  - resolved_degraded_quality
+  - unresolved_not_cached
+  - unresolved_mismatch
+  - unresolved_cache_miss
+  - unresolved_trust_refused
+  - unresolved_offline
+  - unresolved_policy_blocked
+  - pending_capture
+
+mismatch_reason_vocabulary:
+  - mismatch_build_id
+  - mismatch_commit_hash
+  - mismatch_tree_hash
+  - mismatch_toolchain_pin_digest
+  - mismatch_lockfile_digest
+  - mismatch_target_triple
+  - mismatch_build_epoch
+  - mismatch_producer_lane
+  - mismatch_debug_info_class
+  - mismatch_strip_class
+  - mismatch_module_build_id
+  - mismatch_module_debug_id
+  - mismatch_module_uuid
+  - mismatch_source_map_digest
+  - mismatch_generator_identity
+  - mismatch_generator_spec_digest
+  - mismatch_generator_command_digest
+  - stale_source_map_mapping
+  - partial_source_mapping_only
+  - symbol_index_missing
+  - split_symbols_missing
+  - trust_store_rejected_source
+  - policy_denied_egress
+  - policy_denied_side_load
+  - pending_build_completion
+  - pending_user_upload_consent
+
+degraded_quality_reason_vocabulary:
+  - line_tables_only
+  - inline_frames_elided
+  - third_party_frames_unmapped
+  - source_map_missing_names
+  - source_map_partial_content
+  - generated_source_spec_unknown
+  - generated_source_version_unknown
+  - profile_sample_rate_reduced
+  - coverage_branches_unavailable
+
+resolution_source_class_vocabulary:
+  - local_resolver_cache
+  - workspace_output_directory
+  - workspace_attached_registry
+  - trusted_artifact_store
+  - release_artifact_graph
+  - air_gapped_mirror
+  - side_loaded_user_attached
+
+generator_owner_class_vocabulary:
+  - native_compiler
+  - web_bundler
+  - codegen_tool
+  - schema_compiler
+  - coverage_tool
+  - profiler_tool
+  - kernel_runtime
+  - mirror_source
+  - unknown
+
+# ---------------------------------------------------------------------
+# Required cases. Each case exercises a distinct combination the
+# resolution contract must continue to cover. Cases are ordered to
+# walk native -> source-map -> crash -> generated -> coverage/profile.
+# ---------------------------------------------------------------------
+
+cases:
+
+  - case_id: debug.mapping.native_symbol_pdb.resolved
+    artifact_class: native_symbol_pdb
+    resolution_state: resolved
+    mismatch_reasons: []
+    degraded_quality_reasons: []
+    primary_resolution_source_class: release_artifact_graph
+    primary_trust_state: verified_signed_and_digest_match
+    exercised_axes:
+      linkage_state: linked_exact_build
+      module_identity_field: debug_id
+      storage_mode: release_graph_managed_reference
+      support_export_posture: included_metadata_only
+      release_graph_node: yes
+    exact_build_record_ref: fixtures/build/exact_build_examples/ci_release_stable_linux_ide_debug_symbols.json
+    case_record_ref: fixtures/debug/mapping_cases/native_symbol_pdb_resolved.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_native_symbol_pdb_resolved.json
+    summary: >
+      Release-anchored PDB resolved against the release artifact
+      graph with a signed-and-digest-match source. Debugger UI,
+      support bundle, and release-evidence surfaces share the same
+      debug_artifact_ref.
+
+  - case_id: debug.mapping.native_symbol_dwarf.split_symbols_missing
+    artifact_class: native_symbol_dwarf
+    resolution_state: unresolved_mismatch
+    mismatch_reasons:
+      - split_symbols_missing
+    degraded_quality_reasons: []
+    primary_resolution_source_class: release_artifact_graph
+    primary_trust_state: verified_signed_and_digest_match
+    exercised_axes:
+      linkage_state: linked_exact_build
+      module_identity_field: build_id
+      storage_mode: release_graph_managed_reference
+      support_export_posture: included_metadata_only
+      release_graph_node: yes
+    exact_build_record_ref: fixtures/build/exact_build_examples/ci_release_stable_linux_ide_debug_symbols.json
+    case_record_ref: fixtures/debug/mapping_cases/native_symbol_dwarf_split_symbols_missing.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_native_symbol_dwarf_split_symbols_missing.json
+    summary: >
+      Linux DWARF sidecar whose split-symbols archive is missing. The
+      resolver marks split_symbols_missing rather than collapsing
+      into a generic "symbols not found" failure.
+
+  - case_id: debug.mapping.native_symbol_dsym.mismatch_build_id
+    artifact_class: native_symbol_dsym
+    resolution_state: unresolved_mismatch
+    mismatch_reasons:
+      - mismatch_module_uuid
+      - mismatch_module_build_id
+    degraded_quality_reasons: []
+    primary_resolution_source_class: trusted_artifact_store
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_exact_build
+      module_identity_field: uuid
+      storage_mode: trusted_store_managed_reference
+      support_export_posture: included_metadata_only
+      release_graph_node: yes
+    case_record_ref: fixtures/debug/mapping_cases/native_symbol_dsym_mismatch_build_id.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_native_symbol_dsym_mismatch_build_id.json
+    summary: >
+      Apple dSYM whose module UUID does not match the running binary.
+      The resolver flags the specific mismatch tokens; the debugger
+      UI surfaces the mismatch as an inspectable state rather than a
+      generic debugger failure.
+
+  - case_id: debug.mapping.source_map_js.stale_mapping
+    artifact_class: source_map_js
+    resolution_state: resolved_degraded_quality
+    mismatch_reasons:
+      - stale_source_map_mapping
+    degraded_quality_reasons:
+      - source_map_partial_content
+    primary_resolution_source_class: workspace_attached_registry
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_exact_build
+      module_identity_field: source_map_digest
+      storage_mode: workspace_output_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: yes
+    exact_build_record_ref: fixtures/build/exact_build_examples/ci_release_stable_linux_source_map_bundle.json
+    case_record_ref: fixtures/debug/mapping_cases/source_map_js_stale_mapping.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_source_map_js_stale_mapping.json
+    summary: >
+      JS source map whose digest matches the bundle but whose
+      mapping is stale against the current workspace head. The
+      debugger UI renders resolved_degraded_quality with the
+      specific stale_source_map_mapping token.
+
+  - case_id: debug.mapping.source_map_css.partial_mapping
+    artifact_class: source_map_css
+    resolution_state: resolved_degraded_quality
+    mismatch_reasons:
+      - partial_source_mapping_only
+    degraded_quality_reasons:
+      - source_map_missing_names
+    primary_resolution_source_class: workspace_output_directory
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_baseline_build
+      module_identity_field: source_map_digest
+      storage_mode: workspace_output_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: no
+    case_record_ref: fixtures/debug/mapping_cases/source_map_css_partial_mapping.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_source_map_css_partial_mapping.json
+    summary: >
+      CSS source map resolved with partial_source_mapping_only:
+      name fields are missing and the debugger UI must not collapse
+      this into a full mapping.
+
+  - case_id: debug.mapping.crash_minidump.resolved_with_siblings
+    artifact_class: crash_artifact_minidump
+    resolution_state: resolved
+    mismatch_reasons: []
+    degraded_quality_reasons: []
+    primary_resolution_source_class: local_resolver_cache
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_exact_build
+      module_identity_field: build_id
+      storage_mode: local_cache_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: yes
+      siblings: yes
+    crash_fixture_ref: fixtures/support/crash_fixture/crash_envelope.json
+    case_record_ref: fixtures/debug/mapping_cases/crash_minidump_resolved_with_siblings.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_crash_minidump_resolved_with_siblings.json
+    summary: >
+      Minidump resolved alongside its crash-symbols archive via
+      sibling identity refs. All siblings share the same
+      build_identity_linkage; a parity audit validates the join
+      rather than trusting file-name coincidence.
+
+  - case_id: debug.mapping.crash_core_dump.pending_upload_consent
+    artifact_class: crash_artifact_core_dump
+    resolution_state: pending_capture
+    mismatch_reasons:
+      - pending_user_upload_consent
+    degraded_quality_reasons: []
+    primary_resolution_source_class: local_resolver_cache
+    primary_trust_state: unverified
+    exercised_axes:
+      linkage_state: linked_pending_identity
+      module_identity_field: code_file_name
+      storage_mode: local_only_no_upload
+      support_export_posture: opt_in_only
+      release_graph_node: no
+    crash_retention_ref: artifacts/support/crash_artifact_retention_seed.json
+    case_record_ref: fixtures/debug/mapping_cases/crash_core_dump_pending_upload_consent.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_crash_core_dump_pending_upload_consent.json
+    summary: >
+      Core dump captured locally with bytes held under
+      local_only_no_upload until consent. The manifest marks the
+      row pending_capture with pending_user_upload_consent so the
+      support-bundle preview shows an opt-in row rather than a
+      silent omission.
+
+  - case_id: debug.mapping.generated_source.openapi_resolved
+    artifact_class: generated_source_mapping
+    resolution_state: resolved
+    mismatch_reasons: []
+    degraded_quality_reasons: []
+    primary_resolution_source_class: workspace_output_directory
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_baseline_build
+      module_identity_field: none
+      storage_mode: workspace_output_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: no
+      generator_owner_class: codegen_tool
+    case_record_ref: fixtures/debug/mapping_cases/generated_source_openapi_resolved.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_generated_source_openapi_resolved.json
+    summary: >
+      OpenAPI-generated TypeScript client fully resolved with a
+      signed spec digest and a generator command digest. The row
+      names its generating spec/tool so the user can jump back to
+      the source contract.
+
+  - case_id: debug.mapping.generated_source.spec_unknown
+    artifact_class: generated_source_mapping
+    resolution_state: resolved_degraded_quality
+    mismatch_reasons:
+      - mismatch_generator_spec_digest
+    degraded_quality_reasons:
+      - generated_source_spec_unknown
+    primary_resolution_source_class: workspace_output_directory
+    primary_trust_state: unverified
+    exercised_axes:
+      linkage_state: linked_baseline_build
+      module_identity_field: none
+      storage_mode: workspace_output_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: no
+      generator_owner_class: unknown
+    case_record_ref: fixtures/debug/mapping_cases/generated_source_spec_unknown.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_generated_source_spec_unknown.json
+    summary: >
+      Generated client whose generating spec is unknown. The row
+      still names owner_class = unknown and pairs it with the
+      explicit generated_source_spec_unknown token so the manifest
+      never silently claims "generated" without naming what failed
+      to resolve.
+
+  - case_id: debug.mapping.coverage_lcov.workspace_output
+    artifact_class: coverage_lcov
+    resolution_state: resolved_degraded_quality
+    mismatch_reasons: []
+    degraded_quality_reasons:
+      - coverage_branches_unavailable
+    primary_resolution_source_class: workspace_output_directory
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_baseline_build
+      module_identity_field: none
+      storage_mode: workspace_output_bounded
+      support_export_posture: included_metadata_only
+      release_graph_node: no
+      generator_owner_class: coverage_tool
+    case_record_ref: fixtures/debug/mapping_cases/coverage_lcov_workspace_output.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_coverage_lcov_workspace_output.json
+    summary: >
+      LCOV coverage artifact pulled from the workspace output tree
+      with a workspace_local_capture role. Branch coverage is
+      unavailable and the manifest names that axis verbatim rather
+      than dropping a quiet warning.
+
+  - case_id: debug.mapping.profile_pprof.side_loaded
+    artifact_class: profile_pprof
+    resolution_state: resolved_degraded_quality
+    mismatch_reasons: []
+    degraded_quality_reasons:
+      - profile_sample_rate_reduced
+    primary_resolution_source_class: side_loaded_user_attached
+    primary_trust_state: verified_digest_match
+    exercised_axes:
+      linkage_state: linked_baseline_build
+      module_identity_field: none
+      storage_mode: workspace_attached_cache
+      support_export_posture: opt_in_only
+      release_graph_node: no
+      generator_owner_class: profiler_tool
+    case_record_ref: fixtures/debug/mapping_cases/profile_pprof_side_loaded.json
+    entry_record_ref: artifacts/debug/artifact_resolution_examples/entry_profile_pprof_side_loaded.json
+    summary: >
+      Side-loaded pprof profile accepted after explicit consent.
+      The support-bundle preview renders the row under
+      opt_in_only posture with a profile_sample_rate_reduced
+      annotation.
+
+# ---------------------------------------------------------------------
+# Coverage contract.
+# ---------------------------------------------------------------------
+
+coverage_contract:
+  required_cases:
+    - debug.mapping.native_symbol_pdb.resolved
+    - debug.mapping.native_symbol_dwarf.split_symbols_missing
+    - debug.mapping.native_symbol_dsym.mismatch_build_id
+    - debug.mapping.source_map_js.stale_mapping
+    - debug.mapping.source_map_css.partial_mapping
+    - debug.mapping.crash_minidump.resolved_with_siblings
+    - debug.mapping.crash_core_dump.pending_upload_consent
+    - debug.mapping.generated_source.openapi_resolved
+    - debug.mapping.generated_source.spec_unknown
+    - debug.mapping.coverage_lcov.workspace_output
+    - debug.mapping.profile_pprof.side_loaded
+
+  required_artifact_class_minimum:
+    - native_symbol_pdb
+    - native_symbol_dsym
+    - native_symbol_dwarf
+    - source_map_js
+    - source_map_css
+    - crash_artifact_minidump
+    - crash_artifact_core_dump
+    - generated_source_mapping
+    - coverage_lcov
+    - profile_pprof
+
+  required_resolution_state_minimum:
+    - resolved
+    - resolved_degraded_quality
+    - unresolved_mismatch
+    - pending_capture
+
+  required_mismatch_reason_minimum:
+    - split_symbols_missing
+    - mismatch_module_uuid
+    - mismatch_module_build_id
+    - stale_source_map_mapping
+    - partial_source_mapping_only
+    - mismatch_generator_spec_digest
+    - pending_user_upload_consent
+
+  policy_rule: >
+    Debugger UI, support-bundle anchor, and release artifact-graph
+    node emissions MUST preserve debug_artifact_ref, artifact_class,
+    resolution_state, mismatch_reasons, degraded_quality_reasons,
+    build_identity_linkage.expected_build_match_fields, and
+    generator_identity tokens without substituting freeform wording
+    or surface-specific badges. The resolution contract is one
+    closed vocabulary read by every surface; it is not a debugger-
+    local, support-local, or release-local vocabulary.

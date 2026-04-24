@@ -1,0 +1,628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/debug_artifact_manifest.schema.json",
+  "title": "Aureline debug artifact manifest",
+  "description": "Boundary schema for the debug_artifact_manifest_record and reusable debug_artifact_entry_record rows frozen in docs/debug/artifact_resolution_seed.md. One manifest binds native symbol files (PDB / dSYM / DWARF bundles), JS / TS / CSS source maps, crash artifacts (minidump / core / crash snapshot), generated-source mappings (protobuf, OpenAPI, gRPC, bindgen, codegen), and coverage / profile artifacts (LCOV, gcov, llvm-cov, pprof, perfetto trace, flamegraph) back to one workspace / target / build identity so debugger UI, support bundle, and release artifact graph surfaces read the same entries. Raw symbol bytes, raw dump bytes, raw source bodies, raw coverage bodies, and raw network URLs never cross this boundary; the manifest carries opaque refs, typed vocabulary, digests, and short reviewable sentences. Adding a new artifact class, resolution source class, resolution state class, mismatch reason class, generator owner class, or storage mode class is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row. Symbol-server implementation and full debugger UI remain out of scope at this freeze; the manifest pins only the identity and resolution contract every downstream surface resolves.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/debug_artifact_manifest_record" },
+    { "$ref": "#/$defs/debug_artifact_entry_record" }
+  ],
+  "$defs": {
+    "debug_artifact_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe inside debugger UI state, support bundles, and release artifact graph nodes. Raw absolute paths, raw URLs, raw signing material, and raw symbol bytes never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for debugger UI hints, support-bundle manifest previews, or release-evidence review rows."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured when the entry was resolved."
+    },
+    "hash_algorithm_class": {
+      "type": "string",
+      "enum": [
+        "sha1_git",
+        "sha256_git",
+        "sha256_content",
+        "blake3_content"
+      ],
+      "description": "Hash-algorithm vocabulary. Mirrors schemas/build/exact_build_identity.schema.json; every digest carries an explicit algorithm token."
+    },
+    "content_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "algorithm"],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Lower-case hex digest, no prefix."
+        },
+        "algorithm": { "$ref": "#/$defs/hash_algorithm_class" }
+      },
+      "description": "Content-addressed digest pair. Raw bytes never appear; the manifest carries only digest + algorithm."
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "native_symbol_pdb",
+        "native_symbol_dsym",
+        "native_symbol_dwarf",
+        "source_map_js",
+        "source_map_ts",
+        "source_map_css",
+        "crash_artifact_minidump",
+        "crash_artifact_core_dump",
+        "crash_artifact_snapshot",
+        "generated_source_mapping",
+        "coverage_lcov",
+        "coverage_gcov",
+        "coverage_llvm_profraw",
+        "profile_pprof",
+        "profile_perfetto_trace",
+        "profile_flamegraph"
+      ],
+      "description": "Closed artifact-class vocabulary. native_symbol_* cover PDB (Windows), dSYM (Apple), and DWARF (Linux / BSD) bundles. source_map_* cover JS, TS, and CSS source maps. crash_artifact_* cover minidumps, core dumps, and lightweight crash snapshots. generated_source_mapping covers generator-produced source mapping packets (protobuf, OpenAPI, gRPC, bindgen, codegen) that name the generating spec and tool. coverage_* and profile_* cover coverage and profile artifacts the debugger, support, and release lanes may attach."
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_debug_symbols",
+        "cli_debug_symbols",
+        "source_map_bundle",
+        "crash_symbols_archive",
+        "support_runbook_bundle",
+        "reproducibility_pack",
+        "release_evidence_packet"
+      ],
+      "description": "Exact-build artifact-family subset the entry joins to. Values are drawn from schemas/build/exact_build_identity.schema.json; a debug-artifact entry never invents its own family vocabulary. coverage and profile artifacts that are not tied to a release-graph family resolve family_class through a workspace-attached generator and leave artifact_family_class absent."
+    },
+    "workspace_binding_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_workspace_output",
+        "workspace_attached_cache",
+        "workspace_detached_upload",
+        "workspace_local_capture",
+        "workspace_reference_only"
+      ],
+      "description": "How the artifact attaches to the workspace. primary_workspace_output is emitted by the workspace build (target/*, dist/*). workspace_attached_cache is cached on disk and bound to the workspace identity. workspace_detached_upload is collected from a run outside the workspace and later attached. workspace_local_capture is a local-only capture (crash snapshot, profiler run). workspace_reference_only is a manifest row without local bytes, e.g. a release-graph reference."
+    },
+    "workspace_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_ref",
+        "target_ref",
+        "binding_role"
+      ],
+      "properties": {
+        "workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque workspace id this entry attaches to."
+        },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque target / build-target id (e.g. cargo package+binary, npm bundle name, codegen target)."
+        },
+        "binding_role": { "$ref": "#/$defs/workspace_binding_role_class" },
+        "run_context_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque run context (debug session, test run, profiler capture, crash capture). Null when the entry is not tied to a specific run."
+        },
+        "profile_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque build-profile ref (cargo profile, webpack config, esbuild config, codegen profile). Null when the artifact class is profile-agnostic."
+        }
+      },
+      "description": "Workspace / target / profile attachment. Every entry pins exactly one workspace and one target; debug/profile/coverage artifacts that do not attach to a target are non-conforming."
+    },
+    "build_identity_linkage_state_class": {
+      "type": "string",
+      "enum": [
+        "linked_exact_build",
+        "linked_baseline_build",
+        "linked_pending_identity",
+        "linked_external_build",
+        "unlinked_workspace_local"
+      ],
+      "description": "How the entry is bound to a build identity. linked_exact_build resolves to schemas/build/exact_build_identity.schema.json. linked_baseline_build resolves to the minimal baseline record schemas/build/build_identity.schema.json (developer lanes). linked_pending_identity marks a running capture whose identity resolves when the build completes. linked_external_build covers artifacts produced outside the workspace (e.g. a dependency's debug symbols) where the identity is resolved to an external record. unlinked_workspace_local is admissible only on local, developer-only captures that cannot be promoted without a link."
+    },
+    "build_identity_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linkage_state",
+        "expected_build_match_fields"
+      ],
+      "properties": {
+        "linkage_state": { "$ref": "#/$defs/build_identity_linkage_state_class" },
+        "exact_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the exact_build_identity_ref this entry joins to. Required non-null when linkage_state is linked_exact_build."
+        },
+        "baseline_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the baseline build identity (commit + toolchain + target) for developer-lane captures. Required non-null when linkage_state is linked_baseline_build."
+        },
+        "external_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to an external identity record for dependency artifacts. Required non-null when linkage_state is linked_external_build."
+        },
+        "expected_build_match_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "workspace_version",
+              "release_channel_class",
+              "commit.full_hash",
+              "commit.tree_hash",
+              "toolchain.toolchain_pin_digest",
+              "toolchain.lockfile_digest",
+              "target.target_triple",
+              "build_epoch.source_date_epoch",
+              "producer_lane.lane_class",
+              "profile.debug_info_class",
+              "profile.strip_class",
+              "profile.panic_class",
+              "module_identity.build_id",
+              "module_identity.debug_id",
+              "module_identity.source_map_digest",
+              "module_identity.uuid",
+              "generated_source.generator_identity",
+              "generated_source.spec_digest",
+              "generated_source.generator_command_digest"
+            ]
+          },
+          "description": "Fields a resolver MUST match field-for-field before the entry is considered resolved. Crash/debug surfaces render a mismatch_reason_class naming a field from this list rather than collapsing into a generic failure."
+        }
+      },
+      "description": "Exact-build / baseline-build / external identity linkage plus the fields a resolver must match before claiming the entry is resolved."
+    },
+    "resolution_source_class": {
+      "type": "string",
+      "enum": [
+        "local_resolver_cache",
+        "workspace_output_directory",
+        "workspace_attached_registry",
+        "trusted_artifact_store",
+        "release_artifact_graph",
+        "air_gapped_mirror",
+        "side_loaded_user_attached"
+      ],
+      "description": "Source the resolver used. local_resolver_cache is the bounded, inspectable, clearable debug-artifact cache. workspace_output_directory is a local build output tree. workspace_attached_registry is a workspace-scoped symbol / map registry. trusted_artifact_store is a verified release / CI artifact store. release_artifact_graph resolves the entry through the release-governance artifact graph. air_gapped_mirror is an offline mirror lane. side_loaded_user_attached is a user-supplied attachment (explicit opt-in path)."
+    },
+    "resolution_source_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "source_ref",
+        "trust_state"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/resolution_source_class" },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref naming the store / directory / registry / graph node the resolver pulled from. Raw URLs and raw absolute paths never appear here."
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "verified_digest_match",
+            "verified_signed_and_digest_match",
+            "rejected_unverified"
+          ],
+          "description": "Verification outcome at this source. A source that does not clear verified_digest_match MUST NOT resolve the entry on non-developer surfaces."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "resolved",
+        "resolved_degraded_quality",
+        "unresolved_not_cached",
+        "unresolved_mismatch",
+        "unresolved_cache_miss",
+        "unresolved_trust_refused",
+        "unresolved_offline",
+        "unresolved_policy_blocked",
+        "pending_capture"
+      ],
+      "description": "Terminal resolution state. resolved clears the entry for debugger UI, support bundle, and release-evidence surfaces. resolved_degraded_quality pairs with a degraded_quality_reason. Every unresolved_* and pending_capture state requires a mismatch_reason_class or capture_reason_class entry in mismatch_reasons so debugger UI can surface a stable label rather than a generic failure."
+    },
+    "mismatch_reason_class": {
+      "type": "string",
+      "enum": [
+        "mismatch_build_id",
+        "mismatch_commit_hash",
+        "mismatch_tree_hash",
+        "mismatch_toolchain_pin_digest",
+        "mismatch_lockfile_digest",
+        "mismatch_target_triple",
+        "mismatch_build_epoch",
+        "mismatch_producer_lane",
+        "mismatch_debug_info_class",
+        "mismatch_strip_class",
+        "mismatch_module_build_id",
+        "mismatch_module_debug_id",
+        "mismatch_module_uuid",
+        "mismatch_source_map_digest",
+        "mismatch_generator_identity",
+        "mismatch_generator_spec_digest",
+        "mismatch_generator_command_digest",
+        "stale_source_map_mapping",
+        "partial_source_mapping_only",
+        "symbol_index_missing",
+        "split_symbols_missing",
+        "trust_store_rejected_source",
+        "policy_denied_egress",
+        "policy_denied_side_load",
+        "pending_build_completion",
+        "pending_user_upload_consent"
+      ],
+      "description": "Why the entry is not resolved, or why its mapping quality is degraded. Every unresolved_* or resolved_degraded_quality state MUST name at least one reason so debugger UI labels a build-id mismatch, a stale source map, a missing symbol index, a trust refusal, or a policy block with a stable token instead of collapsing into one failure."
+    },
+    "degraded_quality_reason_class": {
+      "type": "string",
+      "enum": [
+        "line_tables_only",
+        "inline_frames_elided",
+        "third_party_frames_unmapped",
+        "source_map_missing_names",
+        "source_map_partial_content",
+        "generated_source_spec_unknown",
+        "generated_source_version_unknown",
+        "profile_sample_rate_reduced",
+        "coverage_branches_unavailable"
+      ],
+      "description": "Sub-class for resolved_degraded_quality. Names the specific axis the debugger / support / release surface should annotate so a reviewer does not read a degraded mapping as a full mapping."
+    },
+    "generator_owner_class": {
+      "type": "string",
+      "enum": [
+        "native_compiler",
+        "web_bundler",
+        "codegen_tool",
+        "schema_compiler",
+        "coverage_tool",
+        "profiler_tool",
+        "kernel_runtime",
+        "mirror_source",
+        "unknown"
+      ],
+      "description": "Generator identity vocabulary for the producing tool. native_compiler covers rustc / clang / MSVC; web_bundler covers webpack / esbuild / vite; codegen_tool covers OpenAPI / gRPC / bindgen / protobuf clients; schema_compiler covers protoc and flatc; coverage_tool and profiler_tool cover LCOV / gcov / llvm-cov / pprof / perfetto / flamegraph runners; kernel_runtime covers notebook kernels that emit mappings. unknown pairs with mismatch_generator_identity."
+    },
+    "generator_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_class", "display_label"],
+      "properties": {
+        "owner_class": { "$ref": "#/$defs/generator_owner_class" },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short redaction-safe label (e.g. 'rustc 1.84.0', 'webpack 5.91.0', 'openapi-generator 7.6.0', 'protoc 26.1')."
+        },
+        "version_or_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the pinned version/revision for this generator when the manifest must expose it (e.g. 'generator-pin:openapi-generator:7.6.0')."
+        },
+        "spec_source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the spec the generator consumed (e.g. the .proto / openapi.yaml / schema.graphql digest rows). Required non-empty for generated_source_mapping entries so a row can name its generating spec."
+        },
+        "command_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the canonical generator-command record (e.g. 'generator-command:openapi-generator:typescript-axios:v1'). Raw argv never appears here."
+        },
+        "command_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_digest" }
+          ],
+          "description": "Content digest of the canonical generator invocation. Used to detect a drifted invocation between two otherwise-identical generated sources."
+        }
+      },
+      "description": "Generator / resolver / compiler identity. For generated_source_mapping entries this block lets the row name the generating spec/tool even when the mapping quality is degraded or unknown."
+    },
+    "content_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_digest",
+        "content_addressed_ref"
+      ],
+      "properties": {
+        "artifact_digest": { "$ref": "#/$defs/content_digest" },
+        "content_addressed_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque content-addressed ref the resolver cites. Stable across debugger UI, support bundle, and release artifact graph surfaces."
+        },
+        "module_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "build_id": { "$ref": "#/$defs/non_empty_string" },
+            "debug_id": { "$ref": "#/$defs/non_empty_string" },
+            "uuid": { "$ref": "#/$defs/non_empty_string" },
+            "code_file_name": { "$ref": "#/$defs/non_empty_string" },
+            "source_map_digest": { "$ref": "#/$defs/content_digest" }
+          },
+          "description": "Module identity the crash / debugger surface already uses (GNU build-id, Mach-O UUID, PDB debug-id, source-map digest). Present on native_symbol_*, source_map_*, and crash_artifact_* entries."
+        },
+        "sibling_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to sibling debug-artifact entries that must resolve together (e.g. a minidump plus its crash-symbols archive, a JS source map plus its bundle). A parity audit MUST validate these refs both point to the same build_identity_linkage."
+        }
+      },
+      "description": "Content-addressed linkage. Every entry carries one primary digest, one content-addressed ref, and (when relevant) the module-identity fields crash / debugger surfaces already use."
+    },
+    "storage_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_cache_bounded",
+        "workspace_output_bounded",
+        "trusted_store_managed_reference",
+        "release_graph_managed_reference",
+        "air_gapped_mirror_reference",
+        "local_only_no_upload",
+        "manifest_only_no_body"
+      ],
+      "description": "How the bytes are stored. local_cache_bounded is the bounded, inspectable, clearable local cache. workspace_output_bounded is a workspace-local output tree. trusted_store_managed_reference and release_graph_managed_reference hold the bytes through the managed store / release graph and only a ref crosses this boundary. air_gapped_mirror_reference is the offline mirror lane. local_only_no_upload is a capture that stays local until explicit consent. manifest_only_no_body carries only the manifest row (no local bytes)."
+    },
+    "support_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "included_metadata_only",
+        "included_redacted_body",
+        "opt_in_only",
+        "excluded_by_policy",
+        "excluded_by_user"
+      ],
+      "description": "Default support-export posture for this entry. included_metadata_only ships only the manifest row. included_redacted_body ships a redacted body under the named redaction class. opt_in_only requires explicit user consent. excluded_by_policy / excluded_by_user is surfaced as an intentional omission, not a silent gap."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_redaction_applied",
+        "support_export_only",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "evidence_packet_only",
+        "release_public"
+      ],
+      "description": "Redaction envelope for this entry. Mirrors the existing support-bundle, crash-artifact retention seed, and exact-build identity vocabularies so parity audits compare token-for-token. support_export_only and evidence_packet_only are admissible only under the matching export / evidence frames; release_public is the only class that may appear verbatim in public release-evidence surfaces."
+    },
+    "surface_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "debugger_ui_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref the debugger UI uses when rendering this row. Null only when the entry is not visible to debugger UI."
+        },
+        "support_bundle_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the support-bundle anchor that would include this entry. Null when the entry is excluded by policy / user."
+        },
+        "release_artifact_graph_node_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the release-governance artifact-graph node. Required non-null when artifact_family_class is set."
+        },
+        "crash_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the crash envelope this entry joins to. Required non-null for crash_artifact_* entries."
+        },
+        "symbolication_report_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the symbolication report that consumes this entry."
+        }
+      },
+      "description": "Surface linkage. One entry can appear on multiple surfaces (debugger UI row, support bundle anchor, release artifact-graph node) and carries one ref per surface it reaches."
+    },
+    "debug_artifact_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "debug_artifact_manifest_schema_version",
+        "record_kind",
+        "debug_artifact_ref",
+        "artifact_class",
+        "display_label",
+        "workspace_binding",
+        "build_identity_linkage",
+        "resolution_sources",
+        "resolution_state",
+        "mismatch_reasons",
+        "content_linkage",
+        "storage_mode",
+        "support_export_posture",
+        "redaction_class",
+        "surface_linkage",
+        "captured_at"
+      ],
+      "properties": {
+        "debug_artifact_manifest_schema_version": { "$ref": "#/$defs/debug_artifact_manifest_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "debug_artifact_entry_record"
+        },
+        "debug_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque, stable id for this entry. Debugger UI, support bundle, and release artifact graph surfaces MUST resolve this id field-for-field rather than minting a parallel id per surface."
+        },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "artifact_family_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/artifact_family_class" }
+          ],
+          "description": "Exact-build artifact family this entry joins to. Null when the entry is a workspace-local capture (profile / coverage / crash snapshot) that is not release-graph-bearing."
+        },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short redaction-safe label (e.g. 'aureline-shell.pdb', 'renderer.main.bundle.js.map', 'api_client.ts (openapi-generator)', 'renderer-panic-minidump'). Raw absolute paths never appear here."
+        },
+        "workspace_binding": { "$ref": "#/$defs/workspace_binding" },
+        "build_identity_linkage": { "$ref": "#/$defs/build_identity_linkage" },
+        "resolution_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolution_source_entry" },
+          "description": "Ordered list of sources the resolver consulted. Order names precedence; the first entry is the preferred source."
+        },
+        "resolution_state": { "$ref": "#/$defs/resolution_state_class" },
+        "mismatch_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mismatch_reason_class" },
+          "description": "Reasons the entry is unresolved or degraded. Required non-empty when resolution_state is any unresolved_* state, resolved_degraded_quality, or pending_capture; MUST be empty when resolution_state is resolved."
+        },
+        "degraded_quality_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_quality_reason_class" },
+          "description": "Required non-empty when resolution_state is resolved_degraded_quality; MUST be empty otherwise."
+        },
+        "generator_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generator_identity" }
+          ],
+          "description": "Generator identity. Required non-null for generated_source_mapping entries and for source_map_* entries; optional for native_symbol_* and profile / coverage entries."
+        },
+        "content_linkage": { "$ref": "#/$defs/content_linkage" },
+        "storage_mode": { "$ref": "#/$defs/storage_mode_class" },
+        "support_export_posture": { "$ref": "#/$defs/support_export_posture_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "surface_linkage": { "$ref": "#/$defs/surface_linkage" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Short, reviewer-facing sentence the debugger UI, support-bundle preview, and release-evidence surface may render verbatim."
+        }
+      }
+    },
+    "debug_artifact_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "debug_artifact_manifest_schema_version",
+        "record_kind",
+        "manifest_id",
+        "title",
+        "governing_refs",
+        "workspace_ref",
+        "entries",
+        "emitted_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "debug_artifact_manifest_schema_version": { "$ref": "#/$defs/debug_artifact_manifest_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "debug_artifact_manifest_record"
+        },
+        "manifest_id": { "$ref": "#/$defs/stable_dot_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "governing_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Repo-relative refs to the governing documents and schemas (artifact_resolution_seed.md, exact_build_identity model, support-bundle contract, crash-artifact retention seed). A manifest that does not cite these refs is non-conforming."
+        },
+        "workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque workspace id this manifest covers. All entries MUST share the same workspace_binding.workspace_ref."
+        },
+        "primary_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the primary exact-build identity this manifest is anchored on. Present for release-anchored manifests; null for ad hoc developer captures."
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/debug_artifact_entry_record" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    }
+  }
+}
