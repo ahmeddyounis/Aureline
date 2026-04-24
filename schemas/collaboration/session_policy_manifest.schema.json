@@ -1,0 +1,736 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/session_policy_manifest.schema.json",
+  "title": "Aureline collaboration session consent, retention, export, delete, and mid-session re-consent boundary",
+  "description": "Boundary schema for the collaboration_session_policy_manifest_record, collaboration_session_retention_row_record, collaboration_session_consent_event_record, and collaboration_session_policy_audit_event_record frozen in docs/collaboration/consent_retention_contract.md. Every collaboration session MUST resolve to one collaboration_session_policy_manifest_record naming the bound collaboration_session_record, the host organisation ref, the participant refs, one role_matrix_profile_class, one retention_mode_class, one guest_policy_class, one route_share_policy_class, one residency_scope_class, one redaction_profile_class, one audit_level_class, an export_rights row, a delete_rights row, at least one retention_row_record covering each shared_object_class admitted to survive past the active turn (recordings, transcripts, replay artifacts, comments, temporary control grants, and deletion-event records each resolve to one class in the frozen shared_object_class_policy_class vocabulary), and zero or more archive_refs. Any retention, guest-policy, or route-visibility change mid-session MUST mint a collaboration_session_consent_event_record with a fresh visible_consent_cue_class and a re_consent_trigger_reason_class; a silent change denies with mid_session_consent_cue_missing. Every retention-profile row carries one record_class_id_ref into artifacts/governance/record_class_registry.yaml plus the delete_posture_class from the closed delete vocabulary (only_requested, policy_retained_cannot_delete, legally_held_cannot_delete, completed_deletion_logged, completed_deletion_with_exported_local_copy_surviving). Shared terminal and shared debugger retention MUST be opt_in_explicit_user or opt_in_policy_forced; ordinary collaboration never implies it and denies with shared_terminal_or_debugger_retention_must_be_opt_in. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new role_matrix_profile_class, retention_mode_class, guest_policy_class, route_share_policy_class, residency_scope_class, redaction_profile_class, audit_level_class, shared_object_class_policy_class, retention_posture_class, export_posture_class, delete_posture_class, visible_consent_cue_class, re_consent_trigger_reason_class, policy_audit_event_id, or policy_denial_reason value is additive-minor and requires a session_policy_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collaboration_session_policy_manifest_record" },
+    { "$ref": "#/$defs/collaboration_session_retention_row_record" },
+    { "$ref": "#/$defs/collaboration_session_consent_event_record" },
+    { "$ref": "#/$defs/collaboration_session_policy_audit_event_record" }
+  ],
+  "$defs": {
+    "session_policy_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this collaboration session-policy manifest vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_policy_manifest_record",
+        "collaboration_session_retention_row_record",
+        "collaboration_session_consent_event_record",
+        "collaboration_session_policy_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on session-inspector chips, join dialogs, retention readouts, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "role_matrix_profile_class": {
+      "type": "string",
+      "enum": [
+        "solo_owner_only",
+        "owner_plus_named_editors",
+        "owner_plus_editors_plus_reviewers",
+        "presenter_driven_observers_only",
+        "interview_or_teaching_presenter_plus_observers",
+        "support_session_host_plus_support_agent",
+        "regulated_review_with_approver_gate"
+      ],
+      "description": "Frozen role-matrix profile vocabulary. Names the shape of the role set admitted into the session. Roles themselves (presenter, co_presenter, observer, driver, approver, editor, reviewer, support_agent) live in window-topology per ADR on layout serialization; this class picks which combinations are legal for the session at all."
+    },
+
+    "retention_mode_class": {
+      "type": "string",
+      "enum": [
+        "live_only_no_retention",
+        "metadata_audited_no_payload_retention",
+        "replayable_review_or_teaching",
+        "support_or_regulated_retention_with_hold_eligibility"
+      ],
+      "description": "Frozen retention-mode vocabulary. live_only_no_retention = no recording, no transcript, no replay artifact; nothing beyond the active turn survives on any side. metadata_audited_no_payload_retention = only structured audit rows and redaction-aware metadata survive; no shared buffer / terminal / debug bytes retained. replayable_review_or_teaching = recordings and transcripts admitted under explicit consent for replay within a bounded horizon. support_or_regulated_retention_with_hold_eligibility = admitted for support or regulated-review sessions under admin-signed admission; rows are legal-hold eligible."
+    },
+
+    "guest_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_guests_admitted_org_members_only",
+        "named_guests_by_invite_only",
+        "approved_guests_with_approval_ticket",
+        "public_link_read_only_with_watermark",
+        "public_link_forbidden_by_policy"
+      ],
+      "description": "Frozen guest-policy vocabulary. Controls whether non-org actors may be admitted, and under what gate. public_link_forbidden_by_policy is the explicit denial state (not an implicit absence)."
+    },
+
+    "route_share_policy_class": {
+      "type": "string",
+      "enum": [
+        "route_share_disabled_private_route_labels_only",
+        "route_share_enabled_metadata_labels_only",
+        "route_share_enabled_within_org_boundary",
+        "route_share_enabled_with_audit_trail_required"
+      ],
+      "description": "Frozen route-visibility vocabulary. Controls whether participants see each others' route / provider / model labels during the session. route_share_disabled_private_route_labels_only means each side sees only their own route selection."
+    },
+
+    "residency_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "org_region_pinned",
+        "multi_region_org_scope",
+        "cross_org_with_residency_check_required",
+        "air_gapped_no_egress"
+      ],
+      "description": "Frozen residency-scope vocabulary. Names where session payload, metadata, and retention rows are admitted to reside. Does not override per-record_class posture; narrows it."
+    },
+
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "redaction_default_broker_governed",
+        "redaction_strict_metadata_only_on_managed_surfaces",
+        "redaction_support_bundle_profile",
+        "redaction_evidence_packet_profile",
+        "redaction_clipboard_projection_forbidden"
+      ],
+      "description": "Frozen redaction-profile vocabulary layered over ADR-0007 broker-owned redaction. Names which profile the session inherits; the broker pass is authoritative for byte-level redaction."
+    },
+
+    "audit_level_class": {
+      "type": "string",
+      "enum": [
+        "audit_minimum_session_lifecycle_only",
+        "audit_standard_lifecycle_plus_consent_plus_retention",
+        "audit_full_lifecycle_plus_consent_plus_retention_plus_route_selection",
+        "audit_regulated_admin_signed"
+      ],
+      "description": "Frozen audit-level vocabulary. Names how much the session MUST emit on the collaboration_session_policy audit stream. Does not substitute for per-subsystem audit streams; composes with them."
+    },
+
+    "shared_object_class_policy_class": {
+      "type": "string",
+      "enum": [
+        "recording_full_session_replay",
+        "transcript_text_only",
+        "transcript_structured_captions_only",
+        "replay_artifact_metadata_and_events",
+        "comment_anchored_or_thread",
+        "temporary_control_grant_terminal",
+        "temporary_control_grant_debugger",
+        "temporary_control_grant_runbook",
+        "deletion_event_record",
+        "editor_buffer_projection_metadata",
+        "follow_or_presenter_state_metadata",
+        "shared_terminal_control_metadata",
+        "shared_debug_control_metadata",
+        "sealed_session_archive_inventory"
+      ],
+      "description": "Frozen shared-object-class-for-policy vocabulary. Narrower than the shared_object.schema.json class set because it explicitly enumerates the policy-relevant sub-kinds (recording vs transcript vs replay artifact; temporary control grant by lane) and admits deletion-event records as first-class rows so a retention profile can name that deletion records themselves survive past the active turn. Values here compose with the shared_object_class_class values in schemas/collaboration/shared_object.schema.json; a manifest row for a class NOT in that schema denies with shared_object_class_policy_unresolved."
+    },
+
+    "retention_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_retained_live_only",
+        "retained_metadata_only_local_workspace",
+        "retained_metadata_only_managed_surface",
+        "retained_full_payload_local_workspace",
+        "retained_full_payload_managed_surface_consent_required",
+        "retained_full_payload_support_bundle_admin_signed",
+        "retained_in_sealed_archive_only"
+      ],
+      "description": "Frozen retention-posture vocabulary per retention-profile row. Names where (and whether) the row survives past the active turn. retained_full_payload_managed_surface_consent_required MUST be paired with a visible_consent_cue_class on the manifest."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_exportable_ephemeral_only",
+        "exportable_in_local_workspace_only",
+        "exportable_metadata_only",
+        "exportable_in_session_archive",
+        "exportable_in_support_bundle_admin_signed",
+        "exportable_in_user_self_service_export"
+      ],
+      "description": "Frozen export-posture vocabulary per retention-profile row. Composes with the boundary defined on shared_object.schema.json; narrowing is permitted, widening denies with export_posture_widening_forbidden."
+    },
+
+    "delete_posture_class": {
+      "type": "string",
+      "enum": [
+        "deletion_only_requested_not_yet_completed",
+        "deletion_blocked_policy_retained",
+        "deletion_blocked_legal_hold",
+        "deletion_completed_receipt_logged",
+        "deletion_completed_but_exported_local_copy_surviving",
+        "deletion_not_applicable_live_only_row"
+      ],
+      "description": "Frozen delete-posture vocabulary. Names the state of a delete action against the row. The last value (deletion_completed_but_exported_local_copy_surviving) is the 'honest copy' clause: a server-side delete completed but the participant already exported a local copy through exportable_in_local_workspace_only or exportable_in_user_self_service_export. A row that omits this value when a local copy survives denies with exported_local_copy_must_be_disclosed."
+    },
+
+    "visible_consent_cue_class": {
+      "type": "string",
+      "enum": [
+        "join_dialog_inline_disclosure_pre_admit",
+        "participant_badge_persistent_during_session",
+        "mid_session_banner_with_typed_change_summary",
+        "mid_session_modal_block_until_acknowledged",
+        "host_initiated_per_guest_consent_prompt",
+        "admin_forced_consent_cue_admin_signed"
+      ],
+      "description": "Frozen visible-consent-cue vocabulary. Names the on-surface cue a participant sees for consent admission or re-consent. Every consent event MUST cite exactly one cue; a missing cue denies with visible_consent_cue_missing."
+    },
+
+    "re_consent_trigger_reason_class": {
+      "type": "string",
+      "enum": [
+        "retention_mode_changed",
+        "guest_policy_changed",
+        "route_share_policy_changed",
+        "residency_scope_changed",
+        "audit_level_raised",
+        "recording_started",
+        "recording_stopped",
+        "transcript_enabled",
+        "transcript_disabled",
+        "temporary_control_grant_requested_terminal",
+        "temporary_control_grant_requested_debugger",
+        "temporary_control_grant_requested_runbook",
+        "participant_role_promoted_to_driver_or_approver",
+        "admin_forced_policy_change"
+      ],
+      "description": "Frozen re-consent-trigger vocabulary. Names what mid-session change forced a fresh visible consent event. Any change to retention, guest policy, or route visibility without a matching consent event denies with mid_session_consent_cue_missing."
+    },
+
+    "policy_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_policy_manifest_minted",
+        "collaboration_session_policy_manifest_amended",
+        "collaboration_session_retention_row_minted",
+        "collaboration_session_retention_row_superseded",
+        "collaboration_session_consent_event_recorded",
+        "collaboration_session_delete_request_recorded",
+        "collaboration_session_delete_completion_recorded",
+        "collaboration_session_exported_local_copy_disclosed",
+        "collaboration_session_policy_audit_denial_emitted",
+        "collaboration_session_policy_manifest_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_session_policy audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "policy_denial_reason": {
+      "type": "string",
+      "enum": [
+        "role_matrix_profile_class_unresolved",
+        "retention_mode_class_unresolved",
+        "guest_policy_class_unresolved",
+        "route_share_policy_class_unresolved",
+        "residency_scope_class_unresolved",
+        "redaction_profile_class_unresolved",
+        "audit_level_class_unresolved",
+        "export_rights_missing",
+        "delete_rights_missing",
+        "shared_object_class_policy_unresolved",
+        "retention_posture_class_unresolved",
+        "export_posture_class_unresolved",
+        "delete_posture_class_unresolved",
+        "retention_row_record_class_id_ref_missing",
+        "mid_session_consent_cue_missing",
+        "visible_consent_cue_missing",
+        "shared_terminal_or_debugger_retention_must_be_opt_in",
+        "recording_must_carry_visible_consent_cue",
+        "public_link_forbidden_by_policy",
+        "export_posture_widening_forbidden",
+        "exported_local_copy_must_be_disclosed",
+        "legal_hold_overrides_user_delete_request",
+        "retention_row_for_every_surviving_class_required",
+        "session_policy_manifest_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; a manifest that omits a required class, a retention row that omits a record-class ref, a mid-session change without a consent event, a public-link admission against a public_link_forbidden_by_policy row, an export-posture widening attempt, or an undisclosed surviving local copy all deny explicitly rather than admit silent drift."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a session is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the manifest and which workspace-trust posture each side held when the row was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "export_rights_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_actor_export_posture_class",
+        "participant_actor_export_posture_class",
+        "guest_actor_export_posture_class",
+        "admin_export_posture_class"
+      ],
+      "properties": {
+        "owner_actor_export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "participant_actor_export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "guest_actor_export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "admin_export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "export_note_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Per-role export rights. Every row MUST resolve all four roles so a reviewer can answer 'who is admitted to export what' without guessing. An owner-only session that forbids guest export still writes not_exportable_ephemeral_only for the guest field rather than omitting it."
+    },
+
+    "delete_rights_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_actor_delete_posture_class",
+        "participant_actor_delete_posture_class",
+        "admin_actor_delete_posture_class"
+      ],
+      "properties": {
+        "owner_actor_delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "participant_actor_delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "admin_actor_delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "legal_hold_overrides_user_delete_request": {
+          "type": "boolean",
+          "description": "When true, legal hold overrides an owner or participant delete request. Default MUST be explicitly set; the denial reason legal_hold_overrides_user_delete_request is emitted when a hold would otherwise be silently honoured without disclosure."
+        },
+        "delete_note_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Per-role delete rights. Owner, participant, and admin posture classes are required; deletion_not_applicable_live_only_row is the admissible value for a live-only session."
+    },
+
+    "collaboration_session_policy_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_policy_manifest_schema_version",
+        "record_kind",
+        "policy_manifest_id",
+        "session_ref",
+        "host_org_ref",
+        "owner_actor_ref",
+        "participant_actor_refs",
+        "role_matrix_profile_class",
+        "retention_mode_class",
+        "guest_policy_class",
+        "route_share_policy_class",
+        "residency_scope_class",
+        "redaction_profile_class",
+        "audit_level_class",
+        "export_rights",
+        "delete_rights",
+        "retention_row_refs",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_policy_manifest_record" },
+        "session_policy_manifest_schema_version": { "$ref": "#/$defs/session_policy_manifest_schema_version" },
+        "policy_manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_record in schemas/collaboration/session_state.schema.json. A manifest MUST bind to exactly one session; a manifest without a session_ref denies with session_policy_manifest_schema_version_lagging or a downstream validator emits a missing-binding fault."
+        },
+        "host_org_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "participant_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque participant actor refs. A solo or publish_pending session MAY carry an empty list; a shared_active manifest MUST NOT carry an empty list."
+        },
+        "guest_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque guest actor refs. When guest_policy_class is no_guests_admitted_org_members_only, this list MUST be empty."
+        },
+        "role_matrix_profile_class": { "$ref": "#/$defs/role_matrix_profile_class" },
+        "retention_mode_class": { "$ref": "#/$defs/retention_mode_class" },
+        "guest_policy_class": { "$ref": "#/$defs/guest_policy_class" },
+        "route_share_policy_class": { "$ref": "#/$defs/route_share_policy_class" },
+        "residency_scope_class": { "$ref": "#/$defs/residency_scope_class" },
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "audit_level_class": { "$ref": "#/$defs/audit_level_class" },
+        "export_rights": { "$ref": "#/$defs/export_rights_row" },
+        "delete_rights": { "$ref": "#/$defs/delete_rights_row" },
+        "retention_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Opaque refs to the collaboration_session_retention_row_record rows this manifest binds in. Every shared-object class admitted to survive past the active turn MUST be named by at least one retention row; a missing row for a surviving class denies with retention_row_for_every_surviving_class_required."
+        },
+        "archive_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to sealed_session_archive shared objects bound to this manifest. Empty on live_only_no_retention sessions; populated on sessions that have sealed an archive."
+        },
+        "active_visible_consent_cue_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the collaboration_session_consent_event_records that admitted the manifest's current posture. A manifest that carries a retention_mode_class above metadata_audited_no_payload_retention MUST cite at least one consent-event ref; a missing ref denies with recording_must_carry_visible_consent_cue or visible_consent_cue_missing."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "amended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "supersedes_policy_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior collaboration_session_policy_manifest_record this row supersedes (set on the new manifest when mid-session amendment mints a fresh row)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "retention_mode_class": {
+                "enum": [
+                  "replayable_review_or_teaching",
+                  "support_or_regulated_retention_with_hold_eligibility"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["active_visible_consent_cue_refs"],
+            "properties": {
+              "active_visible_consent_cue_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "guest_policy_class": { "const": "no_guests_admitted_org_members_only" } } },
+          "then": {
+            "properties": {
+              "guest_actor_refs": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      ],
+      "description": "One-row description of the policy stance for a collaboration session at a point in time. Amendments mid-session mint a fresh row with supersedes_policy_manifest_ref set and at least one paired collaboration_session_consent_event_record."
+    },
+
+    "collaboration_session_retention_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_policy_manifest_schema_version",
+        "record_kind",
+        "retention_row_id",
+        "policy_manifest_ref",
+        "shared_object_class_policy_class",
+        "retention_posture_class",
+        "export_posture_class",
+        "delete_posture_class",
+        "record_class_id_ref",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_retention_row_record" },
+        "session_policy_manifest_schema_version": { "$ref": "#/$defs/session_policy_manifest_schema_version" },
+        "retention_row_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "shared_object_class_policy_class": { "$ref": "#/$defs/shared_object_class_policy_class" },
+        "retention_posture_class": { "$ref": "#/$defs/retention_posture_class" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "delete_posture_class": { "$ref": "#/$defs/delete_posture_class" },
+        "record_class_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into artifacts/governance/record_class_registry.yaml naming the governed record class whose retention / delete / export posture this row narrows. Every retention row MUST cite one record-class ref; a missing ref denies with retention_row_record_class_id_ref_missing."
+        },
+        "opt_in_required_class": {
+          "type": "string",
+          "enum": [
+            "not_opt_in_default_admitted",
+            "opt_in_explicit_user_required",
+            "opt_in_policy_forced_admin_signed"
+          ],
+          "description": "Opt-in stance for the row. shared_terminal_control_metadata and shared_debug_control_metadata rows MUST resolve to opt_in_explicit_user_required or opt_in_policy_forced_admin_signed when retention_posture_class is above retained_metadata_only_local_workspace; a not_opt_in_default_admitted row for either class denies with shared_terminal_or_debugger_retention_must_be_opt_in."
+        },
+        "retention_horizon_class": {
+          "type": "string",
+          "enum": [
+            "horizon_live_only_no_retention",
+            "horizon_session_end_plus_short_window",
+            "horizon_review_bounded_horizon",
+            "horizon_policy_retained_indefinite",
+            "horizon_legal_hold_indefinite",
+            "horizon_sealed_archive_only"
+          ],
+          "description": "Coarse retention-horizon bucket. Raw dates / durations are not carried at the boundary; the record-class-registry row cited by record_class_id_ref holds the policy-bound horizon."
+        },
+        "row_count_class": {
+          "type": "string",
+          "enum": [
+            "zero_rows",
+            "one_to_ten",
+            "eleven_to_one_hundred",
+            "one_hundred_one_to_one_thousand",
+            "one_thousand_one_or_more"
+          ],
+          "description": "Coarse row-count bucket. Raw counts are not carried at the boundary."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "supersedes_retention_row_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "shared_object_class_policy_class": {
+                "enum": [
+                  "shared_terminal_control_metadata",
+                  "shared_debug_control_metadata",
+                  "temporary_control_grant_terminal",
+                  "temporary_control_grant_debugger"
+                ]
+              },
+              "retention_posture_class": {
+                "enum": [
+                  "retained_full_payload_local_workspace",
+                  "retained_full_payload_managed_surface_consent_required",
+                  "retained_full_payload_support_bundle_admin_signed",
+                  "retained_in_sealed_archive_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["opt_in_required_class"],
+            "properties": {
+              "opt_in_required_class": {
+                "enum": [
+                  "opt_in_explicit_user_required",
+                  "opt_in_policy_forced_admin_signed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "shared_object_class_policy_class": {
+                "enum": [
+                  "recording_full_session_replay",
+                  "transcript_text_only",
+                  "transcript_structured_captions_only"
+                ]
+              },
+              "retention_posture_class": {
+                "not": { "const": "not_retained_live_only" }
+              }
+            }
+          },
+          "then": {
+            "required": ["opt_in_required_class"],
+            "properties": {
+              "opt_in_required_class": {
+                "enum": [
+                  "opt_in_explicit_user_required",
+                  "opt_in_policy_forced_admin_signed"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One-row description of a retention profile for a single shared-object-class-for-policy value bound to one policy manifest. Every row MUST cite a record_class_id_ref so reviewers can resolve the bound delete / export / hold policy against the record-class registry without guessing."
+    },
+
+    "collaboration_session_consent_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_policy_manifest_schema_version",
+        "record_kind",
+        "consent_event_id",
+        "policy_manifest_ref",
+        "admitting_actor_ref",
+        "visible_consent_cue_class",
+        "re_consent_trigger_reason_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_consent_event_record" },
+        "session_policy_manifest_schema_version": { "$ref": "#/$defs/session_policy_manifest_schema_version" },
+        "consent_event_id": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "admitting_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor whose consent action minted the row (participant who acknowledged, host who forced a guest prompt, admin who signed an admin-forced cue)."
+        },
+        "affected_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "description": "Opaque refs to actors whose session view is affected by the consent event. At least one actor MUST be named."
+        },
+        "visible_consent_cue_class": { "$ref": "#/$defs/visible_consent_cue_class" },
+        "re_consent_trigger_reason_class": { "$ref": "#/$defs/re_consent_trigger_reason_class" },
+        "prior_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the collaboration_session_policy_manifest_record in force before this consent event; paired with policy_manifest_ref (the new or amended manifest) so a reviewer can resolve what changed without guessing."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One-row description of a consent admission or mid-session re-consent event. A silent mid-session change to retention, guest policy, or route visibility denies with mid_session_consent_cue_missing when no row of this kind is paired with the amended manifest."
+    },
+
+    "collaboration_session_policy_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_policy_manifest_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "policy_manifest_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_policy_audit_event_record" },
+        "session_policy_manifest_schema_version": { "$ref": "#/$defs/session_policy_manifest_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "consent_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/policy_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/policy_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "collaboration_session_policy_audit_denial_emitted" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_session_policy stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why the manifest refused admission, why a retention row was refused, or why a consent event was required without guessing."
+    }
+  }
+}
