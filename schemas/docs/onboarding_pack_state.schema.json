@@ -1,0 +1,1032 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/onboarding_pack_state.schema.json",
+  "title": "Aureline onboarding docs-pack locale, cached / not-installed state, and offline disclosure contract",
+  "description": "Boundary schema for the onboarding_pack_state_record and the onboarding_pack_locale_row_record frozen in docs/docsops/onboarding_pack_state_contract.md. Every onboarding docs pack, glossary bundle, and guided-content pack that a first-run flow, welcome surface, glossary card, guided-tour step, or in-product help overlay embeds MUST resolve one shared onboarding_pack_state_record before rendering a locale, a freshness chip, or an open-in-browser fallback. The record composes three upstream boundaries without inventing parallel vocabulary: the docs-pack manifest (source / version / locale / freshness / signing / mirror-lineage / example-summary / publishable fields), the Help / About / service-health destination descriptor (route / trust / owner / boundary / external-open / handoff rules), and the guided-surface state record (per-surface dismissal / reset / authority / suppression cause). Raw docs bytes, raw URLs, raw absolute paths, raw issue-template bodies, raw prompt or completion text, and raw cryptographic material never cross this boundary; the record carries opaque ids, typed vocabulary, and monotonic placeholder timestamps only. The eventual docs-help-service-health crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning onboarding / glossary / tour / help-overlay surface reads. Adding a new pack_role, install_state, locale_presence_class, locale_fallback_disclosure_class, offline_posture, browser_handoff_policy, account_prerequisite_class, embedded_route_policy, locale_authoring_state, reset_class, or publishable_denial_reason is additive-minor and bumps onboarding_pack_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/onboarding_pack_state_record" },
+    { "$ref": "#/$defs/onboarding_pack_locale_row_record" }
+  ],
+  "$defs": {
+    "onboarding_pack_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this onboarding-pack-state export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "onboarding_pack_state_record",
+        "onboarding_pack_locale_row_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, release-evidence packets, and claim manifests. Raw URLs, raw absolute paths, raw page bodies, raw glossary bodies, raw issue-template bodies, and raw cryptographic material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag (e.g. en, en-US, pt-BR, zh-Hant-HK). Case is normalized by the registry but preserved here for round-trip compatibility."
+    },
+
+    "pack_role": {
+      "type": "string",
+      "enum": [
+        "first_run_starter_pack",
+        "welcome_tour_pack",
+        "glossary_bundle",
+        "guided_content_pack",
+        "in_product_help_overlay_pack",
+        "account_optional_onboarding_pack",
+        "migration_welcome_pack",
+        "air_gapped_offline_onboarding_pack"
+      ],
+      "description": "Closed onboarding-pack role vocabulary. Every pack whose state this record projects plays exactly one role: a first-run starter pack (embedded into the Start Center / first-run tour), a welcome tour pack (guided tour steps), a glossary bundle (definition cards), a guided-content pack (explainers and exercises), an in-product help-overlay pack (contextual tip surface payload), an account-optional onboarding pack (onboarding guidance that stays local-first and never requires sign-in), a migration welcome pack (onboarding content scoped to a migration / import flow), or an air-gapped offline onboarding pack (onboarding content packaged for air-gapped / offline-only deployments)."
+    },
+
+    "install_state": {
+      "type": "string",
+      "enum": [
+        "local_only_starter",
+        "live_installed_current",
+        "cached_snapshot_current",
+        "cached_snapshot_stale",
+        "mirror_only_verified",
+        "not_installed",
+        "remote_unavailable",
+        "policy_blocked",
+        "quarantined",
+        "withdrawn"
+      ],
+      "description": "Closed install-state vocabulary. local_only_starter is the baked-in starter content shipped with the binary; live_installed_current is the canonical-owner refreshed copy; cached_snapshot_current is a live-fetched pack whose copy is inside its refresh window; cached_snapshot_stale is a live-fetched pack whose copy has aged past its refresh window; mirror_only_verified is an offline / air-gapped signed-bundle import within its offline_expiration_at; not_installed means the pack was referenced but no copy is resident; remote_unavailable means the canonical owner is unreachable and no cached snapshot satisfies the freshness floor; policy_blocked means admin or workspace-trust policy suppresses this pack; quarantined means the publisher or admin policy has quarantined it; withdrawn means a newer revision has superseded this one and onboarding surfaces MUST NOT treat it as current."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/docs/docs_pack_manifest.schema.json (which re-exports from schemas/governance/capability_lifecycle.schema.json and schemas/docs/help_status_badge.schema.json) without modification. A pack whose last_refreshed_at is outside the refresh window MUST NOT declare authoritative_live; a pack whose install_state is cached_snapshot_stale MUST declare stale or unverified."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Re-exported from schemas/docs/docs_pack_manifest.schema.json without modification. Computed against the running build's exact-build identity at render time."
+    },
+
+    "locale_presence_class": {
+      "type": "string",
+      "enum": [
+        "locale_available_reviewed",
+        "locale_available_machine_assisted",
+        "locale_available_stub",
+        "locale_available_stale_copy",
+        "locale_missing_fallback_to_primary",
+        "locale_missing_not_installed",
+        "locale_policy_blocked"
+      ],
+      "description": "Closed locale-presence vocabulary. Every requested locale resolves to exactly one class. locale_available_reviewed is full reviewed coverage; locale_available_machine_assisted / locale_available_stub / locale_available_stale_copy mirror the docs-pack manifest's partial / machine_assisted / stub / stale_copy coverage classes and MUST render a typed disclosure on the primary surface; locale_missing_fallback_to_primary means the requested locale has no content in this pack and the surface falls back to primary_locale with a typed disclosure (never an implied fallback); locale_missing_not_installed means the locale-specific pack was referenced but no copy is resident; locale_policy_blocked means admin / workspace-trust policy suppresses this locale in the current envelope."
+    },
+
+    "locale_fallback_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback_primary_locale_only",
+        "inline_fallback_disclosure_rendered",
+        "embedded_boundary_card_disclosure_rendered",
+        "surface_suppressed_no_fallback_rendered"
+      ],
+      "description": "Closed locale-fallback-disclosure vocabulary. no_fallback_primary_locale_only is the baseline (the requested locale is the primary locale). inline_fallback_disclosure_rendered applies when a locale-available_* class other than reviewed renders inline with a typed chip (partial / machine_assisted / stub / stale_copy). embedded_boundary_card_disclosure_rendered applies when the pack opens in an embedded surface and the host renders the boundary card disclosure (ADR-0015). surface_suppressed_no_fallback_rendered applies when the pack is suppressed (policy_blocked / quarantined / not_installed / remote_unavailable) and no fallback copy renders under any circumstance; the surface surfaces the typed denial cause instead."
+    },
+
+    "offline_posture": {
+      "type": "string",
+      "enum": [
+        "not_available_offline",
+        "fully_available_offline_local_build",
+        "cached_snapshot_offline",
+        "mirror_verified_offline",
+        "air_gapped_signed_bundle",
+        "offline_expired_requires_refresh"
+      ],
+      "description": "Closed offline-posture vocabulary. Re-layered on top of the destination-descriptor offline_behavior vocabulary so onboarding surfaces can cite one field for both the docs-pack offline lineage and the destination-descriptor route. offline_expired_requires_refresh maps one-to-one to a cached_snapshot_stale / mirror_only_verified pack whose offline_expiration_at has passed and therefore MUST NOT be rendered as current."
+    },
+
+    "browser_handoff_policy": {
+      "type": "string",
+      "enum": [
+        "no_handoff_local_only",
+        "optional_same_object_system_browser",
+        "required_fallback_when_in_product_unavailable",
+        "required_primary_route_system_browser",
+        "required_primary_route_device_code",
+        "handoff_blocked_by_policy"
+      ],
+      "description": "Closed onboarding handoff-policy vocabulary. no_handoff_local_only is the default for first_run_starter_pack / glossary_bundle content that stays local. optional_same_object_system_browser means the user may open a canonical-owner copy in the system browser as a same-object fallback. required_fallback_when_in_product_unavailable applies when an embedded or cached render can no longer serve the content and the surface MUST route to the system browser (ADR-0013 screenshot-safe / export-safe handoff reason vocabulary). required_primary_route_system_browser / required_primary_route_device_code name browser-first routes (rare for onboarding; admitted only for managed-admin or account-bound guidance). handoff_blocked_by_policy applies when admin policy or workspace-trust forbids the browser handoff and the surface MUST render the typed denial cause instead."
+    },
+
+    "browser_handoff_reason_subset": {
+      "type": "string",
+      "enum": [
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "step_up_required",
+        "mutation_not_supported_in_product"
+      ],
+      "description": "Re-exported from schemas/docs/destination_descriptor.schema.json (which re-exports from schemas/docs/help_status_badge.schema.json) without modification. Onboarding rows MUST use this screenshot-safe / export-safe subset; inventing a local reason string is forbidden."
+    },
+
+    "account_prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "no_account_required",
+        "optional_account_context",
+        "deferrable_account_upgrade",
+        "required_authenticated_session",
+        "required_step_up",
+        "managed_admin_session",
+        "account_unavailable_in_envelope"
+      ],
+      "description": "Closed account-prerequisite vocabulary for onboarding rows. Reuses the destination-descriptor / onboarding-portability auth-expectation and account-prompt semantics without re-minting. no_account_required is the local-first baseline and MUST remain admissible for first_run_starter_pack / glossary_bundle / account_optional_onboarding_pack / air_gapped_offline_onboarding_pack rows. optional_account_context / deferrable_account_upgrade cover opt-in surfaces whose decline keeps the user on the local lane. required_authenticated_session / required_step_up / managed_admin_session name forced-auth surfaces (rare for onboarding; admitted only for explicitly account-bound guidance). account_unavailable_in_envelope applies when the running envelope (air-gapped, privacy-reduced) disables the account surface entirely."
+    },
+
+    "embedded_route_policy": {
+      "type": "string",
+      "enum": [
+        "local_only_product_chrome",
+        "embedded_boundary_card_required",
+        "embedded_boundary_card_required_with_system_browser_fallback",
+        "system_browser_primary_with_product_chrome_preview",
+        "embedded_route_blocked_by_policy"
+      ],
+      "description": "Closed embedded-route vocabulary. local_only_product_chrome is the default for onboarding content rendered inside native product chrome (no webview). embedded_boundary_card_required applies when the pack renders inside an embedded surface and the host MUST render the ADR-0015 boundary card (owner / origin / data-exit). embedded_boundary_card_required_with_system_browser_fallback applies when the embedded surface may refuse render (certificate failure, cross-origin block, offline) and the host MUST offer an ADR-0013 screenshot-safe system-browser fallback. system_browser_primary_with_product_chrome_preview applies when the canonical owner is the browser and the product renders a typed preview only. embedded_route_blocked_by_policy applies when policy forbids the embedded surface entirely."
+    },
+
+    "locale_authoring_state": {
+      "type": "string",
+      "enum": [
+        "authored_and_reviewed",
+        "machine_assisted_not_reviewed",
+        "authored_against_prior_source_revision",
+        "stub_titles_only",
+        "not_authored"
+      ],
+      "description": "Closed locale-authoring vocabulary used on per-locale rows. authored_and_reviewed is the publishable baseline. machine_assisted_not_reviewed MUST render the machine-assisted disclosure on the primary surface. authored_against_prior_source_revision pins the stale-copy case and MUST render the stale-translation disclosure. stub_titles_only admits navigation / headings only and MUST render a typed disclosure. not_authored admits the locale-missing-fallback / locale-missing-not-installed cases and MUST render a typed locale-gap disclosure."
+    },
+
+    "reset_class": {
+      "type": "string",
+      "enum": [
+        "not_resettable_packaged_with_binary",
+        "resettable_with_pack_refresh",
+        "resettable_with_reinstall_or_import",
+        "resettable_with_policy_change",
+        "resettable_with_account_reset"
+      ],
+      "description": "Closed onboarding-pack reset-class vocabulary. Names how a surface recovers from a degraded install-state. not_resettable_packaged_with_binary applies to local_only_starter content shipped with the binary (refreshes only on binary update). resettable_with_pack_refresh is the default for live / cached packs (refresh_freshness). resettable_with_reinstall_or_import applies to mirror_only_verified / not_installed / withdrawn packs (signed-bundle / air-gapped import). resettable_with_policy_change applies to policy_blocked packs (admin-policy narrowing lifted). resettable_with_account_reset applies to account-bound onboarding whose state is gated by an account profile."
+    },
+
+    "publishable_denial_reason": {
+      "type": "string",
+      "enum": [
+        "pack_signature_unverified",
+        "mirror_continuity_broken",
+        "pack_quarantined",
+        "pack_withdrawn",
+        "pack_not_installed",
+        "remote_owner_unreachable",
+        "cached_snapshot_expired",
+        "air_gapped_bundle_expired",
+        "locale_missing_not_installed",
+        "locale_policy_blocked",
+        "incompatible_build_drift",
+        "account_required_but_envelope_blocks",
+        "policy_blocked",
+        "embedded_route_blocked",
+        "required_citation_anchors_missing"
+      ],
+      "description": "Closed publishable-denial vocabulary. Every onboarding_pack_state_record whose publishable boolean is false MUST name at least one reason. Reasons compose with the docs-pack manifest publishable_blocking_reason vocabulary (re-used verbatim) and add onboarding-specific reasons (pack_not_installed, remote_owner_unreachable, cached_snapshot_expired, air_gapped_bundle_expired, locale_missing_not_installed, locale_policy_blocked, account_required_but_envelope_blocks, embedded_route_blocked). Silent suppression without a typed reason is forbidden."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support",
+            "import_offline_onboarding_bundle",
+            "open_in_system_browser_same_object",
+            "switch_to_primary_locale",
+            "install_locale_pack"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": { "type": "string" }
+      },
+      "description": "Onboarding-scoped repair-hook vocabulary. Re-exports the ADR-0011 repair-hook kinds from schemas/docs/docs_pack_manifest.schema.json and extends them with onboarding-specific hooks: import_offline_onboarding_bundle (for air-gapped / mirror-only packs), open_in_system_browser_same_object (for required-fallback-when-in-product-unavailable rows), switch_to_primary_locale (for locale_missing_fallback_to_primary rows), and install_locale_pack (for locale_missing_not_installed rows). Adding a new hook kind is additive-minor."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011 / ADR-0007). Declared per-record; the broker-owned redaction pass runs before bytes reach any persistent or exportable sink."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "managed_cloud",
+        "managed_fleet",
+        "air_gapped"
+      ],
+      "description": "Re-exported deployment-profile class vocabulary used by several cross-tool schemas (destination_descriptor / onboarding_portability_state / emergency_action_record) without modification. Declared so onboarding rows can pin per-profile applicability without inventing a parallel field."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Opaque metadata envelope used by worked fixtures to carry scenario / exercised-axes / contract-sections blocks. Never read by product code."
+    },
+
+    "onboarding_pack_locale_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_pack_state_schema_version",
+        "pack_id",
+        "pack_revision_ref",
+        "locale",
+        "locale_presence_class",
+        "locale_authoring_state",
+        "locale_fallback_disclosure_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "onboarding_pack_locale_row_record" },
+        "onboarding_pack_state_schema_version": {
+          "$ref": "#/$defs/onboarding_pack_state_schema_version"
+        },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "locale_presence_class": {
+          "$ref": "#/$defs/locale_presence_class"
+        },
+        "locale_authoring_state": {
+          "$ref": "#/$defs/locale_authoring_state"
+        },
+        "locale_fallback_disclosure_class": {
+          "$ref": "#/$defs/locale_fallback_disclosure_class"
+        },
+        "reviewed_against_source_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the source revision the translation was reviewed against. When set and not equal to the pack_revision_ref, the row is a locale_available_stale_copy candidate."
+        },
+        "page_count_covered": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "page_count_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fallback_locale": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bcp47_locale_tag" }
+          ],
+          "description": "BCP-47 locale the surface falls back to when this locale is missing / not_installed / policy_blocked. Null when locale_presence_class is one of the locale_available_* classes."
+        },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Missing-locale rows MUST name a fallback locale and a repair hook.",
+          "if": {
+            "properties": {
+              "locale_presence_class": {
+                "enum": [
+                  "locale_missing_fallback_to_primary",
+                  "locale_missing_not_installed",
+                  "locale_policy_blocked"
+                ]
+              }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+              "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" }
+            },
+            "required": ["fallback_locale", "repair_hook_ref"]
+          }
+        },
+        {
+          "description": "locale_available_reviewed rows MUST declare the reviewed authoring state.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_available_reviewed" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_authoring_state": { "const": "authored_and_reviewed" }
+            }
+          }
+        },
+        {
+          "description": "locale_available_machine_assisted rows MUST declare the machine-assisted authoring state.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_available_machine_assisted" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_authoring_state": { "const": "machine_assisted_not_reviewed" }
+            }
+          }
+        },
+        {
+          "description": "locale_available_stale_copy rows MUST declare the prior-source-revision authoring state.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_available_stale_copy" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_authoring_state": { "const": "authored_against_prior_source_revision" }
+            }
+          }
+        },
+        {
+          "description": "locale_available_stub rows MUST declare the stub-titles authoring state.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_available_stub" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_authoring_state": { "const": "stub_titles_only" }
+            }
+          }
+        },
+        {
+          "description": "Missing-locale rows carry the not_authored authoring state.",
+          "if": {
+            "properties": {
+              "locale_presence_class": {
+                "enum": [
+                  "locale_missing_fallback_to_primary",
+                  "locale_missing_not_installed",
+                  "locale_policy_blocked"
+                ]
+              }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_authoring_state": { "const": "not_authored" }
+            }
+          }
+        }
+      ],
+      "description": "Standalone record describing a single locale row for an onboarding pack. Useful for parity audits and support exports that need to enumerate locale gaps across packs without holding a full onboarding_pack_state_record."
+    },
+
+    "onboarding_pack_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_pack_state_schema_version",
+        "pack_id",
+        "pack_revision_ref",
+        "docs_pack_manifest_ref",
+        "destination_descriptor_ref",
+        "pack_role",
+        "install_state",
+        "freshness_class",
+        "version_match_state",
+        "running_build_identity_ref",
+        "primary_locale",
+        "requested_locale",
+        "effective_locale",
+        "locale_presence_class",
+        "locale_fallback_disclosure_class",
+        "locale_rows",
+        "offline_posture",
+        "browser_handoff_policy",
+        "account_prerequisite_class",
+        "embedded_route_policy",
+        "applicable_deployment_profiles",
+        "publishable",
+        "publishable_denial_reasons",
+        "reset_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "onboarding_pack_state_record" },
+        "onboarding_pack_state_schema_version": {
+          "$ref": "#/$defs/onboarding_pack_state_schema_version"
+        },
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "docs_pack_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the docs-pack manifest the onboarding pack projects from. See schemas/docs/docs_pack_manifest.schema.json#docs_pack_manifest_record. The onboarding_pack_state_record never re-mints signing / mirror-lineage / example-summary / publishable-blocking-reason content; it cites the manifest and derives install_state, freshness_class, version_match_state, and locale disclosures from it."
+        },
+        "destination_descriptor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the destination descriptor the onboarding pack opens through. See schemas/docs/destination_descriptor.schema.json#destination_descriptor_record. Carries the preferred / fallback route classes, external-open policy, auth expectation, and disclosure-safety posture; this record quotes them instead of minting local browser-handoff or embedded-route copies."
+        },
+        "guided_surface_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque pin to a guided_surface_state_record (schemas/ux/guided_surface_state.schema.json). Present when the onboarding pack is consumed inside a guided tour step, glossary card, exercise step, onboarding card, architecture explainer, keymap bridge hint, or teaching-session adjunct. Null for pure docs-overlay or help-pane consumers."
+        },
+        "onboarding_portability_state_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque pin to an onboarding_portability_state_record (schemas/ux/onboarding_portability_state.schema.json). Present when the pack carries tour progress / dismissal / reset state that composes with the onboarding-portability contract."
+        },
+        "pack_role": { "$ref": "#/$defs/pack_role" },
+        "install_state": { "$ref": "#/$defs/install_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "running_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the running build's exact-build identity. The version_match_state on this record is computed against this id at render time."
+        },
+        "primary_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "requested_locale": {
+          "$ref": "#/$defs/bcp47_locale_tag",
+          "description": "Locale the user / surface requested at render time. When the pack cannot satisfy this locale, effective_locale falls back to primary_locale or to a fallback_locale named on the matching locale row, and locale_fallback_disclosure_class MUST NOT be no_fallback_primary_locale_only."
+        },
+        "effective_locale": {
+          "$ref": "#/$defs/bcp47_locale_tag",
+          "description": "Locale the onboarding surface actually renders. Equal to requested_locale when the locale is available; otherwise equal to the fallback the surface resolved. Surfaces MUST render the typed disclosure when effective_locale differs from requested_locale."
+        },
+        "locale_presence_class": {
+          "$ref": "#/$defs/locale_presence_class",
+          "description": "Locale-presence class for requested_locale in this pack revision. See the locale_presence_class vocabulary."
+        },
+        "locale_fallback_disclosure_class": {
+          "$ref": "#/$defs/locale_fallback_disclosure_class"
+        },
+        "locale_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/onboarding_pack_locale_row_record" },
+          "description": "Per-locale rows covering every locale the pack advertises (including the primary locale and any missing / policy_blocked locale the surface may need to disclose). MUST contain at least one row; the primary_locale MUST appear as one of the rows."
+        },
+        "offline_posture": { "$ref": "#/$defs/offline_posture" },
+        "browser_handoff_policy": { "$ref": "#/$defs/browser_handoff_policy" },
+        "browser_handoff_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/browser_handoff_reason_subset" }
+          ],
+          "description": "Required (non-null) when browser_handoff_policy is one of optional_same_object_system_browser, required_fallback_when_in_product_unavailable, required_primary_route_system_browser, or required_primary_route_device_code. Null for no_handoff_local_only and handoff_blocked_by_policy. The reason MUST remain screenshot-safe and export-safe (subset re-exported from the destination-descriptor)."
+          },
+        "account_prerequisite_class": {
+          "$ref": "#/$defs/account_prerequisite_class"
+        },
+        "embedded_route_policy": {
+          "$ref": "#/$defs/embedded_route_policy"
+        },
+        "applicable_deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment profiles this onboarding pack applies to. Air-gapped / managed-fleet envelopes MAY exclude account-bound guidance; air_gapped_offline_onboarding_pack rows typically list air_gapped and self_hosted only."
+        },
+        "publishable": {
+          "type": "boolean",
+          "description": "True when the pack is currently renderable to the user on the requested locale / route / account posture. False when at least one publishable_denial_reason applies. A pack whose docs_pack_manifest_ref is non-publishable MUST carry publishable = false."
+        },
+        "publishable_denial_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/publishable_denial_reason" },
+          "description": "Frozen list of typed denial reasons. MUST be empty when publishable = true; MUST be non-empty when publishable = false. Silent suppression of an onboarding row without a typed reason is forbidden."
+        },
+        "reset_class": { "$ref": "#/$defs/reset_class" },
+        "repair_hook_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/repair_hook_ref" }
+          ],
+          "description": "Required (non-null) when publishable = false. Null when publishable = true."
+        },
+        "supersedes_pack_revision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the prior pack revision this record supersedes. Null for the initial revision."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Monotonic timestamp of the last refresh against the pack's canonical owner. Null for local_only_starter and for packs acquired exclusively through the binary."
+        },
+        "__fixture__": {
+          "$ref": "#/$defs/fixture_metadata",
+          "description": "Opaque metadata envelope used by worked fixtures to carry scenario / exercised-axes / contract-sections blocks. Never read by product code."
+        }
+      },
+      "allOf": [
+        {
+          "description": "publishable_denial_reasons MUST be empty when publishable = true.",
+          "if": {
+            "properties": { "publishable": { "const": true } },
+            "required": ["publishable"]
+          },
+          "then": {
+            "properties": {
+              "publishable_denial_reasons": { "type": "array", "maxItems": 0 },
+              "repair_hook_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "publishable_denial_reasons MUST be non-empty and a repair_hook_ref MUST be present when publishable = false.",
+          "if": {
+            "properties": { "publishable": { "const": false } },
+            "required": ["publishable"]
+          },
+          "then": {
+            "properties": {
+              "publishable_denial_reasons": { "type": "array", "minItems": 1 },
+              "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" }
+            },
+            "required": ["publishable_denial_reasons", "repair_hook_ref"]
+          }
+        },
+        {
+          "description": "install_state = not_installed MUST suppress the row with a typed reason.",
+          "if": {
+            "properties": { "install_state": { "const": "not_installed" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "pack_not_installed" }
+              }
+            }
+          }
+        },
+        {
+          "description": "install_state = remote_unavailable MUST suppress the row with the typed remote-unavailable reason.",
+          "if": {
+            "properties": { "install_state": { "const": "remote_unavailable" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "remote_owner_unreachable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "install_state = cached_snapshot_stale MUST declare freshness_class in {stale, unverified} and surface the typed cached-snapshot-expired denial.",
+          "if": {
+            "properties": { "install_state": { "const": "cached_snapshot_stale" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "freshness_class": {
+                "enum": ["stale", "unverified"]
+              },
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "cached_snapshot_expired" }
+              }
+            }
+          }
+        },
+        {
+          "description": "install_state = policy_blocked MUST suppress the row with the policy_blocked reason.",
+          "if": {
+            "properties": { "install_state": { "const": "policy_blocked" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "policy_blocked" }
+              }
+            }
+          }
+        },
+        {
+          "description": "install_state = quarantined MUST suppress the row with the pack_quarantined reason.",
+          "if": {
+            "properties": { "install_state": { "const": "quarantined" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "pack_quarantined" }
+              }
+            }
+          }
+        },
+        {
+          "description": "install_state = withdrawn MUST suppress the row with the pack_withdrawn reason.",
+          "if": {
+            "properties": { "install_state": { "const": "withdrawn" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "pack_withdrawn" }
+              }
+            }
+          }
+        },
+        {
+          "description": "version_match_state = incompatible_drift_detected MUST suppress the row with the incompatible_build_drift reason.",
+          "if": {
+            "properties": {
+              "version_match_state": { "const": "incompatible_drift_detected" }
+            },
+            "required": ["version_match_state"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "incompatible_build_drift" }
+              }
+            }
+          }
+        },
+        {
+          "description": "offline_posture = offline_expired_requires_refresh MUST pair with air_gapped_bundle_expired or cached_snapshot_expired in the denial list.",
+          "if": {
+            "properties": {
+              "offline_posture": { "const": "offline_expired_requires_refresh" }
+            },
+            "required": ["offline_posture"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "enum": [
+                    "air_gapped_bundle_expired",
+                    "cached_snapshot_expired"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "effective_locale MUST equal requested_locale when locale_presence_class is one of the locale_available_* classes and the fallback disclosure is no_fallback_primary_locale_only.",
+          "if": {
+            "properties": {
+              "locale_fallback_disclosure_class": {
+                "const": "no_fallback_primary_locale_only"
+              }
+            },
+            "required": ["locale_fallback_disclosure_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_presence_class": {
+                "enum": [
+                  "locale_available_reviewed",
+                  "locale_available_machine_assisted",
+                  "locale_available_stub",
+                  "locale_available_stale_copy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Missing-locale presence classes MUST render a typed fallback disclosure (never no_fallback_primary_locale_only).",
+          "if": {
+            "properties": {
+              "locale_presence_class": {
+                "enum": [
+                  "locale_missing_fallback_to_primary",
+                  "locale_missing_not_installed",
+                  "locale_policy_blocked"
+                ]
+              }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "locale_fallback_disclosure_class": {
+                "enum": [
+                  "inline_fallback_disclosure_rendered",
+                  "embedded_boundary_card_disclosure_rendered",
+                  "surface_suppressed_no_fallback_rendered"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "locale_missing_not_installed MUST surface the locale_missing_not_installed denial reason.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_missing_not_installed" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "locale_missing_not_installed" }
+              }
+            }
+          }
+        },
+        {
+          "description": "locale_policy_blocked MUST surface the locale_policy_blocked denial reason.",
+          "if": {
+            "properties": {
+              "locale_presence_class": { "const": "locale_policy_blocked" }
+            },
+            "required": ["locale_presence_class"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "locale_policy_blocked" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Handoff policies that leave the product MUST name a screenshot-safe / export-safe reason.",
+          "if": {
+            "properties": {
+              "browser_handoff_policy": {
+                "enum": [
+                  "optional_same_object_system_browser",
+                  "required_fallback_when_in_product_unavailable",
+                  "required_primary_route_system_browser",
+                  "required_primary_route_device_code"
+                ]
+              }
+            },
+            "required": ["browser_handoff_policy"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_reason": {
+                "$ref": "#/$defs/browser_handoff_reason_subset"
+              }
+            },
+            "required": ["browser_handoff_reason"]
+          }
+        },
+        {
+          "description": "no_handoff_local_only and handoff_blocked_by_policy MUST leave browser_handoff_reason null.",
+          "if": {
+            "properties": {
+              "browser_handoff_policy": {
+                "enum": [
+                  "no_handoff_local_only",
+                  "handoff_blocked_by_policy"
+                ]
+              }
+            },
+            "required": ["browser_handoff_policy"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_reason": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "handoff_blocked_by_policy MUST mark the record non-publishable with the policy_blocked reason.",
+          "if": {
+            "properties": {
+              "browser_handoff_policy": { "const": "handoff_blocked_by_policy" }
+            },
+            "required": ["browser_handoff_policy"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "policy_blocked" }
+              }
+            }
+          }
+        },
+        {
+          "description": "embedded_route_blocked_by_policy MUST suppress the row with the embedded_route_blocked reason.",
+          "if": {
+            "properties": {
+              "embedded_route_policy": { "const": "embedded_route_blocked_by_policy" }
+            },
+            "required": ["embedded_route_policy"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "embedded_route_blocked" }
+              }
+            }
+          }
+        },
+        {
+          "description": "account_unavailable_in_envelope paired with a required-auth prerequisite MUST suppress the row.",
+          "if": {
+            "properties": {
+              "account_prerequisite_class": { "const": "account_unavailable_in_envelope" }
+            },
+            "required": ["account_prerequisite_class"]
+          },
+          "then": {
+            "properties": {
+              "publishable": { "const": false },
+              "publishable_denial_reasons": {
+                "type": "array",
+                "minItems": 1,
+                "contains": { "const": "account_required_but_envelope_blocks" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Air-gapped onboarding packs MUST declare the air-gapped offline posture.",
+          "if": {
+            "properties": {
+              "pack_role": { "const": "air_gapped_offline_onboarding_pack" }
+            },
+            "required": ["pack_role"]
+          },
+          "then": {
+            "properties": {
+              "offline_posture": {
+                "enum": [
+                  "air_gapped_signed_bundle",
+                  "mirror_verified_offline",
+                  "offline_expired_requires_refresh"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "local_only_starter install_state MUST carry the packaged-with-binary reset class.",
+          "if": {
+            "properties": { "install_state": { "const": "local_only_starter" } },
+            "required": ["install_state"]
+          },
+          "then": {
+            "properties": {
+              "reset_class": { "const": "not_resettable_packaged_with_binary" }
+            }
+          }
+        }
+      ],
+      "description": "Onboarding-pack-state record consumed by every first-run, welcome, glossary, guided-tour, and in-product help-overlay surface before the pack is embedded. Projects docs-pack manifest identity / freshness / signing / mirror-lineage fields, destination-descriptor route / trust / boundary / handoff fields, and onboarding-specific install-state / locale-presence / offline-posture / account-prerequisite / embedded-route fields in one typed record so the surface cannot masquerade cached / not-installed / policy-blocked / locale-missing content as current live truth."
+    }
+  }
+}
