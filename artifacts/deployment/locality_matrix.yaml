@@ -1,0 +1,655 @@
+# Locality / tenancy / key-mode / control-plane versus data-plane matrix.
+#
+# Machine-readable companion to docs/deployment/locality_and_continuity_seed.md.
+# Schema companion: schemas/deployment/local_core_continuity_packet.schema.json.
+# Fixture companion: fixtures/deployment/continuity_cases/.
+#
+# One locality_row per deployment profile. Every row pins processing
+# location, storage location, tenant/org scope, region scope, retention
+# class, and key mode for the profile; per-control-plane-service and
+# per-data-plane-capability defaults; and the restore-class posture
+# claims for that profile must collapse back to.
+#
+# Rules:
+#   - Every row MUST name exactly one deployment_profile,
+#     processing_location_class, storage_location_class,
+#     tenant_org_scope_class, region_scope_class, retention_class, and
+#     key_mode_class.
+#   - Managed, enterprise, and self-hosted rows MUST NOT set
+#     tenant_org_scope, region_scope, or key_mode to not_applicable;
+#     the schema companion enforces this on continuity packets.
+#   - Every row MUST list every control_plane_service_class value
+#     under control_plane_service_posture and every
+#     data_plane_capability_class value under
+#     data_plane_capability_posture. Unknown mappings are validation
+#     failures; silent not_applicable is forbidden on managed and
+#     enterprise rows.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version plus updating the narrative seed in the same
+#     change. Repurposing a value is breaking and opens a decision row
+#     in artifacts/governance/decision_index.yaml.
+#   - Drill ids referenced from per_profile_drill_refs MUST resolve
+#     against artifacts/support/deployment_drill_catalog_seed.yaml.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+
+schema_version: 1
+status: seeded
+
+plan_source: docs/deployment/locality_and_continuity_seed.md
+packet_schema_source: schemas/deployment/local_core_continuity_packet.schema.json
+drill_catalog_source: artifacts/support/deployment_drill_catalog_seed.yaml
+drill_catalog_narrative_source: docs/deployment/drill_catalog_seed.md
+boundary_manifest_source: docs/product/boundary_manifest_strawman.md
+boundary_manifest_schema_source: schemas/product/boundary_manifest.schema.json
+support_bundle_schema_source: schemas/support/support_bundle.schema.json
+control_artifact_index_source: artifacts/governance/control_artifact_index.yaml
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.24 local-first operation"
+      - "§5.53 managed control-plane boundary"
+      - "§5.57 air-gapped operation"
+      - "Appendix AN continuity truth"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§9.6 managed-service separation"
+      - "§9.7 local-core resilience"
+      - "§9.8 mirror and offline posture"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "§11.4.2 control-plane degrade"
+      - "§11.4.3 data-plane degrade"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "§18.31 continuity-strip vocabulary"
+      - "§18.42 boundary-recheck surface"
+      - "Appendix BL cached truth labelling"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+#
+# Adding a value is additive-minor; repurposing a value is breaking.
+# The schema companion and this file MUST agree on every entry.
+# -----------------------------------------------------------------------------
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+processing_location_vocabulary:
+  - on_device_only
+  - on_device_plus_remote_workspace
+  - customer_control_plane
+  - vendor_control_plane
+  - customer_or_vendor_control_plane
+  - not_applicable
+
+storage_location_vocabulary:
+  - device_local_disk
+  - device_local_plus_workspace_repo
+  - customer_control_plane_storage
+  - vendor_control_plane_storage
+  - mirror_or_offline_bundle
+  - none
+  - not_applicable
+
+tenant_org_scope_vocabulary:
+  - single_user_local
+  - customer_tenant
+  - shared_multi_tenant
+  - tenant_boundary_recheck_required
+  - not_applicable
+
+region_scope_vocabulary:
+  - customer_region_pinned
+  - remote_target_region
+  - boundary_recheck_required
+  - not_applicable
+
+retention_class_vocabulary:
+  - no_retention_beyond_local_disk
+  - workspace_repo_retained
+  - customer_retention_window
+  - vendor_retention_window_with_customer_policy
+  - vendor_retention_window_default
+  - retention_not_applicable
+
+key_mode_vocabulary:
+  - os_store
+  - vendor_managed
+  - customer_managed
+  - offline_trust_root
+  - not_applicable
+
+control_plane_service_vocabulary:
+  - sync_service
+  - registry_service
+  - relay_service
+  - ai_broker_service
+  - auth_identity_service
+  - policy_service
+  - docs_pack_service
+  - catalog_service
+  - telemetry_sink_service
+
+control_plane_service_state_vocabulary:
+  - healthy
+  - stale_cache
+  - unavailable
+  - mirror_only
+  - boundary_recheck_required
+  - not_applicable
+
+data_plane_capability_vocabulary:
+  - local_editing
+  - local_save
+  - local_search
+  - local_git
+  - local_tasks
+  - local_docs_inspect
+  - local_export
+  - local_diagnostics
+
+data_plane_capability_state_vocabulary:
+  - available_local_safe
+  - available_mirror_backed
+  - reduced_read_only
+  - blocked_pending_reconnect
+  - blocked_pending_boundary_recheck
+  - blocked_by_policy
+  - not_applicable
+
+restore_class_vocabulary:
+  - continue_local_no_restore
+  - replay_cached_snapshot
+  - mirror_snapshot_import
+  - resume_after_reconnect
+  - manual_reconcile_after_boundary_change
+
+staleness_class_vocabulary:
+  - fresh
+  - bounded_stale
+  - unbounded_stale
+
+mirror_freshness_vocabulary:
+  - mirror_fresh_within_window
+  - mirror_within_extended_window
+  - mirror_past_extended_window
+  - mirror_freshness_unknown
+  - not_applicable
+
+offline_import_source_vocabulary:
+  - customer_sneakernet_bundle
+  - customer_signed_registry_export
+  - vendor_signed_offline_bundle
+  - certified_archetype_seed
+  - not_applicable
+
+# -----------------------------------------------------------------------------
+# Consumer bindings.
+#
+# The matrix exists so these four consumer families resolve against
+# one vocabulary rather than inventing parallel locality schemas.
+# -----------------------------------------------------------------------------
+
+consumer_bindings:
+  support_bundles:
+    primary_docs:
+      - docs/support/support_bundle_contract.md
+      - schemas/support/support_bundle.schema.json
+    rule: >
+      Support bundles reuse deployment_profile_class,
+      region_scope_class, tenant_scope_class, and key_mode_class values
+      from the shared vocabulary below and cite drill_id values plus
+      local_core_continuity_packet_record packets instead of minting
+      private locality fields.
+  boundary_manifest:
+    primary_docs:
+      - docs/product/boundary_manifest_strawman.md
+      - schemas/product/boundary_manifest.schema.json
+    rule: >
+      Boundary-manifest rows map local_core_continuity and
+      absence_narrows_to sentences to per-profile retained-local-safe
+      and blocked-managed-only claims in this file whenever optional
+      services, mirrors, or cached policy/auth truth are in play.
+  deployment_drill_catalog:
+    primary_docs:
+      - docs/deployment/drill_catalog_seed.md
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+    rule: >
+      Drill rows resolve locality posture, control-plane state, and
+      data-plane state against this matrix so drill-row review does
+      not invent outage taxonomies.
+  dr_drill_artifacts:
+    primary_docs:
+      - docs/release/install_topology_plan.md
+      - artifacts/release/install_topology_matrix.yaml
+    rule: >
+      Future DR drill and failover artifacts cite a
+      local_core_continuity_packet_record per exercised posture rather
+      than free-text locality claims.
+
+# -----------------------------------------------------------------------------
+# Degrade-model mapping.
+#
+# Binds control-plane service impairment to the data-plane continuity
+# that MUST remain true. Surfaces cannot silently collapse a
+# control-plane outage into a generic product failure when any
+# data-plane row here is still available_local_safe or
+# available_mirror_backed.
+# -----------------------------------------------------------------------------
+
+degrade_model:
+  rule: >
+    Every control_plane_service_state value other than healthy MUST
+    resolve against a named restore_class and a data-plane continuity
+    baseline. Silent "service degraded" copy is forbidden on any
+    surface that consumes this matrix.
+  mappings:
+    - control_plane_service_state: stale_cache
+      allowed_restore_classes:
+        - continue_local_no_restore
+        - replay_cached_snapshot
+        - resume_after_reconnect
+      minimum_data_plane_baseline:
+        - capability_class: local_editing
+          state: available_local_safe
+        - capability_class: local_save
+          state: available_local_safe
+        - capability_class: local_search
+          state: available_local_safe
+        - capability_class: local_git
+          state: available_local_safe
+        - capability_class: local_export
+          state: available_local_safe
+    - control_plane_service_state: unavailable
+      allowed_restore_classes:
+        - continue_local_no_restore
+        - replay_cached_snapshot
+        - resume_after_reconnect
+      minimum_data_plane_baseline:
+        - capability_class: local_editing
+          state: available_local_safe
+        - capability_class: local_save
+          state: available_local_safe
+        - capability_class: local_export
+          state: available_local_safe
+    - control_plane_service_state: mirror_only
+      allowed_restore_classes:
+        - replay_cached_snapshot
+        - mirror_snapshot_import
+      minimum_data_plane_baseline:
+        - capability_class: local_editing
+          state: available_local_safe
+        - capability_class: local_save
+          state: available_local_safe
+        - capability_class: local_docs_inspect
+          state: available_mirror_backed
+        - capability_class: local_export
+          state: available_local_safe
+    - control_plane_service_state: boundary_recheck_required
+      allowed_restore_classes:
+        - manual_reconcile_after_boundary_change
+      minimum_data_plane_baseline:
+        - capability_class: local_editing
+          state: available_local_safe
+        - capability_class: local_save
+          state: available_local_safe
+        - capability_class: local_export
+          state: available_local_safe
+
+# -----------------------------------------------------------------------------
+# Per-profile locality rows.
+#
+# One row per deployment profile. The per-service posture rows below
+# are default claims, not a runtime state. Drill rows and continuity
+# packets narrow them against concrete scenarios.
+# -----------------------------------------------------------------------------
+
+locality_rows:
+  - deployment_profile: individual_local
+    title: Individual local device, no managed service claimed
+    status: seeded
+    locality_posture:
+      processing_location_class: on_device_only
+      storage_location_class: device_local_disk
+      tenant_org_scope_class: single_user_local
+      region_scope_class: not_applicable
+      retention_class: no_retention_beyond_local_disk
+      key_mode_class: os_store
+    control_plane_service_posture:
+      - service_class: sync_service
+        default_state: not_applicable
+      - service_class: registry_service
+        default_state: not_applicable
+      - service_class: relay_service
+        default_state: not_applicable
+      - service_class: ai_broker_service
+        default_state: not_applicable
+      - service_class: auth_identity_service
+        default_state: not_applicable
+      - service_class: policy_service
+        default_state: not_applicable
+      - service_class: docs_pack_service
+        default_state: healthy
+      - service_class: catalog_service
+        default_state: not_applicable
+      - service_class: telemetry_sink_service
+        default_state: not_applicable
+    data_plane_capability_posture:
+      - capability_class: local_editing
+        default_state: available_local_safe
+      - capability_class: local_save
+        default_state: available_local_safe
+      - capability_class: local_search
+        default_state: available_local_safe
+      - capability_class: local_git
+        default_state: available_local_safe
+      - capability_class: local_tasks
+        default_state: available_local_safe
+      - capability_class: local_docs_inspect
+        default_state: available_local_safe
+      - capability_class: local_export
+        default_state: available_local_safe
+      - capability_class: local_diagnostics
+        default_state: available_local_safe
+    default_restore_class: continue_local_no_restore
+    mirror_or_air_gap_applies: false
+    per_profile_drill_refs:
+      - benchmark_lab_local_only_capture
+    notes: >
+      Baseline local-core profile. No managed form is claimed; managed
+      control-plane service classes resolve to not_applicable rather
+      than unavailable so packets for this profile do not fabricate
+      absent services.
+
+  - deployment_profile: self_hosted
+    title: Customer-operated control plane, mirror, or registry
+    status: seeded
+    locality_posture:
+      processing_location_class: customer_control_plane
+      storage_location_class: customer_control_plane_storage
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: customer_retention_window
+      key_mode_class: customer_managed
+    control_plane_service_posture:
+      - service_class: sync_service
+        default_state: healthy
+      - service_class: registry_service
+        default_state: healthy
+      - service_class: relay_service
+        default_state: healthy
+      - service_class: ai_broker_service
+        default_state: not_applicable
+      - service_class: auth_identity_service
+        default_state: healthy
+      - service_class: policy_service
+        default_state: healthy
+      - service_class: docs_pack_service
+        default_state: healthy
+      - service_class: catalog_service
+        default_state: healthy
+      - service_class: telemetry_sink_service
+        default_state: healthy
+    data_plane_capability_posture:
+      - capability_class: local_editing
+        default_state: available_local_safe
+      - capability_class: local_save
+        default_state: available_local_safe
+      - capability_class: local_search
+        default_state: available_local_safe
+      - capability_class: local_git
+        default_state: available_local_safe
+      - capability_class: local_tasks
+        default_state: available_local_safe
+      - capability_class: local_docs_inspect
+        default_state: available_local_safe
+      - capability_class: local_export
+        default_state: available_local_safe
+      - capability_class: local_diagnostics
+        default_state: available_local_safe
+    default_restore_class: resume_after_reconnect
+    mirror_or_air_gap_applies: true
+    per_profile_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - mirror_import_offline_bundle_replay
+    notes: >
+      Self-hosted rows MUST carry a concrete tenant, region, and key
+      posture. AI broker remains not_applicable by default because the
+      self-hosted profile does not assume a hosted inference plane.
+
+  - deployment_profile: enterprise_online
+    title: Enterprise online, vendor-managed or customer-federated services
+    status: seeded
+    locality_posture:
+      processing_location_class: customer_or_vendor_control_plane
+      storage_location_class: customer_control_plane_storage
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: vendor_retention_window_with_customer_policy
+      key_mode_class: customer_managed
+    control_plane_service_posture:
+      - service_class: sync_service
+        default_state: healthy
+      - service_class: registry_service
+        default_state: healthy
+      - service_class: relay_service
+        default_state: healthy
+      - service_class: ai_broker_service
+        default_state: healthy
+      - service_class: auth_identity_service
+        default_state: healthy
+      - service_class: policy_service
+        default_state: healthy
+      - service_class: docs_pack_service
+        default_state: healthy
+      - service_class: catalog_service
+        default_state: healthy
+      - service_class: telemetry_sink_service
+        default_state: healthy
+    data_plane_capability_posture:
+      - capability_class: local_editing
+        default_state: available_local_safe
+      - capability_class: local_save
+        default_state: available_local_safe
+      - capability_class: local_search
+        default_state: available_local_safe
+      - capability_class: local_git
+        default_state: available_local_safe
+      - capability_class: local_tasks
+        default_state: available_local_safe
+      - capability_class: local_docs_inspect
+        default_state: available_local_safe
+      - capability_class: local_export
+        default_state: available_local_safe
+      - capability_class: local_diagnostics
+        default_state: available_local_safe
+    default_restore_class: resume_after_reconnect
+    mirror_or_air_gap_applies: false
+    per_profile_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - failover_boundary_recheck_future_managed_case
+    notes: >
+      Enterprise-online rows MUST NOT describe themselves without a
+      concrete region, tenant, and key posture. Retention defaults to
+      the vendor window constrained by customer policy so rows do not
+      quietly widen retention under managed convenience.
+
+  - deployment_profile: air_gapped
+    title: Air-gapped site, offline bundles and local/admin policy only
+    status: seeded
+    locality_posture:
+      processing_location_class: on_device_only
+      storage_location_class: mirror_or_offline_bundle
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: customer_retention_window
+      key_mode_class: offline_trust_root
+    control_plane_service_posture:
+      - service_class: sync_service
+        default_state: not_applicable
+      - service_class: registry_service
+        default_state: mirror_only
+      - service_class: relay_service
+        default_state: not_applicable
+      - service_class: ai_broker_service
+        default_state: not_applicable
+      - service_class: auth_identity_service
+        default_state: mirror_only
+      - service_class: policy_service
+        default_state: mirror_only
+      - service_class: docs_pack_service
+        default_state: mirror_only
+      - service_class: catalog_service
+        default_state: mirror_only
+      - service_class: telemetry_sink_service
+        default_state: not_applicable
+    data_plane_capability_posture:
+      - capability_class: local_editing
+        default_state: available_local_safe
+      - capability_class: local_save
+        default_state: available_local_safe
+      - capability_class: local_search
+        default_state: available_local_safe
+      - capability_class: local_git
+        default_state: available_local_safe
+      - capability_class: local_tasks
+        default_state: available_local_safe
+      - capability_class: local_docs_inspect
+        default_state: available_mirror_backed
+      - capability_class: local_export
+        default_state: available_local_safe
+      - capability_class: local_diagnostics
+        default_state: available_local_safe
+    default_restore_class: mirror_snapshot_import
+    mirror_or_air_gap_applies: true
+    per_profile_drill_refs:
+      - docs_pack_mirror_only_truth
+      - mirror_import_offline_bundle_replay
+    notes: >
+      Air-gapped rows MUST populate mirror_continuity_fields and
+      air_gap_continuity_fields on continuity packets; blank values are
+      a validation failure.
+
+  - deployment_profile: managed_cloud
+    title: Vendor-operated managed SaaS control plane
+    status: seeded
+    locality_posture:
+      processing_location_class: vendor_control_plane
+      storage_location_class: vendor_control_plane_storage
+      tenant_org_scope_class: customer_tenant
+      region_scope_class: customer_region_pinned
+      retention_class: vendor_retention_window_default
+      key_mode_class: vendor_managed
+    control_plane_service_posture:
+      - service_class: sync_service
+        default_state: healthy
+      - service_class: registry_service
+        default_state: healthy
+      - service_class: relay_service
+        default_state: healthy
+      - service_class: ai_broker_service
+        default_state: healthy
+      - service_class: auth_identity_service
+        default_state: healthy
+      - service_class: policy_service
+        default_state: healthy
+      - service_class: docs_pack_service
+        default_state: healthy
+      - service_class: catalog_service
+        default_state: healthy
+      - service_class: telemetry_sink_service
+        default_state: healthy
+    data_plane_capability_posture:
+      - capability_class: local_editing
+        default_state: available_local_safe
+      - capability_class: local_save
+        default_state: available_local_safe
+      - capability_class: local_search
+        default_state: available_local_safe
+      - capability_class: local_git
+        default_state: available_local_safe
+      - capability_class: local_tasks
+        default_state: available_local_safe
+      - capability_class: local_docs_inspect
+        default_state: available_local_safe
+      - capability_class: local_export
+        default_state: available_local_safe
+      - capability_class: local_diagnostics
+        default_state: available_local_safe
+    default_restore_class: resume_after_reconnect
+    mirror_or_air_gap_applies: false
+    per_profile_drill_refs:
+      - stale_policy_session_cached_local_safe
+      - remote_connector_loss_continue_local
+      - failover_boundary_recheck_future_managed_case
+    notes: >
+      Managed-cloud rows MUST NOT be described without a concrete
+      region, tenant, and key posture. Retention defaults to the
+      vendor window; customer-specific policy may narrow it via an
+      enterprise-online posture instead.
+
+# -----------------------------------------------------------------------------
+# Seeded continuity-case fixture index.
+#
+# Each continuity_case pins one local_core_continuity_packet_record
+# under fixtures/deployment/continuity_cases/. Support, boundary, and
+# drill-review tasks cite these ids so concrete cases stay stable
+# across future seeds.
+# -----------------------------------------------------------------------------
+
+continuity_cases:
+  - packet_id: individual_local_baseline
+    deployment_profile: individual_local
+    fixture_ref: fixtures/deployment/continuity_cases/individual_local_baseline.json
+    linked_drill_refs:
+      - benchmark_lab_local_only_capture
+  - packet_id: self_hosted_stale_policy_session
+    deployment_profile: self_hosted
+    fixture_ref: fixtures/deployment/continuity_cases/self_hosted_stale_policy_session.json
+    linked_drill_refs:
+      - stale_policy_session_cached_local_safe
+  - packet_id: air_gapped_mirror_only_docs
+    deployment_profile: air_gapped
+    fixture_ref: fixtures/deployment/continuity_cases/air_gapped_mirror_only_docs.json
+    linked_drill_refs:
+      - docs_pack_mirror_only_truth
+      - mirror_import_offline_bundle_replay
+  - packet_id: managed_cloud_relay_disconnect
+    deployment_profile: managed_cloud
+    fixture_ref: fixtures/deployment/continuity_cases/managed_cloud_relay_disconnect.json
+    linked_drill_refs:
+      - remote_connector_loss_continue_local
+  - packet_id: enterprise_failover_boundary_recheck
+    deployment_profile: enterprise_online
+    fixture_ref: fixtures/deployment/continuity_cases/enterprise_failover_boundary_recheck.json
+    linked_drill_refs:
+      - failover_boundary_recheck_future_managed_case
+  - packet_id: enterprise_policy_denies_external_export
+    deployment_profile: enterprise_online
+    fixture_ref: fixtures/deployment/continuity_cases/enterprise_policy_denies_external_export.json
+    linked_drill_refs: []
+
+# -----------------------------------------------------------------------------
+# Coverage guards.
+#
+# Tooling SHOULD verify that every vocabulary value is exercised by at
+# least one seeded continuity case or per-profile drill ref. The guards
+# are advisory at this revision; a later milestone may promote them to
+# required CI checks.
+# -----------------------------------------------------------------------------
+
+coverage_guards:
+  deployment_profile_coverage_required: true
+  control_plane_service_state_coverage_required: true
+  data_plane_capability_state_coverage_required: true
+  restore_class_coverage_required: true
+  staleness_class_coverage_required: true

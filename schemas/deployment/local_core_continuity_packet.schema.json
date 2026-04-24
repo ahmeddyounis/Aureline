@@ -1,0 +1,769 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deployment/local_core_continuity_packet.schema.json",
+  "title": "Aureline local-core continuity packet",
+  "description": "Boundary schema for the local_core_continuity_packet_record. The packet resolves one locality + tenancy + key-mode posture, one typed control-plane degrade state (sync/registry/relay/AI/auth/policy/docs/catalog/telemetry), one typed data-plane continuity state (local editing/save/search/Git/tasks/docs/export/diagnostics), retained-local-safe versus blocked-managed-only capability lists, a freshness posture, a restore class, and mirror/air-gap continuity fields for any managed, enterprise, mirror, or local-first claim Aureline surfaces consume. Managed and enterprise deployment profiles MUST carry region/tenant/key posture so control-plane outages cannot silently collapse into generic product failure when local-safe work remains. Support bundles, boundary-manifest strawman rows, deployment-drill catalog rows, and DR drill artifacts consume the same vocabulary this packet freezes rather than inventing per-surface locality schemas. Narrative companion: docs/deployment/locality_and_continuity_seed.md. Machine-readable locality matrix: artifacts/deployment/locality_matrix.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "locality_posture",
+    "control_plane_state_by_service_class",
+    "data_plane_state_by_capability_class",
+    "retained_local_safe_capabilities",
+    "blocked_managed_only_capabilities",
+    "freshness_posture",
+    "restore_class",
+    "mirror_continuity_fields",
+    "air_gap_continuity_fields",
+    "linked_drill_refs",
+    "evidence_outputs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this packet. Additive-minor changes bump this integer."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "local_core_continuity_packet_record"
+    },
+    "packet_id": {
+      "$ref": "#/$defs/stable_token",
+      "description": "Stable packet id. Snake_case. MUST NOT contain milestone slugs."
+    },
+    "title": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "scenario_summary": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "One-paragraph product-term summary of the continuity scenario the packet describes."
+    },
+    "deployment_profile": {
+      "$ref": "#/$defs/deployment_profile_class"
+    },
+    "locality_posture": {
+      "$ref": "#/$defs/locality_posture"
+    },
+    "control_plane_state_by_service_class": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Typed control-plane state, one entry per service class in play. Tooling MUST reject duplicate service_class entries; the JSON Schema boundary here only pins the row shape. Missing entries mean the service is not applicable for this packet.",
+      "items": {
+        "$ref": "#/$defs/control_plane_service_state"
+      }
+    },
+    "data_plane_state_by_capability_class": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Typed data-plane continuity state, one entry per local-safe capability class. Tooling MUST reject duplicate capability_class entries. Every packet MUST state the continuity of local editing, save, search, Git, and export explicitly rather than let generic product-failure copy collapse them.",
+      "items": {
+        "$ref": "#/$defs/data_plane_capability_state"
+      }
+    },
+    "retained_local_safe_capabilities": {
+      "$ref": "#/$defs/non_empty_reviewable_sentence_array",
+      "description": "Product-term sentences naming what remains available to the user without the managed path. Reuses the vocabulary convention the deployment drill catalog seed already uses."
+    },
+    "blocked_managed_only_capabilities": {
+      "$ref": "#/$defs/reviewable_sentence_array",
+      "description": "Product-term sentences naming what is intentionally blocked while this posture holds. Empty list is valid only when no managed form exists for this row (for example, a pure local_core capability)."
+    },
+    "freshness_posture": {
+      "$ref": "#/$defs/freshness_posture"
+    },
+    "restore_class": {
+      "$ref": "#/$defs/restore_class"
+    },
+    "mirror_continuity_fields": {
+      "$ref": "#/$defs/mirror_continuity_fields"
+    },
+    "air_gap_continuity_fields": {
+      "$ref": "#/$defs/air_gap_continuity_fields"
+    },
+    "linked_drill_refs": {
+      "type": "array",
+      "description": "Drill ids from artifacts/support/deployment_drill_catalog_seed.yaml this packet conforms to. Empty when the packet captures a novel posture pending a new drill row.",
+      "items": {
+        "$ref": "#/$defs/stable_token"
+      }
+    },
+    "linked_boundary_rows": {
+      "type": "array",
+      "description": "Boundary-manifest capability ids this packet maps to. Reserved so boundary rows' local_core_continuity and absence_narrows_to clauses can point at the same packet shape.",
+      "items": {
+        "$ref": "#/$defs/stable_token"
+      }
+    },
+    "evidence_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Evidence output ids drawn from the deployment drill catalog seed. Packets MUST name at least one evidence output so later support bundles or release reviews cite the same artefact family.",
+      "items": {
+        "$ref": "#/$defs/evidence_output_class"
+      }
+    },
+    "narrative_refs": {
+      "$ref": "#/$defs/non_empty_string_array",
+      "description": "Repo-relative pointers into the narrative seed and any related companion documents."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Convention carries the fixture name, scenario, linked drills, and contract sections exercised; never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Managed, enterprise, and self-hosted deployment profiles MUST carry an actionable region and tenant posture. Packets for these profiles cannot set region_scope or tenant_scope to not_applicable; silent not_applicable values on these profiles mean the packet is not reviewable.",
+      "if": {
+        "properties": {
+          "deployment_profile": {
+            "enum": [
+              "self_hosted",
+              "enterprise_online",
+              "managed_cloud"
+            ]
+          }
+        },
+        "required": [
+          "deployment_profile"
+        ]
+      },
+      "then": {
+        "properties": {
+          "locality_posture": {
+            "properties": {
+              "region_scope": {
+                "not": {
+                  "const": "not_applicable"
+                }
+              },
+              "tenant_org_scope": {
+                "not": {
+                  "const": "not_applicable"
+                }
+              },
+              "key_mode": {
+                "not": {
+                  "const": "not_applicable"
+                }
+              }
+            },
+            "required": [
+              "region_scope",
+              "tenant_org_scope",
+              "key_mode"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Mirror-only or air-gap postures MUST name the continuity truth they rely on. If any control-plane service reports mirror_only OR the deployment profile is air_gapped, the packet MUST populate mirror_continuity_fields.mirror_snapshot_id and mirror_continuity_fields.mirror_freshness_class.",
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "deployment_profile": {
+                "const": "air_gapped"
+              }
+            },
+            "required": [
+              "deployment_profile"
+            ]
+          },
+          {
+            "properties": {
+              "control_plane_state_by_service_class": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "state": {
+                      "const": "mirror_only"
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "control_plane_state_by_service_class"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "mirror_continuity_fields": {
+            "required": [
+              "mirror_snapshot_id",
+              "mirror_freshness_class",
+              "signed_bundle_trust_root_fingerprint"
+            ],
+            "properties": {
+              "mirror_snapshot_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "mirror_freshness_class": {
+                "$ref": "#/$defs/mirror_freshness_class"
+              },
+              "signed_bundle_trust_root_fingerprint": {
+                "$ref": "#/$defs/opaque_fingerprint"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Air-gapped deployment profiles MUST also populate air_gap_continuity_fields so offline-bundle provenance, trust-root identity, and last-import freshness are not silently blank.",
+      "if": {
+        "properties": {
+          "deployment_profile": {
+            "const": "air_gapped"
+          }
+        },
+        "required": [
+          "deployment_profile"
+        ]
+      },
+      "then": {
+        "properties": {
+          "air_gap_continuity_fields": {
+            "required": [
+              "offline_bundle_id",
+              "offline_bundle_trust_root_fingerprint",
+              "last_import_at",
+              "import_source_class"
+            ],
+            "properties": {
+              "offline_bundle_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "offline_bundle_trust_root_fingerprint": {
+                "$ref": "#/$defs/opaque_fingerprint"
+              },
+              "last_import_at": {
+                "$ref": "#/$defs/monotonic_timestamp"
+              },
+              "import_source_class": {
+                "$ref": "#/$defs/offline_import_source_class"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Bounded-stale freshness MUST name a freshness floor ref; unbounded-stale MUST carry a human-readable rationale so stale cached truth is never surfaced without accountability.",
+      "if": {
+        "properties": {
+          "freshness_posture": {
+            "properties": {
+              "staleness_class": {
+                "const": "bounded_stale"
+              }
+            },
+            "required": [
+              "staleness_class"
+            ]
+          }
+        },
+        "required": [
+          "freshness_posture"
+        ]
+      },
+      "then": {
+        "properties": {
+          "freshness_posture": {
+            "required": [
+              "freshness_floor_ref"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "freshness_posture": {
+            "properties": {
+              "staleness_class": {
+                "const": "unbounded_stale"
+              }
+            },
+            "required": [
+              "staleness_class"
+            ]
+          }
+        },
+        "required": [
+          "freshness_posture"
+        ]
+      },
+      "then": {
+        "properties": {
+          "freshness_posture": {
+            "required": [
+              "staleness_rationale"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Cross-plane boundary-recheck postures MUST pin restore_class to manual_reconcile_after_boundary_change so privileged replay cannot resume until an explicit recheck has run.",
+      "if": {
+        "properties": {
+          "locality_posture": {
+            "anyOf": [
+              {
+                "properties": {
+                  "region_scope": {
+                    "const": "boundary_recheck_required"
+                  }
+                },
+                "required": [
+                  "region_scope"
+                ]
+              },
+              {
+                "properties": {
+                  "tenant_org_scope": {
+                    "const": "tenant_boundary_recheck_required"
+                  }
+                },
+                "required": [
+                  "tenant_org_scope"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "locality_posture"
+        ]
+      },
+      "then": {
+        "properties": {
+          "restore_class": {
+            "const": "manual_reconcile_after_boundary_change"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-term sentence suitable for support, boundary, and drill review surfaces."
+    },
+    "reviewable_sentence_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reviewable_sentence"
+      }
+    },
+    "non_empty_reviewable_sentence_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reviewable_sentence"
+      }
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Snake_case stable token. Does not contain milestone slugs."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$",
+      "description": "Opaque stable fingerprint safe to log and export. Raw key bytes, raw tokens, and raw path bytes never appear here."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Closed deployment-profile vocabulary, re-exported from the boundary-manifest strawman and the deployment drill catalog seed."
+    },
+    "processing_location_class": {
+      "type": "string",
+      "enum": [
+        "on_device_only",
+        "on_device_plus_remote_workspace",
+        "customer_control_plane",
+        "vendor_control_plane",
+        "customer_or_vendor_control_plane",
+        "not_applicable"
+      ],
+      "description": "Where product compute normally runs for the row being described."
+    },
+    "storage_location_class": {
+      "type": "string",
+      "enum": [
+        "device_local_disk",
+        "device_local_plus_workspace_repo",
+        "customer_control_plane_storage",
+        "vendor_control_plane_storage",
+        "mirror_or_offline_bundle",
+        "none",
+        "not_applicable"
+      ],
+      "description": "Where the row's primary durable state lives. File-based and text-based stores are strongly preferred; mirrors and offline bundles are explicit stores, not fallbacks."
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ],
+      "description": "Tenant or org scope. Managed/enterprise packets MUST set this to an actionable value (not not_applicable)."
+    },
+    "region_scope_class": {
+      "type": "string",
+      "enum": [
+        "customer_region_pinned",
+        "remote_target_region",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_beyond_local_disk",
+        "workspace_repo_retained",
+        "customer_retention_window",
+        "vendor_retention_window_with_customer_policy",
+        "vendor_retention_window_default",
+        "retention_not_applicable"
+      ],
+      "description": "Retention posture in force for the row. Managed/enterprise packets MUST name a concrete retention class."
+    },
+    "key_mode_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "vendor_managed",
+        "customer_managed",
+        "offline_trust_root",
+        "not_applicable"
+      ],
+      "description": "Key / signing mode. Managed/enterprise packets MUST set this to an actionable value (not not_applicable)."
+    },
+    "locality_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "processing_location",
+        "storage_location",
+        "tenant_org_scope",
+        "region_scope",
+        "retention_class",
+        "key_mode"
+      ],
+      "properties": {
+        "processing_location": {
+          "$ref": "#/$defs/processing_location_class"
+        },
+        "storage_location": {
+          "$ref": "#/$defs/storage_location_class"
+        },
+        "tenant_org_scope": {
+          "$ref": "#/$defs/tenant_org_scope_class"
+        },
+        "region_scope": {
+          "$ref": "#/$defs/region_scope_class"
+        },
+        "retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "key_mode": {
+          "$ref": "#/$defs/key_mode_class"
+        }
+      }
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service"
+      ],
+      "description": "Closed control-plane service vocabulary. Support bundles, drill rows, and boundary-manifest rows resolve against this set rather than minting per-surface outage names."
+    },
+    "control_plane_service_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stale_cache",
+        "unavailable",
+        "mirror_only",
+        "boundary_recheck_required",
+        "not_applicable"
+      ],
+      "description": "Typed control-plane state. boundary_recheck_required pins privileged replay off until a region/tenant/key posture recheck runs."
+    },
+    "control_plane_service_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_class",
+        "state"
+      ],
+      "properties": {
+        "service_class": {
+          "$ref": "#/$defs/control_plane_service_class"
+        },
+        "state": {
+          "$ref": "#/$defs/control_plane_service_state_class"
+        },
+        "last_known_good_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "data_plane_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_save",
+        "local_search",
+        "local_git",
+        "local_tasks",
+        "local_docs_inspect",
+        "local_export",
+        "local_diagnostics"
+      ],
+      "description": "Closed data-plane capability vocabulary. Packets MUST state each class explicitly rather than let generic product-failure copy stand in."
+    },
+    "data_plane_capability_state_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "not_applicable"
+      ],
+      "description": "Typed data-plane capability state. reduced_read_only lets packets express partial continuity without overclaiming."
+    },
+    "data_plane_capability_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class",
+        "state"
+      ],
+      "properties": {
+        "capability_class": {
+          "$ref": "#/$defs/data_plane_capability_class"
+        },
+        "state": {
+          "$ref": "#/$defs/data_plane_capability_state_class"
+        },
+        "note": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "staleness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "bounded_stale",
+        "unbounded_stale"
+      ]
+    },
+    "freshness_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staleness_class"
+      ],
+      "properties": {
+        "staleness_class": {
+          "$ref": "#/$defs/staleness_class"
+        },
+        "freshness_floor_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref identifying the freshness floor that still holds. Required on bounded_stale."
+        },
+        "staleness_rationale": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Human-readable rationale for unbounded_stale. Required on unbounded_stale so stale truth is never surfaced silently."
+        },
+        "last_authoritative_fetch_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        }
+      }
+    },
+    "restore_class": {
+      "type": "string",
+      "enum": [
+        "continue_local_no_restore",
+        "replay_cached_snapshot",
+        "mirror_snapshot_import",
+        "resume_after_reconnect",
+        "manual_reconcile_after_boundary_change"
+      ],
+      "description": "Restore vocabulary re-exported from the deployment drill catalog seed."
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "mirror_fresh_within_window",
+        "mirror_within_extended_window",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "not_applicable"
+      ]
+    },
+    "mirror_continuity_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Mirror-only / mirror-backed continuity truth. The top-level schema pins these fields as required when any service reports mirror_only or the deployment profile is air_gapped.",
+      "properties": {
+        "mirror_snapshot_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque mirror snapshot id. Raw URLs and raw paths do not appear here."
+        },
+        "mirror_freshness_class": {
+          "$ref": "#/$defs/mirror_freshness_class"
+        },
+        "signed_bundle_trust_root_fingerprint": {
+          "$ref": "#/$defs/opaque_fingerprint"
+        },
+        "last_mirror_refresh_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        },
+        "mirror_source_class": {
+          "type": "string",
+          "enum": [
+            "customer_operated_mirror",
+            "vendor_published_mirror_for_customer",
+            "offline_bundle_derived_mirror",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "offline_import_source_class": {
+      "type": "string",
+      "enum": [
+        "customer_sneakernet_bundle",
+        "customer_signed_registry_export",
+        "vendor_signed_offline_bundle",
+        "certified_archetype_seed",
+        "not_applicable"
+      ],
+      "description": "Source of an offline bundle import. Air-gapped packets MUST name a concrete class."
+    },
+    "air_gap_continuity_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Air-gap / offline continuity truth. The top-level schema pins these fields as required when the deployment profile is air_gapped.",
+      "properties": {
+        "offline_bundle_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "offline_bundle_trust_root_fingerprint": {
+          "$ref": "#/$defs/opaque_fingerprint"
+        },
+        "last_import_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "import_source_class": {
+          "$ref": "#/$defs/offline_import_source_class"
+        },
+        "disallows_public_internet_egress": {
+          "type": "boolean"
+        }
+      }
+    },
+    "evidence_output_class": {
+      "type": "string",
+      "enum": [
+        "benchmark_run_result_local_capture",
+        "docs_pack_status_export",
+        "mirror_import_audit_record",
+        "control_plane_cache_epoch_snapshot",
+        "remote_session_loss_packet",
+        "queued_action_export",
+        "boundary_recheck_packet",
+        "support_bundle_continuity_note",
+        "release_claim_manifest_note",
+        "boundary_row_review_note",
+        "install_profile_drill_note"
+      ],
+      "description": "Evidence-output vocabulary re-exported from the deployment drill catalog seed so support bundles and release review cite the same artefact family."
+    }
+  }
+}
