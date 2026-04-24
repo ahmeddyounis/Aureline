@@ -1,0 +1,969 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/prompt_composer_plan.schema.json",
+  "title": "Aureline AI prompt-composer plan contract",
+  "description": "Boundary schema for the prompt_composer_plan_record, the prompt_composer_plan_section_record, and the prompt_composer_plan_audit_event_record frozen in docs/ai/prompt_composer_contract.md. Every composer_plan_ref the context-assembly contract quotes (schemas/ai/context_assembly.schema.json prompt_composer_session_record / prompt_composer_turn_draft_record / ai_context_assembly_record composer_plan_ref) resolves to exactly one prompt_composer_plan_record on this schema, so a reviewer can reconstruct how a prompt was assembled — which ordered sections it composed, which context segments were admitted / omitted / pinned, which repo-defined instruction and check bundles it referenced, which external tools it allowlisted, and which redaction posture applied — without reading the final model response. Plans may only narrow the policy bundle's provider / route / data-class / retention / tool allowlists; silent widening relative to the policy bundle is forbidden and denies with plan_attempted_widening. Raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, and raw credential material never cross the RPC boundary; this schema carries ids, typed vocabulary, and structured narrowing sets only. The eventual AI / prompt-composer crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new section_role, plan_purpose_class, admission_policy_class, omission_reason_default_class, narrowing_mode_class, plan_lifecycle_state_class, audit_event_id, or denial_reason is additive-minor and requires a prompt_composer_plan_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/prompt_composer_plan_record" },
+    { "$ref": "#/$defs/prompt_composer_plan_section_record" },
+    { "$ref": "#/$defs/prompt_composer_plan_audit_event_record" }
+  ],
+  "$defs": {
+    "prompt_composer_plan_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this prompt-composer plan vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "prompt_composer_plan_record",
+        "prompt_composer_plan_section_record",
+        "prompt_composer_plan_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw prompt text, raw document bodies, raw URLs, raw paths, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in prompt-composer plan review, admin reconciliation, support export, and claim-manifest review surfaces."
+    },
+
+    "plan_purpose_class": {
+      "type": "string",
+      "enum": [
+        "inline_completion_plan",
+        "explain_flow_plan",
+        "review_flow_plan",
+        "patch_flow_plan",
+        "test_generation_flow_plan",
+        "refactor_flow_plan",
+        "doc_generation_flow_plan",
+        "diagnostic_triage_flow_plan",
+        "background_branch_agent_plan",
+        "review_handoff_plan",
+        "support_replay_only_plan",
+        "mocked_test_plan",
+        "disabled_no_plan"
+      ],
+      "description": "Frozen plan-purpose vocabulary. Every plan names exactly one purpose so routing / policy / narrowing decisions can fan out to the right lane. disabled_no_plan is the canonical state for a row that exists but must not be cited; an assembly whose composer_plan_ref resolves to disabled_no_plan MUST deny with plan_disabled_no_invocation."
+    },
+
+    "section_role": {
+      "type": "string",
+      "enum": [
+        "system_scaffold_prologue",
+        "deployment_profile_prologue",
+        "workspace_trust_prologue",
+        "composer_plan_directive",
+        "repo_instruction_bundle_block",
+        "repo_check_bundle_block",
+        "workspace_pinned_instructions_block",
+        "user_profile_instructions_block",
+        "pinned_context_block",
+        "retrieved_reference_block",
+        "citation_anchor_block",
+        "attached_data_block",
+        "ai_prior_turn_context_block",
+        "tool_call_result_block",
+        "fenced_tainted_data_block",
+        "user_turn_prompt_block",
+        "tool_calling_schema_block",
+        "output_contract_epilogue",
+        "deterministic_replay_epilogue"
+      ],
+      "description": "Frozen section-role vocabulary for an ordered prompt-composer plan. Every ordered section names exactly one role. fenced_tainted_data_block is the only role permitted to host segments whose trust_posture is untrusted_* or policy_quarantined; system_scaffold_prologue / composer_plan_directive / repo_instruction_bundle_block / repo_check_bundle_block / workspace_pinned_instructions_block / user_profile_instructions_block never host tainted bytes regardless of budget pressure."
+    },
+
+    "admission_policy_class": {
+      "type": "string",
+      "enum": [
+        "admit_only_listed_source_classes",
+        "admit_listed_trust_postures_only",
+        "admit_only_pinned_segments",
+        "admit_only_citation_anchor_backed",
+        "admit_only_instruction_bundle_refs",
+        "admit_only_check_bundle_refs",
+        "admit_only_fenced_tainted_segments",
+        "deny_all_unless_pinned",
+        "deny_all_section_disabled"
+      ],
+      "description": "Frozen admission-policy-class vocabulary for an ordered section. Names how the section admits segments at assembly time. deny_all_section_disabled is the canonical state for a section the plan has authored but disabled (for example a support-replay plan that keeps the slot for parity audit but refuses to populate it); a disabled section MUST NOT receive segments."
+    },
+
+    "omission_reason_default_class": {
+      "type": "string",
+      "enum": [
+        "plan_default_budget_exceeded",
+        "plan_default_scope_excludes_target",
+        "plan_default_freshness_floor_unmet",
+        "plan_default_dedup_against_pinned",
+        "plan_default_resolver_lowered_priority",
+        "plan_default_policy_narrows_scope",
+        "plan_default_user_deselected",
+        "plan_default_pin_pressure_released_unpinned"
+      ],
+      "description": "Frozen omission-reason-default-class vocabulary. The plan may name the typed omit_reason the composer should apply when budget or scope pressure forces a segment out of an admitted section; every value maps one-to-one onto a schemas/ai/context_assembly.schema.json omit_reason. An omitted segment without a typed reason is non-conforming."
+    },
+
+    "narrowing_mode_class": {
+      "type": "string",
+      "enum": [
+        "plan_inherits_policy_set",
+        "plan_narrows_to_listed_subset",
+        "plan_denies_all"
+      ],
+      "description": "Frozen narrowing-mode vocabulary. Declares how each narrowing axis (provider_classes, route_path_classes, data_classes, retention_stances, tool_allowlist) composes with the policy bundle. plan_inherits_policy_set = the plan does not narrow this axis; the policy bundle's admitted set applies. plan_narrows_to_listed_subset = the plan lists a strict subset of the policy bundle's admitted set. plan_denies_all = the plan denies every candidate on this axis (e.g. a no-tools plan)."
+    },
+
+    "plan_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "plan_draft",
+        "plan_in_review",
+        "plan_approved_not_yet_in_production",
+        "plan_in_production",
+        "plan_deprecated_with_replacement",
+        "plan_withdrawn_by_operator",
+        "plan_superseded_by_replacement",
+        "plan_quarantined_pending_review",
+        "plan_disabled_policy_blocked"
+      ],
+      "description": "Frozen plan-lifecycle vocabulary. A plan whose state is plan_draft, plan_in_review, plan_quarantined_pending_review, plan_withdrawn_by_operator, plan_superseded_by_replacement, or plan_disabled_policy_blocked MUST NOT be cited on a live composer session; an assembly that cites it denies with plan_not_in_production."
+    },
+
+    "section_budget_policy_class": {
+      "type": "string",
+      "enum": [
+        "budget_elastic_within_floor_ceiling",
+        "budget_fixed_target",
+        "budget_pinned_no_budget_pressure",
+        "budget_disabled_never_emits"
+      ],
+      "description": "Frozen section-budget-policy vocabulary. Names how the plan's resolver should treat budget pressure on this section. budget_pinned_no_budget_pressure is the only admitted value when the section contains pinned segments; a pinned segment that is dropped under budget pressure is non-conforming and denies with pinned_segment_dropped_under_budget_pressure."
+    },
+
+    "tool_narrowing_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_tools_admitted",
+        "allowlisted_subset_of_policy",
+        "explicit_denylist_narrows_policy",
+        "inherits_policy_set",
+        "disabled_no_tool_posture"
+      ],
+      "description": "Frozen tool-narrowing-posture vocabulary. A plan that denies all tools declares no_tools_admitted; a plan that narrows the policy bundle's admitted tool set declares allowlisted_subset_of_policy and names the subset on tool_allowlist_refs; a plan that only subtracts specific tools declares explicit_denylist_narrows_policy and lists the denied tools on tool_denylist_refs."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted",
+        "first_party_managed",
+        "connected_provider_vendor",
+        "connected_provider_self_hosted",
+        "extension_provided_provider",
+        "mocked_test_provider",
+        "disabled_no_provider"
+      ],
+      "description": "Provider-class vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "route_path_class": {
+      "type": "string",
+      "enum": [
+        "direct_first_party",
+        "vendor_cloud_direct",
+        "vendor_cloud_via_broker",
+        "self_hosted_direct",
+        "self_hosted_via_broker",
+        "extension_mediated",
+        "offline_cached_only",
+        "denied_by_policy"
+      ],
+      "description": "Route-path-class vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "repo_check_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ],
+      "description": "Data-class vocabulary re-exported from schemas/ai/provider_registry.schema.json without modification. credential_handle_denied_always and secret_projection_denied_always remain on the denied-always set on every plan; a plan that attempts to admit them denies with plan_data_class_denied_always_violation."
+    },
+
+    "retention_stance_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_local_only",
+        "no_retention_promised_body_discarded",
+        "bounded_retention_operator_access_only",
+        "bounded_retention_with_user_export",
+        "bounded_retention_with_legal_hold_only",
+        "unbounded_retention_not_used_for_training",
+        "unbounded_retention_used_for_training",
+        "retention_unknown_unverified",
+        "retention_policy_blocked"
+      ],
+      "description": "Retention-stance vocabulary re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_symbol",
+        "workspace_file_slice",
+        "workspace_buffer_slice",
+        "workspace_graph_summary",
+        "workspace_search_result",
+        "workspace_diagnostics",
+        "workspace_mutation_journal",
+        "docs_pack_excerpt",
+        "generated_reference_excerpt",
+        "runbook_step",
+        "release_note_excerpt",
+        "citation_anchor_quote",
+        "terminal_transcript_excerpt",
+        "log_excerpt",
+        "request_response_excerpt",
+        "generated_artifact_excerpt",
+        "user_supplied_text",
+        "user_supplied_file",
+        "extension_proposed_context",
+        "connected_provider_payload",
+        "collaboration_remote_payload",
+        "repo_instruction_bundle",
+        "repo_check_bundle",
+        "composer_plan_directive",
+        "ai_prior_turn_context",
+        "system_scaffold_fragment"
+      ],
+      "description": "Source-class vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party",
+        "trusted_authority",
+        "reviewed_derived",
+        "unreviewed_derived",
+        "untrusted_external",
+        "untrusted_user_supplied",
+        "untrusted_remote_collaborator",
+        "untrusted_connected_provider",
+        "untrusted_extension_proposed",
+        "untrusted_generated_artifact",
+        "untrusted_log_capture",
+        "policy_quarantined"
+      ],
+      "description": "Trust-posture vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "tainted_fence_strategy": {
+      "type": "string",
+      "enum": [
+        "instruction_stripped",
+        "quoted_as_data_only",
+        "sandboxed_excerpt",
+        "summary_only_no_body",
+        "metadata_only_no_content",
+        "citation_reference_only"
+      ],
+      "description": "Tainted-content fence-strategy vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness-class vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "prompt_composer_plan_minted",
+        "prompt_composer_plan_updated",
+        "prompt_composer_plan_promoted_to_production",
+        "prompt_composer_plan_deprecated_with_replacement",
+        "prompt_composer_plan_withdrawn",
+        "prompt_composer_plan_superseded",
+        "prompt_composer_plan_quarantined",
+        "prompt_composer_plan_section_minted",
+        "prompt_composer_plan_section_disabled",
+        "prompt_composer_plan_narrowing_evaluated",
+        "prompt_composer_plan_cited_on_assembly",
+        "prompt_composer_plan_denial_emitted",
+        "prompt_composer_plan_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the prompt_composer_plan audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw URLs, raw paths, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "plan_disabled_no_invocation",
+        "plan_not_in_production",
+        "plan_attempted_widening",
+        "plan_data_class_denied_always_violation",
+        "plan_tool_not_admitted_by_policy",
+        "plan_provider_class_not_admitted_by_policy",
+        "plan_route_path_class_not_admitted_by_policy",
+        "plan_retention_stance_not_admitted_by_policy",
+        "pinned_segment_dropped_under_budget_pressure",
+        "fenced_tainted_data_block_missing",
+        "tainted_segment_placed_outside_fenced_section",
+        "section_role_unresolved",
+        "admission_policy_unresolved",
+        "omission_reason_default_unresolved",
+        "narrowing_mode_unresolved",
+        "plan_lifecycle_state_unresolved",
+        "redaction_class_unresolved_on_plan",
+        "composer_plan_ref_missing_on_assembly",
+        "repo_instruction_bundle_ref_unresolvable",
+        "repo_check_bundle_ref_unresolvable",
+        "raw_prompt_text_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_body_forbidden_on_boundary",
+        "policy_epoch_rolled_invalidations",
+        "prompt_composer_plan_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort plan admission, a best-effort narrowing, or a best-effort tainted placement is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every dispatch; a policy-epoch roll invalidates a prior plan citation and denies with policy_epoch_rolled_invalidations."
+    },
+
+    "narrowing_axis_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["narrowing_mode_class"],
+      "properties": {
+        "narrowing_mode_class": { "$ref": "#/$defs/narrowing_mode_class" },
+        "admitted_subset_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming the subset the plan admits. Empty string when narrowing_mode_class = plan_inherits_policy_set."
+        }
+      },
+      "description": "Per-axis narrowing posture declared on a plan. The concrete admitted values for each axis live on the corresponding *_admitted arrays; this record just declares the narrowing mode so reviewers can distinguish 'plan inherits policy' from 'plan narrows to subset' from 'plan denies all' mechanically."
+    },
+
+    "ordered_section_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_slot_index",
+        "section_role",
+        "section_slug",
+        "admission_policy_class",
+        "section_budget_policy_class",
+        "hosts_tainted_data"
+      ],
+      "properties": {
+        "section_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Stable zero-based slot index. The composer resolves sections in ascending slot index; reviewers reconstruct the ordered prompt shape from this field alone."
+        },
+        "section_role": { "$ref": "#/$defs/section_role" },
+        "section_slug": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Short, stable, human-readable slug for the section (for example 'repo_agents_block', 'user_turn', 'fenced_retrieved_data'). Safe to render in review / support / audit surfaces."
+        },
+        "admission_policy_class": { "$ref": "#/$defs/admission_policy_class" },
+        "section_budget_policy_class": { "$ref": "#/$defs/section_budget_policy_class" },
+        "admitted_source_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_class" },
+          "description": "Subset of context_assembly source_class values the section admits. Empty when admission_policy_class = deny_all_section_disabled or admit_only_pinned_segments."
+        },
+        "admitted_trust_postures": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/trust_posture" },
+          "description": "Subset of context_assembly trust_posture values the section admits. Empty when admission_policy_class = deny_all_section_disabled."
+        },
+        "pinned_segment_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque segment ids the plan pins to this section. Pinned segments survive budget pressure; a pinned segment dropped under budget is non-conforming. Required (non-empty) when admission_policy_class = admit_only_pinned_segments."
+        },
+        "instruction_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to repo-defined / workspace-defined instruction bundles (repo_agents_file, repo_contributing_file, repo_style_guide, repo_review_checklist, repo_test_plan, workspace_pinned_instructions, user_profile_instructions, extension_injected_instructions). Required (non-empty) when admission_policy_class = admit_only_instruction_bundle_refs."
+        },
+        "check_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque references to repo-defined / workspace-defined check bundles. Required (non-empty) when admission_policy_class = admit_only_check_bundle_refs."
+        },
+        "default_fence_strategy": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tainted_fence_strategy" }
+          ],
+          "description": "Default fence strategy the composer applies to tainted segments placed into this section. Required (non-null) when hosts_tainted_data = true; MUST be null otherwise. fenced_tainted_data_block is the only section_role permitted to set hosts_tainted_data = true."
+        },
+        "hosts_tainted_data": {
+          "type": "boolean",
+          "description": "True when the section is the fenced slot for tainted segments. Exactly one section on a plan MAY set this to true (the fenced_tainted_data_block); every tainted segment placed on the assembly MUST route to that section."
+        },
+        "default_omission_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/omission_reason_default_class" }
+          ],
+          "description": "Typed default omission reason the composer applies when a candidate segment is admitted by policy but dropped under budget / scope pressure. Null when admission_policy_class ∈ {admit_only_pinned_segments, deny_all_section_disabled}."
+        },
+        "budget_floor_hint_units": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Optional floor on section size (opaque provider units or tokens, as declared on the plan's byte_budget_units). Used by the resolver to keep the section from collapsing under budget pressure."
+        },
+        "budget_ceiling_hint_units": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Optional ceiling on section size. budget_floor_hint_units MUST be <= budget_ceiling_hint_units when both are non-null."
+        },
+        "section_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence summarising the section's intent (for example 'pins the entry-point symbol and related tests', 'quoted-as-data fence for retrieved documents'). Safe for support export and claim review."
+        }
+      },
+      "description": "One ordered section of a prompt-composer plan. Reserves the section shape so later composer UX work cannot smuggle a private section kind past review.",
+      "allOf": [
+        {
+          "description": "default_fence_strategy MUST be non-null when hosts_tainted_data = true.",
+          "if": {
+            "properties": { "hosts_tainted_data": { "const": true } },
+            "required": ["hosts_tainted_data"]
+          },
+          "then": {
+            "properties": {
+              "default_fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+              "section_role": { "const": "fenced_tainted_data_block" }
+            },
+            "required": ["default_fence_strategy", "section_role"]
+          }
+        },
+        {
+          "description": "admit_only_pinned_segments requires a non-empty pinned_segment_refs.",
+          "if": {
+            "properties": { "admission_policy_class": { "const": "admit_only_pinned_segments" } },
+            "required": ["admission_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "pinned_segment_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              },
+              "section_budget_policy_class": { "const": "budget_pinned_no_budget_pressure" }
+            },
+            "required": ["pinned_segment_refs", "section_budget_policy_class"]
+          }
+        },
+        {
+          "description": "admit_only_instruction_bundle_refs requires a non-empty instruction_bundle_refs.",
+          "if": {
+            "properties": { "admission_policy_class": { "const": "admit_only_instruction_bundle_refs" } },
+            "required": ["admission_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "instruction_bundle_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["instruction_bundle_refs"]
+          }
+        },
+        {
+          "description": "admit_only_check_bundle_refs requires a non-empty check_bundle_refs.",
+          "if": {
+            "properties": { "admission_policy_class": { "const": "admit_only_check_bundle_refs" } },
+            "required": ["admission_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "check_bundle_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["check_bundle_refs"]
+          }
+        }
+      ]
+    },
+
+    "prompt_composer_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_plan_schema_version",
+        "plan_id",
+        "plan_version_label",
+        "plan_pack_ref",
+        "plan_purpose_class",
+        "plan_lifecycle_state_class",
+        "ordered_sections",
+        "tool_narrowing_posture_class",
+        "provider_class_narrowing",
+        "route_path_class_narrowing",
+        "data_class_narrowing",
+        "retention_stance_narrowing",
+        "admitted_provider_classes",
+        "admitted_route_path_classes",
+        "admitted_data_classes",
+        "admitted_retention_stances",
+        "tool_allowlist_refs",
+        "tool_denylist_refs",
+        "byte_budget_units",
+        "redaction_class",
+        "client_scopes",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_plan_record" },
+        "prompt_composer_plan_schema_version": { "$ref": "#/$defs/prompt_composer_plan_schema_version" },
+        "plan_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the plan. composer_plan_ref on every prompt_composer_session_record / prompt_composer_turn_draft_record / ai_context_assembly_record resolves to this id. The id is stable across version bumps; version identity is carried on plan_version_label and content_digest."
+        },
+        "plan_version_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Machine-readable version or digest label (for example 'v3.7.1', '2026-03-04-rev7', or an opaque digest reference). Every assembly citing the plan also cites this version so downstream support / replay can reconstruct the exact plan text."
+        },
+        "content_digest": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["digest_algorithm", "digest_hex"],
+              "properties": {
+                "digest_algorithm": {
+                  "type": "string",
+                  "enum": ["sha_256", "sha_512", "blake3_256"],
+                  "description": "Digest algorithm the publisher used to hash the plan's canonical serialisation."
+                },
+                "digest_hex": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]+$",
+                  "minLength": 32,
+                  "description": "Lowercase hex digest of the plan's canonical serialisation. Reviewers compare this against the plan pack manifest's digest to confirm the two match."
+                }
+              }
+            }
+          ],
+          "description": "Optional content digest pinning the plan's canonical serialisation. Null when the pack only carries a version label and no inline digest; the plan pack manifest still carries the authoritative digest."
+        },
+        "plan_pack_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the prompt_pack_manifest_record (schemas/ai/prompt_tool_pack_manifest.schema.json) that packages this plan. Every plan MUST resolve to exactly one pack; unresolved packs deny with repo_instruction_bundle_ref_unresolvable on the assembly stream and with plan_pack_ref_unresolvable on the pack-manifest stream."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable label for the plan the composer / admin / support surfaces render verbatim."
+        },
+        "plan_purpose_class": { "$ref": "#/$defs/plan_purpose_class" },
+        "plan_lifecycle_state_class": { "$ref": "#/$defs/plan_lifecycle_state_class" },
+        "supersedes_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the plan this record supersedes. Required (non-null) when plan_lifecycle_state_class = plan_superseded_by_replacement."
+        },
+        "replacement_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the replacement plan. Required (non-null) when plan_lifecycle_state_class = plan_deprecated_with_replacement."
+        },
+        "ordered_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ordered_section_record" },
+          "description": "Ordered sections of the plan. Section slot indices MUST be unique and MUST start at 0 and increase without gaps (enforced at admission time, not by JSON Schema)."
+        },
+        "admitted_source_classes_global": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_class" },
+          "description": "Plan-wide admitted source_class set. A source_class not in this set MUST NOT appear on any section's admitted_source_classes; a conformance check enforces the subset relation. Empty when plan_purpose_class = disabled_no_plan."
+        },
+        "admitted_trust_postures_global": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/trust_posture" },
+          "description": "Plan-wide admitted trust_posture set. Same subset discipline as admitted_source_classes_global."
+        },
+        "provider_class_narrowing": { "$ref": "#/$defs/narrowing_axis_record" },
+        "route_path_class_narrowing": { "$ref": "#/$defs/narrowing_axis_record" },
+        "data_class_narrowing": { "$ref": "#/$defs/narrowing_axis_record" },
+        "retention_stance_narrowing": { "$ref": "#/$defs/narrowing_axis_record" },
+        "admitted_provider_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_class" },
+          "description": "Subset of provider classes the plan admits. Interpreted under provider_class_narrowing.narrowing_mode_class: plan_inherits_policy_set ⇒ this list is advisory; plan_narrows_to_listed_subset ⇒ this list IS the admitted set; plan_denies_all ⇒ this list MUST be empty."
+        },
+        "admitted_route_path_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/route_path_class" }
+        },
+        "admitted_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Admitted data-class allowlist. credential_handle_denied_always and secret_projection_denied_always MUST NOT appear on this list regardless of narrowing mode."
+        },
+        "admitted_retention_stances": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/retention_stance_class" }
+        },
+        "tool_narrowing_posture_class": { "$ref": "#/$defs/tool_narrowing_posture_class" },
+        "tool_allowlist_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to external-tool-registry entries the plan admits (tool_entry_id on schemas/ai/external_tool_registry.schema.json). Required (non-empty) when tool_narrowing_posture_class = allowlisted_subset_of_policy; MUST be empty when tool_narrowing_posture_class = no_tools_admitted or disabled_no_tool_posture."
+        },
+        "tool_denylist_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to external-tool-registry entries the plan explicitly denies. Intersection with tool_allowlist_refs MUST be empty; both may be empty when tool_narrowing_posture_class = inherits_policy_set."
+        },
+        "byte_budget_units": {
+          "type": "string",
+          "enum": ["tokens", "characters", "bytes", "opaque_provider_units"],
+          "description": "Declared budget units for every byte_budget_hint on segments assembled under this plan. Matches schemas/ai/context_assembly.schema.json byte_budget_hint.budget_units."
+        },
+        "byte_budget_total_target": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Optional plan-wide budget target across every section. Null when the plan defers to the spend-plan's budget_token_estimate."
+        },
+        "maximum_freshness_floor": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/freshness_class" }
+          ],
+          "description": "Optional freshness floor the composer applies when admitting segments. Segments whose freshness_class is below the floor (e.g. stale or unverified when floor = warm_cached) are omitted with plan_default_freshness_floor_unmet."
+        },
+        "fence_strategy_default": {
+          "$ref": "#/$defs/tainted_fence_strategy",
+          "description": "Plan-wide default fence strategy for tainted segments when a section does not override it."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "changelog_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to changelog / release-note entries explaining what this plan version changed. Downstream support / replay tooling follows these to explain a downgrade or version roll."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp at which the plan was withdrawn / superseded / deprecated. Null while the plan is live."
+        }
+      },
+      "allOf": [
+        {
+          "description": "plan_denies_all tool narrowing requires an empty tool_allowlist_refs.",
+          "if": {
+            "properties": { "tool_narrowing_posture_class": { "const": "no_tools_admitted" } },
+            "required": ["tool_narrowing_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "tool_allowlist_refs": { "maxItems": 0 }
+            },
+            "required": ["tool_allowlist_refs"]
+          }
+        },
+        {
+          "description": "disabled_no_tool_posture requires an empty tool_allowlist_refs.",
+          "if": {
+            "properties": { "tool_narrowing_posture_class": { "const": "disabled_no_tool_posture" } },
+            "required": ["tool_narrowing_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "tool_allowlist_refs": { "maxItems": 0 }
+            },
+            "required": ["tool_allowlist_refs"]
+          }
+        },
+        {
+          "description": "disabled_no_plan requires plan_lifecycle_state_class = plan_disabled_policy_blocked.",
+          "if": {
+            "properties": { "plan_purpose_class": { "const": "disabled_no_plan" } },
+            "required": ["plan_purpose_class"]
+          },
+          "then": {
+            "properties": {
+              "plan_lifecycle_state_class": { "const": "plan_disabled_policy_blocked" }
+            },
+            "required": ["plan_lifecycle_state_class"]
+          }
+        },
+        {
+          "description": "plan_deprecated_with_replacement requires a non-null replacement_plan_ref.",
+          "if": {
+            "properties": { "plan_lifecycle_state_class": { "const": "plan_deprecated_with_replacement" } },
+            "required": ["plan_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": { "replacement_plan_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["replacement_plan_ref"]
+          }
+        },
+        {
+          "description": "plan_superseded_by_replacement requires a non-null supersedes_plan_ref.",
+          "if": {
+            "properties": { "plan_lifecycle_state_class": { "const": "plan_superseded_by_replacement" } },
+            "required": ["plan_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": { "supersedes_plan_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["supersedes_plan_ref"]
+          }
+        }
+      ],
+      "description": "A prompt-composer plan. Governs exactly how an AI turn's prompt is assembled — ordered sections, admitted source / trust / data / provider / route / retention subsets, tool allowlist, redaction posture — relative to the policy bundle. The plan may only narrow; it may never widen. Silent widening denies with plan_attempted_widening at admission time."
+    },
+
+    "prompt_composer_plan_section_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_plan_schema_version",
+        "section_id",
+        "plan_ref",
+        "section",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_plan_section_record" },
+        "prompt_composer_plan_schema_version": { "$ref": "#/$defs/prompt_composer_plan_schema_version" },
+        "section_id": { "$ref": "#/$defs/opaque_id" },
+        "plan_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the owning prompt_composer_plan_record. The section is a projection of one entry on that plan's ordered_sections; admin / diff / support tools MAY persist it standalone without reloading the whole plan."
+        },
+        "section": { "$ref": "#/$defs/ordered_section_record" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Stand-alone projection of one ordered_section_record for admin / diff / support / claim-manifest tooling that wants to iterate sections without reloading the whole plan. The authoritative ordering still lives on the plan record's ordered_sections array."
+    },
+
+    "prompt_composer_plan_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_plan_schema_version",
+        "audit_event_id",
+        "plan_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_plan_audit_event_record" },
+        "prompt_composer_plan_schema_version": { "$ref": "#/$defs/prompt_composer_plan_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "plan_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "section_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "composer_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "replacement_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) on prompt_composer_plan_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for prompt_composer_plan_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "prompt_composer_plan_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the prompt_composer_plan audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw URLs, raw paths, or raw credential material."
+    }
+  }
+}

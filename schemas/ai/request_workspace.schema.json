@@ -1,0 +1,721 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/request_workspace.schema.json",
+  "title": "Aureline AI request-workspace contract",
+  "description": "Boundary schema for the request_workspace_record, the request_workspace_working_set_record, the request_workspace_evidence_link_record, and the request_workspace_audit_event_record frozen in docs/ai/prompt_composer_contract.md. Every request_workspace_ref the context-assembly contract quotes (schemas/ai/context_assembly.schema.json prompt_composer_session_record / ai_context_assembly_record request_workspace_ref) resolves to exactly one request_workspace_record on this schema — the isolated staging scope an explain, review, patch, test-generation, inline-completion, refactor, background branch-agent, or support-replay AI flow accumulates work into before any turn is dispatched. The record binds one flow class to one scope filter, a closed set of working-set references (file slices, symbol sets, search-result packets, diagnostic sets, patch drafts, review threads, generated artifacts, terminal transcripts), the evidence packets the flow has minted, and a privacy / export posture that governs how the workspace appears in support bundles, admin exports, and legal-hold artifacts. Raw workspace paths, raw file bodies, raw URLs, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, and raw credential material never cross the RPC boundary; this schema carries ids, typed vocabulary, and structured postures only. The eventual AI / prompt-composer / review / patch crates' Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new flow_class, working_set_kind, privacy_export_posture_class, retention_stance_within_workspace_class, lifecycle_state_class, evidence_link_class, audit_event_id, or denial_reason is additive-minor and requires a request_workspace_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/request_workspace_record" },
+    { "$ref": "#/$defs/request_workspace_working_set_record" },
+    { "$ref": "#/$defs/request_workspace_evidence_link_record" },
+    { "$ref": "#/$defs/request_workspace_audit_event_record" }
+  ],
+  "$defs": {
+    "request_workspace_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI request-workspace vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "request_workspace_record",
+        "request_workspace_working_set_record",
+        "request_workspace_evidence_link_record",
+        "request_workspace_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw workspace paths, raw file bodies, raw URLs, raw terminal / log bodies, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in request-workspace review, admin-reconciliation, support-export, and claim-manifest review surfaces."
+    },
+
+    "flow_class": {
+      "type": "string",
+      "enum": [
+        "explain_flow",
+        "review_flow",
+        "patch_flow",
+        "test_generation_flow",
+        "refactor_flow",
+        "inline_completion_flow",
+        "doc_generation_flow",
+        "diagnostic_triage_flow",
+        "background_branch_agent_flow",
+        "review_handoff_flow",
+        "support_replay_flow",
+        "mocked_test_flow",
+        "disabled_no_flow"
+      ],
+      "description": "Frozen flow-class vocabulary. Every request workspace names exactly one flow_class so downstream scope / tool / data-class narrowing can fan out to the correct lane. disabled_no_flow is the canonical state for a row that exists but MUST NOT be cited; an assembly whose request_workspace_ref resolves to disabled_no_flow denies with workspace_disabled_no_invocation."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Scope-filter-class re-exported from schemas/runtime/execution_context.schema.json without modification (ADR-0009). The request workspace quotes one scope filter class; segments admitted to downstream assemblies MUST respect it."
+    },
+
+    "working_set_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_file_slice_set",
+        "workspace_symbol_set",
+        "workspace_search_result_packet_ref",
+        "workspace_diagnostic_set",
+        "workspace_mutation_journal_window",
+        "workspace_graph_summary_ref",
+        "docs_pack_excerpt_set",
+        "citation_anchor_set",
+        "patch_draft_ref",
+        "review_thread_binding",
+        "test_candidate_set",
+        "generated_artifact_set",
+        "terminal_transcript_binding",
+        "log_span_binding",
+        "request_response_binding",
+        "branch_agent_evidence_bundle_ref",
+        "connected_provider_resource_binding",
+        "user_supplied_attachment_set"
+      ],
+      "description": "Frozen working-set-kind vocabulary. Every working_set_record names exactly one kind; raw file bodies, raw URLs, raw paths, raw transcripts, and raw payloads never appear — the record carries the typed kind and one opaque binding ref per entry."
+    },
+
+    "privacy_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default_in_support_bundle",
+        "included_metadata_only_in_support_bundle",
+        "opt_in_only_admin_export",
+        "excluded_by_default_from_support_bundle",
+        "excluded_always_support_bundle",
+        "excluded_always_claim_manifest",
+        "excluded_always_legal_hold_release",
+        "redacted_in_support_bundle_restricted"
+      ],
+      "description": "Frozen privacy / export posture vocabulary. Names how the request workspace appears in support bundles, admin exports, claim manifests, and legal-hold release artifacts. excluded_always_support_bundle / excluded_always_claim_manifest / excluded_always_legal_hold_release are the canonical deny states — a posture that attempts to re-admit to these denies with workspace_privacy_posture_widening_forbidden."
+    },
+
+    "retention_stance_within_workspace_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_session_scoped",
+        "bounded_retention_session_bounded",
+        "bounded_retention_user_scoped",
+        "bounded_retention_admin_scoped",
+        "bounded_retention_legal_hold_only",
+        "retention_tied_to_assembly_lifetime",
+        "retention_tied_to_evidence_lifetime",
+        "retention_policy_blocked"
+      ],
+      "description": "Frozen retention-stance-within-workspace vocabulary. Names how long the workspace's working-set bindings and evidence links survive on the device or at the broker. retention_policy_blocked is the canonical state when the admin policy refuses any retention; any admission attempt denies with workspace_retention_stance_forbidden."
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_open_active",
+        "workspace_open_idle",
+        "workspace_closed_completed",
+        "workspace_closed_cancelled",
+        "workspace_closed_superseded",
+        "workspace_suspended_policy_change",
+        "workspace_quarantined_pending_review",
+        "workspace_disabled_policy_blocked"
+      ],
+      "description": "Frozen lifecycle-state vocabulary for request workspaces. workspace_closed_* states are terminal; no new working-set bindings or evidence links may be minted against them. workspace_suspended_policy_change is the state a workspace enters on a policy-epoch roll; a fresh policy-context evaluation is required before it can return to workspace_open_active."
+    },
+
+    "evidence_link_class": {
+      "type": "string",
+      "enum": [
+        "assembly_evidence_packet_ref",
+        "branch_agent_evidence_bundle_ref",
+        "review_handoff_evidence_ref",
+        "replay_evidence_packet_ref",
+        "support_replay_evidence_ref",
+        "claim_manifest_evidence_ref"
+      ],
+      "description": "Frozen evidence-link-class vocabulary. Every evidence link names the typed kind of evidence it binds to the workspace. The underlying evidence records live on schemas/ai/evidence_packet.schema.json, schemas/ai/evidence_replay_packet.schema.json, and the governance claim-manifest schema."
+    },
+
+    "isolation_posture_class": {
+      "type": "string",
+      "enum": [
+        "isolated_per_session",
+        "isolated_per_turn",
+        "shared_across_session_turns",
+        "shared_across_branch_agent_dispatch",
+        "shared_across_review_handoff",
+        "shared_across_support_replay_only"
+      ],
+      "description": "Frozen isolation-posture vocabulary. Names the scope across which the workspace's working-set bindings are shared. isolated_per_turn is the strongest isolation and is the default for an explain / inline-completion flow; shared_across_session_turns is admitted for patch / review / refactor flows that accumulate work across several turns."
+    },
+
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "repo_check_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ],
+      "description": "Data-class vocabulary re-exported from schemas/ai/provider_registry.schema.json without modification. credential_handle_denied_always and secret_projection_denied_always remain on the denied-always set on every workspace; a workspace that attempts to admit them denies with workspace_data_class_denied_always_violation."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "request_workspace_opened",
+        "request_workspace_working_set_bound",
+        "request_workspace_working_set_unbound",
+        "request_workspace_evidence_link_recorded",
+        "request_workspace_assembly_cited",
+        "request_workspace_privacy_posture_narrowed",
+        "request_workspace_suspended_on_policy_epoch_roll",
+        "request_workspace_resumed_after_policy_epoch_roll",
+        "request_workspace_closed",
+        "request_workspace_cancelled",
+        "request_workspace_superseded",
+        "request_workspace_quarantined",
+        "request_workspace_denial_emitted",
+        "request_workspace_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the request_workspace audit stream. Events MUST NOT carry raw paths, raw file bodies, raw URLs, raw terminal / log bodies, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "workspace_disabled_no_invocation",
+        "workspace_flow_class_unresolved",
+        "scope_filter_class_unresolved",
+        "working_set_kind_unresolved",
+        "privacy_export_posture_unresolved",
+        "retention_stance_within_workspace_unresolved",
+        "lifecycle_state_class_unresolved",
+        "isolation_posture_unresolved",
+        "redaction_class_unresolved_on_workspace",
+        "workspace_privacy_posture_widening_forbidden",
+        "workspace_retention_stance_forbidden",
+        "workspace_data_class_denied_always_violation",
+        "workspace_scope_exceeds_policy_allowance",
+        "workspace_closed_cannot_bind_working_set",
+        "workspace_closed_cannot_link_evidence",
+        "evidence_link_class_unresolved",
+        "evidence_ref_unresolvable",
+        "working_set_ref_unresolvable",
+        "raw_path_forbidden_on_boundary",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "policy_epoch_rolled_invalidations",
+        "request_workspace_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort workspace admission, a best-effort working-set binding, or a best-effort evidence link is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every assembly citation; a policy-epoch roll suspends an open workspace and denies every pending dispatch with policy_epoch_rolled_invalidations."
+    },
+
+    "working_set_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_slot_index",
+        "working_set_kind",
+        "binding_ref",
+        "data_classes"
+      ],
+      "properties": {
+        "entry_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Stable zero-based slot index within the working set. Reviewers reconstruct order from this field."
+        },
+        "working_set_kind": { "$ref": "#/$defs/working_set_kind" },
+        "binding_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying binding (file slice id, symbol id, search-result-packet id, diagnostic set id, patch-draft id, review-thread id, generated-artifact id, terminal-transcript span id, etc.). Raw paths, raw file bodies, raw URLs, raw transcripts, and raw credential material never appear."
+        },
+        "origin_mention_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prompt_composer_mention_record that brought this binding into the workspace, when the binding was introduced by a typed mention."
+        },
+        "origin_attachment_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prompt_composer_attachment_record that brought this binding into the workspace, when the binding was introduced by an attachment."
+        },
+        "data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Data classes this binding contributes to the workspace. credential_handle_denied_always and secret_projection_denied_always MUST NOT appear here."
+        },
+        "entry_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the binding for support / claim-manifest review."
+        }
+      },
+      "description": "One binding entry on a request-workspace working set. Every explain / review / patch / test / refactor / inline / background / replay flow accumulates a closed list of these entries before dispatch."
+    },
+
+    "request_workspace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "request_workspace_schema_version",
+        "request_workspace_id",
+        "flow_class",
+        "scope_filter_class",
+        "isolation_posture_class",
+        "privacy_export_posture_class",
+        "retention_stance_within_workspace_class",
+        "lifecycle_state_class",
+        "admitted_data_classes",
+        "working_set_entry_refs",
+        "evidence_link_refs",
+        "redaction_class",
+        "client_scopes",
+        "policy_context",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_record" },
+        "request_workspace_schema_version": { "$ref": "#/$defs/request_workspace_schema_version" },
+        "request_workspace_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the request workspace. request_workspace_ref on every prompt_composer_session_record and ai_context_assembly_record resolves to this id."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable label the composer / admin / support surfaces render verbatim."
+        },
+        "flow_class": { "$ref": "#/$defs/flow_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "isolation_posture_class": { "$ref": "#/$defs/isolation_posture_class" },
+        "privacy_export_posture_class": { "$ref": "#/$defs/privacy_export_posture_class" },
+        "retention_stance_within_workspace_class": { "$ref": "#/$defs/retention_stance_within_workspace_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "composer_session_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the prompt_composer_session_records whose request_workspace_ref resolves here. Empty when the workspace is minted for a support-replay-only scenario."
+        },
+        "composer_plan_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to every prompt_composer_plan_record (schemas/ai/prompt_composer_plan.schema.json) cited on any assembly that reads this workspace. Reviewers reconstruct which plan version governed which turn."
+        },
+        "admitted_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Workspace-wide admitted data-class allowlist. credential_handle_denied_always and secret_projection_denied_always MUST NOT appear. Narrower than or equal to the effective policy bundle's admitted set."
+        },
+        "working_set_entry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the request_workspace_working_set_records bound to this workspace. Binding is monotonic on an open workspace; unbinding is recorded on the audit stream."
+        },
+        "evidence_link_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the request_workspace_evidence_link_records the workspace has minted. Empty on a freshly opened workspace."
+        },
+        "excluded_always_from_supports": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "support_bundle_scratch_export",
+              "support_replay_export",
+              "claim_manifest_export",
+              "legal_hold_release_export",
+              "admin_support_export",
+              "parity_audit_export",
+              "user_initiated_profile_export"
+            ]
+          },
+          "description": "Closed set of export sinks the workspace is always excluded from, regardless of the privacy_export_posture_class default. A workspace whose privacy_export_posture_class is excluded_always_* MUST list the matching sink here."
+        },
+        "supersedes_request_workspace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the workspace this record supersedes. Required (non-null) when lifecycle_state_class = workspace_closed_superseded."
+        },
+        "branch_agent_dispatch_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to background branch-agent dispatches anchored to this workspace. Every dispatch inherits this workspace's scope_filter, admitted data classes, privacy / export posture, and redaction class; a dispatch that widens any axis is non-conforming."
+        },
+        "review_handoff_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to review-handoff packets this workspace fed. Reviewers read the handoff packets alongside this workspace to reconstruct the shell interaction-safety trace."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp at which the workspace entered a terminal lifecycle state. Null while the workspace is open_active / open_idle / suspended / quarantined."
+        }
+      },
+      "allOf": [
+        {
+          "description": "workspace_closed_superseded requires a non-null supersedes_request_workspace_ref.",
+          "if": {
+            "properties": { "lifecycle_state_class": { "const": "workspace_closed_superseded" } },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "properties": { "supersedes_request_workspace_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["supersedes_request_workspace_ref"]
+          }
+        },
+        {
+          "description": "Every terminal lifecycle state requires a non-null closed_at.",
+          "if": {
+            "properties": {
+              "lifecycle_state_class": {
+                "enum": [
+                  "workspace_closed_completed",
+                  "workspace_closed_cancelled",
+                  "workspace_closed_superseded"
+                ]
+              }
+            },
+            "required": ["lifecycle_state_class"]
+          },
+          "then": {
+            "properties": { "closed_at": { "$ref": "#/$defs/monotonic_timestamp" } },
+            "required": ["closed_at"]
+          }
+        },
+        {
+          "description": "disabled_no_flow requires workspace_disabled_policy_blocked lifecycle state.",
+          "if": {
+            "properties": { "flow_class": { "const": "disabled_no_flow" } },
+            "required": ["flow_class"]
+          },
+          "then": {
+            "properties": {
+              "lifecycle_state_class": { "const": "workspace_disabled_policy_blocked" }
+            },
+            "required": ["lifecycle_state_class"]
+          }
+        }
+      ],
+      "description": "The isolated request-workspace artifact. Explain, review, patch, test-generation, refactor, inline-completion, doc-generation, diagnostic-triage, background branch-agent, review-handoff, and support-replay AI flows each open a request_workspace_record, accumulate a closed set of working-set bindings and evidence links under one scope-filter / isolation / privacy / retention / redaction posture, and close it when the flow terminates. Raw paths, raw file bodies, raw URLs, raw terminal / log bodies, and raw credential material never cross this boundary."
+    },
+
+    "request_workspace_working_set_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "request_workspace_schema_version",
+        "working_set_id",
+        "request_workspace_ref",
+        "entries",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_working_set_record" },
+        "request_workspace_schema_version": { "$ref": "#/$defs/request_workspace_schema_version" },
+        "working_set_id": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/working_set_entry_record" },
+          "description": "Ordered list of working-set entries. entry_slot_index values MUST be unique and start at 0."
+        },
+        "isolation_posture_class": { "$ref": "#/$defs/isolation_posture_class" },
+        "working_set_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence summarising the working set's intent (for example 'patch-draft candidate files', 'explain-flow top 12 symbols', 'review-thread scope for PR'). Safe for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "unbound_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp at which this working set was unbound from the workspace. Null while the binding is live."
+        }
+      },
+      "description": "A working-set binding on a request workspace. One record per bound working set; a workspace MAY bind several (for example one for the patch-draft file slices, one for the review thread, and one for the generated test candidates)."
+    },
+
+    "request_workspace_evidence_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "request_workspace_schema_version",
+        "evidence_link_id",
+        "request_workspace_ref",
+        "evidence_link_class",
+        "evidence_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_evidence_link_record" },
+        "request_workspace_schema_version": { "$ref": "#/$defs/request_workspace_schema_version" },
+        "evidence_link_id": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_link_class": { "$ref": "#/$defs/evidence_link_class" },
+        "evidence_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the evidence record on the owning schema (ai_evidence_packet_record, ai_evidence_replay_packet_record, branch-agent evidence bundle, review-handoff evidence packet, or claim-manifest evidence record). Raw evidence bodies never appear."
+        },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_evidence_bundle_ref requires a non-null branch_agent_dispatch_ref.",
+          "if": {
+            "properties": { "evidence_link_class": { "const": "branch_agent_evidence_bundle_ref" } },
+            "required": ["evidence_link_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_evidence_ref requires a non-null review_handoff_ref.",
+          "if": {
+            "properties": { "evidence_link_class": { "const": "review_handoff_evidence_ref" } },
+            "required": ["evidence_link_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        }
+      ],
+      "description": "One link between the workspace and an evidence record (assembly evidence packet, branch-agent evidence bundle, review-handoff evidence, replay evidence, support-replay evidence, claim-manifest evidence). Reviewers follow these links to reconstruct the evidence trail without opening the workspace's working-set bindings individually."
+    },
+
+    "request_workspace_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "request_workspace_schema_version",
+        "audit_event_id",
+        "request_workspace_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_audit_event_record" },
+        "request_workspace_schema_version": { "$ref": "#/$defs/request_workspace_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "working_set_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "evidence_link_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) on request_workspace_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for request_workspace_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "request_workspace_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the request_workspace audit stream. Events MUST NOT carry raw paths, raw file bodies, raw URLs, raw terminal / log bodies, or raw credential material."
+    }
+  }
+}

@@ -1,0 +1,852 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/prompt_tool_pack_manifest.schema.json",
+  "title": "Aureline AI prompt-pack and tool-pack manifest contract",
+  "description": "Boundary schema for the prompt_pack_manifest_record, the tool_pack_manifest_record, and the prompt_tool_pack_manifest_audit_event_record frozen in docs/ai/prompt_composer_contract.md. Every prompt-composer plan (schemas/ai/prompt_composer_plan.schema.json prompt_composer_plan_record.plan_pack_ref) and every external-tool registry bundle (schemas/ai/external_tool_registry.schema.json) that the product ships as a governed, versioned unit resolves to exactly one manifest on this schema. The manifest freezes a stable pack id, a version or content-digest label, an owning publisher, a compatibility window against the boundary schemas and deployment profiles, a rollout state that drives how the pack moves from authored through in-review and approved into production and then into deprecation / withdrawal, and a changelog linkage so evidence fixtures can cite pack versions explicitly and support / replay tooling can explain a downgrade. Raw prompt text, raw plan bodies, raw tool manifests, raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw request / response bodies, raw stdio frames, raw model weights, and raw credential material never cross the RPC boundary; this schema carries ids, typed vocabulary, digests, and structured compatibility notes only. The eventual prompt-composer and tool-gateway crates' Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new pack_class, publisher_class, signing_posture_class, rollout_state_class, compatibility_posture_class, changelog_entry_class, audit_event_id, or denial_reason is additive-minor and requires a prompt_tool_pack_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/prompt_pack_manifest_record" },
+    { "$ref": "#/$defs/tool_pack_manifest_record" },
+    { "$ref": "#/$defs/prompt_tool_pack_manifest_audit_event_record" }
+  ],
+  "$defs": {
+    "prompt_tool_pack_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this prompt-pack / tool-pack manifest vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "prompt_pack_manifest_record",
+        "tool_pack_manifest_record",
+        "prompt_tool_pack_manifest_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in manifest review, admin-reconciliation, support-export, release-notes, and claim-manifest review surfaces."
+    },
+
+    "pack_class": {
+      "type": "string",
+      "enum": [
+        "prompt_pack_first_party_bundled",
+        "prompt_pack_first_party_downloaded_verified",
+        "prompt_pack_operator_managed",
+        "prompt_pack_extension_provided",
+        "prompt_pack_user_imported_signed",
+        "prompt_pack_user_imported_unsigned_quarantined",
+        "prompt_pack_mocked_test",
+        "prompt_pack_disabled",
+        "tool_pack_first_party_bundled",
+        "tool_pack_first_party_downloaded_verified",
+        "tool_pack_operator_managed",
+        "tool_pack_extension_provided",
+        "tool_pack_user_imported_signed",
+        "tool_pack_user_imported_unsigned_quarantined",
+        "tool_pack_mocked_test",
+        "tool_pack_disabled"
+      ],
+      "description": "Frozen pack-class vocabulary. Names the kind of pack (prompt or tool) and how it reached the product. prompt_pack_user_imported_unsigned_quarantined / tool_pack_user_imported_unsigned_quarantined are the canonical states for a user-imported pack whose signature the product could not verify; a quarantined pack MUST NOT serve plan lookups or tool bindings until an admin / security-review path resolves the quarantine."
+    },
+
+    "publisher_class": {
+      "type": "string",
+      "enum": [
+        "first_party_product_publisher",
+        "first_party_operator_publisher",
+        "enterprise_customer_operator_publisher",
+        "extension_author_publisher",
+        "user_imported_publisher",
+        "mocked_test_publisher",
+        "disabled_no_publisher"
+      ],
+      "description": "Frozen publisher-class vocabulary. Every manifest names exactly one publisher class. disabled_no_publisher is the canonical state when a pack is admin-disabled; a manifest with this class MUST NOT be cited on a live composer session."
+    },
+
+    "signing_posture_class": {
+      "type": "string",
+      "enum": [
+        "first_party_signed",
+        "first_party_operator_signed",
+        "enterprise_operator_signed",
+        "extension_author_signed",
+        "user_imported_signed_verified",
+        "user_imported_unsigned_quarantined",
+        "mirror_imported_signed",
+        "air_gapped_imported_signed",
+        "mocked_test_unsigned",
+        "disabled_no_signature"
+      ],
+      "description": "Frozen signing-posture vocabulary. Names the cryptographic signing posture the publisher asserted and the product verified. A manifest whose posture is user_imported_unsigned_quarantined MUST NOT progress past rollout_state_class = pack_quarantined_pending_review."
+    },
+
+    "rollout_state_class": {
+      "type": "string",
+      "enum": [
+        "pack_draft",
+        "pack_in_review",
+        "pack_approved_not_yet_in_production",
+        "pack_canary_staged_rollout",
+        "pack_in_production",
+        "pack_deprecated_with_replacement",
+        "pack_withdrawn_by_operator",
+        "pack_superseded_by_replacement",
+        "pack_quarantined_pending_review",
+        "pack_disabled_policy_blocked"
+      ],
+      "description": "Frozen rollout-state vocabulary. Names where the pack is in its lifecycle. A pack whose state is not pack_in_production or pack_canary_staged_rollout MUST NOT be cited as the authoritative version for a live composer session; assembly evidence that cites a non-production pack MUST carry a typed downgrade / replay disclosure so support / replay tooling can explain why."
+    },
+
+    "compatibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "compatible_with_listed_schema_versions",
+        "compatible_with_listed_deployment_profiles",
+        "compatible_with_listed_provider_registry_revisions",
+        "compatible_with_listed_external_tool_registry_revisions",
+        "compatible_with_listed_runtime_build_identity",
+        "incompatible_build_drift_detected",
+        "compatibility_unknown_unverified",
+        "compatibility_withdrawn"
+      ],
+      "description": "Frozen compatibility-posture vocabulary. A manifest declares zero or more postures in compatibility_postures (at least one is required). incompatible_build_drift_detected and compatibility_withdrawn are the canonical deny states; a manifest that claims production rollout while carrying either state denies with pack_incompatible_build_drift."
+    },
+
+    "changelog_entry_class": {
+      "type": "string",
+      "enum": [
+        "added_new_plan",
+        "updated_existing_plan",
+        "removed_plan",
+        "added_new_tool_binding",
+        "updated_existing_tool_binding",
+        "removed_tool_binding",
+        "narrowed_data_class_allowlist",
+        "narrowed_provider_class_allowlist",
+        "narrowed_route_path_class_allowlist",
+        "narrowed_tool_allowlist",
+        "fixed_safety_defect",
+        "bumped_compatibility_window",
+        "withdrawn_for_safety_review",
+        "superseded_by_replacement_pack",
+        "editorial_only_no_behaviour_change"
+      ],
+      "description": "Frozen changelog-entry-class vocabulary. Every changelog entry on the manifest names exactly one class so reviewers can diff two pack versions mechanically without reading free-form release notes."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted",
+        "first_party_managed",
+        "connected_provider_vendor",
+        "connected_provider_self_hosted",
+        "extension_provided_provider",
+        "mocked_test_provider",
+        "disabled_no_provider"
+      ],
+      "description": "Provider-class vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "managed_cloud",
+        "managed_fleet",
+        "air_gapped"
+      ],
+      "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "prompt_tool_pack_manifest_minted",
+        "prompt_tool_pack_manifest_updated",
+        "prompt_tool_pack_manifest_promoted_to_canary",
+        "prompt_tool_pack_manifest_promoted_to_production",
+        "prompt_tool_pack_manifest_deprecated_with_replacement",
+        "prompt_tool_pack_manifest_withdrawn",
+        "prompt_tool_pack_manifest_superseded",
+        "prompt_tool_pack_manifest_quarantined",
+        "prompt_tool_pack_manifest_signature_verified",
+        "prompt_tool_pack_manifest_signature_verification_failed",
+        "prompt_tool_pack_manifest_cited_on_evidence",
+        "prompt_tool_pack_manifest_downgrade_disclosed",
+        "prompt_tool_pack_manifest_denial_emitted",
+        "prompt_tool_pack_manifest_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the prompt_tool_pack_manifest audit stream. Events MUST NOT carry raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw request / response bodies, raw stdio frames, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "pack_disabled_no_invocation",
+        "pack_class_unresolved",
+        "publisher_class_unresolved",
+        "signing_posture_unresolved",
+        "rollout_state_unresolved",
+        "compatibility_posture_unresolved",
+        "pack_not_in_production",
+        "pack_quarantined_cannot_cite",
+        "pack_withdrawn_cannot_cite",
+        "pack_superseded_cannot_cite",
+        "pack_incompatible_build_drift",
+        "pack_signature_verification_failed",
+        "pack_digest_mismatch",
+        "pack_contains_prompt_or_tool_not_in_listed_refs",
+        "pack_deprecated_missing_replacement_ref",
+        "pack_superseded_missing_supersedes_ref",
+        "pack_deployment_profile_not_admitted",
+        "pack_plan_refs_empty_on_prompt_pack",
+        "pack_tool_refs_empty_on_tool_pack",
+        "raw_url_forbidden_on_boundary",
+        "raw_body_forbidden_on_boundary",
+        "raw_credential_forbidden_on_boundary",
+        "policy_epoch_rolled_invalidations",
+        "prompt_tool_pack_manifest_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort pack admission, a best-effort compatibility claim, or a best-effort signature verification is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context (for example when a first-party pack manifest is seeded at product-launch time)."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every citation; a policy-epoch roll invalidates a prior pack citation on an assembly and denies with policy_epoch_rolled_invalidations."
+    },
+
+    "content_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": {
+          "type": "string",
+          "enum": ["sha_256", "sha_512", "blake3_256"],
+          "description": "Digest algorithm the publisher used to hash the pack's canonical serialisation."
+        },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the pack's canonical serialisation."
+        }
+      },
+      "description": "Content-addressed digest of the pack's canonical serialisation. Every production-rollout pack manifest carries one; mocked / disabled packs MAY omit it."
+    },
+
+    "signing_evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signing_profile_ref", "signer_continuity_state_ref"],
+      "properties": {
+        "signing_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "signer_continuity_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_chain_root_ref": {
+          "type": "string",
+          "description": "Opaque ref to the root of the pack's signed manifest chain. Empty string when signing_posture_class = first_party_signed and no external manifest chain applies."
+        }
+      },
+      "description": "Signing-evidence reference the manifest points at. Never inlines raw signature bytes; the signing-profile and signer-continuity-state refs resolve against schemas/security/ vocabulary."
+    },
+
+    "compatibility_window_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compatibility_postures"],
+      "properties": {
+        "compatibility_postures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/compatibility_posture_class" }
+        },
+        "minimum_prompt_composer_plan_schema_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Minimum prompt_composer_plan_schema_version this pack is compatible with. Null when the pack does not declare a floor."
+        },
+        "minimum_request_workspace_schema_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Minimum request_workspace_schema_version this pack is compatible with."
+        },
+        "minimum_ai_context_assembly_schema_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Minimum ai_context_assembly_schema_version this pack is compatible with."
+        },
+        "minimum_external_tool_registry_schema_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Minimum external_tool_registry_schema_version this pack is compatible with. Required (non-null) on every tool_pack_manifest_record."
+        },
+        "minimum_provider_registry_schema_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Minimum ai_provider_registry_schema_version this pack is compatible with."
+        },
+        "admitted_deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" },
+          "description": "Deployment-profile classes admitted for this pack. A deployment that is not in this set denies with pack_deployment_profile_not_admitted."
+        },
+        "admitted_client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "build_identity_compatibility_notes": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence summarising any build-identity caveats (e.g. 'requires at least runtime build D-0011 epoch 14'). Safe to render in release notes and admin console."
+        }
+      },
+      "description": "Compatibility window declared on the manifest. Every manifest carries exactly one compatibility_window_record."
+    },
+
+    "changelog_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_slot_index",
+        "entry_class",
+        "entry_summary"
+      ],
+      "properties": {
+        "entry_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Stable zero-based slot index within the changelog."
+        },
+        "entry_class": { "$ref": "#/$defs/changelog_entry_class" },
+        "affected_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to a prompt_composer_plan_record the entry affects, when entry_class names a plan-scoped change."
+        },
+        "affected_tool_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to an external_tool_registry_entry_record the entry affects, when entry_class names a tool-binding change."
+        },
+        "entry_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the change. Safe for release notes, admin console, and support export."
+        }
+      },
+      "description": "One entry in the manifest's changelog. Reviewers read the entries in slot order to reconstruct what changed between two pack versions."
+    },
+
+    "prompt_pack_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_tool_pack_manifest_schema_version",
+        "pack_id",
+        "pack_class",
+        "publisher_class",
+        "publisher_identity_ref",
+        "pack_version_label",
+        "signing_posture_class",
+        "rollout_state_class",
+        "compatibility_window",
+        "included_plan_refs",
+        "changelog_entries",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_pack_manifest_record" },
+        "prompt_tool_pack_manifest_schema_version": { "$ref": "#/$defs/prompt_tool_pack_manifest_schema_version" },
+        "pack_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the prompt pack. plan_pack_ref on every prompt_composer_plan_record resolves to this id. The id is stable across version bumps; version identity is carried on pack_version_label and content_digest."
+        },
+        "pack_class": { "$ref": "#/$defs/pack_class" },
+        "publisher_class": { "$ref": "#/$defs/publisher_class" },
+        "publisher_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the publisher identity row (first-party product publisher, operator publisher, enterprise customer operator publisher, extension author publisher, user-imported publisher, mocked / disabled publisher). Raw publisher URLs, raw operator identifiers, and raw credential material never appear."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable label the composer / admin / support surfaces render verbatim."
+        },
+        "pack_version_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Machine-readable version label (for example 'v3.7.1', '2026-03-04-rev7', or an opaque digest reference). Every evidence packet citing a plan under this pack also echoes this label."
+        },
+        "content_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_digest" }
+          ],
+          "description": "Content-addressed digest of the pack. Required (non-null) when rollout_state_class ∈ {pack_canary_staged_rollout, pack_in_production}; MAY be null on draft / in-review / mocked / disabled manifests."
+        },
+        "signing_posture_class": { "$ref": "#/$defs/signing_posture_class" },
+        "signing_evidence_reference": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signing_evidence_reference" }
+          ],
+          "description": "Signing evidence for the pack. Required (non-null) when signing_posture_class is a *_signed / *_verified value."
+        },
+        "rollout_state_class": { "$ref": "#/$defs/rollout_state_class" },
+        "canary_cohort_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the canary cohort the pack rolls out against. Required (non-null) when rollout_state_class = pack_canary_staged_rollout."
+        },
+        "compatibility_window": { "$ref": "#/$defs/compatibility_window_record" },
+        "included_plan_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to every prompt_composer_plan_record carried in this pack. A plan not in this list MUST NOT be cited under this pack's id; an assembly that cites one denies with pack_contains_prompt_or_tool_not_in_listed_refs."
+        },
+        "supersedes_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the pack this manifest supersedes. Required (non-null) when rollout_state_class = pack_superseded_by_replacement."
+        },
+        "replacement_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the replacement pack. Required (non-null) when rollout_state_class = pack_deprecated_with_replacement."
+        },
+        "changelog_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/changelog_entry_record" },
+          "description": "Ordered changelog entries relative to the predecessor pack version. Empty only on the first-ever version of a pack id."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp at which the pack was withdrawn / superseded / deprecated. Null while the pack is live."
+        }
+      },
+      "allOf": [
+        {
+          "description": "pack_canary_staged_rollout and pack_in_production require a non-null content_digest.",
+          "if": {
+            "properties": {
+              "rollout_state_class": {
+                "enum": ["pack_canary_staged_rollout", "pack_in_production"]
+              }
+            },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "content_digest": { "$ref": "#/$defs/content_digest" } },
+            "required": ["content_digest"]
+          }
+        },
+        {
+          "description": "pack_canary_staged_rollout requires a non-null canary_cohort_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_canary_staged_rollout" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "canary_cohort_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["canary_cohort_ref"]
+          }
+        },
+        {
+          "description": "pack_deprecated_with_replacement requires a non-null replacement_pack_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_deprecated_with_replacement" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "replacement_pack_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["replacement_pack_ref"]
+          }
+        },
+        {
+          "description": "pack_superseded_by_replacement requires a non-null supersedes_pack_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_superseded_by_replacement" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "supersedes_pack_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["supersedes_pack_ref"]
+          }
+        },
+        {
+          "description": "user_imported_signed_verified / first_party_signed / first_party_operator_signed / enterprise_operator_signed / extension_author_signed / mirror_imported_signed / air_gapped_imported_signed require a signing_evidence_reference.",
+          "if": {
+            "properties": {
+              "signing_posture_class": {
+                "enum": [
+                  "first_party_signed",
+                  "first_party_operator_signed",
+                  "enterprise_operator_signed",
+                  "extension_author_signed",
+                  "user_imported_signed_verified",
+                  "mirror_imported_signed",
+                  "air_gapped_imported_signed"
+                ]
+              }
+            },
+            "required": ["signing_posture_class"]
+          },
+          "then": {
+            "properties": { "signing_evidence_reference": { "$ref": "#/$defs/signing_evidence_reference" } },
+            "required": ["signing_evidence_reference"]
+          }
+        },
+        {
+          "description": "user_imported_unsigned_quarantined signing posture requires rollout_state_class = pack_quarantined_pending_review.",
+          "if": {
+            "properties": { "signing_posture_class": { "const": "user_imported_unsigned_quarantined" } },
+            "required": ["signing_posture_class"]
+          },
+          "then": {
+            "properties": { "rollout_state_class": { "const": "pack_quarantined_pending_review" } },
+            "required": ["rollout_state_class"]
+          }
+        }
+      ],
+      "description": "Manifest for a prompt pack — a governed, versioned collection of prompt_composer_plan_records. The plan_pack_ref on every prompt_composer_plan_record resolves to the pack_id of exactly one record on this schema. Every evidence packet that cites a plan also echoes this pack's id and version label so downstream support / replay can reconstruct which plan version governed which turn and explain downgrades."
+    },
+
+    "tool_pack_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_tool_pack_manifest_schema_version",
+        "pack_id",
+        "pack_class",
+        "publisher_class",
+        "publisher_identity_ref",
+        "pack_version_label",
+        "signing_posture_class",
+        "rollout_state_class",
+        "compatibility_window",
+        "included_tool_entry_refs",
+        "changelog_entries",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "tool_pack_manifest_record" },
+        "prompt_tool_pack_manifest_schema_version": { "$ref": "#/$defs/prompt_tool_pack_manifest_schema_version" },
+        "pack_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the tool pack. Composer-plan tool allowlists and admin tool-binding surfaces cite this id. The id is stable across version bumps; version identity is carried on pack_version_label and content_digest."
+        },
+        "pack_class": { "$ref": "#/$defs/pack_class" },
+        "publisher_class": { "$ref": "#/$defs/publisher_class" },
+        "publisher_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "pack_version_label": { "$ref": "#/$defs/non_empty_string" },
+        "content_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_digest" }
+          ]
+        },
+        "signing_posture_class": { "$ref": "#/$defs/signing_posture_class" },
+        "signing_evidence_reference": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/signing_evidence_reference" }
+          ]
+        },
+        "rollout_state_class": { "$ref": "#/$defs/rollout_state_class" },
+        "canary_cohort_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "compatibility_window": { "$ref": "#/$defs/compatibility_window_record" },
+        "included_tool_entry_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to every external_tool_registry_entry_record (tool_entry_id on schemas/ai/external_tool_registry.schema.json) carried in this pack. A tool not in this list MUST NOT be cited under this pack's id."
+        },
+        "admitted_provider_classes_for_pack": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_class" },
+          "description": "Provider classes admitted for tools in this pack. Empty when the pack does not narrow on provider class; a narrower subset narrows without widening relative to the external-tool registry entries' own provider admissions."
+        },
+        "supersedes_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "replacement_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "changelog_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/changelog_entry_record" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "pack_canary_staged_rollout and pack_in_production require a non-null content_digest.",
+          "if": {
+            "properties": {
+              "rollout_state_class": {
+                "enum": ["pack_canary_staged_rollout", "pack_in_production"]
+              }
+            },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "content_digest": { "$ref": "#/$defs/content_digest" } },
+            "required": ["content_digest"]
+          }
+        },
+        {
+          "description": "pack_canary_staged_rollout requires a non-null canary_cohort_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_canary_staged_rollout" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "canary_cohort_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["canary_cohort_ref"]
+          }
+        },
+        {
+          "description": "pack_deprecated_with_replacement requires a non-null replacement_pack_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_deprecated_with_replacement" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "replacement_pack_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["replacement_pack_ref"]
+          }
+        },
+        {
+          "description": "pack_superseded_by_replacement requires a non-null supersedes_pack_ref.",
+          "if": {
+            "properties": { "rollout_state_class": { "const": "pack_superseded_by_replacement" } },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "supersedes_pack_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["supersedes_pack_ref"]
+          }
+        },
+        {
+          "description": "tool_pack compatibility window requires a non-null minimum_external_tool_registry_schema_version.",
+          "if": {
+            "required": ["compatibility_window"]
+          },
+          "then": {
+            "properties": {
+              "compatibility_window": {
+                "required": ["minimum_external_tool_registry_schema_version"],
+                "properties": {
+                  "minimum_external_tool_registry_schema_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "user_imported_unsigned_quarantined signing posture requires rollout_state_class = pack_quarantined_pending_review.",
+          "if": {
+            "properties": { "signing_posture_class": { "const": "user_imported_unsigned_quarantined" } },
+            "required": ["signing_posture_class"]
+          },
+          "then": {
+            "properties": { "rollout_state_class": { "const": "pack_quarantined_pending_review" } },
+            "required": ["rollout_state_class"]
+          }
+        }
+      ],
+      "description": "Manifest for a tool pack — a governed, versioned collection of external_tool_registry_entry_record refs. Admin / policy / composer surfaces cite the pack_id when admitting a bundled set of tools into a deployment profile. Every audit event that cites a tool under this pack also echoes this pack's id and version label."
+    },
+
+    "prompt_tool_pack_manifest_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_tool_pack_manifest_schema_version",
+        "audit_event_id",
+        "pack_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_tool_pack_manifest_audit_event_record" },
+        "prompt_tool_pack_manifest_schema_version": { "$ref": "#/$defs/prompt_tool_pack_manifest_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "predecessor_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "replacement_pack_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "evidence_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) on prompt_tool_pack_manifest_denial_emitted events."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null for prompt_tool_pack_manifest_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "prompt_tool_pack_manifest_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event emitted on the prompt_tool_pack_manifest audit stream. Events MUST NOT carry raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw request / response bodies, raw stdio frames, or raw credential material."
+    }
+  }
+}
