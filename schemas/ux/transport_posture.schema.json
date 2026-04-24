@@ -1,0 +1,866 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/transport_posture.schema.json",
+  "title": "Aureline transport-posture, environment-status-strip, and repair-action-card contract",
+  "description": "Boundary schema for the three inspectable surfaces frozen in docs/ux/transport_and_environment_status_contract.md. The transport_posture_record is the single inspectable object that names current proxy mode, trust-store source, active policy bundle / deployment profile / identity mode, mirror route state, and offline / deny-all status with the attribution fields a status item, a diagnostics card, and a support-export representation all reference without renaming fields. It is the value-shape that schemas/network/network_attribution_record.schema.json embeds as transport_posture_at_event; field names, enum values, and opaque-ref shapes are kept identical so one posture object backs every consumer. The environment_status_strip_record is the cross-surface contract for the current interpreter / SDK / shell / target truth shown on the environment status strip, naming source, pin, degraded or blocked state, modal-prohibition rule, and the repair-action-card refs the strip exposes when state is repairable. The repair_action_card_record is one structured card explaining what will change, where it applies, whether the action is local, remote, managed, or policy-gated, plus side effects, evidence links, and consent / permission gates so a reviewer can tell what the action touches without reading the underlying code path. Raw URLs, raw host names, raw IPs, raw SSH host keys, raw proxy credentials, raw CA bundle bytes, raw tokens, raw absolute paths, raw command lines, and raw secret values never cross this boundary; the record carries opaque refs, opaque fingerprints, typed vocabulary, and reviewable-sentence labels only. Adding a new transport_posture, environment_status, repair_action_card, repair_action_scope_class, repair_action_authority_class, environment_status_kind, environment_status_state_class, environment_pin_class, environment_source_class, modal_prohibition_reason, side_effect_class, or evidence_link_kind value is additive-minor and bumps transport_posture_schema_version; repurposing an existing value is breaking and requires a new decision row in artifacts/governance/decision_index.yaml co-signed by security_trust_review and product_scope_review.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/transport_posture_record" },
+    { "$ref": "#/$defs/environment_status_strip_record" },
+    { "$ref": "#/$defs/repair_action_card_record" }
+  ],
+  "$defs": {
+    "transport_posture_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this transport-posture / environment-status-strip / repair-action-card vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "transport_posture_record",
+        "environment_status_strip_record",
+        "repair_action_card_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable, snake_case-safe id. Safe to log, safe on RPC, safe in admin exports, support bundles, release evidence, and boundary-manifest rows. Raw URLs, raw host names, raw IPs, raw SSH host keys, raw proxy credentials, raw CA bundle bytes, raw tokens, and raw path bytes never appear here."
+    },
+
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$",
+      "description": "Opaque stable fingerprint safe to log and export. Raw key bytes, raw PEM bodies, raw tokens, and raw path bytes never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short, reviewable sentence safe for banners, status items, diagnostics cards, repair cards, admin exports, and support packets. Raw URLs, raw host names, raw absolute paths, raw payloads, raw tokens, and raw secret material MUST NOT appear."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 140,
+      "description": "Short, privacy-safe label text intended for direct rendering on a status item, environment-status-strip cell, or repair-action-card heading. MUST NOT embed raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw command bodies."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the lifecycle / support / release vocabulary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from ADR-0011 client-scope vocabulary."
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ],
+      "description": "Identity mode re-exported from ADR-0001."
+    },
+
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Deployment-profile vocabulary re-exported from the locality-and-continuity seed."
+    },
+
+    "proxy_resolution_mode_class": {
+      "type": "string",
+      "enum": [
+        "system_proxy",
+        "pac_proxy",
+        "environment_proxy",
+        "manual_proxy",
+        "direct_no_proxy",
+        "proxy_unknown"
+      ],
+      "description": "Proxy-resolution-mode vocabulary re-exported verbatim from schemas/network/network_attribution_record.schema.json."
+    },
+
+    "trust_store_source_class": {
+      "type": "string",
+      "enum": [
+        "os_trust_store",
+        "os_trust_store_plus_org_ca_bundle",
+        "pinned_control_plane_trust_only",
+        "air_gap_offline_trust_root",
+        "trust_store_unknown"
+      ],
+      "description": "Trust-store-source vocabulary re-exported verbatim from schemas/network/network_attribution_record.schema.json."
+    },
+
+    "ssh_host_key_provenance_class": {
+      "type": "string",
+      "enum": [
+        "known_hosts_entry_trusted",
+        "first_use_trust_on_first_use",
+        "pinned_by_policy",
+        "admin_policy_strict_required",
+        "mismatched_rejected",
+        "not_applicable_non_ssh"
+      ],
+      "description": "SSH host-key provenance vocabulary re-exported verbatim from schemas/network/network_attribution_record.schema.json."
+    },
+
+    "mirror_route_class": {
+      "type": "string",
+      "enum": [
+        "no_mirror_direct_origin",
+        "customer_operated_mirror_active",
+        "vendor_published_mirror_active",
+        "offline_bundle_derived_mirror_active",
+        "mirror_only_no_direct_allowed",
+        "mirror_not_applicable"
+      ],
+      "description": "Mirror-route vocabulary re-exported verbatim from schemas/network/network_attribution_record.schema.json."
+    },
+
+    "offline_or_deny_all_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic"
+      ],
+      "description": "Offline / deny-all state vocabulary re-exported verbatim from schemas/network/network_attribution_record.schema.json."
+    },
+
+    "transport_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proxy_resolution_mode",
+        "trust_store_source",
+        "ssh_host_key_default_provenance",
+        "mirror_route_class",
+        "active_deployment_profile",
+        "active_identity_mode",
+        "offline_or_deny_all_state",
+        "captured_at"
+      ],
+      "properties": {
+        "proxy_resolution_mode": { "$ref": "#/$defs/proxy_resolution_mode_class" },
+        "effective_proxy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the effective proxy endpoint resolved for this profile. Raw URLs and raw proxy credentials MUST NOT appear. Null is admissible for direct_no_proxy and for proxy_unknown repair-only placeholders."
+        },
+        "trust_store_source": { "$ref": "#/$defs/trust_store_source_class" },
+        "org_ca_bundle_fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_fingerprint" }
+          ],
+          "description": "Opaque fingerprint of the enterprise / org CA bundle in force. Non-null whenever trust_store_source is os_trust_store_plus_org_ca_bundle; null is admissible on the other classes."
+        },
+        "pinned_control_plane_trust_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs for the pinned control-plane trust roots in force. Non-empty whenever trust_store_source is pinned_control_plane_trust_only."
+        },
+        "ssh_host_key_default_provenance": { "$ref": "#/$defs/ssh_host_key_provenance_class" },
+        "mirror_route_class": { "$ref": "#/$defs/mirror_route_class" },
+        "mirror_endpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the active mirror endpoint. Non-null for every mirror_*_active and mirror_only_no_direct_allowed class; null on no_mirror_direct_origin and mirror_not_applicable."
+        },
+        "mirror_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the active mirror snapshot id (cross-walks with the locality-and-continuity seed mirror_continuity_fields.mirror_snapshot_id)."
+        },
+        "active_deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "active_identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "active_policy_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the signed policy bundle bound to this posture. Null is admissible on account_free_local with no inspectable policy bundle."
+        },
+        "policy_epoch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref for the policy epoch the bundle resolved at. Cross-walks with the policy-bundle / entitlement-snapshot seeds."
+        },
+        "offline_or_deny_all_state": { "$ref": "#/$defs/offline_or_deny_all_state_class" },
+        "offline_since_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the current offline / degraded posture began. Null is admissible whenever offline_or_deny_all_state is online_live_allowed."
+        },
+        "posture_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Inspectable current transport-posture object. Field-name- and value-compatible with the embedded transport_posture in schemas/network/network_attribution_record.schema.json so status items, diagnostics cards, support exports, admin-audit packets, and boundary-manifest rows reference one shape. Raw URLs, raw host names, raw IPs, raw SSH host keys, raw proxy credentials, raw CA bundle bytes, raw tokens, raw policy rule bodies, and raw certificate chain PEM never appear."
+    },
+
+    "transport_posture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "transport_posture_schema_version",
+        "transport_posture_id",
+        "transport_posture",
+        "consumer_surfaces",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "transport_posture_record" },
+        "transport_posture_schema_version": { "$ref": "#/$defs/transport_posture_schema_version" },
+        "transport_posture_id": { "$ref": "#/$defs/opaque_id" },
+        "transport_posture": { "$ref": "#/$defs/transport_posture" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "status_item_surface",
+              "diagnostics_card_surface",
+              "support_export_surface",
+              "admin_audit_packet_surface",
+              "environment_status_strip_surface",
+              "repair_action_card_surface",
+              "boundary_manifest_row_surface"
+            ]
+          },
+          "description": "Cross-surface consumers that read this exact posture object without renaming fields."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": {
+          "type": "boolean",
+          "default": true,
+          "description": "True when the record is safe to include in a support bundle under metadata_safe_default without additional redaction."
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repo-relative pointers into the narrative contract and any related companion documents."
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    },
+
+    "environment_status_kind": {
+      "type": "string",
+      "enum": [
+        "interpreter_or_toolchain_status",
+        "sdk_status",
+        "shell_status",
+        "target_status"
+      ],
+      "description": "Frozen environment-status-strip cell vocabulary. interpreter_or_toolchain_status names the resolved language interpreter, runtime, or toolchain (Python interpreter, Node runtime, Rust toolchain, JVM, Go SDK). sdk_status names the resolved framework / platform SDK overlay (Android SDK, iOS SDK, .NET SDK, Web SDK). shell_status names the resolved task / terminal / debug-prep shell (bash, zsh, pwsh, cmd, busybox). target_status names the resolved execution target (local host, remote SSH, remote agent, managed workspace, devcontainer)."
+    },
+
+    "environment_source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_explicit_pin",
+        "workspace_inherited_default",
+        "user_setting",
+        "policy_bundle_pin",
+        "platform_default",
+        "auto_detected_in_workspace",
+        "auto_detected_on_path",
+        "managed_provider_pin",
+        "remote_target_reported",
+        "source_unknown_repair_required"
+      ],
+      "description": "Frozen source vocabulary explaining where the resolved environment value came from. workspace_explicit_pin / workspace_inherited_default name workspace-or-workset configuration. user_setting names a user-level Aureline setting. policy_bundle_pin names a value pinned by an admin policy bundle. platform_default names an OS / platform default. auto_detected_in_workspace / auto_detected_on_path name resolver heuristics over workspace contents or PATH. managed_provider_pin names a value supplied by the managed control plane. remote_target_reported names a value the remote target reported. source_unknown_repair_required is admissible only as a repair-only placeholder."
+    },
+
+    "environment_pin_class": {
+      "type": "string",
+      "enum": [
+        "pinned_workspace_scope",
+        "pinned_workset_scope",
+        "pinned_user_scope",
+        "pinned_policy_bundle_scope",
+        "pinned_managed_provider_scope",
+        "not_pinned_resolved_dynamically",
+        "pin_unknown_repair_required"
+      ],
+      "description": "Frozen pin vocabulary explaining the binding scope of the resolved environment value. not_pinned_resolved_dynamically names ambient / detected values that have no durable pin. pin_unknown_repair_required is admissible only as a repair-only placeholder."
+    },
+
+    "environment_status_state_class": {
+      "type": "string",
+      "enum": [
+        "ok_resolved",
+        "ok_with_warning",
+        "degraded_resolved",
+        "stale_unverified",
+        "blocked_by_policy",
+        "blocked_by_permission",
+        "blocked_by_offline_or_deny_all",
+        "blocked_by_target_unreachable",
+        "unknown_repair_required",
+        "not_applicable_for_surface"
+      ],
+      "description": "Frozen status-state vocabulary. ok_resolved names a fully resolved cell. ok_with_warning names a resolved cell with a non-blocking caveat (mirror past freshness window, deprecated toolchain). degraded_resolved names a partially resolved cell still safe to use. stale_unverified names a resolved cell whose freshness floor has lapsed. blocked_by_policy / blocked_by_permission / blocked_by_offline_or_deny_all / blocked_by_target_unreachable name the four typed blocks. unknown_repair_required is the repair-only placeholder. not_applicable_for_surface marks cells that do not apply to the active surface (no SDK row on a pure terminal context)."
+    },
+
+    "modal_prohibition_reason": {
+      "type": "string",
+      "enum": [
+        "ambient_glanceable_surface_no_modal",
+        "non_blocking_warning_no_modal",
+        "stale_state_repair_card_only_no_modal",
+        "policy_block_explainer_only_no_modal",
+        "offline_or_deny_all_explainer_only_no_modal",
+        "permission_block_quiet_remediation_no_modal",
+        "remote_target_unreachable_explainer_only_no_modal",
+        "modal_admissible_only_for_destructive_repair_confirmation",
+        "modal_admissible_only_for_consent_step_up"
+      ],
+      "description": "Frozen vocabulary stating when an environment-status cell is forbidden from raising a modal. The status strip is an ambient glanceable surface; modals are admissible only for destructive repair confirmation or step-up consent, and even then only via repair-action-card promotion (not the status strip itself)."
+    },
+
+    "environment_status_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_kind",
+        "status_state",
+        "source_class",
+        "pin_class",
+        "modal_prohibition_reason",
+        "captured_at"
+      ],
+      "properties": {
+        "cell_kind": { "$ref": "#/$defs/environment_status_kind" },
+        "resolved_label_text": { "$ref": "#/$defs/short_label_text" },
+        "resolved_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the runtime execution-context resolver for the value being displayed (toolchain ref, SDK ref, shell ref, target ref). Raw absolute paths, raw version strings with sensitive build metadata, and raw remote host names MUST NOT appear here."
+        },
+        "status_state": { "$ref": "#/$defs/environment_status_state_class" },
+        "source_class": { "$ref": "#/$defs/environment_source_class" },
+        "source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into the originating settings / policy / workspace / detection record so a reviewer can trace where the value came from."
+        },
+        "pin_class": { "$ref": "#/$defs/environment_pin_class" },
+        "pin_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref naming the scope that holds the pin (workspace ref, workset ref, user-profile ref, policy-bundle ref, managed-provider ref). Null is admissible for not_pinned_resolved_dynamically."
+        },
+        "degraded_or_blocked_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Reviewable sentence required whenever status_state is anything other than ok_resolved or not_applicable_for_surface. MUST cite the typed block / degradation reason in product terms."
+        },
+        "repair_action_card_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the repair_action_card_records the strip exposes for this cell when state is repairable. Empty when no repair action is available (stale read-only target, ambient platform default)."
+        },
+        "modal_prohibition_reason": { "$ref": "#/$defs/modal_prohibition_reason" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One environment-status-strip cell. Cells share one shape across the four kinds (interpreter / SDK / shell / target) so the strip never reads as four parallel widgets."
+    },
+
+    "environment_status_strip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "transport_posture_schema_version",
+        "environment_status_strip_id",
+        "client_scope",
+        "transport_posture_ref",
+        "cells",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "environment_status_strip_record" },
+        "transport_posture_schema_version": { "$ref": "#/$defs/transport_posture_schema_version" },
+        "environment_status_strip_id": { "$ref": "#/$defs/opaque_id" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "transport_posture_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the transport_posture_record this strip reads from. The strip MUST NOT recompute or rename transport posture fields."
+        },
+        "execution_context_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the context_snapshot_record (schemas/execution/context_snapshot.schema.json) the strip cells were resolved against. Null is admissible only for ambient surfaces with no resolved snapshot yet."
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/environment_status_cell" },
+          "description": "One or more environment-status cells. Cell ordering is preserved on render; cells whose kind does not apply MUST still be present with status_state = not_applicable_for_surface."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": {
+          "type": "boolean",
+          "default": true
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    },
+
+    "repair_action_scope_class": {
+      "type": "string",
+      "enum": [
+        "scope_local_only",
+        "scope_local_and_remote_target",
+        "scope_remote_target_only",
+        "scope_managed_provider_only",
+        "scope_policy_bundle_only",
+        "scope_org_admin_console_only",
+        "scope_cross_machine_user_profile"
+      ],
+      "description": "Frozen vocabulary naming where a repair action's effects land. scope_local_only is restricted to the local device. scope_local_and_remote_target updates both local pins and a remote target. scope_remote_target_only reaches only the remote target (SSH host, remote agent, managed workspace, devcontainer). scope_managed_provider_only reaches the managed control plane. scope_policy_bundle_only updates a signed policy bundle source. scope_org_admin_console_only is observable only in the admin console (the action is a request, not a local execute). scope_cross_machine_user_profile updates the synced user profile across devices."
+    },
+
+    "repair_action_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_local_authority",
+        "user_workspace_authority",
+        "remote_target_authority",
+        "managed_provider_authority",
+        "policy_bundle_signer_authority",
+        "org_admin_authority",
+        "platform_os_authority",
+        "extension_owner_authority"
+      ],
+      "description": "Frozen vocabulary naming who must hold authority for the action to land. user_local_authority covers actions a user can take on their device. user_workspace_authority covers workspace-trust-gated edits. remote_target_authority covers actions taken on the remote target's account. managed_provider_authority covers actions only the managed control plane can perform. policy_bundle_signer_authority covers actions that change a signed policy bundle. org_admin_authority covers actions only an org admin may take. platform_os_authority covers actions that require OS-level privilege (system trust store, system proxy). extension_owner_authority covers actions only the extension's owner / publisher can take."
+    },
+
+    "repair_action_consent_class": {
+      "type": "string",
+      "enum": [
+        "no_consent_required_safe_default",
+        "user_confirmation_required_local",
+        "step_up_authentication_required",
+        "approval_ticket_required",
+        "admin_co_sign_required",
+        "consent_blocked_by_policy",
+        "consent_blocked_by_permission",
+        "consent_unknown_repair_required"
+      ],
+      "description": "Frozen consent / permission gate vocabulary. consent_blocked_* values name the reason the action MAY NOT be invoked at all from the current posture; the card MUST still render with the gate visible so the user can read why."
+    },
+
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect_inspect_only",
+        "writes_local_setting",
+        "writes_workspace_setting",
+        "writes_user_profile_setting",
+        "rebinds_workspace_pin",
+        "writes_local_credential_handle",
+        "rotates_local_credential_handle",
+        "deletes_local_credential_handle",
+        "loads_org_ca_bundle",
+        "unloads_org_ca_bundle",
+        "switches_active_policy_bundle",
+        "requests_policy_bundle_refresh",
+        "requests_entitlement_refresh",
+        "switches_active_deployment_profile",
+        "switches_active_identity_mode",
+        "switches_active_target",
+        "restarts_remote_session",
+        "restarts_extension_host",
+        "restarts_local_process",
+        "rebuilds_workspace_index",
+        "writes_remote_target_setting",
+        "edits_remote_known_hosts_entry",
+        "removes_remote_known_hosts_entry",
+        "publishes_admin_audit_event"
+      ],
+      "description": "Frozen side-effect vocabulary. Every repair action declares one or more side effects so a reviewer can read what the action touches before it runs. no_side_effect_inspect_only marks a card that only opens an inspector or copies an opaque ref; it MUST NOT mint a writes_* or rebinds_* effect."
+    },
+
+    "evidence_link_kind": {
+      "type": "string",
+      "enum": [
+        "transport_posture_ref",
+        "network_attribution_record_ref",
+        "policy_bundle_ref",
+        "entitlement_snapshot_ref",
+        "execution_context_snapshot_ref",
+        "context_snapshot_diff_ref",
+        "approval_ticket_ref",
+        "browser_handoff_packet_ref",
+        "support_bundle_ref",
+        "admin_audit_packet_ref",
+        "doctor_finding_ref",
+        "settings_record_ref",
+        "schema_registry_entry_ref"
+      ],
+      "description": "Frozen evidence-link vocabulary. Every link kind names a record the card cites so a reviewer can read why the action is being offered without re-deriving state. Links are opaque refs only; raw bodies, raw URLs, and raw payloads MUST NOT appear."
+    },
+
+    "evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "evidence_link_kind", "evidence_ref" ],
+      "properties": {
+        "evidence_link_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "repair_action_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "transport_posture_schema_version",
+        "repair_action_card_id",
+        "title_label_text",
+        "what_changes_sentence",
+        "where_it_applies_sentence",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "transport_posture_ref",
+        "redaction_class",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "repair_action_card_record" },
+        "transport_posture_schema_version": { "$ref": "#/$defs/transport_posture_schema_version" },
+        "repair_action_card_id": { "$ref": "#/$defs/opaque_id" },
+        "title_label_text": { "$ref": "#/$defs/short_label_text" },
+        "what_changes_sentence": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing what will change in product terms. Generic 'fix it' or 'try again' prose is non-conforming; the sentence MUST name the concrete state the action would change."
+        },
+        "where_it_applies_sentence": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing where the change lands (local device, this workspace, this remote target, the managed control plane, the org policy bundle). MUST be consistent with scope_class."
+        },
+        "scope_class": { "$ref": "#/$defs/repair_action_scope_class" },
+        "authority_class": { "$ref": "#/$defs/repair_action_authority_class" },
+        "consent_class": { "$ref": "#/$defs/repair_action_consent_class" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "description": "One or more declared side effects. A card with consent_class != consent_blocked_* MUST list at least one effect; inspect-only cards list no_side_effect_inspect_only."
+        },
+        "evidence_links": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence_link" },
+          "description": "Evidence links the card cites. Cards driven by a deny / block state SHOULD link the network_attribution_record, policy_bundle, or entitlement_snapshot that explains the deny."
+        },
+        "transport_posture_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the transport_posture_record the card was rendered against, so the same posture that drove status / diagnostics also drove the offered repair."
+        },
+        "originating_status_cell_kind": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/environment_status_kind" }
+          ],
+          "description": "If this card was promoted from an environment-status-strip cell, name the cell kind. Null is admissible for cards promoted from a diagnostics card, support export, or doctor finding."
+        },
+        "originating_diagnostics_card_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the diagnostics card that promoted this repair action. Null is admissible when the card was promoted from a status-strip cell."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": {
+          "type": "boolean",
+          "default": true
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "notes": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "deny_all transport posture MUST collapse to a non-online_live_allowed state. A transport_posture_record claiming online_live_allowed cannot also carry an offline_since_at timestamp.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "transport_posture_record" },
+          "transport_posture": {
+            "properties": {
+              "offline_or_deny_all_state": { "const": "online_live_allowed" }
+            },
+            "required": [ "offline_or_deny_all_state" ]
+          }
+        },
+        "required": [ "record_kind", "transport_posture" ]
+      },
+      "then": {
+        "properties": {
+          "transport_posture": {
+            "properties": {
+              "offline_since_at": { "type": "null" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "An environment-status cell whose status_state is anything other than ok_resolved or not_applicable_for_surface MUST carry a non-null degraded_or_blocked_reason sentence.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "environment_status_strip_record" }
+        },
+        "required": [ "record_kind" ]
+      },
+      "then": {
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "if": {
+                "properties": {
+                  "status_state": {
+                    "not": {
+                      "enum": [ "ok_resolved", "not_applicable_for_surface" ]
+                    }
+                  }
+                },
+                "required": [ "status_state" ]
+              },
+              "then": {
+                "required": [ "degraded_or_blocked_reason" ],
+                "properties": {
+                  "degraded_or_blocked_reason": {
+                    "not": { "type": "null" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Repair-action cards declaring no_side_effect_inspect_only MUST NOT also declare any writes_*, rebinds_*, switches_*, restarts_*, requests_*, loads_*, unloads_*, rotates_*, deletes_*, removes_*, edits_*, or publishes_* effect; inspect-only is a closed posture.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "repair_action_card_record" },
+          "side_effects": {
+            "type": "array",
+            "contains": { "const": "no_side_effect_inspect_only" }
+          }
+        },
+        "required": [ "record_kind", "side_effects" ]
+      },
+      "then": {
+        "properties": {
+          "side_effects": {
+            "type": "array",
+            "maxItems": 1,
+            "items": { "const": "no_side_effect_inspect_only" }
+          }
+        }
+      }
+    },
+    {
+      "description": "Repair-action cards whose scope_class is scope_local_only MUST NOT carry side effects that imply remote, managed, policy-bundle, admin-console, or cross-machine reach.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "repair_action_card_record" },
+          "scope_class": { "const": "scope_local_only" }
+        },
+        "required": [ "record_kind", "scope_class" ]
+      },
+      "then": {
+        "properties": {
+          "side_effects": {
+            "type": "array",
+            "items": {
+              "not": {
+                "enum": [
+                  "writes_remote_target_setting",
+                  "edits_remote_known_hosts_entry",
+                  "removes_remote_known_hosts_entry",
+                  "restarts_remote_session",
+                  "switches_active_policy_bundle",
+                  "requests_policy_bundle_refresh",
+                  "requests_entitlement_refresh",
+                  "publishes_admin_audit_event"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Repair-action cards whose authority_class is org_admin_authority or policy_bundle_signer_authority MUST NOT claim scope_local_only; the action's reach exceeds the local device by definition.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "repair_action_card_record" },
+          "authority_class": {
+            "enum": [
+              "org_admin_authority",
+              "policy_bundle_signer_authority"
+            ]
+          }
+        },
+        "required": [ "record_kind", "authority_class" ]
+      },
+      "then": {
+        "properties": {
+          "scope_class": {
+            "not": { "const": "scope_local_only" }
+          }
+        }
+      }
+    },
+    {
+      "description": "Repair-action cards whose consent_class names a consent_blocked_* state MUST link at least one evidence record (network_attribution_record, policy_bundle, or entitlement_snapshot) so a reviewer can read why the action is unavailable from the current posture.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "repair_action_card_record" },
+          "consent_class": {
+            "enum": [
+              "consent_blocked_by_policy",
+              "consent_blocked_by_permission"
+            ]
+          }
+        },
+        "required": [ "record_kind", "consent_class" ]
+      },
+      "then": {
+        "required": [ "evidence_links" ],
+        "properties": {
+          "evidence_links": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
