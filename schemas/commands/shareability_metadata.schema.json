@@ -1,0 +1,802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/shareability_metadata.schema.json",
+  "title": "Aureline command shareability, deep-link, and automation-safety metadata contract",
+  "description": "Boundary schema for the shareability_metadata_record frozen in docs/commands/shareability_and_automation_contract.md. Every command registered under docs/commands/command_descriptor_contract.md MAY publish exactly one shareability_metadata_record that extends the descriptor with the copy-id, deep-link, invocation-ref, CLI / headless equivalent, argument-inspection, macro / recipe / headless / UI-only / approval-required cue, and why-unavailable vocabulary every palette, application / context menu, toolbar button, keybinding editor, CLI help, AI-tool surface, automation-recipe response, docs reference page, and About / service-health panel reads before surfacing a copyable command id, deep link, invocation ref, CLI equivalent, or typed unavailability explanation. Raw URLs, raw deep-link strings, raw command bodies, raw argument values, raw prompt text, and raw credential material never cross this boundary; this schema carries opaque ids and typed vocabulary only. The eventual command-registry / invocation-session crates' Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new copy form, deep-link target kind, gating requirement, CLI-equivalence class, headless-mode class, argument-inspection kind, automation-safety cue, unavailability-parity surface, or why-unavailable reason is additive-minor and requires a shareability_metadata_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/shareability_metadata_record" }
+  ],
+  "$defs": {
+    "shareability_metadata_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this shareability-metadata export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["shareability_metadata_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw URLs, raw deep-link strings, raw argument values, raw paths, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb re-exported from docs/commands/command_descriptor_contract.md without modification. The shareability record MUST carry the same canonical verb the descriptor publishes; a mismatch denies the record."
+    },
+
+    "copy_form_class": {
+      "type": "string",
+      "enum": [
+        "copy_canonical_command_id",
+        "copy_canonical_verb",
+        "copy_palette_search_token",
+        "copy_cli_invocation_skeleton",
+        "copy_ai_tool_handle",
+        "copy_deep_link_ref",
+        "copy_shortcut_chord_narration",
+        "copy_docs_help_anchor"
+      ],
+      "description": "Frozen copy-form vocabulary. A surface that exposes a 'Copy command id' / 'Copy canonical verb' / 'Copy CLI invocation' / 'Copy deep link' / 'Copy shortcut' affordance MUST quote one of these forms; minting a parallel copy form is non-conforming. copy_cli_invocation_skeleton copies a non-executable skeleton (canonical verb + argument slot narration) that the receiving surface re-resolves through enablement; it does not copy a pre-signed invocation that bypasses gates."
+    },
+
+    "deep_link_target_kind": {
+      "type": "string",
+      "enum": [
+        "reveal_command_in_palette",
+        "reveal_command_in_application_menu",
+        "reveal_command_in_context_menu",
+        "reveal_command_in_keybinding_editor",
+        "open_command_docs_help_anchor",
+        "prefill_command_invocation_preview",
+        "open_command_about_service_health_panel"
+      ],
+      "description": "Frozen deep-link target-kind vocabulary. A deep link resolves into a named surface state (reveal in palette, open the keybinding editor with the command selected, open the docs anchor, pre-fill an invocation preview) rather than dispatching the command directly. prefill_command_invocation_preview seeds the preview pane with argument refs; the preview, approval, trust, and policy gates still run before apply."
+    },
+
+    "deep_link_gating_requirement": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_revalidation_required",
+        "policy_admission_revalidation_required",
+        "permission_prompt_revalidation_required",
+        "preview_path_required",
+        "approval_path_required",
+        "credential_broker_handshake_required",
+        "managed_only_channel_required",
+        "execution_context_resolution_required",
+        "client_scope_admission_required",
+        "publisher_admission_required",
+        "kill_switch_revalidation_required",
+        "freshness_floor_revalidation_required"
+      ],
+      "description": "Frozen deep-link gating-requirement vocabulary. Every requirement the resolver MUST re-run when a deep link resolves. A resolver that silently skips any declared requirement is non-conforming; the link denies with the matching shareability_why_unavailable_reason."
+    },
+
+    "cli_equivalent_presence_class": {
+      "type": "string",
+      "enum": [
+        "has_cli_equivalent_on_every_permitted_scope",
+        "has_cli_equivalent_on_restricted_scopes_only",
+        "cli_equivalent_requires_interactive_prompt",
+        "cli_equivalent_denied_by_policy",
+        "cli_equivalent_denied_by_client_scope",
+        "no_cli_equivalent_ui_only"
+      ],
+      "description": "Frozen CLI-equivalence vocabulary. has_cli_equivalent_on_every_permitted_scope is the floor for commands whose client_scopes contain cli; no_cli_equivalent_ui_only denotes UI-only interactive commands (welcome tours, onboarding takeovers, in-pane animations) that cannot be represented as a headless verb."
+    },
+
+    "headless_mode_class": {
+      "type": "string",
+      "enum": [
+        "fully_headless_safe",
+        "headless_safe_with_declared_prompt_elision",
+        "requires_interactive_context",
+        "denied_in_headless_mode"
+      ],
+      "description": "Frozen headless-mode vocabulary. headless_safe_with_declared_prompt_elision declares that the headless path MUST surface the elided prompts in the invocation-session packet's warnings summary; silent prompt elision is non-conforming. denied_in_headless_mode MUST be rendered as the ui_only_interactive automation-safety cue alongside a typed why-unavailable reason."
+    },
+
+    "argument_inspection_kind": {
+      "type": "string",
+      "enum": [
+        "typed_argument_slot_ref",
+        "policy_pinned_argument_ref",
+        "credential_handle_argument_ref",
+        "selection_backed_argument_ref",
+        "focused_context_backed_argument_ref",
+        "default_from_descriptor_argument_ref",
+        "ai_proposed_argument_ref",
+        "automation_recipe_supplied_argument_ref",
+        "extension_supplied_argument_ref"
+      ],
+      "description": "Frozen argument-inspection vocabulary. Every entry in inspectable_arguments MUST quote one of these kinds so palette / keybinding-editor / CLI --describe / AI-tool --describe surfaces explain 'where does this value come from?' without minting parallel phrases. credential_handle_argument_ref is never inspected in raw form; the inspection surface quotes the broker handle only."
+    },
+
+    "automation_safety_cue": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only_interactive",
+        "approval_required",
+        "preview_required_before_apply",
+        "credential_or_secret_gated",
+        "never_ai_callable",
+        "managed_only",
+        "requires_trusted_workspace",
+        "policy_restricted",
+        "irreversible_high_blast_denied_for_automation",
+        "extension_invocation_only",
+        "remote_agent_invocation_only"
+      ],
+      "description": "Frozen automation-safety cue vocabulary. A surface that renders a 'macro safe' / 'recipe safe' / 'headless safe' / 'UI-only' / 'approval required' chip MUST quote one of these cues; minting a parallel cue is non-conforming. The cue set is the authoritative projection the palette, keybinding editor, CLI --describe, AI-tool descriptor, automation-recipe response, docs reference page, and About / service-health panel all read."
+    },
+
+    "unavailability_parity_surface": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "global_application_menu",
+        "context_menu",
+        "toolbar_button",
+        "keybinding_help",
+        "keybinding_editor",
+        "cli_help",
+        "ai_tool_surface",
+        "automation_recipe_surface",
+        "docs_reference_page",
+        "about_service_health_panel"
+      ],
+      "description": "Frozen unavailability-parity-surface vocabulary. Every surface listed here MUST render the same typed why-unavailable reason for the same command_id / command_revision_ref; silent divergence is detected by parity audits reading docs/commands/command_parity_diff.md."
+    },
+
+    "shareability_why_unavailable_reason": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_lifecycle_retired",
+        "capability_disabled_by_policy",
+        "kill_switch_tripped",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "required_provider_unlinked",
+        "required_credential_missing",
+        "required_argument_unresolved",
+        "execution_context_unavailable",
+        "managed_only_channel_required",
+        "dependency_state_below_command_ceiling",
+        "command_deprecated_within_window",
+        "command_retired",
+        "command_version_unknown",
+        "preview_denial_no_safe_preview",
+        "approval_denial_no_approval_path",
+        "publisher_not_permitted",
+        "policy_blocked_in_context",
+        "authority_class_unresolved",
+        "issuing_surface_unresolved",
+        "scope_class_drifted_from_descriptor",
+        "preview_required_not_shown",
+        "basis_snapshot_drifted",
+        "cli_surface_not_in_client_scopes",
+        "automation_surface_not_in_client_scopes",
+        "ai_tool_surface_not_in_client_scopes",
+        "deep_link_target_kind_unsupported",
+        "deep_link_gating_requirement_failed",
+        "invocation_ref_revision_mismatch",
+        "alias_not_resolvable",
+        "ui_only_command_not_representable_as_invocation",
+        "argument_inspection_requires_interactive_prompt"
+      ],
+      "description": "Frozen why-unavailable vocabulary. The first twenty-four values re-export docs/commands/command_descriptor_contract.md#disabled-reason-vocabulary without modification; the remainder are shareability-specific (CLI / automation / AI-tool / deep-link / invocation-ref / alias / UI-only / argument-inspection paths) so a copy / deep-link / CLI --describe / AI-tool --describe / automation-response surface can explain why a command is not shareable or not automatable without guesswork. Repurposing an existing reason is breaking and requires a new decision row."
+    },
+
+    "repair_hook_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_kind", "hook_id"],
+      "properties": {
+        "hook_kind": {
+          "type": "string",
+          "enum": [
+            "enable_feature_flag",
+            "request_admin_policy_change",
+            "request_provider_link",
+            "reconnect_provider",
+            "upgrade_release_channel",
+            "refresh_freshness",
+            "migrate_to_replacement",
+            "request_managed_access",
+            "contact_support"
+          ]
+        },
+        "hook_id": { "type": "string", "minLength": 1 },
+        "display_label": {
+          "type": "string",
+          "description": "Short human-legible label the surface may render next to the unavailability chip."
+        }
+      },
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Required on every reason entry in unavailability_disclosure.reason_set."
+    },
+
+    "docs_help_anchor_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack_id", "anchor_id", "anchor_kind"],
+      "properties": {
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_kind": {
+          "type": "string",
+          "enum": [
+            "docs_page_anchor",
+            "generated_reference_anchor",
+            "symbol_reference_anchor",
+            "code_span_anchor",
+            "runbook_step_anchor",
+            "release_note_anchor",
+            "mirrored_docs_anchor",
+            "curated_pack_anchor"
+          ]
+        }
+      },
+      "description": "Re-exported from docs/docs/docs_pack_manifest_contract.md without modification. The shareability record's cli_equivalent.help_anchor_ref and copy_docs_help_anchor copy form MUST project the same docs anchor the command descriptor publishes; minting a parallel anchor is non-conforming."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the record was minted under. ADR-0008 / ADR-0009 policy epoch and ADR-0001 trust state are re-validated on every render."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0007 / ADR-0011)."
+    },
+
+    "copy_form_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["copy_form_class", "copy_token_ref"],
+      "properties": {
+        "copy_form_class": { "$ref": "#/$defs/copy_form_class" },
+        "copy_token_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the copyable token (canonical command id / canonical verb / palette search token / CLI-invocation skeleton / AI-tool handle / deep-link id / shortcut-chord narration id / docs-help anchor id). Raw strings never appear here; the clipboard history lane resolves the token through the broker-owned redaction pass before bytes reach the clipboard sink."
+        },
+        "available_on_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unavailability_parity_surface" },
+          "description": "Closed set of surfaces that MAY expose this copy form. Omitting a surface is a deliberate withhold (e.g. context menus do not expose a 'Copy deep link' affordance for ui_only_interactive commands); the surface MUST render the matching typed why-unavailable reason rather than minting a parallel 'Not available here' string."
+        },
+        "narration_label_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the accessibility narration label for this copy affordance."
+        }
+      },
+      "description": "Copy-form slot a shareability record publishes. A 'Copy command id' / 'Copy CLI invocation' / 'Copy deep link' affordance in any surface MUST project exactly one of these slots; minting a parallel copy affordance is non-conforming."
+    },
+
+    "deep_link_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deep_link_id",
+        "target_kind",
+        "gating_requirements",
+        "revalidates_workspace_trust",
+        "revalidates_policy_admission",
+        "revalidates_permission_prompt"
+      ],
+      "properties": {
+        "deep_link_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the deep-link record. A deep-link resolver accepts this id and resolves it through the gating contract; raw URLs / raw URI strings never appear here."
+        },
+        "target_kind": { "$ref": "#/$defs/deep_link_target_kind" },
+        "gating_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deep_link_gating_requirement" },
+          "description": "Non-empty closed set of gating requirements the resolver MUST re-run before the deep link resolves. A deep link with an empty gating-requirements list is non-conforming; bypassing trust / policy / permission / preview / approval / credential-broker / managed-channel / execution-context resolution is forbidden."
+        },
+        "revalidates_workspace_trust": {
+          "type": "boolean",
+          "const": true,
+          "description": "Every deep link MUST re-validate the ADR-0001 workspace trust state at resolution. The constant true here is the schema's way of freezing the 'deep links never bypass trust' rule; a false value is non-conforming."
+        },
+        "revalidates_policy_admission": {
+          "type": "boolean",
+          "const": true,
+          "description": "Every deep link MUST re-validate ADR-0008 admin policy at resolution. The constant true here freezes the 'deep links never bypass policy' rule."
+        },
+        "revalidates_permission_prompt": {
+          "type": "boolean",
+          "const": true,
+          "description": "Every deep link MUST re-validate the interaction-safety permission-prompt path before any consequence. The constant true here freezes the 'deep links never bypass permission gates' rule."
+        },
+        "argument_prefill_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to argument slots the deep link may pre-fill on resolution. Pre-fill seeds the preview pane; it does not authorise apply. The preview, approval, trust, and policy gates still run."
+        },
+        "scope_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to a scope anchor the deep link resolves against (workspace root, focused entity class, specific surface). Null when the deep link resolves against the application shell without a scope anchor."
+        },
+        "narration_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the accessibility narration label for this deep link."
+        }
+      },
+      "description": "Deep-link block. Present when the command declares a copy_deep_link_ref copy form. The block freezes the gating contract: deep links resolve into named surface states and never bypass trust, policy, permission, preview, approval, credential broker, managed channel, execution context, client scope, publisher admission, kill-switch, or freshness floor gates."
+    },
+
+    "invocation_ref_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocation_ref_id",
+        "canonical_verb",
+        "command_revision_ref",
+        "argument_provenance_template"
+      ],
+      "properties": {
+        "invocation_ref_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the invocation-ref record a macro / recipe / AI-tool surface quotes when dispatching the command. A surface that dispatches an invocation ref mints an invocation_session_packet_record the same way as any other surface; the ref does not bypass enablement / preview / approval."
+        },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "The descriptor revision the invocation ref was minted against. A dispatch whose descriptor revision differs denies with invocation_ref_revision_mismatch rather than silently upgrading."
+        },
+        "argument_provenance_template": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["argument_name", "inspection_kind"],
+            "properties": {
+              "argument_name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "inspection_kind": { "$ref": "#/$defs/argument_inspection_kind" },
+              "default_value_ref": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/opaque_id" }
+                ],
+                "description": "Opaque pin to a default value ref the template carries. Null when the argument has no template default (the dispatcher MUST resolve the value at dispatch time)."
+              }
+            }
+          },
+          "description": "Ordered per-argument template the dispatcher consumes. The dispatcher resolves each entry to a concrete argument_provenance on invocation_session_packet_record; unresolved required arguments deny with required_argument_unresolved."
+        }
+      },
+      "description": "Invocation-ref block. Present when the command is automation-callable (macro_safe / recipe_safe / headless_safe / AI-callable). Absent for ui_only_interactive commands; surfaces render ui_only_command_not_representable_as_invocation when asked for an invocation ref."
+    },
+
+    "cli_equivalent_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presence_class"],
+      "properties": {
+        "presence_class": { "$ref": "#/$defs/cli_equivalent_presence_class" },
+        "cli_verb_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the CLI verb (typically the canonical verb or an alternate_cli_verb alias). Null when presence_class is no_cli_equivalent_ui_only / cli_equivalent_denied_by_policy / cli_equivalent_denied_by_client_scope."
+        },
+        "alternate_cli_verb_alias_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to alternate_cli_verb aliases from the descriptor. Empty when no alternates are declared."
+        },
+        "typed_argv_shape_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to typed argv slot shapes (one per descriptor typed_arguments slot). The CLI --help output reads these refs; minting parallel argv shapes per help surface is non-conforming."
+        },
+        "help_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/docs_help_anchor_ref" }
+          ],
+          "description": "Docs-pack anchor the CLI --help output cites. MUST match the descriptor's docs_help_anchor_ref when non-null."
+        },
+        "headless_mode": { "$ref": "#/$defs/headless_mode_block" }
+      },
+      "description": "CLI-equivalent block. Every shareability record carries this block so CLI / headless-call surfaces quote a single presence-class instead of reinventing 'is there a CLI path?' per surface."
+    },
+
+    "headless_mode_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headless_mode_class"],
+      "properties": {
+        "headless_mode_class": { "$ref": "#/$defs/headless_mode_class" },
+        "declared_prompt_elision_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to the prompts the headless path elides. Required (non-empty) when headless_mode_class is headless_safe_with_declared_prompt_elision; otherwise empty. Silent prompt elision is non-conforming."
+        },
+        "non_interactive_pathway_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to the non-interactive pathways (argument resolvers / default sources / automation-recipe hooks) the headless path uses instead of interactive prompts. Empty when headless_mode_class is requires_interactive_context / denied_in_headless_mode."
+        }
+      },
+      "description": "Headless-mode block. Frozen per-command so headless / script / recipe / AI-tool surfaces project the same headless posture."
+    },
+
+    "argument_inspection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inspectable_arguments"],
+      "properties": {
+        "inspect_form_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the inspection form template palette / keybinding editor / CLI --describe / AI-tool --describe surfaces render when a user asks 'what arguments does this command take?'. Null when the command has no typed arguments."
+        },
+        "inspectable_arguments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["argument_name", "inspection_kind"],
+            "properties": {
+              "argument_name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "inspection_kind": { "$ref": "#/$defs/argument_inspection_kind" },
+              "narration_label_ref": {
+                "$ref": "#/$defs/opaque_id",
+                "description": "Opaque pin to the accessibility narration label for this inspectable argument."
+              },
+              "policy_pinned_when_trust_state_is": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["trusted", "restricted"]
+                },
+                "description": "Trust-state values under which this argument is policy-pinned at inspection time. Mirrors the descriptor's typed_argument_slot.policy_pinned_when_trust_state_is; the inspection surface MUST render the 'policy pinned' chip on matching trust states."
+              }
+            }
+          },
+          "description": "Ordered inspectable-argument list. MUST mirror the descriptor's typed_arguments order 1:1; a missing or reordered entry denies the record."
+        }
+      },
+      "description": "Argument-inspection block. Every shareability record carries this block so the 'what arguments does this take?' affordance renders consistently across palette, keybinding editor, CLI --describe, AI-tool --describe, automation-recipe response, and docs reference page."
+    },
+
+    "unavailability_disclosure_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_set", "parity_surfaces"],
+      "properties": {
+        "reason_set": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reason_code", "repair_hook_ref"],
+            "properties": {
+              "reason_code": { "$ref": "#/$defs/shareability_why_unavailable_reason" },
+              "repair_hook_ref": { "$ref": "#/$defs/repair_hook_ref" },
+              "display_label_ref": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/opaque_id" }
+                ],
+                "description": "Opaque pin to the display label every parity surface renders alongside the reason chip. Null when the repair_hook_ref's display_label is used directly."
+              }
+            }
+          },
+          "description": "Closed set of why-unavailable reasons the command may surface. Each reason pairs with a repair_hook_ref (ADR-0011) so every unavailability chip carries a typed next step. Silent unavailability with no typed reason or no repair hook is non-conforming."
+        },
+        "parity_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/unavailability_parity_surface" },
+          "description": "Non-empty closed set of surfaces that MUST render the same typed reason for the same command_id / command_revision_ref. A parity audit between two surfaces' emitted rows MUST match field-for-field on (reason_code, repair_hook_ref). Silent divergence is non-conforming; docs/commands/command_parity_diff.md consumes this rule mechanically."
+        }
+      },
+      "description": "Unavailability-disclosure block. Freezes the rule that 'why this command is unavailable' reads identically on palette, menu, toolbar, keybinding editor, keybinding help, CLI help, AI-tool surface, automation-recipe response, docs reference page, and About / service-health panel."
+    },
+
+    "gating_contract_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deep_link_bypass_forbidden",
+        "invocation_ref_bypass_forbidden",
+        "cli_path_bypass_forbidden",
+        "preview_path_preserved",
+        "approval_path_preserved",
+        "trust_revalidation_required",
+        "policy_revalidation_required",
+        "permission_prompt_revalidation_required"
+      ],
+      "properties": {
+        "deep_link_bypass_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the 'deep links never bypass trust, policy, or permission gates' rule. The constant true is the schema's enforcement of the rule; a false value is non-conforming."
+        },
+        "invocation_ref_bypass_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the 'invocation refs never bypass trust, policy, or permission gates' rule. The constant true is the schema's enforcement of the rule."
+        },
+        "cli_path_bypass_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the 'CLI and headless paths never bypass trust, policy, or permission gates' rule. The constant true is the schema's enforcement of the rule."
+        },
+        "preview_path_preserved": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the rule that preview-required descriptors keep the preview path regardless of which shareability affordance initiated dispatch."
+        },
+        "approval_path_preserved": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the rule that approval-required descriptors keep the approval path regardless of which shareability affordance initiated dispatch."
+        },
+        "trust_revalidation_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the rule that ADR-0001 workspace trust is re-validated on every deep-link / invocation-ref / CLI path resolution."
+        },
+        "policy_revalidation_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the rule that ADR-0008 admin policy is re-validated on every deep-link / invocation-ref / CLI path resolution."
+        },
+        "permission_prompt_revalidation_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Freezes the rule that the interaction-safety permission-prompt path is re-validated on every deep-link / invocation-ref / CLI path resolution."
+        }
+      },
+      "description": "Gating-contract block. Every shareability record MUST carry this block with every field set to true. Surfaces that read the shareability record rely on this block to prove mechanically that the record does not erode the trust / policy / permission posture the descriptor declared."
+    },
+
+    "shareability_metadata_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "shareability_metadata_schema_version",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "copy_forms",
+        "cli_equivalent",
+        "argument_inspection",
+        "automation_safety_cues",
+        "unavailability_disclosure",
+        "gating_contract",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shareability_metadata_record" },
+        "shareability_metadata_schema_version": {
+          "$ref": "#/$defs/shareability_metadata_schema_version"
+        },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Re-export of the command descriptor's command_id. A shareability record whose command_id does not resolve to a descriptor is rejected by the registry."
+        },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Re-export of the command descriptor's command_revision_ref. A shareability record minted against a stale revision is rejected."
+        },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "copy_forms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/copy_form_slot" },
+          "description": "Non-empty closed set of copy forms this command publishes. At minimum every record MUST publish copy_canonical_command_id and copy_canonical_verb; copy_deep_link_ref / copy_cli_invocation_skeleton / copy_ai_tool_handle / copy_palette_search_token / copy_shortcut_chord_narration / copy_docs_help_anchor are optional and pair with the matching block (deep_link, cli_equivalent, invocation_ref)."
+        },
+        "deep_link": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deep_link_block" }
+          ],
+          "description": "Deep-link block. Present when copy_forms contains copy_deep_link_ref; null otherwise."
+        },
+        "invocation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/invocation_ref_block" }
+          ],
+          "description": "Invocation-ref block. Present when the command is macro_safe / recipe_safe / headless_safe / AI-callable; null for ui_only_interactive commands."
+        },
+        "cli_equivalent": { "$ref": "#/$defs/cli_equivalent_block" },
+        "argument_inspection": { "$ref": "#/$defs/argument_inspection_block" },
+        "automation_safety_cues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/automation_safety_cue" },
+          "description": "Non-empty closed set of automation-safety cues. Every surface that renders a macro / recipe / headless / UI-only / approval-required chip reads this set; minting a parallel cue is non-conforming."
+        },
+        "unavailability_disclosure": { "$ref": "#/$defs/unavailability_disclosure_block" },
+        "gating_contract": { "$ref": "#/$defs/gating_contract_block" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "When copy_forms contains copy_deep_link_ref, the deep_link block MUST be present.",
+          "if": {
+            "properties": {
+              "copy_forms": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "copy_form_class": { "const": "copy_deep_link_ref" }
+                  },
+                  "required": ["copy_form_class"]
+                }
+              }
+            },
+            "required": ["copy_forms"]
+          },
+          "then": {
+            "required": ["deep_link"],
+            "properties": {
+              "deep_link": { "$ref": "#/$defs/deep_link_block" }
+            }
+          }
+        },
+        {
+          "description": "When automation_safety_cues contains ui_only_interactive, invocation_ref MUST be null and the unavailability_disclosure MUST carry ui_only_command_not_representable_as_invocation.",
+          "if": {
+            "properties": {
+              "automation_safety_cues": {
+                "type": "array",
+                "contains": { "const": "ui_only_interactive" }
+              }
+            },
+            "required": ["automation_safety_cues"]
+          },
+          "then": {
+            "properties": {
+              "invocation_ref": { "type": "null" },
+              "unavailability_disclosure": {
+                "type": "object",
+                "properties": {
+                  "reason_set": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "reason_code": { "const": "ui_only_command_not_representable_as_invocation" }
+                      },
+                      "required": ["reason_code"]
+                    }
+                  }
+                },
+                "required": ["reason_set"]
+              }
+            }
+          }
+        },
+        {
+          "description": "When cli_equivalent.presence_class is no_cli_equivalent_ui_only, cli_verb_ref MUST be null and the unavailability_disclosure MUST carry cli_surface_not_in_client_scopes or ui_only_command_not_representable_as_invocation.",
+          "if": {
+            "properties": {
+              "cli_equivalent": {
+                "type": "object",
+                "properties": {
+                  "presence_class": { "const": "no_cli_equivalent_ui_only" }
+                },
+                "required": ["presence_class"]
+              }
+            },
+            "required": ["cli_equivalent"]
+          },
+          "then": {
+            "properties": {
+              "cli_equivalent": {
+                "type": "object",
+                "properties": {
+                  "cli_verb_ref": { "type": "null" }
+                },
+                "required": ["cli_verb_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "When automation_safety_cues contains approval_required, unavailability_disclosure.reason_set MUST at least be able to surface approval_denial_no_approval_path.",
+          "if": {
+            "properties": {
+              "automation_safety_cues": {
+                "type": "array",
+                "contains": { "const": "approval_required" }
+              }
+            },
+            "required": ["automation_safety_cues"]
+          },
+          "then": {
+            "properties": {
+              "unavailability_disclosure": {
+                "type": "object",
+                "properties": {
+                  "reason_set": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "reason_code": { "const": "approval_denial_no_approval_path" }
+                      },
+                      "required": ["reason_code"]
+                    }
+                  }
+                },
+                "required": ["reason_set"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical shareability-metadata record every palette, application / context menu, toolbar button, keybinding editor, CLI help, AI-tool surface, automation-recipe response, docs reference page, and About / service-health panel reads before surfacing a copyable command id, deep link, invocation ref, CLI equivalent, or typed unavailability explanation. Adding a new field is additive-minor; repurposing an existing field is breaking and requires a new decision row."
+    }
+  }
+}

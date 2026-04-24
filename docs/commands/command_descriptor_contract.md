@@ -553,6 +553,16 @@ without field churn.
   [`/docs/docs/docs_pack_manifest_contract.md`](../docs/docs_pack_manifest_contract.md);
   surfaces deny render with `derived_explanation_uncited` if they
   can't resolve the anchor under a `citation_required` posture.
+- **Command shareability, deep-link, and automation-safety
+  contract.** The copy-id, deep-link, invocation-ref, CLI /
+  headless equivalent, argument-inspection, macro / recipe /
+  headless / UI-only / approval-required cue, and why-unavailable
+  metadata every share / deep-link / CLI / AI-tool / automation-
+  recipe / docs / About-panel surface reads is frozen in
+  [`/docs/commands/shareability_and_automation_contract.md`](./shareability_and_automation_contract.md).
+  The `disabled_reason_code` vocabulary this document owns is
+  re-exported there; the shareability record extends the
+  descriptor without widening it.
 
 ## Schema of record
 
