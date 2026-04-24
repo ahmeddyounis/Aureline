@@ -1,0 +1,824 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/timestamp_envelope.schema.json",
+  "title": "Aureline canonical cross-surface timestamp-envelope contract",
+  "description": "Boundary schema for the shared timestamp envelope frozen in docs/governance/time_semantics.md. A timestamp_envelope_record is the one object every non-owning surface (log emitters, metrics rollups, trace spans, task-event envelopes, incident timelines, history rows, chronology exports, support bundles, AI evidence packets, publication proofs) embeds when it needs to carry 'when this happened' without reinventing per-surface time semantics. The envelope separates canonical storage from local rendering so ordering, duration truth, and export semantics survive time-zone, daylight-saving, clock-skew, and imported-history boundaries. The envelope MUST carry a canonical UTC wall-clock timestamp produced from the monotonic reference clock on the observing runtime, a monotonic duration reference for ordering and duration-difference math, a declared clock source class, a declared clock-synchronization state with skew and partial-order labelling when the source is unsynchronized, a canonical export time-zone pin (UTC) that is independent of the observer, and one optional local render policy carrying the display time zone and absolute/relative formatting that a surface is committing to render with — never the other way around. Adding a new clock_source_class, clock_sync_state_class, partial_order_label_class, skew_direction_class, import_origin_class, gap_reason_class, absolute_time_format_class, relative_time_format_class, time_zone_class, or render_surface_class value is additive-minor and requires a timestamp_envelope_schema_version bump; repurposing an existing value is breaking and requires a new decision row. Raw host names, raw NTP peer addresses, raw device serial numbers, and raw user wall-clock drift offsets never cross this boundary; the envelope carries typed vocabulary and opaque reference ids only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/timestamp_envelope_record" },
+    { "$ref": "#/$defs/time_range_envelope_record" },
+    { "$ref": "#/$defs/partial_chronology_segment_record" }
+  ],
+  "$defs": {
+    "timestamp_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this timestamp-envelope vocabulary export. Current value is 1. Bumped on breaking payload changes only; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "timestamp_envelope_record",
+        "time_range_envelope_record",
+        "partial_chronology_segment_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe on manifests, support bundles, AI evidence packets, and exported chronology previews. Raw hostnames, raw NTP peer addresses, raw IP addresses, raw device identifiers, and raw user wall-clock offsets never appear here."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short, privacy-safe label text intended for direct rendering on a surface that consumes this envelope. MUST NOT embed raw hostnames, raw peer addresses, or raw user clock-offset material."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of the vocabulary values the fixture exercises."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "utc_wall_clock_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC wall-clock timestamp. MUST use the Z suffix (or +00:00) and MUST be emitted in UTC regardless of the observer's local time zone. Canonical storage and canonical export both pin UTC so that ordering, replay, and cross-surface joins remain reproducible across time-zone, daylight-saving, and skew boundaries (M00-26)."
+    },
+
+    "monotonic_reference_nanoseconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative integer reading from the observing runtime's monotonic clock, in nanoseconds since an arbitrary epoch local to that runtime. The value is meaningful only as a difference from another monotonic_reference_nanoseconds reading taken on the same runtime within the same monotonic_epoch_ref; it MUST NOT be compared across runtimes or across a monotonic_epoch reset. Surfaces that carry synthetic tick counters (trace_event started_tick / finished_tick) MAY use this field to carry those ticks provided the monotonic_epoch_ref pins the tick origin."
+    },
+
+    "monotonic_epoch_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id naming the monotonic-clock epoch the monotonic_reference_nanoseconds reading belongs to. A monotonic clock reset (process restart, runtime reattach, host reboot, remote-agent reconnect, VM migration) mints a new monotonic_epoch_ref so a consumer can detect that two readings from different epochs are not directly subtractable."
+    },
+
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration string. Negative durations MAY be used to name a backward offset (for example a skew_magnitude of -PT2S indicating the remote observer's wall clock lagged behind the canonical clock by two seconds)."
+    },
+
+    "clock_source_class": {
+      "type": "string",
+      "enum": [
+        "local_monotonic_reference_clock",
+        "local_system_wall_clock",
+        "ntp_synchronized_wall_clock",
+        "trusted_platform_authenticated_clock",
+        "remote_agent_reported_clock",
+        "extension_reported_clock",
+        "imported_external_audit_trail_clock",
+        "reconstructed_from_backup_clock",
+        "synthetic_fixture_tick_source"
+      ],
+      "description": "Closed clock-source vocabulary. local_monotonic_reference_clock names the observing runtime's own monotonic clock and is the canonical ordering source for events recorded by that runtime. local_system_wall_clock names the host's wall clock without any synchronization guarantee. ntp_synchronized_wall_clock names a wall clock synchronized against an NTP (or equivalent network time protocol) peer set. trusted_platform_authenticated_clock names a wall clock authenticated by a trusted-platform root (for example a signed device clock). remote_agent_reported_clock, extension_reported_clock, and imported_external_audit_trail_clock name timestamps reported by a non-owning subsystem whose synchronization state the observing runtime cannot attest to. reconstructed_from_backup_clock names a timestamp recovered from a backup / support bundle whose original observing clock is no longer available. synthetic_fixture_tick_source is reserved for harness fixtures whose timestamps are seeded ticks (M00-167 trace_event started_tick / finished_tick) and which MUST NOT be presented as wall-clock evidence."
+    },
+
+    "clock_sync_state_class": {
+      "type": "string",
+      "enum": [
+        "synchronized",
+        "synchronized_with_bounded_skew",
+        "unsynchronized",
+        "unsynchronized_partial_order_only",
+        "unsynchronized_import_only",
+        "synthesized_for_fixture"
+      ],
+      "description": "Closed clock-synchronization state vocabulary. synchronized names a clock whose synchronization was verified at capture time within the envelope's stated synchronization tolerance. synchronized_with_bounded_skew names a clock whose last synchronization was verified within a declared skew bound; the envelope MUST carry a non-null skew block when this value is set. unsynchronized names a clock whose synchronization cannot be attested to; the envelope MUST pin clock_sync_state_class to one of the unsynchronized_* variants and MUST carry a non-null partial_order_label when the row is used for ordering. unsynchronized_partial_order_only is reserved for rows whose wall-clock time cannot be trusted for absolute rendering and which MUST be rendered with observer_skew_labeled time-zone class and an explicit partial-order label. unsynchronized_import_only is reserved for imported / replayed rows whose observing clock is not re-attestable by this runtime. synthesized_for_fixture is reserved for harness fixtures."
+    },
+
+    "skew_direction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ahead_of_canonical",
+        "behind_canonical",
+        "direction_unknown"
+      ],
+      "description": "Closed skew-direction vocabulary. none names a row whose skew has been measured and is within the declared tolerance. ahead_of_canonical / behind_canonical name a measured skew. direction_unknown names a row whose skew exists but whose direction cannot be attested to (typically for imported histories)."
+    },
+
+    "partial_order_label_class": {
+      "type": "string",
+      "enum": [
+        "fully_ordered_monotonic",
+        "partially_ordered_same_runtime",
+        "partially_ordered_causal_only",
+        "partially_ordered_import_window",
+        "unordered_only_grouping"
+      ],
+      "description": "Closed partial-order-label vocabulary. fully_ordered_monotonic names a row whose ordering is guaranteed by a monotonic reference clock on the observing runtime. partially_ordered_same_runtime names a row whose ordering is only guaranteed against other rows on the same runtime within the same monotonic_epoch_ref. partially_ordered_causal_only names a row whose ordering is only meaningful against other rows that it causally precedes or follows (for example via linked_canonical_event_id_ref or supersedes_history_row_id_ref); wall-clock comparison with unrelated rows is not sound. partially_ordered_import_window names an imported row whose ordering is only guaranteed against other rows inside the same declared import window. unordered_only_grouping names a row whose time value MAY be used for grouping or bucketing but MUST NOT be used to assert ordering against any other row."
+    },
+
+    "import_origin_class": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "remote_agent_export",
+        "extension_export",
+        "external_audit_trail",
+        "companion_surface_export",
+        "support_bundle_replay",
+        "recovery_snapshot_replay"
+      ],
+      "description": "Closed import-origin vocabulary. not_imported names an envelope whose observing runtime recorded the row directly. The remaining values name the import family the envelope came from; every imported envelope MUST carry an import_declared block naming the window the import covers and any declared gap reasons."
+    },
+
+    "gap_reason_class": {
+      "type": "string",
+      "enum": [
+        "remote_runtime_disconnected",
+        "extension_host_unavailable",
+        "policy_redaction_withheld",
+        "clock_rolled_back_detected",
+        "monotonic_epoch_reset",
+        "export_scope_narrower_than_range",
+        "source_unavailable_permanently",
+        "source_unavailable_temporarily"
+      ],
+      "description": "Closed gap-reason vocabulary. Every declared gap inside a partial_chronology_segment_record MUST name exactly one reason so a consumer sees why the segment is not complete instead of silently stitching across the gap. source_unavailable_permanently is reserved for gaps that cannot be refilled by re-importing; source_unavailable_temporarily is reserved for gaps that could be refilled by a later import run."
+    },
+
+    "absolute_time_format_class": {
+      "type": "string",
+      "enum": [
+        "iso_8601_utc",
+        "iso_8601_local_with_offset",
+        "local_date_time_short",
+        "local_date_time_long",
+        "local_time_only_when_today",
+        "not_rendered"
+      ],
+      "description": "Closed absolute-time presentation vocabulary. Canonical storage is always canonical_utc_wall_clock (UTC). This axis names the presentation the surface is committing to for absolute-time rendering. Export previews MUST pin iso_8601_utc so the exported payload is independent of the exporter's local time zone. not_rendered is permitted only when the surface explicitly suppresses absolute rendering (for example an activity badge that only renders relative time)."
+    },
+
+    "relative_time_format_class": {
+      "type": "string",
+      "enum": [
+        "since_now_short",
+        "since_now_long",
+        "since_last_observed",
+        "wall_clock_delta_short",
+        "not_rendered"
+      ],
+      "description": "Closed relative-time presentation vocabulary. not_rendered is permitted only when the surface explicitly suppresses relative time (for example a signing_evidence_only row that requires skew labelling instead)."
+    },
+
+    "time_zone_class": {
+      "type": "string",
+      "enum": [
+        "utc",
+        "device_local_iana",
+        "deployment_pinned_iana",
+        "observer_skew_labeled"
+      ],
+      "description": "Closed time-zone class vocabulary. Re-exported from schemas/ux/history_row.schema.json without modification. utc pins UTC in both storage and display and is required for signing_evidence_only rows and exported chronology previews. device_local_iana renders in the device's IANA time zone. deployment_pinned_iana renders in an admin-pinned IANA zone. observer_skew_labeled is reserved for rows whose display time zone is derived from an observing client whose wall clock is unreliable; the display label MUST say so."
+    },
+
+    "render_surface_class": {
+      "type": "string",
+      "enum": [
+        "log_line",
+        "metric_point",
+        "trace_span",
+        "task_event_row",
+        "incident_timeline_row",
+        "history_lane_row",
+        "narrative_summary_card",
+        "chronology_export_preview",
+        "activity_center_item",
+        "support_bundle_row",
+        "ai_evidence_packet_row",
+        "publication_proof_row",
+        "not_rendered"
+      ],
+      "description": "Closed render-surface vocabulary. Names the surface class the envelope is being consumed by when a local render policy is attached. not_rendered is reserved for envelopes that are stored but not yet presented on any surface (for example a raw task-event envelope before the task-event row is materialised)."
+    },
+
+    "skew_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skew_direction_class",
+        "skew_magnitude_duration",
+        "skew_tolerance_duration",
+        "skew_last_verified_at"
+      ],
+      "properties": {
+        "skew_direction_class": { "$ref": "#/$defs/skew_direction_class" },
+        "skew_magnitude_duration": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/iso_duration" }
+          ],
+          "description": "Measured magnitude of the observing clock's skew against the canonical reference. Null when skew_direction_class is direction_unknown."
+        },
+        "skew_tolerance_duration": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/iso_duration" }
+          ],
+          "description": "Maximum tolerated skew the envelope's clock_sync_state_class attests to. Null when clock_sync_state_class is one of the unsynchronized_* variants or synthesized_for_fixture."
+        },
+        "skew_last_verified_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_wall_clock_timestamp" }
+          ],
+          "description": "Canonical UTC timestamp at which the skew bound was last verified. Null only when the envelope's clock_sync_state_class is unsynchronized, unsynchronized_partial_order_only, unsynchronized_import_only, or synthesized_for_fixture."
+        },
+        "skew_note_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label a surface MAY render to explain the skew state to a reader. MUST NOT embed raw peer names or raw device identifiers."
+        }
+      },
+      "description": "Measured skew attestation for a timestamp envelope. Required when clock_sync_state_class is synchronized_with_bounded_skew; permitted but optional on synchronized envelopes to pin the measured bound; required on unsynchronized envelopes only to carry skew_direction_class = direction_unknown so the reader sees the attestation is absent."
+    },
+
+    "import_declared_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_origin_class",
+        "import_window_start_utc",
+        "import_window_end_utc",
+        "import_source_ref"
+      ],
+      "properties": {
+        "import_origin_class": { "$ref": "#/$defs/import_origin_class" },
+        "import_window_start_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "import_window_end_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "import_source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the upstream source the import came from (remote-agent id, extension id, external-audit-trail manifest id, support-bundle id, recovery-snapshot id). Raw hostnames and raw peer addresses MUST NOT appear here."
+        },
+        "import_source_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Short privacy-safe label a surface MAY render to name the import source (for example 'Remote agent A')."
+        }
+      },
+      "description": "Declared import window for an envelope whose observing runtime did not record the row directly. Required when clock_source_class is remote_agent_reported_clock, extension_reported_clock, imported_external_audit_trail_clock, or reconstructed_from_backup_clock."
+    },
+
+    "local_render_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_surface_class",
+        "absolute_time_format_class",
+        "relative_time_format_class",
+        "time_zone_class",
+        "both_forms_coexist_on_row"
+      ],
+      "properties": {
+        "render_surface_class": { "$ref": "#/$defs/render_surface_class" },
+        "absolute_time_format_class": { "$ref": "#/$defs/absolute_time_format_class" },
+        "relative_time_format_class": { "$ref": "#/$defs/relative_time_format_class" },
+        "time_zone_class": { "$ref": "#/$defs/time_zone_class" },
+        "display_time_zone_iana": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "IANA time-zone name when time_zone_class is device_local_iana or deployment_pinned_iana. Null otherwise."
+        },
+        "both_forms_coexist_on_row": {
+          "type": "boolean",
+          "description": "True when the surface commits to rendering both absolute and relative time on the same row. Chronology surfaces MUST commit to true on consequential and safety_critical rows so a reader does not have to choose between 'when exactly' and 'how long ago'."
+        },
+        "skew_label_rendered": {
+          "type": "boolean",
+          "description": "True when the surface commits to rendering a skew label on the row. MUST be true when clock_sync_state_class is one of the unsynchronized_* variants or synchronized_with_bounded_skew."
+        }
+      },
+      "description": "Per-surface local render policy. Canonical storage is always canonical_utc_wall_clock (UTC); this block names only what the surface commits to showing."
+    },
+
+    "timestamp_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "timestamp_envelope_schema_version",
+        "timestamp_envelope_id",
+        "canonical_utc_wall_clock",
+        "monotonic_reference_nanoseconds",
+        "monotonic_epoch_ref",
+        "clock_source_class",
+        "clock_sync_state_class",
+        "partial_order_label_class",
+        "import_origin_class",
+        "canonical_export_time_zone_class"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "timestamp_envelope_record" },
+        "timestamp_envelope_schema_version": { "$ref": "#/$defs/timestamp_envelope_schema_version" },
+        "timestamp_envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_utc_wall_clock": {
+          "$ref": "#/$defs/utc_wall_clock_timestamp",
+          "description": "Canonical UTC wall-clock timestamp. This is the one value every consuming surface joins on. MUST be emitted in UTC regardless of the observer's local time zone and MUST be sourced from clock_source_class; when clock_source_class is local_monotonic_reference_clock the runtime derives the wall clock by projecting the monotonic reading through the runtime's attested wall-clock offset."
+        },
+        "monotonic_reference_nanoseconds": { "$ref": "#/$defs/monotonic_reference_nanoseconds" },
+        "monotonic_epoch_ref": { "$ref": "#/$defs/monotonic_epoch_ref" },
+        "clock_source_class": { "$ref": "#/$defs/clock_source_class" },
+        "clock_sync_state_class": { "$ref": "#/$defs/clock_sync_state_class" },
+        "skew": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/skew_block" }
+          ],
+          "description": "Measured skew attestation. Required (non-null) when clock_sync_state_class is synchronized_with_bounded_skew. Permitted on other sync states; when clock_sync_state_class is unsynchronized, unsynchronized_partial_order_only, unsynchronized_import_only, or synthesized_for_fixture and a skew block is carried anyway, skew_tolerance_duration and skew_last_verified_at MUST be null."
+        },
+        "partial_order_label_class": { "$ref": "#/$defs/partial_order_label_class" },
+        "import_origin_class": { "$ref": "#/$defs/import_origin_class" },
+        "import_declared": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/import_declared_block" }
+          ],
+          "description": "Declared import window. Required (non-null) when clock_source_class is remote_agent_reported_clock, extension_reported_clock, imported_external_audit_trail_clock, or reconstructed_from_backup_clock. MUST be null when import_origin_class is not_imported."
+        },
+        "canonical_export_time_zone_class": {
+          "type": "string",
+          "const": "utc",
+          "description": "Closed-world pin: canonical export time zone is always UTC. Declared explicitly so an exporter that tries to widen export to a local time zone is caught by schema validation rather than silently emitted."
+        },
+        "local_render": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/local_render_policy" }
+          ],
+          "description": "Optional per-surface local render policy. Null when the envelope is stored but not yet rendered. When non-null, carries the surface's committed absolute/relative/time-zone rendering choice; canonical storage remains UTC regardless."
+        },
+        "linked_canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a canonical_event_id carried on the event-lineage record (schemas/ux/event_lineage.schema.json) when this envelope shares lineage with a notification-delivery trail."
+        },
+        "linked_history_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a history_row_id on schemas/ux/history_row.schema.json when this envelope is the canonical time carrier for a chronology row."
+        },
+        "linked_trace_span_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a trace-span id on schemas/traces/trace_event.schema.json when this envelope is the canonical time carrier for a trace span."
+        },
+        "linked_task_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a task-event id on schemas/tooling/task_event_envelope.schema.json."
+        }
+      },
+      "allOf": [
+        {
+          "description": "clock_sync_state_class = synchronized_with_bounded_skew MUST carry a non-null skew block.",
+          "if": {
+            "properties": { "clock_sync_state_class": { "const": "synchronized_with_bounded_skew" } },
+            "required": ["clock_sync_state_class"]
+          },
+          "then": {
+            "properties": { "skew": { "$ref": "#/$defs/skew_block" } },
+            "required": ["skew"]
+          }
+        },
+        {
+          "description": "clock_sync_state_class = unsynchronized_partial_order_only MUST pin partial_order_label_class to a partially_ordered_* or unordered_only_grouping value.",
+          "if": {
+            "properties": { "clock_sync_state_class": { "const": "unsynchronized_partial_order_only" } },
+            "required": ["clock_sync_state_class"]
+          },
+          "then": {
+            "properties": {
+              "partial_order_label_class": {
+                "enum": [
+                  "partially_ordered_same_runtime",
+                  "partially_ordered_causal_only",
+                  "partially_ordered_import_window",
+                  "unordered_only_grouping"
+                ]
+              }
+            },
+            "required": ["partial_order_label_class"]
+          }
+        },
+        {
+          "description": "clock_source_class in the imported-family MUST carry a non-null import_declared block.",
+          "if": {
+            "properties": {
+              "clock_source_class": {
+                "enum": [
+                  "remote_agent_reported_clock",
+                  "extension_reported_clock",
+                  "imported_external_audit_trail_clock",
+                  "reconstructed_from_backup_clock"
+                ]
+              }
+            },
+            "required": ["clock_source_class"]
+          },
+          "then": {
+            "properties": { "import_declared": { "$ref": "#/$defs/import_declared_block" } },
+            "required": ["import_declared"]
+          }
+        },
+        {
+          "description": "import_origin_class = not_imported MUST NOT carry an import_declared block.",
+          "if": {
+            "properties": { "import_origin_class": { "const": "not_imported" } },
+            "required": ["import_origin_class"]
+          },
+          "then": {
+            "properties": { "import_declared": { "type": "null" } },
+            "required": ["import_declared"]
+          }
+        },
+        {
+          "description": "clock_source_class = synthetic_fixture_tick_source MUST pin clock_sync_state_class to synthesized_for_fixture.",
+          "if": {
+            "properties": { "clock_source_class": { "const": "synthetic_fixture_tick_source" } },
+            "required": ["clock_source_class"]
+          },
+          "then": {
+            "properties": { "clock_sync_state_class": { "const": "synthesized_for_fixture" } },
+            "required": ["clock_sync_state_class"]
+          }
+        },
+        {
+          "description": "A local_render block with time_zone_class in {device_local_iana, deployment_pinned_iana} MUST carry a non-null display_time_zone_iana.",
+          "if": {
+            "properties": {
+              "local_render": {
+                "type": "object",
+                "properties": {
+                  "time_zone_class": {
+                    "enum": ["device_local_iana", "deployment_pinned_iana"]
+                  }
+                },
+                "required": ["time_zone_class"]
+              }
+            },
+            "required": ["local_render"]
+          },
+          "then": {
+            "properties": {
+              "local_render": {
+                "type": "object",
+                "properties": {
+                  "display_time_zone_iana": { "type": "string", "minLength": 1 }
+                },
+                "required": ["display_time_zone_iana"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A local_render block on a render_surface_class = chronology_export_preview MUST pin time_zone_class = utc and absolute_time_format_class = iso_8601_utc.",
+          "if": {
+            "properties": {
+              "local_render": {
+                "type": "object",
+                "properties": {
+                  "render_surface_class": { "const": "chronology_export_preview" }
+                },
+                "required": ["render_surface_class"]
+              }
+            },
+            "required": ["local_render"]
+          },
+          "then": {
+            "properties": {
+              "local_render": {
+                "type": "object",
+                "properties": {
+                  "time_zone_class": { "const": "utc" },
+                  "absolute_time_format_class": { "const": "iso_8601_utc" }
+                },
+                "required": ["time_zone_class", "absolute_time_format_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A local_render block whose envelope has clock_sync_state_class in {synchronized_with_bounded_skew, unsynchronized, unsynchronized_partial_order_only, unsynchronized_import_only} MUST set skew_label_rendered = true.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "clock_sync_state_class": {
+                    "enum": [
+                      "synchronized_with_bounded_skew",
+                      "unsynchronized",
+                      "unsynchronized_partial_order_only",
+                      "unsynchronized_import_only"
+                    ]
+                  }
+                },
+                "required": ["clock_sync_state_class"]
+              },
+              {
+                "properties": { "local_render": { "type": "object" } },
+                "required": ["local_render"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "local_render": {
+                "type": "object",
+                "properties": {
+                  "skew_label_rendered": { "const": true }
+                },
+                "required": ["skew_label_rendered"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One timestamp envelope. The canonical cross-surface carrier of 'when this happened'."
+    },
+
+    "time_range_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "timestamp_envelope_schema_version",
+        "time_range_envelope_id",
+        "range_start_envelope",
+        "range_end_envelope",
+        "monotonic_duration_nanoseconds",
+        "range_duration_authoritative_source_class"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "time_range_envelope_record" },
+        "timestamp_envelope_schema_version": { "$ref": "#/$defs/timestamp_envelope_schema_version" },
+        "time_range_envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "range_start_envelope": { "$ref": "#/$defs/timestamp_envelope_record" },
+        "range_end_envelope": { "$ref": "#/$defs/timestamp_envelope_record" },
+        "monotonic_duration_nanoseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Non-negative duration in nanoseconds. This is the authoritative duration value for the range when both endpoints share the same monotonic_epoch_ref. When the endpoints cross monotonic_epoch boundaries (process restart, remote-agent reconnect) the duration MUST be sourced from the canonical UTC wall-clock difference and range_duration_authoritative_source_class MUST say so."
+        },
+        "range_duration_authoritative_source_class": {
+          "type": "string",
+          "enum": [
+            "monotonic_same_epoch",
+            "utc_wall_clock_crossed_epoch",
+            "utc_wall_clock_import_only",
+            "synthesized_for_fixture"
+          ],
+          "description": "Closed vocabulary naming which clock yielded the authoritative monotonic_duration_nanoseconds value. monotonic_same_epoch is the default and is required when both endpoints share monotonic_epoch_ref. utc_wall_clock_crossed_epoch is required when the endpoints are on different monotonic_epoch_refs on the same runtime. utc_wall_clock_import_only is required when either endpoint is imported. synthesized_for_fixture is reserved for harness fixtures."
+        },
+        "linked_trace_span_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_task_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "range_duration_authoritative_source_class = monotonic_same_epoch requires range_start and range_end to share the same monotonic_epoch_ref.",
+          "if": {
+            "properties": {
+              "range_duration_authoritative_source_class": { "const": "monotonic_same_epoch" }
+            },
+            "required": ["range_duration_authoritative_source_class"]
+          },
+          "then": {
+            "properties": {
+              "range_start_envelope": {
+                "type": "object",
+                "required": ["monotonic_epoch_ref"]
+              },
+              "range_end_envelope": {
+                "type": "object",
+                "required": ["monotonic_epoch_ref"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One time-range envelope pairing a start envelope and an end envelope with an authoritative monotonic duration. Trace spans, task-event start/finish pairs, and benchmark spike timings carry this record."
+    },
+
+    "declared_gap_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gap_id",
+        "gap_reason_class",
+        "gap_window_start_utc",
+        "gap_window_end_utc",
+        "gap_reason_label"
+      ],
+      "properties": {
+        "gap_id": { "$ref": "#/$defs/opaque_id" },
+        "gap_reason_class": { "$ref": "#/$defs/gap_reason_class" },
+        "gap_window_start_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "gap_window_end_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "gap_reason_label": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Short privacy-safe label naming why the gap exists. MUST NOT embed raw hostnames, raw peer addresses, raw policy payloads, or raw backup manifests."
+        },
+        "gap_rows_suppressed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Non-negative count of rows known to be suppressed under the gap window. 0 is permitted when the count is not known; a renderer MUST NOT silently infer a zero count on a gap it cannot enumerate."
+        }
+      },
+      "description": "One declared gap inside a partial chronology segment. Every gap MUST carry a closed reason class and a privacy-safe label; silent stitching across a gap is non-conforming (denial_reason = silent_gap_stitch)."
+    },
+
+    "partial_chronology_segment_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "timestamp_envelope_schema_version",
+        "partial_chronology_segment_id",
+        "segment_window_start_utc",
+        "segment_window_end_utc",
+        "segment_completeness_class",
+        "segment_import_origin_class",
+        "declared_gaps"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "partial_chronology_segment_record" },
+        "timestamp_envelope_schema_version": { "$ref": "#/$defs/timestamp_envelope_schema_version" },
+        "partial_chronology_segment_id": { "$ref": "#/$defs/opaque_id" },
+        "segment_window_start_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "segment_window_end_utc": { "$ref": "#/$defs/utc_wall_clock_timestamp" },
+        "segment_completeness_class": {
+          "type": "string",
+          "enum": [
+            "complete_no_gaps",
+            "complete_with_declared_gaps",
+            "known_incomplete_partial_import",
+            "known_incomplete_policy_redacted",
+            "known_incomplete_source_unavailable"
+          ],
+          "description": "Closed segment-completeness vocabulary. complete_no_gaps is permitted only when declared_gaps is empty AND the segment's observing runtime attests to continuous capture over the segment window. complete_with_declared_gaps names a segment that covers the window but carries one or more declared_gaps the consumer MUST render. known_incomplete_* variants name segments whose window is known not to be fully covered; the consumer MUST NOT present them as complete."
+        },
+        "segment_import_origin_class": { "$ref": "#/$defs/import_origin_class" },
+        "segment_import_declared": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/import_declared_block" }
+          ],
+          "description": "Required (non-null) when segment_import_origin_class is any value other than not_imported."
+        },
+        "declared_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_gap_record" },
+          "description": "Zero or more declared gaps. Required (possibly empty) so the renderer knows the gap list was considered explicitly."
+        },
+        "segment_completeness_label": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Short privacy-safe completeness label a surface MUST render so a reader sees the segment is not complete. 'Complete capture' is permitted only when segment_completeness_class is complete_no_gaps."
+        },
+        "linked_chronology_export_preview_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a chronology_export_preview_record id on schemas/ux/history_row.schema.json."
+        },
+        "linked_support_bundle_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional back-reference to a support-bundle id on schemas/support/support_bundle.schema.json."
+        }
+      },
+      "allOf": [
+        {
+          "description": "segment_completeness_class = complete_no_gaps MUST NOT carry any declared gaps.",
+          "if": {
+            "properties": { "segment_completeness_class": { "const": "complete_no_gaps" } },
+            "required": ["segment_completeness_class"]
+          },
+          "then": {
+            "properties": {
+              "declared_gaps": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "segment_completeness_class = complete_with_declared_gaps MUST carry at least one declared gap.",
+          "if": {
+            "properties": { "segment_completeness_class": { "const": "complete_with_declared_gaps" } },
+            "required": ["segment_completeness_class"]
+          },
+          "then": {
+            "properties": {
+              "declared_gaps": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "segment_import_origin_class != not_imported MUST carry a non-null segment_import_declared block.",
+          "if": {
+            "properties": {
+              "segment_import_origin_class": {
+                "enum": [
+                  "remote_agent_export",
+                  "extension_export",
+                  "external_audit_trail",
+                  "companion_surface_export",
+                  "support_bundle_replay",
+                  "recovery_snapshot_replay"
+                ]
+              }
+            },
+            "required": ["segment_import_origin_class"]
+          },
+          "then": {
+            "properties": { "segment_import_declared": { "$ref": "#/$defs/import_declared_block" } },
+            "required": ["segment_import_declared"]
+          }
+        },
+        {
+          "description": "segment_import_origin_class = not_imported MUST NOT carry a segment_import_declared block.",
+          "if": {
+            "properties": { "segment_import_origin_class": { "const": "not_imported" } },
+            "required": ["segment_import_origin_class"]
+          },
+          "then": {
+            "properties": { "segment_import_declared": { "type": "null" } },
+            "required": ["segment_import_declared"]
+          }
+        }
+      ],
+      "description": "One partial chronology segment. Names a window of canonical UTC time, the segment's completeness class, its import origin, and every declared gap inside the window. Imported or partial histories carry this record so a consumer can render 'incomplete' without pretending to be complete."
+    }
+  }
+}
