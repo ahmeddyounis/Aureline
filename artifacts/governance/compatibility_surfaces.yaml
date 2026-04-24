@@ -1,0 +1,2585 @@
+# Compatibility-surface inventory.
+#
+# One machine-readable inventory for every public-facing machine-readable
+# surface likely to drift between producers and consumers: settings and
+# profile JSON, workspace manifests and Project Doctor packets, extension
+# manifests, CLI structured output, WIT host interfaces, optional service
+# APIs, evidence or support bundles, task-event envelopes, and the longer
+# list of specialized boundaries named in the deliverables section of
+# this file.
+#
+# Tooling reads this file; the narrative companion lives in
+# docs/governance/compatibility_surface_inventory.md. If the two disagree,
+# this file is authoritative for tooling and the narrative must be
+# updated in the same change.
+#
+# Relation to stable_surface_inventory.yaml.
+#   - stable_surface_inventory.yaml carries the full surface-contract
+#     packet shape (reader/writer semantics, downgrade behavior, typed
+#     support posture) for every surface that has earned one. It is
+#     authoritative for packet shape.
+#   - This file casts a wider net. It gives every compatibility-bearing
+#     machine-readable surface a row with the fields compatibility,
+#     docs/public-truth, migration, deprecation, and qualification or
+#     certified-archetype review share: owner, maturity lane, versioning
+#     mechanism, compatibility promise, deprecation window, migration
+#     requirement, publication artifact, and support-window notes.
+#   - Rows that already have a stable_surface_inventory row cite that
+#     row id verbatim (stable_surface_inventory_row_ref). Rows that do
+#     not yet have a packet use outline_only or not_yet_seeded fields
+#     and name the next review milestone on which a packet must land.
+#
+# Propagation rules.
+#   - Every row MUST cite the shared packet template at
+#     docs/governance/contract_packet_template.md. When a future packet
+#     lands, the packet id stays equal to the row_id here so downstream
+#     work does not mint parallel ids.
+#   - Every row MUST name the docs/public-truth channels that may quote
+#     it. Channels are drawn from
+#     artifacts/governance/public_truth_parity_matrix.yaml#channels.
+#   - Every row MUST name the qualification_or_certified_archetype
+#     report refs it feeds. When the surface is local-only and does not
+#     qualify through compatibility reports, the row names the
+#     record-class, support, or archetype artifact that does carry it.
+#
+# Registration rule.
+#   - A future public or beta surface MUST land a row here before it may
+#     claim stability. Adding a row is the first registration step; the
+#     second is either landing a stable_surface_inventory row with the
+#     full packet shape or, for narrower surfaces, an explicit
+#     outline_only posture and a next-review milestone.
+#   - Removing a row is breaking. Use deprecation_window and
+#     migration_requirement to narrow or supersede a row; do not delete.
+
+schema_version: 1
+status: seeded
+as_of: "2026-04-24"
+
+overview_page: docs/governance/compatibility_surface_inventory.md
+contract_packet_template_ref: docs/governance/contract_packet_template.md
+contract_packet_schema_ref: schemas/governance/contract_packet.schema.json
+stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+qualification_matrix_ref: artifacts/compat/qualification_matrix_seed.yaml
+reference_workspace_rows_ref: artifacts/compat/reference_workspace_rows.yaml
+interface_lifecycle_policy_ref: docs/governance/interface_lifecycle_policy.md
+schema_families_ref: artifacts/governance/schema_families.yaml
+row_reference_format: artifacts/governance/compatibility_surfaces.yaml#<surface_id>
+
+# -----------------------------------------------------------------------------
+# Enumerations. The row schema is narrative for now; these lists fix the
+# vocabulary this inventory is allowed to use so tooling can validate rows
+# without minting parallel enumerations per row.
+# -----------------------------------------------------------------------------
+maturity_lane_values:
+  - stable
+  - beta
+  - experimental
+  - internal
+
+contract_form_values:
+  - json_schema_backed_contract_doc
+  - json_schema_registry
+  - record_registry
+  - event_envelope_schema
+  - wit_world_package
+  - openapi_family
+  - field_set
+  - cli_structured_output
+  - textual_interchange_contract
+  - asset_package_manifest
+  - teaching_content_pack
+
+category_values:
+  - settings_and_profile
+  - workspace_and_state
+  - extensions_and_host
+  - command_and_automation
+  - ai_and_language
+  - editor_and_text
+  - terminal_and_run
+  - debug_and_diagnostics
+  - merge_and_history
+  - portability_and_migration
+  - locale_and_translation
+  - design_and_theme
+  - accessibility_and_input
+  - voice_and_consent
+  - service_and_api
+  - review_and_hosted
+  - release_and_build
+  - support_and_export
+  - governance_and_policy
+  - docs_and_teaching
+  - notification_and_attention
+  - certification_and_reference
+
+# -----------------------------------------------------------------------------
+# Rows.
+#
+# Ordered by category. Every row names:
+#   - surface_id                          stable dot id
+#   - surface_title / summary
+#   - category                            for cross-row grouping
+#   - contract_form                       enum above
+#   - maturity_lane                       enum above
+#   - ownership                           owner DRI, lane, backup, waiver
+#   - publication                         publication artifact refs and
+#                                         schema or interface directory refs
+#   - versioning                          versioning_mechanism and
+#                                         compatibility_window_source_ref
+#   - compatibility                       compatibility_promise and
+#                                         support_window_posture
+#   - lifecycle                           deprecation_window,
+#                                         migration_requirement,
+#                                         dependency_markers
+#   - linkage                             stable_surface_inventory_row_ref,
+#                                         contract_packet_template_ref,
+#                                         docs_public_truth_channels,
+#                                         qualification_or_certified_archetype_report_refs
+#   - review                              review_cadence and docs touchpoints
+#
+# Every row uses the same shape even when fields resolve to not_yet_seeded
+# or outline_only. "Not yet seeded" is expressed by publication or linkage
+# fields, never by omitting the row.
+# -----------------------------------------------------------------------------
+
+rows:
+
+  # --------------------------------------------------------------------
+  # settings_and_profile
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: settings.setting_definition_and_effective_value_json
+    surface_title: Settings and profile JSON
+    category: settings_and_profile
+    summary: >
+      Setting ids, effective-value records, scope precedence rows, sync
+      conflict packets, and portable-profile JSON consumed by settings
+      UI, CLI, policy explainers, profile import and export, and support
+      surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/settings/settings_vocabulary.md
+        - docs/settings/schema_registry_seed.md
+        - docs/settings/sync_and_device_registry_seed.md
+        - schemas/settings/setting_definition.schema.json
+        - schemas/settings/effective_setting.schema.json
+        - schemas/settings/sync_conflict_packet.schema.json
+        - schemas/settings/sync_device_record.schema.json
+        - schemas/settings/write_intent.schema.json
+        - schemas/profile/portable_profile.schema.json
+        - artifacts/settings/scope_precedence_rows.yaml
+      schema_or_interface_directory_refs:
+        - docs/settings/
+        - schemas/settings/
+        - schemas/profile/
+        - artifacts/settings/
+    versioning:
+      versioning_mechanism: >
+        Stable setting ids plus explicit schema version on setting
+        definitions, effective-value envelopes, scope-precedence rows,
+        sync-conflict packets, and portable profiles. Additive fields
+        and unknown user content are preserved; rename routes through
+        alias and migration tables rather than id reuse.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+    compatibility:
+      compatibility_promise: >
+        One additive schema epoch; readers preserve unknown additive
+        fields and project resolved scope, shadow chain, and denial
+        posture verbatim. Writers never repurpose an existing setting id.
+      support_window_posture: >
+        Beta today. Once promoted to stable, setting ids and effective
+        values target two minor releases of alias or migration support.
+    lifecycle:
+      deprecation_window: >
+        Deprecated settings require a replacement id or alias path, an
+        explain-why route, and a deprecation-metadata row that follows
+        docs/governance/interface_lifecycle_policy.md before the old id
+        is ignored or removed.
+      migration_requirement: >
+        Rename or retire any setting via the alias / migration table in
+        the registry plus a migration note in
+        docs/state/migration_and_restore_playbook.md.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#settings.setting_ids_and_effective_values
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - migration_notes
+        - help_about
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/reference_workspace_rows.yaml
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/settings/settings_vocabulary.md
+        - docs/state/migration_and_restore_playbook.md
+
+  # --------------------------------------------------------------------
+  # workspace_and_state
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: workspace.manifest_and_pane_tree
+    surface_title: Workspace manifests and pane-tree layout
+    category: workspace_and_state
+    summary: >
+      Workspace identity, checkout plan, mutation-journal, entry and
+      restore result, pane-tree layout, and workset-artifact records
+      consumed by restore, entry-restore audit, migration, and support
+      surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/workspace/layout_serialization_contract.md
+        - docs/workspace/entry_restore_object_model.md
+        - docs/workspace/mutation_lineage_model.md
+        - docs/workspace/scope_truth_packet.md
+        - docs/workspace/source_acquisition_and_bootstrap_seed.md
+        - schemas/workspace/pane_tree.schema.json
+        - schemas/workspace/entry_and_restore_result.schema.json
+        - schemas/workspace/bootstrap_queue_item.schema.json
+        - schemas/workspace/checkout_plan.schema.json
+        - schemas/workspace/mutation_journal.schema.json
+        - schemas/workspace/generated_artifact_lineage.schema.json
+        - schemas/workspace/source_locator.schema.json
+        - schemas/workspace/workset_artifact.schema.json
+      schema_or_interface_directory_refs:
+        - docs/workspace/
+        - schemas/workspace/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version on pane-tree, checkout-plan, entry and
+        restore result, mutation-journal, and workset-artifact records;
+        stable pane ids, portability classes, and restore-provenance
+        labels govern additive evolution.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+    compatibility:
+      compatibility_promise: >
+        One additive schema epoch with typed restore-fidelity classes
+        (exact, compatible, layout_only, manual_review); missing fields
+        surface as honest downgrade labels rather than silent loss.
+      support_window_posture: >
+        Beta today. Stable workspace and pane-tree families target
+        twelve months or two minor releases of backward readability
+        once promoted.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires a replacement schema path or a typed
+        restore downgrade story plus docs/help visibility on what is no
+        longer portable or restorable.
+      migration_requirement: >
+        Migration notes cite docs/state/migration_and_restore_playbook.md
+        and land in the same change as the schema bump.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#state.portable_profile_and_layout_restore
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - migration_notes
+        - help_about
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/workspace/layout_serialization_contract.md
+        - docs/workspace/entry_restore_object_model.md
+
+  - schema_version: 1
+    surface_id: workspace.project_doctor_packet
+    surface_title: Project Doctor packets and recovery-ladder outputs
+    category: workspace_and_state
+    summary: >
+      Project Doctor packets, recovery-ladder packets, and repair
+      transactions consumed by support, onboarding, and recovery
+      surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/support/project_doctor_packet.md
+        - docs/support/recovery_ladder_packet.md
+        - schemas/support/recovery_action.schema.json
+      schema_or_interface_directory_refs:
+        - docs/support/
+        - schemas/support/
+    versioning:
+      versioning_mechanism: >
+        Packet schema version plus stable recovery-action ids; additive
+        check classes and action classes bump the schema version
+        without repurposing existing values.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#workspace.project_doctor_packet
+    compatibility:
+      compatibility_promise: >
+        One additive schema epoch; readers preserve unknown additive
+        check and action fields within the same epoch and fail closed
+        on missing required fields.
+      support_window_posture: >
+        Experimental until the recovery-ladder lane publishes a
+        promotion decision; downstream support tooling cites packet ids
+        verbatim.
+    lifecycle:
+      deprecation_window: >
+        Retired check or action ids land a deprecation-metadata row
+        with replacement guidance before a packet stops carrying them.
+      migration_requirement: >
+        Migration notes land alongside
+        docs/support/recovery_ladder_packet.md in the same change that
+        retires or renames a check or action.
+      dependency_markers:
+        - depends_on.repair_transaction_ledger
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - support_export
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/support/project_doctor_packet.md
+        - docs/support/recovery_ladder_packet.md
+
+  - schema_version: 1
+    surface_id: workspace.entry_restore_and_migration_result
+    surface_title: Entry / restore result and migration-session packets
+    category: portability_and_migration
+    summary: >
+      Entry and restore result packets, migration-session packets,
+      restore-provenance records, and migration-center object model
+      consumed by bootstrap, import, migration, and support surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/state/migration_and_restore_playbook.md
+        - docs/migration/migration_center_object_model.md
+        - schemas/workspace/entry_and_restore_result.schema.json
+        - schemas/migration/migration_session.schema.json
+        - schemas/migration/importer_outcome.schema.json
+        - schemas/state/restore_provenance.schema.json
+      schema_or_interface_directory_refs:
+        - docs/state/
+        - docs/migration/
+        - schemas/state/
+        - schemas/migration/
+    versioning:
+      versioning_mechanism: >
+        Schema version on each packet plus stable importer and
+        migration-session ids; additive outcome vocabulary evolves by
+        schema version bump.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+    compatibility:
+      compatibility_promise: >
+        Readers preserve fidelity, importer outcome, and restore
+        provenance verbatim; refuse silent fidelity loss.
+      support_window_posture: >
+        Beta today. Stable migration and restore families target twelve
+        months or two minor releases of backward readability once
+        promoted.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires a successor packet or a typed restore
+        downgrade label with migration notes.
+      migration_requirement: >
+        docs/state/migration_and_restore_playbook.md names the migration
+        lane; packet bumps land migration notes in the same change.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#state.portable_profile_and_layout_restore
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - migration_notes
+        - support_export
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:state.profile_layout_schema
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/state/migration_and_restore_playbook.md
+        - docs/migration/migration_center_object_model.md
+
+  # --------------------------------------------------------------------
+  # extensions_and_host
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: extensions.manifest_registry_and_offline_bundle
+    surface_title: Extension manifests, registry, and offline bundles
+    category: extensions_and_host
+    summary: >
+      Extension manifest, registry-manifest, channel-promotion,
+      offline-bundle, quarantine-rule, runtime-budget, and effective
+      permission records.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        - docs/extensions/registry_and_offline_bundle_seed.md
+        - docs/extensions/runtime_budget_packet.md
+        - schemas/extensions/registry_manifest.schema.json
+        - schemas/extensions/effective_permission.schema.json
+        - schemas/extensions/host_negotiation.schema.json
+        - artifacts/extensions/channel_promotion_rows.yaml
+        - artifacts/extensions/quarantine_rules.yaml
+        - artifacts/extensions/runtime_budget_rows.yaml
+        - artifacts/extensions/capability_worlds.yaml
+      schema_or_interface_directory_refs:
+        - docs/extensions/
+        - schemas/extensions/
+        - artifacts/extensions/
+    versioning:
+      versioning_mechanism: >
+        Explicit manifest schema version, stable extension and
+        capability ids, plus permission-vocabulary version; registry
+        channel promotion preserves content-address identity verbatim.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    compatibility:
+      compatibility_promise: >
+        Manifests stay within the published permission-vocabulary
+        version for the host/runtime pair; quarantined extensions
+        never inherit trust.
+      support_window_posture: >
+        Experimental until the published SDK support window and
+        conformance kit land. Same-family negotiation only.
+    lifecycle:
+      deprecation_window: >
+        Deprecated manifest fields route through a replacement or
+        alias, a deprecation-metadata row, and docs/help visibility.
+      migration_requirement: >
+        Migration notes cite
+        docs/extensions/registry_and_offline_bundle_seed.md and land
+        alongside schema bumps.
+      dependency_markers:
+        - depends_on.permission_vocabulary_version
+        - depends_on.extension_sdk_support_window
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#extensions.wit_host_worlds
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/extensions/registry_and_offline_bundle_seed.md
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+
+  - schema_version: 1
+    surface_id: extensions.wit_host_worlds_and_bindings
+    surface_title: WIT host worlds and generated bindings
+    category: extensions_and_host
+    summary: >
+      WIT world packages, host negotiation packets, and generated
+      bindings for the editor-read, workspace-read, diff-apply-preview,
+      terminal-observe, and network-egress host contracts.
+    contract_form: wit_world_package
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/extensions/wit_host_contract_seed.md
+        - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+        - wit/aureline/aureline.wit
+        - wit/aureline/editor-read.wit
+        - wit/aureline/workspace-read.wit
+        - wit/aureline/diff-apply-preview.wit
+        - wit/aureline/terminal-observe.wit
+        - wit/aureline/network-egress.wit
+        - schemas/extensions/host_negotiation.schema.json
+      schema_or_interface_directory_refs:
+        - docs/extensions/
+        - wit/aureline/
+        - schemas/extensions/
+    versioning:
+      versioning_mechanism: >
+        WIT package semver plus host_contract_identity_ref,
+        permission_vocabulary_version, and generated-binding revision
+        pinned in host-negotiation packets.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    compatibility:
+      compatibility_promise: >
+        Host/guest pairs negotiate explicit world set, ABI version, and
+        permission vocabulary; incompatible ABIs quarantine rather than
+        partially loading.
+      support_window_posture: >
+        Experimental until a published SDK support window and
+        conformance kit land.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires a successor world or bridge notes,
+        manifest compatibility guidance, and migration docs before a
+        prior world stops being honored.
+      migration_requirement: >
+        Manifest and SDK migration guidance land in the same change as
+        the WIT revision.
+      dependency_markers:
+        - depends_on.permission_vocabulary_version
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#extensions.wit_host_worlds
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/extensions/wit_host_contract_seed.md
+
+  - schema_version: 1
+    surface_id: extensions.sdk_publication_bundle
+    surface_title: Extension SDK publication bundles
+    category: extensions_and_host
+    summary: >
+      Published extension SDK bundles that pair a WIT world revision
+      with generated bindings, permission-vocabulary version, and
+      conformance-kit linkage. Outline only until the SDK publication
+      lane lands.
+    contract_form: asset_package_manifest
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/extensions/wit_host_contract_seed.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Bundle semver pinned to the WIT world revision and
+        permission-vocabulary version it ships; SDK bump follows the
+        WIT world's compatibility window.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    compatibility:
+      compatibility_promise: >
+        SDK bundles stay inside the declared WIT world window; older
+        SDKs must be re-qualified or quarantined before the host
+        accepts them.
+      support_window_posture: >
+        Internal until the SDK publication lane publishes its first
+        bundle; no external consumer may rely on bundle shape yet.
+    lifecycle:
+      deprecation_window: >
+        Bundle deprecation routes through the WIT world deprecation
+        posture and adds SDK-specific migration notes.
+      migration_requirement: >
+        SDK migration notes land alongside
+        docs/extensions/wit_host_contract_seed.md when the bundle
+        shape is seeded.
+      dependency_markers:
+        - depends_on.wit_world_revision
+        - depends_on.permission_vocabulary_version
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:extension_host.sdk_wit_permission_window
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/extensions/wit_host_contract_seed.md
+
+  # --------------------------------------------------------------------
+  # command_and_automation
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: command_plane.command_graph_and_ui_slot_schema
+    surface_title: Command graph, descriptor, and UI-slot schema
+    category: command_and_automation
+    summary: >
+      Command graph, command descriptors, registry entries, keybinding
+      resolver, shareability metadata, and UI-slot taxonomy consumed by
+      palette, menu, CLI, AI-tool, automation, and replay surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: shell_command_system
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/commands/command_descriptor_contract.md
+        - docs/commands/command_graph_and_ui_slots_seed.md
+        - docs/commands/command_parity_diff.md
+        - docs/commands/shareability_and_automation_contract.md
+        - schemas/commands/command_descriptor.schema.json
+        - schemas/commands/command_registry_entry.schema.json
+        - schemas/commands/ui_slot_taxonomy.schema.json
+        - schemas/commands/keybinding_resolver.schema.json
+        - schemas/commands/shareability_metadata.schema.json
+        - artifacts/commands/command_registry_seed.yaml
+        - artifacts/commands/command_parity_seed.yaml
+      schema_or_interface_directory_refs:
+        - docs/commands/
+        - schemas/commands/
+        - artifacts/commands/
+    versioning:
+      versioning_mechanism: >
+        One command-descriptor schema epoch plus stable command_id and
+        command_revision_ref; additive fields remain in-epoch, while
+        removed or meaning-changing fields require a schema-version bump
+        and parity review.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+    compatibility:
+      compatibility_promise: >
+        Descriptor and invocation-session producers and consumers stay
+        inside one schema epoch; UI-slot taxonomy adds slots
+        additively.
+      support_window_posture: >
+        Beta today. Once promoted to stable, command ids target two
+        minor releases of alias or migration support.
+    lifecycle:
+      deprecation_window: >
+        Removing a command id requires a replacement or alias, a parity
+        diff, docs/help updates, a deprecation-metadata row, and a
+        typed migration note.
+      migration_requirement: >
+        Parity diff published alongside the schema bump; migration
+        guidance lives in docs/commands/command_parity_diff.md.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#command_plane.command_descriptor_and_invocation_session
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - cli_help
+        - migration_notes
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/commands/command_descriptor_contract.md
+        - docs/commands/command_graph_and_ui_slots_seed.md
+
+  - schema_version: 1
+    surface_id: command_plane.keybinding_resolver_and_chord_schema
+    surface_title: Keybinding resolver and chord schema
+    category: command_and_automation
+    summary: >
+      Keybinding resolver contract, chord schema, and resolver fixtures
+      consumed by shell, CLI, and accessibility surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: shell_command_system
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/ux/keybinding_resolver_contract.md
+        - schemas/commands/keybinding_resolver.schema.json
+      schema_or_interface_directory_refs:
+        - docs/ux/
+        - schemas/commands/
+    versioning:
+      versioning_mechanism: >
+        Explicit keybinding resolver schema version plus stable chord
+        ids; additive layout and chord fields evolve by schema version
+        bump.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+    compatibility:
+      compatibility_promise: >
+        Resolver readers preserve declared chord posture and accessibility
+        guidance verbatim; unknown additive fields remain within epoch.
+      support_window_posture: >
+        Beta today. Follows the command-descriptor support posture once
+        the command surface claims stability.
+    lifecycle:
+      deprecation_window: >
+        Retired chord ids route through a deprecation-metadata row with
+        a replacement binding and docs/help visibility.
+      migration_requirement: >
+        Migration guidance lives in
+        docs/ux/keybinding_resolver_contract.md.
+      dependency_markers:
+        - depends_on.command_descriptor_schema
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/ux/keybinding_resolver_contract.md
+
+  - schema_version: 1
+    surface_id: automation.recipe_and_macro_manifests_and_run_records
+    surface_title: Automation recipes, recorded macros, and run records
+    category: command_and_automation
+    summary: >
+      Declarative recipe manifests, recorded-macro manifests, and run
+      records consumed by automation, replay, and support surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/automation/recipe_and_macro_contract.md
+        - docs/commands/shareability_and_automation_contract.md
+        - schemas/automation/recipe_manifest.schema.json
+        - schemas/automation/run_record.schema.json
+        - artifacts/automation/automation_capability_rows.yaml
+      schema_or_interface_directory_refs:
+        - docs/automation/
+        - schemas/automation/
+        - artifacts/automation/
+    versioning:
+      versioning_mechanism: >
+        Explicit manifest schema version plus stable automation
+        capability class and recipe ids; capability_declarations is the
+        union of per-step capabilities.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    compatibility:
+      compatibility_promise: >
+        Recipe and macro readers preserve capability declarations,
+        deferred-intent posture, and queued-action replay windows
+        verbatim; deny on undeclared capabilities.
+      support_window_posture: >
+        Experimental until the automation lane publishes a promotion
+        decision; run-records land as evidence on the same row ids.
+    lifecycle:
+      deprecation_window: >
+        Retired recipe and capability ids land a deprecation-metadata
+        row with replacement guidance.
+      migration_requirement: >
+        Migration notes live in
+        docs/automation/recipe_and_macro_contract.md.
+      dependency_markers:
+        - depends_on.command_descriptor_schema
+        - depends_on.approval_and_policy_ceilings
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - cli_help
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/automation/recipe_and_macro_contract.md
+
+  - schema_version: 1
+    surface_id: automation.cli_structured_output_contract
+    surface_title: CLI structured output (cli json envelope)
+    category: command_and_automation
+    summary: >
+      CLI structured output envelope, cli-output registry entries, and
+      cli-command rows consumed by headless automation, AI brokers, CI
+      lanes, and support surfaces.
+    contract_form: cli_structured_output
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/automation/cli_surface_contract.md
+        - schemas/automation/cli_output_registry_entry.schema.json
+        - artifacts/automation/cli_command_rows.yaml
+      schema_or_interface_directory_refs:
+        - docs/automation/
+        - schemas/automation/
+        - artifacts/automation/
+    versioning:
+      versioning_mechanism: >
+        Explicit cli-output envelope schema version, stable cli-command
+        ids, and stable exit-status vocabulary; additive sub-records
+        and output classes bump the registry schema version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    compatibility:
+      compatibility_promise: >
+        Readers preserve envelope fields, exit-status vocabulary, and
+        typed result blocks; human prose remains non-contract.
+      support_window_posture: >
+        Experimental until the cli surface lands a conformance kit and
+        parity seed; downstream scripts cite cli-command row ids.
+    lifecycle:
+      deprecation_window: >
+        Retired cli-command ids or envelope fields route through a
+        deprecation-metadata row, a cli-help notice, and migration
+        notes before removal.
+      migration_requirement: >
+        Migration notes live in
+        docs/automation/cli_surface_contract.md and any cli-help strings
+        cite the same row id.
+      dependency_markers:
+        - depends_on.command_descriptor_schema
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - cli_help
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/automation/cli_surface_contract.md
+
+  - schema_version: 1
+    surface_id: automation.deferred_intent_and_queued_action_envelope
+    surface_title: Deferred-intent and queued-action envelopes
+    category: command_and_automation
+    summary: >
+      Deferred-intent envelopes, queued-action replay windows, and
+      reconciliation intent records consumed by automation, offline
+      reconcile, and support surfaces.
+    contract_form: event_envelope_schema
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/automation/recipe_and_macro_contract.md
+        - schemas/automation/recipe_manifest.schema.json
+        - schemas/automation/run_record.schema.json
+      schema_or_interface_directory_refs:
+        - docs/automation/
+        - schemas/automation/
+    versioning:
+      versioning_mechanism: >
+        Deferred-intent waiting window, reconciliation intent, and
+        replay-outcome vocabulary evolve under the recipe schema
+        version; stale-authority-denied outcomes are reserved.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    compatibility:
+      compatibility_promise: >
+        Queued actions MUST NOT silently replay stale authority;
+        readers preserve waiting-window and reconciliation posture
+        verbatim.
+      support_window_posture: >
+        Experimental until the automation lane publishes its promotion
+        decision.
+    lifecycle:
+      deprecation_window: >
+        Retired reconciliation or replay-outcome classes route through
+        a deprecation-metadata row with replacement guidance.
+      migration_requirement: >
+        docs/automation/recipe_and_macro_contract.md carries the
+        migration narrative.
+      dependency_markers:
+        - depends_on.recipe_manifest_schema
+        - depends_on.approval_and_policy_ceilings
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:automation.cli_headless_contract
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/automation/recipe_and_macro_contract.md
+
+  # --------------------------------------------------------------------
+  # ai_and_language
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: ai.context_assembly_and_evidence_replay
+    surface_title: AI context-assembly and evidence-replay packets
+    category: ai_and_language
+    summary: >
+      AI context-assembly manifest, evidence packet, evidence-replay
+      packet, and audit-storage manifest consumed by AI brokers,
+      automation, review, and support surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/ai/context_assembly_contract.md
+        - docs/ai/evidence_replayability_contract.md
+        - schemas/ai/audit_storage_manifest.schema.json
+        - schemas/ai/context_assembly.schema.json
+        - schemas/ai/evidence_packet.schema.json
+        - schemas/ai/evidence_replay_packet.schema.json
+      schema_or_interface_directory_refs:
+        - docs/ai/
+        - schemas/ai/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet; replay-fidelity class and
+        provenance vocabulary evolve by additive schema version bump.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#ai.context_assembly_and_evidence_replay
+    compatibility:
+      compatibility_promise: >
+        Readers preserve context-source provenance, redaction posture,
+        and replay-fidelity class verbatim; replay never reclassifies
+        authority.
+      support_window_posture: >
+        Experimental until the AI surface publishes its promotion
+        decision.
+    lifecycle:
+      deprecation_window: >
+        Retired evidence classes land a deprecation-metadata row and
+        migration notes before being dropped.
+      migration_requirement: >
+        docs/ai/evidence_replayability_contract.md carries the
+        migration narrative.
+      dependency_markers:
+        - depends_on.execution_context_schema
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/ai/context_assembly_contract.md
+        - docs/ai/evidence_replayability_contract.md
+
+  - schema_version: 1
+    surface_id: language.provider_provenance_and_completion_session
+    surface_title: Language-provider provenance and completion / snippet session state
+    category: ai_and_language
+    summary: >
+      Language-provider provenance packets, completion-session state,
+      snippet-session state, and diagnostics / suppression summaries.
+      Outline only until the language-provider contract is seeded in
+      schemas.
+    contract_form: event_envelope_schema
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/runtime/execution_context_vocabulary.md
+        - docs/ai/context_assembly_contract.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Provider-packet schema version plus stable provider ids,
+        completion-session ids, and suppression-reason vocabulary.
+        Additive suppression classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#language.provider_provenance_and_completion_session
+    compatibility:
+      compatibility_promise: >
+        Readers preserve provider provenance, completion authority,
+        and suppression reason verbatim; never silently widen trust
+        across provider boundaries.
+      support_window_posture: >
+        Internal until the language-provider lane publishes a schema
+        seed; downstream consumers hold off on parallel dialects.
+    lifecycle:
+      deprecation_window: >
+        Provider / suppression id retirement routes through a
+        deprecation-metadata row and replacement guidance in
+        docs/runtime/execution_context_vocabulary.md.
+      migration_requirement: >
+        Migration narrative must land in the same change that seeds
+        the schema.
+      dependency_markers:
+        - depends_on.execution_context_schema
+        - depends_on.ai_evidence_replay_contract
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/ai/context_assembly_contract.md
+        - docs/runtime/execution_context_vocabulary.md
+
+  # --------------------------------------------------------------------
+  # terminal_and_run
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: terminal.session_restore_and_transcript_export
+    surface_title: Terminal session-restore metadata and transcript export
+    category: terminal_and_run
+    summary: >
+      Terminal session-restore metadata, transcript export packets, and
+      clipboard-history contract consumed by restore, support, and
+      replay surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0021-terminal-protocol-and-clipboard.md
+        - docs/ux/clipboard_history_contract.md
+        - schemas/terminal/session_restore_metadata.schema.json
+      schema_or_interface_directory_refs:
+        - docs/ux/
+        - schemas/terminal/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version on session-restore and transcript-export
+        packets plus stable session ids; additive frame kinds bump the
+        schema version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    compatibility:
+      compatibility_promise: >
+        Readers preserve frame kind, redaction posture, and restore
+        fidelity verbatim; transcripts never promote a redacted frame
+        to authoritative.
+      support_window_posture: >
+        Experimental until the terminal lane publishes its promotion
+        decision.
+    lifecycle:
+      deprecation_window: >
+        Retired frame or restore ids route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/adr/0021-terminal-protocol-and-clipboard.md carries the
+        migration narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/adr/0021-terminal-protocol-and-clipboard.md
+
+  - schema_version: 1
+    surface_id: tooling.task_event_envelope
+    surface_title: Canonical task / test / debug / notebook event envelope
+    category: terminal_and_run
+    summary: >
+      Canonical task-event envelope, adapter map, and replay fixtures
+      covering run / test / debug / notebook / AI-broker / automation
+      events and results.
+    contract_form: event_envelope_schema
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/tooling/task_event_contract_seed.md
+        - schemas/tooling/task_event_envelope.schema.json
+        - artifacts/tooling/adapter_map.yaml
+        - fixtures/tooling/task_event_replay/
+      schema_or_interface_directory_refs:
+        - docs/tooling/
+        - schemas/tooling/
+        - artifacts/tooling/
+    versioning:
+      versioning_mechanism: >
+        One task-event schema epoch governs event kind, payload kind,
+        source kind, confidence class, adapter capabilities, retention
+        class, and media class; additive vocabulary stays in-epoch.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    compatibility:
+      compatibility_promise: >
+        Producers and consumers preserve canonical fields and
+        raw-payload retention block verbatim; source-kind invariants
+        never relax per surface.
+      support_window_posture: >
+        Experimental until the first native adapter wiring lands; the
+        contract, schema, adapter register, and replay fixtures are
+        seeded so later wiring lands on a governed row.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires a successor event kind or envelope
+        revision plus replay and support-export migration notes.
+      migration_requirement: >
+        docs/tooling/task_event_contract_seed.md carries the migration
+        narrative.
+      dependency_markers:
+        - depends_on.execution_context_schema
+        - depends_on.raw_payload_retention_class
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/tooling/task_event_contract_seed.md
+
+  - schema_version: 1
+    surface_id: debug.artifact_manifest_and_run_results
+    surface_title: Debug artifact manifest, run-result, and forensic packets
+    category: debug_and_diagnostics
+    summary: >
+      Debug artifact manifest, run-result records, forensic packets,
+      and background-job records consumed by release, support, replay,
+      and benchmark surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/debug/artifact_resolution_seed.md
+        - schemas/debug/debug_artifact_manifest.schema.json
+        - schemas/benchmarks/run_result.schema.json
+        - schemas/runtime/forensic_packet.schema.json
+        - schemas/runtime/background_job.schema.json
+      schema_or_interface_directory_refs:
+        - docs/debug/
+        - schemas/debug/
+        - schemas/runtime/
+        - schemas/benchmarks/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet plus stable run-result and
+        forensic-packet ids; additive outcome classes bump the schema
+        version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    compatibility:
+      compatibility_promise: >
+        Readers preserve run-result outcome, exit-status classification,
+        and forensic provenance verbatim; debug manifests resolve the
+        same exact-build identity.
+      support_window_posture: >
+        Experimental until the debug and run-result lanes publish a
+        promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired outcome or forensic classes route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/debug/artifact_resolution_seed.md carries the migration
+        narrative.
+      dependency_markers:
+        - depends_on.exact_build_identity
+        - depends_on.execution_context_schema
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/debug/artifact_resolution_seed.md
+
+  # --------------------------------------------------------------------
+  # debug_and_diagnostics (diagnostics / suppression summaries)
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: diagnostics.suppression_summary_and_severity
+    surface_title: Diagnostics and suppression summaries
+    category: debug_and_diagnostics
+    summary: >
+      Diagnostic severity, suppression summary, and security
+      severity-matrix records consumed by the editor, CLI, support,
+      and hosted review surfaces. Outline only until the diagnostics
+      contract is seeded in schemas.
+    contract_form: json_schema_registry
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/security/severity_matrix.md
+        - docs/security/safe_preview_trust_classes.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Diagnostic-record schema version plus stable diagnostic_id
+        values and stable suppression_reason vocabulary; additive
+        severity and suppression classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#diagnostics.suppression_summary_and_severity
+    compatibility:
+      compatibility_promise: >
+        Readers preserve diagnostic id, severity class, and suppression
+        reason verbatim; never silently widen severity.
+      support_window_posture: >
+        Internal until the diagnostics surface publishes a schema seed;
+        downstream consumers hold off on parallel severity dialects.
+    lifecycle:
+      deprecation_window: >
+        Retired diagnostic or suppression ids route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        Migration narrative lands alongside the schema seed.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:security.intake_and_incident_workspace
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/security/severity_matrix.md
+
+  # --------------------------------------------------------------------
+  # merge_and_history
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: workspace.merge_conflict_and_history_edit
+    surface_title: Merge / conflict and history-edit packets
+    category: merge_and_history
+    summary: >
+      Notebook diff / merge contract, mutation journal, and
+      history-edit packets consumed by workspace, review, and support
+      surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+        - docs/workspace/mutation_lineage_model.md
+        - schemas/notebook/notebook_metadata_aureline.schema.json
+        - schemas/workspace/mutation_journal.schema.json
+      schema_or_interface_directory_refs:
+        - docs/workspace/
+        - schemas/notebook/
+        - schemas/workspace/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version on conflict packets and mutation
+        journals plus stable conflict-class ids; additive conflict
+        classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    compatibility:
+      compatibility_promise: >
+        Readers preserve conflict class, resolution posture, and
+        mutation lineage verbatim; history edits never silently drop
+        lineage links.
+      support_window_posture: >
+        Experimental until the merge / history lane publishes a
+        promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired conflict or resolution classes route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/workspace/mutation_lineage_model.md carries the migration
+        narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+        - docs/workspace/mutation_lineage_model.md
+
+  # --------------------------------------------------------------------
+  # locale_and_translation
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: i18n.locale_pack_and_translation_bundle
+    surface_title: Locale packs and translation packs
+    category: locale_and_translation
+    summary: >
+      Locale-input readiness rubric, language-bundle rows, and the
+      pending locale-pack and translation-pack manifests. Outline only
+      until the locale-pack schema is seeded.
+    contract_form: asset_package_manifest
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: accessibility_input_review
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/i18n/locale_input_readiness.md
+        - docs/product/launch_language_bundle_rubric.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - docs/i18n/
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Locale-pack manifest schema version plus stable locale ids and
+        translation-bundle ids; additive bundles bump the schema
+        version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:ux.accessibility_and_locale_review_lanes
+    compatibility:
+      compatibility_promise: >
+        Readers preserve locale identity, translation fidelity class,
+        and input-readiness rubric verbatim; translation drift maps to
+        an honest fidelity class rather than silent substitution.
+      support_window_posture: >
+        Internal until the locale-pack contract is seeded; downstream
+        consumers must wait for the schema seed before shipping packs.
+    lifecycle:
+      deprecation_window: >
+        Retired locale ids or translation bundles route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        Migration narrative lands in
+        docs/i18n/locale_input_readiness.md.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:ux.accessibility_and_locale_review_lanes
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/i18n/locale_input_readiness.md
+
+  # --------------------------------------------------------------------
+  # design_and_theme
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: design.appearance_session_theme_package_and_token_overlay
+    surface_title: Appearance sessions, theme packages, and token overlays
+    category: design_and_theme
+    summary: >
+      Component contract, token export manifest, theme support rows,
+      and appearance-session contract for design tokens, theme
+      packages, and token overlays.
+    contract_form: asset_package_manifest
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: design_system_seeds
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/ux/component_contract_template.md
+        - docs/design/design_token_component_state_vocabulary.md
+        - docs/architecture/viewport_invalidation_and_composition_packet.md
+        - schemas/design/component_contract.schema.json
+        - schemas/design/token_export_manifest.schema.json
+        - artifacts/design/theme_support_rows.yaml
+        - artifacts/design/layer_and_scrim_tokens.yaml
+      schema_or_interface_directory_refs:
+        - docs/design/
+        - docs/ux/
+        - schemas/design/
+        - artifacts/design/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version on component contract and token export
+        manifest plus stable token ids; additive tokens and component
+        states bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#design.appearance_session_theme_package_and_token_overlay
+    compatibility:
+      compatibility_promise: >
+        Readers preserve token identity, component-state vocabulary,
+        and appearance-session posture verbatim; theme overlays stay
+        additive.
+      support_window_posture: >
+        Experimental until the design-system lane publishes a
+        promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired tokens or component states land a deprecation-metadata
+        row and migration notes before removal.
+      migration_requirement: >
+        Migration narrative lives in
+        docs/design/design_token_component_state_vocabulary.md.
+      dependency_markers:
+        - depends_on.render_contract
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:ux.accessibility_and_locale_review_lanes
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/ux/component_contract_template.md
+        - docs/design/design_token_component_state_vocabulary.md
+
+  # --------------------------------------------------------------------
+  # voice_and_consent
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: voice.grammar_and_consent_records
+    surface_title: Voice grammar and consent records
+    category: voice_and_consent
+    summary: >
+      Voice grammar records, consent-ledger seeds, and voice-consent
+      evidence consumed by accessibility, support, and governance
+      surfaces. Outline only until the voice-grammar schema is seeded.
+    contract_form: json_schema_registry
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - artifacts/governance/consent_ledger_seed.yaml
+        - docs/i18n/locale_input_readiness.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Consent-ledger row schema version plus stable consent class and
+        grammar-id vocabulary; additive classes bump the schema
+        version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#voice.grammar_and_consent_records
+    compatibility:
+      compatibility_promise: >
+        Readers preserve consent scope, grammar id, and evidence
+        provenance verbatim; consent can only narrow, never widen.
+      support_window_posture: >
+        Internal until the voice / consent lane publishes a schema
+        seed.
+    lifecycle:
+      deprecation_window: >
+        Retired consent classes route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        Migration narrative lands alongside the schema seed.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:ux.accessibility_and_locale_review_lanes
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - artifacts/governance/consent_ledger_seed.yaml
+
+  # --------------------------------------------------------------------
+  # service_and_api
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: service.optional_api_family
+    surface_title: Optional service API family and capability rows
+    category: service_and_api
+    summary: >
+      Optional managed or self-hosted service API family (api
+      capability rows, deletion-job records, browser-handoff packets,
+      and the openapi seed) consumed by desktop, CLI, browser, and
+      control-plane clients.
+    contract_form: openapi_family
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/service/api_inventory_seed.md
+        - docs/service/managed_service_seed.md
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+        - openapi/service_api_seed.yaml
+        - schemas/service/api_capability_row.schema.json
+        - schemas/service/deletion_job_record.schema.json
+        - schemas/integration/browser_handoff_packet.schema.json
+        - schemas/providers/provider_callback_envelope.schema.json
+      schema_or_interface_directory_refs:
+        - docs/service/
+        - openapi/
+        - schemas/service/
+        - schemas/integration/
+    versioning:
+      versioning_mechanism: >
+        OpenAPI-family version plus capability-row schema version,
+        deprecation and sunset header set, and declared
+        current-plus-previous-minor or LTS window.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:provider.service_api_and_browser_handoff
+    compatibility:
+      compatibility_promise: >
+        Clients stay inside the current published family plus the
+        declared previous minor or LTS window; out-of-window operation
+        narrows to cached read-only safety or browser handoff.
+      support_window_posture: >
+        Experimental until full OpenAPI publication and service
+        qualification artifacts land.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires a successor API family or browser-handoff
+        path, explicit read-only or local continuity guidance, and
+        release-note visibility before a family is retired.
+      migration_requirement: >
+        docs/service/api_inventory_seed.md carries the migration
+        narrative; deprecation headers ride on every response.
+      dependency_markers:
+        - depends_on.browser_handoff_packet
+        - depends_on.service_capability_negotiation
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#provider.service_api_family
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - service_health
+        - release_notes
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:provider.service_api_and_browser_handoff
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/service/api_inventory_seed.md
+        - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+
+  # --------------------------------------------------------------------
+  # review_and_hosted
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: review.hosted_merge_policy_and_review_surface_records
+    surface_title: Hosted-review merge-policy and review-surface records
+    category: review_and_hosted
+    summary: >
+      Hosted review surface records, structured artifact classes, and
+      merge-policy objects consumed by hosted review, governance, and
+      support surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/review/structured_artifact_review_seed.md
+        - schemas/review/review_surface_record.schema.json
+        - artifacts/review/structured_artifact_classes.yaml
+      schema_or_interface_directory_refs:
+        - docs/review/
+        - schemas/review/
+        - artifacts/review/
+    versioning:
+      versioning_mechanism: >
+        Review-surface record schema version plus stable review-class
+        ids and merge-policy class ids; additive classes bump the
+        schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#review.hosted_merge_policy_and_review_surface_records
+    compatibility:
+      compatibility_promise: >
+        Readers preserve review class, merge-policy posture, and
+        evidence provenance verbatim; merge policy can only narrow,
+        never widen.
+      support_window_posture: >
+        Experimental until the hosted-review lane publishes a
+        promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired review or merge-policy classes land a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/review/structured_artifact_review_seed.md carries the
+        migration narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:certification.launch_archetype_matrix
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/review/structured_artifact_review_seed.md
+
+  # --------------------------------------------------------------------
+  # release_and_build
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: build.exact_build_identity_and_release_evidence
+    surface_title: Exact-build identity, release-evidence, and advisory packets
+    category: release_and_build
+    summary: >
+      Exact-build identity field set, release-evidence packet template,
+      advisory record, and ring-history packet consumed by release,
+      about / help, support, and benchmark surfaces.
+    contract_form: field_set
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/build/exact_build_identity_model.md
+        - docs/build/reproducible_build_baseline.md
+        - docs/release/release_evidence_packet_template.md
+        - docs/release/release_evidence_packet_example.md
+        - schemas/build/exact_build_identity.schema.json
+        - schemas/security/advisory_record.schema.json
+        - schemas/release/ring_history_packet.schema.json
+        - schemas/release/waiver_packet.schema.json
+        - schemas/release/compatibility_row.schema.json
+      schema_or_interface_directory_refs:
+        - docs/build/
+        - docs/release/
+        - schemas/build/
+        - schemas/release/
+        - schemas/security/
+    versioning:
+      versioning_mechanism: >
+        exact_build_identity_schema_version governs the field set; no
+        downstream surface may fall back to version-only rendering once
+        an exact_build_identity_ref exists.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    compatibility:
+      compatibility_promise: >
+        Claim-bearing consumers stay on one exact coordinated artifact
+        set or on an explicit rebuild chain back to it; fail closed on
+        version-only fallback or mismatched artifact-family linkage.
+      support_window_posture: >
+        Beta today. Release-bearing surfaces inherit the declared
+        channel support window; identity linkage is exact match only.
+    lifecycle:
+      deprecation_window: >
+        Field removals require a new schema version, updated release
+        evidence, and migration notes for every downstream surface
+        that resolves the identity ref.
+      migration_requirement: >
+        docs/build/exact_build_identity_model.md carries the migration
+        narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#build.exact_build_identity_fields
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - service_health
+        - release_notes
+        - release_packet
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/build/exact_build_identity_model.md
+        - docs/release/release_evidence_packet_template.md
+
+  # --------------------------------------------------------------------
+  # support_and_export
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: support.bundle_and_evidence_packets
+    surface_title: Evidence and support-bundle manifests
+    category: support_and_export
+    summary: >
+      Support bundle, support-packet index, object-handoff packet, and
+      recovery-action records consumed by support, offboarding, and
+      recovery surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/support/support_bundle_contract.md
+        - docs/support/support_center_concept.md
+        - docs/support/object_handoff_packet.md
+        - docs/support/recovery_ladder_packet.md
+        - schemas/support/support_bundle.schema.json
+        - schemas/support/support_packet_index.schema.json
+        - schemas/support/object_handoff_packet.schema.json
+        - schemas/support/recovery_action.schema.json
+      schema_or_interface_directory_refs:
+        - docs/support/
+        - schemas/support/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet plus stable record-class
+        ids from artifacts/governance/record_class_registry.yaml;
+        additive record classes and evidence link kinds bump the
+        schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+    compatibility:
+      compatibility_promise: >
+        Readers preserve bundle contents, redaction posture, and
+        record-class identity verbatim; refuse export or delete
+        claims when the record-class row is missing or incompatible.
+      support_window_posture: >
+        Experimental until the support / export lane publishes a
+        promotion decision; stable record-class ids already anchor
+        downstream evidence.
+    lifecycle:
+      deprecation_window: >
+        Deprecated bundle fields route through a replacement record
+        class, a deprecation-metadata row, and migration notes.
+      migration_requirement: >
+        docs/support/support_bundle_contract.md carries the migration
+        narrative.
+      dependency_markers:
+        - depends_on.record_class_registry
+        - depends_on.exact_build_identity
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/support/support_bundle_contract.md
+        - docs/support/support_center_concept.md
+
+  - schema_version: 1
+    surface_id: support.repair_transaction_and_recovery_ledger
+    surface_title: Repair transactions and recovery ledger
+    category: support_and_export
+    summary: >
+      Repair-transaction packets and recovery-action ledger entries
+      that narrate attempted repairs, approvals, and outcomes.
+      Outline only until the repair-transaction schema is seeded.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: support_export
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/support/recovery_ladder_packet.md
+        - schemas/support/recovery_action.schema.json
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - docs/support/
+        - schemas/support/
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Repair-transaction packet schema version plus stable repair
+        action ids; additive outcome classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#support.repair_transaction_and_recovery_ledger
+    compatibility:
+      compatibility_promise: >
+        Readers preserve repair action id, approval posture, and
+        outcome vocabulary verbatim; a failed repair never silently
+        masquerades as success.
+      support_window_posture: >
+        Internal until the repair-transaction schema is seeded.
+    lifecycle:
+      deprecation_window: >
+        Retired repair actions land a deprecation-metadata row and
+        migration notes.
+      migration_requirement: >
+        Migration narrative lands alongside the schema seed.
+      dependency_markers:
+        - depends_on.record_class_registry
+        - depends_on.support_bundle_contract
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/support/recovery_ladder_packet.md
+
+  # --------------------------------------------------------------------
+  # runtime and execution
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: runtime.execution_context_and_provenance
+    surface_title: Execution-context and provenance records
+    category: command_and_automation
+    summary: >
+      Execution-context, environment-capsule, environment-diff,
+      subscription-envelope, vfs-save envelope, remote-agent hello,
+      and cache-entry manifest records consumed by terminal, task,
+      debug, notebook, AI, support, and replay surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/runtime/execution_context_vocabulary.md
+        - docs/runtime/environment_capsule_contract.md
+        - docs/runtime/background_queue_contract.md
+        - docs/runtime/resource_governor_contract.md
+        - schemas/runtime/execution_context.schema.json
+        - schemas/runtime/environment_capsule.schema.json
+        - schemas/runtime/environment_diff_packet.schema.json
+        - schemas/runtime/subscription_envelope.schema.json
+        - schemas/runtime/vfs_save_envelope.schema.json
+        - schemas/runtime/remote_agent_hello.schema.json
+        - schemas/runtime/cache_entry_manifest.schema.json
+      schema_or_interface_directory_refs:
+        - docs/runtime/
+        - schemas/runtime/
+    versioning:
+      versioning_mechanism: >
+        execution_context_schema_version governs execution-context,
+        provenance, scope-descriptor, and audit-event records; additive
+        vocabulary growth stays in-epoch.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+    compatibility:
+      compatibility_promise: >
+        Readers preserve scope, authority envelope, degraded-field,
+        and provenance references verbatim; never silently widen scope.
+      support_window_posture: >
+        Beta today. Stable consumers stay within the declared schema
+        epoch until a wider support window is published.
+    lifecycle:
+      deprecation_window: >
+        Deprecation requires replacement ids or typed degraded-field
+        mapping plus docs/help visibility before a scope or provenance
+        field disappears.
+      migration_requirement: >
+        docs/runtime/execution_context_vocabulary.md carries the
+        migration narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:tooling.task_event_envelope
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/runtime/execution_context_vocabulary.md
+
+  # --------------------------------------------------------------------
+  # governance_and_policy
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: governance.policy_decision_and_simulation_history
+    surface_title: Policy-decision and simulation history records
+    category: governance_and_policy
+    summary: >
+      Policy-decision explain packets, admin-audit packets, trust
+      decision packets, and policy-simulation verification packets
+      consumed by admin, support, and governance surfaces.
+    contract_form: json_schema_registry
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - schemas/governance/policy_decision_explain.schema.json
+        - schemas/identity/admin_audit_packet.schema.json
+        - schemas/security/trust_decision_packet.schema.json
+        - docs/verification/policy_simulation_packet.md
+      schema_or_interface_directory_refs:
+        - schemas/governance/
+        - schemas/identity/
+        - schemas/security/
+        - docs/verification/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet plus stable policy-class ids
+        and reason-code vocabulary; additive reason codes bump the
+        schema version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:governance.canonical_decision_register
+    compatibility:
+      compatibility_promise: >
+        Readers preserve policy id, decision class, and reason code
+        verbatim; admin-audit packets never retroactively reclassify
+        decisions.
+      support_window_posture: >
+        Experimental until the governance lane publishes a promotion
+        decision.
+    lifecycle:
+      deprecation_window: >
+        Retired policy or reason codes route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/verification/policy_simulation_packet.md carries the
+        migration narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:governance.canonical_decision_register
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/verification/policy_simulation_packet.md
+
+  - schema_version: 1
+    surface_id: governance.record_class_registry_rows
+    surface_title: Record-class registry rows
+    category: governance_and_policy
+    summary: >
+      Record-class rows that bind retention, export, delete, hold, and
+      offboarding posture; cited by support, export, and governance
+      surfaces.
+    contract_form: record_registry
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+        - docs/governance/record_class_governance.md
+        - schemas/governance/record_class.schema.json
+      schema_or_interface_directory_refs:
+        - artifacts/governance/
+        - docs/governance/
+        - schemas/governance/
+    versioning:
+      versioning_mechanism: >
+        Stable record_class_id values and
+        record_class_schema_version govern row evolution; additive
+        vocabulary expansion is allowed.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+    compatibility:
+      compatibility_promise: >
+        Readers quote record-class ids and posture fields verbatim;
+        missing or incompatible rows fail export or delete claims.
+      support_window_posture: >
+        Beta today. Any stable support or export surface that quotes
+        a record-class id stays inside the declared schema epoch.
+    lifecycle:
+      deprecation_window: >
+        Replacement requires a successor row, explicit policy notes,
+        and a deprecation-metadata row before the old id is retired.
+      migration_requirement: >
+        docs/governance/record_class_governance.md carries the
+        migration narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - support_export
+        - release_notes
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:governance.canonical_decision_register
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/governance/record_class_governance.md
+
+  # --------------------------------------------------------------------
+  # docs_and_teaching
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: docs.docs_pack_manifest
+    surface_title: Docs-pack manifest, citation anchor, and late-copy change
+    category: docs_and_teaching
+    summary: >
+      Docs-pack manifest records, citation anchors, help-status badge,
+      late-copy change packet, and symbol-linked reference records
+      consumed by docs / help, service health, and support surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: beta
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/docs/docs_pack_manifest_contract.md
+        - docs/docs/help_about_service_health_routes.md
+        - docs/docs/reviewed_pack_and_late_copy_policy.md
+        - schemas/docs/docs_pack_manifest.schema.json
+        - schemas/docs/citation_anchor.schema.json
+        - schemas/docs/help_status_badge.schema.json
+        - schemas/docs/late_copy_change_packet.schema.json
+        - schemas/docs/symbol_linked_reference.schema.json
+      schema_or_interface_directory_refs:
+        - docs/docs/
+        - schemas/docs/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version plus semver_version and
+        compat_window_semver; publishable state, citation posture, and
+        mirror lineage are part of the contract.
+      compatibility_window_source_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#docs.docs_pack_manifest
+    compatibility:
+      compatibility_promise: >
+        Readers preserve version-match, freshness, citation, backlink,
+        and publishable-blocker fields verbatim; never render a stale
+        or blocked pack as authoritative.
+      support_window_posture: >
+        Beta today. Stable docs-pack publication targets the same
+        twelve-month or two-minor window as the build identities the
+        packs describe.
+    lifecycle:
+      deprecation_window: >
+        Deprecation or withdrawal requires a superseding pack
+        revision or a published withdrawal state, a
+        deprecation-metadata row, and docs/help visibility.
+      migration_requirement: >
+        docs/docs/docs_pack_manifest_contract.md carries the migration
+        narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#docs.docs_pack_manifest
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - service_health
+        - release_notes
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/docs/docs_pack_manifest_contract.md
+
+  - schema_version: 1
+    surface_id: docs.tour_glossary_and_teaching_session
+    surface_title: Tour, glossary, and teaching-session artifacts
+    category: docs_and_teaching
+    summary: >
+      Tour, glossary, and teaching-session artifacts consumed by
+      onboarding, docs / help, and learning surfaces. Outline only
+      until the teaching-session schema is seeded.
+    contract_form: teaching_content_pack
+    maturity_lane: internal
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: docs_public_truth
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/docs/help_about_service_health_routes.md
+        - not_yet_seeded
+      schema_or_interface_directory_refs:
+        - not_yet_seeded
+    versioning:
+      versioning_mechanism: >
+        Teaching-session schema version plus stable tour and glossary
+        ids; additive teaching-step classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#docs.tour_glossary_and_teaching_session
+    compatibility:
+      compatibility_promise: >
+        Readers preserve tour id, glossary term, and teaching-step
+        posture verbatim; tours never silently fall back to stale
+        instructions.
+      support_window_posture: >
+        Internal until the teaching-session schema is seeded.
+    lifecycle:
+      deprecation_window: >
+        Retired tour or glossary ids land a deprecation-metadata row
+        and migration notes.
+      migration_requirement: >
+        Migration narrative lands alongside the schema seed.
+      dependency_markers:
+        - depends_on.docs_pack_manifest
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:release_identity.exact_build_propagation
+    review:
+      review_cadence: per_milestone
+      docs_touchpoint_refs:
+        - docs/docs/help_about_service_health_routes.md
+
+  # --------------------------------------------------------------------
+  # notification_and_attention
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: notification.attention_and_activity_envelope
+    surface_title: Notification envelopes and attention-activity taxonomy
+    category: notification_and_attention
+    summary: >
+      Activity-event envelope, attention / activity taxonomy,
+      live-update review contract, and start-center surface records
+      that carry notification posture across shell, support, and help
+      surfaces.
+    contract_form: event_envelope_schema
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: shell_command_system
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/ux/attention_activity_taxonomy.md
+        - docs/ux/live_update_review_contract.md
+        - docs/ux/start_center_contract.md
+        - schemas/ux/activity_event_envelope.schema.json
+        - schemas/ux/live_set_state.schema.json
+        - schemas/ux/start_center_surface.schema.json
+        - schemas/ux/interaction_safety.schema.json
+      schema_or_interface_directory_refs:
+        - docs/ux/
+        - schemas/ux/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet plus stable attention class
+        and activity id vocabulary; additive classes bump the schema
+        version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:attention.notification_and_chronology_primitives
+    compatibility:
+      compatibility_promise: >
+        Readers preserve attention class, activity id, and
+        live-update review posture verbatim; notifications never
+        silently widen urgency.
+      support_window_posture: >
+        Experimental until the attention / notification lane
+        publishes a promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired attention or activity classes route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/ux/attention_activity_taxonomy.md carries the migration
+        narrative.
+      dependency_markers: []
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:attention.notification_and_chronology_primitives
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/ux/attention_activity_taxonomy.md
+        - docs/ux/live_update_review_contract.md
+
+  # --------------------------------------------------------------------
+  # editor_and_text (saved-view / filter-AST)
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: search.saved_view_and_filter_ast
+    surface_title: Saved-view, filter-AST, and query-family contracts
+    category: editor_and_text
+    summary: >
+      Saved-query / scope-binding, query-family / identity, result-
+      fusion, and search-result-truth records that carry saved views
+      and filter ASTs across editor, search, and automation surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: governance_packets
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/search/search_readiness_vocabulary.md
+        - docs/graph/identity_and_query_family_seed.md
+        - schemas/search/saved_query_and_scope_binding.schema.json
+        - schemas/search/result_fusion_record.schema.json
+        - schemas/search/search_result_truth.schema.json
+        - schemas/graph/query_family.schema.json
+        - schemas/graph/node_identity.schema.json
+      schema_or_interface_directory_refs:
+        - docs/search/
+        - docs/graph/
+        - schemas/search/
+        - schemas/graph/
+    versioning:
+      versioning_mechanism: >
+        Explicit schema version per packet plus stable query-family
+        and filter-ast node ids; additive filter-ast node classes bump
+        the schema version.
+      compatibility_window_source_ref: >
+        artifacts/governance/compatibility_surfaces.yaml#search.saved_view_and_filter_ast
+    compatibility:
+      compatibility_promise: >
+        Readers preserve filter-ast node class, query-family id, and
+        saved-view scope binding verbatim; saved views never silently
+        widen scope.
+      support_window_posture: >
+        Experimental until the search / graph lane publishes a
+        promotion decision.
+    lifecycle:
+      deprecation_window: >
+        Retired filter-ast or query-family classes land a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/search/search_readiness_vocabulary.md carries the
+        migration narrative.
+      dependency_markers:
+        - depends_on.execution_context_schema
+    linkage:
+      stable_surface_inventory_row_ref: null
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:workspace.local_history_and_mutation_lineage
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/search/search_readiness_vocabulary.md
+
+  # --------------------------------------------------------------------
+  # certification_and_reference
+  # --------------------------------------------------------------------
+  - schema_version: 1
+    surface_id: certification.reference_workspace_and_archetype_report
+    surface_title: Reference-workspace and certified-archetype reports
+    category: certification_and_reference
+    summary: >
+      Reference-workspace rows, certified-archetype report template,
+      archetype rubric, compatibility-report template, and compatibility
+      row seed consumed by release, docs / help, and qualification
+      surfaces.
+    contract_form: json_schema_backed_contract_doc
+    maturity_lane: experimental
+    ownership:
+      owner_dri: "@ahmeddyounis"
+      owning_lane: release_evidence
+      backup_owner: null
+      backup_waiver: single-maintainer-backup
+    publication:
+      publication_artifact_refs:
+        - docs/compat/compatibility_row_seed.md
+        - docs/compat/reference_workspace_program_seed.md
+        - docs/compat/upgrade_order_contract.md
+        - docs/release/certified_archetype_report_template.md
+        - docs/release/compatibility_report_template.md
+        - artifacts/compat/qualification_matrix_seed.yaml
+        - artifacts/compat/reference_workspace_rows.yaml
+        - artifacts/compat/archetype_rubric.yaml
+        - artifacts/compat/skew_windows.yaml
+        - artifacts/compat/version_skew_register.yaml
+        - schemas/compat/mixed_version_envelope.schema.json
+      schema_or_interface_directory_refs:
+        - docs/compat/
+        - docs/release/
+        - artifacts/compat/
+        - schemas/compat/
+    versioning:
+      versioning_mechanism: >
+        Stable row_id values on compatibility rows, reference-workspace
+        rows, and archetype rubric rows plus explicit schema version on
+        mixed-version envelopes; additive profile, skew-window, and
+        rubric classes bump the schema version.
+      compatibility_window_source_ref: >
+        artifacts/compat/qualification_matrix_seed.yaml#compat_row:certification.launch_archetype_matrix
+    compatibility:
+      compatibility_promise: >
+        Readers quote compatibility row ids and reference-workspace
+        row ids verbatim; certified-archetype reports never invent
+        parallel qualification rows.
+      support_window_posture: >
+        Experimental until the certification lane publishes its first
+        archetype report; downstream release and docs work cite row
+        ids on publication.
+    lifecycle:
+      deprecation_window: >
+        Retired compatibility or archetype rows route through a
+        deprecation-metadata row and migration notes.
+      migration_requirement: >
+        docs/compat/compatibility_row_seed.md and
+        docs/release/certified_archetype_report_template.md carry the
+        migration narrative.
+      dependency_markers:
+        - depends_on.exact_build_identity
+        - depends_on.boundary_manifest
+    linkage:
+      stable_surface_inventory_row_ref: >
+        artifacts/governance/stable_surface_inventory.yaml#product.boundary_manifest_rows
+      contract_packet_template_ref: docs/governance/contract_packet_template.md
+      docs_public_truth_channels:
+        - docs_site
+        - help_about
+        - release_notes
+        - release_packet
+        - support_export
+      qualification_or_certified_archetype_report_refs:
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:certification.launch_archetype_matrix
+        - artifacts/compat/qualification_matrix_seed.yaml#compat_row:deployment_profiles.boundary_manifest_truth
+        - artifacts/compat/reference_workspace_rows.yaml
+    review:
+      review_cadence: each_change
+      docs_touchpoint_refs:
+        - docs/compat/compatibility_row_seed.md
+        - docs/compat/reference_workspace_program_seed.md
+        - docs/release/certified_archetype_report_template.md
+
+# -----------------------------------------------------------------------------
+# Mapping rules.
+#
+# The tables below tell tooling how a compatibility-surface row maps back to
+# the shared packet template, the public-truth propagation matrix, and the
+# qualification or certified-archetype report family. Every row above cites
+# at least one ref from each table; adding a new row MUST extend these maps
+# rather than mint parallel conventions per row.
+# -----------------------------------------------------------------------------
+
+mapping_rules:
+
+  - rule_id: mapping.contract_packet_template
+    summary: >
+      Every row in rows[] MUST cite docs/governance/contract_packet_template.md
+      as its contract_packet_template_ref and use the packet fields defined
+      at schemas/governance/contract_packet.schema.json for any full
+      surface-contract packet it later promotes into the stable-surface
+      inventory. Row surface_id values are reused verbatim as the packet id;
+      downstream work cites the same id.
+
+  - rule_id: mapping.stable_surface_inventory_row
+    summary: >
+      When a row names a stable_surface_inventory_row_ref, the stable
+      inventory row is authoritative for reader / writer semantics, downgrade
+      behavior, and declared support-window posture. This file stays the
+      wider map and does not restate those fields.
+
+  - rule_id: mapping.docs_public_truth_channels
+    summary: >
+      Every row MUST name docs_public_truth_channels drawn from
+      artifacts/governance/public_truth_parity_matrix.yaml#channels. Docs site,
+      migration notes, help / about, service-health, CLI help, release notes,
+      release packets, and support exports quote the row instead of minting a
+      parallel freshness, build-truth, or support vocabulary.
+
+  - rule_id: mapping.qualification_or_certified_archetype_reports
+    summary: >
+      Every row MUST cite at least one qualification_or_certified_archetype
+      report ref. Surfaces that qualify through cross-boundary compatibility
+      cite a row in artifacts/compat/qualification_matrix_seed.yaml; surfaces
+      that qualify through reference-workspace certification cite a row in
+      artifacts/compat/reference_workspace_rows.yaml; local-only surfaces
+      cite the record-class or support packet that carries their evidence.
+
+  - rule_id: mapping.registration_required_before_stability_claim
+    summary: >
+      A future public or beta surface MUST land a row here before it may
+      claim stability. Adding the row is the first registration step; the
+      second is either landing a stable_surface_inventory row with the full
+      packet shape or, for narrower surfaces, an explicit outline_only
+      posture and a next-review milestone. Rows are never deleted; narrowing
+      or supersession uses the deprecation_window and migration_requirement
+      fields.
+
+# -----------------------------------------------------------------------------
+# Review cadence and visibility. Matches control_artifact_index.yaml.
+# -----------------------------------------------------------------------------
+
+review_cadences:
+  - each_change
+  - per_milestone
+  - each_release
+
+visibility_class: public

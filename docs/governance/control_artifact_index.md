@@ -48,6 +48,16 @@ Companion artifacts:
 - [`./interface_inventory.md`](./interface_inventory.md) — narrative
   companion to the stable-surface inventory and category outline for
   surfaces that have not yet earned a row.
+- [`./compatibility_surface_inventory.md`](./compatibility_surface_inventory.md)
+  and
+  [`/artifacts/governance/compatibility_surfaces.yaml`](../../artifacts/governance/compatibility_surfaces.yaml)
+  — wider machine-readable inventory for every compatibility-bearing
+  public surface (settings and profile JSON, workspace manifests and
+  Project Doctor outputs, extension manifests, CLI structured output,
+  WIT host interfaces, optional service APIs, evidence / support
+  bundles, task-event envelopes, plus specialized surfaces). Future
+  public or beta surfaces register there before they may claim
+  stability.
 - [`./interface_lifecycle_policy.md`](./interface_lifecycle_policy.md)
   — shared lifecycle and deprecation metadata policy for stable ids,
   aliases, schema families, replacement chains, support windows, and
@@ -91,7 +101,8 @@ Companion artifacts:
   validation lane.
 
 **One home, one owner, one review path.** Every control asset — the
-control-artifact graph, the interface inventory, benchmark governance,
+control-artifact graph, the interface inventory, the
+compatibility-surface inventory, benchmark governance,
 the benchmark change-control register, the protected-metrics file, the
 benchmark-publication pack, the public-comparison rules, the
 qualification cadence, the

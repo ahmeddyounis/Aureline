@@ -13,6 +13,19 @@ Companion artifacts:
   — machine-readable stable-surface and future stable-surface
   inventory. Compatibility, docs, migration, and deprecation work cite
   row refs here.
+- [`/artifacts/governance/compatibility_surfaces.yaml`](../../artifacts/governance/compatibility_surfaces.yaml)
+  and
+  [`./compatibility_surface_inventory.md`](./compatibility_surface_inventory.md)
+  — wider machine-readable inventory for every
+  compatibility-bearing public surface (settings and profile JSON,
+  workspace manifests and Project Doctor outputs, extension manifests,
+  CLI structured output, WIT host interfaces, optional service APIs,
+  evidence / support bundles, task-event envelopes, plus specialized
+  surfaces such as repair transactions, locale packs, tour / glossary
+  / teaching sessions, notification envelopes, saved-view / filter-AST
+  contracts, and reference-workspace or certification reports). Future
+  public or beta surfaces MUST register there before they may claim
+  stability.
 - [`./interface_lifecycle_policy.md`](./interface_lifecycle_policy.md)
   and
   [`/schemas/governance/deprecation_metadata.schema.json`](../../schemas/governance/deprecation_metadata.schema.json)
