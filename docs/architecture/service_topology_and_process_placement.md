@@ -8,6 +8,15 @@ re-inventing boundary language.
 
 Companion artifacts:
 
+- [`/docs/architecture/logical_planes_and_trust_boundaries.md`](logical_planes_and_trust_boundaries.md)
+  - primary logical planes, seeded-crate placement, trust-boundary
+    matrix, and cross-plane interaction rules that the sub-plane
+    rows below compose into.
+- [`/artifacts/architecture/plane_matrix.yaml`](../../artifacts/architecture/plane_matrix.yaml)
+  - machine-readable plane map, M0-artifact placement, and allowed
+    plane-level call directions.
+- [`/artifacts/architecture/trust_boundaries.yaml`](../../artifacts/architecture/trust_boundaries.yaml)
+  - machine-readable trust-boundary matrix and cross-boundary rules.
 - [`/artifacts/architecture/protected_path_dependency_rules.yaml`](../../artifacts/architecture/protected_path_dependency_rules.yaml)
   - compile-time dependency classes, protected package rows, monitored
     hot-path modules, and sentinel patterns that CI enforces.

@@ -1,0 +1,459 @@
+schema_version: 1
+artifact_id: aureline.trust_boundaries
+title: Trust-boundary matrix and cross-boundary rules
+overview_document: docs/architecture/logical_planes_and_trust_boundaries.md
+
+companion_refs:
+  plane_matrix_ref: artifacts/architecture/plane_matrix.yaml
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  boundary_manifest_ref: docs/product/boundary_manifest_strawman.md
+  safe_preview_trust_classes_ref: docs/security/safe_preview_trust_classes.md
+  emergency_action_model_ref: docs/security/emergency_action_model.md
+  identity_modes_adr_ref: docs/adr/0001-identity-modes.md
+  secret_broker_adr_ref: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  extension_manifest_adr_ref: docs/adr/0012-extension-manifest-permission-publisher-policy.md
+
+# Closed vocabulary used by every row. Extending these sets
+# requires an ADR so downstream policy, support, and documentation
+# surfaces never reinvent terminology.
+crossing_form_vocabulary:
+  - typed_request_with_recorded_policy_decision
+  - user_foreground_approval_with_durable_ticket
+  - admin_or_policy_admission_with_audit_event
+  - signed_and_provenance_verified_artifact_delivery
+  - redacted_export_packet_with_retention_posture
+  - browser_handoff_with_signed_callback
+  - safe_preview_with_explicit_trust_class
+  - capability_negotiation_over_remote_helper
+  - mirrored_or_offline_delivery_under_declared_policy
+
+visibility_surface_vocabulary:
+  - workspace_trust_badge
+  - policy_allow_or_deny_reason
+  - preview_or_approval_prompt
+  - capability_and_permission_surface
+  - support_bundle_redaction_posture
+  - service_reachability_and_mirror_state
+  - signer_continuity_notice
+  - identity_mode_indicator
+
+# Eight primary trust boundaries. These are the TAD 6.2 axes,
+# frozen here so later policy, support, and documentation tasks
+# cite one vocabulary. Each row names the two sides, the typed
+# policy surface that mediates the crossing, the allowed crossing
+# forms, the visible disclosure expectation, and at least one
+# forbidden implicit crossing.
+boundary_axes:
+  - boundary_id: local_shell_vs_external_systems
+    title: Local shell versus external systems
+    left_side:
+      id: local_shell
+      summary: >
+        The interaction plane, text buffers, and authoritative
+        workspace state running on the user's device.
+      primary_planes:
+        - interaction_plane
+        - knowledge_plane
+    right_side:
+      id: external_system
+      summary: >
+        Networks, remote hosts, managed services, AI providers,
+        registries, mirrors, and any process outside the desktop
+        app that the product reaches for.
+      primary_planes:
+        - execution_plane
+        - extensibility_plane
+        - optional_services_plane
+    typed_policy_surface:
+      - transport_governance
+      - provider_and_browser_handoff
+      - remote_helper_capability_negotiation
+    allowed_crossing_forms:
+      - typed_request_with_recorded_policy_decision
+      - browser_handoff_with_signed_callback
+      - capability_negotiation_over_remote_helper
+    visible_disclosure:
+      - service_reachability_and_mirror_state
+      - signer_continuity_notice
+    forbidden_implicit_crossings:
+      - shell_or_renderer_opening_sockets_or_http_clients_inline
+      - extension_or_recipe_egress_outside_transport_governance
+      - silent_provider_fallback_that_changes_trust_class
+    enforcing_service_planes:
+      - remote_helper
+      - ai_control_plane
+      - updater_release
+    linked_refs:
+      - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+      - docs/runtime/origin_target_route_taxonomy.md
+
+  - boundary_id: trusted_vs_restricted_workspace
+    title: Trusted versus restricted workspaces
+    left_side:
+      id: trusted_workspace
+      summary: >
+        Workspace whose contents, tasks, launch configs, and
+        AI-policy files the user has admitted as executable and
+        authoring-grade.
+      primary_planes:
+        - knowledge_plane
+        - execution_plane
+    right_side:
+      id: restricted_workspace
+      summary: >
+        Untrusted, unverified, or policy-narrowed workspace where
+        content is viewable but tasks, debug launches, formatters,
+        and AI recipes may not execute without an explicit widening.
+      primary_planes:
+        - trust_and_control_plane
+    typed_policy_surface:
+      - workspace_trust_state_machine
+      - restricted_mode_capability_gate
+    allowed_crossing_forms:
+      - user_foreground_approval_with_durable_ticket
+      - admin_or_policy_admission_with_audit_event
+      - safe_preview_with_explicit_trust_class
+    visible_disclosure:
+      - workspace_trust_badge
+      - preview_or_approval_prompt
+    forbidden_implicit_crossings:
+      - auto_trust_on_open_or_restore
+      - silent_widening_via_sync_or_import
+      - workspace_authored_files_silently_overriding_user_policy
+    enforcing_service_planes:
+      - vfs_watchers
+      - task_execution
+      - support_diagnostics
+    linked_refs:
+      - docs/adr/0001-identity-modes.md
+      - docs/security/safe_preview_trust_classes.md
+      - docs/workspace/entry_restore_object_model.md
+
+  - boundary_id: core_vs_third_party_extensions
+    title: Core platform versus third-party extensions
+    left_side:
+      id: core_platform
+      summary: >
+        First-party Aureline code running inside the production
+        dependency cone under protected-path rules.
+      primary_planes:
+        - interaction_plane
+        - knowledge_plane
+        - execution_plane
+        - trust_and_control_plane
+    right_side:
+      id: third_party_extension
+      summary: >
+        Wasm or external extension hosts, community publishers,
+        recipe runtimes, and any AI tool that executes
+        third-party-supplied instructions.
+      primary_planes:
+        - extensibility_plane
+    typed_policy_surface:
+      - extension_manifest_and_permission_mediation
+      - publisher_admission_and_signer_continuity
+      - wasm_or_host_sandbox_boundary
+    allowed_crossing_forms:
+      - typed_request_with_recorded_policy_decision
+      - user_foreground_approval_with_durable_ticket
+      - capability_negotiation_over_remote_helper
+    visible_disclosure:
+      - capability_and_permission_surface
+      - signer_continuity_notice
+    forbidden_implicit_crossings:
+      - extension_inheriting_ambient_shell_privilege
+      - extension_bypassing_permission_prompt_through_recipe_or_ai_tool
+      - publisher_rotation_without_re_admission
+    enforcing_service_planes:
+      - ai_control_plane
+      - remote_helper
+    linked_refs:
+      - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+      - docs/security/safe_preview_trust_classes.md
+      - docs/security/emergency_action_model.md
+
+  - boundary_id: user_authored_vs_machine_derived_state
+    title: User-authored versus machine-derived state
+    left_side:
+      id: user_authored_state
+      summary: >
+        Files, buffers, commits, notebook cells, workspace
+        manifests, tasks, launch configs, and profile settings
+        the user or admin authored.
+      primary_planes:
+        - interaction_plane
+        - knowledge_plane
+        - trust_and_control_plane
+    right_side:
+      id: machine_derived_state
+      summary: >
+        Index shards, caches, semantic graph snapshots,
+        embeddings, AI context assemblies, prebuilds, and any
+        artifact that can be rebuilt from authoritative inputs.
+      primary_planes:
+        - knowledge_plane
+        - extensibility_plane
+        - support_diagnostics
+    typed_policy_surface:
+      - durable_state_vs_cache_classification
+      - reversible_mutation_and_undo_class_contract
+    allowed_crossing_forms:
+      - typed_request_with_recorded_policy_decision
+      - safe_preview_with_explicit_trust_class
+    visible_disclosure:
+      - preview_or_approval_prompt
+      - support_bundle_redaction_posture
+    forbidden_implicit_crossings:
+      - cache_or_derived_state_overwriting_user_authored_truth_silently
+      - ai_or_recipe_mutating_buffers_without_preview_or_approval
+      - cache_surviving_schema_or_trust_changes_without_invalidation
+    enforcing_service_planes:
+      - text_buffer
+      - vfs_watchers
+      - support_diagnostics
+    linked_refs:
+      - docs/adr/0003-buffer-undo-large-file.md
+      - docs/adr/0006-vfs-save-cache-identity.md
+      - docs/workspace/mutation_lineage_model.md
+
+  - boundary_id: local_vs_remote_execution
+    title: Local versus remote execution
+    left_side:
+      id: local_execution
+      summary: >
+        Tasks, debug sessions, terminals, and tools running on
+        the user's device against the local VFS.
+      primary_planes:
+        - execution_plane
+    right_side:
+      id: remote_execution
+      summary: >
+        Execution attached to SSH hosts, containers, dev
+        containers, cloud workspaces, or managed agent targets.
+      primary_planes:
+        - execution_plane
+        - optional_services_plane
+    typed_policy_surface:
+      - execution_context_and_scope_model
+      - origin_target_route_taxonomy
+      - remote_connector_capability_negotiation
+    allowed_crossing_forms:
+      - capability_negotiation_over_remote_helper
+      - typed_request_with_recorded_policy_decision
+    visible_disclosure:
+      - workspace_trust_badge
+      - service_reachability_and_mirror_state
+      - capability_and_permission_surface
+    forbidden_implicit_crossings:
+      - run_action_ambiguous_about_local_vs_remote_target
+      - remote_disconnect_collapsing_silently_into_local_execution
+      - remote_trust_inherited_from_local_workspace_posture
+    enforcing_service_planes:
+      - task_execution
+      - remote_helper
+    linked_refs:
+      - docs/adr/0009-execution-context-and-scope.md
+      - docs/runtime/origin_target_route_taxonomy.md
+      - docs/runtime/target_discovery_and_install_review_taxonomy.md
+
+  - boundary_id: ordinary_vs_policy_defining_content
+    title: Ordinary content versus policy-defining content
+    left_side:
+      id: ordinary_content
+      summary: >
+        Source files, notebooks, docs, and other content that
+        carries no intrinsic trust or capability semantics.
+      primary_planes:
+        - knowledge_plane
+        - interaction_plane
+    right_side:
+      id: policy_defining_content
+      summary: >
+        Workspace trust state, settings, extension manifests,
+        recipes, policy bundles, signed provenance statements,
+        and AI policy files that can widen or narrow product
+        capability.
+      primary_planes:
+        - trust_and_control_plane
+        - extensibility_plane
+    typed_policy_surface:
+      - settings_effective_config_resolver
+      - policy_admission_and_audit
+      - signed_artifact_verification
+    allowed_crossing_forms:
+      - admin_or_policy_admission_with_audit_event
+      - signed_and_provenance_verified_artifact_delivery
+      - user_foreground_approval_with_durable_ticket
+    visible_disclosure:
+      - policy_allow_or_deny_reason
+      - signer_continuity_notice
+    forbidden_implicit_crossings:
+      - workspace_file_widening_policy_without_admission_event
+      - recipe_or_extension_mutating_settings_without_approval
+      - policy_artifact_loaded_without_signature_check
+    enforcing_service_planes:
+      - support_diagnostics
+      - updater_release
+      - ai_control_plane
+    linked_refs:
+      - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+      - docs/governance/feature_flag_policy.md
+      - docs/security/emergency_action_model.md
+
+  - boundary_id: foreground_approved_vs_background_automation
+    title: Foreground-approved actions versus background automation
+    left_side:
+      id: foreground_approved_action
+      summary: >
+        An action the user has just approved in the foreground,
+        with a visible prompt, preview, or explicit activation.
+      primary_planes:
+        - interaction_plane
+    right_side:
+      id: background_automation
+      summary: >
+        Recipes, AI tool use, scheduled tasks, watcher-triggered
+        runs, and any background worker that may act on the
+        user's behalf.
+      primary_planes:
+        - extensibility_plane
+        - execution_plane
+        - knowledge_plane
+    typed_policy_surface:
+      - preview_and_approval_ticket_contract
+      - scheduled_task_and_recipe_admission
+      - ai_tool_use_policy
+    allowed_crossing_forms:
+      - user_foreground_approval_with_durable_ticket
+      - admin_or_policy_admission_with_audit_event
+      - safe_preview_with_explicit_trust_class
+    visible_disclosure:
+      - preview_or_approval_prompt
+      - support_bundle_redaction_posture
+    forbidden_implicit_crossings:
+      - recipe_or_ai_tool_applying_mutations_without_preview_or_ticket
+      - background_task_escalating_out_of_declared_scope
+      - scheduled_job_inheriting_trust_from_a_prior_foreground_approval
+    enforcing_service_planes:
+      - ai_control_plane
+      - task_execution
+      - support_diagnostics
+    linked_refs:
+      - docs/security/safe_preview_trust_classes.md
+      - docs/ai/context_assembly_contract.md
+      - docs/workspace/mutation_lineage_model.md
+
+  - boundary_id: desktop_only_vs_managed_flows
+    title: Desktop-only mode versus managed-service flows
+    left_side:
+      id: desktop_only_mode
+      summary: >
+        Product use with no account, no hosted control plane,
+        and no public internet dependency. The local_core
+        baseline from the boundary manifest.
+      primary_planes:
+        - interaction_plane
+        - knowledge_plane
+        - execution_plane
+        - trust_and_control_plane
+    right_side:
+      id: managed_flow
+      summary: >
+        Use of any optional managed or self-hostable service:
+        managed cloud workspaces, AI gateway, relay,
+        registry/mirror, profile sync, or org-policy plane.
+      primary_planes:
+        - optional_services_plane
+    typed_policy_surface:
+      - boundary_manifest_classification
+      - identity_modes_and_session_state
+      - residency_and_region_controls
+    allowed_crossing_forms:
+      - user_foreground_approval_with_durable_ticket
+      - admin_or_policy_admission_with_audit_event
+      - mirrored_or_offline_delivery_under_declared_policy
+    visible_disclosure:
+      - identity_mode_indicator
+      - service_reachability_and_mirror_state
+    forbidden_implicit_crossings:
+      - local_core_capability_hard_failing_when_service_is_absent
+      - managed_service_widening_local_trust_without_admission
+      - residency_or_region_silently_changing_under_provider_fallback
+    enforcing_service_planes:
+      - updater_release
+      - remote_helper
+      - support_diagnostics
+    linked_refs:
+      - docs/adr/0001-identity-modes.md
+      - docs/product/boundary_manifest_strawman.md
+      - schemas/product/boundary_manifest.schema.json
+
+# Cross-boundary rules. These constrain the interaction between
+# boundaries so no single surface can collapse two axes into one
+# overloaded prompt, badge, or policy.
+cross_boundary_rules:
+  - rule_id: no_single_prompt_collapses_two_boundaries
+    summary: >
+      A single approval prompt or badge may not satisfy two
+      distinct boundary crossings at the same time. For example,
+      trusting a workspace must not also admit a third-party
+      extension or widen remote-execution trust.
+    applies_to_boundaries:
+      - trusted_vs_restricted_workspace
+      - core_vs_third_party_extensions
+      - local_vs_remote_execution
+      - foreground_approved_vs_background_automation
+
+  - rule_id: signed_artifacts_still_require_policy_admission
+    summary: >
+      Signature verification alone does not satisfy the
+      policy-defining-content boundary. Signed artifacts still
+      pass through admission and audit before they take effect.
+    applies_to_boundaries:
+      - ordinary_vs_policy_defining_content
+      - core_vs_third_party_extensions
+
+  - rule_id: no_ambient_trust_inheritance
+    summary: >
+      Trust granted on one boundary axis never widens a crossing
+      on another axis by default. Remote execution does not
+      inherit local workspace trust; background automation does
+      not inherit a prior foreground approval.
+    applies_to_boundaries:
+      - trusted_vs_restricted_workspace
+      - local_vs_remote_execution
+      - foreground_approved_vs_background_automation
+
+  - rule_id: every_crossing_has_an_audit_event
+    summary: >
+      Every allowed crossing emits a typed audit event the
+      support-diagnostics plane can export. Missing events are
+      treated as policy violations, not logging gaps.
+    applies_to_boundaries:
+      - local_shell_vs_external_systems
+      - core_vs_third_party_extensions
+      - ordinary_vs_policy_defining_content
+      - foreground_approved_vs_background_automation
+      - desktop_only_vs_managed_flows
+
+  - rule_id: degraded_state_preserves_visibility
+    summary: >
+      Safe-mode, offline, mirror-only, restricted, or
+      air-gapped modes preserve the disclosure surfaces listed
+      on each row. Degradation never silences a badge, prompt,
+      or policy-reason string.
+    applies_to_boundaries:
+      - local_shell_vs_external_systems
+      - trusted_vs_restricted_workspace
+      - core_vs_third_party_extensions
+      - local_vs_remote_execution
+      - desktop_only_vs_managed_flows
+
+  - rule_id: boundary_crossings_resolve_through_named_planes
+    summary: >
+      Every boundary row names the service planes that enforce
+      the crossing. A new crossing form may not be introduced in
+      code without extending the enforcing-service-planes list
+      and the crossing_form_vocabulary through an ADR.
+    applies_to_boundaries: all

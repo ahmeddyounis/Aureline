@@ -1,0 +1,647 @@
+schema_version: 1
+artifact_id: aureline.plane_matrix
+title: Logical plane map and cross-plane interaction rules
+overview_document: docs/architecture/logical_planes_and_trust_boundaries.md
+
+# Companion artifacts this map composes with. Do not fork the
+# vocabulary defined by these files; rows in this matrix must join
+# back to them by the ids defined there.
+companion_refs:
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+  trust_boundary_matrix_ref: artifacts/architecture/trust_boundaries.yaml
+  package_inventory_ref: artifacts/governance/package_inventory.yaml
+  boundary_manifest_ref: docs/product/boundary_manifest_strawman.md
+  service_topology_doc_ref: docs/architecture/service_topology_and_process_placement.md
+  tad_ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+
+# Primary logical planes. Six top-level planes, frozen to match the
+# Technical Architecture Document container view. New planes must be
+# added by ADR; code and documentation may not invent parallel ones.
+primary_logical_planes:
+  - plane_id: interaction_plane
+    title: Interaction plane
+    summary: >
+      Shell, editor surfaces, and the renderer/accessibility tree.
+      Owns everything the user can see, type into, or focus. Must
+      never perform blocking filesystem, network, or process-launch
+      work on the input/render path.
+    child_service_planes:
+      - shell_ui
+      - renderer
+      - text_buffer
+    degraded_mode_rule: >
+      Decoration and non-critical surfaces may degrade before input
+      latency or caret/selection fidelity. Rendering may fall back
+      to a simpler pipeline, but typing, save intent, and focus
+      must never be held behind optional work.
+
+  - plane_id: knowledge_plane
+    title: Knowledge plane
+    summary: >
+      Workspace identity, canonical paths, watchers, index/search,
+      and the semantic workspace graph. Authoritative for "what is
+      in this workspace, what do we know about it, and how fresh
+      is that knowledge".
+    child_service_planes:
+      - vfs_watchers
+      - index_search
+    degraded_mode_rule: >
+      Partial, stale, or rebuilding states must be surfaced rather
+      than blocking input. Lexical, structural, semantic, and
+      runtime-verified truth lanes stay distinguishable under
+      degradation.
+
+  - plane_id: execution_plane
+    title: Execution plane
+    summary: >
+      Task, test, debug, terminal, and Git orchestration. Everything
+      that launches or attaches to an external process or runtime.
+      Also owns the execution-context/scope model that every
+      launch, attach, or run path resolves through.
+    child_service_planes:
+      - task_execution
+      - remote_helper
+    degraded_mode_rule: >
+      Transport disconnect degrades remote-attached capability, not
+      local shell stability. Launch or attach work is helper-owned;
+      the shell never spawns child processes inline.
+
+  - plane_id: extensibility_plane
+    title: Extensibility plane
+    summary: >
+      Extension runtime hosts (Wasm and external), automation and
+      recipe runtimes, AI tool brokers, and the VS Code
+      compatibility bridge scope. Everything that carries
+      third-party or generated code into the product and must run
+      under declared, enforceable permissions.
+    child_service_planes:
+      - ai_control_plane
+    additional_responsibility_anchors:
+      - extension_runtime_manager
+      - wasm_capability_host
+      - external_extension_host
+      - recipe_and_automation_runtime
+      - vscode_compatibility_bridge
+    degraded_mode_rule: >
+      Extension or AI failure may degrade assistance or automation,
+      never core editing. Higher-risk integrations run out of
+      process and under declarative permissions; no ambient
+      privilege is ever inherited from the shell.
+
+  - plane_id: trust_and_control_plane
+    title: Trust and control plane
+    summary: >
+      Workspace trust, restricted-mode posture, policy evaluation,
+      identity and session state, network/egress/proxy governance,
+      update and provenance verification, observability,
+      diagnostics, safe mode, and support-export gating. The
+      integrity layer that every other plane consults before
+      widening privilege.
+    child_service_planes:
+      - updater_release
+      - support_diagnostics
+    additional_responsibility_anchors:
+      - workspace_trust_and_restricted_mode
+      - policy_and_identity
+      - transport_governance
+      - provenance_and_signature_verification
+      - safe_mode_and_recovery
+    degraded_mode_rule: >
+      Control-plane outages degrade optional capability, never core
+      local editing. Last-known-good policy and metadata caches
+      keep offline resilience; explainability for allow/deny
+      decisions is always preserved.
+
+  - plane_id: optional_services_plane
+    title: Optional managed-services plane
+    summary: >
+      Managed or self-hostable services that are additive to the
+      desktop core: collaboration relay and session brokering,
+      remote workspace control plane, extension/update/docs
+      registry and mirror APIs, AI gateway and org-policy
+      enforcement, optional profile or org-metadata sync.
+    child_service_planes: []
+    additional_responsibility_anchors:
+      - collaboration_relay
+      - workspace_control_plane
+      - extension_update_docs_registry
+      - ai_gateway
+      - profile_and_metadata_sync
+    degraded_mode_rule: >
+      Desktop core must remain valuable without any of these
+      services. Outages narrow the optional capability and
+      preserve a mirror, self-host, or documented fallback where
+      one is promised.
+
+# Service sub-planes. Identities and runtime rules are authoritative
+# in artifacts/architecture/process_placement_map.yaml; this row set
+# records parent-plane placement and the M0 artifact/crate
+# ownership that the process-placement map does not carry.
+service_sub_planes:
+  - sub_plane_id: shell_ui
+    parent_plane_id: interaction_plane
+    process_placement_ref: shell_ui
+    seeded_packages:
+      - aureline-shell-spike
+    monitored_modules:
+      - crates/aureline-shell-spike/src/input_path.rs
+    owned_responsibility_anchors:
+      - window_layout_and_focus
+      - command_palette_and_dispatch
+      - keyboard_routing
+      - accessibility_tree_entry
+      - visible_status_and_progress
+
+  - sub_plane_id: renderer
+    parent_plane_id: interaction_plane
+    process_placement_ref: renderer
+    seeded_packages:
+      - aureline-render
+    monitored_modules:
+      - crates/aureline-shell-spike/src/render_path.rs
+    owned_responsibility_anchors:
+      - scene_composition
+      - damage_classification
+      - visible_text_shaping_and_layout
+      - frame_submission
+      - reduced_motion_and_power_saver_compliance
+
+  - sub_plane_id: text_buffer
+    parent_plane_id: interaction_plane
+    process_placement_ref: text_buffer
+    seeded_packages:
+      - aureline-text
+      - aureline-buffer
+    owned_responsibility_anchors:
+      - text_primitives_and_unicode
+      - selections_and_multi_caret
+      - undo_redo_classes
+      - visible_edit_state
+      - large_file_mode_rules
+
+  - sub_plane_id: vfs_watchers
+    parent_plane_id: knowledge_plane
+    process_placement_ref: vfs_watchers
+    seeded_packages:
+      - aureline-vfs
+    owned_responsibility_anchors:
+      - canonical_path_identity
+      - save_pipeline
+      - watcher_state_and_external_change_truth
+      - ignore_resolution
+      - workspace_roots
+
+  - sub_plane_id: index_search
+    parent_plane_id: knowledge_plane
+    process_placement_ref: index_search
+    seeded_packages: []
+    owned_responsibility_anchors:
+      - lexical_index
+      - symbol_extraction_and_ranking
+      - semantic_workspace_graph
+      - freshness_and_confidence_model
+      - search_readiness_and_result_truth
+
+  - sub_plane_id: task_execution
+    parent_plane_id: execution_plane
+    process_placement_ref: task_execution
+    seeded_packages: []
+    owned_responsibility_anchors:
+      - task_and_test_launch
+      - debug_orchestration
+      - terminal_pty_lifecycle
+      - git_worker_operations
+      - execution_context_resolution
+
+  - sub_plane_id: remote_helper
+    parent_plane_id: execution_plane
+    process_placement_ref: remote_helper
+    seeded_packages:
+      - aureline-rpc
+    owned_responsibility_anchors:
+      - typed_rpc_fabric
+      - helper_bridges
+      - remote_connector_transport
+      - capability_negotiation
+
+  - sub_plane_id: ai_control_plane
+    parent_plane_id: extensibility_plane
+    process_placement_ref: ai_control_plane
+    seeded_packages: []
+    owned_responsibility_anchors:
+      - ai_routing_and_provider_policy
+      - context_assembly_broker
+      - ai_tool_mediation
+      - entitlement_state
+      - hosted_metadata_posture
+
+  - sub_plane_id: updater_release
+    parent_plane_id: trust_and_control_plane
+    process_placement_ref: updater_release
+    seeded_packages: []
+    owned_responsibility_anchors:
+      - update_check_and_download
+      - install_and_rollback
+      - package_and_release_metadata
+      - provenance_and_signature_verification
+
+  - sub_plane_id: support_diagnostics
+    parent_plane_id: trust_and_control_plane
+    process_placement_ref: support_diagnostics
+    seeded_packages:
+      - aureline-telemetry
+      - aureline-bench
+    owned_responsibility_anchors:
+      - bounded_tracing_and_metrics
+      - crash_capture_and_symbolication
+      - support_export_packet_assembly
+      - benchmark_evidence_pipeline
+
+# Every seeded crate and monitored protected module resolves to one
+# primary service sub-plane. Off-cone prototypes resolve to a null
+# production plane and a named carry-forward row.
+seeded_crate_placements:
+  - crate: aureline-shell-spike
+    primary_sub_plane: shell_ui
+    primary_plane: interaction_plane
+    production_cone: false
+    notes: >
+      Throwaway integration spike. Protected hot-path modules
+      input_path.rs and render_path.rs remain the only shell-ui
+      and renderer sentinels until the shell lane closes.
+  - crate: aureline-render
+    primary_sub_plane: renderer
+    primary_plane: interaction_plane
+    production_cone: true
+  - crate: aureline-text
+    primary_sub_plane: text_buffer
+    primary_plane: interaction_plane
+    production_cone: true
+  - crate: aureline-buffer
+    primary_sub_plane: text_buffer
+    primary_plane: interaction_plane
+    production_cone: true
+  - crate: aureline-vfs
+    primary_sub_plane: vfs_watchers
+    primary_plane: knowledge_plane
+    production_cone: true
+  - crate: aureline-rpc
+    primary_sub_plane: remote_helper
+    primary_plane: execution_plane
+    production_cone: true
+  - crate: aureline-telemetry
+    primary_sub_plane: support_diagnostics
+    primary_plane: trust_and_control_plane
+    production_cone: true
+  - crate: aureline-bench
+    primary_sub_plane: support_diagnostics
+    primary_plane: trust_and_control_plane
+    production_cone: false
+    notes: >
+      Off-cone benchmark harness. Counts under support_diagnostics
+      only for placement purposes; protected crates must not
+      depend on it.
+  - crate: aureline-graph-proto
+    primary_sub_plane: index_search
+    primary_plane: knowledge_plane
+    production_cone: false
+    notes: Off-cone semantic-workspace-graph prototype.
+  - crate: aureline-largefile-proto
+    primary_sub_plane: text_buffer
+    primary_plane: interaction_plane
+    production_cone: false
+    notes: Off-cone large-file capability prototype.
+  - crate: aureline-reactive-state
+    primary_sub_plane: vfs_watchers
+    primary_plane: knowledge_plane
+    production_cone: false
+    notes: >
+      Off-cone reactive-state and subscription-envelope prototype.
+      Carries subscription/materialized-view contract; primary
+      authority projection is workspace state, so it places under
+      the knowledge plane.
+
+# Major M0 artifact families placed on exactly one primary plane.
+# The list is intentionally coarse; fine-grained ownership already
+# lives in ownership_matrix.yaml and the control-artifact index.
+# The rule this enforces is: no artifact family may straddle two
+# primary planes without an ADR.
+m0_artifact_family_placements:
+  - artifact_family: shell_interaction_and_command_graph
+    primary_plane: interaction_plane
+    primary_sub_plane: shell_ui
+    anchors:
+      - docs/commands/command_descriptor_contract.md
+      - docs/ux/shell_interaction_safety_contract.md
+      - artifacts/commands/command_registry_seed.yaml
+  - artifact_family: renderer_and_text_shaping
+    primary_plane: interaction_plane
+    primary_sub_plane: renderer
+    anchors:
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+      - artifacts/render/spike_capabilities.json
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+  - artifact_family: buffer_undo_and_text_model
+    primary_plane: interaction_plane
+    primary_sub_plane: text_buffer
+    anchors:
+      - docs/adr/0003-buffer-undo-large-file.md
+      - artifacts/architecture/undo_class_rows.yaml
+  - artifact_family: vfs_identity_save_and_watchers
+    primary_plane: knowledge_plane
+    primary_sub_plane: vfs_watchers
+    anchors:
+      - docs/adr/0006-vfs-save-cache-identity.md
+      - docs/filesystem/filesystem_identity_vocabulary.md
+      - artifacts/architecture/vfs_tradeoff_rows.yaml
+  - artifact_family: search_readiness_and_result_truth
+    primary_plane: knowledge_plane
+    primary_sub_plane: index_search
+    anchors:
+      - docs/adr/0014-search-readiness-ranking-result-truth.md
+      - docs/search/search_readiness_vocabulary.md
+  - artifact_family: execution_context_and_scope
+    primary_plane: execution_plane
+    primary_sub_plane: task_execution
+    anchors:
+      - docs/adr/0009-execution-context-and-scope.md
+      - schemas/runtime/execution_context.schema.json
+      - docs/runtime/execution_context_vocabulary.md
+  - artifact_family: internal_rpc_and_subscription
+    primary_plane: execution_plane
+    primary_sub_plane: remote_helper
+    anchors:
+      - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+      - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+      - schemas/rpc/envelope.schema.json
+  - artifact_family: extension_manifest_and_permissions
+    primary_plane: extensibility_plane
+    primary_sub_plane: null
+    anchors:
+      - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - artifact_family: ai_context_and_policy
+    primary_plane: extensibility_plane
+    primary_sub_plane: ai_control_plane
+    anchors:
+      - docs/ai/context_assembly_contract.md
+  - artifact_family: identity_trust_and_credential
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: null
+    anchors:
+      - docs/adr/0001-identity-modes.md
+      - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+      - docs/security/safe_preview_trust_classes.md
+      - docs/security/emergency_action_model.md
+  - artifact_family: settings_effective_config_and_policy
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: null
+    anchors:
+      - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+      - docs/governance/feature_flag_policy.md
+  - artifact_family: release_build_identity_and_provenance
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: updater_release
+    anchors:
+      - docs/build/exact_build_identity_model.md
+      - docs/build/cleanroom_rebuild_lane.md
+      - docs/release/release_artifact_graph.md
+  - artifact_family: support_bundle_and_observability
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: support_diagnostics
+    anchors:
+      - docs/support/support_center_concept.md
+      - docs/benchmarks/benchmark_lab_run_results.md
+      - artifacts/bench/fitness_function_catalog.yaml
+  - artifact_family: docs_help_and_service_health_truth
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: support_diagnostics
+    anchors:
+      - docs/adr/0013-docs-help-service-health-truth.md
+      - docs/docs/help_about_service_health_routes.md
+  - artifact_family: capability_lifecycle_and_dependency_markers
+    primary_plane: trust_and_control_plane
+    primary_sub_plane: null
+    anchors:
+      - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+      - docs/governance/capability_axis_matrix.md
+  - artifact_family: boundary_manifest_and_deployment_profiles
+    primary_plane: optional_services_plane
+    primary_sub_plane: null
+    anchors:
+      - docs/product/boundary_manifest_strawman.md
+      - schemas/product/boundary_manifest.schema.json
+
+# Allowed runtime data/control paths between primary planes. Rows
+# here are the authoritative "who may call whom" view at the plane
+# level. Sub-plane direction is already captured by
+# process_placement_map.yaml and protected_path_dependency_rules.
+runtime_plane_allowed_call_directions:
+  - source_plane: interaction_plane
+    allowed_target_planes:
+      - knowledge_plane
+      - execution_plane
+      - extensibility_plane
+      - trust_and_control_plane
+      - optional_services_plane
+    call_form: typed_request_or_subscription_only
+  - source_plane: knowledge_plane
+    allowed_target_planes:
+      - execution_plane
+      - trust_and_control_plane
+    call_form: typed_request_or_event_stream
+  - source_plane: execution_plane
+    allowed_target_planes:
+      - knowledge_plane
+      - extensibility_plane
+      - trust_and_control_plane
+      - optional_services_plane
+    call_form: typed_request_or_event_stream
+  - source_plane: extensibility_plane
+    allowed_target_planes:
+      - knowledge_plane
+      - execution_plane
+      - trust_and_control_plane
+      - optional_services_plane
+    call_form: typed_request_under_declared_permissions
+  - source_plane: trust_and_control_plane
+    allowed_target_planes:
+      - interaction_plane
+      - knowledge_plane
+      - execution_plane
+      - extensibility_plane
+      - optional_services_plane
+    call_form: policy_decision_or_audit_event_only
+    note: >
+      Trust/control never imposes state on interaction or knowledge
+      outside explicit decision, badge, or safe-mode entry events.
+  - source_plane: optional_services_plane
+    allowed_target_planes:
+      - trust_and_control_plane
+    call_form: managed_egress_through_transport_governance_only
+
+# Compile-time direction. Plane-level summary; exact crate edges
+# remain authoritative in package_inventory.yaml and the protected
+# path rules file.
+compile_time_allowed_plane_directions:
+  - source_plane: interaction_plane
+    allowed_target_planes:
+      - knowledge_plane
+      - execution_plane
+      - trust_and_control_plane
+  - source_plane: knowledge_plane
+    allowed_target_planes:
+      - trust_and_control_plane
+  - source_plane: execution_plane
+    allowed_target_planes:
+      - trust_and_control_plane
+  - source_plane: extensibility_plane
+    allowed_target_planes:
+      - knowledge_plane
+      - execution_plane
+      - trust_and_control_plane
+  - source_plane: trust_and_control_plane
+    allowed_target_planes: []
+  - source_plane: optional_services_plane
+    allowed_target_planes:
+      - trust_and_control_plane
+
+# What a plane must make visible to the user or the support surface
+# when it acts. These are the visibility expectations that later
+# surfaces (badges, banners, support bundles) compose without
+# inventing parallel language.
+visibility_expectations:
+  - plane: interaction_plane
+    must_surface:
+      - focus_and_input_state
+      - command_target_disambiguation
+      - degraded_decoration_or_reduced_motion_notice
+      - safe_mode_or_restricted_workspace_banner
+  - plane: knowledge_plane
+    must_surface:
+      - indexing_or_rebuilding_badge
+      - stale_partial_or_verified_truth_lane
+      - watcher_or_external_change_state
+      - ignore_rule_explainability
+  - plane: execution_plane
+    must_surface:
+      - execution_context_and_scope_disclosure
+      - remote_versus_local_target_origin
+      - task_or_debug_session_lifecycle_state
+      - transport_disconnect_or_capability_negotiation_posture
+  - plane: extensibility_plane
+    must_surface:
+      - extension_permission_scope_and_trust_posture
+      - ai_provider_route_and_policy_posture
+      - recipe_or_automation_preview_and_approval_state
+      - ambient_privilege_denial_disclosure
+  - plane: trust_and_control_plane
+    must_surface:
+      - workspace_trust_state
+      - policy_allow_or_deny_reason
+      - update_and_provenance_state
+      - safe_mode_entry_reason
+      - support_bundle_redaction_posture
+  - plane: optional_services_plane
+    must_surface:
+      - service_reachability_and_mirror_state
+      - residency_and_region_posture
+      - narrowed_claim_when_service_absent
+
+# Forbidden implicit crossings. Each row is a concrete failure
+# pattern that must never ship silently. Most are already prohibited
+# by the process-placement rules or the dependency rules; this
+# block collects them at the plane level for review and drift
+# detection.
+forbidden_implicit_crossings:
+  - id: shell_direct_io
+    summary: >
+      interaction_plane directly opening files, sockets, or
+      subprocesses instead of routing through knowledge_plane,
+      execution_plane, or trust_and_control_plane contracts.
+    triggered_by_rule_refs:
+      - artifacts/architecture/protected_path_dependency_rules.yaml#packages.shell_ui.forbidden_dependency_classes
+      - artifacts/architecture/process_placement_map.yaml#service_planes.shell_ui.inline_work_policy.forbidden
+  - id: feature_local_path_canonicalization
+    summary: >
+      Any plane minting its own canonical path, file identity,
+      save lane, or ignore rule outside vfs_watchers.
+    triggered_by_rule_refs:
+      - docs/filesystem/filesystem_identity_vocabulary.md
+  - id: alternate_transport_bypass
+    summary: >
+      extensibility_plane or optional_services_plane reaching the
+      network outside remote_helper / transport governance.
+    triggered_by_rule_refs:
+      - artifacts/architecture/process_placement_map.yaml#service_planes.remote_helper
+  - id: ambient_extension_privilege
+    summary: >
+      extensibility_plane inheriting shell, workspace, or identity
+      privilege that was not declared in an extension manifest or
+      approval ticket.
+    triggered_by_rule_refs:
+      - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+      - docs/security/safe_preview_trust_classes.md
+  - id: silent_policy_widening
+    summary: >
+      Any plane silently widening trust, permissions, entitlements,
+      or AI/network egress through import, sync, restore, or
+      extension install.
+    triggered_by_rule_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#124-profile-portability
+  - id: hidden_update_or_install_on_hot_path
+    summary: >
+      Update check, download, install, or rollback running on the
+      interaction_plane inline path.
+    triggered_by_rule_refs:
+      - artifacts/architecture/process_placement_map.yaml#service_planes.updater_release
+  - id: support_export_on_interaction_path
+    summary: >
+      Archive creation, symbolication, or support-bundle assembly
+      running synchronously on the shell or renderer.
+    triggered_by_rule_refs:
+      - artifacts/architecture/process_placement_map.yaml#service_planes.support_diagnostics
+  - id: managed_service_hard_dependency
+    summary: >
+      A capability classed as local_core or self_host_friendly
+      hard-failing when the optional_services_plane is absent.
+    triggered_by_rule_refs:
+      - docs/product/boundary_manifest_strawman.md
+  - id: cross_plane_state_mutation_without_typed_contract
+    summary: >
+      A plane mutating another plane's authoritative state through
+      shared memory, globals, or side channels instead of the
+      typed RPC, subscription, or command contract.
+    triggered_by_rule_refs:
+      - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+      - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+
+# Where downstream tasks must cite this matrix. The acceptance bar
+# says service-topology, authority, provider, transport, and
+# boundary-manifest work references this map. These are the exact
+# link targets each consumer preserves.
+consumer_integration_refs:
+  - consumer: service_topology
+    ref_document: docs/architecture/service_topology_and_process_placement.md
+    expected_citation:
+      - plane_matrix_ref
+      - trust_boundary_matrix_ref
+  - consumer: authority_projection
+    ref_document: .t2/docs/Aureline_Technical_Architecture_Document.md
+    expected_citation:
+      - plane_matrix_ref
+  - consumer: provider_and_browser_handoff
+    ref_document: docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+    expected_citation:
+      - trust_boundary_matrix_ref
+  - consumer: transport_governance
+    ref_document: docs/adr/0004-rpc-transport-and-schema-toolchain.md
+    expected_citation:
+      - plane_matrix_ref
+      - trust_boundary_matrix_ref
+  - consumer: boundary_manifest
+    ref_document: docs/product/boundary_manifest_strawman.md
+    expected_citation:
+      - plane_matrix_ref
+      - trust_boundary_matrix_ref
