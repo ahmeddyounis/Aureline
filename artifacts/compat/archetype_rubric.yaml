@@ -1,0 +1,497 @@
+# Certified-archetype selection rubric.
+#
+# Closed support-class taxonomy, evidence-burden rules, owner allocation,
+# release-treatment posture, and graduation/demotion mechanics for the
+# reference-workspace program. Tooling reads this file; the narrative
+# companion lives in docs/compat/reference_workspace_program_seed.md.
+# If the two disagree, this file is authoritative and the narrative is
+# updated in the same change.
+#
+# Scope.
+#   - One closed vocabulary for support classes shared by archetype rows,
+#     compatibility rows, claim-manifest rows, and certified-archetype
+#     reports. Adding a class is breaking; tightening the wording on an
+#     existing class is additive.
+#   - Per-class evidence-burden, owner-allocation, and release-treatment
+#     rules so promotion and demotion of an archetype always names which
+#     evidence is required and who carries it.
+#   - Graduation and demotion paths that link reference fixtures, the
+#     protected benchmark corpus, compatibility reports, and claim-manifest
+#     rows together so a "supports X" claim can be defended or downgraded
+#     mechanically.
+#
+# Cross-references.
+#   - artifacts/compat/qualification_matrix_seed.yaml — every archetype row
+#     binds to compat_row:certification.launch_archetype_matrix.
+#   - artifacts/compat/version_skew_register.yaml — every archetype row
+#     extends skew_register:certification.launch_archetype_matrix.
+#   - artifacts/compat/reference_workspace_rows.yaml — per-archetype seed
+#     rows that quote support_class_id verbatim from this rubric.
+#   - schemas/release/compatibility_row.schema.json — release-row schema
+#     used by certified-archetype reports.
+#   - docs/release/certified_archetype_report_template.md — packet shape
+#     used to publish each archetype claim.
+#   - artifacts/governance/ownership_matrix.yaml — owner_role_class entries
+#     resolve to lane: ids in the governance_lanes section.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/compat/reference_workspace_program_seed.md
+reference_workspace_rows_source: artifacts/compat/reference_workspace_rows.yaml
+qualification_matrix_source: artifacts/compat/qualification_matrix_seed.yaml
+version_skew_register_source: artifacts/compat/version_skew_register.yaml
+ownership_matrix_source: artifacts/governance/ownership_matrix.yaml
+report_template_source: docs/release/certified_archetype_report_template.md
+row_schema_source: schemas/release/compatibility_row.schema.json
+benchmark_corpus_source: fixtures/benchmarks/corpus_manifest.yaml
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and opens a decision row in
+# artifacts/governance/decision_index.yaml. Tightening the wording on a
+# value already in the set is additive-minor and lands here in the same
+# change as the rule update.
+# -----------------------------------------------------------------------------
+
+owner_role_class_vocabulary:
+  - selection_owner          # accountable for whether the archetype belongs in scope at all
+  - evidence_owner           # accountable for the corpus, fixture, and benchmark evidence
+  - publication_owner        # accountable for what the row says on public surfaces
+
+evidence_burden_class_vocabulary:
+  - reference_workspace_required        # at least one named workspace fixture is checked in or live-sliced
+  - benchmark_corpus_required           # corpus manifest carries the matching scenario rows
+  - compatibility_report_required       # a current compatibility report row exists for the archetype
+  - certified_archetype_report_required # a current certified-archetype report row exists for the archetype
+  - claim_manifest_row_required         # a published claim-manifest row references the archetype
+  - design_partner_input_optional       # design-partner repo inputs are admissible but never required
+  - none_required                       # explicitly reserved (used only by experimental and excluded rows)
+
+release_treatment_class_vocabulary:
+  - top_level_launch_admissible         # may appear in headline launch and evaluation copy
+  - scoped_supported_caveat_required    # may appear in docs and roadmap with explicit scope caveats
+  - community_or_extension_only         # discoverable through extensions and community surfaces only
+  - preview_label_required              # behind explicit preview/experimental labelling
+  - excluded_from_publication           # row exists but no public surface may render it as supported
+
+claim_admission_class_vocabulary:
+  - top_level_launch_claim_admitted
+  - docs_and_scoped_roadmap_claim_admitted
+  - community_or_extension_claim_admitted
+  - preview_or_experimental_claim_admitted
+  - no_public_claim_admitted
+
+graduation_action_vocabulary:
+  - promote_to_certified
+  - promote_to_supported
+  - admit_as_community
+  - admit_as_experimental
+  - hold_at_current_class
+  - exclude_from_program
+
+demotion_trigger_class_vocabulary:
+  - reference_workspace_missing_or_unreviewable
+  - benchmark_corpus_evidence_missing_or_stale
+  - compatibility_report_stale_or_blocking
+  - certified_archetype_report_stale_or_blocking
+  - claim_manifest_row_missing_or_narrowed
+  - design_partner_signal_withdrawn
+  - support_window_freshness_expired
+  - regression_severity_threshold_exceeded
+  - protected_metric_regression_unresolved
+  - upstream_ecosystem_breakage_unresolved
+
+# -----------------------------------------------------------------------------
+# Support classes.
+#
+# Each class names: the public meaning, the closed evidence-burden set
+# required to render it, the owner-role allocation, the release-treatment
+# class, and the claim-admission class. Top-level marketing wording is
+# admissible only at the named class; downgrade rules below pull a row
+# back to a stricter class when an evidence-burden item goes stale.
+# -----------------------------------------------------------------------------
+support_classes:
+  - support_class_id: certified
+    headline: >
+      Release-blocking reference workspace with named owner and current
+      results on the claimed matrix.
+    evidence_burden:
+      - reference_workspace_required
+      - benchmark_corpus_required
+      - compatibility_report_required
+      - certified_archetype_report_required
+      - claim_manifest_row_required
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:release_evidence
+    release_treatment_class: top_level_launch_admissible
+    claim_admission_class: top_level_launch_claim_admitted
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    minimum_freshness_state: current
+    notes: >
+      Top-level launch wording resolves through this class. A row at
+      certified loses the class the moment any evidence-burden item goes
+      stale; the row narrows to supported, never to silent best-effort
+      copy.
+
+  - support_class_id: supported
+    headline: >
+      First-party tested and documented, but not on every release-blocking
+      permutation.
+    evidence_burden:
+      - reference_workspace_required
+      - benchmark_corpus_required
+      - compatibility_report_required
+      - claim_manifest_row_required
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:benchmark_lab
+      publication_owner: lane:docs_public_truth
+    release_treatment_class: scoped_supported_caveat_required
+    claim_admission_class: docs_and_scoped_roadmap_claim_admitted
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    minimum_freshness_state: known_issues
+    notes: >
+      A supported row may appear in docs and scoped roadmap copy with
+      explicit caveats. It may not appear in top-level launch claims and
+      it may not be paraphrased into "Aureline supports X" without the
+      named scope and matrix narrowing.
+
+  - support_class_id: community
+    headline: >
+      Known path exists via extensions or community tooling; not marketed
+      as a first-party replacement-grade promise.
+    evidence_burden:
+      - reference_workspace_required
+      - design_partner_input_optional
+    owner_allocation:
+      selection_owner: lane:compatibility_ecosystem_review
+      evidence_owner: lane:open_community_sync
+      publication_owner: lane:docs_public_truth
+    release_treatment_class: community_or_extension_only
+    claim_admission_class: community_or_extension_claim_admitted
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    minimum_freshness_state: community_reported
+    notes: >
+      Community rows surface a discoverable path without implying
+      first-party qualification. They may not be promoted into supported
+      copy without the supported-class evidence burden.
+
+  - support_class_id: experimental
+    headline: >
+      Valuable direction under active iteration; behind explicit
+      preview/experimental labelling.
+    evidence_burden:
+      - design_partner_input_optional
+      - none_required
+    owner_allocation:
+      selection_owner: lane:product_scope_review
+      evidence_owner: lane:compatibility_ecosystem_review
+      publication_owner: lane:docs_public_truth
+    release_treatment_class: preview_label_required
+    claim_admission_class: preview_or_experimental_claim_admitted
+    compat_row_ref: compat_row:certification.launch_archetype_matrix
+    version_skew_register_ref: skew_register:certification.launch_archetype_matrix
+    minimum_freshness_state: retest_pending
+    notes: >
+      Experimental rows exist so the inventory can name a direction
+      without admitting a public support claim. Wording must keep a
+      visible preview or experimental label.
+
+# -----------------------------------------------------------------------------
+# Graduation paths.
+#
+# A graduation step names the from-class, the to-class, the closed set of
+# evidence-burden items the row must satisfy before the step is admissible,
+# the owner that approves the step, and the resulting release treatment.
+# A row may graduate only one step at a time; promote_to_certified from
+# experimental in one step is non-conforming.
+# -----------------------------------------------------------------------------
+graduation_paths:
+  - graduation_step_id: graduation:experimental_to_community
+    from_class: experimental
+    to_class: community
+    action: admit_as_community
+    required_evidence_burden:
+      - reference_workspace_required
+    required_artifacts:
+      - artifacts/compat/reference_workspace_rows.yaml
+      - fixtures/workspaces/reference/
+    approver: lane:compatibility_ecosystem_review
+    co_required_approvers:
+      - lane:open_community_sync
+    publication_outcome: community_or_extension_only
+    notes: >
+      Admit a workflow surface that has an inspectable reference fixture
+      but no first-party qualification commitment yet.
+
+  - graduation_step_id: graduation:community_to_supported
+    from_class: community
+    to_class: supported
+    action: promote_to_supported
+    required_evidence_burden:
+      - reference_workspace_required
+      - benchmark_corpus_required
+      - compatibility_report_required
+      - claim_manifest_row_required
+    required_artifacts:
+      - artifacts/compat/reference_workspace_rows.yaml
+      - fixtures/workspaces/reference/
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+    approver: lane:compatibility_ecosystem_review
+    co_required_approvers:
+      - lane:benchmark_lab
+      - lane:docs_public_truth
+    publication_outcome: scoped_supported_caveat_required
+    notes: >
+      Promote to first-party supported once the row has a current
+      compatibility report and a published claim-manifest row carrying
+      the scope caveat.
+
+  - graduation_step_id: graduation:supported_to_certified
+    from_class: supported
+    to_class: certified
+    action: promote_to_certified
+    required_evidence_burden:
+      - reference_workspace_required
+      - benchmark_corpus_required
+      - compatibility_report_required
+      - certified_archetype_report_required
+      - claim_manifest_row_required
+    required_artifacts:
+      - artifacts/compat/reference_workspace_rows.yaml
+      - fixtures/workspaces/reference/
+      - fixtures/benchmarks/corpus_manifest.yaml
+      - artifacts/compat/qualification_matrix_seed.yaml
+      - docs/release/certified_archetype_report_template.md
+      - artifacts/governance/claim_manifest_seed.yaml
+    approver: lane:compatibility_ecosystem_review
+    co_required_approvers:
+      - lane:benchmark_lab
+      - lane:release_evidence
+      - lane:shiproom_executive_scope_review
+    publication_outcome: top_level_launch_admissible
+    notes: >
+      Certified is the only class that admits top-level launch wording.
+      Promotion requires a current certified-archetype report and a
+      release-evidence-owned claim-manifest row referencing the same
+      archetype id.
+
+  - graduation_step_id: graduation:hold_at_current_class
+    from_class: any
+    to_class: any
+    action: hold_at_current_class
+    required_evidence_burden:
+      - none_required
+    required_artifacts: []
+    approver: lane:compatibility_ecosystem_review
+    co_required_approvers: []
+    publication_outcome: scoped_supported_caveat_required
+    notes: >
+      Used when an archetype row is intentionally parked at its current
+      class while evidence work continues. The hold itself is recorded
+      so reviewers can see the row is not silently stale.
+
+# -----------------------------------------------------------------------------
+# Demotion rules.
+#
+# Each rule names a demotion-trigger class, the resulting class the row
+# must fall to, the visible reason the surface renders, and the
+# remediation owner. A demotion is automatic when the trigger fires; the
+# remediation owner is the lane that may file a regraduation step.
+# -----------------------------------------------------------------------------
+demotion_rules:
+  - demotion_rule_id: demotion:reference_workspace_missing_or_unreviewable
+    trigger_class: reference_workspace_missing_or_unreviewable
+    applies_to_classes:
+      - certified
+      - supported
+      - community
+    resulting_class: experimental
+    visible_reason: required_evidence_missing
+    remediation_owner: lane:compatibility_ecosystem_review
+    notes: >
+      A row without a reviewable reference workspace cannot be marketed
+      at any class above experimental. Restoration requires a fresh
+      fixture or live-slice resolution.
+
+  - demotion_rule_id: demotion:benchmark_corpus_evidence_missing_or_stale
+    trigger_class: benchmark_corpus_evidence_missing_or_stale
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: community
+    visible_reason: required_evidence_narrower_than_claim
+    remediation_owner: lane:benchmark_lab
+    notes: >
+      Benchmark corpus evidence anchors first-party support claims; its
+      absence drops the row out of supported until the corpus row is
+      regenerated.
+
+  - demotion_rule_id: demotion:compatibility_report_stale_or_blocking
+    trigger_class: compatibility_report_stale_or_blocking
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: community
+    visible_reason: compatibility_row_degraded
+    remediation_owner: lane:release_evidence
+    notes: >
+      A stale or blocking compatibility report row demotes the archetype
+      to community until a fresh report row is published.
+
+  - demotion_rule_id: demotion:certified_archetype_report_stale_or_blocking
+    trigger_class: certified_archetype_report_stale_or_blocking
+    applies_to_classes:
+      - certified
+    resulting_class: supported
+    visible_reason: certified_archetype_report_stale
+    remediation_owner: lane:release_evidence
+    notes: >
+      Certified wording requires a current certified-archetype report.
+      Without it the row narrows to supported until a fresh report row
+      replaces it.
+
+  - demotion_rule_id: demotion:claim_manifest_row_missing_or_narrowed
+    trigger_class: claim_manifest_row_missing_or_narrowed
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: experimental
+    visible_reason: claim_manifest_row_missing
+    remediation_owner: lane:release_evidence
+    notes: >
+      A first-party support claim requires a published claim-manifest
+      row. Without one the archetype falls back to experimental until
+      the manifest is updated.
+
+  - demotion_rule_id: demotion:design_partner_signal_withdrawn
+    trigger_class: design_partner_signal_withdrawn
+    applies_to_classes:
+      - community
+    resulting_class: experimental
+    visible_reason: community_signal_withdrawn
+    remediation_owner: lane:open_community_sync
+    notes: >
+      A community-class row that lost its sole community signal narrows
+      to experimental rather than continuing to advertise the path.
+
+  - demotion_rule_id: demotion:support_window_freshness_expired
+    trigger_class: support_window_freshness_expired
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: community
+    visible_reason: support_window_expired
+    remediation_owner: lane:release_evidence
+    notes: >
+      Expired freshness windows downgrade the visible support class
+      automatically. The remediation owner publishes a fresh report
+      before re-upgrading.
+
+  - demotion_rule_id: demotion:regression_severity_threshold_exceeded
+    trigger_class: regression_severity_threshold_exceeded
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: experimental
+    visible_reason: blocking_regression_open
+    remediation_owner: lane:performance_council
+    notes: >
+      A regression that crosses the severity threshold for the row
+      narrows the row to experimental until the regression is resolved
+      or the threshold is re-baselined.
+
+  - demotion_rule_id: demotion:protected_metric_regression_unresolved
+    trigger_class: protected_metric_regression_unresolved
+    applies_to_classes:
+      - certified
+      - supported
+    resulting_class: experimental
+    visible_reason: protected_metric_regression
+    remediation_owner: lane:performance_council
+    notes: >
+      Unresolved protected-metric regressions block first-party support
+      wording. The row remains experimental until the regression is
+      resolved.
+
+  - demotion_rule_id: demotion:upstream_ecosystem_breakage_unresolved
+    trigger_class: upstream_ecosystem_breakage_unresolved
+    applies_to_classes:
+      - certified
+      - supported
+      - community
+    resulting_class: experimental
+    visible_reason: upstream_ecosystem_blocked
+    remediation_owner: lane:compatibility_ecosystem_review
+    notes: >
+      Upstream ecosystem breakage that blocks the core workflow set
+      narrows the archetype to experimental rather than allowing the
+      stale claim to ride on prior evidence.
+
+# -----------------------------------------------------------------------------
+# Top-level claim policy.
+#
+# A "supports X" claim is admissible only by quoting an archetype_row_id
+# from artifacts/compat/reference_workspace_rows.yaml at the named
+# claim_admission_class. Quoting "supports Python" or "supports Java" in
+# launch copy without an archetype_row_id reference is non-conforming.
+# -----------------------------------------------------------------------------
+top_level_claim_policy:
+  required_reference_fields:
+    - archetype_row_id
+    - support_class_id
+    - claim_admission_class
+    - reference_workspace_refs
+  forbidden_wording_patterns:
+    - "supports <language> generally"
+    - "full <language> support"
+    - "first-class <language> support"
+  fallback_when_evidence_missing: preview_or_experimental_claim_admitted
+  notes: >
+    Top-level claims about a language or framework resolve through one
+    archetype_row_id. The same row id is the bridge between the
+    reference-workspace fixture, the certified-archetype report, the
+    compatibility row, and the claim-manifest row.
+
+# -----------------------------------------------------------------------------
+# Rubric invariants.
+#
+# Validators that read this file should treat each invariant as a
+# closed-world rule. Adding an invariant is breaking; removing one is a
+# decision row.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:one_class_per_archetype_row
+    statement: >
+      Every row in artifacts/compat/reference_workspace_rows.yaml resolves
+      to exactly one support_class_id from this rubric.
+  - invariant_id: invariant:evidence_burden_is_complete
+    statement: >
+      A row may render at a support class only when every
+      evidence_burden_class entry for that class has a satisfied
+      reference in the row. Missing entries demote the row.
+  - invariant_id: invariant:certified_requires_certified_archetype_report
+    statement: >
+      A row at certified must cite a current certified-archetype report
+      packet ref. The certified class is non-renderable without it.
+  - invariant_id: invariant:graduation_is_one_step_at_a_time
+    statement: >
+      A row may graduate by exactly one step per change. Promotion from
+      experimental to certified in one change is non-conforming.
+  - invariant_id: invariant:demotion_is_automatic
+    statement: >
+      Demotion triggers fire on the row without manual intervention. The
+      remediation owner re-graduates after the trigger is cleared.
+  - invariant_id: invariant:top_level_claims_quote_archetype_row_id
+    statement: >
+      Public top-level launch claims quote one archetype_row_id. Free-text
+      "supports X" wording without that quote is non-conforming.
