@@ -1,0 +1,1132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/graduation_packet.schema.json",
+  "title": "Aureline AI graduation packet, rollout-state, budget-routing-policy, route-selection-disclosure, and graduation-audit vocabulary",
+  "description": "Boundary schema for the graduation_packet_record, model_rollout_state_record, budget_routing_policy_record, route_selection_disclosure_record, and graduation_audit_event_record frozen in docs/ai/model_graduation_and_budget_contract.md. Every AI workflow / surface that wants to claim a non-experimental rollout state — Shadow, Preview, Stable, Deprecated, or Disabled — resolves to one current graduation_packet_record; the packet binds the workflow-or-surface identity to one provider entry, one model entry, one prompt-pack manifest, one tool-pack manifest, the protected-eval and red-team evidence backing the claim, the latency / cost envelope the workflow is admitted under, the fallback contract for budget / eligibility / route exhaustion, and the rollback plan if the rollout is reverted. The model_rollout_state_record binds a (workflow_or_surface_id, model_entry_id, prompt_pack_manifest_ref, tool_pack_manifest_ref) tuple to one frozen rollout state; a stable claim requires a current graduation_packet_ref or denies with stable_claim_missing_graduation_packet. The budget_routing_policy_record names per-request, per-session, per-agent-invocation, per-workflow, per-user, and per-organisation budget ceilings; the cheapest-qualifying-route rule, the override-reason vocabulary that names why a more expensive route was selected, the spend-attribution dimensions every spend receipt MUST carry, and the fallback posture when budget or eligibility is exhausted (degrade_to_local_route, degrade_to_byok_route, degrade_to_manual_review, disable_with_typed_denial). The route_selection_disclosure_record is minted before invocation when the chosen route is not the cheapest qualifying route; the disclosure cites the override reason and the spend-attribution dimensions so a reviewer can see why a more expensive route was used. The schema composes with (and does not replace) schemas/ai/provider_registry.schema.json (provider entry, execution locus, transport, auth mode, retention, region, quota family, cost visibility, data-class allowlist, tainted-return posture), schemas/ai/model_registry.schema.json (model identity, capability claims, lifecycle state, deprecation lane, determinism posture), schemas/ai/prompt_tool_pack_manifest.schema.json (prompt-pack and tool-pack identity, version, signing posture, rollout state of the pack itself), schemas/ai/context_assembly.schema.json (data-class vocabulary, redaction posture), schemas/ai/evidence_packet.schema.json (evidence packet lineage), schemas/integration/approval_ticket.schema.json (admitting approval ticket on a graduation decision), schemas/identity/policy_bundle.schema.json (deployment_profile_class, policy_epoch, workspace-trust state), and schemas/release/assurance_claim.schema.json (assurance-claim row backing a stable claim). Raw URLs, raw endpoint hostnames, raw evaluation prompts, raw eval response bodies, raw red-team prompts, raw red-team transcripts, raw latency or cost numbers, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, raw provider payloads, raw spend amounts in any specific currency, raw user identifiers, and raw billing account ids never cross this boundary; records carry opaque refs, structured fields, coarse buckets, and fingerprints only. The eventual provider-arbitration / metering crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new rollout_state_class, eval_evidence_kind, eval_posture_class, latency_envelope_class, cost_envelope_class, budget_scope_class, route_selection_reason_class, route_selection_override_reason_class, fallback_posture_class, exhaustion_state_class, spend_attribution_dimension_class, agent_ceiling_class, rollback_plan_kind, audit_event_id, or denial_reason is additive-minor and requires a graduation_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/graduation_packet_record" },
+    { "$ref": "#/$defs/model_rollout_state_record" },
+    { "$ref": "#/$defs/budget_routing_policy_record" },
+    { "$ref": "#/$defs/route_selection_disclosure_record" },
+    { "$ref": "#/$defs/graduation_audit_event_record" }
+  ],
+  "$defs": {
+    "graduation_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI graduation-packet, rollout-state, and budget-routing vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "graduation_packet_record",
+        "model_rollout_state_record",
+        "budget_routing_policy_record",
+        "route_selection_disclosure_record",
+        "graduation_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / admin-reconciliation consoles. Raw URLs, raw endpoint hostnames, raw evaluation prompts, raw red-team transcripts, raw spend amounts, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on graduation review chips, rollout-state readout, route-selection override readout, admin-reconciliation, and support-export review surfaces. Never contains raw URLs, raw evaluation prompts, raw transcripts, raw cost amounts, or raw credential material."
+    },
+
+    "rollout_state_class": {
+      "type": "string",
+      "enum": [
+        "experimental",
+        "shadow",
+        "preview",
+        "stable",
+        "deprecated",
+        "disabled"
+      ],
+      "description": "Rollout-state vocabulary naming where the workflow / surface sits in its rollout. experimental = behind an opt-in flag, no public claim; shadow = runs alongside the live route for parity capture but its bytes are not surfaced to the user; preview = surfaced to opted-in cohorts under a preview chip; stable = surfaced to the general population under the product's stable claim; deprecated = still admitted but a typed deprecation chip surfaces; disabled = withdrawn / not admitted. A claim of stable MUST carry a current graduation_packet_ref or deny with stable_claim_missing_graduation_packet; promotion to stable from any other state MUST cite an admitting approval-ticket ref."
+    },
+
+    "promotion_kind": {
+      "type": "string",
+      "enum": [
+        "promote_to_experimental",
+        "promote_to_shadow",
+        "promote_to_preview",
+        "promote_to_stable",
+        "demote_to_deprecated",
+        "withdraw_to_disabled",
+        "rollback_to_prior_state",
+        "no_state_change_refresh"
+      ],
+      "description": "Promotion-event vocabulary naming what the graduation packet is asking to do. promote_to_stable is the only kind that requires the full eval / red-team / envelope / fallback / rollback set to be non-empty; the other kinds MAY narrow the requirement set per the allOf gates."
+    },
+
+    "eval_evidence_kind": {
+      "type": "string",
+      "enum": [
+        "protected_eval_corpus_passed",
+        "protected_eval_corpus_failed_blocking",
+        "protected_eval_corpus_pending",
+        "red_team_corpus_passed",
+        "red_team_corpus_failed_blocking",
+        "red_team_corpus_pending",
+        "parity_harness_passed",
+        "parity_harness_failed_blocking",
+        "latency_envelope_measured",
+        "cost_envelope_measured",
+        "fairness_audit_passed",
+        "fairness_audit_pending",
+        "user_study_passed",
+        "user_study_pending",
+        "vendor_attestation_only",
+        "no_evidence_admitted_with_disclosure"
+      ],
+      "description": "Eval-evidence-kind vocabulary naming the kinds of evidence a graduation packet may carry. A promote_to_stable packet MUST carry at least one protected_eval_corpus_passed entry, at least one red_team_corpus_passed entry, one latency_envelope_measured entry, and one cost_envelope_measured entry; missing any of those denies with promote_to_stable_missing_required_evidence. no_evidence_admitted_with_disclosure is admitted only for promote_to_experimental and promote_to_shadow; promotion to preview / stable through that kind denies with promote_above_experimental_requires_evidence."
+    },
+
+    "eval_posture_class": {
+      "type": "string",
+      "enum": [
+        "first_party_verified_passed",
+        "first_party_verified_failed",
+        "vendor_attested_passed",
+        "community_reported_passed",
+        "parity_lab_passed",
+        "parity_lab_failed",
+        "pending_first_evaluation",
+        "pending_re_evaluation",
+        "not_applicable_for_kind"
+      ],
+      "description": "Eval-posture vocabulary on each eval-evidence row. first_party_verified_* = the parity / safety lab measured the evidence on a fixed corpus; vendor_attested_passed = only vendor documentation attests it; community_reported_passed = community benchmarks attest it; parity_lab_* = the parity harness measured it but first-party verification is not yet on file; pending_* = evaluation in flight. A promote_to_stable packet MUST carry first_party_verified_passed or parity_lab_passed on every required eval-kind; vendor_attested_passed is admitted only on promote_to_experimental, promote_to_shadow, or promote_to_preview."
+    },
+
+    "eval_evidence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eval_evidence_kind",
+        "eval_posture_class",
+        "evaluation_packet_ref",
+        "covers_capability_class"
+      ],
+      "properties": {
+        "eval_evidence_kind": { "$ref": "#/$defs/eval_evidence_kind" },
+        "eval_posture_class": { "$ref": "#/$defs/eval_posture_class" },
+        "evaluation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the evaluation packet (parity-packet, red-team packet, latency-envelope packet, cost-envelope packet) backing the claim. Required (non-empty) when eval_posture_class is first_party_verified_passed, first_party_verified_failed, parity_lab_passed, or parity_lab_failed; empty string is admitted only for vendor_attested_passed, community_reported_passed, or pending_*. Never the raw evaluation prompts, raw response bodies, or raw measurement series."
+        },
+        "covers_capability_class": {
+          "type": "string",
+          "description": "Short reviewable label naming the capability or surface covered by this evidence row (e.g. 'inline single-line completion', 'patch-flow tool calls'). Never raw evaluation prompts."
+        },
+        "result_summary_class": {
+          "type": "string",
+          "enum": [
+            "passed_within_envelope",
+            "passed_within_envelope_with_caveats",
+            "failed_outside_envelope",
+            "blocking_safety_finding",
+            "blocking_quality_regression",
+            "no_result_yet"
+          ],
+          "description": "Coarse result-class readout. Never the raw measurement number; the bucket is what reviewers see verbatim."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "First-party / parity-lab postures MUST cite a non-empty evaluation_packet_ref.",
+          "if": {
+            "properties": {
+              "eval_posture_class": {
+                "enum": [
+                  "first_party_verified_passed",
+                  "first_party_verified_failed",
+                  "parity_lab_passed",
+                  "parity_lab_failed"
+                ]
+              }
+            },
+            "required": ["eval_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "evaluation_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["evaluation_packet_ref"]
+          }
+        }
+      ]
+    },
+
+    "latency_envelope_class": {
+      "type": "string",
+      "enum": [
+        "p50_under_50ms_p99_under_250ms",
+        "p50_under_250ms_p99_under_1000ms",
+        "p50_under_1s_p99_under_5s",
+        "p50_under_5s_p99_under_30s",
+        "p50_over_5s_long_running",
+        "streaming_first_token_under_500ms",
+        "streaming_first_token_over_500ms",
+        "interactive_envelope_unspecified",
+        "background_envelope_unspecified",
+        "envelope_unknown_unverified"
+      ],
+      "description": "Coarse latency-envelope vocabulary the workflow is admitted under. Never the raw measurement series; the bucket is what reviewers see verbatim. envelope_unknown_unverified is admitted only on promote_to_experimental and promote_to_shadow; promotion above shadow without a measured envelope denies with promote_above_shadow_requires_latency_envelope."
+    },
+
+    "cost_envelope_class": {
+      "type": "string",
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_per_request_low_volume_band",
+        "metered_per_request_medium_volume_band",
+        "metered_per_request_high_volume_band",
+        "metered_per_token_low_volume_band",
+        "metered_per_token_medium_volume_band",
+        "metered_per_token_high_volume_band",
+        "flat_fee_subscription_band",
+        "enterprise_pooled_quota_band",
+        "vendor_hosted_entitlement_band",
+        "estimated_unverified_band",
+        "envelope_unknown_unverified_cost"
+      ],
+      "description": "Coarse cost-envelope vocabulary the workflow is admitted under. Never the raw cost number in any specific currency; the bucket is what reviewers see verbatim. envelope_unknown_unverified_cost is admitted only on promote_to_experimental and promote_to_shadow."
+    },
+
+    "budget_scope_class": {
+      "type": "string",
+      "enum": [
+        "per_request",
+        "per_session",
+        "per_agent_invocation",
+        "per_workflow",
+        "per_user",
+        "per_organisation",
+        "per_deployment_profile",
+        "per_policy_bundle"
+      ],
+      "description": "Budget-scope vocabulary naming the granularity at which a budget cap is enforced. A budget_routing_policy_record MUST declare at least per_request, per_session, and per_agent_invocation; missing any denies with budget_routing_policy_missing_required_scope."
+    },
+
+    "agent_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "no_agent_invocations_admitted",
+        "single_invocation_no_recursion",
+        "bounded_recursion_depth_admitted",
+        "bounded_invocation_count_admitted",
+        "bounded_recursion_and_count_admitted",
+        "agent_invocation_unbounded_admin_only"
+      ],
+      "description": "Agent-ceiling vocabulary naming how many AI agent invocations a workflow may chain. agent_invocation_unbounded_admin_only is the only value that admits unbounded chaining and is gated to admin-approved policy bundles; surfaces that admit it without an admitting approval-ticket ref deny with agent_ceiling_missing_admin_approval."
+    },
+
+    "spend_attribution_dimension_class": {
+      "type": "string",
+      "enum": [
+        "workflow_or_surface_id_dimension",
+        "feature_class_dimension",
+        "provider_entry_id_dimension",
+        "model_entry_id_dimension",
+        "execution_locus_class_dimension",
+        "region_posture_class_dimension",
+        "retention_stance_class_dimension",
+        "quota_family_class_dimension",
+        "deployment_profile_class_dimension",
+        "policy_epoch_dimension",
+        "agent_invocation_chain_id_dimension",
+        "session_id_dimension",
+        "command_invocation_id_dimension"
+      ],
+      "description": "Spend-attribution-dimension vocabulary naming the dimensions every spend receipt MUST emit so reviewers can correlate cost to identity. A budget_routing_policy_record MUST declare at minimum workflow_or_surface_id_dimension, provider_entry_id_dimension, model_entry_id_dimension, execution_locus_class_dimension, region_posture_class_dimension, retention_stance_class_dimension, and quota_family_class_dimension; missing any denies with spend_attribution_minimum_set_missing."
+    },
+
+    "route_selection_reason_class": {
+      "type": "string",
+      "enum": [
+        "cheapest_qualifying_route_admitted",
+        "no_cheaper_qualifying_route_existed",
+        "override_more_expensive_route_admitted",
+        "fallback_after_cheapest_exhausted",
+        "fallback_after_cheapest_blocked",
+        "user_chose_specific_route_explicitly",
+        "policy_pinned_specific_route",
+        "shadow_route_for_parity_only",
+        "no_route_admitted_disabled_with_typed_denial"
+      ],
+      "description": "Route-selection-reason vocabulary naming why a particular route was selected. cheapest_qualifying_route_admitted is the default; every other value MUST be paired with a route_selection_override_reason_class on a route_selection_disclosure_record so reviewers see why a more expensive route was used."
+    },
+
+    "route_selection_override_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_override_cheapest_was_used",
+        "cheapest_route_failed_capability_check",
+        "cheapest_route_failed_region_posture",
+        "cheapest_route_failed_retention_stance",
+        "cheapest_route_failed_data_class_allowlist",
+        "cheapest_route_failed_quota_family_check",
+        "cheapest_route_failed_offline_posture",
+        "cheapest_route_failed_determinism_posture",
+        "cheapest_route_failed_taint_posture",
+        "cheapest_route_failed_approval_posture",
+        "cheapest_route_quota_exhausted",
+        "cheapest_route_budget_exhausted",
+        "cheapest_route_circuit_open_recent_failures",
+        "cheapest_route_deprecated_or_withdrawn",
+        "cheapest_route_pack_unverified_or_quarantined",
+        "user_explicit_choice_overrides_cheapest",
+        "policy_pinned_more_expensive_route",
+        "shadow_route_paired_with_live_route"
+      ],
+      "description": "Route-selection-override-reason vocabulary explaining why the cheapest qualifying route was not used. no_override_cheapest_was_used is the only value admitted when route_selection_reason_class = cheapest_qualifying_route_admitted; every other reason demands a paired route_selection_disclosure_record minted before invocation so a reviewer can see the override on the spend receipt."
+    },
+
+    "fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "degrade_to_local_route",
+        "degrade_to_byok_route",
+        "degrade_to_manual_review",
+        "degrade_to_offline_cached_response",
+        "disable_with_typed_denial",
+        "no_fallback_request_fails_with_typed_denial",
+        "fallback_to_prior_rollout_state"
+      ],
+      "description": "Fallback-posture vocabulary naming what happens when the primary route is exhausted (budget exhausted, quota exhausted, eligibility lost, circuit open). disable_with_typed_denial and no_fallback_request_fails_with_typed_denial are the only values admitted when no local / BYOK / manual route exists; opaque failure (no typed denial) is forbidden and denies with fallback_posture_opaque_failure_forbidden."
+    },
+
+    "exhaustion_state_class": {
+      "type": "string",
+      "enum": [
+        "not_exhausted_route_admitted",
+        "per_request_budget_exhausted",
+        "per_session_budget_exhausted",
+        "per_agent_invocation_budget_exhausted",
+        "per_workflow_budget_exhausted",
+        "per_user_budget_exhausted",
+        "per_organisation_budget_exhausted",
+        "per_deployment_profile_budget_exhausted",
+        "quota_family_exhausted",
+        "agent_ceiling_exhausted",
+        "circuit_open_recent_failures",
+        "eligibility_revoked_policy",
+        "eligibility_revoked_workspace_trust",
+        "eligibility_revoked_pack_quarantined",
+        "eligibility_revoked_provider_disabled"
+      ],
+      "description": "Exhaustion-state vocabulary naming why a route may no longer be admitted. Every fallback action MUST cite exactly one exhaustion_state_class so reviewers see which axis was exhausted; missing the field on a fallback action denies with fallback_action_missing_exhaustion_state."
+    },
+
+    "rollback_plan_kind": {
+      "type": "string",
+      "enum": [
+        "rollback_to_prior_provider_entry",
+        "rollback_to_prior_model_entry",
+        "rollback_to_prior_prompt_pack_manifest",
+        "rollback_to_prior_tool_pack_manifest",
+        "rollback_to_prior_rollout_state",
+        "rollback_to_local_only_route",
+        "rollback_to_disabled_state",
+        "rollback_combination_multi_axis"
+      ],
+      "description": "Rollback-plan vocabulary naming the kind of revert the packet authors. rollback_combination_multi_axis is admitted when more than one axis is reverted at once; the rollback_plan record MUST then carry one ref per reverted axis."
+    },
+
+    "rollback_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rollback_plan_kind"],
+      "properties": {
+        "rollback_plan_kind": { "$ref": "#/$defs/rollback_plan_kind" },
+        "rollback_to_provider_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider-entry the rollback restores. Required (non-empty) when rollback_plan_kind is rollback_to_prior_provider_entry or rollback_combination_multi_axis; empty string otherwise."
+        },
+        "rollback_to_model_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the model-entry the rollback restores. Required (non-empty) when rollback_plan_kind is rollback_to_prior_model_entry or rollback_combination_multi_axis; empty string otherwise."
+        },
+        "rollback_to_prompt_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the prompt-pack manifest the rollback restores. Required (non-empty) when rollback_plan_kind is rollback_to_prior_prompt_pack_manifest or rollback_combination_multi_axis; empty string otherwise."
+        },
+        "rollback_to_tool_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the tool-pack manifest the rollback restores. Required (non-empty) when rollback_plan_kind is rollback_to_prior_tool_pack_manifest or rollback_combination_multi_axis; empty string otherwise."
+        },
+        "rollback_to_rollout_state_class": {
+          "type": "string",
+          "description": "Rollout-state the rollback restores. Empty string when the rollback does not change the rollout state; otherwise one of the rollout_state_class enum values."
+        },
+        "rollback_trigger_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "rollback_owner_role": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Rollback-plan record the graduation packet attaches. The plan names what is reverted, who can pull the trigger, and the trigger condition; it never quotes raw operator identifiers, raw URLs, or raw credential material."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification. Narrower defaults (air_gapped, managed_fleet) MAY forbid a rollout_state, a route-selection override, or a fallback posture without re-minting any value."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context (for example when a graduation packet is authored by the rollout review board)."
+        }
+      },
+      "description": "Policy context the record was minted under. A policy-epoch roll invalidates prior rollout-state pins; the next invocation MUST re-resolve against a current packet."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Raw evaluation prompts, raw red-team transcripts, raw response bodies, raw cost amounts, raw user identifiers, and raw billing-account ids never cross this boundary regardless of class."
+    },
+
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "per_user_local_no_limit",
+        "per_user_local_soft_throttle",
+        "per_user_byok_vendor_quota",
+        "per_user_byok_organization_quota",
+        "enterprise_gateway_pooled_quota",
+        "vendor_hosted_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered",
+        "policy_enforced_quota_override",
+        "quota_unknown_unverified"
+      ],
+      "description": "Quota-family class re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "cost_visibility_class": {
+      "type": "string",
+      "enum": [
+        "metered_per_request",
+        "metered_per_token",
+        "flat_fee_subscription",
+        "bundled_no_incremental_cost",
+        "estimated_unverified",
+        "undisclosed_by_provider"
+      ],
+      "description": "Cost-visibility class re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "graduation_packet_minted",
+        "graduation_packet_promoted",
+        "graduation_packet_demoted",
+        "graduation_packet_withdrawn",
+        "graduation_packet_superseded",
+        "graduation_packet_rolled_back",
+        "model_rollout_state_pinned",
+        "model_rollout_state_invalidated_by_policy_epoch",
+        "model_rollout_state_invalidated_by_pack_change",
+        "budget_routing_policy_minted",
+        "budget_routing_policy_updated",
+        "budget_routing_policy_superseded",
+        "route_selection_override_disclosed",
+        "route_fallback_taken",
+        "route_fallback_denied_no_route_available",
+        "graduation_packet_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_graduation audit stream. Events MUST NOT carry raw evaluation prompts, raw red-team transcripts, raw cost amounts, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, or raw provider payloads."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "stable_claim_missing_graduation_packet",
+        "graduation_packet_expired",
+        "graduation_packet_superseded",
+        "graduation_packet_for_disabled_state",
+        "promote_to_stable_missing_required_evidence",
+        "promote_above_experimental_requires_evidence",
+        "promote_above_shadow_requires_latency_envelope",
+        "promote_above_shadow_requires_cost_envelope",
+        "promote_above_preview_requires_first_party_or_parity_passed",
+        "graduation_packet_missing_fallback_contract",
+        "graduation_packet_missing_rollback_plan",
+        "graduation_packet_missing_admitting_approval_ticket",
+        "graduation_packet_provider_entry_unresolved",
+        "graduation_packet_model_entry_unresolved",
+        "graduation_packet_prompt_pack_manifest_unresolved",
+        "graduation_packet_tool_pack_manifest_unresolved",
+        "budget_routing_policy_missing_required_scope",
+        "spend_attribution_minimum_set_missing",
+        "agent_ceiling_missing_admin_approval",
+        "route_selection_override_missing_disclosure",
+        "route_selection_override_missing_reason",
+        "fallback_action_missing_exhaustion_state",
+        "fallback_posture_opaque_failure_forbidden",
+        "fallback_target_route_unresolved",
+        "rollout_state_widens_above_packet",
+        "policy_epoch_rolled_invalidations",
+        "raw_evaluation_prompt_forbidden_on_boundary",
+        "raw_red_team_transcript_forbidden_on_boundary",
+        "raw_cost_amount_forbidden_on_boundary",
+        "raw_user_identifier_forbidden_on_boundary",
+        "graduation_packet_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort graduation admission, a best-effort rollout-state pin, or a best-effort budget-routing policy is forbidden."
+    },
+
+    "graduation_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "graduation_packet_schema_version",
+        "graduation_packet_id",
+        "workflow_or_surface_id",
+        "promotion_kind",
+        "target_rollout_state_class",
+        "provider_entry_ref",
+        "model_entry_ref",
+        "prompt_pack_manifest_ref",
+        "tool_pack_manifest_ref",
+        "eval_evidence_entries",
+        "latency_envelope_class",
+        "cost_envelope_class",
+        "fallback_posture_class",
+        "rollback_plan",
+        "policy_context",
+        "redaction_class",
+        "minted_at",
+        "expires_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "graduation_packet_record" },
+        "graduation_packet_schema_version": { "$ref": "#/$defs/graduation_packet_schema_version" },
+        "graduation_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable opaque identifier of the AI workflow or surface (e.g. inline-completion workflow, patch-flow workflow, review-flow workflow, branch-agent workflow). Surface authors mint exactly one identifier per workflow and reuse it across packets."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short human-readable label the rollout-review board renders verbatim. Never the raw evaluation prompts or raw red-team transcripts."
+        },
+        "promotion_kind": { "$ref": "#/$defs/promotion_kind" },
+        "target_rollout_state_class": { "$ref": "#/$defs/rollout_state_class" },
+        "prior_rollout_state_class": {
+          "type": "string",
+          "description": "Previous rollout state, or empty string if this is the first packet for the workflow/surface. Used by audit / rollback consumers."
+        },
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "prompt_pack_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "tool_pack_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "shadow_paired_provider_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the live provider entry this shadow rollout is paired with. Required (non-empty) when target_rollout_state_class = shadow; empty string otherwise."
+        },
+        "shadow_paired_model_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the live model entry this shadow rollout is paired with. Required (non-empty) when target_rollout_state_class = shadow; empty string otherwise."
+        },
+        "eval_evidence_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/eval_evidence_entry" },
+          "description": "Evidence entries backing the promotion. promote_to_stable MUST carry at least one protected_eval_corpus_passed, at least one red_team_corpus_passed, one latency_envelope_measured, and one cost_envelope_measured entry; promote_to_preview narrows the requirement to one protected_eval_corpus_passed and one red_team_corpus_passed; promote_to_shadow narrows further to one parity_harness_passed or one no_evidence_admitted_with_disclosure; promote_to_experimental MAY admit no_evidence_admitted_with_disclosure entries only."
+        },
+        "latency_envelope_class": { "$ref": "#/$defs/latency_envelope_class" },
+        "cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "fallback_posture_class": { "$ref": "#/$defs/fallback_posture_class" },
+        "fallback_target_provider_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider entry the fallback degrades to. Required (non-empty) when fallback_posture_class is degrade_to_local_route, degrade_to_byok_route, degrade_to_offline_cached_response, or fallback_to_prior_rollout_state; empty string when fallback_posture_class is degrade_to_manual_review, disable_with_typed_denial, or no_fallback_request_fails_with_typed_denial."
+        },
+        "fallback_target_model_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the model entry the fallback degrades to. Empty string when the fallback does not pin a specific model entry."
+        },
+        "rollback_plan": { "$ref": "#/$defs/rollback_plan" },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket (ADR-0010 schemas/integration/approval_ticket.schema.json). Required (non-empty) when promotion_kind is promote_to_stable, promote_to_preview, demote_to_deprecated, or withdraw_to_disabled; empty string for promote_to_experimental, promote_to_shadow, rollback_to_prior_state, and no_state_change_refresh."
+        },
+        "supersedes_graduation_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Prior graduation-packet ids this packet supersedes. Retiring a packet is not a delete; the superseded row survives so audit and replay consumers can reconstruct the rollout history."
+        },
+        "linked_assurance_claim_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to assurance-claim rows (schemas/release/assurance_claim.schema.json) backing the public claim. Required (minItems 1) when target_rollout_state_class = stable; MAY be empty for other states."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible sentence summarising the packet's intent. Never quotes raw evaluation prompts, raw red-team transcripts, or raw cost amounts."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp at which the packet expires and a refresh is required. A stable rollout that has not been refreshed by the expiry MUST resolve through the next graduation packet or deny with graduation_packet_expired."
+        }
+      },
+      "allOf": [
+        {
+          "description": "promote_to_stable MUST carry at least one passed protected-eval, one passed red-team, one measured latency envelope, one measured cost envelope, a fallback target if the fallback posture pins one, a non-empty admitting approval ticket, and at least one linked assurance claim.",
+          "if": {
+            "properties": { "promotion_kind": { "const": "promote_to_stable" } },
+            "required": ["promotion_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_rollout_state_class": { "const": "stable" },
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" },
+              "linked_assurance_claim_refs": { "minItems": 1 },
+              "eval_evidence_entries": { "minItems": 4 }
+            },
+            "required": [
+              "target_rollout_state_class",
+              "originating_approval_ticket_ref",
+              "linked_assurance_claim_refs",
+              "eval_evidence_entries"
+            ]
+          }
+        },
+        {
+          "description": "promote_to_preview MUST cite a non-empty admitting approval ticket and at least two eval-evidence entries.",
+          "if": {
+            "properties": { "promotion_kind": { "const": "promote_to_preview" } },
+            "required": ["promotion_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_rollout_state_class": { "const": "preview" },
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" },
+              "eval_evidence_entries": { "minItems": 2 }
+            },
+            "required": [
+              "target_rollout_state_class",
+              "originating_approval_ticket_ref",
+              "eval_evidence_entries"
+            ]
+          }
+        },
+        {
+          "description": "promote_to_shadow MUST name the live route it pairs with.",
+          "if": {
+            "properties": { "promotion_kind": { "const": "promote_to_shadow" } },
+            "required": ["promotion_kind"]
+          },
+          "then": {
+            "properties": {
+              "target_rollout_state_class": { "const": "shadow" },
+              "shadow_paired_provider_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+              "shadow_paired_model_entry_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "target_rollout_state_class",
+              "shadow_paired_provider_entry_ref",
+              "shadow_paired_model_entry_ref"
+            ]
+          }
+        },
+        {
+          "description": "demote_to_deprecated and withdraw_to_disabled MUST cite a non-empty admitting approval ticket.",
+          "if": {
+            "properties": {
+              "promotion_kind": {
+                "enum": ["demote_to_deprecated", "withdraw_to_disabled"]
+              }
+            },
+            "required": ["promotion_kind"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "withdraw_to_disabled MUST target the disabled rollout state.",
+          "if": {
+            "properties": { "promotion_kind": { "const": "withdraw_to_disabled" } },
+            "required": ["promotion_kind"]
+          },
+          "then": {
+            "properties": { "target_rollout_state_class": { "const": "disabled" } },
+            "required": ["target_rollout_state_class"]
+          }
+        },
+        {
+          "description": "fallback_to_prior_rollout_state, degrade_to_local_route, degrade_to_byok_route, and degrade_to_offline_cached_response MUST cite a non-empty fallback_target_provider_entry_ref.",
+          "if": {
+            "properties": {
+              "fallback_posture_class": {
+                "enum": [
+                  "degrade_to_local_route",
+                  "degrade_to_byok_route",
+                  "degrade_to_offline_cached_response",
+                  "fallback_to_prior_rollout_state"
+                ]
+              }
+            },
+            "required": ["fallback_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_target_provider_entry_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["fallback_target_provider_entry_ref"]
+          }
+        },
+        {
+          "description": "A target rollout state of stable MUST link at least one assurance-claim row.",
+          "if": {
+            "properties": { "target_rollout_state_class": { "const": "stable" } },
+            "required": ["target_rollout_state_class"]
+          },
+          "then": {
+            "properties": { "linked_assurance_claim_refs": { "minItems": 1 } },
+            "required": ["linked_assurance_claim_refs"]
+          }
+        }
+      ],
+      "description": "One governed graduation packet per (workflow_or_surface_id, promotion_kind) pair. Surface authors mint a packet for each promotion / demotion / withdrawal / rollback decision; the packet is the cross-tool boundary the rollout-review board, replay harness, and support export read."
+    },
+
+    "model_rollout_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "graduation_packet_schema_version",
+        "rollout_state_id",
+        "workflow_or_surface_id",
+        "rollout_state_class",
+        "provider_entry_ref",
+        "model_entry_ref",
+        "prompt_pack_manifest_ref",
+        "tool_pack_manifest_ref",
+        "graduation_packet_ref",
+        "policy_context",
+        "redaction_class",
+        "pinned_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "model_rollout_state_record" },
+        "graduation_packet_schema_version": { "$ref": "#/$defs/graduation_packet_schema_version" },
+        "rollout_state_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "rollout_state_class": { "$ref": "#/$defs/rollout_state_class" },
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "prompt_pack_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "tool_pack_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "graduation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the current graduation_packet_record backing this pin. Required (non-empty) when rollout_state_class is stable, preview, or deprecated; empty string is admitted only for experimental, shadow, or disabled."
+        },
+        "supersedes_rollout_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "pinned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Optional monotonic expiry; an expired pin denies new sessions with graduation_packet_expired and forces re-resolution against a current packet."
+        }
+      },
+      "allOf": [
+        {
+          "description": "stable / preview / deprecated rollout states MUST cite a current graduation_packet_ref.",
+          "if": {
+            "properties": {
+              "rollout_state_class": {
+                "enum": ["stable", "preview", "deprecated"]
+              }
+            },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": { "graduation_packet_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["graduation_packet_ref"]
+          }
+        }
+      ],
+      "description": "One governed pin per (workflow_or_surface_id, model_entry_ref, prompt_pack_manifest_ref, tool_pack_manifest_ref) tuple naming the active rollout state. The pin is the cross-tool readout every routing surface checks before invocation; an invocation whose pin is missing or expired denies with stable_claim_missing_graduation_packet or graduation_packet_expired."
+    },
+
+    "budget_cap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budget_scope_class", "cost_envelope_class"],
+      "properties": {
+        "budget_scope_class": { "$ref": "#/$defs/budget_scope_class" },
+        "cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "agent_ceiling_class": {
+          "type": "string",
+          "description": "Optional agent ceiling for this budget scope. Empty string when the scope does not bound agent invocations; otherwise one of the agent_ceiling_class enum values."
+        },
+        "exhaustion_fallback_posture_class": { "$ref": "#/$defs/fallback_posture_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One budget cap row per scope. Never quotes a raw cost amount; the cost_envelope_class bucket is what reviewers see verbatim."
+    },
+
+    "budget_routing_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "graduation_packet_schema_version",
+        "policy_id",
+        "workflow_or_surface_id",
+        "budget_caps",
+        "cheapest_qualifying_route_rule_class",
+        "spend_attribution_dimensions",
+        "quota_family_class",
+        "agent_ceiling_class",
+        "fallback_posture_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "budget_routing_policy_record" },
+        "graduation_packet_schema_version": { "$ref": "#/$defs/graduation_packet_schema_version" },
+        "policy_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "budget_caps": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/budget_cap" },
+          "description": "Budget caps the policy enforces. MUST cover at minimum per_request, per_session, and per_agent_invocation; missing any denies with budget_routing_policy_missing_required_scope."
+        },
+        "cheapest_qualifying_route_rule_class": {
+          "type": "string",
+          "enum": [
+            "cheapest_qualifying_route_default",
+            "cheapest_qualifying_route_with_user_override_admitted",
+            "cheapest_qualifying_route_with_policy_pin_admitted",
+            "cheapest_qualifying_route_disabled_pinned_route_only"
+          ],
+          "description": "Cheapest-qualifying-route-rule vocabulary naming whether and how the policy permits selecting a more expensive route. cheapest_qualifying_route_default = always pick the cheapest route that meets the qualification axes; *_with_user_override_admitted = a user-explicit choice may override; *_with_policy_pin_admitted = a policy pin may override; *_disabled_pinned_route_only = the policy pins exactly one route and ignores cost (admitted only on policy_enforced_quota_override quota family)."
+        },
+        "spend_attribution_dimensions": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/spend_attribution_dimension_class" },
+          "description": "Spend-attribution dimensions every spend receipt under this policy MUST emit. MUST include at minimum workflow_or_surface_id_dimension, provider_entry_id_dimension, model_entry_id_dimension, execution_locus_class_dimension, region_posture_class_dimension, retention_stance_class_dimension, and quota_family_class_dimension; missing any denies with spend_attribution_minimum_set_missing."
+        },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "agent_ceiling_class": { "$ref": "#/$defs/agent_ceiling_class" },
+        "fallback_posture_class": { "$ref": "#/$defs/fallback_posture_class" },
+        "fallback_target_provider_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider entry the policy degrades to when the primary route is exhausted. Required (non-empty) when fallback_posture_class is degrade_to_local_route, degrade_to_byok_route, degrade_to_offline_cached_response, or fallback_to_prior_rollout_state; empty string otherwise."
+        },
+        "fallback_target_model_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the model entry the policy degrades to. Empty string when the fallback does not pin a specific model entry."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when agent_ceiling_class = agent_invocation_unbounded_admin_only; empty string otherwise."
+        },
+        "supersedes_policy_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "agent_invocation_unbounded_admin_only MUST cite a non-empty admitting approval ticket.",
+          "if": {
+            "properties": {
+              "agent_ceiling_class": { "const": "agent_invocation_unbounded_admin_only" }
+            },
+            "required": ["agent_ceiling_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "Fallback postures that pin a target route MUST carry a non-empty fallback_target_provider_entry_ref.",
+          "if": {
+            "properties": {
+              "fallback_posture_class": {
+                "enum": [
+                  "degrade_to_local_route",
+                  "degrade_to_byok_route",
+                  "degrade_to_offline_cached_response",
+                  "fallback_to_prior_rollout_state"
+                ]
+              }
+            },
+            "required": ["fallback_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_target_provider_entry_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["fallback_target_provider_entry_ref"]
+          }
+        }
+      ],
+      "description": "One governed budget / routing policy per workflow / surface. The policy is the cross-tool readout every routing surface, every metering surface, and every spend-receipt emitter resolves against; a spend receipt missing any of the policy's required attribution dimensions denies with spend_attribution_minimum_set_missing."
+    },
+
+    "route_selection_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "graduation_packet_schema_version",
+        "disclosure_id",
+        "workflow_or_surface_id",
+        "selected_provider_entry_ref",
+        "selected_model_entry_ref",
+        "route_selection_reason_class",
+        "route_selection_override_reason_class",
+        "exhaustion_state_class",
+        "spend_attribution_dimensions",
+        "policy_context",
+        "redaction_class",
+        "disclosed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "route_selection_disclosure_record" },
+        "graduation_packet_schema_version": { "$ref": "#/$defs/graduation_packet_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "selected_provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "selected_model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "selected_prompt_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the prompt-pack manifest the selection cites. Empty string when the workflow does not require a prompt-pack ref."
+        },
+        "selected_tool_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the tool-pack manifest the selection cites. Empty string when the workflow does not require a tool-pack ref."
+        },
+        "candidate_cheapest_provider_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the cheapest provider-entry that was considered. Empty string only when no candidate was admitted (fallback path)."
+        },
+        "candidate_cheapest_model_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the cheapest model-entry that was considered. Empty string only when no candidate was admitted (fallback path)."
+        },
+        "route_selection_reason_class": { "$ref": "#/$defs/route_selection_reason_class" },
+        "route_selection_override_reason_class": { "$ref": "#/$defs/route_selection_override_reason_class" },
+        "exhaustion_state_class": { "$ref": "#/$defs/exhaustion_state_class" },
+        "spend_attribution_dimensions": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 7,
+          "items": { "$ref": "#/$defs/spend_attribution_dimension_class" },
+          "description": "Spend-attribution dimensions the disclosure surfaces. Mirrors the budget_routing_policy_record's required minimum so the spend receipt can attribute the override."
+        },
+        "originating_budget_routing_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_graduation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the graduation packet the selected route is admitted under. Required (non-empty) when the selected model's rollout_state_class is stable, preview, or deprecated; empty string for shadow / experimental routes."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when route_selection_override_reason_class is policy_pinned_more_expensive_route or user_explicit_choice_overrides_cheapest and the workflow's approval posture is above allowed_without_prompt; empty string otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewer-visible explanation of why the override was admitted. Never quotes raw cost numbers, raw user identifiers, or raw billing-account ids."
+        },
+        "disclosed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "cheapest_qualifying_route_admitted MUST be paired with no_override_cheapest_was_used.",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": { "const": "cheapest_qualifying_route_admitted" }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "route_selection_override_reason_class": { "const": "no_override_cheapest_was_used" }
+            },
+            "required": ["route_selection_override_reason_class"]
+          }
+        },
+        {
+          "description": "override_more_expensive_route_admitted MUST cite a non-trivial override reason.",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": { "const": "override_more_expensive_route_admitted" }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "route_selection_override_reason_class": {
+                "not": { "const": "no_override_cheapest_was_used" }
+              }
+            },
+            "required": ["route_selection_override_reason_class"]
+          }
+        },
+        {
+          "description": "fallback_after_cheapest_exhausted and fallback_after_cheapest_blocked MUST cite a non-not_exhausted exhaustion_state_class.",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": {
+                "enum": ["fallback_after_cheapest_exhausted", "fallback_after_cheapest_blocked"]
+              }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "exhaustion_state_class": {
+                "not": { "const": "not_exhausted_route_admitted" }
+              }
+            },
+            "required": ["exhaustion_state_class"]
+          }
+        },
+        {
+          "description": "no_route_admitted_disabled_with_typed_denial MUST be paired with not_exhausted_route_admitted only when no route exists at all; otherwise it MUST cite a non-not_exhausted exhaustion state.",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": { "const": "no_route_admitted_disabled_with_typed_denial" }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "route_selection_override_reason_class": { "$ref": "#/$defs/route_selection_override_reason_class" }
+            },
+            "required": ["route_selection_override_reason_class", "exhaustion_state_class"]
+          }
+        }
+      ],
+      "description": "Pre-invocation disclosure minted whenever the selected route is not the cheapest qualifying route, or the cheapest route was unavailable and a fallback was taken, or no route was admitted at all. The disclosure is the cross-tool readout the rollout-review board, support export, and replay harness use to explain why a more expensive route was used or why a request degraded."
+    },
+
+    "graduation_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "graduation_packet_schema_version",
+        "audit_event_id",
+        "workflow_or_surface_id",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "graduation_audit_event_record" },
+        "graduation_packet_schema_version": { "$ref": "#/$defs/graduation_packet_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "graduation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the graduation packet the event refers to. Empty string only for budget_routing_policy_minted, budget_routing_policy_updated, and budget_routing_policy_superseded events."
+        },
+        "rollout_state_pin_ref": {
+          "type": "string",
+          "description": "Opaque ref to the rollout-state pin the event refers to. Empty string when the event is not pin-scoped."
+        },
+        "budget_routing_policy_ref": {
+          "type": "string",
+          "description": "Opaque ref to the budget-routing policy the event refers to. Empty string when the event is not policy-scoped."
+        },
+        "route_selection_disclosure_ref": {
+          "type": "string",
+          "description": "Opaque ref to the route-selection disclosure the event refers to. Empty string when the event is not disclosure-scoped."
+        },
+        "denial_reason": {
+          "type": "string",
+          "description": "Optional denial_reason string from the denial_reason enum. Empty string for non-deny events."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Observable event on the ai_graduation audit stream. Events MUST NOT carry raw evaluation prompts, raw red-team transcripts, raw cost amounts, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, or raw provider payloads."
+    }
+  }
+}

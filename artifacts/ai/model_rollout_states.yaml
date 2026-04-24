@@ -1,0 +1,266 @@
+# AI rollout-state vocabulary registry.
+#
+# Canonical machine-readable register of every rollout-state class an AI
+# workflow or surface may resolve to. The vocabulary is frozen here once
+# and re-exported from
+# schemas/ai/graduation_packet.schema.json#/$defs/rollout_state_class
+# without redefinition. Surface authors (provider-arbitration crate, prompt-
+# composer crate, route planner, metering surface, support / replay export,
+# admin / policy / settings surfaces) read this register so a new rollout
+# state has exactly one home.
+#
+# Narrative companion: docs/ai/model_graduation_and_budget_contract.md.
+# Schema-of-record:    schemas/ai/graduation_packet.schema.json
+# Wired-in by:         artifacts/governance/control_artifact_index.yaml
+#                      under id model_rollout_states_registry
+#
+# Adding a new rollout_state_class is additive-minor and requires bumping
+# graduation_packet_schema_version on schemas/ai/graduation_packet.schema.json
+# and a paired row update here. Repurposing an existing class is breaking and
+# requires a new decision row.
+
+schema_version: 1
+
+contract_doc: docs/ai/model_graduation_and_budget_contract.md
+contract_schema: schemas/ai/graduation_packet.schema.json
+
+# ---------------------------------------------------------------------------
+# Rollout states.
+#
+# Each row fixes:
+#   1. rollout_state_class            — frozen enum value the schema admits.
+#   2. user_visibility_class          — what the end user sees.
+#   3. requires_graduation_packet     — whether a current packet is required
+#                                       to pin a rollout-state record.
+#   4. requires_admitting_approval_ticket — whether the packet must cite an
+#                                       admitting approval ticket.
+#   5. requires_assurance_claim_link  — whether the packet must link at
+#                                       least one assurance-claim row.
+#   6. minimum_eval_evidence_set      — the minimum set of eval-evidence
+#                                       kinds the packet must carry.
+#   7. fallback_admitted              — what fallback postures the rollout
+#                                       state may declare.
+#   8. degrades_to_on_eligibility_loss — the typical degraded route when
+#                                       eligibility is revoked.
+#   9. notes                          — short description.
+# ---------------------------------------------------------------------------
+rollout_states:
+  - rollout_state_class: experimental
+    user_visibility_class: behind_opt_in_flag_no_public_claim
+    requires_graduation_packet: false
+    requires_admitting_approval_ticket: false
+    requires_assurance_claim_link: false
+    minimum_eval_evidence_set:
+      - no_evidence_admitted_with_disclosure
+    fallback_admitted:
+      - degrade_to_local_route
+      - degrade_to_byok_route
+      - degrade_to_manual_review
+      - disable_with_typed_denial
+      - no_fallback_request_fails_with_typed_denial
+    degrades_to_on_eligibility_loss: disable_with_typed_denial
+    notes: >
+      Behind an opt-in flag (per-user, per-organisation, or per-deployment-
+      profile). No public claim of correctness, latency, or cost is made;
+      no support claim is made. The rollout-state record may carry an empty
+      graduation_packet_ref.
+
+  - rollout_state_class: shadow
+    user_visibility_class: not_surfaced_to_user_paired_with_live_route
+    requires_graduation_packet: false
+    requires_admitting_approval_ticket: false
+    requires_assurance_claim_link: false
+    minimum_eval_evidence_set:
+      - parity_harness_passed
+    fallback_admitted:
+      - disable_with_typed_denial
+      - no_fallback_request_fails_with_typed_denial
+    degrades_to_on_eligibility_loss: disable_with_typed_denial
+    notes: >
+      Runs alongside the live route for parity capture; the shadow's bytes
+      are not surfaced to the user. The graduation packet that admits the
+      shadow MUST name the live provider entry and live model entry it is
+      paired with so the parity-lab harness can correlate.
+
+  - rollout_state_class: preview
+    user_visibility_class: surfaced_to_opted_in_cohort_under_preview_chip
+    requires_graduation_packet: true
+    requires_admitting_approval_ticket: true
+    requires_assurance_claim_link: false
+    minimum_eval_evidence_set:
+      - protected_eval_corpus_passed
+      - red_team_corpus_passed
+    fallback_admitted:
+      - degrade_to_local_route
+      - degrade_to_byok_route
+      - degrade_to_manual_review
+      - degrade_to_offline_cached_response
+      - disable_with_typed_denial
+      - fallback_to_prior_rollout_state
+      - no_fallback_request_fails_with_typed_denial
+    degrades_to_on_eligibility_loss: degrade_to_local_route
+    notes: >
+      Surfaced under a typed preview chip to the opted-in cohort. A current
+      graduation packet is required; promotion from shadow / experimental
+      MUST cite an admitting approval ticket.
+
+  - rollout_state_class: stable
+    user_visibility_class: surfaced_to_general_population_under_stable_claim
+    requires_graduation_packet: true
+    requires_admitting_approval_ticket: true
+    requires_assurance_claim_link: true
+    minimum_eval_evidence_set:
+      - protected_eval_corpus_passed
+      - red_team_corpus_passed
+      - latency_envelope_measured
+      - cost_envelope_measured
+    fallback_admitted:
+      - degrade_to_local_route
+      - degrade_to_byok_route
+      - degrade_to_manual_review
+      - degrade_to_offline_cached_response
+      - disable_with_typed_denial
+      - fallback_to_prior_rollout_state
+    degrades_to_on_eligibility_loss: degrade_to_local_route
+    notes: >
+      Surfaced to the general population under the product's stable claim.
+      Stable is the only state that requires the full eval / red-team /
+      latency-envelope / cost-envelope minimum, the admitting approval
+      ticket, and at least one linked assurance-claim row. A workflow that
+      claims stable without a current graduation packet denies with
+      stable_claim_missing_graduation_packet.
+
+  - rollout_state_class: deprecated
+    user_visibility_class: surfaced_with_typed_deprecation_chip
+    requires_graduation_packet: true
+    requires_admitting_approval_ticket: true
+    requires_assurance_claim_link: false
+    minimum_eval_evidence_set:
+      - protected_eval_corpus_passed
+    fallback_admitted:
+      - degrade_to_local_route
+      - degrade_to_byok_route
+      - degrade_to_manual_review
+      - degrade_to_offline_cached_response
+      - disable_with_typed_denial
+      - fallback_to_prior_rollout_state
+    degrades_to_on_eligibility_loss: degrade_to_local_route
+    notes: >
+      Still admitted but a typed deprecation chip surfaces. The graduation
+      packet that admits the deprecation MUST cite an admitting approval
+      ticket and SHOULD name the replacement provider / model / pack the
+      rollback plan restores when the deprecation is finalised into a
+      withdrawal.
+
+  - rollout_state_class: disabled
+    user_visibility_class: not_admitted_typed_denial_only
+    requires_graduation_packet: false
+    requires_admitting_approval_ticket: true
+    requires_assurance_claim_link: false
+    minimum_eval_evidence_set: []
+    fallback_admitted:
+      - disable_with_typed_denial
+      - no_fallback_request_fails_with_typed_denial
+    degrades_to_on_eligibility_loss: disable_with_typed_denial
+    notes: >
+      Withdrawn / not admitted. Every invocation denies with
+      graduation_packet_for_disabled_state or with the underlying typed
+      denial reason that drove the withdrawal (provider_disabled_by_policy,
+      local_model_pack_quarantined, local_model_pack_withdrawn, etc.).
+      withdraw_to_disabled MUST cite an admitting approval ticket.
+
+# ---------------------------------------------------------------------------
+# Promotion paths.
+#
+# The legal promotion / demotion / withdrawal transitions. Any other
+# transition MUST be expressed as withdraw_to_disabled followed by a fresh
+# packet for the next rollout state, so audit / replay consumers do not
+# observe an undefined transition. rollback_to_prior_state is admitted from
+# every non-experimental state and rolls back to the immediately prior
+# state on the rollout history.
+# ---------------------------------------------------------------------------
+admitted_transitions:
+  - from: experimental
+    to: [shadow, preview, disabled]
+  - from: shadow
+    to: [preview, experimental, disabled]
+  - from: preview
+    to: [stable, deprecated, shadow, disabled]
+  - from: stable
+    to: [deprecated, disabled]
+  - from: deprecated
+    to: [stable, disabled]
+  - from: disabled
+    to: [experimental, shadow, preview, stable]
+
+# ---------------------------------------------------------------------------
+# Vocabulary cross-reference.
+#
+# The rollout-state vocabulary composes with (and does not replace) the
+# model_lifecycle_state_class vocabulary on
+# schemas/ai/model_registry.schema.json. The two are kept distinct because:
+#
+#   - model_lifecycle_state_class names the lifecycle of one model entry
+#     in the model registry (preview_gated, generally_available, withdrawn,
+#     ...). It is the long-term posture of one model row.
+#
+#   - rollout_state_class names the rollout phase of one workflow / surface
+#     against that model entry (experimental, shadow, preview, stable,
+#     deprecated, disabled). The same model entry can serve a stable
+#     workflow and an experimental one through different graduation packets.
+#
+# A workflow that claims stable against a model entry whose
+# model_lifecycle_state_class is withdrawn denies with the model registry's
+# typed denial reasons (model_withdrawn, model_vendor_withdrew_without_notice).
+# ---------------------------------------------------------------------------
+vocabulary_cross_reference:
+  model_lifecycle_state_class_schema: schemas/ai/model_registry.schema.json
+  composition_rule: >
+    rollout_state_class names the rollout phase of one workflow / surface;
+    model_lifecycle_state_class names the lifecycle of one model entry. A
+    stable workflow MUST resolve to a model entry whose
+    model_lifecycle_state_class is one of {preview_general,
+    generally_available, stable_long_term_support}; resolution against any
+    other lifecycle state denies with the model registry's typed denial.
+
+# ---------------------------------------------------------------------------
+# Vocabulary class enumerations.
+#
+# Enumerated so consumers (rollout-review board UI, support export
+# templates, replay harness) can validate values without reaching back into
+# the JSON Schema export.
+# ---------------------------------------------------------------------------
+user_visibility_classes:
+  - behind_opt_in_flag_no_public_claim
+  - not_surfaced_to_user_paired_with_live_route
+  - surfaced_to_opted_in_cohort_under_preview_chip
+  - surfaced_to_general_population_under_stable_claim
+  - surfaced_with_typed_deprecation_chip
+  - not_admitted_typed_denial_only
+
+eval_evidence_kinds:
+  - protected_eval_corpus_passed
+  - protected_eval_corpus_failed_blocking
+  - protected_eval_corpus_pending
+  - red_team_corpus_passed
+  - red_team_corpus_failed_blocking
+  - red_team_corpus_pending
+  - parity_harness_passed
+  - parity_harness_failed_blocking
+  - latency_envelope_measured
+  - cost_envelope_measured
+  - fairness_audit_passed
+  - fairness_audit_pending
+  - user_study_passed
+  - user_study_pending
+  - vendor_attestation_only
+  - no_evidence_admitted_with_disclosure
+
+fallback_postures:
+  - degrade_to_local_route
+  - degrade_to_byok_route
+  - degrade_to_manual_review
+  - degrade_to_offline_cached_response
+  - disable_with_typed_denial
+  - no_fallback_request_fails_with_typed_denial
+  - fallback_to_prior_rollout_state
