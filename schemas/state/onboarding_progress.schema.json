@@ -1,0 +1,928 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/onboarding_progress.schema.json",
+  "title": "Aureline portable onboarding progress, dismissals, first-useful-work milestones, imported-profile history, rollback reminders, and remembered compatibility notices state record",
+  "description": "Boundary schema for the onboarding state contract frozen in docs/state/onboarding_state_contract.md. Freezes seven record kinds: onboarding_progress_entry_record (one tour / welcome-tour / checklist / guided-walkthrough / migration-welcome step progress row), onboarding_dismissal_record (one dismissal of a welcome banner, onboarding prompt, tour step, restore card, import banner, migration-center card, notification-inbox entry, or contextual tip), first_useful_work_milestone_record (one observation that a first useful edit, navigation, save, clone, restore, or migration review was reached), imported_profile_history_entry_record (one row in the imported-profile history ledger binding a portable-profile import, handoff-packet apply, competitor-config-root import, or template-or-prebuild snapshot apply to its fidelity label, rollback checkpoint, equivalence map, and resolved state), rollback_reminder_record (one reminder attached to a migration, import, restore, or remembered-compatibility review whose rollback window is still open), remembered_compatibility_notice_record (one remembered cross-release / cross-channel / equivalence-map compatibility notice the user has already acknowledged), and onboarding_state_bundle_record (top-level aggregator declaring the twelve const-true invariants). Every record declares exactly one storage_lane (where the row physically lives), one state_authority_class (who owns it), one state_portability_class (how it moves with the user), one reset_class, one export_class, one profile_scope_class, one delete_posture, one hold_posture, and one support_export_posture so delete / export / legal-hold / supportability flows classify the row from the schema alone. Re-exports state_authority_class, portability_class, location_root_id, redaction_class, and fidelity_label from schemas/profile/portable_profile.schema.json and state_portability_class, reset_class, export_class, profile_scope_class, recovery_binding_class, and the state_item_id namespace from schemas/ux/onboarding_portability_state.schema.json without redefinition. Four new closed vocabularies are introduced and scoped: storage_lane (7 values), delete_posture (6 values), hold_posture (5 values), support_export_posture (5 values). Adding a new record kind, progress kind, progress state, dismissed-surface family, dismissal intent, scope class, reappears rule, milestone kind, import kind, reminder kind, reminder state, notice kind, acknowledged-by value, storage lane, delete posture, hold posture, or support-export posture is additive-minor and bumps onboarding_progress_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/onboarding_progress_entry_record" },
+    { "$ref": "#/$defs/onboarding_dismissal_record" },
+    { "$ref": "#/$defs/first_useful_work_milestone_record" },
+    { "$ref": "#/$defs/imported_profile_history_entry_record" },
+    { "$ref": "#/$defs/rollback_reminder_record" },
+    { "$ref": "#/$defs/remembered_compatibility_notice_record" },
+    { "$ref": "#/$defs/onboarding_state_bundle_record" }
+  ],
+  "$defs": {
+    "onboarding_progress_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this onboarding-progress vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "onboarding_progress_entry_record",
+        "onboarding_dismissal_record",
+        "first_useful_work_milestone_record",
+        "imported_profile_history_entry_record",
+        "rollback_reminder_record",
+        "remembered_compatibility_notice_record",
+        "onboarding_state_bundle_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque stable identifier safe on logs, RPC, manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs, and raw secret material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Loose metadata block fixtures use to annotate their scenario. Runtime payloads SHOULD NOT populate this field."
+    },
+
+    "state_item_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^state_item\\.[a-z0-9_.]+$",
+      "description": "Canonical onboarding state-item id. Re-export of the pattern frozen in schemas/ux/onboarding_portability_state.schema.json. Never redefined here."
+    },
+
+    "storage_lane": {
+      "type": "string",
+      "enum": [
+        "portable_profile_body",
+        "portable_profile_machine_addendum",
+        "workspace_tree",
+        "machine_local_state",
+        "ephemeral_session_memory",
+        "policy_bundle_cache",
+        "credential_store_metadata_only",
+        "support_export_scratch"
+      ],
+      "description": "Where the row physically lives. Closed set. See onboarding_state_contract.md §3.1."
+    },
+
+    "state_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ],
+      "description": "Re-export of docs/state/profile_and_state_map.md §1 authority-class vocabulary. Never redefined here."
+    },
+
+    "state_portability_class": {
+      "type": "string",
+      "enum": [
+        "portable_profile_state",
+        "machine_local_diagnostic",
+        "device_scoped",
+        "account_scoped",
+        "policy_scoped",
+        "ephemeral_session"
+      ],
+      "description": "Re-export of schemas/ux/onboarding_portability_state.schema.json state_portability_class. Never redefined here."
+    },
+
+    "reset_class": {
+      "type": "string",
+      "enum": [
+        "resettable_per_profile",
+        "resettable_per_device",
+        "resettable_per_account",
+        "resettable_by_policy",
+        "not_resettable_locally"
+      ],
+      "description": "Re-export of schemas/ux/onboarding_portability_state.schema.json reset_class. Never redefined here."
+    },
+
+    "export_class": {
+      "type": "string",
+      "enum": [
+        "in_portable_profile_package",
+        "in_portable_profile_package_redacted",
+        "in_support_bundle_redacted",
+        "in_handoff_packet",
+        "not_exported_machine_local",
+        "blocked_by_policy"
+      ],
+      "description": "Re-export of schemas/ux/onboarding_portability_state.schema.json export_class. Never redefined here."
+    },
+
+    "profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "per_profile",
+        "per_device",
+        "per_account",
+        "per_policy_bundle",
+        "per_session"
+      ],
+      "description": "Re-export of schemas/ux/onboarding_portability_state.schema.json profile_scope_class. Never redefined here."
+    },
+
+    "recovery_binding_class": {
+      "type": "string",
+      "enum": [
+        "no_recovery_binding",
+        "recovery_ladder_participant",
+        "restore_prompt_input",
+        "migration_rollback_evidence",
+        "privacy_reduction_governed"
+      ],
+      "description": "Re-export of schemas/ux/onboarding_portability_state.schema.json recovery_binding_class. Never redefined here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "ADR-0007 redaction-class set. Re-exported from schemas/profile/portable_profile.schema.json; never redefined here."
+    },
+
+    "fidelity_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "manual_review"],
+      "description": "Re-export of the shared restore / migration fidelity-label set from docs/state/migration_and_restore_playbook.md §2. Never redefined here."
+    },
+
+    "delete_posture": {
+      "type": "string",
+      "enum": [
+        "clear_allowed",
+        "clear_requires_preview",
+        "clear_requires_preview_and_rollback",
+        "clear_denied_admin_owned",
+        "clear_denied_live_authority",
+        "clear_denied_record_class_immutable"
+      ],
+      "description": "How a clear / reset / delete request on this row is classified. Closed set. See onboarding_state_contract.md §3.2."
+    },
+
+    "hold_posture": {
+      "type": "string",
+      "enum": [
+        "not_hold_eligible",
+        "hold_eligible_per_profile",
+        "hold_eligible_per_account",
+        "hold_eligible_per_policy_bundle",
+        "hold_handled_by_authority"
+      ],
+      "description": "Whether the row participates in legal-hold / retention-hold flows. Closed set. See onboarding_state_contract.md §3.3."
+    },
+
+    "support_export_posture": {
+      "type": "string",
+      "enum": [
+        "included_by_default",
+        "included_metadata_only",
+        "opt_in_only",
+        "excluded_by_default",
+        "excluded_always"
+      ],
+      "description": "How the row appears in a support bundle or admin export. Closed set. See onboarding_state_contract.md §3.4."
+    },
+
+    "progress_kind": {
+      "type": "string",
+      "enum": [
+        "tour_step",
+        "welcome_tour_page",
+        "guided_walkthrough_step",
+        "first_run_checklist_task",
+        "migration_welcome_step"
+      ],
+      "description": "Kind of progress row."
+    },
+
+    "progress_state": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed",
+        "skipped",
+        "restarted",
+        "expired_by_policy"
+      ],
+      "description": "Closed progress state set."
+    },
+
+    "dismissed_surface_family": {
+      "type": "string",
+      "enum": [
+        "welcome_banner",
+        "onboarding_prompt",
+        "tour_step",
+        "restore_card",
+        "import_banner",
+        "migration_center_card",
+        "notification_inbox_entry",
+        "contextual_tip"
+      ],
+      "description": "Which surface family the row is dismissing."
+    },
+
+    "dismissal_intent": {
+      "type": "string",
+      "enum": [
+        "acknowledged_once",
+        "dismiss_for_this_session",
+        "dismiss_until_reset",
+        "dismiss_never_show_again",
+        "snoozed_until_next_launch",
+        "snoozed_until_rollback_window_closes"
+      ],
+      "description": "User intent behind the dismissal."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "per_profile",
+        "per_device",
+        "per_account",
+        "per_policy_bundle",
+        "per_session"
+      ],
+      "description": "Scope the dismissal applies to."
+    },
+
+    "reappears_rule": {
+      "type": "string",
+      "enum": [
+        "never",
+        "on_profile_reset",
+        "on_restart",
+        "on_policy_change",
+        "on_rollback_window_close",
+        "on_boundary_crossing"
+      ],
+      "description": "When the dismissed surface may re-appear."
+    },
+
+    "milestone_kind": {
+      "type": "string",
+      "enum": [
+        "surface_first_useful_edit",
+        "surface_first_useful_navigation",
+        "surface_first_save",
+        "surface_first_clone",
+        "surface_first_restore",
+        "surface_first_migration_review"
+      ],
+      "description": "First-useful-work milestone. Subset of the measurement-plan surface vocabulary."
+    },
+
+    "import_kind": {
+      "type": "string",
+      "enum": [
+        "portable_profile_import",
+        "handoff_packet_apply",
+        "competitor_config_root_import",
+        "template_or_prebuild_snapshot_apply"
+      ],
+      "description": "Kind of import / apply captured in the history row."
+    },
+
+    "import_resolved_state": {
+      "type": "string",
+      "enum": [
+        "kept",
+        "rolled_back",
+        "partial_apply_pending_review",
+        "rollback_window_open",
+        "rollback_window_closed"
+      ],
+      "description": "Resolved state of an imported-profile history entry."
+    },
+
+    "reminder_kind": {
+      "type": "string",
+      "enum": [
+        "migration_rollback_window",
+        "import_rollback_window",
+        "profile_restore_rollback_window",
+        "remembered_compatibility_equivalence_map_review"
+      ],
+      "description": "Kind of rollback reminder."
+    },
+
+    "reminder_state": {
+      "type": "string",
+      "enum": [
+        "armed",
+        "snoozed_once",
+        "resolved_kept",
+        "resolved_rolled_back",
+        "window_closed_expired"
+      ],
+      "description": "State the reminder is in."
+    },
+
+    "notice_kind": {
+      "type": "string",
+      "enum": [
+        "schema_upgrade_translation_hint",
+        "cross_channel_restore_downgrade_notice",
+        "extension_equivalence_map_review",
+        "layout_restore_layout_only_notice",
+        "workspace_trust_prompt_memo",
+        "template_or_prebuild_compatibility_memo"
+      ],
+      "description": "Kind of remembered compatibility notice."
+    },
+
+    "notice_acknowledged_by": {
+      "type": "string",
+      "enum": [
+        "user_acknowledged",
+        "user_declined",
+        "user_snoozed_until_reset",
+        "policy_suppressed"
+      ],
+      "description": "Who or what acknowledged the notice."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "one_record_one_storage_lane",
+            "lane_matches_state_authority_class",
+            "portability_class_matches_storage_lane",
+            "recent_work_and_milestones_are_device_scoped_by_default",
+            "remembered_compatibility_notice_never_binds_live_authority",
+            "imported_profile_history_rides_portable_or_is_machine_scratch",
+            "ephemeral_session_never_exports_bodies",
+            "admin_owned_rows_refuse_local_clear",
+            "credential_metadata_never_exports_raw_handle",
+            "every_row_classifies_delete_export_and_hold",
+            "dismissal_scope_matches_lane",
+            "every_rollback_reminder_has_close_or_resolution"
+          ],
+          "description": "Closed set of invariant ids. See onboarding_state_contract.md §6.2."
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One const-true invariant on the onboarding state bundle. Any assertion with asserted_true=false is a schema violation."
+    },
+
+    "classification_core": {
+      "type": "object",
+      "description": "Shared classification axes every concrete record carries. Not a record itself; referenced by every record kind via a composed object.",
+      "additionalProperties": false,
+      "required": [
+        "storage_lane",
+        "state_authority_class",
+        "state_portability_class",
+        "reset_class",
+        "export_class",
+        "profile_scope_class",
+        "delete_posture",
+        "hold_posture",
+        "support_export_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "storage_lane": { "$ref": "#/$defs/storage_lane" },
+        "state_authority_class": { "$ref": "#/$defs/state_authority_class" },
+        "state_portability_class": { "$ref": "#/$defs/state_portability_class" },
+        "reset_class": { "$ref": "#/$defs/reset_class" },
+        "export_class": { "$ref": "#/$defs/export_class" },
+        "profile_scope_class": { "$ref": "#/$defs/profile_scope_class" },
+        "recovery_binding_class": { "$ref": "#/$defs/recovery_binding_class" },
+        "delete_posture": { "$ref": "#/$defs/delete_posture" },
+        "hold_posture": { "$ref": "#/$defs/hold_posture" },
+        "support_export_posture": { "$ref": "#/$defs/support_export_posture" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "portability_reason": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "onboarding_progress_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "progress_entry_id",
+        "state_item_id",
+        "progress_kind",
+        "progress_state",
+        "attempts",
+        "remembered_across_restart",
+        "classification",
+        "first_seen_monotonic",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "onboarding_progress_entry_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "progress_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "progress_kind": { "$ref": "#/$defs/progress_kind" },
+        "progress_state": { "$ref": "#/$defs/progress_state" },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "remembered_across_restart": { "type": "boolean" },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "first_seen_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_advanced_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "properties": { "storage_lane": { "const": "ephemeral_session_memory" } },
+                "required": ["storage_lane"]
+              }
+            },
+            "required": ["classification"]
+          },
+          "then": {
+            "properties": { "remembered_across_restart": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "properties": {
+                  "storage_lane": {
+                    "enum": [
+                      "portable_profile_body",
+                      "portable_profile_machine_addendum",
+                      "workspace_tree",
+                      "machine_local_state",
+                      "policy_bundle_cache",
+                      "credential_store_metadata_only"
+                    ]
+                  }
+                },
+                "required": ["storage_lane"]
+              }
+            },
+            "required": ["classification"]
+          },
+          "then": {
+            "properties": { "remembered_across_restart": { "const": true } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "progress_state": { "enum": ["completed", "skipped", "expired_by_policy"] }
+            },
+            "required": ["progress_state"]
+          },
+          "then": {
+            "required": ["resolved_monotonic"]
+          }
+        }
+      ],
+      "description": "One onboarding progress entry. See onboarding_state_contract.md §4.1."
+    },
+
+    "onboarding_dismissal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "dismissal_id",
+        "state_item_id",
+        "dismissed_surface_family",
+        "dismissal_intent",
+        "scope_class",
+        "reappears_rule",
+        "classification",
+        "dismissed_at_monotonic",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "onboarding_dismissal_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "dismissal_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "dismissed_surface_family": { "$ref": "#/$defs/dismissed_surface_family" },
+        "dismissal_intent": { "$ref": "#/$defs/dismissal_intent" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "reappears_rule": { "$ref": "#/$defs/reappears_rule" },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "dismissed_at_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "dismissal_intent": { "const": "dismiss_for_this_session" } },
+            "required": ["dismissal_intent"]
+          },
+          "then": {
+            "properties": {
+              "scope_class": { "const": "per_session" },
+              "reappears_rule": { "const": "on_restart" },
+              "classification": {
+                "properties": { "storage_lane": { "const": "ephemeral_session_memory" } },
+                "required": ["storage_lane"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "dismissal_intent": { "const": "dismiss_never_show_again" } },
+            "required": ["dismissal_intent"]
+          },
+          "then": {
+            "properties": {
+              "reappears_rule": { "enum": ["never", "on_profile_reset", "on_policy_change"] }
+            }
+          }
+        }
+      ],
+      "description": "One dismissal row. See onboarding_state_contract.md §4.2."
+    },
+
+    "first_useful_work_milestone_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "milestone_id",
+        "state_item_id",
+        "milestone_kind",
+        "first_observed_monotonic",
+        "recurrence_counter",
+        "classification",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "first_useful_work_milestone_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "milestone_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "milestone_kind": { "$ref": "#/$defs/milestone_kind" },
+        "first_observed_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_observed_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "observed_on_device_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "recurrence_counter": { "type": "integer", "minimum": 0 },
+        "measurement_surface_ref": {
+          "type": "string",
+          "enum": [
+            "surface_first_run",
+            "surface_first_open",
+            "surface_first_useful_edit",
+            "surface_migration_review",
+            "surface_restore_success",
+            "surface_opt_in_boundary"
+          ],
+          "description": "Optional cross-link to the measurement-plan surface row. Re-export only; never redefined here."
+        },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "classification": {
+              "properties": {
+                "storage_lane": {
+                  "enum": ["portable_profile_body", "machine_local_state"]
+                }
+              },
+              "required": ["storage_lane"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "properties": { "storage_lane": { "const": "machine_local_state" } },
+                "required": ["storage_lane"]
+              }
+            },
+            "required": ["classification"]
+          },
+          "then": {
+            "required": ["observed_on_device_id_ref"]
+          }
+        }
+      ],
+      "description": "One first-useful-work milestone observation. See onboarding_state_contract.md §4.3."
+    },
+
+    "imported_profile_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "history_entry_id",
+        "state_item_id",
+        "import_kind",
+        "source_ref",
+        "target_profile_scope_ref",
+        "fidelity_label_ref",
+        "imported_at_monotonic",
+        "resolved_state",
+        "classification",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "imported_profile_history_entry_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "import_kind": { "$ref": "#/$defs/import_kind" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_profile_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "fidelity_label_ref": { "$ref": "#/$defs/fidelity_label" },
+        "rollback_checkpoint_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "equivalence_map_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "imported_at_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_state": { "$ref": "#/$defs/import_resolved_state" },
+        "rollback_reminder_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "classification": {
+              "properties": {
+                "storage_lane": {
+                  "enum": ["portable_profile_body", "machine_local_state"]
+                }
+              },
+              "required": ["storage_lane"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fidelity_label_ref": { "enum": ["compatible", "manual_review"] }
+            },
+            "required": ["fidelity_label_ref"]
+          },
+          "then": {
+            "required": ["rollback_checkpoint_ref", "equivalence_map_ref"],
+            "properties": {
+              "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "resolved_state": { "const": "rollback_window_open" } },
+            "required": ["resolved_state"]
+          },
+          "then": {
+            "required": ["rollback_reminder_ref"],
+            "properties": {
+              "rollback_reminder_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ],
+      "description": "One imported-profile history entry. See onboarding_state_contract.md §4.4."
+    },
+
+    "rollback_reminder_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "reminder_id",
+        "state_item_id",
+        "reminder_kind",
+        "bound_history_ref",
+        "rollback_window_opens_monotonic",
+        "rollback_window_closes_monotonic",
+        "reminder_state",
+        "classification",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "rollback_reminder_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "reminder_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "reminder_kind": { "$ref": "#/$defs/reminder_kind" },
+        "bound_history_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_window_opens_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "rollback_window_closes_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reminder_state": { "$ref": "#/$defs/reminder_state" },
+        "paired_checkpoint_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reminder_state": {
+                "enum": ["resolved_kept", "resolved_rolled_back"]
+              }
+            },
+            "required": ["reminder_state"]
+          },
+          "then": {
+            "required": ["paired_checkpoint_ref"],
+            "properties": {
+              "paired_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ],
+      "description": "One rollback reminder. See onboarding_state_contract.md §4.5."
+    },
+
+    "remembered_compatibility_notice_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "notice_id",
+        "state_item_id",
+        "notice_kind",
+        "acknowledged_by",
+        "first_shown_monotonic",
+        "reappears_rule",
+        "classification",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "remembered_compatibility_notice_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "notice_id": { "$ref": "#/$defs/opaque_id" },
+        "state_item_id": { "$ref": "#/$defs/state_item_id" },
+        "notice_kind": { "$ref": "#/$defs/notice_kind" },
+        "acknowledged_by": { "$ref": "#/$defs/notice_acknowledged_by" },
+        "equivalence_map_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "applies_to_source_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "first_shown_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_shown_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "acknowledged_monotonic": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reappears_rule": { "$ref": "#/$defs/reappears_rule" },
+        "classification": { "$ref": "#/$defs/classification_core" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "notice_kind": {
+                "enum": [
+                  "schema_upgrade_translation_hint",
+                  "extension_equivalence_map_review"
+                ]
+              }
+            },
+            "required": ["notice_kind"]
+          },
+          "then": {
+            "required": ["equivalence_map_ref"],
+            "properties": {
+              "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "acknowledged_by": {
+                "enum": ["user_acknowledged", "user_declined"]
+              }
+            },
+            "required": ["acknowledged_by"]
+          },
+          "then": {
+            "required": ["acknowledged_monotonic"]
+          }
+        }
+      ],
+      "description": "One remembered compatibility notice. See onboarding_state_contract.md §4.6."
+    },
+
+    "onboarding_state_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "onboarding_progress_schema_version",
+        "bundle_id",
+        "records",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "onboarding_state_bundle_record" },
+        "onboarding_progress_schema_version": { "$ref": "#/$defs/onboarding_progress_schema_version" },
+        "bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 12,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true
+        },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator. Declares the twelve const-true invariants and binds every concrete record. See onboarding_state_contract.md §6."
+    }
+  }
+}
