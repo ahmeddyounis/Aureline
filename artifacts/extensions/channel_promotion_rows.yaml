@@ -1,0 +1,422 @@
+# Channel-promotion and registry-source-class registry.
+#
+# Machine-readable register backing docs/extensions/registry_and_offline_bundle_seed.md.
+#
+# Every row here pins one rule about how extension artifacts move
+# across the three promotion lanes (quarantine, approved, production)
+# or how they land on a non-production registry source class (offline
+# bundle, local archive, quarantined local copy). The rules are
+# deliberately prescriptive so later registry-mirror, install-review,
+# permission-inspector, support-export, and offline-bundle lanes read
+# one register instead of inventing lane rules per surface.
+#
+# Tooling (registry indexer, mirror adapter, install / update review
+# sheet, permission inspector, support export, offline-bundle exporter
+# and importer, SDK bindgen seed) MAY read these rows rather than
+# invent channel-promotion or trust-inheritance vocabulary per lane.
+#
+# Conformance: every promotion or mirror row conforms to
+#   schemas/extensions/registry_manifest.schema.json
+# as one of channel_promotion_row, mirror_continuity_row,
+# registry_manifest_row, offline_bundle_manifest_row, or
+# local_archive_import_row. This file is the tabular register; schema
+# conformance lives with the worked fixtures under
+# fixtures/extensions/mirror_cases/.
+#
+# Invariants (binding):
+#
+#   I1. Promotion across {quarantine, approved, production} lanes
+#       preserves artifact identity verbatim. The content-address
+#       pair (digest_algorithm, digest_hex), the signature / attestation
+#       ref, and the extension identity MUST be identical on the source
+#       and target channel rows. A promotion that would re-digest or
+#       re-sign the artifact is denied with
+#       artifact_identity_mutated_on_repackage.
+#
+#   I2. Approved_mirror, private_registry, offline_bundle, local_archive,
+#       and quarantined_local_copy rows share one trust, compatibility,
+#       and anti-abuse vocabulary. A surface MUST NOT introduce
+#       registry-specific badges; it reads trust_claim_source,
+#       trust_badge_inheritance_rule, compatibility_claim_class, and
+#       anti_abuse_signal_class from this register.
+#
+#   I3. Trust inheritance is capped at the transport. An approved_mirror
+#       row renders the origin trust tier only when the mirror re-
+#       verifies the origin signature with a non-stale revocation
+#       snapshot; otherwise it caps at capped_at_community_on_approved_mirror.
+#       Private_registry caps at capped_at_organisational_on_private_registry.
+#       Local_archive caps at capped_at_unverified_on_local_archive.
+#       Quarantined_local_copy is pinned at quarantined_cannot_inherit.
+#
+#   I4. Offline bundles carry lockfile parity, revocation-snapshot age,
+#       and a deterministic restore preview. A restore against a stale
+#       or missing revocation snapshot denies with
+#       offline_bundle_restore_refused_revocation_snapshot_stale; a
+#       restore across a lockfile drift denies with
+#       offline_bundle_restore_refused_lockfile_drift.
+#
+#   I5. The register is additive-minor. Adding a new registry source
+#       class, a new channel lane, a new trust inheritance rule, a new
+#       anti-abuse signal class, a new promotion-outcome class, or a new
+#       audit event id is additive-minor with a
+#       registry_manifest_schema_version bump. Repurposing or removing
+#       an existing row is breaking and requires a new decision row.
+
+schema_version: 1
+
+adr_source: docs/adr/0012-extension-manifest-permission-publisher-policy.md
+seed_doc: docs/extensions/registry_and_offline_bundle_seed.md
+registry_manifest_schema_ref: schemas/extensions/registry_manifest.schema.json
+registry_manifest_schema_version: 1
+
+# -----------------------------------------------------------------------------
+# Registry source classes.
+#
+# Six classes; every registry_manifest_row carries exactly one. The
+# ADR-0012 vocabulary is the parent; this seed narrows 'mirror' into
+# 'approved_mirror' and 'vendored_local' into 'local_archive' and
+# 'quarantined_local_copy'. Rows rendered against the ADR-0012 schema
+# project approved_mirror onto mirror, and local_archive /
+# quarantined_local_copy onto vendored_local with an explicit
+# quarantine marker.
+# -----------------------------------------------------------------------------
+registry_source_classes:
+  - registry_source_class: public_registry
+    narrative: >
+      Origin of first-party and community publications. Trust tier
+      inherits from the publisher-continuity row verbatim.
+    adr_0012_projection: public_registry
+    trust_inheritance_default: inherits_origin_tier
+    admits_channel_promotion: true
+    admits_offline_export: true
+    admits_local_archive_export: false
+    admits_quarantine_export: false
+
+  - registry_source_class: approved_mirror
+    narrative: >
+      Enterprise or air-gapped mirror that quotes origin digests and
+      signatures verbatim. MAY narrow (allow/deny list, floor, pin,
+      emergency disable); MUST NOT widen. A mirror that loses origin
+      continuity drops to a broken_* mirror_continuity_state_class.
+    adr_0012_projection: mirror
+    trust_inheritance_default: capped_at_community_on_approved_mirror
+    admits_channel_promotion: true
+    admits_offline_export: true
+    admits_local_archive_export: false
+    admits_quarantine_export: false
+    narrowings_admitted:
+      - deny_list_applied
+      - allow_list_applied
+      - publisher_trust_floor_applied
+      - version_floor_applied
+      - emergency_disable_applied
+      - signed_continuity_required_applied
+
+  - registry_source_class: private_registry
+    narrative: >
+      Organisation-run registry. May host first-party, forked, or
+      internally-built artifacts. Trust tier caps at organisational
+      unless the private registry re-verifies an upstream origin
+      signature with a non-stale revocation snapshot.
+    adr_0012_projection: private_registry
+    trust_inheritance_default: capped_at_organisational_on_private_registry
+    admits_channel_promotion: true
+    admits_offline_export: true
+    admits_local_archive_export: false
+    admits_quarantine_export: false
+
+  - registry_source_class: offline_bundle
+    narrative: >
+      Sealed export built from a public_registry, approved_mirror, or
+      private_registry at a known revocation-snapshot instant. Ships a
+      content-addressed bundle envelope, per-artifact digests and
+      signatures, a publisher-continuity snapshot per artifact, a
+      lockfile, and a deterministic restore preview. Restore preserves
+      origin signatures and digests verbatim.
+    adr_0012_projection: offline_bundle
+    trust_inheritance_default: capped_at_community_on_approved_mirror
+    admits_channel_promotion: false
+    admits_offline_export: true
+    admits_local_archive_export: false
+    admits_quarantine_export: false
+
+  - registry_source_class: local_archive
+    narrative: >
+      Side-loaded artifact imported from a workspace-relative path,
+      user-home path, removable media, network mount, or stdin stream
+      by an operator attestation. Trust tier caps at unverified;
+      publisher-continuity snapshots, if present, are rendered as
+      advisory only.
+    adr_0012_projection: vendored_local
+    trust_inheritance_default: capped_at_unverified_on_local_archive
+    admits_channel_promotion: false
+    admits_offline_export: false
+    admits_local_archive_export: true
+    admits_quarantine_export: false
+
+  - registry_source_class: quarantined_local_copy
+    narrative: >
+      A local archive the importer recorded as quarantined (for
+      example: flagged by anti-abuse heuristics on import, or landed
+      through a forensic workflow). Install is denied with
+      quarantined_local_copy_install_denied; the row exists so support
+      export, claim manifests, and mutation-journal entries can
+      preserve provenance without admitting execution.
+    adr_0012_projection: vendored_local
+    trust_inheritance_default: quarantined_cannot_inherit
+    admits_channel_promotion: false
+    admits_offline_export: false
+    admits_local_archive_export: false
+    admits_quarantine_export: true
+
+# -----------------------------------------------------------------------------
+# Channel-lane rules.
+#
+# Three lanes. Promotion only advances the lane order; reverse moves
+# are expressed as approval_state_class transitions (revoked,
+# emergency_disabled) rather than channel_promotion_row records.
+# -----------------------------------------------------------------------------
+channel_lanes:
+  - channel_class: quarantine
+    narrative: >
+      Default landing lane for new publications. Install is gated on
+      step-up approval and the install-review surface renders the full
+      declared-vs-effective permission diff plus the full
+      compatibility-notes entry set.
+    default_entry_channel_for_source_classes:
+      - public_registry
+      - approved_mirror
+      - private_registry
+
+  - channel_class: approved
+    narrative: >
+      Lane reserved for artifacts that cleared review but are not yet
+      general availability. Promotion from quarantine requires at
+      least one approver_refs entry and a non-null required_evidence_refs
+      list; widening the trust tier during promotion is denied with
+      channel_promotion_widened_trust_tier.
+    promotes_from: [quarantine]
+    promotes_to: [production]
+
+  - channel_class: production
+    narrative: >
+      General availability lane. An artifact reaches production only
+      through a channel_promotion_row with preserves_artifact_identity =
+      true and promotion_outcome = promoted. Revocation moves
+      approval_state_class to revoked rather than producing a reverse
+      promotion row.
+    promotes_from: [approved]
+    promotes_to: []
+
+# -----------------------------------------------------------------------------
+# Channel-promotion rules.
+#
+# Prescriptive rules that every tooling surface reads when admitting a
+# channel_promotion_row.
+# -----------------------------------------------------------------------------
+channel_promotion_rules:
+  - id: rule_promote_quarantine_to_approved
+    source_channel_class: quarantine
+    target_channel_class: approved
+    required_row_posture:
+      preserves_artifact_identity: true
+      non_null_approvers_ref: true
+      non_null_required_evidence_refs: true
+      anti_abuse_signals_do_not_include:
+        - digest_collision_suspected
+        - typosquatting_candidate
+        - mirror_rewrite_attempted
+    denies_on:
+      - channel_promotion_denied_by_policy
+      - channel_promotion_widened_trust_tier
+      - blocked_by_revocation_snapshot_stale
+      - blocked_by_anti_abuse_signal
+
+  - id: rule_promote_approved_to_production
+    source_channel_class: approved
+    target_channel_class: production
+    required_row_posture:
+      preserves_artifact_identity: true
+      non_null_approvers_ref: true
+      non_null_required_evidence_refs: true
+      revocation_snapshot_age_class_in:
+        - fresh
+        - warm_cached
+    denies_on:
+      - channel_promotion_denied_by_policy
+      - channel_promotion_widened_trust_tier
+      - blocked_by_revocation_snapshot_stale
+      - blocked_by_anti_abuse_signal
+
+  - id: rule_emergency_disable_on_production
+    source_channel_class: production
+    target_channel_class: production
+    narrative: >
+      Production artifacts do not reverse-promote; a revocation, an
+      emergency disable, or a publisher quarantine moves
+      approval_state_class to revoked or emergency_disabled without
+      producing a channel_promotion_row that downgrades the channel.
+    expected_approval_state_transitions:
+      - from: promoted_to_production
+        to: emergency_disabled
+      - from: promoted_to_production
+        to: revoked
+
+# -----------------------------------------------------------------------------
+# Trust-inheritance matrix.
+#
+# One row per (registry_source_class, trust_badge_inheritance_rule)
+# combination admitted by the schema allOf gates. Surfaces render this
+# matrix directly; they do not invent inheritance rules per-lane.
+# -----------------------------------------------------------------------------
+trust_inheritance_matrix:
+  - registry_source_class: public_registry
+    admitted_inheritance_rules:
+      - inherits_origin_tier
+    default_inheritance_rule: inherits_origin_tier
+
+  - registry_source_class: approved_mirror
+    admitted_inheritance_rules:
+      - inherits_origin_tier
+      - capped_at_community_on_approved_mirror
+      - quarantined_cannot_inherit
+    default_inheritance_rule: capped_at_community_on_approved_mirror
+    inherits_origin_tier_preconditions:
+      - mirror_continuity_state_class_is_verified_live_or_verified_cached
+      - revocation_snapshot_age_class_in_fresh_or_warm_cached
+      - narrowings_applied_do_not_include_widening
+
+  - registry_source_class: private_registry
+    admitted_inheritance_rules:
+      - inherits_origin_tier
+      - capped_at_organisational_on_private_registry
+      - quarantined_cannot_inherit
+    default_inheritance_rule: capped_at_organisational_on_private_registry
+    inherits_origin_tier_preconditions:
+      - revocation_snapshot_age_class_in_fresh_or_warm_cached
+      - origin_signature_reverified_by_private_registry
+
+  - registry_source_class: offline_bundle
+    admitted_inheritance_rules:
+      - inherits_origin_tier
+      - capped_at_community_on_approved_mirror
+      - quarantined_cannot_inherit
+    default_inheritance_rule: capped_at_community_on_approved_mirror
+    inherits_origin_tier_preconditions:
+      - every_artifact_entry_revocation_snapshot_is_fresh_or_warm_cached
+      - importer_reverifies_origin_signatures_on_restore
+
+  - registry_source_class: local_archive
+    admitted_inheritance_rules:
+      - capped_at_unverified_on_local_archive
+      - quarantined_cannot_inherit
+    default_inheritance_rule: capped_at_unverified_on_local_archive
+
+  - registry_source_class: quarantined_local_copy
+    admitted_inheritance_rules:
+      - quarantined_cannot_inherit
+    default_inheritance_rule: quarantined_cannot_inherit
+
+# -----------------------------------------------------------------------------
+# Shared anti-abuse vocabulary.
+#
+# Raised on registry_manifest_row, mirror_continuity_row,
+# channel_promotion_row, offline_bundle_manifest_row, and
+# local_archive_import_row rows. A surface that hides a raised signal
+# is denied with review_disclosure_incomplete.
+# -----------------------------------------------------------------------------
+anti_abuse_signals:
+  - none
+  - publisher_namespace_recently_orphaned
+  - publisher_namespace_recently_quarantined
+  - publisher_namespace_recently_succeeded
+  - digest_collision_suspected
+  - typosquatting_candidate
+  - rapid_version_republish
+  - mirror_rewrite_attempted
+
+# -----------------------------------------------------------------------------
+# Shared compatibility-claim vocabulary.
+#
+# Surfaced on every registry / mirror / offline-bundle / local-archive
+# row so downstream discovery ranking and compatibility reviews read one
+# compatibility vocabulary rather than per-registry badges.
+# -----------------------------------------------------------------------------
+compatibility_claim_classes:
+  - compatible_on_all_declared_targets
+  - compatible_on_subset_of_declared_targets
+  - compatibility_bridge_required
+  - compatibility_unknown_pending_reverification
+  - incompatible_blocked_on_policy
+
+# -----------------------------------------------------------------------------
+# Audit events reserved for the registry / mirror / offline-bundle
+# surface. Emitted on extension_trust (ADR-0012 stream). Raw artifact
+# bytes, raw signing-key material, raw attestation bytes, and raw
+# mirror-cache bodies MUST NOT appear on any event.
+# -----------------------------------------------------------------------------
+audit_events:
+  - registry_manifest_indexed
+  - registry_manifest_digest_recomputed
+  - registry_manifest_signature_reverified
+  - mirror_continuity_verified
+  - mirror_continuity_broken
+  - mirror_narrowing_attempted_widening
+  - channel_promotion_submitted
+  - channel_promotion_approved
+  - channel_promotion_blocked_by_policy
+  - channel_promotion_revoked
+  - offline_bundle_exported
+  - offline_bundle_imported
+  - offline_bundle_restore_preview_rendered
+  - offline_bundle_restore_blocked_by_lockfile_drift
+  - offline_bundle_restore_blocked_by_revocation_stale
+  - local_archive_imported
+  - local_archive_trust_tier_capped
+  - quarantined_local_copy_recorded
+  - revocation_snapshot_refreshed
+  - revocation_snapshot_stale_detected
+  - anti_abuse_signal_raised
+
+# -----------------------------------------------------------------------------
+# Denial reasons.
+#
+# Reserved in addition to the ADR-0012 set. Silent downgrade to a
+# generic "unavailable" or "install blocked" chip is forbidden; every
+# denial emits the corresponding audit event with a typed reason and a
+# repair affordance.
+# -----------------------------------------------------------------------------
+denial_reasons:
+  - registry_digest_mismatch
+  - registry_signature_mismatch
+  - registry_source_class_unsupported_on_target
+  - artifact_identity_mutated_on_repackage
+  - mirror_continuity_broken
+  - mirror_narrowing_attempted_widening
+  - channel_promotion_denied_by_policy
+  - channel_promotion_widened_trust_tier
+  - offline_bundle_restore_refused_lockfile_drift
+  - offline_bundle_restore_refused_revocation_snapshot_stale
+  - offline_bundle_restore_refused_missing_dependency
+  - local_archive_trust_tier_capped
+  - local_archive_signature_missing_denied_on_policy
+  - quarantined_local_copy_install_denied
+  - publisher_namespace_recently_quarantined
+  - review_disclosure_incomplete
+
+# -----------------------------------------------------------------------------
+# Never permitted.
+#
+# Collected so tooling tests can fail closed on any row that would do
+# one of these things. Mirror of the ADR-0019 compatibility-bridge
+# "never_permitted" clause for the registry-mirror surface.
+# -----------------------------------------------------------------------------
+never_permitted:
+  - repackage_or_re_encode_artifact_during_channel_promotion
+  - re_sign_mirror_cached_artifact_under_a_different_publisher_identity
+  - upgrade_unsigned_artifact_to_publisher_signature_via_mirror_or_offline_bundle
+  - silently_inherit_verified_publisher_tier_on_approved_mirror_or_offline_bundle_or_local_archive_or_quarantined_local_copy
+  - hide_anti_abuse_signal_from_install_review_or_permission_inspector
+  - render_quarantined_local_copy_as_installable
+  - elide_block_on_lockfile_drift_or_block_on_revocation_snapshot_stale_step_from_restore_preview
+  - embed_raw_artifact_bytes_or_raw_signing_key_material_in_any_row

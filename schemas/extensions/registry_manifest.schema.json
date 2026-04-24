@@ -1,0 +1,1180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/registry_manifest.schema.json",
+  "title": "Aureline extension registry-manifest, mirror-continuity, channel-promotion, offline-bundle, and local-archive-import vocabulary (ADR seed)",
+  "description": "Seed boundary schema for the extension artifact transport, registry / mirror, channel-promotion, offline-bundle, and local-archive-import rows reserved for the registry-mirror, install / update review, permission-inspector, offline-bundle, and support-export lanes. This is an ADR-seed schema: the vocabulary and field set are pinned so public registry, approved mirror, private registry, offline bundle, local archive, and quarantined local copy surfaces share one trust, compatibility, and anti-abuse vocabulary instead of minting registry-specific badges. Extends the ADR-0012 registry_source_class, mirror-continuity, and publisher-continuity vocabularies; never widens the ADR-0012 effective-permission or publisher-trust ceilings. Adding a new member to any enumerated set or an additive field is additive-minor with a registry_manifest_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw attestation-bundle bytes, raw policy-bundle bytes, raw mirror-cache bodies, raw offline-bundle payload bytes, and raw local-archive bytes MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/registry_manifest_row" },
+    { "$ref": "#/$defs/mirror_continuity_row" },
+    { "$ref": "#/$defs/channel_promotion_row" },
+    { "$ref": "#/$defs/offline_bundle_manifest_row" },
+    { "$ref": "#/$defs/local_archive_import_row" }
+  ],
+  "$defs": {
+    "registry_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this registry-manifest vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "registry_manifest_row",
+        "mirror_continuity_row",
+        "channel_promotion_row",
+        "offline_bundle_manifest_row",
+        "local_archive_import_row"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id' (ADR-0012). Never reused after retirement."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SemVer string the registry manifest was published against. Pinning and floors are policy-pack concerns; this field carries the declared value only."
+    },
+
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"],
+      "description": "Frozen digest-algorithm vocabulary. A registry / mirror / offline bundle / local archive that re-digests under a different algorithm MUST preserve the original digest as-is; content-address identity is algorithm-tagged."
+    },
+
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32,
+          "description": "Lowercase hex digest of the artifact bytes. The content-address is the (algorithm, digest_hex) pair. Mirror, offline-bundle, and local-archive rows MUST quote this pair verbatim; repackaging that would alter it is denied with artifact_identity_mutated_on_repackage."
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional size in bytes of the digested artifact. Preserved across mirrors and offline bundles; used by restore previews to surface expected-size mismatches."
+        }
+      },
+      "description": "Content-address pair binding an artifact to its bytes. Identity is preserved verbatim across public registry, approved mirror, private registry, offline bundle, and local archive rows."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Where the registry manifest was delivered from. This seed narrows the ADR-0012 registry_source_class vocabulary: 'mirror' is refined into 'approved_mirror'; 'vendored_local' is refined into 'local_archive' and 'quarantined_local_copy'. The ADR-0012 vocabulary remains the parent; any row here that is also rendered against the ADR-0012 schema MAY project 'approved_mirror' onto 'mirror', 'local_archive' onto 'vendored_local', and 'quarantined_local_copy' onto 'vendored_local' with an explicit quarantine marker."
+    },
+
+    "channel_class": {
+      "type": "string",
+      "enum": ["quarantine", "approved", "production"],
+      "description": "Frozen channel-lane vocabulary for registry / mirror / offline-bundle rows. A row starts in 'quarantine'; review promotes it to 'approved'; general availability promotes it to 'production'. Promotion never re-encodes the artifact; only the channel row advances. A row that re-digests the artifact during promotion is denied with artifact_identity_mutated_on_repackage."
+    },
+
+    "approval_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "approved_on_quarantine",
+        "approved_on_mirror",
+        "promoted_to_production",
+        "blocked_by_policy",
+        "emergency_disabled",
+        "revoked"
+      ],
+      "description": "Frozen approval-state vocabulary. Every registry-manifest row carries exactly one approval_state_class; a transition records an audit event and a channel_promotion_row."
+    },
+
+    "signature_class": {
+      "type": "string",
+      "enum": [
+        "publisher_signature",
+        "attestation_bundle",
+        "dual_signed_publisher_and_attestation",
+        "unsigned_requires_out_of_band_verification",
+        "unsigned_denied_on_policy"
+      ],
+      "description": "Frozen signature-class vocabulary. An approved_mirror / private_registry / offline_bundle / local_archive row MAY NOT upgrade an unsigned_requires_out_of_band_verification artifact to publisher_signature or dual_signed_publisher_and_attestation; widening the signature class is denied with artifact_identity_mutated_on_repackage."
+    },
+
+    "trust_claim_source": {
+      "type": "string",
+      "enum": [
+        "origin_public_registry",
+        "origin_private_registry",
+        "approved_mirror_cache",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Which transport supplied the trust claim for the row. The install-review and permission-inspector surfaces render this value as an explicit provenance chip; silent fallback to 'verified_publisher' when the source is approved_mirror_cache / offline_bundle / local_archive / quarantined_local_copy is forbidden."
+    },
+
+    "trust_badge_inheritance_rule": {
+      "type": "string",
+      "enum": [
+        "inherits_origin_tier",
+        "capped_at_organisational_on_private_registry",
+        "capped_at_community_on_approved_mirror",
+        "capped_at_unverified_on_local_archive",
+        "quarantined_cannot_inherit"
+      ],
+      "description": "How the row's rendered publisher-trust tier relates to the origin publisher-continuity tier. 'inherits_origin_tier' is reserved for public_registry and for approved_mirror rows that re-verify the origin signature with a fresh revocation snapshot. Everything else caps the rendered tier; 'quarantined_cannot_inherit' forces the rendered tier to unverified_publisher regardless of origin."
+    },
+
+    "compatibility_claim_class": {
+      "type": "string",
+      "enum": [
+        "compatible_on_all_declared_targets",
+        "compatible_on_subset_of_declared_targets",
+        "compatibility_bridge_required",
+        "compatibility_unknown_pending_reverification",
+        "incompatible_blocked_on_policy"
+      ],
+      "description": "Frozen compatibility-claim vocabulary shared by public_registry, approved_mirror, private_registry, offline_bundle, and local_archive rows. The concrete declared-target set rides the ADR-0012 host_contract_family / ADR-0019 capability-world vocabularies; this field is the summary class."
+    },
+
+    "revocation_snapshot_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified_no_snapshot"
+      ],
+      "description": "Freshness class for the publisher-continuity / signature revocation snapshot the row was evaluated against. Offline-bundle and approved-mirror restores MUST surface this value; a restore against a 'stale' or 'unverified_no_snapshot' snapshot denies with offline_bundle_restore_refused_revocation_snapshot_stale unless the operator records an out-of-band attestation."
+    },
+
+    "lockfile_parity_state": {
+      "type": "string",
+      "enum": [
+        "exact_match",
+        "additive_rebuild_allowed",
+        "drift_detected_blocking",
+        "not_applicable_first_resolve"
+      ],
+      "description": "Parity state between the offline bundle's lockfile and the importer's resolved dependency set. 'drift_detected_blocking' denies restore with offline_bundle_restore_refused_lockfile_drift; additive_rebuild_allowed lets the importer add artifacts that the bundle did not ship but does not admit downgrading any pinned row."
+    },
+
+    "mirror_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_live",
+        "verified_cached",
+        "stale_cached",
+        "broken_digest_mismatch",
+        "broken_signature_mismatch",
+        "broken_publisher_revoked",
+        "broken_publisher_quarantined",
+        "broken_attestation_missing",
+        "narrowing_attempted_widening"
+      ],
+      "description": "Mirror-continuity state class. 'narrowing_attempted_widening' is a terminal rejection: a mirror that tried to relax the origin's trust or signature posture is denied with mirror_narrowing_attempted_widening."
+    },
+
+    "anti_abuse_signal_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "publisher_namespace_recently_orphaned",
+        "publisher_namespace_recently_quarantined",
+        "publisher_namespace_recently_succeeded",
+        "digest_collision_suspected",
+        "typosquatting_candidate",
+        "rapid_version_republish",
+        "mirror_rewrite_attempted"
+      ],
+      "description": "Frozen anti-abuse signal vocabulary shared by registry, mirror, and offline-bundle rows. A surface that hides a raised anti-abuse signal is denied with review_disclosure_incomplete; the signal never promotes or demotes the publisher-continuity row on its own."
+    },
+
+    "offline_bundle_restore_step_class": {
+      "type": "string",
+      "enum": [
+        "install_artifact",
+        "reuse_already_present_artifact",
+        "prompt_user_for_trust_decision",
+        "prompt_admin_for_policy_exception",
+        "block_on_missing_dependency",
+        "block_on_revocation_snapshot_stale",
+        "block_on_lockfile_drift",
+        "block_on_artifact_identity_mutated"
+      ],
+      "description": "Frozen restore-preview step-class vocabulary. The importer MUST render one step per artifact in the bundle; a restore surface that hides a 'block_on_*' step is denied with review_disclosure_incomplete."
+    },
+
+    "registry_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "registry_manifest_indexed",
+        "registry_manifest_digest_recomputed",
+        "registry_manifest_signature_reverified",
+        "mirror_continuity_verified",
+        "mirror_continuity_broken",
+        "mirror_narrowing_attempted_widening",
+        "channel_promotion_submitted",
+        "channel_promotion_approved",
+        "channel_promotion_blocked_by_policy",
+        "channel_promotion_revoked",
+        "offline_bundle_exported",
+        "offline_bundle_imported",
+        "offline_bundle_restore_preview_rendered",
+        "offline_bundle_restore_blocked_by_lockfile_drift",
+        "offline_bundle_restore_blocked_by_revocation_stale",
+        "local_archive_imported",
+        "local_archive_trust_tier_capped",
+        "quarantined_local_copy_recorded",
+        "revocation_snapshot_refreshed",
+        "revocation_snapshot_stale_detected",
+        "anti_abuse_signal_raised"
+      ],
+      "description": "Frozen registry / mirror / offline-bundle audit-event-id vocabulary. Additive-minor. Raw artifact bytes, raw signing-key material, raw attestation bytes, and raw mirror-cache bodies MUST NOT appear on any event."
+    },
+
+    "registry_denial_reason": {
+      "type": "string",
+      "enum": [
+        "registry_digest_mismatch",
+        "registry_signature_mismatch",
+        "registry_source_class_unsupported_on_target",
+        "artifact_identity_mutated_on_repackage",
+        "mirror_continuity_broken",
+        "mirror_narrowing_attempted_widening",
+        "channel_promotion_denied_by_policy",
+        "channel_promotion_widened_trust_tier",
+        "offline_bundle_restore_refused_lockfile_drift",
+        "offline_bundle_restore_refused_revocation_snapshot_stale",
+        "offline_bundle_restore_refused_missing_dependency",
+        "local_archive_trust_tier_capped",
+        "local_archive_signature_missing_denied_on_policy",
+        "quarantined_local_copy_install_denied",
+        "publisher_namespace_recently_quarantined",
+        "review_disclosure_incomplete"
+      ],
+      "description": "Frozen registry / mirror / offline-bundle denial-reason vocabulary. Silent downgrade to a generic 'unavailable' or 'install blocked' chip is forbidden; every denial emits the corresponding audit event with a typed reason and a repair affordance label."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Declared redaction class for the record when emitted to an observable sink. Mirrors the ADR-0007 redaction defaults; raw attestation-bundle bytes, raw signature bodies, raw mirror-cache bytes, and raw offline-bundle payload bytes MUST NOT appear on any sink regardless of redaction class."
+    },
+
+    "compatibility_notes_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compatibility_claim_class"],
+      "properties": {
+        "compatibility_claim_class": { "$ref": "#/$defs/compatibility_claim_class" },
+        "declared_host_contract_family_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the ADR-0012 host_contract_family bindings the row claims compatibility with."
+        },
+        "declared_capability_world_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "description": "Reserved ADR-0019 capability-world identities the row claims compatibility with."
+        },
+        "compatibility_bridge_profile_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0019 compatibility-bridge profile when compatibility_claim_class = compatibility_bridge_required. Null otherwise."
+        },
+        "known_caveat_labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Human-legible caveats rendered on review surfaces. Raw secret material forbidden."
+        }
+      },
+      "description": "Compatibility-claim row shared by registry / mirror / offline-bundle rows."
+    },
+
+    "anti_abuse_signal_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal_class"],
+      "properties": {
+        "signal_class": { "$ref": "#/$defs/anti_abuse_signal_class" },
+        "raised_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the row that raised the signal (publisher-continuity row, mirror-continuity row, or policy-pack constraint row). Raw detector bodies never carried here."
+        },
+        "signal_label": {
+          "type": "string",
+          "description": "Human-legible label for the signal; never a raw user or publisher secret."
+        }
+      }
+    },
+
+    "registry_manifest_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_manifest_schema_version",
+        "manifest_row_id",
+        "extension_identity",
+        "extension_version",
+        "content_address",
+        "signature_class",
+        "signature_ref",
+        "publisher_continuity_ref",
+        "registry_source_class",
+        "trust_claim_source",
+        "trust_badge_inheritance_rule",
+        "channel_class",
+        "approval_state_class",
+        "compatibility_notes",
+        "mirror_provenance_ref",
+        "revocation_snapshot_age_class",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "registry_manifest_row" },
+        "registry_manifest_schema_version": { "$ref": "#/$defs/registry_manifest_schema_version" },
+        "manifest_row_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "extension_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 extension_manifest_row the registry-manifest row describes. Must resolve to the same extension_identity / extension_version pair."
+        },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "artifact_digest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Redundant ref to the ADR-0012 artifact_digest_ref record. Carried alongside content_address so tooling that already indexes the ADR-0012 digest row keeps its joins."
+        },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the publisher signature, attestation bundle, or dual-signed envelope. Raw signing-key material, raw attestation-bundle bytes, and raw signature bodies never cross this boundary."
+        },
+        "attestation_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to a transparency-log / attestation-bundle record when signature_class = attestation_bundle or dual_signed_publisher_and_attestation. Null otherwise."
+        },
+        "publisher_continuity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 publisher_continuity_row for the publisher that signed the artifact."
+        },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_endpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the delivering endpoint (public-registry endpoint record, approved-mirror endpoint record, private-registry endpoint record, offline-bundle id, local-archive import id, or quarantined-local-copy id). Never a raw URL string."
+        },
+        "trust_claim_source": { "$ref": "#/$defs/trust_claim_source" },
+        "trust_badge_inheritance_rule": { "$ref": "#/$defs/trust_badge_inheritance_rule" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "approval_state_class": { "$ref": "#/$defs/approval_state_class" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_notes_entry" },
+          "description": "At least one compatibility-claim entry. A row with no compatibility notes is non-conforming; honesty demands a compatibility_unknown_pending_reverification claim over an empty list."
+        },
+        "mirror_provenance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the mirror_continuity_row when registry_source_class = approved_mirror. Null for public_registry, private_registry, offline_bundle, local_archive, and quarantined_local_copy rows."
+        },
+        "offline_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the offline_bundle_manifest_row when registry_source_class = offline_bundle. Null otherwise."
+        },
+        "local_archive_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the local_archive_import_row when registry_source_class = local_archive or quarantined_local_copy. Null otherwise."
+        },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/revocation_snapshot_age_class" },
+        "revocation_snapshot_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the revocation / trust snapshot the row was evaluated against. Raw snapshot bytes never carried."
+        },
+        "anti_abuse_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_entry" },
+          "description": "Raised anti-abuse signals. A surface that hides these is denied with review_disclosure_incomplete."
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to ADR-0012 policy_pack_constraint_row rows whose scope covers this registry-manifest row."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "mirror_provenance_ref MUST be non-null when registry_source_class = approved_mirror.",
+          "if": {
+            "properties": { "registry_source_class": { "const": "approved_mirror" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_provenance_ref": { "not": { "type": "null" } }
+            },
+            "required": ["mirror_provenance_ref"]
+          }
+        },
+        {
+          "description": "offline_bundle_ref MUST be non-null when registry_source_class = offline_bundle.",
+          "if": {
+            "properties": { "registry_source_class": { "const": "offline_bundle" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_bundle_ref": { "not": { "type": "null" } }
+            },
+            "required": ["offline_bundle_ref"]
+          }
+        },
+        {
+          "description": "local_archive_ref MUST be non-null when registry_source_class = local_archive or quarantined_local_copy.",
+          "if": {
+            "properties": {
+              "registry_source_class": {
+                "enum": ["local_archive", "quarantined_local_copy"]
+              }
+            },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "local_archive_ref": { "not": { "type": "null" } }
+            },
+            "required": ["local_archive_ref"]
+          }
+        },
+        {
+          "description": "quarantined_local_copy rows MUST carry trust_badge_inheritance_rule = quarantined_cannot_inherit; they cannot be rendered with any publisher trust tier other than unverified_publisher.",
+          "if": {
+            "properties": { "registry_source_class": { "const": "quarantined_local_copy" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule": { "const": "quarantined_cannot_inherit" }
+            },
+            "required": ["trust_badge_inheritance_rule"]
+          }
+        },
+        {
+          "description": "local_archive rows MUST cap trust inheritance at capped_at_unverified_on_local_archive or quarantined_cannot_inherit; a local archive never inherits the origin tier.",
+          "if": {
+            "properties": { "registry_source_class": { "const": "local_archive" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule": {
+                "enum": [
+                  "capped_at_unverified_on_local_archive",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule"]
+          }
+        },
+        {
+          "description": "approved_mirror rows MUST cap trust inheritance at capped_at_community_on_approved_mirror, inherits_origin_tier, or quarantined_cannot_inherit; the mirror may only inherit the origin tier when it re-verified the origin signature with a fresh revocation snapshot (the surface enforces; this schema pins the allowed vocabulary).",
+          "if": {
+            "properties": { "registry_source_class": { "const": "approved_mirror" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule": {
+                "enum": [
+                  "inherits_origin_tier",
+                  "capped_at_community_on_approved_mirror",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule"]
+          }
+        },
+        {
+          "description": "private_registry rows MUST cap trust inheritance at capped_at_organisational_on_private_registry, inherits_origin_tier, or quarantined_cannot_inherit.",
+          "if": {
+            "properties": { "registry_source_class": { "const": "private_registry" } },
+            "required": ["registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule": {
+                "enum": [
+                  "inherits_origin_tier",
+                  "capped_at_organisational_on_private_registry",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule"]
+          }
+        },
+        {
+          "description": "attestation_bundle_ref MUST be non-null when signature_class = attestation_bundle or dual_signed_publisher_and_attestation.",
+          "if": {
+            "properties": {
+              "signature_class": {
+                "enum": [
+                  "attestation_bundle",
+                  "dual_signed_publisher_and_attestation"
+                ]
+              }
+            },
+            "required": ["signature_class"]
+          },
+          "then": {
+            "required": ["attestation_bundle_ref"],
+            "properties": {
+              "attestation_bundle_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+
+    "mirror_continuity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_manifest_schema_version",
+        "mirror_continuity_row_id",
+        "mirror_endpoint_ref",
+        "origin_registry_ref",
+        "origin_content_address",
+        "origin_signature_ref",
+        "mirror_continuity_state_class",
+        "revocation_snapshot_age_class",
+        "revocation_snapshot_ref",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "mirror_continuity_row" },
+        "registry_manifest_schema_version": { "$ref": "#/$defs/registry_manifest_schema_version" },
+        "mirror_continuity_row_id": { "$ref": "#/$defs/opaque_id" },
+        "mirror_endpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the mirror endpoint record. Raw URLs never carried here."
+        },
+        "origin_registry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the origin (public or private) registry endpoint record."
+        },
+        "origin_content_address": { "$ref": "#/$defs/content_address" },
+        "origin_signature_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the origin signature / attestation record. The mirror MUST NOT re-sign the artifact; it quotes the origin signature verbatim."
+        },
+        "origin_signature_class": { "$ref": "#/$defs/signature_class" },
+        "mirror_cached_content_address": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_address" }
+          ],
+          "description": "Content-address of the mirror's cached copy. MUST equal origin_content_address (algorithm and digest_hex); any divergence emits mirror_continuity_state_class = broken_digest_mismatch."
+        },
+        "mirror_continuity_state_class": { "$ref": "#/$defs/mirror_continuity_state_class" },
+        "narrowings_applied": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "deny_list_applied",
+              "allow_list_applied",
+              "publisher_trust_floor_applied",
+              "version_floor_applied",
+              "emergency_disable_applied",
+              "signed_continuity_required_applied"
+            ]
+          },
+          "description": "Policy-pack narrowings the mirror applied over the origin set. Narrowing only; widening is denied with mirror_narrowing_attempted_widening."
+        },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/revocation_snapshot_age_class" },
+        "revocation_snapshot_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "last_verified_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "anti_abuse_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_entry" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "mirror_cached_content_address MUST be non-null when mirror_continuity_state_class is verified_live, verified_cached, or stale_cached.",
+          "if": {
+            "properties": {
+              "mirror_continuity_state_class": {
+                "enum": ["verified_live", "verified_cached", "stale_cached"]
+              }
+            },
+            "required": ["mirror_continuity_state_class"]
+          },
+          "then": {
+            "required": ["mirror_cached_content_address"],
+            "properties": {
+              "mirror_cached_content_address": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+
+    "channel_promotion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_manifest_schema_version",
+        "channel_promotion_row_id",
+        "subject_manifest_row_ref",
+        "subject_content_address",
+        "subject_signature_ref",
+        "source_channel_class",
+        "target_channel_class",
+        "preserves_artifact_identity",
+        "promotion_outcome",
+        "promoted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "channel_promotion_row" },
+        "registry_manifest_schema_version": { "$ref": "#/$defs/registry_manifest_schema_version" },
+        "channel_promotion_row_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_manifest_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the registry_manifest_row under promotion."
+        },
+        "subject_content_address": {
+          "$ref": "#/$defs/content_address",
+          "description": "Content-address of the subject artifact. The same pair MUST appear on the registry_manifest_row for the source channel and the target channel; a promotion that re-digests denies with artifact_identity_mutated_on_repackage."
+        },
+        "subject_signature_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the origin signature / attestation record. Promotion MUST NOT re-sign; the same signature_ref appears on both channels."
+        },
+        "source_channel_class": { "$ref": "#/$defs/channel_class" },
+        "target_channel_class": { "$ref": "#/$defs/channel_class" },
+        "preserves_artifact_identity": {
+          "type": "boolean",
+          "const": true,
+          "description": "Pinned const. A channel promotion that would re-encode the artifact is denied with artifact_identity_mutated_on_repackage; the row cannot advance otherwise."
+        },
+        "promotion_outcome": {
+          "type": "string",
+          "enum": [
+            "promoted",
+            "blocked_by_policy",
+            "blocked_by_revocation_snapshot_stale",
+            "blocked_by_anti_abuse_signal",
+            "withdrawn_by_publisher",
+            "revoked_after_promotion"
+          ],
+          "description": "Frozen promotion-outcome vocabulary. Additive-minor."
+        },
+        "required_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Evidence refs cited by the promotion review (compatibility reports, security review, approval tickets). Raw review bodies never carried."
+        },
+        "approvers_ref": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to approver decision rows (ADR-0010 / governance_packet)."
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "anti_abuse_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_entry" }
+        },
+        "repair_affordance_label": {
+          "type": "string",
+          "description": "Human-legible repair affordance rendered when promotion_outcome is a 'blocked_*' or 'revoked_*' class."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "promoted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Promotions only advance the lane order: quarantine → approved → production. Reverse moves must be expressed as approval_state_class transitions (revoked, emergency_disabled), not as channel_promotion_row records.",
+          "if": {
+            "properties": {
+              "source_channel_class": { "const": "production" }
+            },
+            "required": ["source_channel_class"]
+          },
+          "then": {
+            "properties": {
+              "target_channel_class": { "const": "production" }
+            }
+          }
+        },
+        {
+          "description": "repair_affordance_label MUST be non-empty when promotion_outcome is a blocked_* or revoked_after_promotion class.",
+          "if": {
+            "properties": {
+              "promotion_outcome": {
+                "enum": [
+                  "blocked_by_policy",
+                  "blocked_by_revocation_snapshot_stale",
+                  "blocked_by_anti_abuse_signal",
+                  "revoked_after_promotion"
+                ]
+              }
+            },
+            "required": ["promotion_outcome"]
+          },
+          "then": {
+            "required": ["repair_affordance_label"],
+            "properties": {
+              "repair_affordance_label": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "offline_bundle_artifact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extension_identity",
+        "extension_version",
+        "content_address",
+        "signature_class",
+        "signature_ref",
+        "publisher_continuity_snapshot_ref",
+        "compatibility_notes",
+        "revocation_snapshot_ref"
+      ],
+      "properties": {
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "attestation_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_continuity_snapshot_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the publisher-continuity row snapshot taken at export time. The bundle carries the snapshot so a restore can compare it against the importer's current publisher-continuity state."
+        },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_notes_entry" }
+        },
+        "revocation_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "origin_registry_source_class": {
+          "type": "string",
+          "enum": ["public_registry", "approved_mirror", "private_registry"],
+          "description": "Where the artifact was pulled from when the bundle was built. Offline bundles built from a local_archive or quarantined_local_copy source are not admitted; the source MUST have been either a public registry, an approved mirror, or a private registry."
+        },
+        "dependency_closure_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to other offline_bundle_artifact_entry rows in the same bundle that this artifact depends on."
+        }
+      }
+    },
+
+    "offline_bundle_restore_preview_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_index", "artifact_content_address", "step_class", "rendered_label"],
+      "properties": {
+        "step_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based step index in the deterministic restore order. Importers render previews in this order; a surface that reorders denies with review_disclosure_incomplete."
+        },
+        "artifact_content_address": { "$ref": "#/$defs/content_address" },
+        "step_class": { "$ref": "#/$defs/offline_bundle_restore_step_class" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the restore preview surface."
+        },
+        "repair_affordance_label": {
+          "type": "string",
+          "description": "Human-legible repair affordance rendered when step_class is a 'block_on_*' class or a 'prompt_*' class."
+        }
+      },
+      "allOf": [
+        {
+          "description": "repair_affordance_label MUST be non-empty on block_on_* and prompt_* steps.",
+          "if": {
+            "properties": {
+              "step_class": {
+                "enum": [
+                  "prompt_user_for_trust_decision",
+                  "prompt_admin_for_policy_exception",
+                  "block_on_missing_dependency",
+                  "block_on_revocation_snapshot_stale",
+                  "block_on_lockfile_drift",
+                  "block_on_artifact_identity_mutated"
+                ]
+              }
+            },
+            "required": ["step_class"]
+          },
+          "then": {
+            "required": ["repair_affordance_label"],
+            "properties": {
+              "repair_affordance_label": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "offline_bundle_manifest_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_manifest_schema_version",
+        "offline_bundle_id",
+        "exported_at",
+        "exported_by_ref",
+        "bundle_content_address",
+        "artifacts",
+        "lockfile_parity_state",
+        "lockfile_ref",
+        "revocation_snapshot_age_class",
+        "revocation_snapshot_ref",
+        "deterministic_restore_preview",
+        "trust_claim_source",
+        "trust_badge_inheritance_rule",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "offline_bundle_manifest_row" },
+        "registry_manifest_schema_version": { "$ref": "#/$defs/registry_manifest_schema_version" },
+        "offline_bundle_id": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "exported_by_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the exporter identity row (admin decision / automation actor). Raw user identity never carried."
+        },
+        "bundle_content_address": {
+          "$ref": "#/$defs/content_address",
+          "description": "Content-address of the sealed bundle envelope. A restore that cannot reproduce this address denies with registry_digest_mismatch."
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/offline_bundle_artifact_entry" },
+          "description": "Ordered list of artifact entries the bundle ships. Order defines the deterministic restore preview index."
+        },
+        "dependency_closure_complete": {
+          "type": "boolean",
+          "description": "True when every artifact entry in the bundle has every dependency_closure_refs target resolvable within the bundle. A false value MUST be mirrored by a block_on_missing_dependency step in deterministic_restore_preview."
+        },
+        "lockfile_parity_state": { "$ref": "#/$defs/lockfile_parity_state" },
+        "lockfile_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the lockfile snapshot the bundle carries. Raw lockfile bytes never embedded."
+        },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/revocation_snapshot_age_class" },
+        "revocation_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "deterministic_restore_preview": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/offline_bundle_restore_preview_step" },
+          "description": "Ordered restore-preview steps. Importers render this list verbatim; reordering or hiding steps denies with review_disclosure_incomplete."
+        },
+        "trust_claim_source": {
+          "$ref": "#/$defs/trust_claim_source",
+          "description": "Pinned to 'offline_bundle' for this record kind; carried here so parity consumers can read one field across record kinds."
+        },
+        "trust_badge_inheritance_rule": {
+          "$ref": "#/$defs/trust_badge_inheritance_rule",
+          "description": "Inheritance rule for artifacts restored from this bundle. A bundle MAY declare 'inherits_origin_tier' only when every artifact entry carries a non-stale revocation snapshot and the importer re-verifies origin signatures; otherwise 'capped_at_community_on_approved_mirror' or stricter."
+        },
+        "anti_abuse_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_entry" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "trust_claim_source on an offline_bundle_manifest_row MUST be offline_bundle.",
+          "properties": {
+            "trust_claim_source": { "const": "offline_bundle" }
+          },
+          "required": ["trust_claim_source"]
+        },
+        {
+          "description": "A bundle that declares lockfile_parity_state = drift_detected_blocking MUST include at least one block_on_lockfile_drift step in deterministic_restore_preview.",
+          "if": {
+            "properties": {
+              "lockfile_parity_state": { "const": "drift_detected_blocking" }
+            },
+            "required": ["lockfile_parity_state"]
+          },
+          "then": {
+            "properties": {
+              "deterministic_restore_preview": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "step_class": { "const": "block_on_lockfile_drift" }
+                  },
+                  "required": ["step_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A bundle whose revocation_snapshot_age_class is stale or unverified_no_snapshot MUST include at least one block_on_revocation_snapshot_stale step in deterministic_restore_preview.",
+          "if": {
+            "properties": {
+              "revocation_snapshot_age_class": {
+                "enum": ["stale", "unverified_no_snapshot"]
+              }
+            },
+            "required": ["revocation_snapshot_age_class"]
+          },
+          "then": {
+            "properties": {
+              "deterministic_restore_preview": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "step_class": { "const": "block_on_revocation_snapshot_stale" }
+                  },
+                  "required": ["step_class"]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "local_archive_import_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_manifest_schema_version",
+        "local_archive_import_id",
+        "imported_at",
+        "imported_by_ref",
+        "content_address",
+        "signature_class",
+        "trust_claim_source",
+        "trust_badge_inheritance_rule",
+        "extension_identity",
+        "extension_version",
+        "quarantined",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_archive_import_row" },
+        "registry_manifest_schema_version": { "$ref": "#/$defs/registry_manifest_schema_version" },
+        "local_archive_import_id": { "$ref": "#/$defs/opaque_id" },
+        "imported_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "imported_by_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the importer identity row. Raw user identity / filesystem path never carried; the path class rides imported_from_path_class."
+        },
+        "imported_from_path_class": {
+          "type": "string",
+          "enum": [
+            "workspace_relative_path",
+            "user_home_relative_path",
+            "removable_media",
+            "network_mount_class",
+            "process_stdin_stream",
+            "not_applicable"
+          ],
+          "description": "Frozen path-class vocabulary. Raw filesystem path never carried here; only the class."
+        },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "signature_class": { "$ref": "#/$defs/signature_class" },
+        "signature_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "attestation_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "publisher_continuity_snapshot_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to a publisher-continuity snapshot if the archive carried one. Null when the archive was imported with no continuity provenance."
+        },
+        "trust_claim_source": {
+          "$ref": "#/$defs/trust_claim_source",
+          "description": "Pinned to 'local_archive' or 'quarantined_local_copy' on this record kind."
+        },
+        "trust_badge_inheritance_rule": {
+          "$ref": "#/$defs/trust_badge_inheritance_rule",
+          "description": "Pinned to capped_at_unverified_on_local_archive or quarantined_cannot_inherit on this record kind; a local archive NEVER inherits a verified / organisational / community tier."
+        },
+        "user_attestation_label": {
+          "type": "string",
+          "description": "Human-legible label capturing the importer's attestation (e.g. 'downloaded from vendor support portal 2026-04-19'). Raw secret material forbidden."
+        },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "quarantined": {
+          "type": "boolean",
+          "description": "True when the import was recorded as a quarantined local copy (trust_claim_source = quarantined_local_copy). A quarantined row does not admit install; the install-review surface renders quarantined_local_copy_install_denied."
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "anti_abuse_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_entry" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "trust_claim_source on a local_archive_import_row MUST be local_archive or quarantined_local_copy.",
+          "properties": {
+            "trust_claim_source": {
+              "enum": ["local_archive", "quarantined_local_copy"]
+            }
+          },
+          "required": ["trust_claim_source"]
+        },
+        {
+          "description": "trust_badge_inheritance_rule on a local_archive_import_row MUST be capped_at_unverified_on_local_archive or quarantined_cannot_inherit.",
+          "properties": {
+            "trust_badge_inheritance_rule": {
+              "enum": [
+                "capped_at_unverified_on_local_archive",
+                "quarantined_cannot_inherit"
+              ]
+            }
+          },
+          "required": ["trust_badge_inheritance_rule"]
+        },
+        {
+          "description": "quarantined = true MUST co-occur with trust_claim_source = quarantined_local_copy and trust_badge_inheritance_rule = quarantined_cannot_inherit.",
+          "if": {
+            "properties": { "quarantined": { "const": true } },
+            "required": ["quarantined"]
+          },
+          "then": {
+            "properties": {
+              "trust_claim_source": { "const": "quarantined_local_copy" },
+              "trust_badge_inheritance_rule": { "const": "quarantined_cannot_inherit" }
+            },
+            "required": ["trust_claim_source", "trust_badge_inheritance_rule"]
+          }
+        },
+        {
+          "description": "quarantined = false MUST co-occur with trust_claim_source = local_archive.",
+          "if": {
+            "properties": { "quarantined": { "const": false } },
+            "required": ["quarantined"]
+          },
+          "then": {
+            "properties": {
+              "trust_claim_source": { "const": "local_archive" }
+            },
+            "required": ["trust_claim_source"]
+          }
+        }
+      ]
+    }
+  }
+}
