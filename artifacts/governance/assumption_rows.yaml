@@ -1,0 +1,680 @@
+# Canonical assumption ledger.
+#
+# Machine-readable register of every milestone-shaping assumption whose
+# invalidation would reopen product scope, re-baseline a milestone, or
+# force a public-claim narrowing. Complements the rolling decision index
+# (artifacts/governance/decision_index.yaml, assumptions: A-NNNN) and
+# the launch decision register (artifacts/governance/decision_register.yaml,
+# assumptions: LA-NNNN), which hold the decision-local premises used by
+# their respective decision rows. This ledger holds the broader program-
+# level assumptions that underwrite the launch wedge, the milestone scope
+# envelope, the staffing model, and the protected-path posture.
+#
+# Conformance: this file conforms to
+#   schemas/governance/assumption_row.schema.json
+#
+# Linkage rules (enforced by schema):
+#   - Every row MUST name an owner_dri, an owner_forum drawn from
+#     ownership_matrix.yaml#decision_forums, a validation_deadline, a
+#     validation_checkpoint (forum or evidence-refresh surface), a
+#     required_proof description with a named evidence_owner, an
+#     earliest_milestone_impact, a widening_posture, a
+#     default_response_if_false statement, a non-empty
+#     affected_artifacts list, and at least one link into the launch
+#     decision register, the rolling decision index, the dependency
+#     ledger, the scorecard lane index, or the risk register.
+#   - Every row whose backup_owner is null MUST cite an active waiver
+#     from artifacts/governance/ownership_matrix.yaml#waivers.
+#   - Superseding a row mints a new AL-NNNN and points superseded_by at
+#     it; the original row is never deleted and history is append-only.
+#   - When validation_deadline passes with status still open, the row
+#     MUST be reviewed at the named validation_checkpoint cadence; a
+#     row still open past its deadline is a validation failure and is
+#     reported through the same surface used for stale evidence.
+#   - Scorecards, risk rows, and dependency rows cite assumption_id
+#     values directly rather than restating the assumption statement.
+
+schema_version: 1
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - docs/governance/commitment_and_rebaseline_policy.md
+  - docs/governance/decision_workflow.md
+  - docs/governance/dri_map.md
+  - docs/governance/maintainer_coverage_policy.md
+
+# -----------------------------------------------------------------------------
+# Assumptions.
+# -----------------------------------------------------------------------------
+assumptions:
+  # ---------------------------------------------------------------------------
+  # Launch-wedge narrowness
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0001
+    title: Launch wedge stays narrow enough for currently staffed lanes to defend
+    statement: >
+      The first-beta launch wedge is bounded by the surfaces the
+      currently staffed lanes can defend with current evidence; wider
+      product scope does not ride this milestone as carry-forward
+      ambiguity. If falsified, any claim wider than the staffed-defence
+      set MUST narrow through an explicit record rather than survive as
+      implied scope.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: pre-implementation-foundations
+    owner_dri: "@ahmeddyounis"
+    owner_forum: product_scope_review
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-29"
+    validation_checkpoint:
+      checkpoint_class: product_scope_review
+      description: >
+        Reviewed at every product-scope review cadence on the launch
+        run-up and once more inside the shiproom pass; the row closes
+        only when the claim manifest, launch-register narrower defaults,
+        and scorecard lanes agree on one defended wedge.
+    required_proof:
+      proof_class: scope_review_packet
+      description: >
+        Product-scope review packet that lists every launch-bearing
+        claim, names the lane that defends it, and cites the evidence
+        each claim rests on. No launch-bearing claim may exist without a
+        named defending lane and current evidence.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs: []
+    default_response_if_false:
+      response_class: narrow_scope
+      description: >
+        Narrow the public launch claim set to the surfaces each
+        currently staffed lane has evidence for, retract the wider
+        claims from the claim manifest, and open a rebaseline review if
+        the narrowed wedge falls below the committed commitment class.
+      requires_approval_from:
+        - product_scope_review
+    linked_launch_register_rows:
+      - LR-0001
+      - LR-0002
+      - LR-0012
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows: []
+    linked_scorecard_lanes:
+      - governance_packets
+      - release_evidence
+      - docs_public_truth
+    linked_risk_register_rows:
+      - RISK-009
+    affected_artifacts:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/decision_register.yaml
+      - artifacts/milestones/M0_scorecard.yaml
+      - docs/governance/public_surface_truth_map.md
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "launch wedge"
+      - doc: docs/governance/commitment_and_rebaseline_policy.md
+        anchor: "commitment classes"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: product_scope_review
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Local-core non-dependence
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0002
+    title: Local-core value does not depend on hosted services
+    statement: >
+      The first-beta product home is desktop-local / local-first; every
+      launch-bearing local-core workflow (edit, build, run, diff,
+      navigate, extend) works with no hosted services reachable. Hosted
+      and managed surfaces are additive companions, not prerequisites.
+      If falsified, any feature whose local path silently depends on a
+      hosted service MUST be re-framed as managed-only and cut from the
+      local-core claim.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: product_scope_review
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-29"
+    validation_checkpoint:
+      checkpoint_class: architecture_council_review
+      description: >
+        Architecture council reviews the local-core walkthrough each
+        milestone; a dogfood pass with managed endpoints disabled MUST
+        demonstrate full local-core workflow coverage before this row
+        validates.
+    required_proof:
+      proof_class: evidence_packet
+      description: >
+        Dogfood evidence packet from a local-only profile run with
+        hosted surfaces reachability disabled, covering every launch-
+        bearing local-core workflow, plus the deployment-profile
+        descriptor pinning local-only mode.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - artifacts/governance/deployment_profiles.yaml
+        - artifacts/governance/residual_dependencies.yaml
+    default_response_if_false:
+      response_class: narrow_scope
+      description: >
+        Reclassify the affected workflow as managed-only, cut it from
+        the local-core launch claim, and update the deployment-profile
+        descriptor and claim manifest so public materials no longer
+        imply local-core parity. If the affected workflow is load-
+        bearing on the launch wedge, open an exception packet and
+        escalate to scope review.
+      requires_approval_from: []
+    linked_launch_register_rows:
+      - LR-0002
+      - LR-0003
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows: []
+    linked_scorecard_lanes:
+      - aureline-vfs
+      - aureline-buffer
+      - aureline-rpc
+      - governance_packets
+    linked_risk_register_rows: []
+    affected_artifacts:
+      - artifacts/governance/deployment_profiles.yaml
+      - artifacts/governance/residual_dependencies.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+      - docs/governance/deployment_profile_truth.md
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "local-first"
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "deployment profiles"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: product_scope_review
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Launch-bundle staffing depth
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0003
+    title: Launch-bundle staffing depth supports every committed lane through launch
+    statement: >
+      Every lane carrying a Committed claim on the launch bundle has
+      enough staffing depth to respond to protected-path defects,
+      refresh evidence, and hold its forum cadence through the launch
+      window. If falsified, the affected Committed claim is no longer
+      defensible at launch and MUST narrow, defer, or re-baseline
+      through an explicit record instead of surviving as scorecard
+      amber.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: shiproom_executive_scope_review
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-05-31"
+    validation_checkpoint:
+      checkpoint_class: shiproom_review
+      description: >
+        Shiproom reviews the staffing-depth roster against the scorecard
+        lane index every cadence; a lane whose depth falls below one
+        named primary and one named backup on any Committed claim is
+        flagged here and routed to the commitment-rebaseline policy.
+    required_proof:
+      proof_class: staffing_roster
+      description: >
+        Staffing roster naming, per scorecard lane carrying a Committed
+        claim, the primary DRI, the backup owner (or the active waiver
+        id if backup is null), and the forum chair of record. The
+        roster MUST resolve one-to-one against
+        artifacts/governance/ownership_matrix.yaml entries.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - artifacts/governance/ownership_matrix.yaml
+        - docs/governance/maintainer_coverage_policy.md
+        - docs/governance/dri_map.md
+    default_response_if_false:
+      response_class: rebaseline_milestone
+      description: >
+        Move the affected lane's Committed claim to Target or Stretch,
+        or open a freeze exception with a dated coverage plan. If
+        multiple lanes simultaneously lose depth, escalate to shiproom
+        for a milestone rebaseline covering scope, date, or acceptance
+        thresholds.
+      requires_approval_from:
+        - shiproom_executive_scope_review
+        - release_council
+    linked_launch_register_rows:
+      - LR-0001
+      - LR-0011
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows:
+      - progdep.protected_backup_owner_coverage
+    linked_scorecard_lanes:
+      - governance_packets
+      - release_evidence
+      - benchmark_lab
+      - accessibility_input_review
+    linked_risk_register_rows:
+      - RISK-003
+    affected_artifacts:
+      - artifacts/governance/ownership_matrix.yaml
+      - docs/governance/maintainer_coverage_policy.md
+      - artifacts/milestones/M0_scorecard.yaml
+      - artifacts/governance/commitment_classes.yaml
+    source_anchors:
+      - doc: docs/governance/maintainer_coverage_policy.md
+        anchor: "coverage policy"
+      - doc: docs/governance/commitment_and_rebaseline_policy.md
+        anchor: "rebaseline triggers"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: shiproom_executive_scope_review
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # One-command-system feasibility
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0004
+    title: One keyboard-complete command system serves palette, menubar, CLI, and automation
+    statement: >
+      A single command-graph, keyboard-complete identity model can serve
+      the palette, menubar, CLI, and automation surfaces at launch
+      without lane-local command forks. If falsified, command parity
+      claims across those surfaces cannot ride one graph and MUST
+      narrow per surface until a replacement graph model is accepted.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: architecture_council
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-15"
+    validation_checkpoint:
+      checkpoint_class: architecture_council_review
+      description: >
+        Architecture council reviews the command-graph ADR pack and a
+        keyboard-complete task corpus run; this row validates only when
+        the ADR pack lands and the task-corpus pass is green on every
+        launch-bearing surface.
+    required_proof:
+      proof_class: adr_or_rfc
+      description: >
+        Accepted ADR covering command identity, keyboard completeness,
+        and palette / menubar / CLI / automation projection rules, plus
+        a task-corpus manifest showing one keyboard path per task on
+        every launch-bearing surface.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs: []
+    default_response_if_false:
+      response_class: narrow_scope
+      description: >
+        Drop the cross-surface command-parity claim from the launch
+        claim manifest; keep the palette as the authoritative surface
+        and label the others as "subset" in public docs until a
+        replacement command-graph model lands.
+      requires_approval_from:
+        - architecture_council
+    linked_launch_register_rows:
+      - LR-0004
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows:
+      - progdep.shell_host_keyboard_freeze
+    linked_scorecard_lanes:
+      - shell_command_system
+      - accessibility_input_review
+      - governance_packets
+    linked_risk_register_rows:
+      - RISK-006
+    affected_artifacts:
+      - docs/adr/
+      - docs/governance/interface_freeze_matrix.md
+      - fixtures/commands/
+      - artifacts/governance/stable_surface_inventory.yaml
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "command parity"
+      - doc: .t2/docs/Aureline_Technical_Design_Document.md
+        anchor: "command graph"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: architecture_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Exact-build identity coverage
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0005
+    title: One build identity covers every release artifact family
+    statement: >
+      One build identity ties binaries, docs, schemas, SDK artifacts,
+      SBOMs, attestations, symbols, and rollback metadata together so
+      that support, field diagnosis, and release rollback can resolve a
+      single exact-build join. If falsified, artifact families whose
+      identities diverge MUST be held to narrower support-join claims
+      until the join model is re-unified.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: release_council
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-29"
+    validation_checkpoint:
+      checkpoint_class: release_council_review
+      description: >
+        Release council reviews the exact-build join evidence each
+        release-cadence cycle; this row validates only when a full
+        release-evidence packet demonstrates one identity joining every
+        named artifact family with current attestations.
+    required_proof:
+      proof_class: evidence_packet
+      description: >
+        Release-evidence packet demonstrating one build identity
+        joining binaries, docs, schemas, SDK artifacts, SBOMs,
+        attestations, symbols, and rollback metadata, produced by a
+        single reproducible pipeline run with the pinned toolchain.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - docs/build/reproducible_build_baseline.md
+    default_response_if_false:
+      response_class: narrow_scope
+      description: >
+        Reclassify the affected artifact family as out-of-join at
+        launch, narrow the support / diagnosis / rollback claim to the
+        families that still join under one identity, and open a
+        release-decision record naming when the remaining families
+        rejoin the exact-build identity.
+      requires_approval_from:
+        - release_council
+    linked_launch_register_rows:
+      - LR-0007
+    linked_decision_index_rows:
+      - D-0011
+    linked_dependency_ledger_rows:
+      - progdep.exact_build_cleanroom_parity
+    linked_scorecard_lanes:
+      - release_evidence
+      - governance_packets
+    linked_risk_register_rows:
+      - RISK-004
+    affected_artifacts:
+      - docs/build/reproducible_build_baseline.md
+      - artifacts/governance/signing_quorum.yaml
+      - artifacts/governance/release_notice_seed.yaml
+      - artifacts/governance/standards_matrix.yaml
+    source_anchors:
+      - doc: .t2/docs/Aureline_Technical_Architecture_Document.md
+        anchor: "build identity"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: release_council
+        outcome: opened
+    notes: >
+      This AL-NNNN row is the program-level companion to rolling-index
+      A-0003 and launch-register LR-0007; it is the broader assumption
+      that the single-identity join model works across every artifact
+      family, not only across binaries.
+
+  # ---------------------------------------------------------------------------
+  # Docs / help publication cadence
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0006
+    title: Docs and in-product help can refresh on the build-identity cadence
+    statement: >
+      Docs site, in-product help, release notes, and public-truth seeds
+      can be refreshed on the same cadence as the build identity so
+      that the version-match floor holds without manual reconciliation.
+      If falsified, public docs and help copy MUST fall back to a
+      dated, narrower cadence and the claim manifest MUST retract the
+      "help mirrors the running build" posture.
+    status: open
+    widening_posture: narrows_claims_only
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: open_community_sync
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-29"
+    validation_checkpoint:
+      checkpoint_class: evidence_refresh
+      description: >
+        Public-truth freshness automation runs each release-cadence
+        cycle; this row validates only when the freshness automation
+        has reported one full cycle of green against every docs and
+        help-surface listed in the public-truth surface map.
+    required_proof:
+      proof_class: evidence_packet
+      description: >
+        Public-truth freshness report naming every docs and help
+        surface, the build identity they matched, the freshness class
+        achieved, and the time-since-build delta, with the report
+        referenced from the release-evidence packet.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - docs/governance/public_surface_truth_map.md
+        - artifacts/governance/public_truth_parity_matrix.yaml
+    default_response_if_false:
+      response_class: cut_public_claim
+      description: >
+        Retract the "help mirrors the running build" claim from the
+        claim manifest, publish a dated "docs current as of build X"
+        banner on affected surfaces, and narrow release notes to the
+        subset of surfaces whose freshness remains in range.
+      requires_approval_from: []
+    linked_launch_register_rows:
+      - LR-0005
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows:
+      - progdep.public_truth_freshness_automation
+    linked_scorecard_lanes:
+      - docs_public_truth
+      - governance_packets
+    linked_risk_register_rows:
+      - RISK-009
+    affected_artifacts:
+      - docs/governance/public_surface_truth_map.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/release_notice_seed.yaml
+    source_anchors:
+      - doc: .t2/docs/Aureline_PRD.md
+        anchor: "docs and help"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: open_community_sync
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Clean-room + mirror / offline readiness
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0007
+    title: Clean-room and mirror / offline builds are reproducible at launch parity
+    statement: >
+      The pinned toolchain, bootstrap command, and build-identity
+      record reproduce byte-identical binaries in a clean-room
+      environment and in a mirrored / offline environment at launch
+      parity. If falsified, the clean-room / mirror / offline
+      reproducibility claim MUST narrow to the environments that still
+      match, and exact-build joins that transit the missing environment
+      MUST be labelled as best-effort.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: first-beta-milestone
+    owner_dri: "@ahmeddyounis"
+    owner_forum: release_council
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-06-29"
+    validation_checkpoint:
+      checkpoint_class: release_council_review
+      description: >
+        Release council reviews the clean-room and mirror / offline
+        reproducibility results each release-cadence cycle; this row
+        validates only when both environments have produced byte-
+        identical binaries against the current build identity and a
+        release-evidence packet captures the result.
+    required_proof:
+      proof_class: evidence_packet
+      description: >
+        Release-evidence packet showing one build-identity hash matched
+        by a clean-room re-run and by a mirror / offline re-run of the
+        same bootstrap command against the pinned toolchain, with
+        divergences (if any) captured per artifact.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - docs/build/reproducible_build_baseline.md
+    default_response_if_false:
+      response_class: narrow_scope
+      description: >
+        Narrow the reproducibility claim to the environment set that
+        still matches, relabel the remaining environments as "best
+        effort" in public docs, and open a release-decision record
+        naming when the missing environment rejoins parity.
+      requires_approval_from:
+        - release_council
+    linked_launch_register_rows:
+      - LR-0007
+    linked_decision_index_rows:
+      - D-0011
+    linked_dependency_ledger_rows:
+      - progdep.exact_build_cleanroom_parity
+    linked_scorecard_lanes:
+      - release_evidence
+      - governance_packets
+    linked_risk_register_rows:
+      - RISK-004
+    affected_artifacts:
+      - docs/build/reproducible_build_baseline.md
+      - artifacts/governance/signing_quorum.yaml
+      - artifacts/governance/standards_matrix.yaml
+    source_anchors:
+      - doc: docs/build/reproducible_build_baseline.md
+        anchor: "reproducible build baseline"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: release_council
+        outcome: opened
+
+  # ---------------------------------------------------------------------------
+  # Protected-path maintainer coverage
+  # ---------------------------------------------------------------------------
+  - assumption_id: AL-0008
+    title: Protected-path maintainer coverage holds through launch
+    statement: >
+      Every protected-path lane has maintainer coverage sufficient to
+      review, sign, and roll back changes on the protected-path cadence
+      through launch, either with a named primary and backup or with
+      an active single-maintainer waiver in good standing. If
+      falsified, the affected protected-path surface MUST freeze
+      changes or widen its waiver posture through an explicit exception
+      packet rather than accept silent coverage gaps.
+    status: open
+    widening_posture: blocks_widening
+    target_milestone: pre-implementation-foundations
+    earliest_milestone_impact: pre-implementation-foundations
+    owner_dri: "@ahmeddyounis"
+    owner_forum: architecture_council
+    backup_owner: null
+    backup_waiver: single-maintainer-backup
+    validation_deadline: "2026-05-31"
+    validation_checkpoint:
+      checkpoint_class: architecture_council_review
+      description: >
+        Architecture council reviews the protected-path coverage roster
+        each cadence; this row validates only when every protected-
+        path lane carries one named primary plus one named backup (or
+        an explicitly renewed waiver) and the waiver register is in
+        good standing.
+    required_proof:
+      proof_class: staffing_roster
+      description: >
+        Maintainer-coverage roster naming, per protected-path lane,
+        the primary DRI, the backup owner, and the waiver id if backup
+        is null, cross-referenced against CODEOWNERS and the
+        ownership-matrix waivers register.
+      evidence_owner: "@ahmeddyounis"
+      evidence_refs:
+        - artifacts/governance/ownership_matrix.yaml
+        - docs/governance/maintainer_coverage_policy.md
+        - CODEOWNERS
+    default_response_if_false:
+      response_class: freeze_lane
+      description: >
+        Freeze changes on the uncovered protected-path lane until
+        coverage is restored or a renewed waiver lands; open a freeze-
+        exception packet describing the coverage gap, the dated plan to
+        close it, and the narrowed claim posture that applies while the
+        gap is open.
+      requires_approval_from:
+        - architecture_council
+    linked_launch_register_rows: []
+    linked_decision_index_rows: []
+    linked_dependency_ledger_rows:
+      - progdep.protected_backup_owner_coverage
+    linked_scorecard_lanes:
+      - governance_packets
+      - release_evidence
+      - benchmark_lab
+      - aureline-render
+      - aureline-buffer
+    linked_risk_register_rows:
+      - RISK-003
+    affected_artifacts:
+      - CODEOWNERS
+      - artifacts/governance/ownership_matrix.yaml
+      - docs/governance/maintainer_coverage_policy.md
+      - docs/governance/dri_map.md
+    source_anchors:
+      - doc: docs/governance/maintainer_coverage_policy.md
+        anchor: "protected-path coverage"
+      - doc: CODEOWNERS
+        anchor: "owners"
+    validated_on: null
+    invalidated_on: null
+    superseded_by: []
+    history:
+      - date: "2026-04-24"
+        actor: "@ahmeddyounis"
+        forum: architecture_council
+        outcome: opened

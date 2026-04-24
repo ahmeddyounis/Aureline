@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/assumption_row.schema.json",
+  "title": "Canonical assumption ledger",
+  "description": "Machine-readable register of every milestone-shaping assumption whose invalidation would reopen product scope, re-baseline a milestone, or force a public-claim narrowing. Rows carry a stable AL-NNNN id, a single-sentence statement, one owner DRI, one owning decision forum, one validation deadline, one named validation checkpoint, one required-proof description, one earliest-impacted milestone, one default response if the assumption is falsified, a widening posture stating whether the assumption blocks scope widening or only narrows downstream claims, and append-only history. Assumption rows resolve against the launch decision register (LR-NNNN) and the rolling decision index (D-NNNN) for closure, against the dependency ledger for blocker propagation, against the milestone scorecard for lane posture, and against the risk register for material risk framing; every row MUST link at least one of those consumers. Aging, falsification, and closure are explicit outcomes - rows never disappear into meeting notes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_specs",
+    "assumptions"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Document schema version. Increment on breaking field changes; additive-minor changes (new optional property, new enum value, new sub-record) do not bump this constant."
+    },
+    "source_specs": {
+      "type": "array",
+      "description": "Repository-relative paths to the source-of-truth specs whose milestone-shaping assumptions this register projects.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Canonical assumption rows.",
+      "items": { "$ref": "#/$defs/assumption_row" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "status_class": {
+      "type": "string",
+      "enum": [
+        "open",
+        "validated",
+        "invalidated",
+        "deferred",
+        "superseded",
+        "closed_not_applicable"
+      ],
+      "description": "Assumption lifecycle state. open: recognised, not yet proven or disproven. validated: proof recorded and accepted. invalidated: falsification recorded; default_response_if_false fires. deferred: checkpoint moved to a later milestone with a restated deadline. superseded: replaced by a later AL-NNNN row. closed_not_applicable: the premise no longer shapes any active milestone row."
+    },
+    "widening_posture": {
+      "type": "string",
+      "enum": [
+        "blocks_widening",
+        "narrows_claims_only"
+      ],
+      "description": "blocks_widening: while the assumption is open, no launch or milestone claim may widen past the assumption-bounded scope without a re-baseline record. narrows_claims_only: the assumption bounds current claim wording but does not block lane work or widening on unrelated claims."
+    },
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "shiproom_review",
+        "milestone_review",
+        "architecture_council_review",
+        "product_scope_review",
+        "security_trust_review",
+        "accessibility_review",
+        "compatibility_ecosystem_review",
+        "release_council_review",
+        "performance_council_review",
+        "open_community_sync",
+        "evidence_refresh",
+        "backlog_review"
+      ],
+      "description": "Named forum or evidence-refresh class that owns validating or invalidating the assumption. Validation checkpoints live in these cadences, not in meeting notes."
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": [
+        "evidence_packet",
+        "release_decision_record",
+        "adr_or_rfc",
+        "scope_review_packet",
+        "scorecard_lane_green",
+        "benchmark_run",
+        "fixture_corpus_landed",
+        "staffing_roster",
+        "signed_waiver",
+        "external_sign_off"
+      ],
+      "description": "Kind of proof that discharges the assumption. The row MUST state a concrete instance in required_proof.description; this enum routes downstream tooling."
+    },
+    "default_response_class": {
+      "type": "string",
+      "enum": [
+        "narrow_scope",
+        "defer_milestone",
+        "freeze_lane",
+        "rebaseline_milestone",
+        "descope_feature",
+        "open_exception_packet",
+        "cut_public_claim"
+      ],
+      "description": "Shape of the response that fires if the assumption is invalidated before validation_deadline. narrow_scope: reduce committed scope per default_response_if_false.description. defer_milestone: move the closure target out by an explicit milestone. freeze_lane: block dependent work on the affected lane until a replacement assumption lands. rebaseline_milestone: trigger a milestone rebaseline review. descope_feature: cut a named feature below the commitment class floor. open_exception_packet: route to a freeze-exception packet. cut_public_claim: retract the dependent public claim from the claim manifest."
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc", "anchor"],
+      "properties": {
+        "doc": { "type": "string", "minLength": 1 },
+        "anchor": { "type": "string", "minLength": 1 },
+        "quote": { "type": "string" }
+      }
+    },
+    "history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "actor", "forum", "outcome"],
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "actor": { "type": "string", "minLength": 1 },
+        "forum": { "type": "string", "minLength": 1 },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "opened",
+            "status_change",
+            "validated",
+            "invalidated",
+            "deferred",
+            "superseded",
+            "closed_not_applicable",
+            "rebaselined",
+            "note"
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "required_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof_class", "description", "evidence_owner"],
+      "properties": {
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete statement of what must exist to discharge the assumption. A freshness scan must be able to read this sentence verbatim and route it to the named evidence owner."
+        },
+        "evidence_owner": { "type": "string", "minLength": 1 },
+        "evidence_refs": {
+          "type": "array",
+          "description": "Repository-relative paths or ids of evidence supporting the assumption as it stands today. Empty while the row is still open.",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "default_response_if_false": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["response_class", "description"],
+      "properties": {
+        "response_class": { "$ref": "#/$defs/default_response_class" },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete narrowing / deferral / freeze / rebaseline / descope / cut statement that fires if the assumption is invalidated. A freeze report must be able to print this sentence as the explicit outcome."
+        },
+        "requires_approval_from": {
+          "type": "array",
+          "description": "Forum ids whose approval is needed before the default response fires. Empty means the response fires automatically on invalidation.",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "assumption_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "title",
+        "statement",
+        "status",
+        "widening_posture",
+        "target_milestone",
+        "earliest_milestone_impact",
+        "owner_dri",
+        "owner_forum",
+        "backup_owner",
+        "backup_waiver",
+        "validation_deadline",
+        "validation_checkpoint",
+        "required_proof",
+        "default_response_if_false",
+        "linked_launch_register_rows",
+        "linked_decision_index_rows",
+        "linked_dependency_ledger_rows",
+        "linked_scorecard_lanes",
+        "linked_risk_register_rows",
+        "affected_artifacts",
+        "source_anchors",
+        "validated_on",
+        "invalidated_on",
+        "superseded_by",
+        "history"
+      ],
+      "properties": {
+        "assumption_id": {
+          "type": "string",
+          "pattern": "^AL-[0-9]{4}$",
+          "description": "Stable assumption-ledger id. Not reusable when a row is superseded; mint a new id and point superseded_by at it."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-sentence premise statement. Reads as a falsifiable claim, not as a rationale."
+        },
+        "status": { "$ref": "#/$defs/status_class" },
+        "widening_posture": { "$ref": "#/$defs/widening_posture" },
+        "target_milestone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Milestone slug the assumption primarily shapes."
+        },
+        "earliest_milestone_impact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Milestone slug of the earliest milestone that takes the hit if the assumption is falsified. May equal target_milestone."
+        },
+        "owner_dri": { "type": "string", "minLength": 1 },
+        "owner_forum": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Primary decision-forum id from artifacts/governance/ownership_matrix.yaml#decision_forums."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "backup_waiver": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Waiver id from artifacts/governance/ownership_matrix.yaml#waivers. Required when backup_owner is null."
+        },
+        "validation_deadline": {
+          "type": "string",
+          "format": "date",
+          "description": "Date by which the row MUST be validated, invalidated, deferred, superseded, or closed_not_applicable. A row still open past this date is a validation failure."
+        },
+        "validation_checkpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checkpoint_class", "description"],
+          "properties": {
+            "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Concrete checkpoint naming where and how the assumption is re-examined on cadence. Must name a real forum or evidence-refresh surface rather than 'TBD'."
+            }
+          }
+        },
+        "required_proof": { "$ref": "#/$defs/required_proof" },
+        "default_response_if_false": { "$ref": "#/$defs/default_response_if_false" },
+        "linked_launch_register_rows": {
+          "type": "array",
+          "description": "Launch-register decision ids this assumption underwrites.",
+          "items": { "type": "string", "pattern": "^LR-[0-9]{4}$" }
+        },
+        "linked_decision_index_rows": {
+          "type": "array",
+          "description": "Rolling-index decision ids this assumption underwrites.",
+          "items": { "type": "string", "pattern": "^D-[0-9]{4}$" }
+        },
+        "linked_dependency_ledger_rows": {
+          "type": "array",
+          "description": "Dependency ledger ids whose premise includes this assumption. Values MUST match rows in artifacts/governance/dependency_ledger.yaml#dependency_rows[*].dependency_id.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linked_scorecard_lanes": {
+          "type": "array",
+          "description": "Scorecard lane ids drawn from artifacts/governance/ownership_matrix.yaml#scorecard_lane_index. Scorecards cite this assumption_id against the named lane rather than inventing a parallel status field.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linked_risk_register_rows": {
+          "type": "array",
+          "description": "Risk ids from artifacts/milestones/M0_risk_register.yaml whose material framing rests on this assumption.",
+          "items": { "type": "string", "pattern": "^RISK-[0-9]{3,}$" }
+        },
+        "affected_artifacts": {
+          "type": "array",
+          "description": "Repo-relative paths or lane ids whose contracts, claims, or posture are bounded by this assumption. Non-empty.",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "source_anchors": {
+          "type": "array",
+          "description": "Pointers into source documents that motivate this assumption.",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "validated_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "invalidated_on": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ]
+        },
+        "superseded_by": {
+          "type": "array",
+          "description": "Assumption-ledger ids that supersede this row. Non-empty only when status is superseded.",
+          "items": { "type": "string", "pattern": "^AL-[0-9]{4}$" }
+        },
+        "history": {
+          "type": "array",
+          "description": "Append-only history. Never rewrite; add new entries. Every row MUST carry at least one opened entry.",
+          "items": { "$ref": "#/$defs/history_entry" },
+          "minItems": 1
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "backup_waiver MUST be set when backup_owner is null.",
+          "if": {
+            "properties": { "backup_owner": { "type": "null" } },
+            "required": ["backup_owner"]
+          },
+          "then": {
+            "properties": { "backup_waiver": { "type": "string", "minLength": 1 } },
+            "required": ["backup_waiver"]
+          }
+        },
+        {
+          "description": "superseded_by MUST be non-empty when status is superseded.",
+          "if": {
+            "properties": { "status": { "const": "superseded" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "superseded_by": { "type": "array", "minItems": 1 } }
+          }
+        },
+        {
+          "description": "validated_on MUST be set when status is validated.",
+          "if": {
+            "properties": { "status": { "const": "validated" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "validated_on": { "type": "string", "format": "date" } },
+            "required": ["validated_on"]
+          }
+        },
+        {
+          "description": "invalidated_on MUST be set when status is invalidated.",
+          "if": {
+            "properties": { "status": { "const": "invalidated" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "invalidated_on": { "type": "string", "format": "date" } },
+            "required": ["invalidated_on"]
+          }
+        },
+        {
+          "description": "Every row MUST link at least one downstream consumer (launch register, rolling decision index, dependency ledger, scorecard lane, or risk-register row) so the assumption's footprint is queryable rather than implicit.",
+          "anyOf": [
+            { "properties": { "linked_launch_register_rows": { "type": "array", "minItems": 1 } } },
+            { "properties": { "linked_decision_index_rows": { "type": "array", "minItems": 1 } } },
+            { "properties": { "linked_dependency_ledger_rows": { "type": "array", "minItems": 1 } } },
+            { "properties": { "linked_scorecard_lanes": { "type": "array", "minItems": 1 } } },
+            { "properties": { "linked_risk_register_rows": { "type": "array", "minItems": 1 } } }
+          ]
+        }
+      ]
+    }
+  }
+}
