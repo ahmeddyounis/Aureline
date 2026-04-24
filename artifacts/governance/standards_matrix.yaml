@@ -1,0 +1,724 @@
+# Standards / interchange matrix.
+#
+# Canonical machine-readable register of every industry standard
+# Aureline intentionally reuses, mirrors, extends, or declines for
+# the current milestone. This file answers three questions for any
+# given domain:
+#
+#   1. What is the preferred standard, and at what version?
+#   2. What does Aureline import from it, what does Aureline export
+#      in its shape, and what custom contract surrounds it?
+#   3. Who owns the posture, what counts as a deviation, and what
+#      evidence proves the claim?
+#
+# Reviewers consult this file before selecting any on-disk, on-wire,
+# or publication format on a protected lane. If an Aureline artifact
+# claims open-format or standard-compatibility posture without an
+# entry here (or a declared deviation path), the claim is not yet
+# ratified and the PR is not ready to merge.
+#
+# Companion artifacts:
+#   - docs/architecture/standards_interchange_matrix.md — narrative
+#     companion describing how to use this register and how to score
+#     a new format admission.
+#   - docs/governance/deviation_adr_template.md — narrative template
+#     for narrowing, extending, or temporarily diverging from a
+#     preferred standard.
+#   - artifacts/governance/build_vs_buy_register.yaml — governs the
+#     build-vs-buy posture for subsystems that embed a standard.
+#   - artifacts/governance/dependency_register.yaml — tracks the
+#     upstream implementations that carry a standard.
+#   - artifacts/governance/decision_index.yaml — every deviation
+#     lands as a D-NNNN row whose linked_adr follows the template.
+
+schema_version: 1
+
+overview_page: docs/architecture/standards_interchange_matrix.md
+deviation_template: docs/governance/deviation_adr_template.md
+
+companion_registers:
+  build_vs_buy_register: artifacts/governance/build_vs_buy_register.yaml
+  dependency_register: artifacts/governance/dependency_register.yaml
+  third_party_import_register: artifacts/governance/third_party_import_register.yaml
+  decision_index: artifacts/governance/decision_index.yaml
+  compliance_checklist: artifacts/governance/compliance_checklist.yaml
+
+# ---------------------------------------------------------------------------
+# Classes
+# ---------------------------------------------------------------------------
+
+domain_classes:
+  - observability_and_telemetry
+  - static_analysis_findings
+  - software_bill_of_materials
+  - file_license_hygiene
+  - docs_authoring_and_rendering
+  - identity_and_authentication
+  - identity_provisioning
+  - artifact_distribution_and_signing
+  - public_surface_versioning
+  - feature_flag_evaluation
+  - policy_evaluation_and_bundles
+  - schema_validation
+  - api_surface_definition
+  - extension_abi_and_component_model
+
+support_class_classes:
+  # How Aureline relates to the named standard at this milestone.
+  - standard_shaped_import_and_export      # consume + emit in-shape
+  - standard_shaped_export_only            # emit in-shape; no import path
+  - standard_shaped_import_only            # consume in-shape; no export path
+  - custom_but_mirrorable                  # Aureline contract with a documented bridge to the standard
+  - custom_with_bridge_planned             # Aureline contract today, bridge lane reserved
+  - standard_deferred_placeholder          # seat reserved; stub / placeholder only this milestone
+  - standard_declined_with_rationale       # deliberately not adopted at this milestone
+
+import_expectation_classes:
+  - required
+  - supported
+  - best_effort
+  - none_planned
+  - deferred_to_later_milestone
+
+export_expectation_classes:
+  - required
+  - supported
+  - best_effort
+  - placeholder_stub_only
+  - none_planned
+  - deferred_to_later_milestone
+
+deviation_policy_classes:
+  # Each class is the posture the matrix commits to when a standard
+  # is not adopted verbatim. Every non-trivial deviation MUST land
+  # as a D-NNNN row in artifacts/governance/decision_index.yaml with
+  # an ADR that follows docs/governance/deviation_adr_template.md.
+  - no_deviation_permitted
+  - narrow_with_adr
+  - extend_with_adr
+  - bridge_with_adr
+  - temporarily_diverge_with_adr
+  - no_standard_currently_adopted
+  - not_yet_committed_pending_standard_maturity
+
+compatibility_window_classes:
+  - follow_upstream_release_cadence
+  - pinned_range_per_release_train
+  - long_term_support_window_required
+  - not_yet_pinned_pre_implementation
+  - no_compatibility_window_applies
+
+evidence_path_classes:
+  # Minimum-evidence paths a standard row may declare. Any row with
+  # a non-placeholder support_class MUST list at least one.
+  - upstream_validator_harness        # conformance lint / linter invocation
+  - example_export_fixture            # a worked, committed example emission
+  - import_round_trip_fixture         # parse-then-emit-then-compare fixture
+  - bridge_disclaimer_doc             # narrative describing the custom-to-standard bridge
+  - compatibility_note                # release-note / docs note about the adopted version
+  - mirror_manifest_entry             # third-party-import row for mirrored bytes
+  - conformance_report_artifact       # report checked into release-evidence
+
+# ---------------------------------------------------------------------------
+# Gates
+# ---------------------------------------------------------------------------
+
+gates:
+  - >
+    Every public claim of open-format or standard compatibility on a
+    protected lane MUST be traceable to a row in this register. A
+    claim without a matching row (or a declared deviation row) is not
+    ratified and may not survive the current milestone.
+  - >
+    Every row whose support_class is not a placeholder MUST list at
+    least one evidence_path entry and a named surface owner.
+  - >
+    Every deviation (narrow, extend, bridge, or temporarily diverge)
+    MUST appear in artifacts/governance/decision_index.yaml as a
+    D-NNNN row with a linked_adr that uses
+    docs/governance/deviation_adr_template.md. The matrix row and
+    the decision row MUST reference each other.
+  - >
+    Support classes standard_shaped_export_only and
+    standard_shaped_import_only are audit-visible reminders that the
+    other direction is not yet supported. Upgrading to
+    standard_shaped_import_and_export is a matrix change, not a
+    silent expansion of an existing row.
+  - >
+    Retiring a standard row is not a delete; set
+    support_class to standard_declined_with_rationale and record the
+    reason. The audit trail "this posture once applied" survives.
+
+# ---------------------------------------------------------------------------
+# Rows
+# ---------------------------------------------------------------------------
+
+rows:
+  - id: standard.opentelemetry
+    name: OpenTelemetry (OTLP traces, metrics, logs)
+    domain: observability_and_telemetry
+    preferred_standard:
+      family: OpenTelemetry
+      surfaces:
+        - OTLP/HTTP and OTLP/gRPC export
+        - semantic conventions for attributes and resource
+      version_range: OpenTelemetry Protocol 1.x (current at milestone freeze)
+    import_expectation: none_planned
+    export_expectation: placeholder_stub_only
+    support_class: custom_with_bridge_planned
+    named_surface_owner:
+      lane: telemetry_foundation
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: extend_with_adr
+    deviation_notes: >
+      Aureline telemetry, diagnostics, and support-bundle payloads
+      are governed by the schema registry and consent ledger first
+      (see docs/governance/telemetry_and_support_schema_registry.md
+      and artifacts/governance/consent_ledger_seed.yaml). An OTLP
+      export lane is reserved under
+      docs/automation/cli_surface_contract.md (otlp_trace_export),
+      but payload contents are narrowed to what the schema registry
+      permits. Any widening of the OTLP export surface past the
+      declared schema-registry rows requires a deviation ADR.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Pin the OTLP version once an export lane lands; until then the
+      seat is reserved in the CLI surface contract without a pinned
+      version.
+    evidence_paths:
+      - bridge_disclaimer_doc
+      - compatibility_note
+    evidence_refs:
+      - docs/automation/cli_surface_contract.md
+      - docs/governance/telemetry_and_support_schema_registry.md
+
+  - id: standard.sarif
+    name: SARIF (static analysis results)
+    domain: static_analysis_findings
+    preferred_standard:
+      family: OASIS SARIF
+      surfaces:
+        - SARIF 2.1.0 JSON log format for analyser output
+      version_range: SARIF 2.1.0
+    import_expectation: supported
+    export_expectation: supported
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: qa_and_verification
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: narrow_with_adr
+    deviation_notes: >
+      Aureline emits static-analysis findings in SARIF-compatible
+      shape so hosted-review parity and CI artifact exchange stay
+      native. Extensions (Aureline-specific rule ids, custom
+      taxonomies, additional properties) are permitted only through
+      the SARIF propertyBag mechanism and MUST NOT break SARIF
+      validators. Any narrowing of the produced surface requires a
+      deviation ADR so reviewers can see what subset is claimed.
+    compatibility_window_class: pinned_range_per_release_train
+    compatibility_window_note: >
+      Pin SARIF 2.1.0 until a later major version is ratified by
+      OASIS and adopted upstream in the tooling Aureline interops
+      with.
+    evidence_paths:
+      - upstream_validator_harness
+      - example_export_fixture
+      - import_round_trip_fixture
+    evidence_refs: []
+
+  - id: standard.spdx
+    name: SPDX (SBOM + per-file license identifiers)
+    domain: software_bill_of_materials
+    preferred_standard:
+      family: SPDX
+      surfaces:
+        - SPDX License List short identifiers (per-file metadata)
+        - SPDX SBOM document (JSON) for release artefacts
+      version_range: SPDX specification 2.3 today; 3.0 tracked as a migration target
+    import_expectation: supported
+    export_expectation: required
+    support_class: standard_shaped_export_only
+    named_surface_owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: narrow_with_adr
+    deviation_notes: >
+      SPDX short identifiers are mandatory per-file metadata (see
+      docs/governance/provenance_and_compliance_baseline.md). The
+      workspace default is Apache-2.0; files using a different
+      identifier must sit under a crate / directory whose declared
+      licence matches, and the discrepancy must be justified by an
+      ADR. Release-grade SPDX SBOM emission replaces the placeholder
+      at ci/sbom_provenance.sh; the placeholder does not claim
+      SPDX conformance.
+    compatibility_window_class: pinned_range_per_release_train
+    compatibility_window_note: >
+      Track SPDX 2.3 until release-engineering ratifies a 3.0
+      migration; the migration lands as an ADR that cites this row.
+    evidence_paths:
+      - compatibility_note
+      - conformance_report_artifact
+    evidence_refs:
+      - docs/governance/provenance_and_compliance_baseline.md
+      - ci/sbom_provenance.sh
+
+  - id: standard.cyclonedx
+    name: CycloneDX (SBOM alternate serialisation)
+    domain: software_bill_of_materials
+    preferred_standard:
+      family: CycloneDX (OWASP)
+      surfaces:
+        - CycloneDX 1.x JSON SBOM alongside SPDX
+      version_range: CycloneDX 1.5 today
+    import_expectation: best_effort
+    export_expectation: deferred_to_later_milestone
+    support_class: standard_deferred_placeholder
+    named_surface_owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: not_yet_committed_pending_standard_maturity
+    deviation_notes: >
+      CycloneDX export is reserved as a sibling to SPDX and lands
+      once a security-tooling consumer requires it (see
+      docs/governance/provenance_and_compliance_baseline.md §SBOM
+      and provenance commands). Turning the seat into a live row
+      requires a deviation or adoption ADR.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Pin once adopted; the deferred posture carries no compatibility
+      window today.
+    evidence_paths:
+      - compatibility_note
+    evidence_refs:
+      - docs/governance/provenance_and_compliance_baseline.md
+
+  - id: standard.reuse
+    name: REUSE specification (per-file licensing hygiene)
+    domain: file_license_hygiene
+    preferred_standard:
+      family: REUSE Specification (Free Software Foundation Europe)
+      surfaces:
+        - Per-file SPDX-License-Identifier and SPDX-FileCopyrightText headers
+        - .reuse/dep5 or SPDX manifest for non-header-bearing files
+      version_range: REUSE 3.x
+    import_expectation: required
+    export_expectation: required
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: docs_public_truth
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: no_deviation_permitted
+    deviation_notes: >
+      REUSE-shaped per-file SPDX metadata is non-negotiable for
+      newly added or modified source-bearing files. A deviation
+      would require a deviation ADR, and no such deviation is
+      currently expected.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Follow the REUSE specification's cadence; adopt the current
+      major version.
+    evidence_paths:
+      - upstream_validator_harness
+      - compatibility_note
+    evidence_refs:
+      - docs/governance/provenance_and_compliance_baseline.md
+      - CONTRIBUTING.md
+
+  - id: standard.commonmark
+    name: CommonMark (docs authoring / rendering)
+    domain: docs_authoring_and_rendering
+    preferred_standard:
+      family: CommonMark
+      surfaces:
+        - CommonMark 0.30 as the authoring and rendering baseline for /docs/**
+      version_range: CommonMark 0.30
+    import_expectation: required
+    export_expectation: required
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: docs_public_truth
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: extend_with_adr
+    deviation_notes: >
+      Docs authoring is CommonMark-first. GitHub-flavoured
+      extensions (tables, task lists, strikethrough) are used only
+      where CommonMark does not cover the need and are treated as
+      additive. Any rendering path that breaks CommonMark semantics
+      requires a deviation ADR and a bridge note in the docs-help
+      contract (docs/adr/0013-docs-help-service-health-truth.md).
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Bump the pinned CommonMark version when the docs pack
+      manifest refreshes; drive the change through a deviation ADR
+      if the bump requires a rendering change.
+    evidence_paths:
+      - example_export_fixture
+      - compatibility_note
+    evidence_refs:
+      - docs/adr/0013-docs-help-service-health-truth.md
+
+  - id: standard.oidc
+    name: OpenID Connect (human authentication)
+    domain: identity_and_authentication
+    preferred_standard:
+      family: OpenID Connect Core
+      surfaces:
+        - OIDC Core authentication and token exchange (self-hosted / managed modes)
+        - OAuth 2.0 / 2.1 underlying protocol surface
+      version_range: OIDC Core 1.0; track OAuth 2.1 draft progression
+    import_expectation: required
+    export_expectation: none_planned
+    support_class: standard_shaped_import_only
+    named_surface_owner:
+      lane: identity_and_auth
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids:
+        - D-0001
+    deviation_policy: extend_with_adr
+    deviation_notes: >
+      Identity modes are frozen in
+      docs/adr/0001-identity-modes.md. Self-hosted and managed
+      modes consume OIDC; account-free-local does not require it.
+      The OIDC / SCIM / policy-bundle contract freeze and narrowing
+      rules travel with ADR-0001 rather than being redecided in
+      this matrix; any protocol-profile widening or claim-mapping
+      extension requires a deviation ADR that cites ADR-0001.
+    compatibility_window_class: long_term_support_window_required
+    compatibility_window_note: >
+      Enterprise consumers require long-lived identity protocol
+      stability; pin supported profile set per release train.
+    evidence_paths:
+      - bridge_disclaimer_doc
+      - compatibility_note
+    evidence_refs:
+      - docs/adr/0001-identity-modes.md
+      - docs/identity/offline_entitlement_and_policy_seed.md
+
+  - id: standard.scim
+    name: SCIM (identity provisioning)
+    domain: identity_provisioning
+    preferred_standard:
+      family: SCIM (System for Cross-domain Identity Management)
+      surfaces:
+        - SCIM 2.0 provisioning of users and groups
+      version_range: SCIM 2.0 (RFC 7643 / RFC 7644)
+    import_expectation: required
+    export_expectation: none_planned
+    support_class: standard_shaped_import_only
+    named_surface_owner:
+      lane: identity_and_auth
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids:
+        - D-0001
+    deviation_policy: extend_with_adr
+    deviation_notes: >
+      SCIM provisioning is admitted only on self-hosted and
+      managed identity modes. Any extension beyond RFC 7643
+      schema (custom attributes, custom role claims) requires a
+      deviation ADR and a crosswalk to the offline entitlement
+      and policy seed.
+    compatibility_window_class: long_term_support_window_required
+    compatibility_window_note: >
+      Enterprise identity posture requires stable provisioning
+      semantics across release trains.
+    evidence_paths:
+      - bridge_disclaimer_doc
+      - compatibility_note
+    evidence_refs:
+      - docs/adr/0001-identity-modes.md
+      - docs/identity/offline_entitlement_and_policy_seed.md
+
+  - id: standard.oci_distribution
+    name: OCI distribution specification (artefact distribution)
+    domain: artifact_distribution_and_signing
+    preferred_standard:
+      family: Open Container Initiative
+      surfaces:
+        - OCI Distribution Specification for registry push / pull
+        - OCI Image / Artifact manifests for non-container payloads
+      version_range: OCI distribution-spec v1.1; image-spec v1.1
+    import_expectation: best_effort
+    export_expectation: deferred_to_later_milestone
+    support_class: standard_deferred_placeholder
+    named_surface_owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: not_yet_committed_pending_standard_maturity
+    deviation_notes: >
+      Extension registry, docs pack, and update-client artefact
+      distribution have OCI distribution as a candidate transport
+      (see docs/release/release_artifact_graph.md and
+      docs/release/channel_and_branch_contract.md). The seat is
+      reserved; committing to OCI requires a deviation ADR that
+      binds the registry contract to this matrix row.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Pin a distribution-spec version once an adopting ADR lands.
+    evidence_paths:
+      - compatibility_note
+    evidence_refs:
+      - docs/release/release_artifact_graph.md
+      - docs/release/channel_and_branch_contract.md
+
+  - id: standard.semver
+    name: Semantic Versioning (public surface versioning)
+    domain: public_surface_versioning
+    preferred_standard:
+      family: Semantic Versioning
+      surfaces:
+        - SemVer-aligned versioning of schemas, CLI JSON, RPC envelopes, manifests, saved artefacts
+      version_range: SemVer 2.0.0
+    import_expectation: required
+    export_expectation: required
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: narrow_with_adr
+    deviation_notes: >
+      SemVer applies once a public surface is declared stable;
+      pre-stable surfaces declare their pre-release posture
+      explicitly. Narrowing SemVer semantics for a specific surface
+      (e.g. schema-only additive-change posture on a saved
+      artefact) requires a deviation ADR so consumers can see the
+      bounded semantics.
+    compatibility_window_class: pinned_range_per_release_train
+    compatibility_window_note: >
+      Major-version jumps are ADR-backed; minor / patch cadence
+      follows the release-train contract.
+    evidence_paths:
+      - compatibility_note
+      - example_export_fixture
+    evidence_refs:
+      - docs/governance/provenance_and_compliance_baseline.md
+      - docs/release/channel_and_branch_contract.md
+      - docs/governance/interface_lifecycle_policy.md
+
+  - id: standard.openfeature
+    name: OpenFeature (feature-flag evaluation API)
+    domain: feature_flag_evaluation
+    preferred_standard:
+      family: OpenFeature (CNCF)
+      surfaces:
+        - OpenFeature evaluation API shape for runtime flag lookup
+        - OpenFeature provider contract as a bridge seam
+      version_range: OpenFeature 0.x (tracked; not yet 1.0)
+    import_expectation: none_planned
+    export_expectation: none_planned
+    support_class: custom_but_mirrorable
+    named_surface_owner:
+      lane: governance_and_policy
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: bridge_with_adr
+    deviation_notes: >
+      Aureline uses the internal feature-flag policy
+      (docs/governance/feature_flag_policy.md) rather than adopting
+      OpenFeature directly. The OpenFeature evaluation-API shape is
+      treated as a mirrorable bridge: an adapter that projects the
+      internal flag vocabulary through an OpenFeature-shaped API
+      MAY land via a bridge ADR once an external consumer needs
+      it. Any direct adoption of OpenFeature as the primary flag
+      contract requires a deviation ADR.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      OpenFeature is pre-1.0; re-evaluate the bridge posture when
+      the specification stabilises.
+    evidence_paths:
+      - bridge_disclaimer_doc
+      - compatibility_note
+    evidence_refs:
+      - docs/governance/feature_flag_policy.md
+
+  - id: standard.opa_rego
+    name: OPA / Rego (policy bundles and evaluation)
+    domain: policy_evaluation_and_bundles
+    preferred_standard:
+      family: Open Policy Agent (Rego language and bundle format)
+      surfaces:
+        - Rego policy expression language
+        - OPA bundle-service API and bundle manifest shape
+      version_range: OPA 0.x current
+    import_expectation: none_planned
+    export_expectation: none_planned
+    support_class: custom_but_mirrorable
+    named_surface_owner:
+      lane: governance_and_policy
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: bridge_with_adr
+    deviation_notes: >
+      Policy bundles, policy epochs, and offline entitlement are
+      governed by docs/identity/offline_entitlement_and_policy_seed.md
+      and the admin-policy narrowing ceiling. OPA / Rego is the
+      ecosystem reference point for policy bundle distribution and
+      evaluation; a bridge adapter mapping Aureline's policy-bundle
+      contract onto a Rego-shaped evaluation API may land via a
+      bridge ADR. Adopting Rego as the in-product policy language
+      requires a deviation ADR.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      OPA cadence is controlled upstream; pin only once a bridge
+      lane lands.
+    evidence_paths:
+      - bridge_disclaimer_doc
+      - compatibility_note
+    evidence_refs:
+      - docs/identity/offline_entitlement_and_policy_seed.md
+
+  - id: standard.json_schema_2020_12
+    name: JSON Schema Draft 2020-12 (schema validation)
+    domain: schema_validation
+    preferred_standard:
+      family: JSON Schema
+      surfaces:
+        - JSON Schema Draft 2020-12 for all schemas under /schemas/**
+      version_range: JSON Schema Draft 2020-12
+    import_expectation: required
+    export_expectation: required
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: governance_and_policy
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: narrow_with_adr
+    deviation_notes: >
+      Every repo schema declares
+      "$schema": "https://json-schema.org/draft/2020-12/schema".
+      Schemas MAY narrow (require a subset of keywords, forbid
+      additionalProperties) but MUST NOT invent custom keywords
+      outside the JSON Schema vocabulary without a deviation ADR.
+      Registry-style schemas (decision index, exception packet,
+      schema-registry entry) all follow this rule.
+    compatibility_window_class: pinned_range_per_release_train
+    compatibility_window_note: >
+      Draft 2020-12 is the pin for this milestone; a later draft
+      adoption lands as a deviation ADR that cites this row.
+    evidence_paths:
+      - upstream_validator_harness
+      - example_export_fixture
+    evidence_refs:
+      - schemas/governance/decision_index.schema.json
+      - schemas/governance/exception_packet.schema.json
+
+  - id: standard.openapi_3_2
+    name: OpenAPI (API surface definition)
+    domain: api_surface_definition
+    preferred_standard:
+      family: OpenAPI (OAI)
+      surfaces:
+        - OpenAPI 3.2+ service-description documents for any HTTP API Aureline exposes
+      version_range: OpenAPI 3.2 or later once published; OpenAPI 3.1 today as the admissible fallback
+    import_expectation: supported
+    export_expectation: deferred_to_later_milestone
+    support_class: standard_deferred_placeholder
+    named_surface_owner:
+      lane: automation_and_cli
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: not_yet_committed_pending_standard_maturity
+    deviation_notes: >
+      Aureline does not ship a hosted HTTP API at this milestone.
+      The CLI / headless runner and any future service endpoints
+      will publish OpenAPI 3.2-or-later documents once the surface
+      exists; admitting OpenAPI 3.1 in the interim requires a
+      deviation ADR naming the fallback and the migration target.
+    compatibility_window_class: follow_upstream_release_cadence
+    compatibility_window_note: >
+      Pin the minor version once the first live OpenAPI document
+      lands.
+    evidence_paths:
+      - compatibility_note
+    evidence_refs:
+      - docs/automation/cli_surface_contract.md
+
+  - id: standard.wasm_component_model_wit
+    name: WebAssembly Component Model / WIT (extension ABI)
+    domain: extension_abi_and_component_model
+    preferred_standard:
+      family: WebAssembly Component Model
+      surfaces:
+        - WIT package + world definitions for extension and host boundary
+        - Component Model 0.2.x ABI range
+      version_range: Component Model 0.2.x
+    import_expectation: required
+    export_expectation: required
+    support_class: standard_shaped_import_and_export
+    named_surface_owner:
+      lane: extensions
+      dri: "@ahmeddyounis"
+    related_registers:
+      build_vs_buy_refs: []
+      dependency_ids: []
+      decision_ids: []
+    deviation_policy: extend_with_adr
+    deviation_notes: >
+      Extension ABI is frozen in
+      docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+      against WIT packages under wit/aureline/*.wit and the
+      capability-world registry. Extending the ABI, adding a new
+      capability world, or changing the Component Model ABI range
+      requires a deviation / capability-world ADR that cites this
+      row and ADR-0019.
+    compatibility_window_class: pinned_range_per_release_train
+    compatibility_window_note: >
+      Component Model is pre-1.0; bumps land through the
+      extension-host ADR chain and update this row's version_range.
+    evidence_paths:
+      - upstream_validator_harness
+      - example_export_fixture
+      - compatibility_note
+    evidence_refs:
+      - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+      - docs/extensions/wit_host_contract_seed.md
+      - wit/aureline/
