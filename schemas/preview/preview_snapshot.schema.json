@@ -1,0 +1,1107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/preview_snapshot.schema.json",
+  "title": "Aureline preview-runtime, source-mapping confidence, and stale-editability snapshot record",
+  "description": "Boundary schema for the preview_snapshot_record frozen in docs/architecture/preview_runtime_contract.md. The record is the cross-surface projection every static preview, live preview, inspectable tree/overlay, visual-edit, browser preview, native preview, and embedded preview surface emits when it needs one stable answer to four questions: what is the preview-mode this surface is rendering, what is the source revision and runtime identity behind it, what is the source-to-runtime mapping confidence right now, and what mutations (source jump, diff, export, apply mapped edit, direct write) are admissible on this surface in this state. The record does not replace the full preview-runtime configuration or the visual-transform manifest; it is the compact projection consumers read so source-sync chip, device-target row, hot-reload status, and preview share-sheet fields can stay aligned across browser, native, and embedded preview lanes. This schema re-exports the artifact-edit-posture vocabulary already landed in schemas/generated/artifact_edit_posture.schema.json (artifact_origin_class = preview_projection, provenance_state = mock_provenance / unknown_lineage / in_sync, default_edit_posture = inspect_read_only / structured_safe_edit / edit_canonical_source) and the safe-preview trust-class vocabulary from schemas/security/trust_class.schema.json (TrustedLocalActive / IsolatedRemoteActive plus the connectivity-state and downgrade-trigger ladder). It does not mint new origin classes, new trust classes, or new edit-posture verbs. Raw preview body bytes, raw rendered HTML/DOM payloads, raw screenshot bytes, raw stack frames, raw mock-data bodies, raw cookies, raw secret values, raw URLs, raw IP addresses, and raw absolute file paths never cross this boundary; opaque runtime / target / mapping / mock-data / build / share-link handles and class labels do. Adding a new preview_mode, a new mapping_confidence_class, a new stale_editability_class, a new hot_reload_state, a new device_target_class, a new share_visibility_class, a new source_sync_state, or a new downgrade_trigger value is additive-minor and bumps preview_snapshot_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_snapshot_record" }
+  ],
+  "$defs": {
+    "preview_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this preview-snapshot contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "preview_snapshot_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw secret material, raw cookies, and raw rendered bytes never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewer-facing sentence safe to render in preview chrome and export review. Raw URLs, raw rendered bytes, raw env bodies, raw cookies, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at snapshot assembly."
+    },
+
+    "preview_mode": {
+      "type": "string",
+      "enum": [
+        "static_preview",
+        "live_preview",
+        "inspectable_tree_overlay",
+        "visual_edit"
+      ],
+      "description": "Closed preview-mode vocabulary frozen by Appendix CR. static_preview binds to a source revision and a preview config and never claims a live runtime. live_preview binds to a running preview runtime under a declared sandbox profile. inspectable_tree_overlay layers a read-only inspector on a preview runtime. visual_edit layers a typed transform planner on a preview runtime; mutation requires a transform manifest plus a rollback checkpoint."
+    },
+
+    "preview_lane": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane"
+      ],
+      "description": "Closed preview-lane vocabulary so source-sync chip, device-target row, hot-reload status, and share-sheet fields render in the same language across the three runtime families."
+    },
+
+    "preview_projection_artifact_origin_class": {
+      "type": "string",
+      "const": "preview_projection",
+      "description": "Re-export of artifact_origin_class = preview_projection from schemas/generated/artifact_edit_posture.schema.json. Every preview snapshot records the artifact_origin_class field with this constant value so search, open, review, AI-context, export, and support surfaces share one provenance vocabulary across generated, mirrored, and preview artifacts."
+    },
+
+    "preview_provenance_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "diverged_from_generator",
+        "unknown_lineage",
+        "mock_provenance"
+      ],
+      "description": "Re-export of the artifact-edit-posture provenance_state values that may apply to a preview projection. Preview projections never report not_applicable or mirror_drift; canonical_source coverage is reported through canonical_source_resolution."
+    },
+
+    "default_edit_posture_token": {
+      "type": "string",
+      "enum": [
+        "inspect_read_only",
+        "structured_safe_edit",
+        "edit_canonical_source"
+      ],
+      "description": "Re-export of the artifact-edit-posture default_edit_posture values that may apply to a preview projection. A preview snapshot's default_edit_posture is forced by mapping_confidence_class and stale_editability_class; raw direct edits to the preview projection itself are never admissible."
+    },
+
+    "do_not_imply_canonical_source_const_true": {
+      "type": "boolean",
+      "const": true,
+      "description": "Re-export of the artifact-edit-posture do_not_imply_canonical_source rule for preview projections. Every preview snapshot MUST set this field to true so consumer surfaces preserve the rule that preview artifacts never masquerade as canonical handwritten source."
+    },
+
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Re-export of the safe-preview trust-class values that apply to executable preview surfaces. Static-preview snapshots whose runtime is offline or not reached MUST report IsolatedRemoteActive when the source is remote or embedded; local trusted runtimes report TrustedLocalActive. RawText / SanitizedRich are not admissible classes for this record because preview surfaces always run or render active content."
+    },
+
+    "connectivity_state": {
+      "type": "string",
+      "enum": [
+        "local_not_applicable",
+        "connected_verified",
+        "connected_unverified",
+        "disconnected_static_snapshot",
+        "disconnected_metadata_only"
+      ],
+      "description": "Re-export of the safe-preview connectivity_state vocabulary."
+    },
+
+    "sandbox_posture_class": {
+      "type": "string",
+      "enum": [
+        "trusted_local_runtime",
+        "isolated_local_sandbox",
+        "containerised_local_sandbox",
+        "remote_managed_sandbox",
+        "embedded_in_extension_host"
+      ],
+      "description": "Closed sandbox-posture vocabulary naming where the preview runtime executes. Mirrors the execution-context target classes already frozen in schemas/runtime/execution_context.schema.json without re-asserting target identity here."
+    },
+
+    "target_environment_class": {
+      "type": "string",
+      "enum": [
+        "local_dev_server",
+        "remote_preview_runtime",
+        "managed_preview_runtime",
+        "containerised_preview_runtime",
+        "extension_host_preview_runtime",
+        "external_browser_handoff_target",
+        "external_device_handoff_target",
+        "static_render_only_no_runtime"
+      ],
+      "description": "Closed target-environment vocabulary distinguishing where the preview is actually being rendered or executed from any viewport preset that may be displayed. Viewport presets are recorded separately under device_target.viewport_preset_class."
+    },
+
+    "device_target_class": {
+      "type": "string",
+      "enum": [
+        "viewport_preset_only",
+        "tethered_device",
+        "remote_attached_device",
+        "managed_device_pool",
+        "browser_window_target",
+        "browser_tab_target",
+        "embedded_canvas_target"
+      ],
+      "description": "Closed device-target vocabulary so the device-target row distinguishes a viewport preset from an actual browser/device target. viewport_preset_only means no real device is attached; tethered_device and remote_attached_device name actual device handles; managed_device_pool names a pool reservation; browser_window_target / browser_tab_target / embedded_canvas_target name actual browser or embedded surfaces."
+    },
+
+    "viewport_preset_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default_preset",
+        "tablet_landscape_preset",
+        "tablet_portrait_preset",
+        "phone_landscape_preset",
+        "phone_portrait_preset",
+        "custom_preset",
+        "preset_not_applicable"
+      ],
+      "description": "Closed viewport-preset vocabulary. A viewport preset describes the displayed layout; it never implies the preview ran on a real device of that class."
+    },
+
+    "device_target_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_target_class",
+        "viewport_preset_class"
+      ],
+      "properties": {
+        "device_target_class": { "$ref": "#/$defs/device_target_class" },
+        "viewport_preset_class": { "$ref": "#/$defs/viewport_preset_class" },
+        "device_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque handle for the actual attached / pooled / handoff device. Null when device_target_class = viewport_preset_only or browser_*_target without a registered device."
+        },
+        "device_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing label for the device, redaction-safe (model class, OS family, screen-class). Raw serial numbers, raw IP addresses, raw hostnames, and raw account handles never appear."
+        },
+        "viewport_pixel_width": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "viewport_pixel_height": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "device_pixel_ratio_class": {
+          "type": ["string", "null"],
+          "enum": ["one_x", "two_x", "three_x", "fractional", null]
+        },
+        "device_target_mismatch_observed": {
+          "type": "boolean",
+          "description": "True when the requested device target could not be reached and the snapshot fell back to a viewport preset only. The corresponding downgrade_trigger SHOULD be present in downgrade_trigger_observations."
+        }
+      },
+      "description": "Device-target row composed by the source-sync chip, share-sheet, and device-row surfaces. A preview surface MUST distinguish viewport_preset_only from a real device target by reading this row rather than reading the rendering envelope."
+    },
+
+    "source_sync_state": {
+      "type": "string",
+      "enum": [
+        "source_in_sync",
+        "source_drifted_since_render",
+        "source_revision_unknown",
+        "source_revision_redacted",
+        "source_unmappable_for_runtime"
+      ],
+      "description": "Closed source-sync state vocabulary the source-sync chip displays. source_in_sync means the runtime was built or loaded against the recorded source revision and no edits have landed since. source_drifted_since_render means the source revision moved after render; the snapshot is stale until refreshed. source_revision_unknown means the runtime could not report which revision it loaded. source_revision_redacted is reserved for support-export contexts where revision identity is intentionally projected as opaque. source_unmappable_for_runtime applies when the runtime kind never reports source identity (for example, certain remote runtimes)."
+    },
+
+    "source_revision_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_revision_class"
+      ],
+      "properties": {
+        "source_revision_class": {
+          "type": "string",
+          "enum": [
+            "vcs_commit_pinned",
+            "working_tree_with_pending_edits",
+            "release_tag_pinned",
+            "build_artifact_digest_pinned",
+            "remote_ref_pinned",
+            "unknown_revision"
+          ]
+        },
+        "source_revision_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque revision handle (commit-id-class, tag-class, working-tree fingerprint). Raw absolute paths, raw branch URLs, and raw remote endpoints never appear here."
+        },
+        "working_tree_fingerprint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "drifted_paths_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Count of source paths that have changed since render assembly. Per-path identity is never projected through this record; consumers that need it open the canonical source through edit_canonical_source."
+        }
+      }
+    },
+
+    "preview_runtime_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_runtime_id",
+        "preview_runtime_kind_class",
+        "framework_adapter_class",
+        "framework_adapter_revision_ref"
+      ],
+      "properties": {
+        "preview_runtime_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_runtime_kind_class": {
+          "type": "string",
+          "enum": [
+            "framework_dev_server",
+            "static_site_renderer",
+            "story_or_component_runner",
+            "notebook_renderer_runtime",
+            "docs_renderer_runtime",
+            "design_token_overlay_runtime",
+            "native_simulator_runtime",
+            "remote_workspace_preview_runtime",
+            "extension_provided_preview_runtime",
+            "external_browser_handoff_runtime"
+          ]
+        },
+        "framework_adapter_class": {
+          "type": "string",
+          "enum": [
+            "react_or_jsx_family",
+            "vue_or_template_family",
+            "svelte_or_compile_family",
+            "angular_or_decorator_family",
+            "solid_or_signal_family",
+            "web_components_family",
+            "flutter_widget_family",
+            "swiftui_widget_family",
+            "compose_widget_family",
+            "html_dom_passthrough",
+            "static_markdown_renderer",
+            "design_token_only_adapter",
+            "unsupported_or_unclaimed_adapter"
+          ],
+          "description": "Closed framework-adapter family. unsupported_or_unclaimed_adapter forces mapping_confidence_class to runtime_only_no_source_mapping or unknown_mapping."
+        },
+        "framework_adapter_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque adapter version / revision pin. A change here invalidates source-to-runtime mappings; the snapshot SHOULD also report mapping_confidence_class = approximate_mapping or stale_mapping until a re-render confirms the new mapping."
+        },
+        "preview_runtime_version_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the execution-context record the runtime resolved through. Pass-through; this snapshot does not duplicate execution-context fields."
+        }
+      }
+    },
+
+    "data_provenance_class": {
+      "type": "string",
+      "enum": [
+        "live_data_from_real_backend",
+        "live_data_from_staging_backend",
+        "captured_data_replay",
+        "mock_data_only",
+        "no_data_required",
+        "unknown_data_provenance"
+      ],
+      "description": "Closed data/mock provenance vocabulary. mock_data_only and captured_data_replay force the preview-snapshot's preview_provenance_state to mock_provenance or stale_inputs as appropriate."
+    },
+
+    "data_provenance_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_provenance_class"
+      ],
+      "properties": {
+        "data_provenance_class": { "$ref": "#/$defs/data_provenance_class" },
+        "mock_data_set_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "captured_replay_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "backend_target_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing label naming the backend target class. Raw URLs, raw hostnames, raw account handles, and raw bearer tokens never appear here."
+        }
+      }
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_within_session",
+        "fresh_within_minutes",
+        "fresh_within_hour",
+        "stale_beyond_hour",
+        "stale_unknown_age",
+        "freshness_not_applicable"
+      ],
+      "description": "Closed freshness-class vocabulary. The exact age is never projected through this record."
+    },
+
+    "mapping_confidence_class": {
+      "type": "string",
+      "enum": [
+        "exact_source_mapping",
+        "approximate_mapping",
+        "stale_mapping",
+        "unmappable_node_present",
+        "runtime_only_no_source_mapping",
+        "unknown_mapping"
+      ],
+      "description": "Closed source-to-runtime mapping-confidence vocabulary. exact_source_mapping is the only class that admits visual_edit. approximate_mapping admits inspect-only with code-jump on confirmed nodes. stale_mapping forces inspect-only or freezes the surface. unmappable_node_present means at least one rendered node lacks any source span; visual edit MUST NOT be offered for that node. runtime_only_no_source_mapping applies when the runtime never produced a source map (for example, certain remote previews). unknown_mapping forces the strictest downgrade."
+    },
+
+    "stale_editability_class": {
+      "type": "string",
+      "enum": [
+        "fully_editable_through_mapped_edits",
+        "inspect_only_due_to_mapping_uncertainty",
+        "inspect_only_due_to_stale_runtime",
+        "export_only_due_to_runtime_unavailable",
+        "frozen_until_resync",
+        "frozen_due_to_policy_or_trust"
+      ],
+      "description": "Closed stale-editability vocabulary. Maps mapping_confidence_class plus hot_reload_state plus connectivity_state to one allowed-action floor that consumer surfaces read instead of recomputing per-surface."
+    },
+
+    "hot_reload_state": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Reserved hot-reload state vocabulary spelled per the spec. applied: most recent source change reflected; partial: some change reflected, some pending; restart_required: dev-server or runtime must restart; rebuild_required: a build step must run; failed: the most recent reload errored; unavailable: hot reload is not supported by this runtime / adapter / target."
+    },
+
+    "hot_reload_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hot_reload_state"
+      ],
+      "properties": {
+        "hot_reload_state": { "$ref": "#/$defs/hot_reload_state" },
+        "last_attempt_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "last_failure_reason_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "compile_error",
+            "runtime_error",
+            "adapter_incompatibility",
+            "asset_pipeline_error",
+            "transport_lost",
+            "policy_blocked",
+            null
+          ]
+        },
+        "summary": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing one-sentence summary. Raw stack frames, raw stderr lines, and raw rendered bytes never appear here."
+        }
+      }
+    },
+
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_revoked",
+        "policy_narrowed",
+        "origin_changed",
+        "origin_missing",
+        "connectivity_lost",
+        "sanitizer_failed",
+        "sandbox_unavailable",
+        "runtime_unhealthy",
+        "support_export_boundary",
+        "source_representation_missing",
+        "approval_scope_changed",
+        "delete_review_preserve_last_evidence",
+        "source_revision_drifted",
+        "framework_adapter_revision_changed",
+        "preview_runtime_restart_required",
+        "preview_runtime_rebuild_required",
+        "preview_runtime_unavailable",
+        "device_target_mismatch",
+        "mock_data_set_changed",
+        "captured_replay_expired",
+        "mapping_invalidated_by_hot_reload"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. The first twelve values are re-exported verbatim from schemas/security/trust_class.schema.json so preview surfaces share the safe-preview ladder; the remaining nine values are preview-specific extensions that name source-revision drift, framework-adapter revision change, hot-reload restart / rebuild gating, runtime unavailability, device-target mismatch, mock or captured data invalidation, and hot-reload-driven mapping invalidation."
+    },
+
+    "allowed_action": {
+      "type": "string",
+      "enum": [
+        "source_jump",
+        "diff_against_source",
+        "export_static_snapshot",
+        "export_metadata_only",
+        "apply_mapped_edit",
+        "direct_write_to_canonical_source",
+        "open_in_external_handoff",
+        "share_via_share_sheet"
+      ],
+      "description": "Closed allowed-action vocabulary every preview surface MAY render. effective_allowed_actions enumerates the actions admissible at snapshot time given mapping_confidence_class, stale_editability_class, hot_reload_state, connectivity_state, and the downgrade-trigger observations on this record."
+    },
+
+    "blocked_action": {
+      "type": "string",
+      "enum": [
+        "source_jump",
+        "apply_mapped_edit",
+        "direct_write_to_canonical_source",
+        "share_via_share_sheet",
+        "open_in_external_handoff"
+      ],
+      "description": "Closed blocked-action vocabulary. blocked_actions enumerates actions that are explicitly disallowed (with a reason) so consumer surfaces can render the action greyed-out with the typed reason rather than hiding it silently."
+    },
+
+    "blocked_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reason_trigger"],
+      "properties": {
+        "action": { "$ref": "#/$defs/blocked_action" },
+        "reason_trigger": { "$ref": "#/$defs/downgrade_trigger" },
+        "reason_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "transform_manifest_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transform_manifest_required"
+      ],
+      "properties": {
+        "transform_manifest_required": {
+          "type": "boolean",
+          "description": "True when this snapshot belongs to a visual_edit surface or a mapped-edit flow that claims source-safe mutation; false when the surface is preview-only, inspect-only, or export-only."
+        },
+        "transform_manifest_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "rollback_checkpoint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "validation_plan_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "round_trip_proof_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "round_trip_proven_for_this_adapter_and_construct",
+            "round_trip_proven_for_adapter_only",
+            "round_trip_unproven_inspect_only",
+            "round_trip_unproven_export_only",
+            null
+          ]
+        }
+      },
+      "description": "Transform-manifest and rollback-checkpoint references for any mapped edit or visual-edit flow that claims source-safe mutation. The visual-transform manifest itself is governed by a separate schema; this block only carries opaque refs and round-trip-proof posture."
+    },
+
+    "share_visibility_class": {
+      "type": "string",
+      "enum": [
+        "not_shareable",
+        "workspace_only",
+        "organization_only",
+        "tenant_only",
+        "public_link"
+      ],
+      "description": "Closed share-sheet visibility vocabulary. The share-sheet is reserved as an extension point; this snapshot only declares the posture that consumer surfaces would project."
+    },
+
+    "share_auth_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_required",
+        "session_auth_required",
+        "step_up_auth_required",
+        "policy_managed_grant_required",
+        "approval_ticket_required"
+      ],
+      "description": "Closed share-sheet auth/session vocabulary."
+    },
+
+    "share_revoke_path_class": {
+      "type": "string",
+      "enum": [
+        "no_revoke_required",
+        "user_self_revoke",
+        "workspace_admin_revoke",
+        "tenant_admin_revoke",
+        "policy_revocation",
+        "automatic_expiry_only"
+      ],
+      "description": "Closed share-sheet revoke-path vocabulary."
+    },
+
+    "share_sheet_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "share_visibility_class",
+        "share_auth_class",
+        "share_revoke_path_class"
+      ],
+      "properties": {
+        "share_visibility_class": { "$ref": "#/$defs/share_visibility_class" },
+        "share_auth_class": { "$ref": "#/$defs/share_auth_class" },
+        "share_revoke_path_class": { "$ref": "#/$defs/share_revoke_path_class" },
+        "share_link_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque share-link handle. Raw URLs, raw tokens, raw cookies, and raw expiring credentials never appear here."
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "extension_point_summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "description": "Preview share-sheet fields reserved as a typed extension point. Visibility, auth/session, expiry, and revoke-path are explicit so later share-sheet UX cannot smuggle scope or trust decisions into ad hoc payloads."
+    },
+
+    "canonical_source_resolution_class": {
+      "type": "string",
+      "enum": [
+        "known",
+        "multiple_known",
+        "external_known",
+        "unknown"
+      ]
+    },
+
+    "canonical_source_resolution_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resolution_class"],
+      "properties": {
+        "resolution_class": { "$ref": "#/$defs/canonical_source_resolution_class" },
+        "display_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Redaction-safe refs naming the canonical source(s). Raw absolute paths never appear here."
+        },
+        "lineage_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      }
+    },
+
+    "preview_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_snapshot_schema_version",
+        "snapshot_id",
+        "captured_at",
+        "preview_mode",
+        "preview_lane",
+        "artifact_origin_class",
+        "do_not_imply_canonical_source",
+        "preview_provenance_state",
+        "default_edit_posture",
+        "trust_class",
+        "connectivity_state",
+        "sandbox_posture_class",
+        "target_environment_class",
+        "device_target",
+        "source_sync_state",
+        "source_revision_anchor",
+        "preview_runtime_identity",
+        "data_provenance",
+        "freshness_class",
+        "mapping_confidence_class",
+        "stale_editability_class",
+        "hot_reload",
+        "transform_manifest",
+        "canonical_source_resolution",
+        "effective_allowed_actions",
+        "blocked_actions",
+        "downgrade_trigger_observations",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_snapshot_schema_version": { "$ref": "#/$defs/preview_snapshot_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "preview_mode": { "$ref": "#/$defs/preview_mode" },
+        "preview_lane": { "$ref": "#/$defs/preview_lane" },
+
+        "artifact_origin_class": { "$ref": "#/$defs/preview_projection_artifact_origin_class" },
+        "do_not_imply_canonical_source": { "$ref": "#/$defs/do_not_imply_canonical_source_const_true" },
+        "preview_provenance_state": { "$ref": "#/$defs/preview_provenance_state" },
+        "default_edit_posture": { "$ref": "#/$defs/default_edit_posture_token" },
+
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "connectivity_state": { "$ref": "#/$defs/connectivity_state" },
+
+        "sandbox_posture_class": { "$ref": "#/$defs/sandbox_posture_class" },
+        "target_environment_class": { "$ref": "#/$defs/target_environment_class" },
+        "device_target": { "$ref": "#/$defs/device_target_row" },
+
+        "source_sync_state": { "$ref": "#/$defs/source_sync_state" },
+        "source_revision_anchor": { "$ref": "#/$defs/source_revision_anchor" },
+        "preview_runtime_identity": { "$ref": "#/$defs/preview_runtime_identity" },
+
+        "data_provenance": { "$ref": "#/$defs/data_provenance_block" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+
+        "mapping_confidence_class": { "$ref": "#/$defs/mapping_confidence_class" },
+        "stale_editability_class": { "$ref": "#/$defs/stale_editability_class" },
+
+        "hot_reload": { "$ref": "#/$defs/hot_reload_block" },
+        "transform_manifest": { "$ref": "#/$defs/transform_manifest_block" },
+
+        "canonical_source_resolution": { "$ref": "#/$defs/canonical_source_resolution_block" },
+
+        "effective_allowed_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/allowed_action" },
+          "uniqueItems": true,
+          "description": "Actions admissible on this surface at snapshot time. The empty list is admissible (frozen / inspect-blocked surfaces); consumer surfaces MUST NOT offer an action absent from this list."
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_action_entry" },
+          "uniqueItems": true,
+          "description": "Actions explicitly disallowed at snapshot time, each with a typed reason_trigger. Lets consumer surfaces render greyed-out actions with the typed reason rather than hiding them silently."
+        },
+        "downgrade_trigger_observations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "uniqueItems": true,
+          "description": "Observed downgrade triggers narrowing this snapshot. Consumer surfaces project the same vocabulary; the snapshot does not invent surface-local trigger names."
+        },
+
+        "share_sheet": {
+          "anyOf": [
+            { "$ref": "#/$defs/share_sheet_block" },
+            { "type": "null" }
+          ],
+          "description": "Optional share-sheet posture. Reserved as a typed extension point; absence means share is not in scope for the surface emitting this snapshot."
+        },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref required when sandbox or trust expansion was approved (reuses the integration approval-ticket family)."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "visual_edit MUST carry exact source mapping, fully editable stale-editability, applied or partial hot-reload, and a transform manifest with rollback checkpoint and round-trip-proven posture.",
+          "if": {
+            "properties": { "preview_mode": { "const": "visual_edit" } }
+          },
+          "then": {
+            "properties": {
+              "mapping_confidence_class": { "const": "exact_source_mapping" },
+              "stale_editability_class": { "const": "fully_editable_through_mapped_edits" },
+              "hot_reload": {
+                "properties": {
+                  "hot_reload_state": { "enum": ["applied", "partial"] }
+                },
+                "required": ["hot_reload_state"]
+              },
+              "transform_manifest": {
+                "required": [
+                  "transform_manifest_required",
+                  "transform_manifest_ref",
+                  "rollback_checkpoint_ref",
+                  "round_trip_proof_class"
+                ],
+                "properties": {
+                  "transform_manifest_required": { "const": true },
+                  "transform_manifest_ref": { "type": "string" },
+                  "rollback_checkpoint_ref": { "type": "string" },
+                  "round_trip_proof_class": {
+                    "enum": [
+                      "round_trip_proven_for_this_adapter_and_construct",
+                      "round_trip_proven_for_adapter_only"
+                    ]
+                  }
+                }
+              },
+              "effective_allowed_actions": {
+                "contains": { "const": "apply_mapped_edit" }
+              }
+            }
+          }
+        },
+        {
+          "description": "static_preview MUST NOT claim a live runtime, never advertises apply_mapped_edit, and reports hot_reload_state = unavailable.",
+          "if": {
+            "properties": { "preview_mode": { "const": "static_preview" } }
+          },
+          "then": {
+            "properties": {
+              "target_environment_class": {
+                "enum": [
+                  "static_render_only_no_runtime",
+                  "extension_host_preview_runtime"
+                ]
+              },
+              "hot_reload": {
+                "properties": {
+                  "hot_reload_state": { "const": "unavailable" }
+                },
+                "required": ["hot_reload_state"]
+              },
+              "transform_manifest": {
+                "properties": {
+                  "transform_manifest_required": { "const": false }
+                }
+              },
+              "effective_allowed_actions": {
+                "not": {
+                  "contains": { "const": "apply_mapped_edit" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "inspectable_tree_overlay never advertises apply_mapped_edit or direct_write_to_canonical_source, and forbids fully_editable_through_mapped_edits.",
+          "if": {
+            "properties": { "preview_mode": { "const": "inspectable_tree_overlay" } }
+          },
+          "then": {
+            "properties": {
+              "stale_editability_class": {
+                "not": { "const": "fully_editable_through_mapped_edits" }
+              },
+              "effective_allowed_actions": {
+                "allOf": [
+                  { "not": { "contains": { "const": "apply_mapped_edit" } } },
+                  { "not": { "contains": { "const": "direct_write_to_canonical_source" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "stale_editability_class = inspect_only_due_to_mapping_uncertainty / inspect_only_due_to_stale_runtime / export_only_due_to_runtime_unavailable / frozen_until_resync / frozen_due_to_policy_or_trust forbid apply_mapped_edit and direct_write_to_canonical_source.",
+          "if": {
+            "properties": {
+              "stale_editability_class": {
+                "enum": [
+                  "inspect_only_due_to_mapping_uncertainty",
+                  "inspect_only_due_to_stale_runtime",
+                  "export_only_due_to_runtime_unavailable",
+                  "frozen_until_resync",
+                  "frozen_due_to_policy_or_trust"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effective_allowed_actions": {
+                "allOf": [
+                  { "not": { "contains": { "const": "apply_mapped_edit" } } },
+                  { "not": { "contains": { "const": "direct_write_to_canonical_source" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_state = restart_required / rebuild_required / failed / unavailable forbids apply_mapped_edit through the mapped-edit pipeline.",
+          "if": {
+            "properties": {
+              "hot_reload": {
+                "properties": {
+                  "hot_reload_state": {
+                    "enum": [
+                      "restart_required",
+                      "rebuild_required",
+                      "failed",
+                      "unavailable"
+                    ]
+                  }
+                },
+                "required": ["hot_reload_state"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effective_allowed_actions": {
+                "not": { "contains": { "const": "apply_mapped_edit" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "mapping_confidence_class = stale_mapping forces stale_editability into an inspect-only / export-only / frozen / runtime-unavailable posture and forbids apply_mapped_edit and direct writes.",
+          "if": {
+            "properties": {
+              "mapping_confidence_class": { "const": "stale_mapping" }
+            }
+          },
+          "then": {
+            "properties": {
+              "stale_editability_class": {
+                "enum": [
+                  "inspect_only_due_to_mapping_uncertainty",
+                  "inspect_only_due_to_stale_runtime",
+                  "export_only_due_to_runtime_unavailable",
+                  "frozen_until_resync"
+                ]
+              },
+              "effective_allowed_actions": {
+                "allOf": [
+                  { "not": { "contains": { "const": "apply_mapped_edit" } } },
+                  { "not": { "contains": { "const": "direct_write_to_canonical_source" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "mapping_confidence_class = unmappable_node_present / runtime_only_no_source_mapping / unknown_mapping forbids apply_mapped_edit and source_jump promises.",
+          "if": {
+            "properties": {
+              "mapping_confidence_class": {
+                "enum": [
+                  "unmappable_node_present",
+                  "runtime_only_no_source_mapping",
+                  "unknown_mapping"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effective_allowed_actions": {
+                "allOf": [
+                  { "not": { "contains": { "const": "apply_mapped_edit" } } },
+                  { "not": { "contains": { "const": "direct_write_to_canonical_source" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "data_provenance_class = mock_data_only forces preview_provenance_state = mock_provenance and default_edit_posture = inspect_read_only (matching the artifact-edit-posture rule for mock-provenance preview projections).",
+          "if": {
+            "properties": {
+              "data_provenance": {
+                "properties": {
+                  "data_provenance_class": { "const": "mock_data_only" }
+                },
+                "required": ["data_provenance_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preview_provenance_state": { "const": "mock_provenance" },
+              "default_edit_posture": { "const": "inspect_read_only" }
+            }
+          }
+        },
+        {
+          "description": "data_provenance_class = captured_data_replay forces preview_provenance_state = stale_inputs.",
+          "if": {
+            "properties": {
+              "data_provenance": {
+                "properties": {
+                  "data_provenance_class": { "const": "captured_data_replay" }
+                },
+                "required": ["data_provenance_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preview_provenance_state": { "const": "stale_inputs" }
+            }
+          }
+        },
+        {
+          "description": "preview_provenance_state = unknown_lineage forces default_edit_posture = inspect_read_only.",
+          "if": {
+            "properties": {
+              "preview_provenance_state": { "const": "unknown_lineage" }
+            }
+          },
+          "then": {
+            "properties": {
+              "default_edit_posture": { "const": "inspect_read_only" }
+            }
+          }
+        },
+        {
+          "description": "device_target.device_target_mismatch_observed = true forces device_target_mismatch into downgrade_trigger_observations.",
+          "if": {
+            "properties": {
+              "device_target": {
+                "properties": {
+                  "device_target_mismatch_observed": { "const": true }
+                },
+                "required": ["device_target_mismatch_observed"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "downgrade_trigger_observations": {
+                "contains": { "const": "device_target_mismatch" }
+              }
+            }
+          }
+        },
+        {
+          "description": "share_sheet.share_visibility_class = public_link / tenant_only / organization_only requires share_revoke_path_class != no_revoke_required and share_auth_class != no_auth_required.",
+          "if": {
+            "properties": {
+              "share_sheet": {
+                "type": "object",
+                "properties": {
+                  "share_visibility_class": {
+                    "enum": ["public_link", "tenant_only", "organization_only"]
+                  }
+                },
+                "required": ["share_visibility_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "share_sheet": {
+                "properties": {
+                  "share_revoke_path_class": {
+                    "not": { "const": "no_revoke_required" }
+                  },
+                  "share_auth_class": {
+                    "not": { "const": "no_auth_required" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "transform_manifest.transform_manifest_required = true requires transform_manifest_ref, rollback_checkpoint_ref, and round_trip_proof_class to be non-null.",
+          "if": {
+            "properties": {
+              "transform_manifest": {
+                "properties": {
+                  "transform_manifest_required": { "const": true }
+                },
+                "required": ["transform_manifest_required"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transform_manifest": {
+                "properties": {
+                  "transform_manifest_ref": { "type": "string" },
+                  "rollback_checkpoint_ref": { "type": "string" },
+                  "round_trip_proof_class": {
+                    "enum": [
+                      "round_trip_proven_for_this_adapter_and_construct",
+                      "round_trip_proven_for_adapter_only",
+                      "round_trip_unproven_inspect_only",
+                      "round_trip_unproven_export_only"
+                    ]
+                  }
+                },
+                "required": [
+                  "transform_manifest_ref",
+                  "rollback_checkpoint_ref",
+                  "round_trip_proof_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "round_trip_proof_class = round_trip_unproven_inspect_only / round_trip_unproven_export_only forbids apply_mapped_edit.",
+          "if": {
+            "properties": {
+              "transform_manifest": {
+                "properties": {
+                  "round_trip_proof_class": {
+                    "enum": [
+                      "round_trip_unproven_inspect_only",
+                      "round_trip_unproven_export_only"
+                    ]
+                  }
+                },
+                "required": ["round_trip_proof_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effective_allowed_actions": {
+                "not": { "contains": { "const": "apply_mapped_edit" } }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One inspectable preview snapshot emitted by a static-preview, live-preview, inspectable-tree-overlay, or visual-edit surface across the browser, native, and embedded preview lanes."
+    }
+  }
+}
