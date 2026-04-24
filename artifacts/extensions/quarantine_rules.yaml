@@ -1,0 +1,415 @@
+# Extension-runtime quarantine and recovery rule register.
+#
+# Machine-readable companion to docs/extensions/runtime_budget_packet.md.
+#
+# One row per quarantine trigger; one row per recovery condition. Each
+# trigger row names the axis id (from runtime_budget_rows.yaml), the
+# trip condition, the response class, the restart posture, the
+# visibility posture, the discovery-ranking posture, the paired audit
+# event, and a typed repair affordance. Recovery rows name the
+# precondition class, restart posture on recovery, and the visible
+# projection after recovery.
+#
+# Tooling (extension host, install-review sheet, permission inspector,
+# discovery ranking, support export, benchmark harness, governance
+# packet template) MAY read these rows rather than mint quarantine /
+# recovery vocabulary per surface.
+#
+# Conformance: every quarantine / disable / throttle trip MUST cite
+# the rule row id by trigger_rule_id. Silent trip (no cited rule) is
+# non-conforming. Adding a new trigger, response class, restart
+# posture, visibility posture, discovery-ranking posture, or
+# precondition class is additive-minor with a
+# quarantine_rules_schema_version bump. Repurposing an existing row is
+# breaking and requires a new decision row.
+#
+# Invariants (binding):
+#
+#   I1. Every trigger row cites an axis_id that resolves in
+#       artifacts/extensions/runtime_budget_rows.yaml. A row that
+#       cites a missing axis is non-conforming.
+#
+#   I2. Every trigger row's response_class and the cited axis's
+#       quarantine_threshold_class agree. A row that names a
+#       quarantine response on an axis whose threshold_class is
+#       none_axis_does_not_quarantine is non-conforming.
+#
+#   I3. Every disable_until_user_explicit_reenable or quarantine
+#       response row cites a maintainer_coverage_posture_ref so a
+#       single-owner quarantine decision cannot ship silently.
+#
+#   I4. Every quarantined extension is removed from discovery
+#       ranking under discovery_ranking_posture =
+#       removed_from_ranking. Silent lower-ranking is forbidden.
+#
+#   I5. Every recovery row cites the response_class it recovers from
+#       and names at least one recovery_precondition_class.
+#
+#   I6. Visibility posture MUST surface the quarantine class and trip
+#       reason verbatim on at least one surface among install-review,
+#       permission-inspector, or runtime-status pill. Silent
+#       quarantine is non-conforming.
+
+schema_version: 1
+quarantine_rules_schema_version: 1
+
+packet_doc_ref: docs/extensions/runtime_budget_packet.md
+budget_rows_ref: artifacts/extensions/runtime_budget_rows.yaml
+registry_seed_ref: docs/extensions/registry_and_offline_bundle_seed.md
+governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+efficiency_state_rules_ref: artifacts/perf/worker_budget_rules.yaml
+maintainer_coverage_policy_ref: docs/governance/maintainer_coverage_policy.md
+adr_refs:
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+
+# -----------------------------------------------------------------------------
+# Response classes.
+#
+# Closed vocabulary. Every trigger row's response_class draws from
+# this set; silent responses are forbidden.
+# -----------------------------------------------------------------------------
+response_classes:
+  - throttle_background_work
+  - disable_until_next_session
+  - disable_until_user_explicit_reenable
+  - quarantine
+
+# -----------------------------------------------------------------------------
+# Restart-posture classes.
+# -----------------------------------------------------------------------------
+restart_posture_classes:
+  - no_restart_attempted
+  - one_warm_restart_under_budget
+  - exponential_backoff_bounded
+
+# -----------------------------------------------------------------------------
+# Visibility-posture classes.
+#
+# Where a throttle / disable / quarantine is surfaced. A trigger row
+# cites at least one visibility posture whose surface is in
+# {install_review, permission_inspector, runtime_status_pill}.
+# -----------------------------------------------------------------------------
+visibility_posture_classes:
+  - runtime_status_pill_only
+  - install_review_and_permission_inspector
+  - install_review_and_runtime_status_pill
+  - permission_inspector_and_runtime_status_pill
+  - install_review_and_permission_inspector_and_runtime_status_pill
+
+# -----------------------------------------------------------------------------
+# Discovery-ranking posture classes.
+# -----------------------------------------------------------------------------
+discovery_ranking_posture_classes:
+  - unchanged_still_user_installable
+  - demoted_fair_ranked_with_visible_warning
+  - suppress_installed_in_many_workspaces_signal
+  - removed_from_ranking
+
+# -----------------------------------------------------------------------------
+# Recovery-precondition classes.
+# -----------------------------------------------------------------------------
+recovery_precondition_classes:
+  - resource_governor_returned_to_nominal
+  - efficiency_state_returned_to_nominal_or_recovery
+  - admin_policy_cleared_quarantine
+  - publisher_continuity_row_cleared
+  - user_explicit_reenable
+  - next_session_cold_start
+  - crash_loop_window_cleared_without_breach
+
+# -----------------------------------------------------------------------------
+# Visible-state on recovery.
+# -----------------------------------------------------------------------------
+visible_projection_on_recovery_classes:
+  - warming
+  - partial
+  - ready
+
+# -----------------------------------------------------------------------------
+# Trigger rows.
+#
+# One row per quarantine / disable / throttle trigger. Every row
+# cites the axis id, the trip condition, the response class, the
+# restart posture, the visibility posture, the discovery-ranking
+# posture, the paired audit event, and a repair affordance label.
+# -----------------------------------------------------------------------------
+quarantine_trigger_rows:
+  - trigger_rule_id: discovery_sustained_soft_breach_throttles_background
+    axis_id: discovery
+    trip_condition: >
+      discovery axis counter stays in pressure_class=soft_breach for
+      two sampling windows while the resource governor reports
+      constrained or worse on hot_path.key_to_paint_p95_ms.
+    response_class: throttle_background_work
+    restart_posture: no_restart_attempted
+    visibility_posture: install_review_and_runtime_status_pill
+    discovery_ranking_posture: demoted_fair_ranked_with_visible_warning
+    paired_audit_event: extension_host_discovery_budget_breached_soft
+    repair_affordance_label: review_discovery_budget_in_install_review_sheet
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: cold_activation_sustained_soft_breach_throttles_background
+    axis_id: cold_activation
+    trip_condition: >
+      cold_activation axis counter stays in pressure_class=soft_breach
+      for three successive activations in the same host session.
+    response_class: throttle_background_work
+    restart_posture: no_restart_attempted
+    visibility_posture: permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: unchanged_still_user_installable
+    paired_audit_event: extension_activation_deferred_efficiency_state
+    repair_affordance_label: review_cold_activation_in_support_export
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: warm_activation_sustained_soft_breach_throttles_background
+    axis_id: warm_activation
+    trip_condition: >
+      warm_activation axis counter stays in pressure_class=soft_breach
+      across a rolling five-activation window.
+    response_class: throttle_background_work
+    restart_posture: no_restart_attempted
+    visibility_posture: runtime_status_pill_only
+    discovery_ranking_posture: unchanged_still_user_installable
+    paired_audit_event: extension_activated_warm
+    repair_affordance_label: review_warm_activation_in_support_export
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: idle_polling_sustained_hard_breach_disables_session
+    axis_id: idle_polling
+    trip_condition: >
+      idle_polling axis counter stays in pressure_class=hard_breach
+      for one sampling window after an already-throttled window did
+      not return the axis to nominal.
+    response_class: disable_until_next_session
+    restart_posture: no_restart_attempted
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: suppress_installed_in_many_workspaces_signal
+    paired_audit_event: extension_idle_polling_budget_paused
+    repair_affordance_label: throttle_extension_in_runtime_status_pill
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: memory_hard_cap_breach_disables_session
+    axis_id: memory
+    trip_condition: >
+      memory axis counter reaches pressure_class=hard_breach (RSS
+      >= service_class_hard_cap_percent window) for the sampling
+      window declared in runtime_budget_rows.yaml.
+    response_class: disable_until_next_session
+    restart_posture: one_warm_restart_under_budget
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: suppress_installed_in_many_workspaces_signal
+    paired_audit_event: extension_memory_hard_cap_breached
+    repair_affordance_label: disable_extension_in_runtime_status_pill
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: memory_sustained_soft_cap_breach_trips_throttle
+    axis_id: memory
+    trip_condition: >
+      memory axis counter stays in pressure_class=soft_breach over
+      three consecutive idle-poll samples.
+    response_class: throttle_background_work
+    restart_posture: no_restart_attempted
+    visibility_posture: permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: unchanged_still_user_installable
+    paired_audit_event: extension_memory_soft_cap_breached
+    repair_affordance_label: review_memory_breach_in_support_export
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: egress_sustained_hard_breach_disables_until_reenable
+    axis_id: egress
+    trip_condition: >
+      egress axis counter reaches pressure_class=hard_breach within
+      one hour-scoped metering window.
+    response_class: disable_until_user_explicit_reenable
+    restart_posture: no_restart_attempted
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: suppress_installed_in_many_workspaces_signal
+    paired_audit_event: extension_egress_budget_breached
+    repair_affordance_label: review_egress_budget_in_permission_inspector
+    maintainer_coverage_posture_ref: maintainer_coverage_required_for_egress_disable
+
+  - trigger_rule_id: crash_loop_window_breach_trips_disable
+    axis_id: crash_loop
+    trip_condition: >
+      crash_loop axis records distinct_failures_to_trip_disable
+      failures inside the rolling window declared in
+      runtime_budget_rows.yaml.
+    response_class: disable_until_next_session
+    restart_posture: exponential_backoff_bounded
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: suppress_installed_in_many_workspaces_signal
+    paired_audit_event: extension_crash_detected
+    repair_affordance_label: open_extension_in_install_review_sheet
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: crash_loop_window_breach_trips_quarantine
+    axis_id: crash_loop
+    trip_condition: >
+      crash_loop axis records distinct_failures_to_trip_quarantine
+      failures inside the rolling window, OR the extension already
+      disabled this session fails again after its
+      one_warm_restart_under_budget attempt.
+    response_class: quarantine
+    restart_posture: no_restart_attempted
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: removed_from_ranking
+    paired_audit_event: extension_quarantine_tripped
+    repair_affordance_label: consult_publisher_continuity_row
+    maintainer_coverage_posture_ref: maintainer_coverage_required_for_runtime_quarantine
+
+  - trigger_rule_id: hang_cancelled_increments_crash_loop_axis
+    axis_id: crash_loop
+    trip_condition: >
+      A watchdog cancellation (extension_hang_cancelled) counts as
+      one distinct failure toward the crash_loop rolling window.
+    response_class: throttle_background_work
+    restart_posture: one_warm_restart_under_budget
+    visibility_posture: runtime_status_pill_only
+    discovery_ranking_posture: unchanged_still_user_installable
+    paired_audit_event: extension_hang_cancelled
+    repair_affordance_label: review_crash_loop_in_support_export
+    maintainer_coverage_posture_ref: null
+
+  - trigger_rule_id: oom_killed_increments_crash_loop_axis
+    axis_id: crash_loop
+    trip_condition: >
+      An OOM-kill of the extension host / subprocess counts as one
+      distinct failure toward the crash_loop rolling window; pairs
+      with a memory hard-cap breach in the same packet when both
+      fired.
+    response_class: disable_until_next_session
+    restart_posture: exponential_backoff_bounded
+    visibility_posture: install_review_and_permission_inspector_and_runtime_status_pill
+    discovery_ranking_posture: suppress_installed_in_many_workspaces_signal
+    paired_audit_event: extension_oom_killed
+    repair_affordance_label: disable_extension_in_runtime_status_pill
+    maintainer_coverage_posture_ref: null
+
+# -----------------------------------------------------------------------------
+# Recovery rows.
+#
+# One row per supported recovery transition. Every row names the
+# response_class it recovers from, the precondition class(es), the
+# restart posture on recovery, and the visible-state projection used
+# once the recovery starts.
+# -----------------------------------------------------------------------------
+quarantine_recovery_rows:
+  - recovery_rule_id: recovery_throttle_returns_on_governor_nominal
+    from_response_class: throttle_background_work
+    recovery_precondition_classes:
+      - resource_governor_returned_to_nominal
+      - efficiency_state_returned_to_nominal_or_recovery
+    restart_posture_on_recovery: no_restart_attempted
+    visible_projection_on_recovery: warming
+    paired_audit_event: extension_quarantine_cleared
+    narrative: >
+      Throttle lifts automatically once the governor reports
+      nominal AND the efficiency-state policy reports nominal or
+      recovery. Visible state renders warming until the next
+      activation confirms the lift.
+
+  - recovery_rule_id: recovery_session_disable_returns_on_next_cold_start
+    from_response_class: disable_until_next_session
+    recovery_precondition_classes:
+      - next_session_cold_start
+      - crash_loop_window_cleared_without_breach
+    restart_posture_on_recovery: one_warm_restart_under_budget
+    visible_projection_on_recovery: warming
+    paired_audit_event: extension_quarantined_recovery_attempted
+    narrative: >
+      Per-session disable clears at next host cold start. If the
+      crash-loop window reopens on restart the trigger re-fires
+      with one_warm_restart_under_budget and may promote to a
+      longer response class.
+
+  - recovery_rule_id: recovery_user_reenable_returns_on_explicit_action
+    from_response_class: disable_until_user_explicit_reenable
+    recovery_precondition_classes:
+      - user_explicit_reenable
+      - admin_policy_cleared_quarantine
+    restart_posture_on_recovery: one_warm_restart_under_budget
+    visible_projection_on_recovery: warming
+    paired_audit_event: extension_quarantined_recovery_attempted
+    narrative: >
+      Disable_until_user_explicit_reenable never auto-clears on
+      governor nominal alone. The user OR the admin policy lane
+      MUST record an explicit reenable. On reenable, a one_warm_restart_under_budget
+      attempt is used as the first probe.
+
+  - recovery_rule_id: recovery_quarantine_returns_on_admin_or_publisher_clearance
+    from_response_class: quarantine
+    recovery_precondition_classes:
+      - admin_policy_cleared_quarantine
+      - publisher_continuity_row_cleared
+    restart_posture_on_recovery: no_restart_attempted
+    visible_projection_on_recovery: partial
+    paired_audit_event: extension_quarantine_cleared
+    narrative: >
+      Quarantine only clears when the admin policy lane OR the
+      publisher-continuity row explicitly clears it. A cleared
+      quarantine returns the extension to install-review as a
+      partial row; ranking credit for "installed-in-many-workspaces"
+      remains suppressed until the next full reactivation window
+      without a crash-loop breach.
+
+# -----------------------------------------------------------------------------
+# Maintainer-coverage postures.
+#
+# Cited from trigger rows whose response class is
+# disable_until_user_explicit_reenable or quarantine. Mirrors the
+# maintainer-coverage policy so runtime quarantine decisions are not
+# single-owner events.
+# -----------------------------------------------------------------------------
+maintainer_coverage_postures:
+  - posture_id: maintainer_coverage_required_for_egress_disable
+    requires_quorum: true
+    policy_ref: docs/governance/maintainer_coverage_policy.md
+    narrative: >
+      An egress disable-until-reenable decision is a maintainer-
+      coverage-bearing change. A single owner may NOT land an
+      egress disable response without quorum.
+
+  - posture_id: maintainer_coverage_required_for_runtime_quarantine
+    requires_quorum: true
+    policy_ref: docs/governance/maintainer_coverage_policy.md
+    narrative: >
+      A runtime quarantine decision is a maintainer-coverage-bearing
+      change. A single owner may NOT land a runtime quarantine
+      response without quorum, and the quarantine row MUST cite the
+      quorum evidence so support export and publisher-continuity
+      row lanes can render it.
+
+# -----------------------------------------------------------------------------
+# Denial reasons reserved for the runtime-budget surface.
+#
+# Silent downgrade to a generic "extension stopped working" chip is
+# forbidden; every runtime denial emits the corresponding audit event
+# with a typed reason and a repair affordance label.
+# -----------------------------------------------------------------------------
+denial_reasons:
+  - extension_runtime_throttled_by_efficiency_state
+  - extension_runtime_throttled_by_resource_governor
+  - extension_runtime_disabled_memory_hard_cap
+  - extension_runtime_disabled_idle_polling_budget_exhausted
+  - extension_runtime_disabled_egress_budget_exhausted
+  - extension_runtime_disabled_crash_loop
+  - extension_runtime_quarantined_crash_loop
+  - extension_runtime_quarantined_by_policy
+  - extension_runtime_quarantined_by_publisher_continuity
+
+# -----------------------------------------------------------------------------
+# Never permitted.
+#
+# Collected so tooling tests can fail closed on any row or runtime
+# path that would do one of these things.
+# -----------------------------------------------------------------------------
+never_permitted:
+  - auto_clear_a_quarantine_without_admin_or_publisher_continuity_clearance
+  - auto_clear_a_disable_until_user_explicit_reenable_without_explicit_user_or_admin_action
+  - silently_demote_or_hide_a_quarantined_extension_in_discovery_ranking
+  - credit_installed_in_many_workspaces_signal_for_an_extension_in_an_active_quarantine_or_disable_window
+  - replay_a_queued_user_action_that_predates_the_quarantine_without_explicit_reenable
+  - fire_a_runtime_quarantine_without_emitting_the_paired_audit_event
+  - fire_a_runtime_quarantine_without_naming_the_trigger_rule_id
+  - fire_an_egress_disable_or_runtime_quarantine_under_single_owner_control

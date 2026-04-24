@@ -1,0 +1,444 @@
+# Extension-runtime budget register.
+#
+# Machine-readable companion to docs/extensions/runtime_budget_packet.md.
+#
+# One row per frozen budget axis. Each row binds the axis to an owner,
+# a measurement method, a reporting-surface class, a nominal-budget
+# class, a quarantine-threshold class, the shared resource-governor
+# pressure linkage, the shared efficiency-state worker-budget linkage,
+# and a crash-loop posture marker. The vocabulary is deliberately
+# prescriptive so later extension-host, benchmark, support-export,
+# install-review, permission-inspector, and discovery-ranking lanes
+# read one register instead of inventing per-surface counter names.
+#
+# Tooling (extension host, benchmark harness, support export, install
+# / update review sheet, permission inspector, discovery-ranking
+# surface) MAY read these rows rather than mint runtime-budget
+# vocabulary per-lane.
+#
+# Conformance: every activation-evidence packet whose counters cross
+# a boundary MUST name the axis by axis_id from this register, and
+# MUST project pressure into the pressure_class vocabulary frozen
+# here. Adding a new axis, a new measurement-method class, a new
+# nominal-budget class, a new quarantine-threshold class, or a new
+# pressure_class is additive-minor with a
+# runtime_budget_rows_schema_version bump. Repurposing an existing
+# axis id, method class, or threshold class is breaking and requires
+# a new decision row.
+#
+# Invariants (binding):
+#
+#   I1. Every row cites exactly one resource_governor_linkage from
+#       artifacts/runtime/resource_governor_thresholds.yaml and
+#       exactly one efficiency_state_linkage from
+#       artifacts/perf/worker_budget_rules.yaml. A row that cites
+#       neither is non-conforming; a row that cites both MAY do so
+#       only when both linkages are named and non-overlapping.
+#
+#   I2. Every row names a quarantine_threshold_class from the closed
+#       vocabulary below. Silent quarantine (no named threshold
+#       class, no audit event, no repair affordance) is forbidden.
+#
+#   I3. Every breach audit event reserved in
+#       docs/extensions/runtime_budget_packet.md is paired with an
+#       axis; no audit event may fire without a row to justify it.
+#
+#   I4. The crash_loop axis is the only axis whose
+#       quarantine_threshold_class may be
+#       crash_loop_threshold_trips_quarantine. Volumetric axes never
+#       fire the crash-loop class.
+#
+#   I5. Raw wasm-module bytes, raw core dumps, raw memory snapshots,
+#       raw log bodies, and raw network payload bytes MUST NOT appear
+#       in any counter value. Counter values are scalar or reference
+#       opaque evidence refs.
+
+schema_version: 1
+runtime_budget_rows_schema_version: 1
+
+packet_doc_ref: docs/extensions/runtime_budget_packet.md
+quarantine_rules_ref: artifacts/extensions/quarantine_rules.yaml
+registry_seed_ref: docs/extensions/registry_and_offline_bundle_seed.md
+governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+efficiency_state_rules_ref: artifacts/perf/worker_budget_rules.yaml
+negotiation_schema_ref: schemas/extensions/host_negotiation.schema.json
+capability_worlds_ref: artifacts/extensions/capability_worlds.yaml
+adr_refs:
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+
+# -----------------------------------------------------------------------------
+# Measurement methods.
+#
+# Closed vocabulary for how each axis counter is observed. The host
+# implementation MUST reuse one of these classes so support exports and
+# benchmarks can reason about methodology across hosts / platforms.
+# -----------------------------------------------------------------------------
+measurement_methods:
+  - measurement_method_class: host_sampled_counter
+    narrative: >
+      Counter sampled inside the extension host over a frozen window.
+      Used for discovery, cold / warm activation, and idle polling.
+  - measurement_method_class: kernel_reported_rss_bytes
+    narrative: >
+      Resident-set size reported by the platform kernel / container
+      for the extension-host process or subprocess. Used for memory.
+  - measurement_method_class: egress_socket_accounting
+    narrative: >
+      Bytes sent through the sandbox egress accounting layer;
+      scoped by aureline:network-egress allow-list on the
+      negotiation packet.
+  - measurement_method_class: crash_event_observation
+    narrative: >
+      Typed crash / hang / OOM-kill observation from the extension
+      host; used only by the crash_loop axis.
+  - measurement_method_class: self_reported_by_extension_host_api
+    narrative: >
+      Counter an extension reports through the host telemetry API.
+      Always cross-checked against the host-sampled counter; a
+      self-reported value that drifts beyond a published tolerance
+      is treated as not_observed_by_host.
+
+# -----------------------------------------------------------------------------
+# Pressure-class vocabulary.
+#
+# Shared across every row. The activation-evidence packet projects
+# each axis counter into exactly one of these classes; surfaces read
+# the class, not the raw scalar.
+# -----------------------------------------------------------------------------
+pressure_classes:
+  - nominal
+  - soft_breach
+  - hard_breach
+  - crash_loop_window_breach
+  - not_applicable
+
+# -----------------------------------------------------------------------------
+# Nominal-budget classes.
+#
+# Typed budget-class vocabulary. Quantitative ceilings per class land
+# in the successor ADR and in the reference-hardware manifest; this
+# file freezes only the classes and their shed order.
+# -----------------------------------------------------------------------------
+nominal_budget_classes:
+  - short_bounded
+  - medium_bounded
+  - long_bounded
+  - streaming_bounded
+  - small_fixed
+  - medium_fixed
+  - large_fixed
+  - metered_per_session
+  - metered_per_hour
+  - metered_per_activation
+  - declared_prefix_only
+  - declared_prefix_preview_only
+  - attached_sessions_only
+  - bounded_per_subscription
+  - not_applicable
+
+# -----------------------------------------------------------------------------
+# Quarantine-threshold classes.
+#
+# Shared vocabulary used by every row below and by
+# artifacts/extensions/quarantine_rules.yaml.
+# -----------------------------------------------------------------------------
+quarantine_threshold_classes:
+  - none_axis_does_not_quarantine
+  - sustained_soft_breach_trips_throttle
+  - sustained_hard_breach_trips_disable
+  - immediate_hard_breach_trips_disable
+  - sustained_hard_breach_trips_quarantine
+  - crash_loop_threshold_trips_quarantine
+
+# -----------------------------------------------------------------------------
+# Reporting-surface classes.
+#
+# Where a breached axis surfaces. Silent breach (no surface) is
+# forbidden; every row names at least one surface.
+# -----------------------------------------------------------------------------
+reporting_surface_classes:
+  - activation_evidence_packet
+  - support_export
+  - benchmark_archive
+  - install_review_sheet
+  - permission_inspector
+  - runtime_status_pill
+
+# -----------------------------------------------------------------------------
+# Crash-loop posture markers.
+# -----------------------------------------------------------------------------
+crash_loop_postures:
+  - volumetric_only_not_a_crash_loop_detector
+  - crash_loop_detector_only
+  - volumetric_and_crash_loop
+
+# -----------------------------------------------------------------------------
+# Frozen budget axes.
+# -----------------------------------------------------------------------------
+extension_runtime_budget_rows:
+  - axis_id: discovery
+    title: Extension discovery and contribution registration
+    description: >
+      Manifest indexing, capability-world negotiation-packet setup,
+      contribution-point registration, and registry-source-class
+      projection at host startup. Heavy discovery blocks first-paint
+      and "open workspace" latency before any activation happens, so
+      a breach here is a hard-path pressure event.
+    owner_role: extensions
+    measurement_method_class: host_sampled_counter
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+    nominal_budget_class: short_bounded
+    quarantine_threshold_class: sustained_soft_breach_trips_throttle
+    resource_governor_linkage: hot_path.key_to_paint_p95_ms
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_host_discovery_budget_breached_soft
+      - extension_host_discovery_budget_breached_hard
+    repair_affordance_labels:
+      - review_discovery_budget_in_install_review_sheet
+      - surface_slow_extension_in_runtime_status_pill
+    notes: >
+      Discovery runs once per host session and once per extension
+      list invalidation. A row that would block first-paint beyond
+      its nominal class trips a throttle-class response and surfaces
+      the offending extension identity in the install-review sheet.
+
+  - axis_id: cold_activation
+    title: Cold activation
+    description: >
+      First-touch activation of an extension in this session: module
+      load, world bind, initial handshake, and the extension's
+      declared activation entry point. Cold-activation cost is
+      dominated by wasm component-model link time and the first
+      round-trip over the negotiated worlds.
+    owner_role: extensions
+    measurement_method_class: host_sampled_counter
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+      - runtime_status_pill
+    nominal_budget_class: medium_bounded
+    quarantine_threshold_class: sustained_soft_breach_trips_throttle
+    resource_governor_linkage: hot_path.key_to_paint_p95_ms
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_activated_cold
+      - extension_activation_denied_by_governor
+      - extension_activation_deferred_efficiency_state
+    repair_affordance_labels:
+      - review_cold_activation_in_support_export
+      - open_extension_in_permission_inspector
+
+  - axis_id: warm_activation
+    title: Warm activation
+    description: >
+      Subsequent activations where warm caches, already-negotiated
+      worlds, and compiled-module caches exist. Warm-activation cost
+      is what users feel on normal day-to-day use; a sustained
+      breach indicates the activation path itself is wasteful.
+    owner_role: extensions
+    measurement_method_class: host_sampled_counter
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+    nominal_budget_class: short_bounded
+    quarantine_threshold_class: sustained_soft_breach_trips_throttle
+    resource_governor_linkage: hot_path.frame_budget_miss_rate_percent
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_activated_warm
+    repair_affordance_labels:
+      - review_warm_activation_in_support_export
+
+  - axis_id: idle_polling
+    title: Idle polling
+    description: >
+      Background timers, pollers, and subscription loops that an
+      extension keeps alive while it has no user-visible work. The
+      efficiency-state policy's extension_polling workload is the
+      single governor; this axis is its counter.
+    owner_role: extensions
+    measurement_method_class: host_sampled_counter
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+    nominal_budget_class: bounded_per_subscription
+    quarantine_threshold_class: sustained_hard_breach_trips_disable
+    resource_governor_linkage: queues.provider_overlay
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_idle_polling_budget_throttled
+      - extension_idle_polling_budget_paused
+    repair_affordance_labels:
+      - review_idle_polling_in_support_export
+      - throttle_extension_in_runtime_status_pill
+
+  - axis_id: memory
+    title: Extension-host memory
+    description: >
+      Resident-memory footprint per extension host. Soft and hard
+      caps inherit the service-class cap posture from
+      artifacts/runtime/resource_governor_thresholds.yaml; an
+      extension whose steady-state RSS exceeds the soft cap trips a
+      throttle-class response, and a hard-cap breach trips a
+      disable-class response.
+    owner_role: extensions
+    measurement_method_class: kernel_reported_rss_bytes
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+      - runtime_status_pill
+    nominal_budget_class: medium_fixed
+    quarantine_threshold_class: sustained_hard_breach_trips_disable
+    resource_governor_linkage: memory.service_class_hard_cap_percent
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_memory_soft_cap_breached
+      - extension_memory_hard_cap_breached
+    repair_affordance_labels:
+      - review_memory_breach_in_support_export
+      - disable_extension_in_runtime_status_pill
+
+  - axis_id: egress
+    title: Network egress
+    description: >
+      Outbound network bytes per session and per wall-clock hour,
+      scoped by the aureline:network-egress allow-list on the
+      negotiation packet. Egress is the primary privacy and battery
+      axis for extensions that fetch completions or updates in the
+      background.
+    owner_role: extensions
+    measurement_method_class: egress_socket_accounting
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - benchmark_archive
+      - permission_inspector
+    nominal_budget_class: metered_per_hour
+    quarantine_threshold_class: sustained_hard_breach_trips_disable
+    resource_governor_linkage: optional_service_impairment.optional_service_latency_p95_ms
+    efficiency_state_linkage: workloads.upload_transfer
+    crash_loop_posture: volumetric_only_not_a_crash_loop_detector
+    audit_events_on_breach:
+      - extension_egress_budget_breached
+    repair_affordance_labels:
+      - review_egress_budget_in_permission_inspector
+
+  - axis_id: crash_loop
+    title: Crash-loop detection
+    description: >
+      Abnormal-exit, panic, OOM-kill, and hang-cancelled detections
+      over a rolling window. This axis is the only axis whose
+      quarantine_threshold_class is crash_loop_threshold_trips_quarantine.
+      Volumetric budget axes never fire the crash-loop class.
+    owner_role: extensions
+    measurement_method_class: crash_event_observation
+    reporting_surface_classes:
+      - activation_evidence_packet
+      - support_export
+      - install_review_sheet
+    nominal_budget_class: not_applicable
+    quarantine_threshold_class: crash_loop_threshold_trips_quarantine
+    resource_governor_linkage: queues.provider_overlay
+    efficiency_state_linkage: workloads.extension_polling
+    crash_loop_posture: crash_loop_detector_only
+    crash_loop_window:
+      window_minutes: 10
+      distinct_failures_to_trip_disable: 3
+      distinct_failures_to_trip_quarantine: 5
+    audit_events_on_breach:
+      - extension_crash_detected
+      - extension_hang_cancelled
+      - extension_oom_killed
+      - extension_quarantine_tripped
+    repair_affordance_labels:
+      - open_extension_in_install_review_sheet
+      - consult_publisher_continuity_row
+
+# -----------------------------------------------------------------------------
+# Reserved activation-evidence packet audit-event ids.
+#
+# Mirror of the reserved list in
+# docs/extensions/runtime_budget_packet.md for machine parity. Raw
+# artifact bytes, raw key material, and raw payload bodies MUST NOT
+# appear on any event.
+# -----------------------------------------------------------------------------
+reserved_audit_event_ids:
+  - extension_host_started
+  - extension_host_discovery_budget_breached_soft
+  - extension_host_discovery_budget_breached_hard
+  - extension_activated_cold
+  - extension_activated_warm
+  - extension_activation_denied_by_governor
+  - extension_activation_deferred_efficiency_state
+  - extension_idle_polling_budget_throttled
+  - extension_idle_polling_budget_paused
+  - extension_memory_soft_cap_breached
+  - extension_memory_hard_cap_breached
+  - extension_egress_budget_breached
+  - extension_crash_detected
+  - extension_hang_cancelled
+  - extension_oom_killed
+  - extension_quarantine_tripped
+  - extension_quarantined_recovery_attempted
+  - extension_quarantine_cleared
+  - extension_host_shutdown_clean
+  - extension_host_shutdown_forced
+
+# -----------------------------------------------------------------------------
+# Activation-reason vocabulary (shared with the activation-evidence
+# packet). A packet whose activation_reason_class is not in this list
+# is non-conforming.
+# -----------------------------------------------------------------------------
+activation_reason_classes:
+  - user_invoked_command
+  - user_opened_workspace_containing_activation_event_binding
+  - ide_focus_or_selection_event_binding
+  - contributed_ui_surface_became_visible
+  - queued_replay_after_recovery
+  - scheduled_background_timer
+  - dependency_extension_activation
+  - explicit_admin_or_automation_trigger
+
+# -----------------------------------------------------------------------------
+# Observation-kind vocabulary (shared with the activation-evidence
+# packet).
+# -----------------------------------------------------------------------------
+observation_kinds:
+  - host_startup
+  - cold_activation
+  - warm_activation
+  - host_shutdown_clean
+  - host_shutdown_crash
+  - host_shutdown_oom
+  - host_shutdown_hang_cancelled
+  - idle_poll_sample
+
+# -----------------------------------------------------------------------------
+# Never permitted.
+#
+# Collected so tooling tests can fail closed on any row or packet that
+# would do one of these things.
+# -----------------------------------------------------------------------------
+never_permitted:
+  - fire_crash_loop_quarantine_class_from_a_non_crash_loop_axis
+  - publish_activation_evidence_packet_without_naming_at_least_one_counter_axis
+  - hide_extension_quarantine_class_from_install_review_or_permission_inspector
+  - silently_disable_or_quarantine_without_emitting_the_paired_audit_event
+  - silently_rerank_a_quarantined_extension_in_discovery_ranking
+  - replay_a_queued_user_action_that_predates_the_quarantine_without_explicit_reenable
+  - embed_raw_wasm_module_bytes_or_core_dumps_or_log_bodies_in_any_row
+  - emit_a_budget_breach_without_a_repair_affordance_label
