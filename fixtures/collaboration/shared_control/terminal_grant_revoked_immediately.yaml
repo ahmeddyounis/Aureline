@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/control_grant.schema.json
+__fixture__:
+  name: terminal_grant_revoked_immediately
+  scenario: >
+    A shared-active session has a host-owned shared terminal
+    (shared_terminal_control_metadata shared object). The owner mints a
+    control_grant_record admitting a named participant to the
+    terminal_lane under grant_scope_single_action_one_shot +
+    duration_single_action_one_shot with an approval-ticket-required
+    badge and metadata-only ephemeral retention. The participant spends
+    the one-shot action (terminal_send_signal_allowed) and the audit
+    stream records the spend. A follow-up mutation attempt is denied
+    with single_action_grant_already_spent. The owner then revokes the
+    grant for cleanup with owner_revoked, revocation_immediate_authority
+    _expired_on_mint, and non_replayable_authority_expired_on_revocation;
+    the audit stream records the revocation.
+  exercised_contract_sections:
+    - "Control-grant rows (frozen)"
+    - "Shared-terminal and shared-debug binding"
+    - "Control-grant revocation (frozen)"
+    - "Immediate, auditable, and non-replayable invariants"
+    - "Acceptance-criteria cross-walk / bullet 1"
+  exercised_classes_summary:
+    control_grant_lane_classes:
+      - terminal_lane
+    control_grant_scope_classes:
+      - grant_scope_single_action_one_shot
+    control_grant_duration_classes:
+      - duration_single_action_one_shot
+    authority_ceiling_classes:
+      - ceiling_mutation_within_named_action_set
+    allowed_action_classes:
+      - terminal_send_signal_allowed
+    required_badge_classes:
+      - approval_ticket_required
+    control_grant_durability_classes:
+      - metadata_only_ephemeral_session_plus_short_audit_window
+    control_grant_revocation_cause_classes:
+      - owner_revoked
+    revocation_immediacy_classes:
+      - revocation_immediate_authority_expired_on_mint
+    revocation_replay_posture_classes:
+      - non_replayable_authority_expired_on_revocation
+    control_grant_audit_event_ids:
+      - control_grant_minted
+      - control_grant_spent_single_action
+      - control_grant_revoked
+      - control_grant_audit_denial_emitted
+
+records:
+  - record_kind: control_grant_record
+    control_grant_schema_version: 1
+    control_grant_id: "collab:grant:terminal:one-shot:01"
+    session_ref: "collab:session:03"
+    grantor_actor_ref: "actor:owner:03"
+    grantee_actor_ref: "actor:participant:driver-A"
+    control_grant_lane_class: terminal_lane
+    control_grant_scope_class: grant_scope_single_action_one_shot
+    control_grant_duration_class: duration_single_action_one_shot
+    authority_ceiling_class: ceiling_mutation_within_named_action_set
+    allowed_action_classes:
+      - terminal_send_signal_allowed
+    required_badge_classes:
+      - approval_ticket_required
+    approval_ticket_ref: "approval-ticket:terminal-signal:01"
+    control_grant_durability_class: metadata_only_ephemeral_session_plus_short_audit_window
+    bound_shared_object_ref: "collab:shared-object:shared-terminal-control:01"
+    summary_label: >
+      One-shot terminal SIGINT grant for named participant; single
+      action, approval-ticket-admitted, ephemeral metadata only.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:00Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:one-shot:01:minted"
+    session_ref: "collab:session:03"
+    control_grant_ref: "collab:grant:terminal:one-shot:01"
+    audit_event_id: control_grant_minted
+    summary_label: "One-shot terminal SIGINT grant minted."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:00Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:one-shot:01:spent"
+    session_ref: "collab:session:03"
+    control_grant_ref: "collab:grant:terminal:one-shot:01"
+    audit_event_id: control_grant_spent_single_action
+    summary_label: "Grantee spent one-shot terminal signal action."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:03Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:one-shot:01:replay-denied"
+    session_ref: "collab:session:03"
+    control_grant_ref: "collab:grant:terminal:one-shot:01"
+    audit_event_id: control_grant_audit_denial_emitted
+    denial_reason: single_action_grant_already_spent
+    summary_label: >
+      Post-spend mutation attempt denied; one-shot grant exhausted.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:05Z"
+
+  - record_kind: control_grant_revocation_record
+    control_grant_schema_version: 1
+    revocation_id: "collab:grant:terminal:one-shot:01:revocation:01"
+    control_grant_ref: "collab:grant:terminal:one-shot:01"
+    session_ref: "collab:session:03"
+    revoking_actor_ref: "actor:owner:03"
+    control_grant_revocation_cause_class: owner_revoked
+    revocation_immediacy_class: revocation_immediate_authority_expired_on_mint
+    revocation_replay_posture_class: non_replayable_authority_expired_on_revocation
+    in_flight_action_disposition_label: >
+      No in-flight action at revocation time; one-shot grant already
+      spent. Revocation is immediate and non-replayable.
+    summary_label: "Owner revoked the one-shot terminal grant."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:10Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:one-shot:01:revoked"
+    session_ref: "collab:session:03"
+    control_grant_ref: "collab:grant:terminal:one-shot:01"
+    revocation_ref: "collab:grant:terminal:one-shot:01:revocation:01"
+    audit_event_id: control_grant_revoked
+    summary_label: "One-shot terminal grant revoked; immediate, non-replayable."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T12:00:10Z"

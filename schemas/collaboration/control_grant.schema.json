@@ -1,0 +1,634 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/control_grant.schema.json",
+  "title": "Aureline collaboration control-grant, revocation, scope, duration, authority-ceiling, and required-badge vocabulary",
+  "description": "Boundary schema for the control_grant_record, control_grant_revocation_record, and control_grant_audit_event_record frozen in docs/collaboration/shared_control_contract.md. Every delegated authority over a shared terminal, shared debug, shared runbook, shared notebook-kernel, shared build-task, shared editor buffer, or presenter focus broadcast resolves to one control_grant_record naming the grantor_actor_ref, the grantee_actor_ref, the bound session_ref, exactly one control_grant_lane_class (terminal_lane, debug_lane, runbook_lane, notebook_kernel_lane, build_task_lane, editor_buffer_lane, review_comment_lane, presenter_focus_lane), exactly one control_grant_scope_class (grant_scope_named_lane_only, grant_scope_single_action_one_shot, grant_scope_named_action_set, grant_scope_presenter_view_only_no_mutation), exactly one control_grant_duration_class (duration_single_action_one_shot, duration_bounded_minutes_window, duration_until_revoked_bounded_by_session, duration_until_session_ended_hard_cap), exactly one authority_ceiling_class (ceiling_read_only_no_mutation, ceiling_mutation_within_named_lane, ceiling_mutation_within_named_action_set, ceiling_approver_admit_only_no_mutation), at least one allowed_action_class drawn from the closed per-lane action vocabulary, at least one required_badge_class (approval_ticket_required, admin_signed_required, workspace_trust_trusted_only_admitted, workspace_trust_session_only_temporary_grant_admitted, none_session_owner_admitted_only, owner_explicit_admission_without_ticket_for_view_only_grants), exactly one control_grant_durability_class, and the revocation_posture naming the closed revocation-cause vocabulary. Every revocation resolves to one control_grant_revocation_record naming the control_grant_ref, exactly one control_grant_revocation_cause_class (owner_revoked, approver_revoked, policy_revoked, admin_signed_revocation, session_ended_auto_revocation, approval_ticket_expired, workspace_trust_narrowed, relay_outage_non_replayable, grantee_released_voluntary, session_transport_dropped_non_replayable), exactly one revocation_immediacy_class (revocation_immediate_authority_expired_on_mint), and exactly one revocation_replay_posture_class (non_replayable_authority_expired_on_revocation) so no in-flight action against the grant is ever replayed after revocation; a replay attempt denies with grant_replay_after_revocation_forbidden. Shared terminal, shared debug, shared runbook, and notebook-kernel control is NEVER inferable from presence, presenter state, or follow state; an attempt to infer control denies with control_grant_not_inferable_from_presence_or_presenter_state. Durable retention of a control-grant row or its revocation is metadata-only by default (metadata_only_ephemeral_session_plus_short_audit_window); full-payload retention requires opt_in_policy_forced_admin_signed per the consent-and-retention contract, and a row that admits full-payload retention without admin-signed admission denies with shared_terminal_or_debug_control_grant_retention_must_be_opt_in. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new control_grant_lane_class, control_grant_scope_class, control_grant_duration_class, authority_ceiling_class, allowed_action_class, required_badge_class, control_grant_durability_class, control_grant_revocation_cause_class, revocation_immediacy_class, revocation_replay_posture_class, control_grant_audit_event_id, or control_grant_denial_reason value is additive-minor and requires a control_grant_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/control_grant_record" },
+    { "$ref": "#/$defs/control_grant_revocation_record" },
+    { "$ref": "#/$defs/control_grant_audit_event_record" }
+  ],
+  "$defs": {
+    "control_grant_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this control-grant vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "control_grant_record",
+        "control_grant_revocation_record",
+        "control_grant_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on control-grant inspectors, revocation banners, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "control_grant_lane_class": {
+      "type": "string",
+      "enum": [
+        "terminal_lane",
+        "debug_lane",
+        "runbook_lane",
+        "notebook_kernel_lane",
+        "build_task_lane",
+        "editor_buffer_lane",
+        "review_comment_lane",
+        "presenter_focus_lane"
+      ],
+      "description": "Frozen control-grant lane vocabulary. Each grant names exactly one lane; an action invoked outside the named lane denies with driver_authority_does_not_widen_to_other_lanes per the session-authority contract. Composes with the driver_lane_class values in schemas/collaboration/shared_object.schema.json; lanes here are a superset so presenter_focus_lane and review_comment_lane rows can be expressed without minting a driver-authoritative shared object."
+    },
+
+    "control_grant_scope_class": {
+      "type": "string",
+      "enum": [
+        "grant_scope_named_lane_only",
+        "grant_scope_single_action_one_shot",
+        "grant_scope_named_action_set",
+        "grant_scope_presenter_view_only_no_mutation"
+      ],
+      "description": "Frozen scope vocabulary. grant_scope_named_lane_only admits the grantee to act within the named lane under the row's authority_ceiling_class. grant_scope_single_action_one_shot admits exactly one action named by the allowed_action_classes and expires on spend or on session end. grant_scope_named_action_set admits a closed list of actions named by allowed_action_classes. grant_scope_presenter_view_only_no_mutation admits follow / focus-broadcast participation only; any mutating action denies with presenter_authority_does_not_confer_mutation."
+    },
+
+    "control_grant_duration_class": {
+      "type": "string",
+      "enum": [
+        "duration_single_action_one_shot",
+        "duration_bounded_minutes_window",
+        "duration_until_revoked_bounded_by_session",
+        "duration_until_session_ended_hard_cap"
+      ],
+      "description": "Frozen duration vocabulary. duration_single_action_one_shot matches grant_scope_single_action_one_shot (one spend and done). duration_bounded_minutes_window admits the grant for a short bounded window; expiry is named by expires_at. duration_until_revoked_bounded_by_session admits the grant for the remainder of the session or until explicit revocation. duration_until_session_ended_hard_cap is the hard cap: every grant expires no later than the bound session's transition to ended; a grant duration that exceeds the session hard cap denies with grant_duration_exceeds_session_hard_cap."
+    },
+
+    "authority_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "ceiling_read_only_no_mutation",
+        "ceiling_mutation_within_named_lane",
+        "ceiling_mutation_within_named_action_set",
+        "ceiling_approver_admit_only_no_mutation"
+      ],
+      "description": "Frozen authority-ceiling vocabulary. ceiling_read_only_no_mutation admits no mutation at all (transcript observation, follow-only). ceiling_mutation_within_named_lane admits mutation within the grant's named lane only (terminal input, debug step, editor type). ceiling_mutation_within_named_action_set admits mutation within a closed action set drawn from allowed_action_classes. ceiling_approver_admit_only_no_mutation admits the grantee to approve or refuse a typed action but never to mutate state directly. The ceiling is the maximum authority the grant may ever assert; widening mid-grant requires minting a fresh control_grant_record that supersedes the prior row."
+    },
+
+    "allowed_action_class": {
+      "type": "string",
+      "enum": [
+        "terminal_send_input_allowed",
+        "terminal_send_signal_allowed",
+        "terminal_kill_process_allowed",
+        "terminal_paste_allowed",
+        "terminal_read_transcript_only",
+        "debug_step_allowed",
+        "debug_continue_allowed",
+        "debug_pause_allowed",
+        "debug_set_breakpoint_allowed",
+        "debug_remove_breakpoint_allowed",
+        "debug_evaluate_watch_expression_allowed",
+        "debug_read_only_observe",
+        "runbook_start_step_allowed",
+        "runbook_advance_step_allowed",
+        "runbook_abort_step_allowed",
+        "runbook_read_only_observe",
+        "notebook_run_cell_allowed",
+        "notebook_interrupt_kernel_allowed",
+        "notebook_restart_kernel_allowed",
+        "notebook_read_only_observe",
+        "build_task_run_allowed",
+        "build_task_cancel_allowed",
+        "build_task_read_only_observe",
+        "editor_buffer_type_allowed",
+        "editor_buffer_save_allowed",
+        "editor_buffer_apply_patch_allowed",
+        "editor_buffer_read_only_observe",
+        "review_comment_author_allowed",
+        "review_comment_resolve_allowed",
+        "review_comment_read_only_observe",
+        "presenter_focus_broadcast_allowed",
+        "presenter_focus_broadcast_read_only_observe"
+      ],
+      "description": "Frozen allowed-action vocabulary. Per-lane actions are enumerated explicitly so a reviewer can resolve 'is this action admitted under this grant' without guessing. ceiling_read_only_no_mutation grants MUST name only *_read_only_observe values in allowed_action_classes; a read-only grant that names a mutating action denies with authority_ceiling_exceeded_by_allowed_action."
+    },
+
+    "required_badge_class": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_required",
+        "admin_signed_required",
+        "workspace_trust_trusted_only_admitted",
+        "workspace_trust_session_only_temporary_grant_admitted",
+        "none_session_owner_admitted_only",
+        "owner_explicit_admission_without_ticket_for_view_only_grants"
+      ],
+      "description": "Frozen required-badge vocabulary. Every control grant cites at least one badge so reviewers can resolve what admission gate minted it. approval_ticket_required = an ADR-0010 approval ticket MUST be cited. admin_signed_required = an admin-signed admission ticket MUST be cited. workspace_trust_trusted_only_admitted = the grantee's workspace trust posture MUST resolve to trusted. workspace_trust_session_only_temporary_grant_admitted = a session-only temporary grant is admitted without full trusted posture. none_session_owner_admitted_only = the session owner minted the grant without external admission (legal only for view-only grants). owner_explicit_admission_without_ticket_for_view_only_grants = the owner explicitly admitted a view-only grant; no ticket required."
+    },
+
+    "control_grant_durability_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_session_only_no_durable_row",
+        "metadata_only_ephemeral_session_plus_short_audit_window",
+        "metadata_only_managed_surface_for_audit",
+        "retained_full_payload_admin_signed_opt_in_only",
+        "retained_in_sealed_archive_only_admin_signed"
+      ],
+      "description": "Frozen durability vocabulary for control-grant and revocation rows. ephemeral_session_only_no_durable_row = the grant and its revocation exist only for the active session turn. metadata_only_ephemeral_session_plus_short_audit_window = the grant metadata survives on the collaboration_control_grant audit stream for a short bounded window. metadata_only_managed_surface_for_audit = metadata is retained on the managed surface per the bound session-policy manifest. retained_full_payload_admin_signed_opt_in_only = full payload retention is admitted only under admin-signed opt-in and MUST cite a session-policy-manifest consent event; a row without admin-signed admission denies with shared_terminal_or_debug_control_grant_retention_must_be_opt_in. retained_in_sealed_archive_only_admin_signed = the grant is sealed into the session archive under the archive's admin-signed posture."
+    },
+
+    "control_grant_revocation_cause_class": {
+      "type": "string",
+      "enum": [
+        "owner_revoked",
+        "approver_revoked",
+        "policy_revoked",
+        "admin_signed_revocation",
+        "session_ended_auto_revocation",
+        "approval_ticket_expired",
+        "workspace_trust_narrowed",
+        "relay_outage_non_replayable",
+        "grantee_released_voluntary",
+        "session_transport_dropped_non_replayable"
+      ],
+      "description": "Frozen revocation-cause vocabulary. Each revocation cites exactly one cause so a reviewer can resolve why authority expired. relay_outage_non_replayable and session_transport_dropped_non_replayable are explicit about non-replay: any in-flight action against the grant is dropped rather than retried on reconnect; a replay attempt denies with grant_replay_after_revocation_forbidden."
+    },
+
+    "revocation_immediacy_class": {
+      "type": "string",
+      "enum": [
+        "revocation_immediate_authority_expired_on_mint"
+      ],
+      "description": "Frozen revocation-immediacy invariant. Every revocation is immediate: authority expires at the moment the revocation record is minted. A grantee action admitted after this moment denies with revocation_must_be_immediate_and_auditable. The single-value enum keeps the invariant visible at the boundary and forbids delayed / grace-window revocations; a delayed-revocation variant would require a new decision row and a breaking schema bump."
+    },
+
+    "revocation_replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "non_replayable_authority_expired_on_revocation"
+      ],
+      "description": "Frozen revocation-replay invariant. Every revocation is non-replayable: no in-flight action against the grant is ever retried against the same authority after revocation. The single-value enum keeps the invariant visible at the boundary; a replay attempt denies with grant_replay_after_revocation_forbidden. Rejoining or re-establishing authority requires a fresh control_grant_record with a fresh admission gate."
+    },
+
+    "control_grant_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "control_grant_minted",
+        "control_grant_amended_superseded",
+        "control_grant_spent_single_action",
+        "control_grant_revoked",
+        "control_grant_expired_auto",
+        "control_grant_audit_denial_emitted",
+        "control_grant_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_control_grant audit stream. Every mint, amendment, spend, and revocation is auditable per the revocation-must-be-auditable invariant. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "control_grant_denial_reason": {
+      "type": "string",
+      "enum": [
+        "control_grant_lane_class_unresolved",
+        "control_grant_scope_class_unresolved",
+        "control_grant_duration_class_unresolved",
+        "authority_ceiling_class_unresolved",
+        "allowed_action_class_set_empty",
+        "authority_ceiling_exceeded_by_allowed_action",
+        "required_badge_class_missing",
+        "approval_ticket_ref_missing_for_approval_ticket_required",
+        "admin_signed_ref_missing_for_admin_signed_required",
+        "workspace_trust_posture_insufficient_for_badge",
+        "grant_duration_exceeds_session_hard_cap",
+        "control_grant_not_inferable_from_presence_or_presenter_state",
+        "shared_terminal_or_debug_control_requires_explicit_grant",
+        "shared_terminal_or_debug_control_grant_retention_must_be_opt_in",
+        "grant_replay_after_revocation_forbidden",
+        "revocation_must_be_immediate_and_auditable",
+        "revocation_cause_class_unresolved",
+        "revocation_replay_posture_class_unresolved",
+        "single_action_grant_already_spent",
+        "grant_mutation_outside_named_lane_forbidden",
+        "presenter_view_only_grant_must_not_name_mutating_action",
+        "control_grant_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; an unresolved lane, a scope without a ceiling, a view-only grant that names a mutating action, a read-only ceiling that names a mutating allowed action, a grant whose duration exceeds the session's hard cap, an inference from presence / presenter state, a replay against a revoked grant, and a full-payload retention without admin-signed admission all deny explicitly rather than admit silent drift."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A grant inherits the grantee's workspace trust posture; widening trust through a grant is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the grant and which workspace-trust posture the grantee held when the row was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "control_grant_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_grant_schema_version",
+        "record_kind",
+        "control_grant_id",
+        "session_ref",
+        "grantor_actor_ref",
+        "grantee_actor_ref",
+        "control_grant_lane_class",
+        "control_grant_scope_class",
+        "control_grant_duration_class",
+        "authority_ceiling_class",
+        "allowed_action_classes",
+        "required_badge_classes",
+        "control_grant_durability_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "control_grant_record" },
+        "control_grant_schema_version": { "$ref": "#/$defs/control_grant_schema_version" },
+        "control_grant_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_record in schemas/collaboration/session_state.schema.json. A grant MUST bind to exactly one session; duration_until_session_ended_hard_cap is the hard cap enforced against that session's transition to ended."
+        },
+        "grantor_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor who minted the grant (session owner, approver, admin)."
+        },
+        "grantee_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor whom the grant admits to act."
+        },
+        "control_grant_lane_class": { "$ref": "#/$defs/control_grant_lane_class" },
+        "control_grant_scope_class": { "$ref": "#/$defs/control_grant_scope_class" },
+        "control_grant_duration_class": { "$ref": "#/$defs/control_grant_duration_class" },
+        "authority_ceiling_class": { "$ref": "#/$defs/authority_ceiling_class" },
+        "allowed_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/allowed_action_class" },
+          "minItems": 1,
+          "description": "Closed list of actions the grant admits. An empty list denies with allowed_action_class_set_empty."
+        },
+        "required_badge_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_badge_class" },
+          "minItems": 1,
+          "description": "Closed list of admission badges the grant MUST resolve. At least one badge is required; ceiling_mutation_* grants against shared terminal or shared debug lanes MUST resolve either approval_ticket_required or admin_signed_required."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ADR-0010 approval-ticket ref. REQUIRED when required_badge_classes contains approval_ticket_required."
+        },
+        "admin_signed_admission_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque admin-signed admission ref. REQUIRED when required_badge_classes contains admin_signed_required."
+        },
+        "control_grant_durability_class": { "$ref": "#/$defs/control_grant_durability_class" },
+        "bound_shared_object_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to the shared_object_record in schemas/collaboration/shared_object.schema.json this grant binds to (a shared_terminal_control_metadata row, a shared_debug_control_metadata row, etc.). A shared terminal or shared debug grant MUST cite this ref so the grant is anchored to the control-metadata row and is not inferable from presence."
+        },
+        "presenter_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to the presenter_state_record this grant composes with (presenter_focus_lane grants only)."
+        },
+        "session_policy_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to the collaboration_session_policy_manifest_record governing retention / consent. REQUIRED whenever control_grant_durability_class is retained_full_payload_admin_signed_opt_in_only or retained_in_sealed_archive_only_admin_signed so the consent-event trail is recoverable without redeclaration."
+        },
+        "supersedes_control_grant_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior control_grant_record this row supersedes. Any widening of authority mid-grant requires a fresh row with this field set rather than in-place mutation."
+        },
+        "superseded_by_control_grant_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Optional explicit expiry. REQUIRED when control_grant_duration_class is duration_bounded_minutes_window."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "control_grant_scope_class": { "const": "grant_scope_presenter_view_only_no_mutation" } } },
+          "then": {
+            "properties": {
+              "authority_ceiling_class": { "const": "ceiling_read_only_no_mutation" },
+              "allowed_action_classes": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "terminal_read_transcript_only",
+                    "debug_read_only_observe",
+                    "runbook_read_only_observe",
+                    "notebook_read_only_observe",
+                    "build_task_read_only_observe",
+                    "editor_buffer_read_only_observe",
+                    "review_comment_read_only_observe",
+                    "presenter_focus_broadcast_read_only_observe"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "authority_ceiling_class": { "const": "ceiling_read_only_no_mutation" } } },
+          "then": {
+            "properties": {
+              "allowed_action_classes": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "terminal_read_transcript_only",
+                    "debug_read_only_observe",
+                    "runbook_read_only_observe",
+                    "notebook_read_only_observe",
+                    "build_task_read_only_observe",
+                    "editor_buffer_read_only_observe",
+                    "review_comment_read_only_observe",
+                    "presenter_focus_broadcast_read_only_observe"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "control_grant_duration_class": { "const": "duration_bounded_minutes_window" } } },
+          "then": { "required": ["expires_at"] }
+        },
+        {
+          "if": { "properties": { "control_grant_scope_class": { "const": "grant_scope_single_action_one_shot" } } },
+          "then": { "properties": { "control_grant_duration_class": { "const": "duration_single_action_one_shot" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "required_badge_classes": {
+                "type": "array",
+                "contains": { "const": "approval_ticket_required" }
+              }
+            }
+          },
+          "then": { "required": ["approval_ticket_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "required_badge_classes": {
+                "type": "array",
+                "contains": { "const": "admin_signed_required" }
+              }
+            }
+          },
+          "then": { "required": ["admin_signed_admission_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "control_grant_lane_class": { "enum": ["terminal_lane", "debug_lane"] },
+              "authority_ceiling_class": {
+                "enum": [
+                  "ceiling_mutation_within_named_lane",
+                  "ceiling_mutation_within_named_action_set"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["bound_shared_object_ref"],
+            "properties": {
+              "required_badge_classes": {
+                "type": "array",
+                "contains": {
+                  "enum": [
+                    "approval_ticket_required",
+                    "admin_signed_required"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "control_grant_durability_class": {
+                "enum": [
+                  "retained_full_payload_admin_signed_opt_in_only",
+                  "retained_in_sealed_archive_only_admin_signed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["admin_signed_admission_ref", "session_policy_manifest_ref"],
+            "properties": {
+              "required_badge_classes": {
+                "type": "array",
+                "contains": { "const": "admin_signed_required" }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One-row description of a control grant at a point in time. A grant is the ONLY way authority over shared terminal, shared debug, shared runbook, or notebook-kernel control is admitted; presence, presenter state, and follow state NEVER confer control. Widening mid-grant requires a fresh control_grant_record with supersedes_control_grant_ref set; in-place mutation denies with grant_mutation_outside_named_lane_forbidden when the widening crosses the lane boundary."
+    },
+
+    "control_grant_revocation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_grant_schema_version",
+        "record_kind",
+        "revocation_id",
+        "control_grant_ref",
+        "session_ref",
+        "revoking_actor_ref",
+        "control_grant_revocation_cause_class",
+        "revocation_immediacy_class",
+        "revocation_replay_posture_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "control_grant_revocation_record" },
+        "control_grant_schema_version": { "$ref": "#/$defs/control_grant_schema_version" },
+        "revocation_id": { "$ref": "#/$defs/opaque_id" },
+        "control_grant_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "revoking_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor whose action revoked the grant (owner, approver, admin, policy system, transport system)."
+        },
+        "control_grant_revocation_cause_class": { "$ref": "#/$defs/control_grant_revocation_cause_class" },
+        "revocation_immediacy_class": { "$ref": "#/$defs/revocation_immediacy_class" },
+        "revocation_replay_posture_class": { "$ref": "#/$defs/revocation_replay_posture_class" },
+        "admin_signed_admission_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "REQUIRED when control_grant_revocation_cause_class is admin_signed_revocation."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ADR-0010 approval-ticket ref; REQUIRED when control_grant_revocation_cause_class is approval_ticket_expired (the expired ticket ref is the audit anchor)."
+        },
+        "in_flight_action_disposition_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable label naming the disposition of any in-flight action against the revoked grant (for example 'in-flight terminal input discarded; non-replayable'). Raw buffer / terminal / debug bytes never cross this boundary."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "control_grant_revocation_cause_class": { "const": "admin_signed_revocation" } } },
+          "then": { "required": ["admin_signed_admission_ref"] }
+        },
+        {
+          "if": { "properties": { "control_grant_revocation_cause_class": { "const": "approval_ticket_expired" } } },
+          "then": { "required": ["approval_ticket_ref"] }
+        }
+      ],
+      "description": "One-row description of a control-grant revocation. Immediate, auditable, and non-replayable by invariant: the revocation_immediacy_class and revocation_replay_posture_class single-value enums keep the invariants visible at the boundary; an in-flight action replayed after revocation denies with grant_replay_after_revocation_forbidden, and a delayed revocation denies with revocation_must_be_immediate_and_auditable."
+    },
+
+    "control_grant_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_grant_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "session_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "control_grant_audit_event_record" },
+        "control_grant_schema_version": { "$ref": "#/$defs/control_grant_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "control_grant_ref": { "$ref": "#/$defs/opaque_id" },
+        "revocation_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/control_grant_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/control_grant_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "control_grant_audit_denial_emitted" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_control_grant stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why a grant mint or revocation was refused without guessing."
+    }
+  }
+}

@@ -1,0 +1,126 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/follow_and_presenter_state.schema.json
+__fixture__:
+  name: presenter_step_away_auto_observer
+  scenario: >
+    A presenter in an active broadcast session steps away (transport
+    drop, explicit pause, or workflow interruption). The session mints a
+    presenter_handoff_record with presenter_handoff_kind_class =
+    presenter_step_away_auto_observer. The prior presenter is
+    auto-downgraded to observer and no driver rights are asserted. The
+    next_presenter_actor_ref is resolved to a sentinel 'none' actor ref
+    until the owner admits a new presenter; this fixture demonstrates
+    that the handoff is RECORDED (not silently applied) and the
+    admitting_owner_actor_ref is always cited. No control grants flip
+    as a side effect of the handoff; any pre-existing shared-terminal
+    or shared-debug grants remain revoke-or-expire-only and are NOT
+    inferred from the presenter role.
+  exercised_contract_sections:
+    - "Presenter-handoff vocabulary (frozen)"
+    - "Presenter-authority invariants"
+    - "Acceptance-criteria cross-walk / bullet 3"
+  exercised_classes_summary:
+    presenter_role_classes:
+      - presenter
+      - observer
+      - none_pre_session_or_post_handoff
+    focus_broadcast_posture_classes:
+      - focus_broadcast_active
+      - focus_broadcast_paused_temporary
+    presenter_handoff_kind_classes:
+      - presenter_step_away_auto_observer
+    follow_and_presenter_audit_event_ids:
+      - presenter_handoff_recorded
+      - presenter_state_amended
+      - focus_broadcast_posture_changed
+
+records:
+  - record_kind: presenter_state_record
+    follow_and_presenter_state_schema_version: 1
+    presenter_state_id: "collab:presenter-state:step-away:pre:01"
+    session_ref: "collab:session:step-away:01"
+    presenter_actor_ref: "actor:owner:step-away:01"
+    co_presenter_actor_refs: []
+    observer_actor_refs:
+      - "actor:participant:observer-D"
+    focus_broadcast_posture_class: focus_broadcast_active
+    bound_pane_ref: "pane:editor:step-away:01"
+    bound_buffer_ref: "buffer:step-away:01"
+    summary_label: "Presenter active before step-away."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:00:00Z"
+
+  - record_kind: presenter_handoff_record
+    follow_and_presenter_state_schema_version: 1
+    presenter_handoff_id: "collab:presenter-handoff:step-away:01"
+    session_ref: "collab:session:step-away:01"
+    prior_presenter_actor_ref: "actor:owner:step-away:01"
+    next_presenter_actor_ref: "actor:sentinel:none-post-handoff"
+    presenter_handoff_kind_class: presenter_step_away_auto_observer
+    admitting_owner_actor_ref: "actor:owner:step-away:01"
+    prior_presenter_state_ref: "collab:presenter-state:step-away:pre:01"
+    next_presenter_state_ref: "collab:presenter-state:step-away:post:01"
+    summary_label: >
+      Presenter stepped away; auto-downgraded to observer; no driver
+      rights asserted; owner must admit a new presenter to resume.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:02:00Z"
+
+  - record_kind: presenter_state_record
+    follow_and_presenter_state_schema_version: 1
+    presenter_state_id: "collab:presenter-state:step-away:post:01"
+    session_ref: "collab:session:step-away:01"
+    presenter_actor_ref: "actor:sentinel:none-post-handoff"
+    co_presenter_actor_refs: []
+    observer_actor_refs:
+      - "actor:owner:step-away:01"
+      - "actor:participant:observer-D"
+    focus_broadcast_posture_class: focus_broadcast_paused_temporary
+    supersedes_presenter_state_ref: "collab:presenter-state:step-away:pre:01"
+    summary_label: >
+      No active presenter post step-away; prior presenter auto-moved
+      to observer; focus broadcast paused until owner admits new
+      presenter.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:02:00Z"
+
+  - record_kind: follow_and_presenter_audit_event_record
+    follow_and_presenter_state_schema_version: 1
+    audit_event_id_value: "audit:presenter-handoff:step-away:recorded:01"
+    session_ref: "collab:session:step-away:01"
+    presenter_handoff_ref: "collab:presenter-handoff:step-away:01"
+    audit_event_id: presenter_handoff_recorded
+    summary_label: "Presenter step-away handoff recorded."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:02:00Z"
+
+  - record_kind: follow_and_presenter_audit_event_record
+    follow_and_presenter_state_schema_version: 1
+    audit_event_id_value: "audit:presenter:step-away:amended:01"
+    session_ref: "collab:session:step-away:01"
+    presenter_state_ref: "collab:presenter-state:step-away:post:01"
+    audit_event_id: presenter_state_amended
+    summary_label: "Presenter state amended after step-away."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:02:00Z"
+
+  - record_kind: follow_and_presenter_audit_event_record
+    follow_and_presenter_state_schema_version: 1
+    audit_event_id_value: "audit:presenter:step-away:broadcast-paused:01"
+    session_ref: "collab:session:step-away:01"
+    presenter_state_ref: "collab:presenter-state:step-away:post:01"
+    audit_event_id: focus_broadcast_posture_changed
+    summary_label: "Focus broadcast paused temporarily after step-away."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T16:02:00Z"

@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=../../../schemas/collaboration/control_grant.schema.json
+__fixture__:
+  name: replay_after_revocation_denied
+  scenario: >
+    A shared terminal control grant is minted under
+    duration_until_revoked_bounded_by_session with approval-ticket-
+    required admission and metadata-only ephemeral retention. Mid-grant,
+    the relay drops; the transport layer revokes the grant under
+    relay_outage_non_replayable with revocation_immediate_authority_
+    expired_on_mint + non_replayable_authority_expired_on_revocation. A
+    buffered terminal_send_input_allowed action that had been queued
+    against the old authority but arrived after the revocation is
+    refused with grant_replay_after_revocation_forbidden. The audit
+    stream records the mint, the revocation, and the replay-denial.
+    Re-admission requires a fresh control_grant_record with a fresh
+    approval ticket (shown for completeness in the audit trail, not
+    the record list, to keep the scenario focused on the invariant).
+  exercised_contract_sections:
+    - "Control-grant rows (frozen)"
+    - "Control-grant revocation (frozen)"
+    - "Immediate, auditable, and non-replayable invariants"
+    - "In-flight action disposition"
+    - "Acceptance-criteria cross-walk / bullet 1"
+  exercised_classes_summary:
+    control_grant_lane_classes:
+      - terminal_lane
+    control_grant_scope_classes:
+      - grant_scope_named_lane_only
+    control_grant_duration_classes:
+      - duration_until_revoked_bounded_by_session
+    authority_ceiling_classes:
+      - ceiling_mutation_within_named_lane
+    allowed_action_classes:
+      - terminal_send_input_allowed
+      - terminal_read_transcript_only
+    required_badge_classes:
+      - approval_ticket_required
+    control_grant_durability_classes:
+      - metadata_only_ephemeral_session_plus_short_audit_window
+    control_grant_revocation_cause_classes:
+      - relay_outage_non_replayable
+    revocation_immediacy_classes:
+      - revocation_immediate_authority_expired_on_mint
+    revocation_replay_posture_classes:
+      - non_replayable_authority_expired_on_revocation
+    control_grant_audit_event_ids:
+      - control_grant_minted
+      - control_grant_revoked
+      - control_grant_audit_denial_emitted
+    control_grant_denial_reasons:
+      - grant_replay_after_revocation_forbidden
+
+records:
+  - record_kind: control_grant_record
+    control_grant_schema_version: 1
+    control_grant_id: "collab:grant:terminal:until-revoked:01"
+    session_ref: "collab:session:replay:01"
+    grantor_actor_ref: "actor:owner:replay:01"
+    grantee_actor_ref: "actor:participant:driver-B"
+    control_grant_lane_class: terminal_lane
+    control_grant_scope_class: grant_scope_named_lane_only
+    control_grant_duration_class: duration_until_revoked_bounded_by_session
+    authority_ceiling_class: ceiling_mutation_within_named_lane
+    allowed_action_classes:
+      - terminal_send_input_allowed
+      - terminal_read_transcript_only
+    required_badge_classes:
+      - approval_ticket_required
+    approval_ticket_ref: "approval-ticket:terminal:until-revoked:01"
+    control_grant_durability_class: metadata_only_ephemeral_session_plus_short_audit_window
+    bound_shared_object_ref: "collab:shared-object:shared-terminal-control:02"
+    summary_label: >
+      Terminal-lane grant until explicit revocation; metadata-only
+      ephemeral retention; approval-ticket-admitted.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T15:00:00Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:until-revoked:01:minted"
+    session_ref: "collab:session:replay:01"
+    control_grant_ref: "collab:grant:terminal:until-revoked:01"
+    audit_event_id: control_grant_minted
+    summary_label: "Terminal-lane grant minted; valid until explicit revocation."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T15:00:00Z"
+
+  - record_kind: control_grant_revocation_record
+    control_grant_schema_version: 1
+    revocation_id: "collab:grant:terminal:until-revoked:01:revocation:01"
+    control_grant_ref: "collab:grant:terminal:until-revoked:01"
+    session_ref: "collab:session:replay:01"
+    revoking_actor_ref: "actor:system:transport:01"
+    control_grant_revocation_cause_class: relay_outage_non_replayable
+    revocation_immediacy_class: revocation_immediate_authority_expired_on_mint
+    revocation_replay_posture_class: non_replayable_authority_expired_on_revocation
+    in_flight_action_disposition_label: >
+      One terminal_send_input_allowed request buffered against the old
+      authority is queued for review; the authority expired at
+      revocation mint so any replay against this grant is non-replayable
+      and must fail closed.
+    summary_label: >
+      Relay outage revoked the terminal-lane grant; immediate and
+      non-replayable.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T15:03:00Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:until-revoked:01:revoked"
+    session_ref: "collab:session:replay:01"
+    control_grant_ref: "collab:grant:terminal:until-revoked:01"
+    revocation_ref: "collab:grant:terminal:until-revoked:01:revocation:01"
+    audit_event_id: control_grant_revoked
+    summary_label: "Terminal-lane grant revoked by relay outage."
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T15:03:00Z"
+
+  - record_kind: control_grant_audit_event_record
+    control_grant_schema_version: 1
+    audit_event_id_value: "audit:grant:terminal:until-revoked:01:replay-denied"
+    session_ref: "collab:session:replay:01"
+    control_grant_ref: "collab:grant:terminal:until-revoked:01"
+    revocation_ref: "collab:grant:terminal:until-revoked:01:revocation:01"
+    audit_event_id: control_grant_audit_denial_emitted
+    denial_reason: grant_replay_after_revocation_forbidden
+    summary_label: >
+      Post-revocation replay of buffered terminal_send_input_allowed
+      action denied; authority expired at revocation mint and is
+      non-replayable. Re-admission requires a fresh grant with a fresh
+      approval ticket.
+    freshness_class: authoritative_live
+    client_scopes: [desktop_product]
+    redaction_class: logs_local
+    minted_at: "2026-04-22T15:03:05Z"

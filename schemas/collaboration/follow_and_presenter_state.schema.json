@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/follow_and_presenter_state.schema.json",
+  "title": "Aureline collaboration follow, presenter-state, focus-broadcast, and degraded-follow vocabulary",
+  "description": "Boundary schema for the follow_target_record, presenter_state_record, presenter_handoff_record, and follow_and_presenter_audit_event_record frozen in docs/collaboration/shared_control_contract.md. Every follow relationship resolves to one follow_target_record naming the observer actor ref, the bound session_ref, exactly one follow_mode_class (cursor_follow_exact, scroll_follow_viewport_only, focus_follow_attention_only, presenter_broadcast_follow, follow_paused_local_view_only, follow_unavailable_live_state_missing), exactly one follow_target_kind_class (actor_cursor_target, buffer_selection_target, pane_focus_target, presenter_broadcast_channel, graph_focus_target, review_diff_hunk_target), and a degraded_follow_posture_class when follow_mode_class is follow_unavailable_live_state_missing. Every presenter stance resolves to one presenter_state_record naming the presenter_actor_ref, the co_presenter_actor_refs, the observer_actor_refs, exactly one presenter_role_class per named actor, exactly one focus_broadcast_posture_class, and the mutation_authority_class binding (always presenter_authoritative_for_view_only; mutating authority rides control_grant_record rows in schemas/collaboration/control_grant.schema.json and never this row). Every handoff resolves to one presenter_handoff_record naming the prior_presenter_actor_ref, the next_presenter_actor_ref, and exactly one presenter_handoff_kind_class (presenter_assigned_by_owner, presenter_accepted_handoff, presenter_refused_handoff, presenter_step_away_auto_observer, presenter_revoked_by_owner, presenter_revoked_by_policy). Presenter authority MUST NOT confer mutation; a row that asserts mutating authority on a presenter_state_record or presenter_handoff_record denies with presenter_authority_does_not_confer_mutation. Focus broadcast MUST NOT run outside a presenter_role_class of presenter or co_presenter; a focus_broadcast_active posture without a presenter role denies with focus_broadcast_without_presenter_role. A follow relationship whose live state is unavailable MUST resolve to exactly one degraded_follow_posture_class from the closed degraded vocabulary (follow_only_summary_readout_offered, invitation_or_handoff_fallback_offered, transcript_summary_only_live_state_missing, local_view_only_no_follow_admitted); a degraded row that asserts hidden input injection denies with hidden_input_injection_forbidden_during_degraded_follow. Shared terminal or shared debug control is NEVER inferable from a follow or presenter row; the grantee resolves only through a control_grant_record in the companion schema, and an attempt to infer control from presence or presenter state denies with control_grant_not_inferable_from_presence_or_presenter_state. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this boundary; this schema carries opaque refs, structured fields, reviewable sentence labels, and coarse buckets only. The eventual collaboration crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new follow_mode_class, follow_target_kind_class, presenter_role_class, focus_broadcast_posture_class, presenter_handoff_kind_class, degraded_follow_posture_class, follow_and_presenter_audit_event_id, or follow_and_presenter_denial_reason value is additive-minor and requires a follow_and_presenter_state_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/follow_target_record" },
+    { "$ref": "#/$defs/presenter_state_record" },
+    { "$ref": "#/$defs/presenter_handoff_record" },
+    { "$ref": "#/$defs/follow_and_presenter_audit_event_record" }
+  ],
+  "$defs": {
+    "follow_and_presenter_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this follow-and-presenter-state vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "follow_target_record",
+        "presenter_state_record",
+        "presenter_handoff_record",
+        "follow_and_presenter_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on follow / presenter inspectors, handoff banners, degraded-follow chips, and admin-collaboration surfaces. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "follow_mode_class": {
+      "type": "string",
+      "enum": [
+        "cursor_follow_exact",
+        "scroll_follow_viewport_only",
+        "focus_follow_attention_only",
+        "presenter_broadcast_follow",
+        "follow_paused_local_view_only",
+        "follow_unavailable_live_state_missing"
+      ],
+      "description": "Frozen follow-mode vocabulary. cursor_follow_exact = observer's cursor tracks the target's cursor byte position. scroll_follow_viewport_only = observer's viewport tracks the target's scroll position but cursor is independent. focus_follow_attention_only = observer's pane focus follows the target's active pane but buffer-level navigation is local. presenter_broadcast_follow = observer subscribes to the presenter broadcast channel (focus + viewport + optional cursor). follow_paused_local_view_only = the observer explicitly paused follow; the local view is authoritative and no remote update touches it. follow_unavailable_live_state_missing = live state cannot be resolved (relay outage, presenter offline, degraded projection); the row MUST resolve a degraded_follow_posture_class in the closed degraded vocabulary."
+    },
+
+    "follow_target_kind_class": {
+      "type": "string",
+      "enum": [
+        "actor_cursor_target",
+        "buffer_selection_target",
+        "pane_focus_target",
+        "presenter_broadcast_channel",
+        "graph_focus_target",
+        "review_diff_hunk_target"
+      ],
+      "description": "Frozen follow-target vocabulary. actor_cursor_target = follows another participant's cursor position in a specific buffer. buffer_selection_target = follows the target's selection range. pane_focus_target = follows the target's active pane / surface. presenter_broadcast_channel = follows the session's presenter broadcast rather than a specific actor. graph_focus_target = follows the target's graph-surface focus (dependency graph, review graph, plan graph). review_diff_hunk_target = follows the target's active diff hunk in a review surface."
+    },
+
+    "presenter_role_class": {
+      "type": "string",
+      "enum": [
+        "presenter",
+        "co_presenter",
+        "observer",
+        "none_pre_session_or_post_handoff"
+      ],
+      "description": "Frozen presenter-role vocabulary. presenter = session presenter (owner or promoted participant). co_presenter = paired presenter authorized by the presenter to share the broadcast channel. observer = consumes the presenter broadcast; no presenter authority. none_pre_session_or_post_handoff = no presenter stance admitted for this actor at this point (before any handoff, or after the presenter stepped away)."
+    },
+
+    "focus_broadcast_posture_class": {
+      "type": "string",
+      "enum": [
+        "focus_broadcast_active",
+        "focus_broadcast_paused_temporary",
+        "focus_broadcast_disabled_local_view_only",
+        "focus_broadcast_unavailable_degraded_projection"
+      ],
+      "description": "Frozen focus-broadcast vocabulary. focus_broadcast_active = the presenter actively broadcasts focus + viewport + optional cursor. focus_broadcast_paused_temporary = the presenter paused the broadcast; observers hold their prior follow state. focus_broadcast_disabled_local_view_only = the presenter disabled the broadcast for this session; observers are explicitly in local view only. focus_broadcast_unavailable_degraded_projection = relay loss or presenter-offline degraded the projection; the row MUST pair with a follow_target_record carrying follow_unavailable_live_state_missing and a degraded_follow_posture_class."
+    },
+
+    "presenter_handoff_kind_class": {
+      "type": "string",
+      "enum": [
+        "presenter_assigned_by_owner",
+        "presenter_accepted_handoff",
+        "presenter_refused_handoff",
+        "presenter_step_away_auto_observer",
+        "presenter_revoked_by_owner",
+        "presenter_revoked_by_policy"
+      ],
+      "description": "Frozen presenter-handoff vocabulary. presenter_assigned_by_owner = the session owner assigned the presenter role. presenter_accepted_handoff = the offered participant accepted the handoff. presenter_refused_handoff = the offered participant refused; role reverts to the prior presenter. presenter_step_away_auto_observer = the presenter stepped away (transport drop, explicit pause); role is auto-downgraded to observer with no driver rights asserted. presenter_revoked_by_owner = the owner explicitly revoked the presenter role. presenter_revoked_by_policy = a policy event (trust narrowing, approval-ticket expiry, admin-signed revocation) revoked the presenter role."
+    },
+
+    "degraded_follow_posture_class": {
+      "type": "string",
+      "enum": [
+        "follow_only_summary_readout_offered",
+        "invitation_or_handoff_fallback_offered",
+        "transcript_summary_only_live_state_missing",
+        "local_view_only_no_follow_admitted"
+      ],
+      "description": "Frozen degraded-follow vocabulary. follow_only_summary_readout_offered = a read-only summary of the target's recent focus / selection / scroll is shown (no live cursor). invitation_or_handoff_fallback_offered = the session surfaces an invitation or handoff prompt so the observer can rejoin under a fresh presenter or a new session. transcript_summary_only_live_state_missing = only a transcript summary of the session is available; no live follow is admitted; never implies input injection. local_view_only_no_follow_admitted = follow is explicitly refused during degradation; the observer sees only their own workspace. No value admits hidden input injection into the observer's buffer, terminal, or debug surface."
+    },
+
+    "follow_and_presenter_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "follow_target_minted",
+        "follow_target_superseded",
+        "follow_target_torn_down",
+        "presenter_state_minted",
+        "presenter_state_amended",
+        "presenter_handoff_recorded",
+        "focus_broadcast_posture_changed",
+        "degraded_follow_posture_applied",
+        "follow_and_presenter_audit_denial_emitted",
+        "follow_and_presenter_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_follow_and_presenter audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "follow_and_presenter_denial_reason": {
+      "type": "string",
+      "enum": [
+        "follow_mode_class_unresolved",
+        "follow_target_kind_class_unresolved",
+        "follow_target_unresolved",
+        "presenter_role_class_unresolved",
+        "focus_broadcast_posture_class_unresolved",
+        "presenter_handoff_kind_class_unresolved",
+        "presenter_authority_does_not_confer_mutation",
+        "focus_broadcast_without_presenter_role",
+        "presenter_handoff_requires_owner_admission",
+        "degraded_follow_posture_class_unresolved",
+        "hidden_input_injection_forbidden_during_degraded_follow",
+        "control_grant_not_inferable_from_presence_or_presenter_state",
+        "follow_persistence_forbidden_presenter_state_is_ephemeral_only",
+        "follow_and_presenter_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; a presenter row that claims mutating authority, a focus broadcast without a presenter role, a handoff without owner admission, a degraded follow row that implies input injection, or an attempt to infer shared terminal / debug control from presence or presenter state all deny explicitly rather than admit silent drift."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a follow or presenter row is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream review surfaces can resolve which policy bundle / epoch admitted the row and which workspace-trust posture each side held when it was minted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "follow_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_and_presenter_state_schema_version",
+        "record_kind",
+        "follow_target_id",
+        "session_ref",
+        "observer_actor_ref",
+        "follow_mode_class",
+        "follow_target_kind_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "follow_target_record" },
+        "follow_and_presenter_state_schema_version": { "$ref": "#/$defs/follow_and_presenter_state_schema_version" },
+        "follow_target_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound collaboration_session_record in schemas/collaboration/session_state.schema.json."
+        },
+        "observer_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the observer (the actor whose view is slaved to the target)."
+        },
+        "target_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the target actor when follow_target_kind_class is actor_cursor_target, buffer_selection_target, pane_focus_target, graph_focus_target, or review_diff_hunk_target. Not set when follow_target_kind_class is presenter_broadcast_channel (use presenter_state_ref instead)."
+        },
+        "presenter_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the presenter_state_record the observer subscribes to when follow_target_kind_class is presenter_broadcast_channel or follow_mode_class is presenter_broadcast_follow."
+        },
+        "buffer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the buffer the follow binds to when follow_target_kind_class is actor_cursor_target or buffer_selection_target."
+        },
+        "pane_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the pane the follow binds to when follow_target_kind_class is pane_focus_target."
+        },
+        "graph_surface_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the graph surface when follow_target_kind_class is graph_focus_target."
+        },
+        "review_diff_hunk_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review diff hunk when follow_target_kind_class is review_diff_hunk_target."
+        },
+        "follow_mode_class": { "$ref": "#/$defs/follow_mode_class" },
+        "follow_target_kind_class": { "$ref": "#/$defs/follow_target_kind_class" },
+        "degraded_follow_posture_class": {
+          "$ref": "#/$defs/degraded_follow_posture_class",
+          "description": "REQUIRED when follow_mode_class is follow_unavailable_live_state_missing. Names which degraded fallback is surfaced; none admits hidden input injection into the observer's buffer / terminal / debug surface."
+        },
+        "supersedes_follow_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior follow_target_record this row supersedes. A follow-mode change mints a fresh row rather than mutating an existing one."
+        },
+        "superseded_by_follow_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "follow_mode_class": { "const": "follow_unavailable_live_state_missing" } } },
+          "then": { "required": ["degraded_follow_posture_class"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "presenter_broadcast_channel" } } },
+          "then": { "required": ["presenter_state_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_mode_class": { "const": "presenter_broadcast_follow" } } },
+          "then": { "required": ["presenter_state_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "actor_cursor_target" } } },
+          "then": { "required": ["target_actor_ref", "buffer_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "buffer_selection_target" } } },
+          "then": { "required": ["target_actor_ref", "buffer_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "pane_focus_target" } } },
+          "then": { "required": ["target_actor_ref", "pane_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "graph_focus_target" } } },
+          "then": { "required": ["target_actor_ref", "graph_surface_ref"] }
+        },
+        {
+          "if": { "properties": { "follow_target_kind_class": { "const": "review_diff_hunk_target" } } },
+          "then": { "required": ["target_actor_ref", "review_diff_hunk_ref"] }
+        }
+      ],
+      "description": "One-row description of a follow relationship at a point in time. Follow state is ephemeral-session-only: a follow_target_record is never persisted past the session's end and never carries control authority over the target's buffer, terminal, or debug surface; mutating authority rides control_grant_record rows in the companion schema. A row that asserts durable persistence on a follow_target_record denies with follow_persistence_forbidden_presenter_state_is_ephemeral_only."
+    },
+
+    "presenter_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_and_presenter_state_schema_version",
+        "record_kind",
+        "presenter_state_id",
+        "session_ref",
+        "presenter_actor_ref",
+        "focus_broadcast_posture_class",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "presenter_state_record" },
+        "follow_and_presenter_state_schema_version": { "$ref": "#/$defs/follow_and_presenter_state_schema_version" },
+        "presenter_state_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the current presenter. Presenter authority is presenter_authoritative_for_view_only per the session-authority contract and never confers mutating authority; mutating action authority rides control_grant_record rows in the companion schema."
+        },
+        "co_presenter_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to co-presenters sharing the broadcast channel. Co-presenters MUST be admitted by the presenter; a silent co-presenter add without a paired presenter_handoff_record denies with presenter_handoff_requires_owner_admission."
+        },
+        "observer_actor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to observers subscribed to the broadcast."
+        },
+        "focus_broadcast_posture_class": { "$ref": "#/$defs/focus_broadcast_posture_class" },
+        "bound_pane_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the pane the presenter is currently focused on; observers under presenter_broadcast_follow track this pane."
+        },
+        "bound_buffer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the buffer the presenter is currently in; observers under presenter_broadcast_follow track this buffer."
+        },
+        "supersedes_presenter_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prior presenter_state_record this row supersedes. A presenter or co-presenter change mints a fresh row rather than mutating an existing one."
+        },
+        "superseded_by_presenter_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "focus_broadcast_posture_class": { "const": "focus_broadcast_active" } } },
+          "then": {
+            "required": ["bound_pane_ref"],
+            "description": "An active focus broadcast MUST name the pane it is broadcasting. Broadcasting into an empty presenter state denies with focus_broadcast_without_presenter_role at the consuming surface."
+          }
+        }
+      ],
+      "description": "One-row description of the presenter stance at a point in time. Presenter authority is presenter_authoritative_for_view_only; a row that asserts mutating authority on behalf of the presenter denies with presenter_authority_does_not_confer_mutation. Shared terminal or shared debug control is NOT inferable from this row; the grantee resolves only through a control_grant_record in the companion schema."
+    },
+
+    "presenter_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_and_presenter_state_schema_version",
+        "record_kind",
+        "presenter_handoff_id",
+        "session_ref",
+        "prior_presenter_actor_ref",
+        "next_presenter_actor_ref",
+        "presenter_handoff_kind_class",
+        "admitting_owner_actor_ref",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "presenter_handoff_record" },
+        "follow_and_presenter_state_schema_version": { "$ref": "#/$defs/follow_and_presenter_state_schema_version" },
+        "presenter_handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "prior_presenter_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "next_presenter_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_handoff_kind_class": { "$ref": "#/$defs/presenter_handoff_kind_class" },
+        "admitting_owner_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the session owner (or admin-signed policy actor) who admitted the handoff. A handoff minted without owner admission denies with presenter_handoff_requires_owner_admission."
+        },
+        "approval_ticket_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ADR-0010 approval-ticket ref. REQUIRED when presenter_handoff_kind_class is presenter_revoked_by_policy (the policy revocation MUST cite the admitting ticket); optional otherwise."
+        },
+        "prior_presenter_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "next_presenter_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "presenter_handoff_kind_class": { "const": "presenter_revoked_by_policy" } } },
+          "then": { "required": ["approval_ticket_ref"] }
+        }
+      ],
+      "description": "One-row description of a presenter handoff or revocation event. A handoff NEVER widens mutating authority; it only names who may direct follow and focus broadcast. Mutating authority over shared terminal or shared debug surfaces requires a separate control_grant_record in the companion schema."
+    },
+
+    "follow_and_presenter_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_and_presenter_state_schema_version",
+        "record_kind",
+        "audit_event_id_value",
+        "session_ref",
+        "audit_event_id",
+        "minted_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "follow_and_presenter_audit_event_record" },
+        "follow_and_presenter_state_schema_version": { "$ref": "#/$defs/follow_and_presenter_state_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "follow_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_state_ref": { "$ref": "#/$defs/opaque_id" },
+        "presenter_handoff_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/follow_and_presenter_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/follow_and_presenter_denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "minItems": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "follow_and_presenter_audit_denial_emitted" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_follow_and_presenter stream. Denials carry exactly one denial_reason from the closed vocabulary so reviewers can resolve why a row was refused without guessing."
+    }
+  }
+}
