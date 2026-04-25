@@ -1,0 +1,971 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/refactor_transaction.schema.json",
+  "title": "Aureline find/replace, rename, refactor, and imported/generated patch transaction contract",
+  "description": "Boundary schema for the refactor_transaction_record frozen in docs/editor/refactor_and_replace_transaction_contract.md. The record is the canonical transaction packet every find/replace surface, workspace replace flow, rename driver, refactor / move / extract proposal, and imported or generated patch applicator reads when an editor mutation crosses more than one match, more than one file, more than one symbol family, or any provider-backed semantic boundary. The record names the operation class, the requested scope, the acting provider, the safety posture, the atomicity guarantee, the preview / outcome / checkpoint / approval-ticket linkage, and the validation hook plan; raw match text, raw replacement text, raw patch bodies, raw diff hunks, raw paths, raw symbol bodies, raw provider logs, raw command lines, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, epoch bindings, and export-safe summaries only. Adding a new operation class, scope class, input kind, replacement kind, transaction state, atomicity class, safety class, mutation scope, preview requirement, apply posture, blocking reason, validation hook, replay hint, source kind, support class, freshness class, semantic-layer state, locality class, language provider family, or epoch role is additive-minor and requires a refactor_transaction_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/refactor_transaction_record"
+    }
+  ],
+  "$defs": {
+    "refactor_transaction_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "refactor_transaction_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "operation_class": {
+      "type": "string",
+      "enum": [
+        "find_replace_in_file",
+        "workspace_replace",
+        "rename_symbol",
+        "refactor_move_or_extract",
+        "imported_or_generated_patch_apply"
+      ]
+    },
+
+    "requested_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_selection_only",
+        "current_file_whole_document",
+        "open_buffers_only",
+        "named_path_set",
+        "workspace_full",
+        "semantic_symbol_graph_scope",
+        "imported_patch_declared_scope",
+        "generated_pair_family_scope"
+      ]
+    },
+
+    "input_kind_class": {
+      "type": "string",
+      "enum": [
+        "literal_text_query",
+        "regex_pattern_query",
+        "structural_match_query",
+        "semantic_symbol_query",
+        "imported_patch_input",
+        "generator_proposed_patch_input"
+      ]
+    },
+
+    "replacement_kind_class": {
+      "type": "string",
+      "enum": [
+        "literal_text_replacement",
+        "regex_template_replacement",
+        "semantic_symbol_rename",
+        "structural_rewrite",
+        "imported_patch_application",
+        "generator_provided_patch_application",
+        "no_replacement_inspect_only"
+      ]
+    },
+
+    "transaction_state_class": {
+      "type": "string",
+      "enum": [
+        "proposed_pending_preview",
+        "preview_assembled_awaiting_user_review",
+        "blocked_pending_user_review",
+        "blocked_pending_policy_or_trust",
+        "blocked_pending_provider_freshness",
+        "applying_in_progress",
+        "applied_full",
+        "applied_partial_with_skipped_members",
+        "rolled_back_full",
+        "rolled_back_partial",
+        "failed_compensating_revert_required",
+        "manual_review_required",
+        "regenerate_first_required"
+      ]
+    },
+
+    "atomicity_class": {
+      "type": "string",
+      "enum": [
+        "atomic_apply_or_none",
+        "per_file_atomic",
+        "per_match_atomic",
+        "best_effort_with_skipped_members",
+        "imported_patch_atomicity_inherited"
+      ]
+    },
+
+    "safety_class": {
+      "type": "string",
+      "enum": [
+        "trivia_safe",
+        "local_text_safe",
+        "single_file_semantic",
+        "cross_file_semantic",
+        "workspace_text_broad",
+        "imported_or_generated_patch",
+        "generated_or_protected",
+        "unknown_or_unstable"
+      ]
+    },
+
+    "mutation_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_anchor",
+        "single_file_localized",
+        "single_file_whole_document",
+        "multi_file_same_module",
+        "multi_file_workspace",
+        "semantic_symbol_graph",
+        "imported_patch_scope",
+        "generated_family",
+        "protected_or_policy_scoped"
+      ]
+    },
+
+    "preview_requirement_class": {
+      "type": "string",
+      "enum": [
+        "not_required_local_inline",
+        "inline_summary",
+        "structured_diff_required",
+        "batch_scope_preview_required",
+        "rename_impact_preview_required",
+        "imported_patch_preview_required",
+        "generated_or_protected_preview_required",
+        "policy_or_repo_mutation_preview_required"
+      ]
+    },
+
+    "apply_posture_class": {
+      "type": "string",
+      "enum": [
+        "apply_inline_allowed",
+        "preview_before_apply_required",
+        "blocked_pending_user_review",
+        "blocked_pending_policy_or_trust",
+        "blocked_pending_provider_freshness",
+        "not_applicable_inspect_only"
+      ]
+    },
+
+    "blocking_reason_class": {
+      "type": "string",
+      "enum": [
+        "generated_paths_present",
+        "protected_paths_present",
+        "policy_denied",
+        "provider_freshness_unmet",
+        "semantic_index_partial",
+        "semantic_index_stale",
+        "semantic_epoch_mismatch",
+        "imported_patch_anchor_unresolved",
+        "imported_patch_signature_unverified",
+        "external_modification_detected",
+        "open_buffer_dirty_uncommitted",
+        "merge_conflict_detected",
+        "checkpoint_unavailable",
+        "approval_ticket_required",
+        "step_up_auth_required"
+      ]
+    },
+
+    "validation_hook_class": {
+      "type": "string",
+      "enum": [
+        "rerun_diagnostic_provider",
+        "rerun_build_or_test",
+        "refresh_semantic_snapshot",
+        "rerun_rename_impact_query",
+        "review_generated_outputs",
+        "inspect_protected_paths",
+        "compare_imported_baseline_delta",
+        "rerun_formatter_or_organize_imports",
+        "no_automatic_validation_available"
+      ]
+    },
+
+    "replay_hint_class": {
+      "type": "string",
+      "enum": [
+        "replay_against_same_execution_context",
+        "replay_against_new_semantic_epoch",
+        "export_review_packet",
+        "attach_support_bundle_evidence",
+        "requires_rule_metadata_refresh",
+        "rebuild_imported_patch_from_source"
+      ]
+    },
+
+    "source_kind_class": {
+      "type": "string",
+      "enum": [
+        "compiler_or_build",
+        "language_server",
+        "linter_formatter_style",
+        "framework_or_schema_analyzer",
+        "runtime_test_or_debug",
+        "policy_trust_or_security",
+        "editor_text_engine",
+        "automation_or_recipe",
+        "imported_patch_source",
+        "generator_source_bridge"
+      ]
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "first_party_supported",
+        "first_party_best_effort",
+        "external_tooling",
+        "policy_governed",
+        "imported_static_only"
+      ]
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverifiable"
+      ]
+    },
+
+    "semantic_layer_state_class": {
+      "type": "string",
+      "enum": [
+        "semantic_current_exact",
+        "semantic_current_remapped",
+        "semantic_narrowed_scope",
+        "semantic_cached_recent",
+        "semantic_stale_epoch_mismatch",
+        "syntactic_or_text_only",
+        "structural_or_ast_only",
+        "imported_patch_only",
+        "policy_asserted_non_semantic"
+      ]
+    },
+
+    "language_provider_family": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "syntax",
+            "project_graph",
+            "language_server",
+            "framework_pack",
+            "notebook_adapter",
+            "generated_source_bridge",
+            "ai_assist",
+            "editor_text_engine",
+            "imported_patch_engine"
+          ]
+        }
+      ]
+    },
+
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "language_semantic_model",
+        "build_graph",
+        "execution_run",
+        "imported_scan",
+        "imported_patch",
+        "anchor_remap_family",
+        "policy_bundle",
+        "search_index_epoch",
+        "generated_artifact_lineage"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "input_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_kind_class",
+        "case_sensitive",
+        "whole_word",
+        "uses_regex",
+        "uses_structural_match",
+        "imported_patch_ref",
+        "input_summary"
+      ],
+      "properties": {
+        "input_kind_class": {
+          "$ref": "#/$defs/input_kind_class"
+        },
+        "case_sensitive": {
+          "type": "boolean"
+        },
+        "whole_word": {
+          "type": "boolean"
+        },
+        "uses_regex": {
+          "type": "boolean"
+        },
+        "uses_structural_match": {
+          "type": "boolean"
+        },
+        "imported_patch_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "symbol_target_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "input_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "replacement_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replacement_kind_class",
+        "preserves_capture_groups",
+        "preserves_indentation",
+        "imported_patch_ref",
+        "replacement_summary"
+      ],
+      "properties": {
+        "replacement_kind_class": {
+          "$ref": "#/$defs/replacement_kind_class"
+        },
+        "preserves_capture_groups": {
+          "type": "boolean"
+        },
+        "preserves_indentation": {
+          "type": "boolean"
+        },
+        "imported_patch_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "new_symbol_name_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "replacement_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "scope_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_scope_class",
+        "include_path_set_ref",
+        "exclude_path_set_ref",
+        "respects_workspace_excludes",
+        "respects_vcs_ignore",
+        "limited_to_open_buffers",
+        "follows_symlinks",
+        "scope_summary"
+      ],
+      "properties": {
+        "requested_scope_class": {
+          "$ref": "#/$defs/requested_scope_class"
+        },
+        "include_path_set_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "exclude_path_set_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "respects_workspace_excludes": {
+          "type": "boolean"
+        },
+        "respects_vcs_ignore": {
+          "type": "boolean"
+        },
+        "limited_to_open_buffers": {
+          "type": "boolean"
+        },
+        "follows_symlinks": {
+          "type": "boolean"
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "acting_provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "source_kind_class",
+        "support_class",
+        "provider_display_label",
+        "tool_identity_ref",
+        "tool_version_ref",
+        "language_provider_family",
+        "freshness_class",
+        "locality_class",
+        "semantic_layer_state_class",
+        "current_epoch_bindings",
+        "summary"
+      ],
+      "properties": {
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "source_kind_class": {
+          "$ref": "#/$defs/source_kind_class"
+        },
+        "support_class": {
+          "$ref": "#/$defs/support_class"
+        },
+        "provider_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "tool_identity_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "tool_version_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "language_provider_family": {
+          "$ref": "#/$defs/language_provider_family"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "semantic_layer_state_class": {
+          "$ref": "#/$defs/semantic_layer_state_class"
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          }
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "validation_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_hook_classes",
+        "replay_hint_classes",
+        "validation_summary"
+      ],
+      "properties": {
+        "validation_hook_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation_hook_class"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replay_hint_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/replay_hint_class"
+          },
+          "uniqueItems": true
+        },
+        "validation_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "refactor_transaction_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "refactor_transaction_schema_version",
+        "transaction_id",
+        "transaction_label",
+        "operation_class",
+        "input_descriptor",
+        "replacement_descriptor",
+        "scope_descriptor",
+        "acting_provider",
+        "transaction_state_class",
+        "atomicity_class",
+        "safety_class",
+        "mutation_scope_class",
+        "preview_requirement_class",
+        "apply_posture_class",
+        "blocking_reason_classes",
+        "preview_packet_ref",
+        "outcome_packet_ref",
+        "checkpoint_ref",
+        "approval_ticket_ref",
+        "review_packet_ref",
+        "originating_code_action_summary_ref",
+        "originating_diagnostic_cluster_refs",
+        "current_epoch_bindings",
+        "validation_plan",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "refactor_transaction_schema_version": {
+          "$ref": "#/$defs/refactor_transaction_schema_version"
+        },
+        "transaction_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "transaction_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "operation_class": {
+          "$ref": "#/$defs/operation_class"
+        },
+        "input_descriptor": {
+          "$ref": "#/$defs/input_descriptor"
+        },
+        "replacement_descriptor": {
+          "$ref": "#/$defs/replacement_descriptor"
+        },
+        "scope_descriptor": {
+          "$ref": "#/$defs/scope_descriptor"
+        },
+        "acting_provider": {
+          "$ref": "#/$defs/acting_provider"
+        },
+        "transaction_state_class": {
+          "$ref": "#/$defs/transaction_state_class"
+        },
+        "atomicity_class": {
+          "$ref": "#/$defs/atomicity_class"
+        },
+        "safety_class": {
+          "$ref": "#/$defs/safety_class"
+        },
+        "mutation_scope_class": {
+          "$ref": "#/$defs/mutation_scope_class"
+        },
+        "preview_requirement_class": {
+          "$ref": "#/$defs/preview_requirement_class"
+        },
+        "apply_posture_class": {
+          "$ref": "#/$defs/apply_posture_class"
+        },
+        "blocking_reason_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blocking_reason_class"
+          },
+          "uniqueItems": true
+        },
+        "preview_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "outcome_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "review_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "originating_code_action_summary_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "originating_diagnostic_cluster_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "uniqueItems": true
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          }
+        },
+        "validation_plan": {
+          "$ref": "#/$defs/validation_plan"
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "description": "Multi-file or provider-backed operations cannot claim safe-apply: workspace_replace, rename_symbol, refactor_move_or_extract, and imported_or_generated_patch_apply MUST resolve to a preview-required preview_requirement_class and MUST NOT resolve to apply_inline_allowed.",
+          "if": {
+            "properties": {
+              "operation_class": {
+                "enum": [
+                  "workspace_replace",
+                  "rename_symbol",
+                  "refactor_move_or_extract",
+                  "imported_or_generated_patch_apply"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preview_requirement_class": {
+                "enum": [
+                  "structured_diff_required",
+                  "batch_scope_preview_required",
+                  "rename_impact_preview_required",
+                  "imported_patch_preview_required",
+                  "generated_or_protected_preview_required",
+                  "policy_or_repo_mutation_preview_required"
+                ]
+              },
+              "apply_posture_class": {
+                "enum": [
+                  "preview_before_apply_required",
+                  "blocked_pending_user_review",
+                  "blocked_pending_policy_or_trust",
+                  "blocked_pending_provider_freshness",
+                  "not_applicable_inspect_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Imported or generated patch operations MUST cite a non-null imported_patch_ref on either the input_descriptor or replacement_descriptor so the patch source remains attributable.",
+          "if": {
+            "properties": {
+              "operation_class": {
+                "const": "imported_or_generated_patch_apply"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "input_descriptor": {
+                    "properties": {
+                      "imported_patch_ref": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imported_patch_ref"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "replacement_descriptor": {
+                    "properties": {
+                      "imported_patch_ref": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imported_patch_ref"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "Rename and refactor / move / extract operations MUST run on a current or remapped semantic layer; syntactic_or_text_only, semantic_stale_epoch_mismatch, and imported_patch_only acting providers MUST NOT host rename_symbol or refactor_move_or_extract under apply_inline_allowed.",
+          "if": {
+            "properties": {
+              "operation_class": {
+                "enum": [
+                  "rename_symbol",
+                  "refactor_move_or_extract"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "apply_posture_class": {
+                "not": {
+                  "const": "apply_inline_allowed"
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any non-empty blocking_reason_classes set MUST resolve transaction_state_class into a blocked, manual-review, regenerate-first, or failed state and MUST NOT report applied_full or applied_partial_with_skipped_members at the same time.",
+          "if": {
+            "properties": {
+              "blocking_reason_classes": {
+                "minItems": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transaction_state_class": {
+                "enum": [
+                  "proposed_pending_preview",
+                  "preview_assembled_awaiting_user_review",
+                  "blocked_pending_user_review",
+                  "blocked_pending_policy_or_trust",
+                  "blocked_pending_provider_freshness",
+                  "manual_review_required",
+                  "regenerate_first_required",
+                  "failed_compensating_revert_required"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "An applied_full, applied_partial_with_skipped_members, rolled_back_full, or rolled_back_partial transaction MUST cite a non-null outcome_packet_ref so the reversal record is attributable.",
+          "if": {
+            "properties": {
+              "transaction_state_class": {
+                "enum": [
+                  "applied_full",
+                  "applied_partial_with_skipped_members",
+                  "rolled_back_full",
+                  "rolled_back_partial"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome_packet_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_packet_ref"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

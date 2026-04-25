@@ -1,0 +1,622 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/refactor_outcome.schema.json",
+  "title": "Aureline refactor / replace outcome and reversal contract",
+  "description": "Boundary schema for the refactor_outcome_record frozen in docs/editor/refactor_and_replace_transaction_contract.md. The record is the governed outcome packet every find/replace, workspace replace, rename, refactor / move / extract, and imported or generated patch apply surface emits when a refactor_transaction_record completes, partially completes, blocks, rolls back, or fails. It captures the final transaction state, the reversal class (exact undo, compensating revert, regenerate-first, manual-review-required, or no safe reversal), the applied / skipped / blocked counts, the per-member skipped / blocked rows with reason classes, the validation hook state, the linked checkpoint and approval-ticket refs, and the next-action posture. Raw applied diff bodies, raw patch bodies, raw rollback artifacts, raw paths, raw symbol bodies, raw provider logs, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, epoch bindings, and export-safe summaries only. Adding a new final-state class, reversal class, skipped / blocked reason, validation-hook state, replay hint, source-kind class, support class, freshness class, semantic-layer state, locality class, language provider family, redaction class, or epoch role is additive-minor and bumps refactor_outcome_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/refactor_outcome_record"
+    }
+  ],
+  "$defs": {
+    "refactor_outcome_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "refactor_outcome_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "operation_class": {
+      "type": "string",
+      "enum": [
+        "find_replace_in_file",
+        "workspace_replace",
+        "rename_symbol",
+        "refactor_move_or_extract",
+        "imported_or_generated_patch_apply"
+      ]
+    },
+
+    "final_state_class": {
+      "type": "string",
+      "enum": [
+        "applied_full",
+        "applied_partial_with_skipped_members",
+        "blocked_no_changes_made",
+        "rolled_back_full",
+        "rolled_back_partial",
+        "failed_compensating_revert_required",
+        "manual_review_required",
+        "regenerate_first_required"
+      ]
+    },
+
+    "reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo_via_local_history_checkpoint",
+        "compensating_revert_via_workspace_diff",
+        "regenerate_first_then_replay",
+        "imported_patch_inverse_required",
+        "manual_review_required_no_automatic_path",
+        "no_safe_reversal_available"
+      ]
+    },
+
+    "skipped_or_blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "skipped_due_to_user_deselection",
+        "skipped_due_to_external_modification",
+        "skipped_due_to_open_buffer_dirty",
+        "skipped_due_to_merge_conflict",
+        "blocked_due_to_generated_path",
+        "blocked_due_to_protected_or_policy_path",
+        "blocked_due_to_provider_freshness_floor",
+        "blocked_due_to_semantic_index_partial",
+        "blocked_due_to_imported_patch_anchor_unresolved",
+        "blocked_due_to_imported_patch_signature_unverified",
+        "blocked_due_to_binary_or_unsupported_encoding",
+        "blocked_due_to_symlink_policy",
+        "blocked_due_to_unloaded_root",
+        "blocked_due_to_approval_ticket_required",
+        "blocked_due_to_step_up_auth_required",
+        "blocked_due_to_validation_hook_failure",
+        "failed_due_to_io_error",
+        "failed_due_to_provider_crash"
+      ]
+    },
+
+    "validation_hook_state_class": {
+      "type": "string",
+      "enum": [
+        "hooks_unavailable_no_validation_path",
+        "hooks_available_pending_run",
+        "hooks_run_passed",
+        "hooks_run_failed",
+        "hooks_skipped_by_user",
+        "hooks_skipped_due_to_policy",
+        "hooks_partial_some_passed_some_failed"
+      ]
+    },
+
+    "next_action_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_validation",
+        "user_review_pending_skipped_members",
+        "user_review_pending_blocked_members",
+        "regenerate_first_then_re_apply",
+        "open_compensating_revert_review",
+        "manual_review_required",
+        "no_further_action_required"
+      ]
+    },
+
+    "validation_hook_class": {
+      "type": "string",
+      "enum": [
+        "rerun_diagnostic_provider",
+        "rerun_build_or_test",
+        "refresh_semantic_snapshot",
+        "rerun_rename_impact_query",
+        "review_generated_outputs",
+        "inspect_protected_paths",
+        "compare_imported_baseline_delta",
+        "rerun_formatter_or_organize_imports",
+        "no_automatic_validation_available"
+      ]
+    },
+
+    "replay_hint_class": {
+      "type": "string",
+      "enum": [
+        "replay_against_same_execution_context",
+        "replay_against_new_semantic_epoch",
+        "export_review_packet",
+        "attach_support_bundle_evidence",
+        "requires_rule_metadata_refresh",
+        "rebuild_imported_patch_from_source"
+      ]
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverifiable"
+      ]
+    },
+
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "language_semantic_model",
+        "build_graph",
+        "execution_run",
+        "imported_scan",
+        "imported_patch",
+        "anchor_remap_family",
+        "policy_bundle",
+        "search_index_epoch",
+        "generated_artifact_lineage"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "epoch_role_class",
+        "epoch_ref"
+      ],
+      "properties": {
+        "epoch_role_class": {
+          "$ref": "#/$defs/epoch_role_class"
+        },
+        "epoch_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "outcome_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "applied_match_count",
+        "applied_file_count",
+        "applied_symbol_count",
+        "skipped_match_count",
+        "skipped_file_count",
+        "blocked_path_count",
+        "rolled_back_file_count"
+      ],
+      "properties": {
+        "applied_match_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "applied_file_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "applied_symbol_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "skipped_match_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "skipped_file_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "blocked_path_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "rolled_back_file_count": {
+          "$ref": "#/$defs/non_negative_int"
+        }
+      }
+    },
+
+    "skipped_or_blocked_member_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skipped_or_blocked_reason_class",
+        "member_kind_label",
+        "member_count",
+        "member_set_ref",
+        "summary"
+      ],
+      "properties": {
+        "skipped_or_blocked_reason_class": {
+          "$ref": "#/$defs/skipped_or_blocked_reason_class"
+        },
+        "member_kind_label": {
+          "type": "string",
+          "enum": [
+            "match",
+            "file",
+            "symbol",
+            "anchor",
+            "imported_patch_hunk"
+          ]
+        },
+        "member_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "member_set_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "validation_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_hook_state_class",
+        "available_hook_classes",
+        "replay_hint_classes",
+        "summary"
+      ],
+      "properties": {
+        "validation_hook_state_class": {
+          "$ref": "#/$defs/validation_hook_state_class"
+        },
+        "available_hook_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation_hook_class"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replay_hint_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/replay_hint_class"
+          },
+          "uniqueItems": true
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "refactor_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "refactor_outcome_schema_version",
+        "outcome_id",
+        "transaction_ref",
+        "preview_ref",
+        "operation_class",
+        "final_state_class",
+        "reversal_class",
+        "outcome_counts",
+        "skipped_or_blocked_members",
+        "validation_state",
+        "next_action_class",
+        "checkpoint_ref",
+        "compensating_revert_ref",
+        "approval_ticket_ref",
+        "review_packet_ref",
+        "current_epoch_bindings",
+        "policy_context",
+        "redaction_class",
+        "completed_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "refactor_outcome_schema_version": {
+          "$ref": "#/$defs/refactor_outcome_schema_version"
+        },
+        "outcome_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "transaction_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "preview_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "operation_class": {
+          "$ref": "#/$defs/operation_class"
+        },
+        "final_state_class": {
+          "$ref": "#/$defs/final_state_class"
+        },
+        "reversal_class": {
+          "$ref": "#/$defs/reversal_class"
+        },
+        "outcome_counts": {
+          "$ref": "#/$defs/outcome_counts"
+        },
+        "skipped_or_blocked_members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skipped_or_blocked_member_row"
+          },
+          "uniqueItems": true
+        },
+        "validation_state": {
+          "$ref": "#/$defs/validation_state"
+        },
+        "next_action_class": {
+          "$ref": "#/$defs/next_action_class"
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "compensating_revert_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "review_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "current_epoch_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epoch_binding"
+          }
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "description": "applied_full and applied_partial_with_skipped_members outcomes MUST cite a non-null checkpoint_ref so exact_undo_via_local_history_checkpoint or compensating_revert_via_workspace_diff stays attributable.",
+          "if": {
+            "properties": {
+              "final_state_class": {
+                "enum": [
+                  "applied_full",
+                  "applied_partial_with_skipped_members"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "checkpoint_ref"
+            ]
+          }
+        },
+        {
+          "description": "applied_partial_with_skipped_members outcomes MUST list at least one skipped_or_blocked_member row so the partial scope is reviewable.",
+          "if": {
+            "properties": {
+              "final_state_class": {
+                "const": "applied_partial_with_skipped_members"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "skipped_or_blocked_members": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "failed_compensating_revert_required outcomes MUST resolve reversal_class to compensating_revert_via_workspace_diff or imported_patch_inverse_required and MUST cite a non-null compensating_revert_ref.",
+          "if": {
+            "properties": {
+              "final_state_class": {
+                "const": "failed_compensating_revert_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reversal_class": {
+                "enum": [
+                  "compensating_revert_via_workspace_diff",
+                  "imported_patch_inverse_required"
+                ]
+              },
+              "compensating_revert_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "compensating_revert_ref"
+            ]
+          }
+        },
+        {
+          "description": "regenerate_first_required outcomes MUST resolve reversal_class to regenerate_first_then_replay; manual_review_required outcomes MUST resolve reversal_class to manual_review_required_no_automatic_path; blocked_no_changes_made outcomes MUST report zero applied_match_count, zero applied_file_count, and zero applied_symbol_count.",
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "final_state_class": {
+                    "const": "regenerate_first_required"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "reversal_class": {
+                    "const": "regenerate_first_then_replay"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "final_state_class": {
+                    "const": "manual_review_required"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "reversal_class": {
+                    "const": "manual_review_required_no_automatic_path"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "final_state_class": {
+                    "const": "blocked_no_changes_made"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "outcome_counts": {
+                    "properties": {
+                      "applied_match_count": {
+                        "const": 0
+                      },
+                      "applied_file_count": {
+                        "const": 0
+                      },
+                      "applied_symbol_count": {
+                        "const": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
