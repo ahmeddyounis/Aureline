@@ -1,0 +1,640 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/status_transition_packet.schema.json",
+  "title": "Aureline work-item status-transition packet vocabulary",
+  "description": "Boundary schema for the status_transition_packet_record frozen in docs/work_items/work_item_contract.md. One record family pins a previewed-but-not-yet-applied transition over a work-item detail row: the typed transition kinds (comment, assignee, state, label, linked branch / review mutation, unlink, validation-evidence attachment, publish-preview update, subscriber, blocking relationship), the resolved transition_action_class that says whether the action will mutate provider state, save a local draft only, queue for publish-later, route through a browser-handoff packet, or stay inspect-only, the projected notification side effects, the projected permission scope, and the typed transition_admissibility_class that gates the apply path. The packet never claims the provider has accepted the transition; the packet is the structured preview the user confirms against, and the apply path is a separate event recorded through the provider-mode contract (publish_now ticket, deferred_publish queue item, open_in_provider browser handoff) or through the local-draft commit path. Composes with the work_item_detail_record schema (binds back to one detail row), the publish-later contract (cites publish_later_queue_item_record, provider_consequence_preview_record, account_mapping_binding_record, provider_callback_envelope_record on apply), the review-workspace / review-pack / change-stack contracts (cites review_workspace_record, review_pack_record, change_object_record, patch_stack_record on linked-branch / linked-review / change-intent transitions), the browser-handoff packet (cites browser_handoff_packet_record on route_through_browser_handoff transitions), and the offline-handoff packet (cites offline_handoff_packet_record when the transition was captured offline). Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw notification message bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw stdout / stderr never cross this boundary regardless of redaction class. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, transition_kind_class, transition_action_class, notification_side_effect_class, permission_scope_class, transition_admissibility_class, denial_reason, or audit_event_id is additive-minor and bumps status_transition_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/status_transition_packet_record" },
+    { "$ref": "#/$defs/status_transition_packet_audit_event_record" }
+  ],
+  "$defs": {
+    "status_transition_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the status-transition packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "status_transition_packet_record",
+        "status_transition_packet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw notification message bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw stdout / stderr never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class re-exported verbatim from schemas/integration/browser_handoff_packet.schema.json. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the transition packet was authored under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Mutation mode re-exported verbatim from schemas/providers/publish_later_record.schema.json (ADR-0010). The transition packet pre-resolves the mode at preview time so the user confirms against the same vocabulary every other provider-linked surface uses."
+    },
+
+    "transition_kind_class": {
+      "type": "string",
+      "enum": [
+        "add_or_update_comment",
+        "delete_comment",
+        "assign_or_unassign_owner",
+        "change_lifecycle_state_token",
+        "change_priority_or_severity_token",
+        "change_milestone_or_iteration_token",
+        "add_or_remove_label",
+        "link_branch_or_worktree",
+        "unlink_branch_or_worktree",
+        "link_review_or_change_object",
+        "unlink_review_or_change_object",
+        "attach_validation_evidence",
+        "detach_validation_evidence",
+        "update_publish_preview",
+        "add_or_remove_subscriber_or_watcher",
+        "mark_blocked_or_blocking_relationship",
+        "rename_title_label",
+        "merge_or_close_with_resolution_token"
+      ],
+      "description": "Frozen transition-kind axis. A single packet MAY carry one transition_entry per kind (or multiple of the same kind) but every entry resolves a typed transition_action_class so a downstream surface can disclose mutate-vs-draft truth mechanically."
+    },
+
+    "transition_action_class": {
+      "type": "string",
+      "enum": [
+        "mutate_provider_state_publish_now",
+        "save_local_draft_only_no_provider_path",
+        "queue_for_publish_later_deferred",
+        "route_through_browser_handoff_open_in_provider",
+        "inspect_only_no_mutation",
+        "captured_offline_pending_drain"
+      ],
+      "description": "Frozen transition-action class. mutate_provider_state_publish_now means the apply path will mint a publish_now approval ticket and call the provider immediately; save_local_draft_only_no_provider_path means the apply path will write a local draft and never call the provider; queue_for_publish_later_deferred means the apply path will mint a publish_later_queue_item_record (deferred_publish); route_through_browser_handoff_open_in_provider means the apply path will hand off to the system browser through a browser_handoff_packet_record (open_in_provider); inspect_only_no_mutation means the packet is a structured what-if preview with no apply path; captured_offline_pending_drain means the transition was captured offline and is pinned to an offline_handoff_packet_record awaiting drain through the publish-later queue."
+    },
+
+    "notification_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_notification_locally_only",
+        "notify_assignees_on_provider_publish",
+        "notify_subscribers_on_provider_publish",
+        "notify_linked_review_authors_on_provider_publish",
+        "mention_explicit_actor_on_provider_publish",
+        "notify_managed_admin_on_provider_publish",
+        "notification_blocked_pending_workspace_trust",
+        "notification_unknown_until_publish_admitted_pending_review",
+        "notification_suppressed_by_user_choice_explicit_opt_out"
+      ],
+      "description": "Frozen notification-side-effect class projected by the transition. notification_unknown_until_publish_admitted_pending_review is the safe default when the apply path will route through a queue or browser handoff and the actual notification fan-out cannot be predicted before drain; the surface MUST disclose the unknown lane rather than label it as 'no notification'."
+    },
+
+    "permission_scope_class": {
+      "type": "string",
+      "enum": [
+        "permission_admissible_user_writes_provider",
+        "permission_admissible_assignee_only",
+        "permission_admissible_under_install_or_app_grant",
+        "permission_admissible_under_browser_handoff_only",
+        "permission_admissible_under_managed_admin_only",
+        "permission_admissible_under_local_draft_only",
+        "permission_blocked_provider_read_only_scope",
+        "permission_blocked_actor_class_forbidden",
+        "permission_blocked_workspace_trust_unset_or_restricted",
+        "permission_unknown_pending_actor_resolution"
+      ],
+      "description": "Frozen permission-scope class projected by the transition. permission_unknown_pending_actor_resolution is admissible only when the bound account_mapping_binding_record is in pending_user_selection / pending_account_link / pending_policy_review."
+    },
+
+    "transition_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "admissible_now_publish_now",
+        "admissible_via_queue_for_publish_later",
+        "admissible_via_browser_handoff_only",
+        "admissible_local_draft_only",
+        "admissible_inspect_only_what_if",
+        "blocked_pending_prerequisites",
+        "blocked_provider_read_only_scope",
+        "blocked_actor_class_forbidden",
+        "blocked_workspace_trust_unset_or_restricted",
+        "blocked_freshness_floor_unsatisfied",
+        "blocked_account_mapping_pending",
+        "blocked_imported_evidence_only_no_provider_path"
+      ],
+      "description": "Frozen transition-admissibility class. The packet pre-resolves admissibility against the bound work_item_detail_record's write_authority_class, the workspace trust state, the freshness floor, and the account-mapping binding so the apply control reads the typed admissibility lane mechanically."
+    },
+
+    "linked_artifact_change_class": {
+      "type": "string",
+      "enum": [
+        "no_artifact_change",
+        "bind_review_workspace_record_id_ref",
+        "unbind_review_workspace_record_id_ref",
+        "bind_review_pack_record_id_ref",
+        "unbind_review_pack_record_id_ref",
+        "bind_change_object_record_id_ref",
+        "unbind_change_object_record_id_ref",
+        "bind_patch_stack_record_id_ref",
+        "unbind_patch_stack_record_id_ref",
+        "bind_branch_local_locator_ref",
+        "unbind_branch_local_locator_ref",
+        "bind_browser_handoff_packet_ref",
+        "unbind_browser_handoff_packet_ref",
+        "bind_validation_evidence_record_id_ref",
+        "unbind_validation_evidence_record_id_ref",
+        "bind_provider_consequence_preview_record_id_ref",
+        "unbind_provider_consequence_preview_record_id_ref"
+      ],
+      "description": "Frozen artifact-binding mutation class for transitions whose kind is link_branch_or_worktree, unlink_branch_or_worktree, link_review_or_change_object, unlink_review_or_change_object, attach_validation_evidence, detach_validation_evidence, or update_publish_preview. The packet preserves the typed bind / unbind action and the matching opaque ref so a downstream surface can apply the linkage mechanically."
+    },
+
+    "transition_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transition_entry_id",
+        "transition_kind_class",
+        "transition_action_class",
+        "notification_side_effect_class",
+        "permission_scope_class",
+        "transition_admissibility_class",
+        "summary"
+      ],
+      "properties": {
+        "transition_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "transition_kind_class": { "$ref": "#/$defs/transition_kind_class" },
+        "transition_action_class": { "$ref": "#/$defs/transition_action_class" },
+        "notification_side_effect_class": { "$ref": "#/$defs/notification_side_effect_class" },
+        "permission_scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "transition_admissibility_class": { "$ref": "#/$defs/transition_admissibility_class" },
+        "expected_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "previous_state_value": {
+          "type": "string",
+          "description": "Verbatim previous state token (lifecycle / priority / milestone / label / assignee subject ref, etc.). Empty when the transition kind has no previous-state slot (e.g. add_or_update_comment)."
+        },
+        "next_state_value": {
+          "type": "string",
+          "description": "Verbatim next state token. Empty when the transition kind has no next-state slot (e.g. delete_comment, unbind_review_pack_record_id_ref)."
+        },
+        "linked_artifact_change_class": { "$ref": "#/$defs/linked_artifact_change_class" },
+        "linked_artifact_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the artifact the bind / unbind acts on. Required when linked_artifact_change_class is one of the bind_* / unbind_* values; empty for no_artifact_change."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the apply path will route through. Required when transition_action_class is route_through_browser_handoff_open_in_provider."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record the apply path will mint or update. Required when transition_action_class is queue_for_publish_later_deferred or captured_offline_pending_drain."
+        },
+        "linked_provider_consequence_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_consequence_preview_record bound to this transition entry. Required when transition_action_class is mutate_provider_state_publish_now or queue_for_publish_later_deferred."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_mapping_binding_record the apply path resolves under. Required when permission_scope_class is permission_unknown_pending_actor_resolution."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the offline_handoff_packet_record the transition was captured into. Required when transition_action_class is captured_offline_pending_drain."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "route_through_browser_handoff_open_in_provider MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "transition_action_class": { "const": "route_through_browser_handoff_open_in_provider" }
+            },
+            "required": ["transition_action_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "queue_for_publish_later_deferred MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_action_class": { "const": "queue_for_publish_later_deferred" }
+            },
+            "required": ["transition_action_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "captured_offline_pending_drain MUST cite a non-empty linked_offline_handoff_packet_record_id_ref AND a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_action_class": { "const": "captured_offline_pending_drain" }
+            },
+            "required": ["transition_action_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "linked_offline_handoff_packet_record_id_ref",
+              "linked_publish_later_queue_item_record_id_ref"
+            ]
+          }
+        },
+        {
+          "description": "permission_unknown_pending_actor_resolution MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "permission_scope_class": { "const": "permission_unknown_pending_actor_resolution" }
+            },
+            "required": ["permission_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "Linked-artifact bind / unbind kinds MUST cite a typed linked_artifact_change_class outside no_artifact_change AND a non-empty linked_artifact_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_kind_class": {
+                "enum": [
+                  "link_branch_or_worktree",
+                  "unlink_branch_or_worktree",
+                  "link_review_or_change_object",
+                  "unlink_review_or_change_object",
+                  "attach_validation_evidence",
+                  "detach_validation_evidence",
+                  "update_publish_preview"
+                ]
+              }
+            },
+            "required": ["transition_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_change_class": {
+                "not": { "const": "no_artifact_change" }
+              },
+              "linked_artifact_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_artifact_change_class", "linked_artifact_record_id_ref"]
+          }
+        },
+        {
+          "description": "save_local_draft_only_no_provider_path MUST resolve notification_side_effect_class to no_notification_locally_only.",
+          "if": {
+            "properties": {
+              "transition_action_class": { "const": "save_local_draft_only_no_provider_path" }
+            },
+            "required": ["transition_action_class"]
+          },
+          "then": {
+            "properties": {
+              "notification_side_effect_class": { "const": "no_notification_locally_only" }
+            }
+          }
+        },
+        {
+          "description": "inspect_only_no_mutation MUST resolve notification_side_effect_class to no_notification_locally_only and transition_admissibility_class to admissible_inspect_only_what_if.",
+          "if": {
+            "properties": {
+              "transition_action_class": { "const": "inspect_only_no_mutation" }
+            },
+            "required": ["transition_action_class"]
+          },
+          "then": {
+            "properties": {
+              "notification_side_effect_class": { "const": "no_notification_locally_only" },
+              "transition_admissibility_class": { "const": "admissible_inspect_only_what_if" }
+            }
+          }
+        }
+      ],
+      "description": "One transition entry. A packet carries an ordered list of entries; the apply path applies them in order under the same approval-ticket / queue-item / browser-handoff envelope."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the packet was authored under. Revalidated at apply; an apply against a mismatched origin denies."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the packet was authored under. Revalidated at apply; a policy-epoch roll between author and apply re-evaluates the packet."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "transition_action_class_must_resolve_to_typed_class",
+        "transition_admissibility_class_must_resolve_to_typed_class",
+        "notification_side_effect_class_must_resolve_to_typed_class",
+        "permission_scope_class_must_resolve_to_typed_class",
+        "browser_handoff_required_for_open_in_provider_action",
+        "publish_later_queue_item_required_for_deferred_action",
+        "publish_later_queue_item_required_for_captured_offline_action",
+        "offline_handoff_packet_required_for_captured_offline_action",
+        "account_mapping_required_for_unknown_actor_resolution",
+        "consequence_preview_required_for_publish_now_action",
+        "consequence_preview_required_for_irreversible_or_release_class_action",
+        "save_local_draft_must_resolve_to_no_notification",
+        "inspect_only_must_resolve_to_what_if_admissibility",
+        "linked_artifact_change_required_for_link_or_unlink_or_attach_kind",
+        "raw_provider_url_in_status_transition_packet_forbidden",
+        "raw_notification_payload_in_status_transition_packet_forbidden",
+        "raw_author_identity_string_in_status_transition_packet_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "transition_packet_must_bind_work_item_detail_record_id_ref",
+        "silent_provider_mutation_under_local_draft_label_forbidden"
+      ],
+      "description": "Closed denial-reason vocabulary. silent_provider_mutation_under_local_draft_label_forbidden is the gate that forbids a packet from claiming save_local_draft_only_no_provider_path while citing any provider-bound apply ref (queue item, browser-handoff packet, consequence preview, callback envelope)."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "status_transition_packet_authored",
+        "status_transition_packet_applied_publish_now",
+        "status_transition_packet_applied_local_draft_only",
+        "status_transition_packet_admitted_to_publish_later_queue",
+        "status_transition_packet_routed_to_browser_handoff",
+        "status_transition_packet_captured_offline_pending_drain",
+        "status_transition_packet_revoked_before_apply",
+        "status_transition_packet_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for status-transition packet lifecycle."
+    },
+
+    "status_transition_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "status_transition_packet_schema_version",
+        "status_transition_packet_id",
+        "work_item_detail_record_id_ref",
+        "mutation_mode",
+        "transition_entries",
+        "packet_admissibility_class",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "status_transition_packet_record" },
+        "status_transition_packet_schema_version": {
+          "$ref": "#/$defs/status_transition_packet_schema_version"
+        },
+        "status_transition_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound work_item_detail_record the packet previews a transition over."
+        },
+        "mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "transition_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transition_entry" },
+          "description": "Ordered transition entries the apply path commits in order."
+        },
+        "packet_admissibility_class": {
+          "$ref": "#/$defs/transition_admissibility_class",
+          "description": "Packet-level admissibility class. The apply control disables / enables based on this; the per-entry admissibility classes MUST all resolve to admissible_* lanes when packet_admissibility_class is admissible_*."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record. Required when mutation_mode is deferred_publish or any transition entry resolves to queue_for_publish_later_deferred / captured_offline_pending_drain."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound browser_handoff_packet_record. Required when mutation_mode is open_in_provider or any transition entry resolves to route_through_browser_handoff_open_in_provider."
+        },
+        "linked_provider_consequence_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_consequence_preview_record. Required when mutation_mode is publish_now, deferred_publish, or open_in_provider for irreversible or release-class actions."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record when actor resolution is pending. Required when any transition entry resolves to permission_unknown_pending_actor_resolution."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record when the packet was captured offline. Required when any transition entry resolves to captured_offline_pending_drain."
+        },
+        "supersedes_status_transition_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior status_transition_packet_record this one supersedes (e.g. after the user re-confirmed under a fresh consequence preview)."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which the packet must not be applied without re-confirmation. The apply path denies an expired packet with policy_epoch_expired_re_evaluation_required."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "mutation_mode publish_now MUST cite a non-empty linked_provider_consequence_preview_record_id_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "publish_now" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_consequence_preview_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_provider_consequence_preview_record_id_ref"]
+          }
+        },
+        {
+          "description": "mutation_mode deferred_publish MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "deferred_publish" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "mutation_mode open_in_provider MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "open_in_provider" } },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "mutation_mode local_draft and inspect_only MUST NOT cite provider-bound apply refs (queue item, browser-handoff packet, consequence preview).",
+          "if": {
+            "properties": {
+              "mutation_mode": { "enum": ["local_draft", "inspect_only"] }
+            },
+            "required": ["mutation_mode"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "const": "" },
+              "linked_browser_handoff_packet_ref": { "const": "" },
+              "linked_provider_consequence_preview_record_id_ref": { "const": "" }
+            }
+          }
+        }
+      ],
+      "description": "Frozen status-transition packet for one work-item detail row. The packet is the structured preview the user confirms against; the apply path is recorded through the provider-mode contract (publish_now ticket, deferred_publish queue item, open_in_provider browser handoff) or the local-draft commit path. The packet never claims the provider has accepted the transition."
+    },
+
+    "status_transition_packet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "status_transition_packet_schema_version",
+        "audit_event_id",
+        "status_transition_packet_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "status_transition_packet_audit_event_record" },
+        "status_transition_packet_schema_version": {
+          "$ref": "#/$defs/status_transition_packet_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "status_transition_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "status_transition_packet_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "status_transition_packet_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the status-transition packet lifecycle. Denial events MUST cite a typed reason from the closed denial vocabulary."
+    }
+  }
+}

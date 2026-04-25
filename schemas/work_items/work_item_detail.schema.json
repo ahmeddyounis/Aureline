@@ -1,0 +1,806 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/work_item_detail.schema.json",
+  "title": "Aureline work-item detail header, state-row, and engineering-artifact relation vocabulary",
+  "description": "Boundary schema for the work_item_detail_record frozen in docs/work_items/work_item_contract.md. One record family pins the provider, the provider-side canonical id, the title / label, the current state vocabulary the user sees, the owner / assignee, the freshness posture against the provider, the engineering-artifact relations that bind a provider-owned work item back into Aureline (issue-to-branch, linked-review, change-intent, validation-evidence, publish-preview), the typed write-authority posture, the work-item-authority class that says whether the local row is provider-authoritative, a local draft, queued for publish, linked through a review only, an imported handoff snapshot, or a cached read-only shadow, and the redaction posture every export, support packet, and admin reconciliation row reads. The record never carries raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, or raw notification payloads; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / authority / state / relation tokens only. Composes with (and does not replace) the provider-mode / callback-envelope / publish-later contract frozen in docs/providers/provider_mode_contract.md (mutation_mode, surface_class, provider_actor_class, replay_posture, redaction_class, predicted_side_effect_class, irreversibility_class, conflict_policy_class, mode_admission_reason vocabularies are re-exported from there); the review-workspace / merge-queue / comment-anchor contract frozen in docs/vcs/review_workspace_contract.md (review_workspace_record_id_ref, review_anchor_record_id_ref, merge_queue_action_record_id_ref); the review-pack / evaluation-result contract frozen in docs/vcs/review_pack_contract.md (review_pack_record_id_ref, review_evaluation_result_record_id_ref); the change-stack contract frozen in docs/vcs/change_stack_contract.md (change_object_record_id_ref, patch_stack_record_id_ref); the object-handoff packet frozen in docs/support/object_handoff_packet.md (object_handoff_packet_record_id_ref); and the issue-routing matrix frozen in artifacts/governance/issue_routing.yaml (route lane / disclosure-state vocabulary referenced by handoff packet). The eventual work-items crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, work_item_authority_class, freshness_class, state_value_origin_class, write_authority_class, issue_to_branch_link_class, linked_review_class, change_intent_class, validation_evidence_class, publish_preview_class, denial_reason, or audit_event_id is additive-minor and bumps work_item_detail_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/work_item_detail_record" },
+    { "$ref": "#/$defs/work_item_detail_audit_event_record" }
+  ],
+  "$defs": {
+    "work_item_detail_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the work-item detail vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "work_item_detail_record",
+        "work_item_detail_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload. Exporters MUST apply broker-owned redaction before the value crosses this boundary."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class re-exported verbatim from schemas/integration/browser_handoff_packet.schema.json and schemas/providers/publish_later_record.schema.json. A generic 'Connected' state is forbidden on every product, CLI, support-export, queue-review, and audit surface. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the work-item row was admitted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never cross this boundary regardless of class."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "issue_or_work_item",
+            "epic_or_initiative",
+            "user_story",
+            "task_or_subtask",
+            "bug_report",
+            "incident_report",
+            "change_request",
+            "rfc_or_proposal",
+            "other"
+          ],
+          "description": "Object class on the provider. Re-uses the issue_or_work_item value from the providers / browser-handoff vocabularies and adds the work-item-specific epic / story / task / bug / incident / change-request / rfc tokens. 'other' is repair-only."
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": {
+          "type": "string",
+          "description": "Opaque provider host handle (registry row id, not raw hostname). May be empty when the relation is local_draft_no_provider_object."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Opaque tenant / org scope handle. May be empty when the relation is local_draft_no_provider_object."
+        },
+        "provider_canonical_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Provider-side identity of the work item the detail row references. Reuses the object_identity shape from schemas/providers/publish_later_record.schema.json with the work-item-specific object_class enum."
+    },
+
+    "work_item_authority_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_synced",
+        "provider_authoritative_stale_local_continues",
+        "local_draft_no_provider_object",
+        "queued_publish_local_authored",
+        "linked_review_only_no_provider_overlay",
+        "imported_handoff_evidence_only",
+        "cached_read_only_shadow_inspect_only"
+      ],
+      "description": "Frozen authority class for the work-item row. provider_authoritative_synced means the local cache is in sync with the provider and the provider is the source of truth; provider_authoritative_stale_local_continues means the provider is unreachable or the freshness floor crossed and the local cache is editable as a draft only; local_draft_no_provider_object means the row was authored locally and never sent; queued_publish_local_authored means the row was authored locally and admitted into the publish-later queue; linked_review_only_no_provider_overlay means the row is pinned to a review pack / change object only and has no issue-tracker provider overlay; imported_handoff_evidence_only means the row was reconstructed from an offline_handoff_packet_record with no live provider path; cached_read_only_shadow_inspect_only means the row is an inspect-only shadow of provider state."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_fresh",
+        "warm_within_grace",
+        "degraded_beyond_grace_local_continues",
+        "unverifiable_provider_unreachable",
+        "imported_snapshot_no_refresh_path",
+        "local_draft_never_published"
+      ],
+      "description": "Frozen freshness posture rendered on the detail header chip. degraded_beyond_grace_local_continues, unverifiable_provider_unreachable, and imported_snapshot_no_refresh_path are repair-aware lanes that MUST NOT be relabelled as authoritative. local_draft_never_published is admissible only on local_draft_no_provider_object / queued_publish_local_authored authority classes."
+    },
+
+    "state_value_origin_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_state_token",
+        "local_draft_pending_publish",
+        "imported_handoff_state_token_no_refresh",
+        "derived_from_linked_review_state"
+      ],
+      "description": "Where the state_value token was minted. provider_authoritative_state_token is the verbatim token from the provider import; local_draft_pending_publish is a token the user picked while authoring a local draft; imported_handoff_state_token_no_refresh is a token snapshotted into an offline handoff and never refreshed; derived_from_linked_review_state is a token derived from a linked review-pack evaluation result or change-object landing state."
+    },
+
+    "current_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_family_class", "state_value", "state_value_origin_class", "summary"],
+      "properties": {
+        "state_family_class": {
+          "type": "string",
+          "enum": [
+            "lifecycle_state",
+            "assignee_state",
+            "label_set_state",
+            "milestone_or_iteration_state",
+            "priority_or_severity_state",
+            "blocking_relationship_state",
+            "review_or_merge_state",
+            "validation_evidence_state",
+            "publish_preview_state",
+            "freshness_state",
+            "trust_or_redaction_state"
+          ],
+          "description": "Frozen state-family axis the row represents. Surfaces preserve the provider's exact token in state_value rather than collapsing into a packet-local enum, but every row names exactly one of these axes so consumers can render them mechanically."
+        },
+        "state_value": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Verbatim provider-side token (or local-draft / linked-review / imported-handoff token, per state_value_origin_class). Carries the exact upstream vocabulary; never a packet-local rewriting."
+        },
+        "state_value_origin_class": { "$ref": "#/$defs/state_value_origin_class" },
+        "source_schema_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream schema / contract that minted the token (e.g. schemas/vcs/review_workspace.schema.json for review_or_merge_state). Empty string when the token has no upstream schema beyond the provider itself."
+        },
+        "source_field": {
+          "type": "string",
+          "description": "Optional opaque field name within the upstream schema."
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream record (e.g. review_workspace_record_id_ref) the token was sourced from."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One state row preserving the provider's (or local draft's / linked review's / imported handoff's) exact state vocabulary plus a typed origin and a reviewable sentence."
+    },
+
+    "owner_or_assignee_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_role_class", "actor_subject_ref", "actor_class"],
+      "properties": {
+        "owner_role_class": {
+          "type": "string",
+          "enum": [
+            "primary_owner",
+            "secondary_owner",
+            "assignee",
+            "reviewer",
+            "reporter",
+            "watcher_or_subscriber",
+            "managed_admin_owner"
+          ]
+        },
+        "actor_subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor subject (user id, install id, delegated credential id). Raw author identity strings never appear here."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "One owner / assignee / reviewer / reporter / watcher row. Multiple rows are allowed."
+    },
+
+    "write_authority_class": {
+      "type": "string",
+      "enum": [
+        "write_admissible_provider_writeable",
+        "write_admissible_through_browser_handoff_only",
+        "write_admissible_queued_publish_only",
+        "write_admissible_local_draft_only_no_provider_path",
+        "write_blocked_provider_read_only_scope",
+        "write_blocked_workspace_trust_unset_or_restricted",
+        "write_blocked_provider_unreachable",
+        "write_blocked_freshness_floor_unsatisfied",
+        "write_blocked_account_mapping_pending",
+        "write_blocked_imported_evidence_only_no_provider_path",
+        "write_blocked_managed_admin_only_surface"
+      ],
+      "description": "Frozen write-authority posture. write_admissible_* lanes MUST resolve to a typed mutation_mode on every status_transition_packet_record they author; write_blocked_* lanes MUST resolve every transition to a typed denial reason rather than a generic 'unavailable' label."
+    },
+
+    "issue_to_branch_link_class": {
+      "type": "string",
+      "enum": [
+        "not_linked_no_branch",
+        "linked_local_branch_or_worktree_no_provider_overlay",
+        "linked_provider_branch_overlay_fetched",
+        "linked_browser_handoff_branch_token_only",
+        "linked_imported_review_bundle_branch_snapshot",
+        "linked_unknown_branch_resolution_pending"
+      ],
+      "description": "Frozen issue-to-branch / worktree linkage class. Every value composes with the review-workspace contract's source class so a downstream surface never invents a parallel 'linked branch' shape."
+    },
+
+    "linked_review_class": {
+      "type": "string",
+      "enum": [
+        "not_linked_no_review",
+        "linked_review_workspace_local_truth_only",
+        "linked_review_workspace_with_provider_overlay",
+        "linked_review_pack_evaluation_result",
+        "linked_browser_handoff_review_token_only",
+        "linked_imported_review_bundle_snapshot",
+        "linked_review_unknown_resolution_pending"
+      ],
+      "description": "Frozen linked-review class binding the work-item row to a review_workspace_record, a review_pack_record / review_evaluation_result_record, a browser-handoff packet, or an imported review bundle."
+    },
+
+    "change_intent_class": {
+      "type": "string",
+      "enum": [
+        "no_change_intent",
+        "change_object_local_draft",
+        "change_object_provider_authoritative",
+        "patch_stack_local_draft",
+        "patch_stack_provider_authoritative",
+        "imported_change_handoff_snapshot",
+        "change_intent_unknown_resolution_pending"
+      ],
+      "description": "Frozen change-intent class binding the work-item row to a change_object_record / patch_stack_record from the change-stack contract."
+    },
+
+    "validation_evidence_class": {
+      "type": "string",
+      "enum": [
+        "no_validation_evidence_attached",
+        "linked_review_evaluation_result",
+        "linked_qa_run_record",
+        "linked_check_run_imported_snapshot",
+        "linked_evidence_packet",
+        "linked_support_bundle",
+        "linked_incident_workspace_packet",
+        "imported_handoff_evidence_only_no_refresh_path"
+      ],
+      "description": "Frozen validation-evidence class binding the work-item row to a review_evaluation_result_record, a QA run record, an imported check-run snapshot, an evidence packet, a support bundle, an incident workspace packet, or imported handoff evidence."
+    },
+
+    "publish_preview_class": {
+      "type": "string",
+      "enum": [
+        "no_publish_preview_required",
+        "publish_preview_required_pending",
+        "publish_preview_pinned_provider_consequence_preview_record",
+        "publish_preview_invalidated_freshness_drift",
+        "imported_handoff_no_publish_preview_path"
+      ],
+      "description": "Frozen publish-preview class binding the work-item row to a provider_consequence_preview_record (publish-later contract) or surfacing that the preview is pending, invalidated, or unavailable."
+    },
+
+    "engineering_artifact_relations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_to_branch_link_class",
+        "linked_review_class",
+        "change_intent_class",
+        "validation_evidence_class",
+        "publish_preview_class"
+      ],
+      "properties": {
+        "issue_to_branch_link_class": { "$ref": "#/$defs/issue_to_branch_link_class" },
+        "linked_branch_local_locator_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local branch / worktree source-locator row. Required when issue_to_branch_link_class is linked_local_branch_or_worktree_no_provider_overlay or linked_imported_review_bundle_branch_snapshot."
+        },
+        "linked_branch_review_workspace_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_workspace_record. Required when issue_to_branch_link_class is linked_provider_branch_overlay_fetched, linked_browser_handoff_branch_token_only, or linked_local_branch_or_worktree_no_provider_overlay paired with a workspace row."
+        },
+        "linked_branch_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the branch resolves through. Required when issue_to_branch_link_class is linked_browser_handoff_branch_token_only."
+        },
+
+        "linked_review_class": { "$ref": "#/$defs/linked_review_class" },
+        "linked_review_workspace_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_workspace_record from schemas/vcs/review_workspace.schema.json. Required when linked_review_class is linked_review_workspace_local_truth_only or linked_review_workspace_with_provider_overlay."
+        },
+        "linked_review_pack_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_pack_record from schemas/vcs/review_pack.schema.json. Required when linked_review_class is linked_review_pack_evaluation_result."
+        },
+        "linked_review_evaluation_result_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_evaluation_result_record from schemas/vcs/review_evaluation_result.schema.json. Required when linked_review_class is linked_review_pack_evaluation_result."
+        },
+        "linked_review_anchor_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to bound review_anchor_records when reviewer comments anchor back to the work-item row. Empty when no anchored comments are bound."
+        },
+
+        "change_intent_class": { "$ref": "#/$defs/change_intent_class" },
+        "linked_change_object_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound change_object_record from schemas/vcs/change_object.schema.json. Required when change_intent_class is change_object_local_draft or change_object_provider_authoritative."
+        },
+        "linked_patch_stack_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound patch_stack_record from schemas/vcs/patch_stack.schema.json. Required when change_intent_class is patch_stack_local_draft or patch_stack_provider_authoritative."
+        },
+
+        "validation_evidence_class": { "$ref": "#/$defs/validation_evidence_class" },
+        "linked_validation_evidence_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to validation-evidence records (review_evaluation_result_record, QA run record, imported check-run snapshot, evidence packet, support bundle, incident workspace packet). Required non-empty when validation_evidence_class is one of the linked_* values."
+        },
+
+        "publish_preview_class": { "$ref": "#/$defs/publish_preview_class" },
+        "linked_provider_consequence_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_consequence_preview_record from schemas/providers/publish_later_record.schema.json. Required when publish_preview_class is publish_preview_pinned_provider_consequence_preview_record."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record from schemas/providers/publish_later_record.schema.json. Required when work_item_authority_class is queued_publish_local_authored on the parent record."
+        },
+        "linked_provider_object_relation_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_object_relation_record from schemas/providers/publish_later_record.schema.json. Required for provider-bound authority classes so a downstream surface always reads the relation chip mechanically."
+        },
+        "linked_object_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound object_handoff_packet_record from schemas/support/object_handoff_packet.schema.json when the work-item row was filed as a support handoff. Empty when no support handoff has been filed."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record from schemas/work_items/offline_handoff_packet.schema.json. Required when work_item_authority_class is imported_handoff_evidence_only."
+        }
+      },
+      "description": "Engineering-artifact relation block. Surfaces a frozen 5-axis matrix (issue-to-branch, linked-review, change-intent, validation-evidence, publish-preview) so a provider-owned work item always traces into a typed engineering artifact through opaque refs and never invents a parallel traceability id."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the work-item row was minted under. Reused identically by the status_transition_packet and offline_handoff_packet schemas."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the work-item row was admitted under. Revalidated on every status_transition_packet author and on every offline_handoff_packet drain."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "work_item_authority_class_must_resolve_to_typed_class",
+        "freshness_class_must_resolve_to_typed_class",
+        "write_authority_class_must_resolve_to_typed_class",
+        "imported_handoff_must_cite_offline_handoff_packet_ref",
+        "queued_publish_must_cite_publish_later_queue_item_ref",
+        "linked_review_must_cite_review_workspace_or_pack_ref",
+        "change_intent_must_cite_change_object_or_patch_stack_ref",
+        "publish_preview_pinned_must_cite_provider_consequence_preview_ref",
+        "raw_provider_url_in_work_item_detail_forbidden",
+        "raw_author_identity_string_in_work_item_detail_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted"
+      ],
+      "description": "Closed denial-reason vocabulary. A surface that admits a row that violates one of the gates emits a work_item_detail_audit_event_record citing the matching reason. Silent downgrade is forbidden."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "work_item_detail_admitted",
+        "work_item_detail_freshness_chip_changed",
+        "work_item_detail_authority_class_changed",
+        "work_item_detail_engineering_relation_bound",
+        "work_item_detail_engineering_relation_unbound",
+        "work_item_detail_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the work-item detail surface. The provider-side handoff stream remains the ADR-0010 provider_handoff stream; this stream is the local-only work-item lifecycle stream."
+    },
+
+    "work_item_detail_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "work_item_detail_schema_version",
+        "work_item_detail_id",
+        "work_item_authority_class",
+        "connected_provider_record_id_ref",
+        "target_object_identity",
+        "title_label",
+        "current_state_rows",
+        "owner_or_assignee_rows",
+        "freshness_class",
+        "freshness_observed_at",
+        "write_authority_class",
+        "engineering_artifact_relations",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_detail_record" },
+        "work_item_detail_schema_version": {
+          "$ref": "#/$defs/work_item_detail_schema_version"
+        },
+        "work_item_detail_id": { "$ref": "#/$defs/opaque_id" },
+        "work_item_authority_class": { "$ref": "#/$defs/work_item_authority_class" },
+        "connected_provider_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the connected_provider_record. Empty string only when work_item_authority_class is local_draft_no_provider_object or linked_review_only_no_provider_overlay."
+        },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "title_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable title for the work item. Carries the provider's title when authority is provider_authoritative_synced; carries the local-draft title otherwise. Never carries the raw provider issue body."
+        },
+        "current_state_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_state_row" },
+          "description": "Ordered state rows preserving the provider's (or local-draft / linked-review / imported-handoff) exact state vocabulary. At minimum one lifecycle_state row is required."
+        },
+        "owner_or_assignee_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/owner_or_assignee_row" },
+          "description": "Owner / assignee / reviewer / reporter / watcher rows. Empty array is admissible (e.g. a brand-new local draft) but a row that names an assignee MUST cite a typed actor_class."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp of the most recent provider import / local-draft commit / imported-handoff snapshot the freshness chip resolves against."
+        },
+        "freshness_floor_ref": {
+          "type": "string",
+          "description": "Opaque ref to the freshness floor the row resolves against. Empty when the authority class is local_draft_no_provider_object."
+        },
+        "write_authority_class": { "$ref": "#/$defs/write_authority_class" },
+        "engineering_artifact_relations": {
+          "$ref": "#/$defs/engineering_artifact_relations"
+        },
+        "linked_provider_callback_envelope_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_callback_envelope_records that refreshed the row. Empty when no provider callback has been observed."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record from schemas/providers/publish_later_record.schema.json when actor resolution is pending. Empty when actor resolution is resolved."
+        },
+        "supersedes_work_item_detail_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior work_item_detail_record this one supersedes (e.g. after an account remap or a provider-side merge). Empty when this is a fresh row."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "imported_handoff_evidence_only authority MUST cite a non-empty linked_offline_handoff_packet_record_id_ref under engineering_artifact_relations.",
+          "if": {
+            "properties": {
+              "work_item_authority_class": { "const": "imported_handoff_evidence_only" }
+            },
+            "required": ["work_item_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_offline_handoff_packet_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "queued_publish_local_authored authority MUST cite a non-empty linked_publish_later_queue_item_record_id_ref under engineering_artifact_relations.",
+          "if": {
+            "properties": {
+              "work_item_authority_class": { "const": "queued_publish_local_authored" }
+            },
+            "required": ["work_item_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_publish_later_queue_item_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "linked_review_only_no_provider_overlay authority MUST cite a non-empty linked_review_workspace_record_id_ref or linked_review_pack_record_id_ref under engineering_artifact_relations.",
+          "if": {
+            "properties": {
+              "work_item_authority_class": { "const": "linked_review_only_no_provider_overlay" }
+            },
+            "required": ["work_item_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "linked_review_workspace_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                    },
+                    "required": ["linked_review_workspace_record_id_ref"]
+                  },
+                  {
+                    "properties": {
+                      "linked_review_pack_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                    },
+                    "required": ["linked_review_pack_record_id_ref"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_preview_pinned_provider_consequence_preview_record MUST cite a non-empty linked_provider_consequence_preview_record_id_ref.",
+          "if": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "publish_preview_class": { "const": "publish_preview_pinned_provider_consequence_preview_record" }
+                },
+                "required": ["publish_preview_class"]
+              }
+            },
+            "required": ["engineering_artifact_relations"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_provider_consequence_preview_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_provider_consequence_preview_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "linked_review_workspace_local_truth_only and linked_review_workspace_with_provider_overlay MUST cite a non-empty linked_review_workspace_record_id_ref.",
+          "if": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_review_class": {
+                    "enum": [
+                      "linked_review_workspace_local_truth_only",
+                      "linked_review_workspace_with_provider_overlay"
+                    ]
+                  }
+                },
+                "required": ["linked_review_class"]
+              }
+            },
+            "required": ["engineering_artifact_relations"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_review_workspace_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_review_workspace_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "change_object_local_draft and change_object_provider_authoritative MUST cite a non-empty linked_change_object_record_id_ref.",
+          "if": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "change_intent_class": {
+                    "enum": [
+                      "change_object_local_draft",
+                      "change_object_provider_authoritative"
+                    ]
+                  }
+                },
+                "required": ["change_intent_class"]
+              }
+            },
+            "required": ["engineering_artifact_relations"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_change_object_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_change_object_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "patch_stack_local_draft and patch_stack_provider_authoritative MUST cite a non-empty linked_patch_stack_record_id_ref.",
+          "if": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "change_intent_class": {
+                    "enum": [
+                      "patch_stack_local_draft",
+                      "patch_stack_provider_authoritative"
+                    ]
+                  }
+                },
+                "required": ["change_intent_class"]
+              }
+            },
+            "required": ["engineering_artifact_relations"]
+          },
+          "then": {
+            "properties": {
+              "engineering_artifact_relations": {
+                "properties": {
+                  "linked_patch_stack_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_patch_stack_record_id_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "local_draft_never_published freshness is admissible only on local_draft_no_provider_object and queued_publish_local_authored authority classes.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "local_draft_never_published" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "work_item_authority_class": {
+                "enum": [
+                  "local_draft_no_provider_object",
+                  "queued_publish_local_authored"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_snapshot_no_refresh_path freshness is admissible only on imported_handoff_evidence_only authority.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "imported_snapshot_no_refresh_path" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "work_item_authority_class": { "const": "imported_handoff_evidence_only" }
+            }
+          }
+        }
+      ],
+      "description": "Frozen detail-header record for one work item. Composes with the provider-mode contract through linked publish-later, account-mapping, and consequence-preview refs; with the review-workspace / review-pack / change-stack contracts through engineering_artifact_relations; and with the offline-handoff packet through the imported_handoff_evidence_only authority class. The eventual work-items crate's Rust types are the source of truth; this is the cross-tool boundary."
+    },
+
+    "work_item_detail_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "work_item_detail_schema_version",
+        "audit_event_id",
+        "work_item_detail_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "work_item_detail_audit_event_record" },
+        "work_item_detail_schema_version": {
+          "$ref": "#/$defs/work_item_detail_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "work_item_detail_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "work_item_detail_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "work_item_detail_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the work-item detail surface. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (admitted, freshness chip changed, authority class changed, relation bound / unbound) carry no denial reason."
+    }
+  }
+}
