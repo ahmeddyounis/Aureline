@@ -1,0 +1,655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/preview_route.schema.json",
+  "title": "Aureline preview-route, mapped-port, target-context, expiry, and policy-scope record",
+  "description": "Boundary schema for the preview_route_record frozen in docs/runtime/browser_runtime_contract.md. The record is the cross-surface projection every preview-route emitter (live preview lane, dev-server-on-route surface, companion-handoff packet, hosted-review reader, support / export reader, automation run review, AI tool review surface) emits when it needs one stable answer to four questions: what service identity is bound to this route, what mapped port / route handle this route is exposed on, who actuated the route (actor identity) and under what policy scope, and how long the route lives (duration / expiry / revoke posture). Every preview_route_record is time-bounded, auditable, and preserves source-workspace and remote-target identity so a route hydrated from a support export, a companion handoff, or a hosted-review reader cannot erase which workspace or remote target it was opened against. The record does not replace the browser_runtime_session_record (runtime identity, source-map freshness, mutation admissibility live there); it is the route-binding the session record cites through preview_route_record_ref. This schema re-exports workspace_trust_state_class and the source_workspace_identity_class / remote_target_identity_class vocabularies the browser-runtime-session record carries; it does not mint parallel workspace or trust vocabularies. Raw URLs, raw schemes, raw hostnames, raw IPs, raw ports, raw paths, raw query strings, raw cookie values, raw bearer tokens, raw API keys, raw share-link tokens, raw absolute filesystem paths, and raw author identity strings never cross this boundary; opaque service / port / route / actor / approval-ticket / policy-bundle / policy-epoch / share-link / browser-handoff / replay / automation-run / hosted-review handles and class labels do. Adding a new preview_route_record_class, service_identity_class, mapped_port_route_class, target_context_class, route_duration_class, route_expiry_state_class, route_revoke_posture_class, route_audit_event_id, or route_denial_reason value is additive-minor and bumps preview_route_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_route_record" }
+  ],
+  "$defs": {
+    "preview_route_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this preview-route contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "preview_route_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw ports, and raw share-link tokens never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in route chrome and export review. Raw URLs, raw share-link tokens, raw cookie values, and raw bearer tokens never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at route assembly."
+    },
+
+    "preview_route_record_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local_preview_route",
+        "workspace_shared_preview_route",
+        "managed_workspace_preview_route",
+        "ad_hoc_session_preview_route",
+        "imported_from_browser_handoff_preview_route",
+        "imported_from_export_bundle_preview_route",
+        "ai_tool_proposed_preview_route_pending_review",
+        "preview_route_class_unknown_requires_review"
+      ],
+      "description": "Closed preview-route class. user_authored_local_preview_route is the default for an individual workspace; workspace_shared_preview_route is committed and shared. managed_workspace_preview_route is provisioned by a managed workspace policy. ad_hoc_session_preview_route is session-only and forbidden from cross-workspace share. imported_from_* classes preserve the captured route from a handoff / export. ai_tool_proposed_preview_route_pending_review forbids any live execution pending user admit."
+    },
+
+    "service_identity_class": {
+      "type": "string",
+      "enum": [
+        "framework_dev_server_service",
+        "static_site_renderer_service",
+        "story_or_component_runner_service",
+        "notebook_renderer_service",
+        "docs_renderer_service",
+        "design_token_overlay_service",
+        "test_runner_browser_service",
+        "remote_managed_preview_runtime_service",
+        "extension_provided_preview_runtime_service",
+        "external_browser_handoff_service",
+        "service_identity_class_unknown_requires_review"
+      ],
+      "description": "Closed service-identity vocabulary naming what kind of service backs this route. Mirrors preview_runtime_kind_class on the preview-snapshot record without redefining runtime identity here."
+    },
+
+    "service_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_identity_class",
+        "service_handle_ref"
+      ],
+      "properties": {
+        "service_identity_class": { "$ref": "#/$defs/service_identity_class" },
+        "service_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque service-handle id (service-id-class). Raw URLs and raw process identifiers never appear here."
+        },
+        "service_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "service_version_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      }
+    },
+
+    "mapped_port_route_class": {
+      "type": "string",
+      "enum": [
+        "loopback_port_local_only",
+        "loopback_port_with_workspace_only_share",
+        "tunneled_to_managed_workspace_route",
+        "tunneled_to_self_hosted_org_route",
+        "tunneled_to_remote_managed_browser_pool_route",
+        "tunneled_to_remote_managed_device_pool_route",
+        "captured_handoff_route_no_tunnel",
+        "imported_replay_route_no_tunnel",
+        "mapped_port_route_class_unknown_requires_review"
+      ],
+      "description": "Closed mapped-port / route vocabulary. loopback_port_local_only never crosses the device boundary; loopback_port_with_workspace_only_share is shared inside a single workspace boundary. tunneled_to_* classes pin the remote-target boundary the route was opened against. captured_handoff_route_no_tunnel and imported_replay_route_no_tunnel are non-live and never claim a tunnel."
+    },
+
+    "mapped_port_route_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mapped_port_route_class",
+        "port_handle_ref",
+        "route_handle_ref"
+      ],
+      "properties": {
+        "mapped_port_route_class": { "$ref": "#/$defs/mapped_port_route_class" },
+        "port_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque port-handle id. Raw integer port numbers never appear here."
+        },
+        "route_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque route-handle id (path-class identifier). Raw paths and raw query strings never appear here."
+        },
+        "transport_security_class": {
+          "type": ["string", "null"],
+          "enum": [
+            "no_transport_security_loopback_only",
+            "tls_required_verified",
+            "tls_required_pinned_certificate",
+            "tls_required_managed_workspace_envelope",
+            "tunneled_through_workspace_proxy",
+            "transport_security_class_unknown_requires_review",
+            null
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "individual_local_target_context",
+        "self_hosted_org_target_context",
+        "managed_workspace_target_context",
+        "remote_managed_browser_pool_target_context",
+        "remote_managed_device_pool_target_context",
+        "captured_target_context_pinned_to_handoff",
+        "imported_target_context_pinned_to_export_bundle",
+        "target_context_class_unknown_requires_review"
+      ],
+      "description": "Closed target-context vocabulary preserving where the route was opened against. Mirrors remote_target_identity_class on the browser-runtime-session record so a session and the route it cites resolve to the same target boundary."
+    },
+
+    "source_workspace_identity_class": {
+      "type": "string",
+      "enum": [
+        "individual_local_workspace",
+        "self_hosted_org_workspace",
+        "managed_workspace",
+        "remote_managed_target_workspace",
+        "imported_from_export_bundle_workspace",
+        "ad_hoc_session_workspace",
+        "workspace_identity_unverifiable_user_review_required"
+      ],
+      "description": "Re-export of the source-workspace identity vocabulary the browser-runtime-session record carries. Preserved on every route so a route hydrated from a support export, a companion handoff, or a hosted-review reader cannot erase which workspace it was opened against."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user_local_actor",
+        "human_user_workspace_admin_actor",
+        "human_user_managed_admin_actor",
+        "ai_tool_proposed_actor_pending_review",
+        "automation_run_actor",
+        "ci_pipeline_actor",
+        "support_export_reader_actor",
+        "hosted_review_reader_actor",
+        "actor_class_unknown_requires_review"
+      ],
+      "description": "Closed actor vocabulary naming who actuated the route. ai_tool_proposed_actor_pending_review forbids the route from leaving pending review state."
+    },
+
+    "actor_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_handle_ref"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque actor-handle id. Raw author identity strings (email, name, account name) never appear here."
+        },
+        "actor_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+
+    "route_duration_class": {
+      "type": "string",
+      "enum": [
+        "session_only_no_persistence",
+        "fixed_duration_minutes",
+        "fixed_duration_hours",
+        "fixed_duration_until_workspace_close",
+        "fixed_duration_until_policy_review",
+        "captured_route_no_duration_imported",
+        "route_duration_class_unknown_requires_review"
+      ],
+      "description": "Closed route-duration vocabulary. captured_route_no_duration_imported is admissible only on imported_from_* preview-route classes."
+    },
+
+    "route_expiry_state_class": {
+      "type": "string",
+      "enum": [
+        "active_within_duration_window",
+        "expired_past_duration_window",
+        "revoked_pending_replacement",
+        "revoked_terminal_no_replacement",
+        "blocked_pending_user_admit",
+        "blocked_pending_policy_review",
+        "blocked_pending_workspace_trust",
+        "imported_no_expiry_pinned_to_capture",
+        "route_expiry_state_class_unknown_requires_review"
+      ],
+      "description": "Closed route-expiry state vocabulary. Only active_within_duration_window admits live execution; every other state forces inspect-only / external handoff / blocked posture."
+    },
+
+    "route_revoke_posture_class": {
+      "type": "string",
+      "enum": [
+        "user_self_revoke_only",
+        "workspace_admin_revoke",
+        "managed_admin_revoke",
+        "policy_revocation_only",
+        "automatic_expiry_only",
+        "captured_route_no_live_revoke_path",
+        "route_revoke_posture_class_unknown_requires_review"
+      ],
+      "description": "Closed revoke-posture vocabulary. captured_route_no_live_revoke_path is admissible only on imported_from_* preview-route classes."
+    },
+
+    "route_duration_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_duration_class",
+        "route_expiry_state_class",
+        "route_revoke_posture_class"
+      ],
+      "properties": {
+        "route_duration_class": { "$ref": "#/$defs/route_duration_class" },
+        "route_expiry_state_class": { "$ref": "#/$defs/route_expiry_state_class" },
+        "route_revoke_posture_class": { "$ref": "#/$defs/route_revoke_posture_class" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Required non-null when route_duration_class is fixed_duration_minutes / fixed_duration_hours / fixed_duration_until_workspace_close / fixed_duration_until_policy_review (enforced by allOf gate)."
+        },
+        "last_revoked_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "policy_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset_no_admit",
+        "workspace_trust_restricted_no_admit",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_managed_locked",
+        "policy_bundle_pinned",
+        "policy_bundle_pending_re_evaluation",
+        "policy_bundle_expired_user_review_required",
+        "policy_scope_class_unknown_requires_review"
+      ],
+      "description": "Closed policy-scope vocabulary. workspace_trust_unset_no_admit and workspace_trust_restricted_no_admit forbid live execution. policy_bundle_pending_re_evaluation and policy_bundle_expired_user_review_required force inspect-only fallback."
+    },
+
+    "policy_scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_scope_class"],
+      "properties": {
+        "policy_scope_class": { "$ref": "#/$defs/policy_scope_class" },
+        "policy_bundle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "policy_epoch_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "share_visibility_class": {
+      "type": "string",
+      "enum": [
+        "not_shareable",
+        "workspace_only",
+        "organization_only",
+        "tenant_only",
+        "public_link",
+        "share_visibility_class_unknown_requires_review"
+      ],
+      "description": "Closed share-visibility vocabulary. public_link / tenant_only / organization_only force a non-trivial revoke path and a non-no-auth share-auth class through the route_revoke_posture_class field and the policy_scope_block."
+    },
+
+    "share_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["share_visibility_class"],
+      "properties": {
+        "share_visibility_class": { "$ref": "#/$defs/share_visibility_class" },
+        "share_link_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque share-link handle. Raw URLs, raw tokens, raw cookies, and raw expiring credentials never appear here."
+        },
+        "share_audit_event_stream_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "preview_route_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_route_schema_version",
+        "preview_route_record_id",
+        "captured_at",
+        "preview_route_record_class",
+        "service_identity",
+        "mapped_port_route",
+        "target_context_class",
+        "source_workspace_identity_class",
+        "actor",
+        "duration",
+        "policy_scope",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_route_schema_version": { "$ref": "#/$defs/preview_route_schema_version" },
+        "preview_route_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "preview_route_record_class": { "$ref": "#/$defs/preview_route_record_class" },
+
+        "service_identity": { "$ref": "#/$defs/service_identity_block" },
+        "mapped_port_route": { "$ref": "#/$defs/mapped_port_route_block" },
+
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "source_workspace_identity_class": { "$ref": "#/$defs/source_workspace_identity_class" },
+
+        "actor": { "$ref": "#/$defs/actor_block" },
+        "duration": { "$ref": "#/$defs/route_duration_block" },
+        "policy_scope": { "$ref": "#/$defs/policy_scope_block" },
+
+        "share": {
+          "anyOf": [
+            { "$ref": "#/$defs/share_block" },
+            { "type": "null" }
+          ],
+          "description": "Optional share block. Reserved as a typed extension point; absence means share is not in scope for this route."
+        },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref required when sandbox / trust / share expansion was approved (reuses the integration approval-ticket family)."
+        },
+
+        "browser_handoff_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required non-null when preview_route_record_class = imported_from_browser_handoff_preview_route (enforced by allOf gate)."
+        },
+        "export_bundle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required non-null when preview_route_record_class = imported_from_export_bundle_preview_route (enforced by allOf gate)."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_proposed_preview_route_pending_review forbids any active expiry state and forces actor_class = ai_tool_proposed_actor_pending_review.",
+          "if": {
+            "properties": {
+              "preview_route_record_class": { "const": "ai_tool_proposed_preview_route_pending_review" }
+            },
+            "required": ["preview_route_record_class"]
+          },
+          "then": {
+            "properties": {
+              "duration": {
+                "properties": {
+                  "route_expiry_state_class": {
+                    "enum": [
+                      "blocked_pending_user_admit",
+                      "blocked_pending_policy_review",
+                      "blocked_pending_workspace_trust"
+                    ]
+                  }
+                },
+                "required": ["route_expiry_state_class"]
+              },
+              "actor": {
+                "properties": {
+                  "actor_class": { "const": "ai_tool_proposed_actor_pending_review" }
+                },
+                "required": ["actor_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_browser_handoff_preview_route requires a non-null browser_handoff_packet_ref and resolves duration to imported / captured posture.",
+          "if": {
+            "properties": {
+              "preview_route_record_class": { "const": "imported_from_browser_handoff_preview_route" }
+            },
+            "required": ["preview_route_record_class"]
+          },
+          "then": {
+            "required": ["browser_handoff_packet_ref"],
+            "properties": {
+              "browser_handoff_packet_ref": { "type": "string" },
+              "duration": {
+                "properties": {
+                  "route_duration_class": { "const": "captured_route_no_duration_imported" },
+                  "route_expiry_state_class": { "const": "imported_no_expiry_pinned_to_capture" },
+                  "route_revoke_posture_class": { "const": "captured_route_no_live_revoke_path" }
+                },
+                "required": [
+                  "route_duration_class",
+                  "route_expiry_state_class",
+                  "route_revoke_posture_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_export_bundle_preview_route requires a non-null export_bundle_ref and resolves duration to imported / captured posture.",
+          "if": {
+            "properties": {
+              "preview_route_record_class": { "const": "imported_from_export_bundle_preview_route" }
+            },
+            "required": ["preview_route_record_class"]
+          },
+          "then": {
+            "required": ["export_bundle_ref"],
+            "properties": {
+              "export_bundle_ref": { "type": "string" },
+              "duration": {
+                "properties": {
+                  "route_duration_class": { "const": "captured_route_no_duration_imported" },
+                  "route_expiry_state_class": { "const": "imported_no_expiry_pinned_to_capture" },
+                  "route_revoke_posture_class": { "const": "captured_route_no_live_revoke_path" }
+                },
+                "required": [
+                  "route_duration_class",
+                  "route_expiry_state_class",
+                  "route_revoke_posture_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "route_duration_class in {fixed_duration_minutes, fixed_duration_hours, fixed_duration_until_workspace_close, fixed_duration_until_policy_review} requires a non-null expires_at so every fixed-duration route is auditable.",
+          "if": {
+            "properties": {
+              "duration": {
+                "properties": {
+                  "route_duration_class": {
+                    "enum": [
+                      "fixed_duration_minutes",
+                      "fixed_duration_hours",
+                      "fixed_duration_until_workspace_close",
+                      "fixed_duration_until_policy_review"
+                    ]
+                  }
+                },
+                "required": ["route_duration_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "duration": {
+                "required": ["expires_at"],
+                "properties": {
+                  "expires_at": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "share.share_visibility_class in {public_link, tenant_only, organization_only} forbids route_revoke_posture_class = automatic_expiry_only and forbids policy_scope_class = workspace_trust_unset_no_admit / workspace_trust_restricted_no_admit.",
+          "if": {
+            "properties": {
+              "share": {
+                "type": "object",
+                "properties": {
+                  "share_visibility_class": {
+                    "enum": ["public_link", "tenant_only", "organization_only"]
+                  }
+                },
+                "required": ["share_visibility_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "duration": {
+                "properties": {
+                  "route_revoke_posture_class": {
+                    "not": { "const": "automatic_expiry_only" }
+                  }
+                }
+              },
+              "policy_scope": {
+                "properties": {
+                  "policy_scope_class": {
+                    "not": {
+                      "enum": [
+                        "workspace_trust_unset_no_admit",
+                        "workspace_trust_restricted_no_admit"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_workspace_preview_route requires policy_scope_class in {workspace_trust_managed_locked, policy_bundle_pinned}.",
+          "if": {
+            "properties": {
+              "preview_route_record_class": { "const": "managed_workspace_preview_route" }
+            },
+            "required": ["preview_route_record_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_scope": {
+                "properties": {
+                  "policy_scope_class": {
+                    "enum": ["workspace_trust_managed_locked", "policy_bundle_pinned"]
+                  }
+                },
+                "required": ["policy_scope_class"]
+              },
+              "target_context_class": {
+                "enum": [
+                  "managed_workspace_target_context",
+                  "remote_managed_browser_pool_target_context",
+                  "remote_managed_device_pool_target_context"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ad_hoc_session_preview_route forbids share visibility outside not_shareable / workspace_only.",
+          "if": {
+            "properties": {
+              "preview_route_record_class": { "const": "ad_hoc_session_preview_route" }
+            },
+            "required": ["preview_route_record_class"]
+          },
+          "then": {
+            "properties": {
+              "share": {
+                "anyOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "share_visibility_class": {
+                        "enum": ["not_shareable", "workspace_only"]
+                      }
+                    },
+                    "required": ["share_visibility_class"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "captured_handoff_route_no_tunnel and imported_replay_route_no_tunnel are admissible only on imported_from_* preview-route classes.",
+          "if": {
+            "properties": {
+              "mapped_port_route": {
+                "properties": {
+                  "mapped_port_route_class": {
+                    "enum": [
+                      "captured_handoff_route_no_tunnel",
+                      "imported_replay_route_no_tunnel"
+                    ]
+                  }
+                },
+                "required": ["mapped_port_route_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preview_route_record_class": {
+                "enum": [
+                  "imported_from_browser_handoff_preview_route",
+                  "imported_from_export_bundle_preview_route"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One inspectable preview-route record emitted by a live preview lane, dev-server-on-route surface, companion-handoff packet, hosted-review reader, support / export reader, automation run review, or AI tool review surface."
+    }
+  }
+}

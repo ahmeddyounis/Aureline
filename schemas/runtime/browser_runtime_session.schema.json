@@ -1,0 +1,992 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/browser_runtime_session.schema.json",
+  "title": "Aureline browser-runtime session, cross-origin/storage review, and inspection-evidence provenance record",
+  "description": "Boundary schema for the browser_runtime_session_record frozen in docs/runtime/browser_runtime_contract.md. The record is the cross-surface projection every browser-runtime-aware surface (live preview, browser companion handoff, inspection add-on, console viewer, network viewer, storage viewer, request-replay packet, live-style-edit packet, service-worker-change packet, support / export reader, hosted-review reader, AI tool review surface) emits when it needs one stable answer to four questions: what is the browser-runtime identity (target, device, theme, source revision, protocol scope, cross-origin boundary set, source-map freshness) this surface is bound to, what cross-origin / storage mutations are admissible right now, what inspection state (live, imported, replayed, blocked) the add-on is in, and which preview_route bound the runtime to a service identity. The record does not replace the preview_snapshot_record (mapping confidence and stale-editability live there) or the execution_context_record (target identity, sandbox posture, policy epoch live there); it is the compact projection consumers read so cross-origin / storage / request-replay / live-style-edit / service-worker-change actions degrade honestly to inspect-only or external handoff when runtime identity or mapping is uncertain. This schema re-exports the safe-preview trust-class, connectivity-state, and downgrade-trigger vocabularies from schemas/security/trust_class.schema.json (TrustedLocalActive / IsolatedRemoteActive plus the connectivity ladder), the preview-snapshot mapping_confidence_class and source_sync_state vocabularies from schemas/preview/preview_snapshot.schema.json, and execution_context_record_ref from schemas/runtime/execution_context.schema.json by reference without redefinition. It does not mint new trust classes, new mapping-confidence classes, new sandbox postures, or new downgrade-trigger classes shared with the safe-preview / preview / execution-context contracts. Raw URLs, raw schemes, raw hostnames, raw IPs, raw ports, raw paths, raw query strings, raw cookie values, raw localStorage / sessionStorage / IndexedDB / Cache Storage payloads, raw bearer tokens, raw API keys, raw service-worker script bodies, raw rendered DOM bytes, raw screenshot bytes, raw console message bodies, raw network response bodies, raw stack frames, raw absolute filesystem paths, and raw author identity strings never cross this boundary; opaque target / device / theme / origin / route / share-link / actor / approval-ticket / source-map / browser-handoff / replay / overlay / service-worker handles and class labels do. Adding a new browser_runtime_session_class, runtime_identity_class, device_profile_class, theme_class, protocol_scope_class, cross_origin_boundary_class, source_map_freshness_class, mutation_action_class, mutation_admissibility_class, inspection_lifecycle_state, evidence_origin_class, or downgrade_trigger value is additive-minor and bumps browser_runtime_session_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/browser_runtime_session_record" }
+  ],
+  "$defs": {
+    "browser_runtime_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this browser-runtime-session contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "browser_runtime_session_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw cookie values, raw bearer tokens, and raw rendered bytes never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing sentence safe to render in browser-runtime chrome and export review. Raw URLs, raw rendered bytes, raw cookie values, raw bearer tokens, and raw secret values never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp captured from a monotonic clock source at session assembly."
+    },
+
+    "browser_runtime_session_class": {
+      "type": "string",
+      "enum": [
+        "live_local_browser_runtime_session",
+        "live_remote_managed_browser_runtime_session",
+        "live_companion_handoff_browser_session",
+        "imported_from_browser_handoff_packet_session",
+        "replayed_from_capture_session",
+        "inspect_only_uncertain_runtime_session",
+        "external_handoff_only_session",
+        "blocked_runtime_identity_unverifiable_session"
+      ],
+      "description": "Closed browser-runtime-session class. live_local_browser_runtime_session and live_remote_managed_browser_runtime_session are admissible only when runtime identity AND source-map identity are explicit. live_companion_handoff_browser_session covers a paired companion-handoff packet bound to a verified target. imported_from_browser_handoff_packet_session and replayed_from_capture_session pin to a captured runtime identity (no live mutation). inspect_only_uncertain_runtime_session and external_handoff_only_session are degradation states. blocked_runtime_identity_unverifiable_session is the strictest stop."
+    },
+
+    "runtime_identity_class": {
+      "type": "string",
+      "enum": [
+        "tab_in_local_browser",
+        "window_in_local_browser",
+        "embedded_webview_in_extension_host",
+        "embedded_webview_in_native_shell",
+        "remote_managed_browser_pool_tab",
+        "remote_managed_device_browser",
+        "captured_browser_handoff_runtime",
+        "replayed_browser_runtime_capture",
+        "runtime_identity_unverifiable_user_review_required"
+      ],
+      "description": "Closed runtime-identity vocabulary naming what kind of browser runtime this session is bound to. runtime_identity_unverifiable_user_review_required forces the session into inspect-only / external-handoff postures."
+    },
+
+    "browser_engine_family_class": {
+      "type": "string",
+      "enum": [
+        "chromium_family",
+        "webkit_family",
+        "gecko_family",
+        "embedded_cef_chromium_family",
+        "embedded_wkwebview_webkit_family",
+        "embedded_servo_family",
+        "engine_family_unknown_requires_review"
+      ],
+      "description": "Closed engine-family vocabulary. The exact engine version / build identity is referenced opaquely through engine_build_identity_ref; raw user-agent strings never project here."
+    },
+
+    "device_profile_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default_device",
+        "tablet_device",
+        "phone_device",
+        "tv_or_console_device",
+        "embedded_kiosk_device",
+        "viewport_preset_only_no_real_device",
+        "device_profile_unknown_requires_review"
+      ],
+      "description": "Closed device-profile vocabulary. viewport_preset_only_no_real_device pairs with device_target_class = viewport_preset_only on the paired preview_snapshot record; it never claims a real device."
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "light_theme",
+        "dark_theme",
+        "high_contrast_theme",
+        "forced_colors_theme",
+        "user_system_default_theme",
+        "theme_class_unknown_requires_review"
+      ],
+      "description": "Closed theme-class vocabulary the session is rendering under."
+    },
+
+    "color_scheme_state_class": {
+      "type": "string",
+      "enum": [
+        "color_scheme_light",
+        "color_scheme_dark",
+        "color_scheme_no_preference",
+        "color_scheme_forced_by_policy",
+        "color_scheme_state_unknown_requires_review"
+      ],
+      "description": "Closed prefers-color-scheme state vocabulary. forced_colors_theme MAY pair with color_scheme_forced_by_policy."
+    },
+
+    "device_profile_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_profile_class",
+        "theme_class",
+        "color_scheme_state_class"
+      ],
+      "properties": {
+        "device_profile_class": { "$ref": "#/$defs/device_profile_class" },
+        "theme_class": { "$ref": "#/$defs/theme_class" },
+        "color_scheme_state_class": { "$ref": "#/$defs/color_scheme_state_class" },
+        "device_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque handle for the actual attached / pooled / handoff device. Null for viewport-preset-only sessions."
+        },
+        "device_label": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Reviewer-facing redaction-safe label (model class, OS family, screen-class). Raw serial numbers, raw IP addresses, raw hostnames, and raw account handles never appear."
+        },
+        "viewport_pixel_width": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "viewport_pixel_height": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "device_pixel_ratio_class": {
+          "type": ["string", "null"],
+          "enum": ["one_x", "two_x", "three_x", "fractional", null]
+        }
+      }
+    },
+
+    "source_revision_class": {
+      "type": "string",
+      "enum": [
+        "vcs_commit_pinned",
+        "working_tree_with_pending_edits",
+        "release_tag_pinned",
+        "build_artifact_digest_pinned",
+        "remote_ref_pinned",
+        "captured_at_handoff_pinned",
+        "unknown_revision"
+      ],
+      "description": "Closed source-revision class for the source the runtime was loaded against."
+    },
+
+    "source_revision_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_revision_class"
+      ],
+      "properties": {
+        "source_revision_class": { "$ref": "#/$defs/source_revision_class" },
+        "source_revision_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque revision handle (commit-id-class, tag-class, working-tree fingerprint, captured-handoff fingerprint). Raw absolute paths, raw branch URLs, and raw remote endpoints never appear here."
+        },
+        "working_tree_fingerprint_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "drifted_paths_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+
+    "source_workspace_identity_class": {
+      "type": "string",
+      "enum": [
+        "individual_local_workspace",
+        "self_hosted_org_workspace",
+        "managed_workspace",
+        "remote_managed_target_workspace",
+        "imported_from_export_bundle_workspace",
+        "ad_hoc_session_workspace",
+        "workspace_identity_unverifiable_user_review_required"
+      ],
+      "description": "Closed source-workspace identity vocabulary naming where the source the runtime ran against came from. Mirrors the connection-/request-/data-family workspace identity vocabularies; never carries a raw workspace path or raw author identity."
+    },
+
+    "remote_target_identity_class": {
+      "type": "string",
+      "enum": [
+        "no_remote_target_local_only",
+        "self_hosted_org_remote_target",
+        "managed_workspace_remote_target",
+        "remote_browser_pool_target",
+        "remote_device_pool_target",
+        "captured_remote_target_pinned_to_handoff",
+        "remote_target_identity_unverifiable_user_review_required"
+      ],
+      "description": "Closed remote-target identity vocabulary preserved across companion handoff and replay so a session never erases which remote target the runtime was attached to."
+    },
+
+    "protocol_scope_class": {
+      "type": "string",
+      "enum": [
+        "http_only_scope",
+        "https_only_scope",
+        "http_and_https_scope",
+        "file_local_loader_scope",
+        "data_url_scope_no_origin",
+        "blob_url_scope_no_origin",
+        "extension_scheme_scope",
+        "custom_app_scheme_scope",
+        "protocol_scope_unknown_requires_review"
+      ],
+      "description": "Closed protocol-scope vocabulary naming which URL schemes this runtime is permitted to load. data_url_scope_no_origin and blob_url_scope_no_origin force inspection-only postures because they have no origin to bound cross-origin rules against."
+    },
+
+    "cross_origin_boundary_class": {
+      "type": "string",
+      "enum": [
+        "same_origin_only",
+        "same_site_cross_origin_with_explicit_allowlist",
+        "cross_site_cors_with_explicit_allowlist",
+        "cross_origin_iframe_sandboxed_no_credentials",
+        "cross_origin_postmessage_only",
+        "cross_origin_opener_isolated",
+        "cross_origin_embedder_isolated",
+        "cross_origin_unrestricted_user_review_required",
+        "cross_origin_boundary_unknown_requires_review"
+      ],
+      "description": "Closed cross-origin boundary vocabulary naming the runtime's effective cross-origin posture for the session. cross_origin_unrestricted_user_review_required and cross_origin_boundary_unknown_requires_review force inspect-only fallback for cross-origin / storage mutation actions."
+    },
+
+    "cross_origin_boundary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cross_origin_boundary_class", "origin_label_ref"],
+      "properties": {
+        "cross_origin_boundary_class": { "$ref": "#/$defs/cross_origin_boundary_class" },
+        "origin_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque origin label handle (origin-class identifier). Raw schemes, raw hostnames, raw IPs, and raw ports never appear."
+        },
+        "cors_allowlist_label_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "source_map_freshness_class": {
+      "type": "string",
+      "enum": [
+        "source_map_in_sync_with_runtime",
+        "source_map_in_sync_with_session_capture",
+        "source_map_stale_runtime_advanced_since_capture",
+        "source_map_inline_only_no_external_map",
+        "source_map_missing_runtime_only",
+        "source_map_redacted_for_export",
+        "source_map_freshness_unknown_requires_review"
+      ],
+      "description": "Closed source-map freshness vocabulary the inspection add-on reads before offering source-jump, mapped-edit, or live style edit. source_map_stale_runtime_advanced_since_capture, source_map_missing_runtime_only, source_map_redacted_for_export, and source_map_freshness_unknown_requires_review force inspect-only fallback for cross-origin / storage / live-style mutations."
+    },
+
+    "source_map_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_map_freshness_class"],
+      "properties": {
+        "source_map_freshness_class": { "$ref": "#/$defs/source_map_freshness_class" },
+        "source_map_handle_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque source-map handle (digest / id-class). Raw absolute paths and raw URLs never appear here."
+        },
+        "source_map_captured_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Re-export of the safe-preview trust-class values that apply to executable browser-runtime sessions. RawText / SanitizedRich are not admissible classes for this record because browser-runtime sessions always run active content."
+    },
+
+    "connectivity_state": {
+      "type": "string",
+      "enum": [
+        "local_not_applicable",
+        "connected_verified",
+        "connected_unverified",
+        "disconnected_static_snapshot",
+        "disconnected_metadata_only"
+      ],
+      "description": "Re-export of the safe-preview connectivity_state vocabulary. connected_unverified, disconnected_static_snapshot, and disconnected_metadata_only force inspect-only / external-handoff fallback for cross-origin / storage mutation actions."
+    },
+
+    "sandbox_posture_class": {
+      "type": "string",
+      "enum": [
+        "trusted_local_runtime",
+        "isolated_local_sandbox",
+        "containerised_local_sandbox",
+        "remote_managed_sandbox",
+        "embedded_in_extension_host"
+      ],
+      "description": "Closed sandbox-posture vocabulary mirroring the preview_snapshot vocabulary. The record never re-asserts target identity here; it cites the execution_context_record_ref instead."
+    },
+
+    "workspace_trust_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_unset",
+        "workspace_trust_restricted",
+        "workspace_trust_session_only_temporary",
+        "workspace_trust_trusted",
+        "workspace_trust_managed_locked"
+      ],
+      "description": "Re-export of the workspace-trust state vocabulary. Mutation actions on the cross-origin / storage / live-style / service-worker surface are admissible only under workspace_trust_trusted (with workspace_trust_session_only_temporary admissible for narrowly scoped session overrides)."
+    },
+
+    "mutation_action_class": {
+      "type": "string",
+      "enum": [
+        "cookie_clear_for_origin",
+        "storage_clear_local_storage_for_origin",
+        "storage_clear_session_storage_for_origin",
+        "storage_clear_indexeddb_for_origin",
+        "storage_clear_cache_storage_for_origin",
+        "storage_clear_service_worker_registrations_for_origin",
+        "request_replay_with_modified_payload",
+        "request_replay_unchanged",
+        "live_style_edit_inline_stylesheet",
+        "live_style_edit_constructable_stylesheet",
+        "live_style_edit_inspector_overlay_only",
+        "service_worker_register_or_update",
+        "service_worker_unregister",
+        "service_worker_skip_waiting",
+        "service_worker_clients_claim",
+        "service_worker_message_post",
+        "open_in_external_browser_handoff",
+        "share_via_share_sheet"
+      ],
+      "description": "Closed mutation-action vocabulary every browser-runtime-aware surface MAY render. The session's effective_admissible_mutation_actions enumerates the actions admissible at session time."
+    },
+
+    "mutation_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "admissible_under_workspace_trust",
+        "admissible_under_session_only_override",
+        "admissible_under_approval_ticket",
+        "inspect_only_runtime_identity_uncertain",
+        "inspect_only_source_mapping_uncertain",
+        "inspect_only_cross_origin_boundary_uncertain",
+        "inspect_only_protocol_scope_no_origin",
+        "external_handoff_only_remote_target_unverifiable",
+        "blocked_pending_user_admit",
+        "blocked_pending_policy",
+        "blocked_pending_workspace_trust",
+        "blocked_runtime_identity_unverifiable",
+        "not_applicable_imported_or_replayed_session"
+      ],
+      "description": "Closed mutation-admissibility vocabulary. Live mutation is admissible only when runtime identity AND source mapping remain explicit; otherwise the session degrades honestly to inspect-only or external handoff."
+    },
+
+    "mutation_admissibility_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutation_action_class", "mutation_admissibility_class"],
+      "properties": {
+        "mutation_action_class": { "$ref": "#/$defs/mutation_action_class" },
+        "mutation_admissibility_class": { "$ref": "#/$defs/mutation_admissibility_class" },
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+
+    "inspection_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "inspection_live_attached",
+        "inspection_live_attached_workspace_trust_session_only",
+        "inspection_imported_from_browser_handoff_packet",
+        "inspection_replayed_from_capture",
+        "inspection_paused_pending_user_action",
+        "inspection_blocked_runtime_identity_unverifiable",
+        "inspection_blocked_pending_policy",
+        "inspection_blocked_pending_workspace_trust",
+        "inspection_blocked_external_handoff_only"
+      ],
+      "description": "Closed inspection-lifecycle vocabulary every inspection add-on declares through this contract instead of inventing parallel labels. Captures live, imported, replayed, paused, and blocked states; an add-on that needs a new state lands an additive-minor enum value here, not a parallel record."
+    },
+
+    "evidence_origin_class": {
+      "type": "string",
+      "enum": [
+        "live_capture_from_attached_runtime",
+        "imported_from_browser_handoff_packet",
+        "imported_from_support_export_bundle",
+        "imported_from_replay_capture",
+        "imported_from_hosted_review_reader",
+        "evidence_origin_unverifiable_user_review_required"
+      ],
+      "description": "Closed evidence-origin vocabulary every console / network / storage evidence packet cites so consumer surfaces preserve provenance across desktop, CLI, evidence reader, and companion handoff paths without minting parallel origin tokens."
+    },
+
+    "evidence_provenance_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "console_evidence_origin_class",
+        "network_evidence_origin_class",
+        "storage_evidence_origin_class"
+      ],
+      "properties": {
+        "console_evidence_origin_class": { "$ref": "#/$defs/evidence_origin_class" },
+        "network_evidence_origin_class": { "$ref": "#/$defs/evidence_origin_class" },
+        "storage_evidence_origin_class": { "$ref": "#/$defs/evidence_origin_class" },
+        "console_evidence_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to a console evidence packet that attaches to this session. The packet body is governed by a separate browser-inspection schema; this record only carries the ref so later console viewers attach to the same runtime session, route, and source-map truth."
+        },
+        "network_evidence_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to a network evidence packet that attaches to this session."
+        },
+        "storage_evidence_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to a storage evidence packet that attaches to this session."
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "description": "Reserved provenance fields for console, network, and storage evidence so later browser-inspection surfaces can attach to the same runtime session, route, and source-map truth without redefining core identity."
+    },
+
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_revoked",
+        "policy_narrowed",
+        "origin_changed",
+        "origin_missing",
+        "connectivity_lost",
+        "sanitizer_failed",
+        "sandbox_unavailable",
+        "runtime_unhealthy",
+        "support_export_boundary",
+        "source_representation_missing",
+        "approval_scope_changed",
+        "delete_review_preserve_last_evidence",
+        "runtime_identity_unverifiable",
+        "remote_target_identity_unverifiable",
+        "source_map_stale_runtime_advanced",
+        "source_map_missing",
+        "source_map_redacted",
+        "cross_origin_boundary_unknown",
+        "protocol_scope_no_origin",
+        "service_worker_state_unverifiable",
+        "preview_route_expired",
+        "preview_route_revoked",
+        "preview_route_target_context_changed"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. The first twelve values are re-exported verbatim from schemas/security/trust_class.schema.json so browser-runtime surfaces share the safe-preview ladder; the remaining eleven values are browser-runtime-specific extensions that name runtime-identity / remote-target / source-map / cross-origin-boundary / protocol-scope / service-worker / preview-route degradation paths."
+    },
+
+    "browser_runtime_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_runtime_session_schema_version",
+        "browser_runtime_session_id",
+        "captured_at",
+        "browser_runtime_session_class",
+        "runtime_identity_class",
+        "browser_engine_family_class",
+        "engine_build_identity_ref",
+        "device_profile",
+        "trust_class",
+        "connectivity_state",
+        "sandbox_posture_class",
+        "workspace_trust_state_class",
+        "source_workspace_identity_class",
+        "remote_target_identity_class",
+        "source_revision_anchor",
+        "protocol_scope_class",
+        "cross_origin_boundary_set",
+        "source_map",
+        "effective_admissible_mutation_actions",
+        "inspection_lifecycle_state",
+        "evidence_provenance",
+        "downgrade_trigger_observations",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "browser_runtime_session_schema_version": { "$ref": "#/$defs/browser_runtime_session_schema_version" },
+        "browser_runtime_session_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "browser_runtime_session_class": { "$ref": "#/$defs/browser_runtime_session_class" },
+
+        "runtime_identity_class": { "$ref": "#/$defs/runtime_identity_class" },
+        "browser_engine_family_class": { "$ref": "#/$defs/browser_engine_family_class" },
+        "engine_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque engine-build identity handle (engine-build-id-class). Raw user-agent strings and raw build numbers never project here."
+        },
+
+        "device_profile": { "$ref": "#/$defs/device_profile_block" },
+
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "connectivity_state": { "$ref": "#/$defs/connectivity_state" },
+        "sandbox_posture_class": { "$ref": "#/$defs/sandbox_posture_class" },
+        "workspace_trust_state_class": { "$ref": "#/$defs/workspace_trust_state_class" },
+
+        "source_workspace_identity_class": { "$ref": "#/$defs/source_workspace_identity_class" },
+        "remote_target_identity_class": { "$ref": "#/$defs/remote_target_identity_class" },
+
+        "source_revision_anchor": { "$ref": "#/$defs/source_revision_anchor" },
+
+        "protocol_scope_class": { "$ref": "#/$defs/protocol_scope_class" },
+
+        "cross_origin_boundary_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/cross_origin_boundary_entry" },
+          "uniqueItems": true,
+          "description": "Cross-origin boundary set the runtime is bound to for this session. At least one entry is required; consumer surfaces read this set to gate cross-origin / storage mutation actions."
+        },
+
+        "source_map": { "$ref": "#/$defs/source_map_block" },
+
+        "execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the execution-context record the runtime resolved through. Pass-through; this record does not duplicate execution-context fields."
+        },
+        "preview_snapshot_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the paired preview_snapshot_record carrying mapping confidence and stale-editability for this session, when the session is part of a preview surface."
+        },
+        "preview_route_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the preview_route_record that bound this runtime session to a service identity, mapped port/route, target context, actor, expiry, and policy scope. Required non-null when browser_runtime_session_class = live_remote_managed_browser_runtime_session or live_companion_handoff_browser_session."
+        },
+        "browser_handoff_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the browser-handoff packet that captured this session, when the session is imported_from_browser_handoff_packet_session or live_companion_handoff_browser_session."
+        },
+        "replay_capture_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref to the replay capture this session was rehydrated from, when the session is replayed_from_capture_session."
+        },
+
+        "effective_admissible_mutation_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutation_admissibility_entry" },
+          "uniqueItems": true,
+          "description": "Per-mutation-action admissibility map. Empty list is admissible (fully blocked sessions); consumer surfaces MUST NOT offer a mutation action whose entry resolves to inspect_only_* / external_handoff_only_* / blocked_*. The list MUST include every mutation_action_class the surface intends to offer or grey out."
+        },
+
+        "inspection_lifecycle_state": { "$ref": "#/$defs/inspection_lifecycle_state" },
+
+        "evidence_provenance": { "$ref": "#/$defs/evidence_provenance_block" },
+
+        "downgrade_trigger_observations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "uniqueItems": true,
+          "description": "Observed downgrade triggers narrowing this session. Consumer surfaces project the same vocabulary; the session does not invent surface-local trigger names."
+        },
+
+        "approval_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional approval-ticket ref required when sandbox or trust expansion was approved (reuses the integration approval-ticket family)."
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "live_local_browser_runtime_session and live_remote_managed_browser_runtime_session require explicit runtime identity and source-map identity, and forbid runtime_identity_unverifiable_user_review_required.",
+          "if": {
+            "properties": {
+              "browser_runtime_session_class": {
+                "enum": [
+                  "live_local_browser_runtime_session",
+                  "live_remote_managed_browser_runtime_session"
+                ]
+              }
+            },
+            "required": ["browser_runtime_session_class"]
+          },
+          "then": {
+            "properties": {
+              "runtime_identity_class": {
+                "not": { "const": "runtime_identity_unverifiable_user_review_required" }
+              },
+              "source_map": {
+                "properties": {
+                  "source_map_freshness_class": {
+                    "enum": [
+                      "source_map_in_sync_with_runtime",
+                      "source_map_in_sync_with_session_capture",
+                      "source_map_inline_only_no_external_map"
+                    ]
+                  }
+                },
+                "required": ["source_map_freshness_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "live_remote_managed_browser_runtime_session and live_companion_handoff_browser_session require a non-null preview_route_record_ref so the session is bound to a time-bounded, auditable route.",
+          "if": {
+            "properties": {
+              "browser_runtime_session_class": {
+                "enum": [
+                  "live_remote_managed_browser_runtime_session",
+                  "live_companion_handoff_browser_session"
+                ]
+              }
+            },
+            "required": ["browser_runtime_session_class"]
+          },
+          "then": {
+            "required": ["preview_route_record_ref"],
+            "properties": {
+              "preview_route_record_ref": { "type": "string" }
+            }
+          }
+        },
+        {
+          "description": "imported_from_browser_handoff_packet_session requires a non-null browser_handoff_packet_ref and resolves inspection_lifecycle_state to inspection_imported_from_browser_handoff_packet.",
+          "if": {
+            "properties": {
+              "browser_runtime_session_class": { "const": "imported_from_browser_handoff_packet_session" }
+            },
+            "required": ["browser_runtime_session_class"]
+          },
+          "then": {
+            "required": ["browser_handoff_packet_ref"],
+            "properties": {
+              "browser_handoff_packet_ref": { "type": "string" },
+              "inspection_lifecycle_state": { "const": "inspection_imported_from_browser_handoff_packet" }
+            }
+          }
+        },
+        {
+          "description": "replayed_from_capture_session requires a non-null replay_capture_ref and resolves inspection_lifecycle_state to inspection_replayed_from_capture.",
+          "if": {
+            "properties": {
+              "browser_runtime_session_class": { "const": "replayed_from_capture_session" }
+            },
+            "required": ["browser_runtime_session_class"]
+          },
+          "then": {
+            "required": ["replay_capture_ref"],
+            "properties": {
+              "replay_capture_ref": { "type": "string" },
+              "inspection_lifecycle_state": { "const": "inspection_replayed_from_capture" }
+            }
+          }
+        },
+        {
+          "description": "blocked_runtime_identity_unverifiable_session forbids any admissible_under_* mutation entries; every entry MUST resolve to a blocked_* / inspect_only_* / external_handoff_only_* / not_applicable class.",
+          "if": {
+            "properties": {
+              "browser_runtime_session_class": { "const": "blocked_runtime_identity_unverifiable_session" }
+            },
+            "required": ["browser_runtime_session_class"]
+          },
+          "then": {
+            "properties": {
+              "inspection_lifecycle_state": { "const": "inspection_blocked_runtime_identity_unverifiable" },
+              "effective_admissible_mutation_actions": {
+                "items": {
+                  "properties": {
+                    "mutation_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "runtime_identity_class = runtime_identity_unverifiable_user_review_required forces the session into a non-live class and forbids admissible_under_* on every mutation entry.",
+          "if": {
+            "properties": {
+              "runtime_identity_class": { "const": "runtime_identity_unverifiable_user_review_required" }
+            },
+            "required": ["runtime_identity_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_runtime_session_class": {
+                "enum": [
+                  "inspect_only_uncertain_runtime_session",
+                  "external_handoff_only_session",
+                  "blocked_runtime_identity_unverifiable_session"
+                ]
+              },
+              "effective_admissible_mutation_actions": {
+                "items": {
+                  "properties": {
+                    "mutation_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override",
+                          "admissible_under_approval_ticket"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "runtime_identity_unverifiable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "source_map_freshness_class in {source_map_stale_runtime_advanced_since_capture, source_map_missing_runtime_only, source_map_redacted_for_export, source_map_freshness_unknown_requires_review} forbids admissible_under_* on every live-style-edit / request-replay mutation entry and forces the matching downgrade trigger.",
+          "if": {
+            "properties": {
+              "source_map": {
+                "properties": {
+                  "source_map_freshness_class": {
+                    "enum": [
+                      "source_map_stale_runtime_advanced_since_capture",
+                      "source_map_missing_runtime_only",
+                      "source_map_redacted_for_export",
+                      "source_map_freshness_unknown_requires_review"
+                    ]
+                  }
+                },
+                "required": ["source_map_freshness_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_mutation_actions": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "mutation_action_class": {
+                        "enum": [
+                          "live_style_edit_inline_stylesheet",
+                          "live_style_edit_constructable_stylesheet",
+                          "request_replay_with_modified_payload"
+                        ]
+                      }
+                    },
+                    "required": ["mutation_action_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "mutation_admissibility_class": {
+                        "not": {
+                          "enum": [
+                            "admissible_under_workspace_trust",
+                            "admissible_under_session_only_override",
+                            "admissible_under_approval_ticket"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "protocol_scope_class in {data_url_scope_no_origin, blob_url_scope_no_origin, protocol_scope_unknown_requires_review} forces the matching downgrade trigger and forbids admissible_under_* on cookie / storage / service-worker mutation entries.",
+          "if": {
+            "properties": {
+              "protocol_scope_class": {
+                "enum": [
+                  "data_url_scope_no_origin",
+                  "blob_url_scope_no_origin",
+                  "protocol_scope_unknown_requires_review"
+                ]
+              }
+            },
+            "required": ["protocol_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_mutation_actions": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "mutation_action_class": {
+                        "enum": [
+                          "cookie_clear_for_origin",
+                          "storage_clear_local_storage_for_origin",
+                          "storage_clear_session_storage_for_origin",
+                          "storage_clear_indexeddb_for_origin",
+                          "storage_clear_cache_storage_for_origin",
+                          "storage_clear_service_worker_registrations_for_origin",
+                          "service_worker_register_or_update",
+                          "service_worker_unregister",
+                          "service_worker_skip_waiting",
+                          "service_worker_clients_claim",
+                          "service_worker_message_post"
+                        ]
+                      }
+                    },
+                    "required": ["mutation_action_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "mutation_admissibility_class": {
+                        "not": {
+                          "enum": [
+                            "admissible_under_workspace_trust",
+                            "admissible_under_session_only_override",
+                            "admissible_under_approval_ticket"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "workspace_trust_state_class in {workspace_trust_unset, workspace_trust_restricted} forbids admissible_under_workspace_trust and admissible_under_session_only_override on every mutation entry; admissible_under_approval_ticket remains the only path under restricted trust.",
+          "if": {
+            "properties": {
+              "workspace_trust_state_class": {
+                "enum": ["workspace_trust_unset", "workspace_trust_restricted"]
+              }
+            },
+            "required": ["workspace_trust_state_class"]
+          },
+          "then": {
+            "properties": {
+              "effective_admissible_mutation_actions": {
+                "items": {
+                  "properties": {
+                    "mutation_admissibility_class": {
+                      "not": {
+                        "enum": [
+                          "admissible_under_workspace_trust",
+                          "admissible_under_session_only_override"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every admissible_under_approval_ticket entry MUST cite a non-null approval_ticket_ref on the entry.",
+          "properties": {
+            "effective_admissible_mutation_actions": {
+              "items": {
+                "if": {
+                  "properties": {
+                    "mutation_admissibility_class": { "const": "admissible_under_approval_ticket" }
+                  },
+                  "required": ["mutation_admissibility_class"]
+                },
+                "then": {
+                  "required": ["approval_ticket_ref"],
+                  "properties": {
+                    "approval_ticket_ref": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "remote_target_identity_class = remote_target_identity_unverifiable_user_review_required forces the matching downgrade trigger and resolves the session class into external_handoff_only_session or blocked_runtime_identity_unverifiable_session.",
+          "if": {
+            "properties": {
+              "remote_target_identity_class": { "const": "remote_target_identity_unverifiable_user_review_required" }
+            },
+            "required": ["remote_target_identity_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_runtime_session_class": {
+                "enum": [
+                  "external_handoff_only_session",
+                  "blocked_runtime_identity_unverifiable_session",
+                  "inspect_only_uncertain_runtime_session"
+                ]
+              },
+              "downgrade_trigger_observations": {
+                "contains": { "const": "remote_target_identity_unverifiable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "device_profile.device_profile_class = viewport_preset_only_no_real_device requires device_handle_ref to be null.",
+          "if": {
+            "properties": {
+              "device_profile": {
+                "properties": {
+                  "device_profile_class": { "const": "viewport_preset_only_no_real_device" }
+                },
+                "required": ["device_profile_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "device_profile": {
+                "properties": {
+                  "device_handle_ref": { "type": "null" }
+                },
+                "required": ["device_handle_ref"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One inspectable browser-runtime session emitted by a live preview, browser companion handoff, inspection add-on, console / network / storage viewer, request-replay packet, live-style-edit packet, service-worker-change packet, support / export reader, hosted-review reader, or AI tool review surface."
+    }
+  }
+}
