@@ -8276,6 +8276,246 @@ artifacts:
       cell text, no raw terminal bytes, no raw URLs, no raw
       query bodies).
 
+  - id: review_workspace_contract
+    title: Review-workspace, comment-anchor, and merge-queue contract
+    canonical_location: docs/vcs/review_workspace_contract.md
+    overview_page: docs/vcs/review_workspace_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Normative cross-tool contract binding every review surface
+      (local diff explorer, hosted-review reader, merge-queue
+      panel, AI review-aware overlays, support / export review
+      section) to one review_workspace_record (source class drawn
+      from the five-value vocabulary local_branch_or_worktree,
+      provider_overlay_fetched, review_bundle_imported, browser_
+      handoff_token_source, composite_local_with_provider_overlay;
+      provider_authority_class drawn from the five-value vocabulary
+      provider_authoritative, local_parity_estimate, local_truth_
+      only_no_provider_overlay, imported_bundle_snapshot,
+      browser_handoff_token_only; provider_overlay_freshness_class
+      drawn from provider_overlay_fresh / _stale_within_grace /
+      _stale_beyond_grace_local_continues / _unavailable_local_
+      continues; lifecycle drawn from open_under_review,
+      provider_overlay_degraded_local_continues, merged_landed,
+      closed_unmerged, archived_tombstone), one review_anchor_
+      record per anchored comment / suggestion / evidence pointer
+      (anchor_target_kind drawn from the seven-value vocabulary
+      text_line_range_anchor, cell_aware_notebook_anchor,
+      structure_aware_config_node_anchor, image_region_anchor,
+      evidence_section_anchor, whole_artifact_anchor,
+      commit_or_revision_anchor; anchor_drift_state drawn from
+      the six-value vocabulary anchor_bound_exact, anchor_remapped
+      _with_recorded_mapping, anchor_drifted_user_must_resolve,
+      anchor_target_deleted_re_anchor_or_resolve, anchor_scope
+      _unavailable, anchor_archived_tombstone paired through
+      allOf gates with anchor_drift_required_user_action so a
+      downstream surface that re-renders a drifted or deleted
+      anchor as bound denies with anchor_drift_state_required_
+      action_mismatch and a refactor that silently retargets
+      denies with silent_anchor_relocation_forbidden;
+      local_vs_provider_freshness_class drawn from the five-value
+      vocabulary so the chip reads mechanically), and one
+      merge_queue_action_record per landing action (action class
+      drawn from the eight-value vocabulary enqueue_for_merge,
+      dequeue_from_merge, attempt_landing, mark_blocked_pending_
+      freshness, mark_blocked_pending_required_check, mark_blocked
+      _pending_required_review, mark_landed, mark_failed_to_land;
+      blocked-reason drawn from the seven-value vocabulary;
+      provider_rule_snapshot_freshness_class drawn from
+      provider_rule_snapshot_fresh / _stale_within_grace /
+      _stale_beyond_grace_blocked / _unverifiable_blocked) under
+      allOf gates that force mutation-class actions to cite a
+      non-null actor_ref + command_id_ref + approval_ticket_ref
+      (denies with merge_queue_action_attribution_missing) and
+      forbid an enqueue_for_merge / attempt_landing / mark_landed
+      row from naming any non-not_blocked_action_admissible
+      blocked reason or any non-fresh provider rule snapshot
+      (denies with merge_queue_action_must_not_appear_available_
+      under_blocked_reason). Composes with the structured-
+      artifact review-surface matrix at schemas/review/review_
+      surface_record.schema.json (per-class review surface and
+      merge posture), schemas/docs/citation_anchor.schema.json
+      (docs / runbook / release-note citations from review
+      comments), schemas/navigation/navigation_artifacts.schema.
+      json (review_diff_hunk_target reuse), schemas/integration/
+      browser_handoff_packet.schema.json (no raw URLs cross the
+      boundary), schemas/integration/approval_ticket.schema.json
+      (every mutation-class merge-queue action), schemas/
+      governance/capability_lifecycle.schema.json (re-exported
+      freshness / client_scope / redaction vocabularies), and
+      schemas/identity/policy_bundle.schema.json (workspace trust
+      / policy envelope). Reserves hosted_review_inbox_record_id
+      _ref and merge_policy_record_id_ref forward-dependency
+      slots that become required non-null when the hosted-review
+      inbox contract and the merge-policy contract land.
+      Implementing provider HTTP / OAuth adapters, a merge-queue
+      kernel / worker, the hosted-review inbox surface, the
+      merge-policy resolver, and the full review UI named
+      explicitly out of scope at this revision.
+
+  - id: review_workspace_schema
+    title: Review-workspace and merge-queue-action boundary schema
+    canonical_location: schemas/vcs/review_workspace.schema.json
+    overview_page: docs/vcs/review_workspace_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the review_workspace_record,
+      review_workspace_audit_event_record, merge_queue_action_
+      record, and merge_queue_action_audit_event_record shapes
+      frozen in docs/vcs/review_workspace_contract.md.
+      additionalProperties false everywhere. allOf gates force
+      local_locator non-null when source class is local_branch_
+      or_worktree or composite_local_with_provider_overlay (and
+      null otherwise), provider_overlay non-null when source
+      class is provider_overlay_fetched or composite_local_with
+      _provider_overlay (and null otherwise), imported_bundle_
+      envelope non-null when source class is review_bundle_
+      imported (and null otherwise), browser_handoff_envelope
+      non-null when source class is browser_handoff_token_source
+      (and null otherwise), provider_authority_class to resolve
+      to local_truth_only_no_provider_overlay for local source,
+      imported_bundle_snapshot for imported source, browser_
+      handoff_token_only for browser-handoff source, archived_at
+      non-null when lifecycle is archived_tombstone, mutation-
+      class merge-queue actions to cite a non-null approval_
+      ticket_ref, every mark_blocked_pending_* class to cite the
+      matching blocked reason, every enqueue_for_merge /
+      attempt_landing / mark_landed row to cite not_blocked_
+      action_admissible, and stale_beyond_grace_blocked /
+      unverifiable_blocked snapshot freshness to be admissible
+      only on mark_blocked_pending_freshness rows. Re-exports
+      freshness_class / client_scope / redaction_class from
+      schemas/governance/capability_lifecycle.schema.json,
+      workspace_trust_state_class from the identity family,
+      and the provider-actor / connected-provider envelope
+      identity from schemas/integration/browser_handoff_packet.
+      schema.json without redefinition. Adding a new record_kind,
+      review_workspace_source_class, provider_class,
+      provider_overlay_freshness_class, provider_authority_class,
+      review_workspace_lifecycle_state, merge_queue_action_class,
+      merge_queue_action_blocked_reason, provider_rule_snapshot_
+      freshness_class, merge_queue_action_lifecycle_state,
+      review_workspace_denial_reason, merge_queue_action_denial_
+      reason, review_workspace_audit_event_id, or merge_queue_
+      action_audit_event_id is additive-minor and bumps review_
+      workspace_schema_version; repurposing an existing value is
+      breaking and requires a new decision row.
+
+  - id: review_anchor_schema
+    title: Review-anchor (anchored comment / suggestion / evidence pointer) boundary schema
+    canonical_location: schemas/vcs/review_anchor.schema.json
+    overview_page: docs/vcs/review_workspace_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: docs_public_truth
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Cross-tool boundary schema for the review_anchor_record
+      and review_anchor_audit_event_record shapes frozen in
+      docs/vcs/review_workspace_contract.md. additionalProperties
+      false everywhere. allOf gates force every drift state to
+      pair with its matching required user action (denies with
+      anchor_drift_state_required_action_mismatch), force
+      anchor_remapped_with_recorded_mapping to cite a non-empty
+      remap_chain_target_id_refs, force anchor_archived_tombstone
+      to cite archived_at, force every other drift state to
+      carry an empty remap_chain_target_id_refs, force cell_
+      aware_notebook_anchor to pair with review_artifact_class
+      = jupyter_notebook, force structure_aware_config_node_
+      anchor to pair with one of structured_config_json /
+      _yaml / _toml, force image_region_anchor to pair with
+      image_or_design_snapshot, force evidence_section_anchor
+      to pair with evidence_packet, and force review_anchor_
+      audit_denial_emitted events to cite a denial reason.
+      Re-exports review_artifact_class and review_surface_class
+      from schemas/review/review_surface_record.schema.json
+      with the line_oriented_source_artifact and line_oriented
+      _compare_viewer values added to give plain source files
+      a stable token; re-exports freshness_class / client_scope
+      / redaction_class from schemas/governance/capability_
+      lifecycle.schema.json and workspace_trust_state_class
+      from the identity family without redefinition. Adding a
+      new record_kind, anchor_target_kind, anchor_drift_state,
+      anchor_drift_required_user_action, local_vs_provider_
+      freshness_class, review_anchor_denial_reason, or review_
+      anchor_audit_event_id is additive-minor and bumps
+      review_anchor_schema_version; repurposing an existing
+      value is breaking and requires a new decision row.
+
+  - id: review_workspace_cases_fixtures
+    title: Review-workspace, comment-anchor, and merge-queue worked fixtures
+    canonical_location: fixtures/vcs/review_workspace_cases/
+    overview_page: docs/vcs/review_workspace_contract.md
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    review_cadence: each_change
+    visibility_class: public
+    next_milestone: foundations
+    status: seeded
+    notes: >
+      Worked-example YAML fixtures for the review-workspace,
+      comment-anchor, and merge-queue contract and schemas.
+      Covers one local_branch_or_worktree workspace with no
+      provider overlay (local truth only); one composite_local
+      _with_provider_overlay workspace with provider_overlay_
+      fresh authority; one provider_overlay_stale_beyond_grace
+      _local_continues case where the workspace flips to
+      provider_overlay_degraded_local_continues lifecycle and
+      provider_authority_class drops to local_parity_estimate
+      so cached approval / mergeability / queue cues are not
+      relabelled as authoritative (acceptance bullet 1 +
+      bullet 4); one provider_overlay_unavailable_local_
+      continues case where the provider was unreachable and
+      local review continues (acceptance bullet 1 + bullet 4);
+      one review_bundle_imported workspace with no auto re-
+      fetch; one browser_handoff_token_source workspace whose
+      authority resolves only through the browser-handoff
+      packet round-trip (no raw URLs); one anchor_remapped_
+      with_recorded_mapping anchor surviving a refactor through
+      a non-empty remap chain (acceptance bullet 2); one
+      anchor_drifted_user_must_resolve anchor where the
+      resolver could not pick a successor (acceptance bullet
+      2); one review_anchor_audit_event_record carrying the
+      silent_anchor_relocation_forbidden denial when a
+      downstream surface tried to render a drifted anchor as
+      bound (acceptance bullet 2); one local_and_provider_
+      disagree_user_review_required anchor where the chip
+      surfaces honest disagreement; one attempt_landing
+      merge-queue action under fresh provider rules with
+      attributable actor + command + approval-ticket
+      (acceptance bullet 3); one mark_blocked_pending_freshness
+      merge-queue action where the provider rule snapshot is
+      unverifiable_blocked so the queue button never appears
+      available (acceptance bullet 3); and one merge_queue_
+      action_audit_event_record carrying the merge_queue_
+      action_attribution_missing denial when a surface tried
+      to mint a mutation-class action without an approval-
+      ticket ref (acceptance bullet 3). Each fixture cites
+      the contract sections it exercises in the directory
+      README and carries only opaque workspace / branch /
+      revision / provider-overlay / approval-ticket /
+      connected-provider / browser-handoff packet / actor /
+      command / approval-ticket / policy-epoch / build-
+      identity / review-anchor / line-range handles plus
+      monotonic placeholder timestamps and redaction-aware
+      labels (no raw absolute paths, no raw branch / commit
+      URLs, no raw author identity strings, no raw comment
+      bodies, no raw provider rule bodies, no raw approval-
+      ticket bodies, no raw notebook cell text, no raw
+      terminal bytes, no raw URLs).
+
 # -----------------------------------------------------------------------------
 # Review cadence vocabulary.
 #

@@ -1,0 +1,525 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/vcs/review_anchor.schema.json",
+  "title": "Aureline review-anchor (anchored comment / suggestion / evidence pointer) vocabulary",
+  "description": "Boundary schema for the anchored-comment record family frozen in docs/vcs/review_workspace_contract.md. One review_anchor_record pins which review surface is rendering one comment / suggestion / evidence pointer, which artifact class it anchors against (cited from schemas/review/review_surface_record.schema.json — never re-minted here), which target_kind it pins (text line range, cell-aware notebook cell, structure-aware config node, image region, evidence section, whole artifact, or commit / revision), the anchor's drift state from the closed six-value vocabulary (anchor_bound_exact, anchor_remapped_with_recorded_mapping, anchor_drifted_user_must_resolve, anchor_target_deleted_re_anchor_or_resolve, anchor_scope_unavailable, anchor_archived_tombstone), the matching required user action paired through an allOf gate so a downstream surface that re-renders a drifted or deleted anchor as bound denies with anchor_drift_state_required_action_mismatch and so a refactor that silently retargets denies with silent_anchor_relocation_forbidden, the local-vs-provider freshness chip from the closed five-value vocabulary so a reviewer can read the cue without opening the workspace, the comment-payload redaction class plus the reviewable label registry ref (the raw comment body never crosses this boundary), the posting-actor / posted-at attribution, and the audit-event vocabulary the anchor publishes. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw comment bodies, raw provider rule bodies, raw approval-ticket bodies, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema. The eventual review-anchor crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, anchor-target kind, drift state, required-action value, freshness class, denial reason, or audit-event id is additive-minor and bumps review_anchor_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_anchor_record" },
+    { "$ref": "#/$defs/review_anchor_audit_event_record" }
+  ],
+  "$defs": {
+    "review_anchor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-anchor vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_anchor_record",
+        "review_anchor_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw comment bodies, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary for support / audit; never carries the raw payload. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Comments quoted by support exports MUST raise to internal_support_restricted; anchors that touched a credentialed flow MUST raise to operator_only_restricted."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "unset_pending_decision"
+          ],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the anchor was minted under."
+    },
+
+    "review_artifact_class": {
+      "type": "string",
+      "enum": [
+        "jupyter_notebook",
+        "structured_config_json",
+        "structured_config_yaml",
+        "structured_config_toml",
+        "lockfile_or_dependency_manifest",
+        "coverage_profile_artifact",
+        "sbom_or_generated_metadata",
+        "source_map_or_debug_sidecar",
+        "image_or_design_snapshot",
+        "evidence_packet",
+        "generated_source_artifact",
+        "line_oriented_source_artifact"
+      ],
+      "description": "Re-exported from schemas/review/review_surface_record.schema.json with the line_oriented_source_artifact value added so anchors on plain source files (the line-oriented default not enumerated by the structured-artifact matrix) have a stable token. Adding a new value here MUST be reflected in the structured-artifact matrix in the same change."
+    },
+
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "pure_viewer",
+        "cell_aware_compare_viewer",
+        "semantic_compare_viewer",
+        "structure_aware_compare_viewer",
+        "sidecar_bind_viewer",
+        "perceptual_or_side_by_side_viewer",
+        "evidence_reader_viewer",
+        "line_oriented_compare_viewer"
+      ],
+      "description": "Re-exported from schemas/review/review_surface_record.schema.json with the line_oriented_compare_viewer value added to match the line_oriented_source_artifact addition above. The structured-artifact matrix owns the per-class default surface; this row carries the rendered-against value the anchor was posted on."
+    },
+
+    "anchor_target_kind": {
+      "type": "string",
+      "enum": [
+        "text_line_range_anchor",
+        "cell_aware_notebook_anchor",
+        "structure_aware_config_node_anchor",
+        "image_region_anchor",
+        "evidence_section_anchor",
+        "whole_artifact_anchor",
+        "commit_or_revision_anchor"
+      ],
+      "description": "Frozen anchor-target-kind vocabulary. text_line_range_anchor pairs with line-oriented or generated-source artifacts; cell_aware_notebook_anchor pairs with jupyter_notebook and carries a stable cell id ref; structure_aware_config_node_anchor pairs with structured_config_* and carries a key path or section ref; image_region_anchor pairs with image_or_design_snapshot; evidence_section_anchor pairs with evidence_packet (read-only); whole_artifact_anchor binds to the artifact as a whole; commit_or_revision_anchor binds to a commit / revision identity rather than to an artifact."
+    },
+
+    "anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_bound_exact",
+        "anchor_remapped_with_recorded_mapping",
+        "anchor_drifted_user_must_resolve",
+        "anchor_target_deleted_re_anchor_or_resolve",
+        "anchor_scope_unavailable",
+        "anchor_archived_tombstone"
+      ],
+      "description": "Frozen anchor-drift state vocabulary. anchor_bound_exact = the target resolved exactly under the current build identity; anchor_remapped_with_recorded_mapping = the resolver followed an authoritative refactor / move with a recorded mapping (the anchor MUST cite a non-empty remap_chain_target_id_refs); anchor_drifted_user_must_resolve = the target moved but the resolver could not pick a single successor and the user MUST disambiguate; anchor_target_deleted_re_anchor_or_resolve = the target no longer exists and re-binding is forbidden without explicit user action; anchor_scope_unavailable = the workspace / sparse slice / remote shard the target lives in is currently outside admitted scope; anchor_archived_tombstone = the anchor was retired by the user or by a managed sweep and is kept as a tombstone for audit / restore. Re-running an anchor whose state is anchor_drifted_user_must_resolve, anchor_target_deleted_re_anchor_or_resolve, or anchor_scope_unavailable MUST NOT silently jump; the surface advertises the typed required user action and refuses the implicit jump (silent_anchor_relocation_forbidden)."
+    },
+
+    "anchor_drift_required_user_action": {
+      "type": "string",
+      "enum": [
+        "no_user_action_required_anchor_bound_or_remapped",
+        "user_must_pick_successor_or_dismiss_drifted",
+        "user_must_re_anchor_or_resolve_deleted_target",
+        "user_must_widen_scope_or_load_pack_or_reach_remote",
+        "user_must_restore_from_archive_or_acknowledge_tombstone"
+      ],
+      "description": "Frozen required-user-action vocabulary, paired through allOf with anchor_drift_state. A row whose pair is mismatched denies with anchor_drift_state_required_action_mismatch."
+    },
+
+    "local_vs_provider_freshness_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_provider_overlay",
+        "local_and_provider_match_fresh",
+        "local_and_provider_match_stale_within_grace",
+        "local_and_provider_disagree_user_review_required",
+        "provider_overlay_unavailable_local_continues"
+      ],
+      "description": "Frozen local-vs-provider freshness class, mirrored from the workspace's provider_overlay_freshness_class but specialised per anchor so the chip can read mechanically. local_only_no_provider_overlay = workspace has no overlay; local_and_provider_match_fresh = local and overlay agree and overlay is fresh; local_and_provider_match_stale_within_grace = agree but overlay is stale-within-grace; local_and_provider_disagree_user_review_required = local and provider overlay disagree on the anchor and the user MUST resolve before sending mutations through; provider_overlay_unavailable_local_continues = overlay is unavailable and the anchor cannot claim parity until the overlay returns."
+    },
+
+    "review_anchor_denial_reason": {
+      "type": "string",
+      "enum": [
+        "anchor_drift_state_required_action_mismatch",
+        "silent_anchor_relocation_forbidden",
+        "anchor_remap_chain_required_for_remapped_state",
+        "anchor_archived_at_required_for_archived_state",
+        "anchor_target_kind_artifact_class_mismatch",
+        "comment_payload_label_redaction_required",
+        "review_workspace_id_ref_required",
+        "review_anchor_record_required_field_missing",
+        "review_anchor_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_anchor audit stream."
+    },
+
+    "review_anchor_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_anchor_posted",
+        "review_anchor_drift_state_changed",
+        "review_anchor_remapped_with_chain",
+        "review_anchor_resolved",
+        "review_anchor_archived",
+        "review_anchor_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_anchor stream. review_anchor_audit_denial_emitted MUST cite a review_anchor_denial_reason."
+    },
+
+    "review_anchor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_anchor_schema_version",
+        "review_anchor_id",
+        "review_workspace_id_ref",
+        "review_artifact_class",
+        "review_surface_class",
+        "anchor_target_kind",
+        "target_ref",
+        "anchor_drift_state",
+        "anchor_drift_required_user_action",
+        "remap_chain_target_id_refs",
+        "local_vs_provider_freshness_class",
+        "comment_payload_redaction_class",
+        "comment_payload_label_opaque_ref",
+        "posted_actor_ref",
+        "posted_at",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "summary_label",
+        "created_at",
+        "updated_at",
+        "hosted_review_inbox_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_anchor_record" },
+        "review_anchor_schema_version": { "$ref": "#/$defs/review_anchor_schema_version" },
+        "review_anchor_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the review_workspace_record (schemas/vcs/review_workspace.schema.json) the anchor is posted in."
+        },
+        "review_artifact_class": { "$ref": "#/$defs/review_artifact_class" },
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "anchor_target_kind": { "$ref": "#/$defs/anchor_target_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the target the anchor pins (line range row in the line-oriented diff store, cell row in the notebook owner, key-path row in the structured-config owner, region row in the image owner, section row in the evidence-packet owner, artifact row, commit row). Raw bodies never cross this boundary; the owner contract resolves the ref."
+        },
+        "secondary_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional secondary target ref for compound anchors (e.g. an image region tied to a paired diff hunk; a notebook cell tied to a paired exported-script line range)."
+        },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_required_user_action": { "$ref": "#/$defs/anchor_drift_required_user_action" },
+        "remap_chain_target_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered remap chain naming the resolver's mapping. Required non-empty when anchor_drift_state is anchor_remapped_with_recorded_mapping; MUST be empty for every other state."
+        },
+        "supersedes_review_anchor_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a prior review_anchor_record this row supersedes (used when an anchor is re-posted under a new target after the user resolved a drift)."
+        },
+        "local_vs_provider_freshness_class": { "$ref": "#/$defs/local_vs_provider_freshness_class" },
+        "comment_payload_redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "comment_payload_label_opaque_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the redaction-aware reviewable-label registry where the comment's display label resolves. The raw comment body does NOT live on this record; resolution honours comment_payload_redaction_class."
+        },
+        "posted_actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the posting identity. Required (non-null); a missing ref denies with review_anchor_record_required_field_missing."
+        },
+        "posted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when anchor_drift_state is anchor_archived_tombstone. Null otherwise."
+        },
+        "tombstoned_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional tombstone timestamp distinct from archived_at; used when the anchor is tombstoned for retention sweep but not yet archived."
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "anchor_bound_exact MUST pair with no_user_action_required_anchor_bound_or_remapped.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_bound_exact" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "no_user_action_required_anchor_bound_or_remapped" }
+            }
+          }
+        },
+        {
+          "description": "anchor_remapped_with_recorded_mapping MUST pair with no_user_action_required_anchor_bound_or_remapped and MUST cite a non-empty remap_chain_target_id_refs.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_remapped_with_recorded_mapping" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "no_user_action_required_anchor_bound_or_remapped" },
+              "remap_chain_target_id_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "anchor_drifted_user_must_resolve MUST pair with user_must_pick_successor_or_dismiss_drifted.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_drifted_user_must_resolve" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "user_must_pick_successor_or_dismiss_drifted" }
+            }
+          }
+        },
+        {
+          "description": "anchor_target_deleted_re_anchor_or_resolve MUST pair with user_must_re_anchor_or_resolve_deleted_target.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_target_deleted_re_anchor_or_resolve" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "user_must_re_anchor_or_resolve_deleted_target" }
+            }
+          }
+        },
+        {
+          "description": "anchor_scope_unavailable MUST pair with user_must_widen_scope_or_load_pack_or_reach_remote.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_scope_unavailable" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "user_must_widen_scope_or_load_pack_or_reach_remote" }
+            }
+          }
+        },
+        {
+          "description": "anchor_archived_tombstone MUST pair with user_must_restore_from_archive_or_acknowledge_tombstone and MUST cite archived_at.",
+          "if": {
+            "properties": { "anchor_drift_state": { "const": "anchor_archived_tombstone" } },
+            "required": ["anchor_drift_state"]
+          },
+          "then": {
+            "properties": {
+              "anchor_drift_required_user_action": { "const": "user_must_restore_from_archive_or_acknowledge_tombstone" },
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            },
+            "required": ["archived_at"]
+          }
+        },
+        {
+          "description": "remap_chain_target_id_refs MUST be empty when anchor_drift_state is not anchor_remapped_with_recorded_mapping.",
+          "if": {
+            "not": {
+              "properties": { "anchor_drift_state": { "const": "anchor_remapped_with_recorded_mapping" } },
+              "required": ["anchor_drift_state"]
+            }
+          },
+          "then": {
+            "properties": {
+              "remap_chain_target_id_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "cell_aware_notebook_anchor MUST pair with review_artifact_class = jupyter_notebook.",
+          "if": {
+            "properties": { "anchor_target_kind": { "const": "cell_aware_notebook_anchor" } },
+            "required": ["anchor_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_artifact_class": { "const": "jupyter_notebook" }
+            }
+          }
+        },
+        {
+          "description": "structure_aware_config_node_anchor MUST pair with one of the structured_config_* artifact classes.",
+          "if": {
+            "properties": { "anchor_target_kind": { "const": "structure_aware_config_node_anchor" } },
+            "required": ["anchor_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_artifact_class": {
+                "enum": ["structured_config_json", "structured_config_yaml", "structured_config_toml"]
+              }
+            }
+          }
+        },
+        {
+          "description": "image_region_anchor MUST pair with review_artifact_class = image_or_design_snapshot.",
+          "if": {
+            "properties": { "anchor_target_kind": { "const": "image_region_anchor" } },
+            "required": ["anchor_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_artifact_class": { "const": "image_or_design_snapshot" }
+            }
+          }
+        },
+        {
+          "description": "evidence_section_anchor MUST pair with review_artifact_class = evidence_packet.",
+          "if": {
+            "properties": { "anchor_target_kind": { "const": "evidence_section_anchor" } },
+            "required": ["anchor_target_kind"]
+          },
+          "then": {
+            "properties": {
+              "review_artifact_class": { "const": "evidence_packet" }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by review surfaces, hosted-review reader, AI review-aware overlays, and support / export. Exactly one row per anchored comment / suggestion / evidence pointer."
+    },
+
+    "review_anchor_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_anchor_schema_version",
+        "review_anchor_audit_event_id_value",
+        "audit_event_record_id",
+        "review_anchor_id_ref",
+        "review_workspace_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_anchor_audit_event_record" },
+        "review_anchor_schema_version": { "$ref": "#/$defs/review_anchor_schema_version" },
+        "review_anchor_audit_event_id_value": { "$ref": "#/$defs/review_anchor_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_anchor_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_anchor_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_anchor_audit_event_id_value is review_anchor_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason is required (non-null) when the event id is review_anchor_audit_denial_emitted and MUST be null otherwise.",
+          "if": {
+            "properties": { "review_anchor_audit_event_id_value": { "const": "review_anchor_audit_denial_emitted" } },
+            "required": ["review_anchor_audit_event_id_value"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/review_anchor_denial_reason" }
+            },
+            "required": ["denial_reason"]
+          },
+          "else": {
+            "properties": {
+              "denial_reason": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_anchor stream."
+    }
+  }
+}
