@@ -1,0 +1,613 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/suppression_review.schema.json",
+  "title": "Aureline suppression-review and baseline-mutation contract",
+  "description": "Boundary schema for the suppression_review_record frozen in docs/language/diagnostics_and_code_action_contract.md. The record is the governed review packet every suppression drawer, baseline-accept flow, policy-review surface, CLI mirror, support export, and future diagnostic governance surface reads before a suppression or baseline mutation is treated as admissible truth. It captures mutation kind, target scope, truth-mutation class, owner and actor identity, reason summary, evidence linkage, expiry or review timing, policy-lock state, reopen rule, and validation or replay hints. Raw suppression files, raw baseline artifacts, raw policy bundles, raw source text, raw scanner bodies, raw paths, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, timing metadata, and export-safe summaries only. Adding a new mutation kind, scope kind, truth-mutation class, policy-lock state, reopen rule, owner class, actor class, expiry mode, validation hint, replay hint, comparison state, or delta state is additive-minor and requires a suppression_review_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/suppression_review_record"
+    }
+  ],
+  "$defs": {
+    "suppression_review_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "suppression_review_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "short_or_null_summary": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      ]
+    },
+
+    "source_kind_class": {
+      "type": "string",
+      "enum": [
+        "compiler_or_build",
+        "language_server",
+        "linter_formatter_style",
+        "framework_or_schema_analyzer",
+        "runtime_test_or_debug",
+        "policy_trust_or_security"
+      ]
+    },
+
+    "mutation_kind_class": {
+      "type": "string",
+      "enum": [
+        "create_finding_suppression",
+        "create_rule_scope_suppression",
+        "extend_suppression_expiry",
+        "remove_suppression",
+        "accept_into_baseline",
+        "supersede_baseline",
+        "reopen_expired_suppression"
+      ]
+    },
+
+    "scope_kind_class": {
+      "type": "string",
+      "enum": [
+        "diagnostic_instance",
+        "diagnostic_cluster",
+        "rule_in_file",
+        "rule_in_path_set",
+        "rule_in_workspace",
+        "target_environment",
+        "imported_run_family",
+        "baseline_family"
+      ]
+    },
+
+    "truth_mutation_class": {
+      "type": "string",
+      "enum": [
+        "local_session_visibility_only",
+        "workspace_repo_artifact",
+        "managed_policy_artifact",
+        "imported_baseline_artifact"
+      ]
+    },
+
+    "policy_lock_state_class": {
+      "type": "string",
+      "enum": [
+        "editable_local",
+        "editable_with_review",
+        "read_only_policy_locked",
+        "expiry_managed_by_policy"
+      ]
+    },
+
+    "reopen_rule_class": {
+      "type": "string",
+      "enum": [
+        "reopen_on_expiry",
+        "reopen_on_rule_change",
+        "reopen_on_anchor_remap_failure",
+        "reopen_on_profile_or_target_drift",
+        "manual_review_only"
+      ]
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "workspace_owner",
+        "codebase_team_owner",
+        "security_owner",
+        "admin_policy_owner",
+        "imported_baseline_owner"
+      ]
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "collaboration_remote_user",
+        "automation_recipe",
+        "admin_policy_service",
+        "import_session_actor"
+      ]
+    },
+
+    "expiry_mode_class": {
+      "type": "string",
+      "enum": [
+        "expires_at_timestamp",
+        "review_by_timestamp",
+        "no_automatic_expiry",
+        "inherit_policy_default"
+      ]
+    },
+
+    "validation_hint_class": {
+      "type": "string",
+      "enum": [
+        "verify_scope_still_matches",
+        "verify_rule_pack_compatibility",
+        "verify_imported_baseline_family",
+        "verify_expiry_scheduler",
+        "export_review_packet",
+        "no_additional_validation_available"
+      ]
+    },
+
+    "replay_hint_class": {
+      "type": "string",
+      "enum": [
+        "render_in_cli_and_support_export",
+        "replay_against_same_baseline_family",
+        "revalidate_on_branch_or_target_change",
+        "diff_mutation_artifact_before_apply",
+        "attach_evidence_refs"
+      ]
+    },
+
+    "comparison_state_class": {
+      "type": "string",
+      "enum": [
+        "compatible_same_tool_profile",
+        "compatible_rule_subset",
+        "incompatible_profile_drift",
+        "incompatible_target_drift",
+        "unknown"
+      ]
+    },
+
+    "delta_state_class": {
+      "type": "string",
+      "enum": [
+        "new",
+        "persisting",
+        "resolved",
+        "suppressed",
+        "waived",
+        "unmapped"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_kind_class",
+        "finding_or_cluster_refs",
+        "rule_id_ref",
+        "path_scope_ref",
+        "target_environment_ref",
+        "imported_run_ref",
+        "baseline_family_ref",
+        "scope_summary"
+      ],
+      "properties": {
+        "scope_kind_class": {
+          "$ref": "#/$defs/scope_kind_class"
+        },
+        "finding_or_cluster_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "uniqueItems": true
+        },
+        "rule_id_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "path_scope_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "target_environment_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "imported_run_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "baseline_family_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "truth_mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truth_mutation_class",
+        "mutation_artifact_ref",
+        "affected_diagnostic_count",
+        "affected_workspace_paths_count",
+        "affected_generated_path_count",
+        "affected_protected_path_count",
+        "summary"
+      ],
+      "properties": {
+        "truth_mutation_class": {
+          "$ref": "#/$defs/truth_mutation_class"
+        },
+        "mutation_artifact_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "affected_diagnostic_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "affected_workspace_paths_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "affected_generated_path_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "affected_protected_path_count": {
+          "$ref": "#/$defs/non_negative_int"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "owner_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_class",
+        "owner_ref",
+        "actor_class",
+        "actor_ref"
+      ],
+      "properties": {
+        "owner_class": {
+          "$ref": "#/$defs/owner_class"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "actor_class": {
+          "$ref": "#/$defs/actor_class"
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "review_timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "created_at",
+        "expiry_mode_class",
+        "expires_at",
+        "review_by_at"
+      ],
+      "properties": {
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expiry_mode_class": {
+          "$ref": "#/$defs/expiry_mode_class"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/timestamp"
+            }
+          ]
+        },
+        "review_by_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/timestamp"
+            }
+          ]
+        }
+      }
+    },
+
+    "validation_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_hint_classes",
+        "replay_hint_classes",
+        "validation_summary"
+      ],
+      "properties": {
+        "validation_hint_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation_hint_class"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replay_hint_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/replay_hint_class"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "validation_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "imported_baseline_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "import_session_ref",
+        "baseline_family_ref",
+        "run_descriptor_ref",
+        "comparison_state_class",
+        "delta_state_class",
+        "origin_artifact_scope_summary"
+      ],
+      "properties": {
+        "import_session_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "baseline_family_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "run_descriptor_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "comparison_state_class": {
+          "$ref": "#/$defs/comparison_state_class"
+        },
+        "delta_state_class": {
+          "$ref": "#/$defs/delta_state_class"
+        },
+        "origin_artifact_scope_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "suppression_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "suppression_review_schema_version",
+        "suppression_review_id",
+        "mutation_kind_class",
+        "target_scope",
+        "truth_mutation",
+        "owner",
+        "reason_summary",
+        "policy_lock_state_class",
+        "reopen_rule_class",
+        "review_timing",
+        "related_source_kind_classes",
+        "related_diagnostic_refs",
+        "evidence_refs",
+        "validation_plan",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "suppression_review_schema_version": {
+          "$ref": "#/$defs/suppression_review_schema_version"
+        },
+        "suppression_review_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "mutation_kind_class": {
+          "$ref": "#/$defs/mutation_kind_class"
+        },
+        "target_scope": {
+          "$ref": "#/$defs/target_scope"
+        },
+        "truth_mutation": {
+          "$ref": "#/$defs/truth_mutation"
+        },
+        "owner": {
+          "$ref": "#/$defs/owner_descriptor"
+        },
+        "reason_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "policy_lock_state_class": {
+          "$ref": "#/$defs/policy_lock_state_class"
+        },
+        "reopen_rule_class": {
+          "$ref": "#/$defs/reopen_rule_class"
+        },
+        "review_timing": {
+          "$ref": "#/$defs/review_timing"
+        },
+        "related_source_kind_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_kind_class"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "related_diagnostic_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "uniqueItems": true
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opaque_id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "validation_plan": {
+          "$ref": "#/$defs/validation_plan"
+        },
+        "imported_baseline_binding": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/imported_baseline_binding"
+            }
+          ]
+        },
+        "review_packet_ref": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/opaque_id"
+            }
+          ]
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    }
+  }
+}
